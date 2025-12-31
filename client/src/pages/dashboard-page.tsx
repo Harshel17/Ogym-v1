@@ -1,13 +1,15 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
-import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts } from "@/hooks/use-workouts";
+import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout } from "@/hooks/use-workouts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { useLocation } from "wouter";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -219,12 +221,15 @@ function TrainerDashboard() {
 }
 
 function MemberDashboard() {
-  const [, navigate] = useLocation();
+  const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
+  const [exerciseInputs, setExerciseInputs] = useState<Record<number, { sets: string; reps: string; weight: string }>>({});
+  
   const { data: attendance = [] } = useMemberAttendance();
   const { data: payments = [] } = useMemberPayments();
   const { data: stats } = useMemberStats();
   const { data: todayWorkout, isLoading: workoutLoading } = useTodayWorkout();
   const completeAllMutation = useCompleteAllWorkouts();
+  const completeWorkoutMutation = useCompleteWorkout();
 
   const attendanceList = attendance as any[];
   const paymentsList = payments as any[];
@@ -243,6 +248,7 @@ function MemberDashboard() {
 
   const allCompleted = workoutItems.length > 0 && workoutItems.every((i: any) => i.completed);
   const incompleteIds = workoutItems.filter((i: any) => !i.completed).map((i: any) => i.id);
+  const completedCount = workoutItems.filter((i: any) => i.completed).length;
 
   const handleMarkAllDone = () => {
     if (incompleteIds.length > 0) {
@@ -250,90 +256,177 @@ function MemberDashboard() {
     }
   };
 
+  const handleInputChange = (itemId: number, field: 'sets' | 'reps' | 'weight', value: string) => {
+    setExerciseInputs(prev => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleCompleteExercise = (item: any) => {
+    const inputs = exerciseInputs[item.id] || {};
+    completeWorkoutMutation.mutate({
+      workoutItemId: item.id,
+      actualSets: inputs.sets ? parseInt(inputs.sets) : item.sets,
+      actualReps: inputs.reps ? parseInt(inputs.reps) : item.reps,
+      actualWeight: inputs.weight || item.weight || undefined
+    });
+  };
+
   return (
     <div className="space-y-6">
-      <Card 
-        className="dashboard-card cursor-pointer hover-elevate" 
-        onClick={() => navigate('/my-workout')}
-        data-testid="card-today-workout"
-      >
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Dumbbell className="w-5 h-5 text-primary" />
-            <CardTitle>Your Workout Today</CardTitle>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {format(new Date(), 'EEEE, MMM d')}
-            </span>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          </div>
-        </CardHeader>
-        <CardContent onClick={(e) => e.stopPropagation()}>
-          {workoutLoading ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : workoutItems.length === 0 ? (
-            <p className="text-muted-foreground">No workout scheduled for today. Ask your trainer to create a workout plan!</p>
-          ) : (
-            <div className="space-y-4">
-              {Object.entries(groupedByBodyPart).map(([bodyPart, items]: [string, any]) => (
-                <div key={bodyPart}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="secondary" className="text-xs">{bodyPart}</Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {items.filter((i: any) => i.completed).length}/{items.length} done
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    {items.map((item: any) => (
-                      <div 
-                        key={item.id} 
-                        className={`flex items-center gap-3 p-2 rounded-md ${
-                          item.completed 
-                            ? 'bg-green-50 dark:bg-green-900/20' 
-                            : 'bg-muted/30'
-                        }`}
-                        data-testid={`workout-item-${item.id}`}
-                      >
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          item.completed 
-                            ? 'bg-green-500 text-white' 
-                            : 'bg-primary/10 text-primary'
-                        }`}>
-                          {item.completed ? <CheckCircle2 className="w-3 h-3" /> : item.orderIndex + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium truncate ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
-                            {item.exerciseName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {item.sets} sets x {item.reps} reps {item.weight ? `@ ${item.weight}` : ''}
-                          </p>
-                        </div>
-                        {item.muscleType && (
-                          <Badge variant="outline" className="text-xs hidden sm:inline-flex">{item.muscleType}</Badge>
-                        )}
+      <Collapsible open={isWorkoutOpen} onOpenChange={setIsWorkoutOpen}>
+        <Card className="dashboard-card" data-testid="card-today-workout">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer hover-elevate">
+              <div className="flex items-center gap-2">
+                <Dumbbell className="w-5 h-5 text-primary" />
+                <CardTitle>Your Workout Today</CardTitle>
+              </div>
+              <div className="flex items-center gap-2">
+                {workoutItems.length > 0 && (
+                  <Badge variant={allCompleted ? "default" : "secondary"} className="text-xs">
+                    {completedCount}/{workoutItems.length} done
+                  </Badge>
+                )}
+                <span className="text-sm text-muted-foreground hidden sm:inline">
+                  {format(new Date(), 'EEEE, MMM d')}
+                </span>
+                {isWorkoutOpen ? (
+                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          
+          <CollapsibleContent>
+            <CardContent>
+              {workoutLoading ? (
+                <p className="text-muted-foreground">Loading...</p>
+              ) : workoutItems.length === 0 ? (
+                <p className="text-muted-foreground">No workout scheduled for today. Ask your trainer to create a workout plan!</p>
+              ) : (
+                <div className="space-y-6">
+                  {Object.entries(groupedByBodyPart).map(([bodyPart, items]: [string, any]) => (
+                    <div key={bodyPart}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Badge variant="secondary">{bodyPart}</Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {items.filter((i: any) => i.completed).length}/{items.length} completed
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                      <div className="space-y-3">
+                        {items.map((item: any) => {
+                          const inputs = exerciseInputs[item.id] || {};
+                          return (
+                            <Card 
+                              key={item.id} 
+                              className={`${item.completed ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : ''}`}
+                              data-testid={`workout-item-${item.id}`}
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between gap-3 mb-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                      item.completed 
+                                        ? 'bg-green-500 text-white' 
+                                        : 'bg-primary/10 text-primary'
+                                    }`}>
+                                      {item.completed ? <CheckCircle2 className="w-4 h-4" /> : item.orderIndex + 1}
+                                    </div>
+                                    <div>
+                                      <p className={`font-medium ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                        {item.exerciseName}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        Target: {item.sets} sets x {item.reps} reps {item.weight ? `@ ${item.weight}` : ''}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {item.muscleType && (
+                                    <Badge variant="outline" className="text-xs">{item.muscleType}</Badge>
+                                  )}
+                                </div>
+                                
+                                {!item.completed && (
+                                  <div className="space-y-3">
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div>
+                                        <label className="text-xs text-muted-foreground mb-1 block">Sets</label>
+                                        <Input
+                                          type="number"
+                                          placeholder={String(item.sets)}
+                                          value={inputs.sets || ''}
+                                          onChange={(e) => handleInputChange(item.id, 'sets', e.target.value)}
+                                          className="h-9"
+                                          data-testid={`input-sets-${item.id}`}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs text-muted-foreground mb-1 block">Reps</label>
+                                        <Input
+                                          type="number"
+                                          placeholder={String(item.reps)}
+                                          value={inputs.reps || ''}
+                                          onChange={(e) => handleInputChange(item.id, 'reps', e.target.value)}
+                                          className="h-9"
+                                          data-testid={`input-reps-${item.id}`}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs text-muted-foreground mb-1 block">Weight</label>
+                                        <Input
+                                          type="text"
+                                          placeholder={item.weight || '-'}
+                                          value={inputs.weight || ''}
+                                          onChange={(e) => handleInputChange(item.id, 'weight', e.target.value)}
+                                          className="h-9"
+                                          data-testid={`input-weight-${item.id}`}
+                                        />
+                                      </div>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      className="w-full"
+                                      onClick={() => handleCompleteExercise(item)}
+                                      disabled={completeWorkoutMutation.isPending}
+                                      data-testid={`button-complete-${item.id}`}
+                                    >
+                                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                                      Mark Complete
+                                    </Button>
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
 
-              {!allCompleted && (
-                <Button 
-                  className="w-full"
-                  onClick={handleMarkAllDone}
-                  disabled={completeAllMutation.isPending}
-                  data-testid="button-mark-all-done"
-                >
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Mark All as Done
-                </Button>
+                  {!allCompleted && (
+                    <Button 
+                      className="w-full"
+                      onClick={handleMarkAllDone}
+                      disabled={completeAllMutation.isPending}
+                      data-testid="button-mark-all-done"
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Mark All as Done
+                    </Button>
+                  )}
+                </div>
               )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {memberStats && (
         <div className="grid grid-cols-3 gap-4">
