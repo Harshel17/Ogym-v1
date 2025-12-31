@@ -222,6 +222,7 @@ function TrainerDashboard() {
 
 function MemberDashboard() {
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
+  const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [exerciseInputs, setExerciseInputs] = useState<Record<number, { sets: string; reps: string; weight: string }>>({});
   
   const { data: attendance = [] } = useMemberAttendance();
@@ -238,13 +239,6 @@ function MemberDashboard() {
 
   const attendedCount = attendanceList.length;
   const lastPayment = paymentsList[0];
-
-  const groupedByBodyPart = workoutItems.reduce((acc: any, item: any) => {
-    const part = item.bodyPart || 'Other';
-    if (!acc[part]) acc[part] = [];
-    acc[part].push(item);
-    return acc;
-  }, {});
 
   const allCompleted = workoutItems.length > 0 && workoutItems.every((i: any) => i.completed);
   const incompleteIds = workoutItems.filter((i: any) => !i.completed).map((i: any) => i.id);
@@ -274,6 +268,16 @@ function MemberDashboard() {
       actualReps: inputs.reps ? parseInt(inputs.reps) : item.reps,
       actualWeight: inputs.weight || item.weight || undefined
     });
+    setExpandedItem(null);
+  };
+
+  const handleQuickComplete = (item: any) => {
+    completeWorkoutMutation.mutate({
+      workoutItemId: item.id,
+      actualSets: item.sets,
+      actualReps: item.reps,
+      actualWeight: item.weight || undefined
+    });
   };
 
   return (
@@ -284,17 +288,14 @@ function MemberDashboard() {
             <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer hover-elevate">
               <div className="flex items-center gap-2">
                 <Dumbbell className="w-5 h-5 text-primary" />
-                <CardTitle>Your Workout Today</CardTitle>
+                <CardTitle className="text-lg">Today's Workout</CardTitle>
               </div>
               <div className="flex items-center gap-2">
                 {workoutItems.length > 0 && (
-                  <Badge variant={allCompleted ? "default" : "secondary"} className="text-xs">
-                    {completedCount}/{workoutItems.length} done
+                  <Badge variant={allCompleted ? "default" : "secondary"}>
+                    {completedCount}/{workoutItems.length}
                   </Badge>
                 )}
-                <span className="text-sm text-muted-foreground hidden sm:inline">
-                  {format(new Date(), 'EEEE, MMM d')}
-                </span>
                 {isWorkoutOpen ? (
                   <ChevronUp className="w-5 h-5 text-muted-foreground" />
                 ) : (
@@ -305,120 +306,134 @@ function MemberDashboard() {
           </CollapsibleTrigger>
           
           <CollapsibleContent>
-            <CardContent>
+            <CardContent className="pt-0">
               {workoutLoading ? (
-                <p className="text-muted-foreground">Loading...</p>
+                <p className="text-muted-foreground text-center py-4">Loading...</p>
               ) : workoutItems.length === 0 ? (
-                <p className="text-muted-foreground">No workout scheduled for today. Ask your trainer to create a workout plan!</p>
+                <p className="text-muted-foreground text-center py-4">No workout scheduled for today.</p>
               ) : (
-                <div className="space-y-6">
-                  {Object.entries(groupedByBodyPart).map(([bodyPart, items]: [string, any]) => (
-                    <div key={bodyPart}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Badge variant="secondary">{bodyPart}</Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {items.filter((i: any) => i.completed).length}/{items.length} completed
-                        </span>
-                      </div>
-                      <div className="space-y-3">
-                        {items.map((item: any) => {
-                          const inputs = exerciseInputs[item.id] || {};
-                          return (
-                            <Card 
-                              key={item.id} 
-                              className={`${item.completed ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : ''}`}
-                              data-testid={`workout-item-${item.id}`}
-                            >
-                              <CardContent className="p-4">
-                                <div className="flex items-start justify-between gap-3 mb-3">
-                                  <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                      item.completed 
-                                        ? 'bg-green-500 text-white' 
-                                        : 'bg-primary/10 text-primary'
-                                    }`}>
-                                      {item.completed ? <CheckCircle2 className="w-4 h-4" /> : item.orderIndex + 1}
-                                    </div>
-                                    <div>
-                                      <p className={`font-medium ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
-                                        {item.exerciseName}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        Target: {item.sets} sets x {item.reps} reps {item.weight ? `@ ${item.weight}` : ''}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  {item.muscleType && (
-                                    <Badge variant="outline" className="text-xs">{item.muscleType}</Badge>
-                                  )}
-                                </div>
-                                
-                                {!item.completed && (
-                                  <div className="space-y-3">
-                                    <div className="grid grid-cols-3 gap-2">
-                                      <div>
-                                        <label className="text-xs text-muted-foreground mb-1 block">Sets</label>
-                                        <Input
-                                          type="number"
-                                          placeholder={String(item.sets)}
-                                          value={inputs.sets || ''}
-                                          onChange={(e) => handleInputChange(item.id, 'sets', e.target.value)}
-                                          className="h-9"
-                                          data-testid={`input-sets-${item.id}`}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="text-xs text-muted-foreground mb-1 block">Reps</label>
-                                        <Input
-                                          type="number"
-                                          placeholder={String(item.reps)}
-                                          value={inputs.reps || ''}
-                                          onChange={(e) => handleInputChange(item.id, 'reps', e.target.value)}
-                                          className="h-9"
-                                          data-testid={`input-reps-${item.id}`}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="text-xs text-muted-foreground mb-1 block">Weight</label>
-                                        <Input
-                                          type="text"
-                                          placeholder={item.weight || '-'}
-                                          value={inputs.weight || ''}
-                                          onChange={(e) => handleInputChange(item.id, 'weight', e.target.value)}
-                                          className="h-9"
-                                          data-testid={`input-weight-${item.id}`}
-                                        />
-                                      </div>
-                                    </div>
-                                    <Button
-                                      size="sm"
-                                      className="w-full"
-                                      onClick={() => handleCompleteExercise(item)}
-                                      disabled={completeWorkoutMutation.isPending}
-                                      data-testid={`button-complete-${item.id}`}
-                                    >
-                                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                                      Mark Complete
-                                    </Button>
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                <div className="space-y-2">
+                  {workoutItems.map((item: any, index: number) => {
+                    const isExpanded = expandedItem === item.id;
+                    const inputs = exerciseInputs[item.id] || {};
+                    
+                    return (
+                      <div 
+                        key={item.id}
+                        className={`rounded-lg border transition-colors ${
+                          item.completed 
+                            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+                            : 'bg-muted/30 border-transparent'
+                        }`}
+                        data-testid={`workout-item-${item.id}`}
+                      >
+                        <div className="flex items-center gap-3 p-3">
+                          <button
+                            onClick={() => !item.completed && handleQuickComplete(item)}
+                            disabled={item.completed || completeWorkoutMutation.isPending}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                              item.completed 
+                                ? 'bg-green-500 text-white cursor-default' 
+                                : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'
+                            }`}
+                            data-testid={`button-quick-complete-${item.id}`}
+                          >
+                            {item.completed ? (
+                              <CheckCircle2 className="w-4 h-4" />
+                            ) : (
+                              <span className="text-xs font-semibold">{index + 1}</span>
+                            )}
+                          </button>
+                          
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-medium text-sm ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                              {item.exerciseName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.sets}x{item.reps} {item.weight ? `@ ${item.weight}` : ''}
+                            </p>
+                          </div>
 
-                  {!allCompleted && (
+                          {!item.completed && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setExpandedItem(isExpanded ? null : item.id)}
+                              data-testid={`button-expand-${item.id}`}
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {isExpanded && !item.completed && (
+                          <div className="px-3 pb-3 pt-0 space-y-3 border-t border-border/50 mt-1">
+                            <p className="text-xs text-muted-foreground pt-2">Log your actual performance:</p>
+                            <div className="grid grid-cols-3 gap-2">
+                              <div>
+                                <label className="text-xs text-muted-foreground mb-1 block">Sets</label>
+                                <Input
+                                  type="number"
+                                  placeholder={String(item.sets)}
+                                  value={inputs.sets || ''}
+                                  onChange={(e) => handleInputChange(item.id, 'sets', e.target.value)}
+                                  className="h-9"
+                                  data-testid={`input-sets-${item.id}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-muted-foreground mb-1 block">Reps</label>
+                                <Input
+                                  type="number"
+                                  placeholder={String(item.reps)}
+                                  value={inputs.reps || ''}
+                                  onChange={(e) => handleInputChange(item.id, 'reps', e.target.value)}
+                                  className="h-9"
+                                  data-testid={`input-reps-${item.id}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-muted-foreground mb-1 block">Weight</label>
+                                <Input
+                                  type="text"
+                                  placeholder={item.weight || '-'}
+                                  value={inputs.weight || ''}
+                                  onChange={(e) => handleInputChange(item.id, 'weight', e.target.value)}
+                                  className="h-9"
+                                  data-testid={`input-weight-${item.id}`}
+                                />
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              className="w-full"
+                              onClick={() => handleCompleteExercise(item)}
+                              disabled={completeWorkoutMutation.isPending}
+                              data-testid={`button-complete-${item.id}`}
+                            >
+                              <CheckCircle2 className="w-4 h-4 mr-2" />
+                              Complete with Custom Values
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {!allCompleted && workoutItems.length > 1 && (
                     <Button 
-                      className="w-full"
+                      variant="outline"
+                      className="w-full mt-3"
                       onClick={handleMarkAllDone}
                       disabled={completeAllMutation.isPending}
                       data-testid="button-mark-all-done"
                     >
                       <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Mark All as Done
+                      Complete All Remaining
                     </Button>
                   )}
                 </div>
