@@ -122,6 +122,7 @@ function useLogoutMutation() {
       if (!res.ok) throw new Error("Logout failed");
     },
     onSuccess: () => {
+      queryClient.clear();
       queryClient.setQueryData(["/api/auth/me"], null);
       toast({
         title: "Logged out",
