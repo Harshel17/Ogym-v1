@@ -20,6 +20,7 @@ type MemberOverview = {
 
 function MemberDetailPanel({ memberId }: { memberId: number }) {
   const [showHistory, setShowHistory] = useState(false);
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
   
   const { data: overview, isLoading } = useQuery<MemberOverview>({
     queryKey: [`/api/owner/members/${memberId}/overview`],
@@ -43,6 +44,14 @@ function MemberDetailPanel({ memberId }: { memberId: number }) {
   }
 
   const { cycle, history } = overview;
+
+  const historyByDate = history.reduce((acc: Record<string, typeof history>, entry) => {
+    if (!acc[entry.completedDate]) {
+      acc[entry.completedDate] = [];
+    }
+    acc[entry.completedDate].push(entry);
+    return acc;
+  }, {});
 
   return (
     <div className="p-4 border-t bg-muted/20 space-y-4">
@@ -107,30 +116,61 @@ function MemberDetailPanel({ memberId }: { memberId: number }) {
         >
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4" />
-            <span>Workout History ({history.length})</span>
+            <span>Workout History ({Object.keys(historyByDate).length} days)</span>
           </div>
           {showHistory ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </Button>
         
         {showHistory && (
-          <div className="mt-3 space-y-2 max-h-60 overflow-y-auto">
-            {history.length === 0 ? (
+          <div className="mt-3 space-y-2 max-h-80 overflow-y-auto">
+            {Object.keys(historyByDate).length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-2">No workout history yet.</p>
             ) : (
-              history.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between p-2 bg-background/50 rounded text-sm">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-3 h-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">{entry.completedDate}</span>
-                    <span>{entry.exerciseName}</span>
-                    {entry.muscleType && <Badge variant="outline" className="text-xs">{entry.muscleType}</Badge>}
+              Object.entries(historyByDate).map(([date, exercises]) => {
+                const muscleTypes = Array.from(new Set(exercises.map(e => e.muscleType).filter(Boolean)));
+                const isExpanded = expandedDate === date;
+                
+                return (
+                  <div key={date} className="border rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setExpandedDate(isExpanded ? null : date)}
+                      className="w-full flex items-center justify-between p-3 bg-background/50 hover-elevate cursor-pointer text-left"
+                      data-testid={`button-history-date-${date}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-sm">{date}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {muscleTypes.length > 0 ? muscleTypes.join(" + ") : "Workout"}
+                        </span>
+                        <Badge variant="secondary" className="text-xs">{exercises.length} exercises</Badge>
+                      </div>
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                    
+                    {isExpanded && (
+                      <div className="p-3 border-t bg-muted/20 space-y-2">
+                        {exercises.map((entry) => (
+                          <div key={entry.id} className="flex items-center justify-between p-2 bg-background/50 rounded text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{entry.exerciseName}</span>
+                              {entry.muscleType && <Badge variant="outline" className="text-xs">{entry.muscleType}</Badge>}
+                            </div>
+                            <div className="text-sm">
+                              {entry.actualSets && entry.actualReps ? (
+                                <span className="font-medium">{entry.actualSets}x{entry.actualReps}</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                              {entry.actualWeight && <span className="text-muted-foreground ml-1">@ {entry.actualWeight}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {entry.actualSets && entry.actualReps && `${entry.actualSets}x${entry.actualReps}`}
-                    {entry.actualWeight && ` @ ${entry.actualWeight}`}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
