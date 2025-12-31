@@ -162,6 +162,18 @@ export async function registerRoutes(
     res.json({ type: "ogym_checkin", gym_code: gym?.code });
   });
 
+  app.get("/api/owner/members/:memberId/overview", requireRole(["owner"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    if (isNaN(memberId)) {
+      return res.status(400).json({ message: "Invalid member ID" });
+    }
+    const overview = await storage.getMemberOverview(req.user!.gymId!, memberId);
+    if (!overview.member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+    res.json(overview);
+  });
+
   // === ATTENDANCE ROUTES ===
   app.post("/api/attendance/checkin", requireRole(["member"]), async (req, res) => {
     const schema = z.object({ gym_code: z.string() });

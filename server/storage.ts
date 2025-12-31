@@ -63,6 +63,11 @@ export interface IStorage {
   getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }>;
   getActivityFeed(gymId: number, memberIds: number[]): Promise<any[]>;
   getGymTrainersWithMembers(gymId: number): Promise<{ trainer: User; members: User[] }[]>;
+  getMemberOverview(gymId: number, memberId: number): Promise<{
+    member: User | null;
+    cycle: (WorkoutCycle & { items: WorkoutItem[]; trainerName: string }) | null;
+    history: { id: number; exerciseName: string; muscleType: string | null; completedDate: string; actualSets: number | null; actualReps: number | null; actualWeight: string | null }[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -355,6 +360,50 @@ export class DatabaseStorage implements IStorage {
     }
     
     return result;
+  }
+
+  async getMemberOverview(gymId: number, memberId: number): Promise<{
+    member: User | null;
+    cycle: (WorkoutCycle & { items: WorkoutItem[]; trainerName: string }) | null;
+    history: { id: number; exerciseName: string; muscleType: string | null; completedDate: string; actualSets: number | null; actualReps: number | null; actualWeight: string | null }[];
+  }> {
+    const [member] = await db.select().from(users)
+      .where(and(eq(users.id, memberId), eq(users.gymId, gymId), eq(users.role, "member")));
+    
+    if (!member) {
+      return { member: null, cycle: null, history: [] };
+    }
+
+    const cycle = await this.getMemberCycle(memberId);
+    let cycleWithDetails = null;
+    
+    if (cycle) {
+      const items = await this.getWorkoutItems(cycle.id);
+      const [trainer] = await db.select().from(users).where(eq(users.id, cycle.trainerId));
+      cycleWithDetails = { ...cycle, items, trainerName: trainer?.username || "Unknown" };
+    }
+
+    const completionsWithItems = await db.select({
+      completion: workoutCompletions,
+      workoutItem: workoutItems
+    })
+    .from(workoutCompletions)
+    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .where(eq(workoutCompletions.memberId, memberId))
+    .orderBy(desc(workoutCompletions.completedDate))
+    .limit(50);
+
+    const history = completionsWithItems.map(c => ({
+      id: c.completion.id,
+      exerciseName: c.workoutItem.exerciseName,
+      muscleType: c.workoutItem.muscleType,
+      completedDate: c.completion.completedDate,
+      actualSets: c.completion.actualSets,
+      actualReps: c.completion.actualReps,
+      actualWeight: c.completion.actualWeight
+    }));
+
+    return { member, cycle: cycleWithDetails, history };
   }
 }
 
