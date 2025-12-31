@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User } from "lucide-react";
+import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -286,11 +286,11 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
                     ) : (
                       <button
                         onClick={() => setEditingDay(dayIndex)}
-                        className="font-semibold text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                        className="font-semibold text-sm flex items-center gap-2 px-2 py-1 rounded-md bg-muted/50 hover:bg-muted transition-colors"
                         data-testid={`button-edit-day-label-${dayIndex}`}
                       >
-                        {dayLabel}
-                        <span className="text-xs opacity-50">(click to name)</span>
+                        <span>{dayLabel}</span>
+                        <Pencil className="w-3 h-3 text-muted-foreground" />
                       </button>
                     )}
                   </div>
