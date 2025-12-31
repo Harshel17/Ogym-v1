@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp } from "lucide-react";
 
-const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 interface ExerciseInputs {
   [id: number]: {
@@ -122,7 +121,7 @@ export default function MemberWorkoutPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <div>
-              <CardTitle>Today - {days[today?.dayOfWeek || 0]}</CardTitle>
+              <CardTitle>Today - {today?.dayLabel || `Day ${(today?.dayIndex ?? 0) + 1}`}</CardTitle>
               {today?.cycleName && (
                 <p className="text-sm text-muted-foreground">{today.cycleName}</p>
               )}
@@ -262,18 +261,25 @@ export default function MemberWorkoutPage() {
       {!cycleLoading && cycle && cycle.items && (
         <Card>
           <CardHeader>
-            <CardTitle>Full Week Schedule</CardTitle>
+            <CardTitle>Full Cycle Schedule</CardTitle>
             <p className="text-sm text-muted-foreground">{cycle.name} - {cycle.startDate} to {cycle.endDate}</p>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {days.map((day, dayIndex) => {
-                const dayItems = cycle.items.filter((w: any) => w.dayOfWeek === dayIndex);
+              {Array.from({ length: cycle.cycleLength || 3 }, (_, idx) => {
+                const dayLabel = cycle.dayLabels?.[idx] || `Day ${idx + 1}`;
+                const dayItems = cycle.items.filter((w: any) => w.dayIndex === idx);
+                const muscleTypes = Array.from(new Set(dayItems.map((w: any) => w.muscleType).filter(Boolean)));
                 return (
-                  <div key={dayIndex}>
-                    <h3 className="font-semibold text-sm mb-2">{day}</h3>
+                  <div key={idx}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-semibold text-sm">{dayLabel}</h3>
+                      {muscleTypes.length > 0 && (
+                        <span className="text-xs text-muted-foreground">({muscleTypes.join(" + ")})</span>
+                      )}
+                    </div>
                     {dayItems.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Rest day</p>
+                      <p className="text-xs text-muted-foreground">No exercises assigned</p>
                     ) : (
                       <div className="space-y-1 text-sm">
                         {dayItems.map((w: any) => (
