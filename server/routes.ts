@@ -225,6 +225,13 @@ export async function registerRoutes(
 
   app.post(api.trainer.createCycle.path, requireRole(['trainer']), async (req, res) => {
     const input = api.trainer.createCycle.input.parse(req.body);
+    
+    // Verify member is assigned to this trainer
+    const assignments = await storage.getTrainerMembers(req.user!.id);
+    if (!assignments.some(a => a.memberId === input.memberId)) {
+      return res.status(403).json({ message: "Member not assigned to you" });
+    }
+    
     const cycle = await storage.createWorkoutCycle({
       ...input,
       gymId: req.user!.gymId!,
@@ -252,6 +259,18 @@ export async function registerRoutes(
 
   app.post(api.member.completeWorkout.path, requireRole(['member']), async (req, res) => {
     const input = api.member.completeWorkout.input.parse(req.body);
+    
+    // Verify workout belongs to member's cycle
+    const memberCycle = await storage.getMemberCycle(req.user!.id);
+    if (!memberCycle) {
+      return res.status(403).json({ message: "No workout cycle assigned" });
+    }
+    
+    const workouts = await storage.getWorkoutsByCycle(memberCycle.id);
+    if (!workouts.some(w => w.id === input.workoutId)) {
+      return res.status(403).json({ message: "Workout not in your cycle" });
+    }
+    
     const completion = await storage.completeWorkout({
       ...input,
       memberId: req.user!.id
