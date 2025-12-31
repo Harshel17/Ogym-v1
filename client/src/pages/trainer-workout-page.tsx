@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useMembers } from "@/hooks/use-gym";
-import { useTrainerCycles, useCreateCycle, useAddWorkout } from "@/hooks/use-workouts";
+import { useTrainerCycles, useTrainerMembers, useCreateCycle, useAddWorkoutItem, useTrainerActivity } from "@/hooks/use-workouts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,18 +18,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Shield, Plus, Dumbbell } from "lucide-react";
+import { Shield, Plus, Dumbbell, Activity } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { formatDistanceToNow } from "date-fns";
 
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default function TrainerWorkoutPage() {
   const { user } = useAuth();
-  const { data: members = [], isLoading: membersLoading } = useMembers();
+  const { data: members = [], isLoading: membersLoading } = useTrainerMembers();
   const { data: cycles = [], isLoading: cyclesLoading } = useTrainerCycles();
+  const { data: activity = [], isLoading: activityLoading } = useTrainerActivity();
 
   if (user?.role !== "trainer") {
     return (
@@ -49,12 +50,12 @@ export default function TrainerWorkoutPage() {
           <h2 className="text-3xl font-bold font-display text-foreground">Workout Cycles</h2>
           <p className="text-muted-foreground mt-1">Create and manage workout plans for your members.</p>
         </div>
-        <CreateCycleDialog members={members} />
+        <CreateCycleDialog members={members as any[]} />
       </div>
 
       {cyclesLoading ? (
         <p className="text-muted-foreground">Loading cycles...</p>
-      ) : cycles.length === 0 ? (
+      ) : (cycles as any[]).length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Dumbbell className="w-12 h-12 text-muted-foreground mb-4" />
@@ -64,8 +65,8 @@ export default function TrainerWorkoutPage() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {cycles.map((cycle) => {
-            const member = members.find(m => m.id === cycle.memberId);
+          {(cycles as any[]).map((cycle) => {
+            const member = (members as any[]).find(m => m.id === cycle.memberId);
             return (
               <Card key={cycle.id}>
                 <CardHeader className="flex flex-row items-start justify-between gap-2">
@@ -82,6 +83,34 @@ export default function TrainerWorkoutPage() {
           })}
         </div>
       )}
+
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2">
+          <Activity className="w-5 h-5" />
+          <CardTitle>Recent Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {activityLoading ? (
+            <p className="text-muted-foreground">Loading activity...</p>
+          ) : (activity as any[]).length === 0 ? (
+            <p className="text-muted-foreground">No recent activity from your members.</p>
+          ) : (
+            <div className="space-y-3">
+              {(activity as any[]).slice(0, 10).map((item, idx) => (
+                <div key={idx} className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{item.memberName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Completed {item.exerciseName} - {item.date}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -118,7 +147,7 @@ function CreateCycleDialog({ members }: { members: any[] }) {
           <Plus className="w-4 h-4 mr-2" /> New Cycle
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Create Workout Cycle</DialogTitle>
         </DialogHeader>
@@ -137,7 +166,7 @@ function CreateCycleDialog({ members }: { members: any[] }) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {members.filter(m => m.role === 'member').map((m) => (
+                      {members.map((m) => (
                         <SelectItem key={m.id} value={m.id.toString()}>
                           {m.username}
                         </SelectItem>
@@ -202,11 +231,11 @@ function CreateCycleDialog({ members }: { members: any[] }) {
 
 function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
   const [open, setOpen] = useState(false);
-  const addWorkoutMutation = useAddWorkout();
+  const addWorkoutMutation = useAddWorkoutItem();
 
   const formSchema = z.object({
     dayOfWeek: z.coerce.number().min(0).max(6),
-    exercise: z.string().min(1, "Exercise name is required"),
+    exerciseName: z.string().min(1, "Exercise name is required"),
     sets: z.coerce.number().min(1, "At least 1 set"),
     reps: z.coerce.number().min(1, "At least 1 rep"),
     weight: z.string().optional(),
@@ -214,7 +243,7 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { exercise: "", sets: 3, reps: 10, weight: "" },
+    defaultValues: { exerciseName: "", sets: 3, reps: 10, weight: "" },
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
@@ -233,7 +262,7 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
           <Plus className="w-4 h-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Add Exercise</DialogTitle>
         </DialogHeader>
@@ -263,7 +292,7 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
             />
             <FormField
               control={form.control}
-              name="exercise"
+              name="exerciseName"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Exercise</FormLabel>

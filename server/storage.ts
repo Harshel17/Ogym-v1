@@ -1,15 +1,15 @@
 import { 
-  users, gyms, attendance, payments, trainerMembers, workoutCycles, workouts, workoutCompletions,
+  users, gyms, attendance, payments, trainerMembers, workoutCycles, workoutItems, workoutCompletions,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
   type TrainerMember,
   type WorkoutCycle, type InsertWorkoutCycle,
-  type Workout, type InsertWorkout,
+  type WorkoutItem, type InsertWorkoutItem,
   type WorkoutCompletion, type InsertWorkoutCompletion
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray, gte, sql } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -32,13 +32,18 @@ export interface IStorage {
   getGymTrainers(gymId: number): Promise<User[]>;
   assignTrainer(trainerId: number, memberId: number, gymId: number): Promise<TrainerMember>;
   getTrainerMembers(trainerId: number): Promise<TrainerMember[]>;
+  getGymAssignments(gymId: number): Promise<TrainerMember[]>;
   
   // Attendance
-  getAttendance(gymId: number, memberId?: number, date?: string): Promise<(Attendance & { member: User })[]>;
+  getAttendance(gymId: number): Promise<(Attendance & { member: User })[]>;
+  getMemberAttendance(memberId: number): Promise<Attendance[]>;
+  getAttendanceByMemberDate(memberId: number, date: string): Promise<Attendance | undefined>;
   markAttendance(data: InsertAttendance): Promise<Attendance>;
+  updateAttendanceMethod(id: number, method: string): Promise<void>;
   
   // Payments
-  getPayments(gymId: number, memberId?: number, month?: string): Promise<(Payment & { member: User })[]>;
+  getPayments(gymId: number): Promise<(Payment & { member: User })[]>;
+  getMemberPayments(memberId: number): Promise<Payment[]>;
   markPayment(data: InsertPayment): Promise<Payment>;
   
   // Workout Cycles
@@ -46,11 +51,16 @@ export interface IStorage {
   getTrainerCycles(trainerId: number): Promise<WorkoutCycle[]>;
   getMemberCycle(memberId: number): Promise<WorkoutCycle | undefined>;
   getCycle(cycleId: number): Promise<WorkoutCycle | undefined>;
-  addWorkout(data: InsertWorkout): Promise<Workout>;
-  getWorkoutsByCycle(cycleId: number): Promise<Workout[]>;
-  getMemberWorkouts(memberId: number): Promise<Workout[]>;
+  addWorkoutItem(data: InsertWorkoutItem): Promise<WorkoutItem>;
+  getWorkoutItems(cycleId: number): Promise<WorkoutItem[]>;
+  getWorkoutItemsByDay(cycleId: number, dayOfWeek: number): Promise<WorkoutItem[]>;
+  getWorkoutItem(id: number): Promise<WorkoutItem | undefined>;
   completeWorkout(data: InsertWorkoutCompletion): Promise<WorkoutCompletion>;
   getCompletions(memberId: number, date: string): Promise<WorkoutCompletion[]>;
+  getCompletionByItemDate(workoutItemId: number, memberId: number, date: string): Promise<WorkoutCompletion | undefined>;
+  getMemberWorkoutHistory(memberId: number): Promise<WorkoutCompletion[]>;
+  getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }>;
+  getActivityFeed(gymId: number, memberIds: number[]): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -114,21 +124,33 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(trainerMembers).where(eq(trainerMembers.trainerId, trainerId));
   }
 
-  async getAttendance(gymId: number, memberId?: number, date?: string): Promise<(Attendance & { member: User })[]> {
-    let conditions = [eq(attendance.gymId, gymId)];
-    if (memberId) conditions.push(eq(attendance.memberId, memberId));
-    if (date) conditions.push(eq(attendance.date, date));
+  async getGymAssignments(gymId: number): Promise<TrainerMember[]> {
+    return await db.select().from(trainerMembers).where(eq(trainerMembers.gymId, gymId));
+  }
 
+  async getAttendance(gymId: number): Promise<(Attendance & { member: User })[]> {
     const result = await db.select({
       attendance: attendance,
       member: users
     })
     .from(attendance)
     .innerJoin(users, eq(attendance.memberId, users.id))
-    .where(and(...conditions))
+    .where(eq(attendance.gymId, gymId))
     .orderBy(desc(attendance.date));
 
     return result.map(r => ({ ...r.attendance, member: r.member }));
+  }
+
+  async getMemberAttendance(memberId: number): Promise<Attendance[]> {
+    return await db.select().from(attendance)
+      .where(eq(attendance.memberId, memberId))
+      .orderBy(desc(attendance.date));
+  }
+
+  async getAttendanceByMemberDate(memberId: number, date: string): Promise<Attendance | undefined> {
+    const [record] = await db.select().from(attendance)
+      .where(and(eq(attendance.memberId, memberId), eq(attendance.date, date)));
+    return record;
   }
 
   async markAttendance(data: InsertAttendance): Promise<Attendance> {
@@ -136,21 +158,27 @@ export class DatabaseStorage implements IStorage {
     return record;
   }
 
-  async getPayments(gymId: number, memberId?: number, month?: string): Promise<(Payment & { member: User })[]> {
-    let conditions = [eq(payments.gymId, gymId)];
-    if (memberId) conditions.push(eq(payments.memberId, memberId));
-    if (month) conditions.push(eq(payments.month, month));
+  async updateAttendanceMethod(id: number, method: string): Promise<void> {
+    await db.update(attendance).set({ verifiedMethod: method as any }).where(eq(attendance.id, id));
+  }
 
+  async getPayments(gymId: number): Promise<(Payment & { member: User })[]> {
     const result = await db.select({
       payment: payments,
       member: users
     })
     .from(payments)
     .innerJoin(users, eq(payments.memberId, users.id))
-    .where(and(...conditions))
+    .where(eq(payments.gymId, gymId))
     .orderBy(desc(payments.month));
 
     return result.map(r => ({ ...r.payment, member: r.member }));
+  }
+
+  async getMemberPayments(memberId: number): Promise<Payment[]> {
+    return await db.select().from(payments)
+      .where(eq(payments.memberId, memberId))
+      .orderBy(desc(payments.month));
   }
 
   async markPayment(data: InsertPayment): Promise<Payment> {
@@ -168,7 +196,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMemberCycle(memberId: number): Promise<WorkoutCycle | undefined> {
-    const [cycle] = await db.select().from(workoutCycles).where(eq(workoutCycles.memberId, memberId));
+    const [cycle] = await db.select().from(workoutCycles)
+      .where(and(eq(workoutCycles.memberId, memberId), eq(workoutCycles.isActive, true)));
     return cycle;
   }
 
@@ -177,19 +206,26 @@ export class DatabaseStorage implements IStorage {
     return cycle;
   }
 
-  async addWorkout(data: InsertWorkout): Promise<Workout> {
-    const [workout] = await db.insert(workouts).values(data).returning();
-    return workout;
+  async addWorkoutItem(data: InsertWorkoutItem): Promise<WorkoutItem> {
+    const [item] = await db.insert(workoutItems).values(data).returning();
+    return item;
   }
 
-  async getWorkoutsByCycle(cycleId: number): Promise<Workout[]> {
-    return await db.select().from(workouts).where(eq(workouts.cycleId, cycleId));
+  async getWorkoutItems(cycleId: number): Promise<WorkoutItem[]> {
+    return await db.select().from(workoutItems)
+      .where(eq(workoutItems.cycleId, cycleId))
+      .orderBy(workoutItems.dayOfWeek, workoutItems.orderIndex);
   }
 
-  async getMemberWorkouts(memberId: number): Promise<Workout[]> {
-    const cycle = await this.getMemberCycle(memberId);
-    if (!cycle) return [];
-    return await this.getWorkoutsByCycle(cycle.id);
+  async getWorkoutItemsByDay(cycleId: number, dayOfWeek: number): Promise<WorkoutItem[]> {
+    return await db.select().from(workoutItems)
+      .where(and(eq(workoutItems.cycleId, cycleId), eq(workoutItems.dayOfWeek, dayOfWeek)))
+      .orderBy(workoutItems.orderIndex);
+  }
+
+  async getWorkoutItem(id: number): Promise<WorkoutItem | undefined> {
+    const [item] = await db.select().from(workoutItems).where(eq(workoutItems.id, id));
+    return item;
   }
 
   async completeWorkout(data: InsertWorkoutCompletion): Promise<WorkoutCompletion> {
@@ -199,8 +235,86 @@ export class DatabaseStorage implements IStorage {
 
   async getCompletions(memberId: number, date: string): Promise<WorkoutCompletion[]> {
     return await db.select().from(workoutCompletions).where(
-      and(eq(workoutCompletions.memberId, memberId), eq(workoutCompletions.date, date))
+      and(eq(workoutCompletions.memberId, memberId), eq(workoutCompletions.completedDate, date))
     );
+  }
+
+  async getCompletionByItemDate(workoutItemId: number, memberId: number, date: string): Promise<WorkoutCompletion | undefined> {
+    const [record] = await db.select().from(workoutCompletions).where(
+      and(
+        eq(workoutCompletions.workoutItemId, workoutItemId),
+        eq(workoutCompletions.memberId, memberId),
+        eq(workoutCompletions.completedDate, date)
+      )
+    );
+    return record;
+  }
+
+  async getMemberWorkoutHistory(memberId: number): Promise<WorkoutCompletion[]> {
+    return await db.select().from(workoutCompletions)
+      .where(eq(workoutCompletions.memberId, memberId))
+      .orderBy(desc(workoutCompletions.completedDate));
+  }
+
+  async getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }> {
+    const allCompletions = await db.select().from(workoutCompletions)
+      .where(eq(workoutCompletions.memberId, memberId))
+      .orderBy(desc(workoutCompletions.completedDate));
+    
+    const totalWorkouts = allCompletions.length;
+    
+    const today = new Date();
+    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
+    const last7Days = allCompletions.filter(c => c.completedDate >= sevenDaysAgoStr).length;
+    
+    let streak = 0;
+    const uniqueDates = Array.from(new Set(allCompletions.map(c => c.completedDate))).sort().reverse();
+    
+    if (uniqueDates.length > 0) {
+      const todayStr = today.toISOString().split("T")[0];
+      const yesterdayStr = new Date(today.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      
+      if (uniqueDates[0] === todayStr || uniqueDates[0] === yesterdayStr) {
+        let currentDate = new Date(uniqueDates[0]);
+        for (const dateStr of uniqueDates) {
+          const checkDate = currentDate.toISOString().split("T")[0];
+          if (dateStr === checkDate) {
+            streak++;
+            currentDate = new Date(currentDate.getTime() - 24 * 60 * 60 * 1000);
+          } else {
+            break;
+          }
+        }
+      }
+    }
+    
+    return { streak, totalWorkouts, last7Days };
+  }
+
+  async getActivityFeed(gymId: number, memberIds: number[]): Promise<any[]> {
+    if (memberIds.length === 0) return [];
+    
+    const completions = await db.select({
+      completion: workoutCompletions,
+      member: users,
+      workoutItem: workoutItems
+    })
+    .from(workoutCompletions)
+    .innerJoin(users, eq(workoutCompletions.memberId, users.id))
+    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .where(inArray(workoutCompletions.memberId, memberIds))
+    .orderBy(desc(workoutCompletions.createdAt))
+    .limit(50);
+    
+    return completions.map(c => ({
+      type: "workout_completed",
+      memberName: c.member.username,
+      memberId: c.member.id,
+      exerciseName: c.workoutItem.exerciseName,
+      date: c.completion.completedDate,
+      createdAt: c.completion.createdAt
+    }));
   }
 }
 

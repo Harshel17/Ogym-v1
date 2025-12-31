@@ -8,7 +8,7 @@ import { relations } from "drizzle-orm";
 export const gyms = pgTable("gyms", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  code: text("code").notNull().unique(), // Unique code for members/trainers to join
+  code: text("code").notNull().unique(),
 });
 
 export const users = pgTable("users", {
@@ -32,8 +32,9 @@ export const attendance = pgTable("attendance", {
   gymId: integer("gym_id").references(() => gyms.id).notNull(),
   memberId: integer("member_id").references(() => users.id).notNull(),
   markedByUserId: integer("marked_by_user_id").references(() => users.id).notNull(),
-  date: text("date").notNull(), // YYYY-MM-DD
+  date: text("date").notNull(),
   status: text("status", { enum: ["present", "absent"] }).notNull(),
+  verifiedMethod: text("verified_method", { enum: ["qr", "workout", "both", "manual"] }).default("manual"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -41,8 +42,8 @@ export const payments = pgTable("payments", {
   id: serial("id").primaryKey(),
   gymId: integer("gym_id").references(() => gyms.id).notNull(),
   memberId: integer("member_id").references(() => users.id).notNull(),
-  month: text("month").notNull(), // YYYY-MM
-  amountDue: integer("amount_due").notNull(), // Stored as integer (e.g. cents or whole numbers)
+  month: text("month").notNull(),
+  amountDue: integer("amount_due").notNull(),
   amountPaid: integer("amount_paid").default(0),
   status: text("status", { enum: ["paid", "unpaid", "partial"] }).notNull(),
   note: text("note"),
@@ -56,27 +57,31 @@ export const workoutCycles = pgTable("workout_cycles", {
   trainerId: integer("trainer_id").references(() => users.id).notNull(),
   memberId: integer("member_id").references(() => users.id).notNull(),
   name: text("name").notNull(),
-  startDate: text("start_date").notNull(), // YYYY-MM-DD
-  endDate: text("end_date").notNull(), // YYYY-MM-DD
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const workouts = pgTable("workouts", {
+export const workoutItems = pgTable("workout_items", {
   id: serial("id").primaryKey(),
   cycleId: integer("cycle_id").references(() => workoutCycles.id).notNull(),
-  dayOfWeek: integer("day_of_week").notNull(), // 0=Sunday to 6=Saturday
-  exercise: text("exercise").notNull(),
+  dayOfWeek: integer("day_of_week").notNull(),
+  exerciseName: text("exercise_name").notNull(),
   sets: integer("sets").notNull(),
   reps: integer("reps").notNull(),
-  weight: text("weight"), // e.g., "10kg", "bodyweight"
+  weight: text("weight"),
+  orderIndex: integer("order_index").default(0),
 });
 
 export const workoutCompletions = pgTable("workout_completions", {
   id: serial("id").primaryKey(),
-  workoutId: integer("workout_id").references(() => workouts.id).notNull(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  cycleId: integer("cycle_id").references(() => workoutCycles.id).notNull(),
+  workoutItemId: integer("workout_item_id").references(() => workoutItems.id).notNull(),
   memberId: integer("member_id").references(() => users.id).notNull(),
-  date: text("date").notNull(), // YYYY-MM-DD
-  completed: boolean("completed").default(false),
+  completedDate: text("completed_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // === RELATIONS ===
@@ -100,8 +105,8 @@ export const insertTrainerMemberSchema = createInsertSchema(trainerMembers).omit
 export const insertAttendanceSchema = createInsertSchema(attendance).omit({ id: true, createdAt: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, updatedAt: true });
 export const insertWorkoutCycleSchema = createInsertSchema(workoutCycles).omit({ id: true, createdAt: true });
-export const insertWorkoutSchema = createInsertSchema(workouts).omit({ id: true });
-export const insertWorkoutCompletionSchema = createInsertSchema(workoutCompletions).omit({ id: true });
+export const insertWorkoutItemSchema = createInsertSchema(workoutItems).omit({ id: true });
+export const insertWorkoutCompletionSchema = createInsertSchema(workoutCompletions).omit({ id: true, createdAt: true });
 
 // === EXPLICIT TYPES ===
 
@@ -111,7 +116,7 @@ export type TrainerMember = typeof trainerMembers.$inferSelect;
 export type Attendance = typeof attendance.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type WorkoutCycle = typeof workoutCycles.$inferSelect;
-export type Workout = typeof workouts.$inferSelect;
+export type WorkoutItem = typeof workoutItems.$inferSelect;
 export type WorkoutCompletion = typeof workoutCompletions.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -119,5 +124,5 @@ export type InsertGym = z.infer<typeof insertGymSchema>;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type InsertWorkoutCycle = z.infer<typeof insertWorkoutCycleSchema>;
-export type InsertWorkout = z.infer<typeof insertWorkoutSchema>;
+export type InsertWorkoutItem = z.infer<typeof insertWorkoutItemSchema>;
 export type InsertWorkoutCompletion = z.infer<typeof insertWorkoutCompletionSchema>;

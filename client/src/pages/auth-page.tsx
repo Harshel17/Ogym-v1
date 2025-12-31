@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,16 +11,35 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dumbbell } from "lucide-react";
-import { api } from "@shared/routes";
 
-// Login Schema
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
 });
 
-// Register Schema
-const registerSchema = api.auth.register.input;
+const registerSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["owner", "trainer", "member"]),
+  gymName: z.string().optional(),
+  gymCode: z.string().optional(),
+}).refine((data) => {
+  if (data.role === "owner") {
+    return data.gymName && data.gymName.length > 0;
+  }
+  return true;
+}, {
+  message: "Gym name is required for owners",
+  path: ["gymName"],
+}).refine((data) => {
+  if (data.role !== "owner") {
+    return data.gymCode && data.gymCode.length > 0;
+  }
+  return true;
+}, {
+  message: "Gym code is required to join a gym",
+  path: ["gymCode"],
+});
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
@@ -54,13 +73,9 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
-      {/* Left: Branding */}
       <div className="relative hidden lg:flex flex-col justify-between p-12 bg-zinc-900 text-white overflow-hidden">
-        {/* Abstract Background */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/90 to-purple-800/90 z-10" />
-          {/* Gym photo placeholder - Unsplash */}
-          {/* gym atmospheric dark lighting */}
           <img 
             src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070&auto=format&fit=crop" 
             alt="Gym Background" 
@@ -89,7 +104,6 @@ export default function AuthPage() {
         </div>
       </div>
 
-      {/* Right: Auth Forms */}
       <div className="flex items-center justify-center p-6 bg-background">
         <div className="w-full max-w-md space-y-8">
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
@@ -101,8 +115,8 @@ export default function AuthPage() {
 
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-8">
-              <TabsTrigger value="login">Sign In</TabsTrigger>
-              <TabsTrigger value="register">Create Account</TabsTrigger>
+              <TabsTrigger value="login" data-testid="tab-login">Sign In</TabsTrigger>
+              <TabsTrigger value="register" data-testid="tab-register">Create Account</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login" className="animate-in fade-in slide-in-from-right-4 duration-300">
@@ -121,7 +135,7 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel>Username</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter your username" {...field} className="h-11" />
+                              <Input placeholder="Enter your username" {...field} className="h-11" data-testid="input-login-username" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -134,7 +148,7 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="••••••••" {...field} className="h-11" />
+                              <Input type="password" placeholder="Enter your password" {...field} className="h-11" data-testid="input-login-password" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -144,6 +158,7 @@ export default function AuthPage() {
                         type="submit" 
                         className="w-full h-11 text-base" 
                         disabled={loginMutation.isPending}
+                        data-testid="button-login"
                       >
                         {loginMutation.isPending ? "Signing in..." : "Sign In"}
                       </Button>
@@ -169,7 +184,7 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel>Username</FormLabel>
                             <FormControl>
-                              <Input placeholder="Choose a username" {...field} className="h-11" />
+                              <Input placeholder="Choose a username" {...field} className="h-11" data-testid="input-register-username" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -182,7 +197,7 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="Create a password" {...field} className="h-11" />
+                              <Input type="password" placeholder="Create a password" {...field} className="h-11" data-testid="input-register-password" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -197,7 +212,7 @@ export default function AuthPage() {
                             <FormLabel>I am a</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
-                                <SelectTrigger className="h-11">
+                                <SelectTrigger className="h-11" data-testid="select-role">
                                   <SelectValue placeholder="Select a role" />
                                 </SelectTrigger>
                               </FormControl>
@@ -220,7 +235,7 @@ export default function AuthPage() {
                             <FormItem className="animate-in fade-in zoom-in-95 duration-200">
                               <FormLabel>Gym Name</FormLabel>
                               <FormControl>
-                                <Input placeholder="e.g. Iron Paradise" {...field} className="h-11" />
+                                <Input placeholder="e.g. Iron Paradise" {...field} className="h-11" data-testid="input-gym-name" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -234,7 +249,7 @@ export default function AuthPage() {
                             <FormItem className="animate-in fade-in zoom-in-95 duration-200">
                               <FormLabel>Gym Code</FormLabel>
                               <FormControl>
-                                <Input placeholder="Enter the code provided by your gym" {...field} className="h-11" />
+                                <Input placeholder="Enter the code provided by your gym" {...field} className="h-11" data-testid="input-gym-code" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -246,6 +261,7 @@ export default function AuthPage() {
                         type="submit" 
                         className="w-full h-11 text-base mt-2" 
                         disabled={registerMutation.isPending}
+                        data-testid="button-register"
                       >
                         {registerMutation.isPending ? "Creating account..." : "Create Account"}
                       </Button>

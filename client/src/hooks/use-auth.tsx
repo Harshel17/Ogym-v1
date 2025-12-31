@@ -1,10 +1,11 @@
 import { createContext, ReactNode, useContext } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { User, Gym } from "@shared/schema";
-import { api } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { z } from "zod";
 
-type AuthUser = User & { gym?: Gym };
+type AuthUser = User & { gym?: Gym | null };
 
 type AuthContextType = {
   user: AuthUser | null;
@@ -17,14 +18,27 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const loginInput = z.object({
+  username: z.string(),
+  password: z.string(),
+});
+
+const registerInput = z.object({
+  username: z.string(),
+  password: z.string(),
+  role: z.enum(["owner", "trainer", "member"]),
+  gymName: z.string().optional(),
+  gymCode: z.string().optional(),
+});
+
 function useLoginMutation() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (credentials: z.infer<typeof api.auth.login.input>) => {
-      const res = await fetch(api.auth.login.path, {
-        method: api.auth.login.method,
+    mutationFn: async (credentials: z.infer<typeof loginInput>) => {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
         credentials: "include",
@@ -33,10 +47,10 @@ function useLoginMutation() {
         const error = await res.json();
         throw new Error(error.message || "Login failed");
       }
-      return api.auth.login.responses[200].parse(await res.json());
+      return res.json();
     },
     onSuccess: (user) => {
-      queryClient.setQueryData([api.auth.me.path], user);
+      queryClient.setQueryData(["/api/auth/me"], user);
       toast({
         title: "Welcome back!",
         description: `Logged in as ${user.username}`,
@@ -57,26 +71,32 @@ function useRegisterMutation() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: z.infer<typeof api.auth.register.input>) => {
-      const res = await fetch(api.auth.register.path, {
-        method: api.auth.register.method,
+    mutationFn: async (data: z.infer<typeof registerInput>) => {
+      const endpoint = data.role === "owner" 
+        ? "/api/auth/register-owner" 
+        : "/api/auth/register-join";
+      
+      const payload = data.role === "owner"
+        ? { username: data.username, password: data.password, gymName: data.gymName }
+        : { username: data.username, password: data.password, gymCode: data.gymCode, role: data.role };
+      
+      const res = await fetch(endpoint, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
+        credentials: "include",
       });
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Registration failed");
       }
-      return api.auth.register.responses[201].parse(await res.json());
+      return res.json();
     },
-    onSuccess: () => {
-      // Typically register doesn't auto-login in this flow, or it does. 
-      // Assuming it might require separate login or returns the user session.
-      // If the backend sets the cookie on register, we can update cache.
-      // For safety, we'll just invalidate and let the user login or redirect.
+    onSuccess: (user) => {
+      queryClient.setQueryData(["/api/auth/me"], user);
       toast({
-        title: "Registration successful",
-        description: "You can now log in with your credentials.",
+        title: "Welcome to OGym!",
+        description: `Account created successfully.`,
       });
     },
     onError: (error: Error) => {
@@ -95,14 +115,14 @@ function useLogoutMutation() {
 
   return useMutation({
     mutationFn: async () => {
-      const res = await fetch(api.auth.logout.path, {
-        method: api.auth.logout.method,
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
         credentials: "include",
       });
       if (!res.ok) throw new Error("Logout failed");
     },
     onSuccess: () => {
-      queryClient.setQueryData([api.auth.me.path], null);
+      queryClient.setQueryData(["/api/auth/me"], null);
       toast({
         title: "Logged out",
         description: "See you next time!",
@@ -124,12 +144,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error,
     isLoading,
   } = useQuery({
-    queryKey: [api.auth.me.path],
+    queryKey: ["/api/auth/me"],
     queryFn: async () => {
-      const res = await fetch(api.auth.me.path, { credentials: "include" });
+      const res = await fetch("/api/auth/me", { credentials: "include" });
       if (res.status === 401) return null;
       if (!res.ok) throw new Error("Failed to fetch user");
-      return api.auth.me.responses[200].parse(await res.json());
+      return res.json();
     },
     retry: false,
   });
@@ -161,5 +181,3 @@ export function useAuth() {
   }
   return context;
 }
-
-import { z } from "zod";

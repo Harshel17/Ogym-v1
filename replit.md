@@ -6,10 +6,24 @@ OGym is a multi-tenant B2B web application for gym management with role-based ac
 
 **Core Features:**
 - Role-based access: Owner, Trainer, Member
-- Attendance tracking with daily check-ins
+- QR code-based attendance with permanent gym code
+- Auto-attendance on workout completion (dual verification)
 - Payment tracking (not payment processing)
-- Workout cycle management for trainers
+- Workout cycle management with exercises ordered by day
+- Member stats (streak, total workouts, last 7 days)
+- Trainer activity feed showing member progress
 - Gym code-based membership joining system
+
+## Recent Changes
+
+**December 2024:**
+- Added QR code attendance system with `verifiedMethod` field (qr, workout, both, manual)
+- Added auto-attendance when members complete workouts
+- Added trainer activity feed showing member workout completions
+- Added member stats endpoint (streak, total workouts, last 7 days)
+- Renamed `workouts` table to `workout_items` with `exerciseName` and `orderIndex` fields
+- Added `isActive` field to workout_cycles for active cycle tracking
+- Updated frontend to use new workout completion and stats APIs
 
 ## User Preferences
 
@@ -46,17 +60,51 @@ The API contract is defined in `shared/routes.ts` with typed input/output schema
 - `gyms` - Gym entities with unique join codes
 - `users` - All user types (owner/trainer/member) with gym association
 - `trainer_members` - Many-to-many relationship for trainer assignments
-- `attendance` - Daily attendance records
+- `attendance` - Daily attendance records with `verifiedMethod` (qr/workout/both/manual)
 - `payments` - Monthly payment tracking
-- `workout_cycles`, `workouts`, `workout_completions` - Workout management
+- `workout_cycles` - Training programs with date range and `isActive` flag
+- `workout_items` - Individual exercises with `exerciseName`, `orderIndex`, day of week
+- `workout_completions` - Records of completed exercises per member
 
 ### Multi-Tenancy Pattern
 All queries filter by `gym_id` extracted from the authenticated user's session. The backend enforces tenant isolation - the UI does not control data access boundaries.
+
+### Key API Endpoints
+
+**Authentication:**
+- `POST /api/auth/register-owner` - Create gym owner with new gym
+- `POST /api/auth/register-join` - Join existing gym as trainer/member
+- `POST /api/auth/login` - Login
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/me` - Current user
+
+**Attendance:**
+- `POST /api/attendance/checkin` - QR-based check-in with gym code
+- `GET /api/attendance/my` - Member's attendance history
+- `GET /api/attendance/gym` - All gym attendance (owner only)
+
+**Workouts:**
+- `GET /api/workouts/today` - Today's exercises with completion status
+- `POST /api/workouts/complete` - Mark exercise complete (auto-marks attendance)
+- `GET /api/workouts/stats/my` - Member stats (streak, total, last 7 days)
+- `POST /api/trainer/cycles` - Create workout cycle
+- `POST /api/trainer/cycles/:cycleId/items` - Add exercise to cycle
+- `GET /api/trainer/activity` - Trainer's member activity feed
 
 ### Build System
 - **Development:** `tsx` for TypeScript execution with Vite dev server
 - **Production Build:** Custom `script/build.ts` using esbuild for server + Vite for client
 - **Output:** `dist/` directory with `index.cjs` (server) and `public/` (client assets)
+
+## Demo Data
+
+Gym Code: **DEMO01**
+
+Test accounts:
+- `owner` / `password123` - Gym owner
+- `trainer` / `password123` - Trainer
+- `member1` / `password123` - Member (has workout cycle assigned)
+- `member2` / `password123` - Member
 
 ## External Dependencies
 

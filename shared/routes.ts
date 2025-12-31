@@ -5,7 +5,7 @@ import {
   insertAttendanceSchema, 
   insertPaymentSchema,
   insertWorkoutCycleSchema,
-  insertWorkoutSchema,
+  insertWorkoutItemSchema,
   insertWorkoutCompletionSchema,
   users, 
   gyms, 
@@ -13,7 +13,7 @@ import {
   payments,
   trainerMembers,
   workoutCycles,
-  workouts,
+  workoutItems,
   workoutCompletions
 } from './schema';
 
@@ -41,12 +41,27 @@ export const errorSchemas = {
 // ============================================
 export const api = {
   auth: {
-    register: {
+    registerOwner: {
       method: 'POST' as const,
-      path: '/api/auth/register',
-      input: insertUserSchema.extend({
-        gymName: z.string().optional(), // For owners creating a gym
-        gymCode: z.string().optional(), // For members/trainers joining
+      path: '/api/auth/register-owner',
+      input: z.object({
+        username: z.string().min(1),
+        password: z.string().min(6),
+        gymName: z.string().min(1),
+      }),
+      responses: {
+        201: z.custom<typeof users.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    registerJoin: {
+      method: 'POST' as const,
+      path: '/api/auth/register-join',
+      input: z.object({
+        username: z.string().min(1),
+        password: z.string().min(6),
+        gymCode: z.string().min(1),
+        role: z.enum(['trainer', 'member']),
       }),
       responses: {
         201: z.custom<typeof users.$inferSelect>(),
@@ -107,50 +122,90 @@ export const api = {
         201: z.custom<typeof trainerMembers.$inferSelect>(),
       },
     },
+    getAssignments: {
+      method: 'GET' as const,
+      path: '/api/owner/assignments',
+      responses: {
+        200: z.array(z.custom<typeof trainerMembers.$inferSelect>()),
+      },
+    },
+    getQRData: {
+      method: 'GET' as const,
+      path: '/api/owner/qr-data',
+      responses: {
+        200: z.object({
+          type: z.string(),
+          gym_code: z.string(),
+        }),
+      },
+    },
   },
   attendance: {
-    list: {
-      method: 'GET' as const,
-      path: '/api/attendance',
+    checkin: {
+      method: 'POST' as const,
+      path: '/api/attendance/checkin',
       input: z.object({
-        memberId: z.coerce.number().optional(),
-        date: z.string().optional(),
-      }).optional(),
+        gym_code: z.string(),
+      }),
+      responses: {
+        201: z.custom<typeof attendance.$inferSelect>(),
+        200: z.custom<typeof attendance.$inferSelect>(),
+      },
+    },
+    my: {
+      method: 'GET' as const,
+      path: '/api/attendance/my',
+      responses: {
+        200: z.array(z.custom<typeof attendance.$inferSelect>()),
+      },
+    },
+    gym: {
+      method: 'GET' as const,
+      path: '/api/attendance/gym',
       responses: {
         200: z.array(z.custom<typeof attendance.$inferSelect & { member: typeof users.$inferSelect }>()),
       },
     },
-    mark: {
-      method: 'POST' as const,
-      path: '/api/attendance',
-      input: insertAttendanceSchema.omit({ gymId: true, markedByUserId: true }), // Backend infers these
-      responses: {
-        201: z.custom<typeof attendance.$inferSelect>(),
-      },
-    },
   },
   payments: {
-    list: {
+    my: {
       method: 'GET' as const,
-      path: '/api/payments',
-      input: z.object({
-        memberId: z.coerce.number().optional(),
-        month: z.string().optional(),
-      }).optional(),
+      path: '/api/payments/my',
+      responses: {
+        200: z.array(z.custom<typeof payments.$inferSelect>()),
+      },
+    },
+    gym: {
+      method: 'GET' as const,
+      path: '/api/payments/gym',
       responses: {
         200: z.array(z.custom<typeof payments.$inferSelect & { member: typeof users.$inferSelect }>()),
       },
     },
     mark: {
       method: 'POST' as const,
-      path: '/api/payments',
-      input: insertPaymentSchema.omit({ gymId: true, updatedByUserId: true }),
+      path: '/api/payments/mark',
+      input: z.object({
+        memberId: z.number(),
+        month: z.string(),
+        amountDue: z.number(),
+        amountPaid: z.number(),
+        status: z.enum(['paid', 'unpaid', 'partial']),
+        note: z.string().optional(),
+      }),
       responses: {
         201: z.custom<typeof payments.$inferSelect>(),
       },
     },
   },
   trainer: {
+    getMembers: {
+      method: 'GET' as const,
+      path: '/api/trainer/members',
+      responses: {
+        200: z.array(z.custom<typeof users.$inferSelect>()),
+      },
+    },
     getCycles: {
       method: 'GET' as const,
       path: '/api/trainer/cycles',
@@ -161,37 +216,99 @@ export const api = {
     createCycle: {
       method: 'POST' as const,
       path: '/api/trainer/cycles',
-      input: insertWorkoutCycleSchema.omit({ gymId: true, trainerId: true }),
+      input: z.object({
+        memberId: z.number(),
+        name: z.string(),
+        startDate: z.string(),
+        endDate: z.string(),
+      }),
       responses: {
         201: z.custom<typeof workoutCycles.$inferSelect>(),
       },
     },
-    addWorkout: {
+    addWorkoutItem: {
       method: 'POST' as const,
-      path: '/api/trainer/workouts',
-      input: insertWorkoutSchema,
+      path: '/api/trainer/cycles/:cycleId/items',
+      input: z.object({
+        dayOfWeek: z.number().min(0).max(6),
+        exerciseName: z.string(),
+        sets: z.number().min(1),
+        reps: z.number().min(1),
+        weight: z.string().optional(),
+        orderIndex: z.number().default(0),
+      }),
       responses: {
-        201: z.custom<typeof workouts.$inferSelect>(),
+        201: z.custom<typeof workoutItems.$inferSelect>(),
+      },
+    },
+    getActivity: {
+      method: 'GET' as const,
+      path: '/api/trainer/activity',
+      responses: {
+        200: z.array(z.object({
+          type: z.string(),
+          memberName: z.string(),
+          memberId: z.number(),
+          exerciseName: z.string(),
+          date: z.string(),
+          createdAt: z.date().nullable(),
+        })),
       },
     },
   },
   member: {
     getCycle: {
       method: 'GET' as const,
-      path: '/api/member/cycle',
+      path: '/api/workouts/cycles/my',
       responses: {
         200: z.object({
-          cycle: z.custom<typeof workoutCycles.$inferSelect>(),
-          workouts: z.array(z.custom<typeof workouts.$inferSelect>()),
+          id: z.number(),
+          name: z.string(),
+          startDate: z.string(),
+          endDate: z.string(),
+          items: z.array(z.custom<typeof workoutItems.$inferSelect>()),
         }).nullable(),
+      },
+    },
+    getToday: {
+      method: 'GET' as const,
+      path: '/api/workouts/today',
+      responses: {
+        200: z.object({
+          cycleName: z.string().optional(),
+          dayOfWeek: z.number(),
+          items: z.array(z.custom<typeof workoutItems.$inferSelect & { completed: boolean }>()),
+          message: z.string().optional(),
+        }),
       },
     },
     completeWorkout: {
       method: 'POST' as const,
-      path: '/api/member/workouts/complete',
-      input: insertWorkoutCompletionSchema.omit({ memberId: true }),
+      path: '/api/workouts/complete',
+      input: z.object({
+        workoutItemId: z.number(),
+      }),
       responses: {
         201: z.custom<typeof workoutCompletions.$inferSelect>(),
+        200: z.object({ message: z.string(), id: z.number() }),
+      },
+    },
+    getHistory: {
+      method: 'GET' as const,
+      path: '/api/workouts/history/my',
+      responses: {
+        200: z.array(z.custom<typeof workoutCompletions.$inferSelect>()),
+      },
+    },
+    getStats: {
+      method: 'GET' as const,
+      path: '/api/workouts/stats/my',
+      responses: {
+        200: z.object({
+          streak: z.number(),
+          totalWorkouts: z.number(),
+          last7Days: z.number(),
+        }),
       },
     },
   },

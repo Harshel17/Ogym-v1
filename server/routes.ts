@@ -2,7 +2,6 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth, hashPassword } from "./auth";
 import { storage } from "./storage";
-import { api } from "@shared/routes";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import passport from "passport";
@@ -11,48 +10,37 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Setup Auth (Passport + Session)
   setupAuth(app);
 
   // === AUTH ROUTES ===
-
-  app.post(api.auth.register.path, async (req, res) => {
+  app.post("/api/auth/register-owner", async (req, res) => {
     try {
-      const input = api.auth.register.input.parse(req.body);
+      const schema = z.object({
+        username: z.string().min(1),
+        password: z.string().min(6),
+        gymName: z.string().min(1),
+      });
+      const input = schema.parse(req.body);
       
-      // Check if user exists
       const existingUser = await storage.getUserByUsername(input.username);
       if (existingUser) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
-      let gymId: number;
-
-      if (input.role === 'owner') {
-        if (!input.gymName) return res.status(400).json({ message: "Gym name required for owner" });
-        // Create Gym
-        const code = nanoid(6).toUpperCase();
-        const gym = await storage.createGym({ name: input.gymName, code });
-        gymId = gym.id;
-      } else {
-        if (!input.gymCode) return res.status(400).json({ message: "Gym code required for joining" });
-        // Find Gym
-        const gym = await storage.getGymByCode(input.gymCode);
-        if (!gym) return res.status(400).json({ message: "Invalid gym code" });
-        gymId = gym.id;
-      }
+      const code = nanoid(6).toUpperCase();
+      const gym = await storage.createGym({ name: input.gymName, code });
 
       const hashedPassword = await hashPassword(input.password);
       const user = await storage.createUser({
         username: input.username,
         password: hashedPassword,
-        role: input.role,
-        gymId: gymId
+        role: "owner",
+        gymId: gym.id
       });
 
       req.login(user, (err) => {
-        if (err) return res.status(500).json({ message: "Login failed after register" });
-        res.status(201).json(user);
+        if (err) return res.status(500).json({ message: "Login failed" });
+        res.status(201).json({ ...user, gym });
       });
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -62,12 +50,47 @@ export async function registerRoutes(
     }
   });
 
-  app.post(api.auth.login.path, (req, res, next) => {
+  app.post("/api/auth/register-join", async (req, res) => {
     try {
-      api.auth.login.input.parse(req.body);
+      const schema = z.object({
+        username: z.string().min(1),
+        password: z.string().min(6),
+        gymCode: z.string().min(1),
+        role: z.enum(["trainer", "member"]),
+      });
+      const input = schema.parse(req.body);
+      
+      const existingUser = await storage.getUserByUsername(input.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      const gym = await storage.getGymByCode(input.gymCode.toUpperCase());
+      if (!gym) {
+        return res.status(400).json({ message: "Invalid gym code" });
+      }
+
+      const hashedPassword = await hashPassword(input.password);
+      const user = await storage.createUser({
+        username: input.username,
+        password: hashedPassword,
+        role: input.role,
+        gymId: gym.id
+      });
+
+      req.login(user, (err) => {
+        if (err) return res.status(500).json({ message: "Login failed" });
+        res.status(201).json({ ...user, gym });
+      });
     } catch (err) {
-      return res.status(400).json({ message: "Invalid input" });
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: "Internal server error" });
     }
+  });
+
+  app.post("/api/auth/login", (req, res, next) => {
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) return next(err);
       if (!user) return res.status(401).json({ message: "Invalid credentials" });
@@ -78,14 +101,14 @@ export async function registerRoutes(
     })(req, res, next);
   });
 
-  app.post(api.auth.logout.path, (req, res, next) => {
+  app.post("/api/auth/logout", (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
       res.sendStatus(200);
     });
   });
 
-  app.get(api.auth.me.path, async (req, res) => {
+  app.get("/api/auth/me", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const user = await storage.getUser(req.user!.id);
     res.json(user);
@@ -103,112 +126,95 @@ export async function registerRoutes(
   };
 
   // === OWNER ROUTES ===
-  app.get(api.owner.getMembers.path, requireAuth, async (req, res) => {
-    if (req.user!.role === 'member') return res.sendStatus(403); // Trainers can see members too? Spec says trainer sees *assigned* members. Owner sees all.
-    // For simplicity, letting trainers see all members of gym for now or restricted. 
-    // Spec: "Trainer: Can view members assigned to them".
-    // I will restrict this endpoint to owner, or filter for trainer.
-    
-    if (req.user!.role === 'owner') {
-      const members = await storage.getGymMembers(req.user!.gymId!);
-      return res.json(members);
-    }
-    
-    if (req.user!.role === 'trainer') {
-       // Trainer sees assigned members
-       const assignments = await storage.getTrainerMembers(req.user!.id);
-       const memberIds = assignments.map(a => a.memberId);
-       // Fetch member details (reuse getGymMembers but filter? Storage method needs update?
-       // Let's just fetch all gym members and filter in code for MVP simplicity/speed
-       const allMembers = await storage.getGymMembers(req.user!.gymId!);
-       const assignedMembers = allMembers.filter(m => memberIds.includes(m.id));
-       return res.json(assignedMembers);
-    }
-    
-    res.sendStatus(403);
+  app.get("/api/owner/members", requireRole(["owner"]), async (req, res) => {
+    const members = await storage.getGymMembers(req.user!.gymId!);
+    res.json(members);
   });
 
-  app.get(api.owner.getTrainers.path, requireRole(['owner']), async (req, res) => {
+  app.get("/api/owner/trainers", requireRole(["owner"]), async (req, res) => {
     const trainers = await storage.getGymTrainers(req.user!.gymId!);
     res.json(trainers);
   });
 
-  app.post(api.owner.assignTrainer.path, requireRole(['owner']), async (req, res) => {
-    const input = api.owner.assignTrainer.input.parse(req.body);
+  app.post("/api/owner/assign-trainer", requireRole(["owner"]), async (req, res) => {
+    const schema = z.object({ trainerId: z.number(), memberId: z.number() });
+    const input = schema.parse(req.body);
     const assignment = await storage.assignTrainer(input.trainerId, input.memberId, req.user!.gymId!);
     res.status(201).json(assignment);
   });
 
-  // === ATTENDANCE ROUTES ===
-  app.get(api.attendance.list.path, requireAuth, async (req, res) => {
-    // Filter logic based on role
-    let memberId = req.query.memberId ? Number(req.query.memberId) : undefined;
-    
-    if (req.user!.role === 'member') {
-      memberId = req.user!.id; // Force own ID
-    }
-    
-    // Trainers: can they see all or only assigned? Spec: "Trainer: Can view attendance for assigned members only"
-    // For MVP, if memberId is provided, check assignment? 
-    // If no memberId provided, only return assigned members' attendance?
-    
-    const records = await storage.getAttendance(req.user!.gymId!, memberId, req.query.date as string);
-    
-    // Post-filter for trainers if needed (security)
-    if (req.user!.role === 'trainer' && !memberId) {
-       const assignments = await storage.getTrainerMembers(req.user!.id);
-       const assignedIds = assignments.map(a => a.memberId);
-       const filtered = records.filter(r => assignedIds.includes(r.memberId));
-       return res.json(filtered);
-    }
-
-    res.json(records);
+  app.get("/api/owner/assignments", requireRole(["owner"]), async (req, res) => {
+    const assignments = await storage.getGymAssignments(req.user!.gymId!);
+    res.json(assignments);
   });
 
-  app.post(api.attendance.mark.path, requireAuth, async (req, res) => {
-    if (req.user!.role === 'member') return res.sendStatus(403); // Members cannot mark attendance
-    
-    const input = api.attendance.mark.input.parse(req.body);
-    
-    // Trainers check assignment
-    if (req.user!.role === 'trainer') {
-      const assignments = await storage.getTrainerMembers(req.user!.id);
-      if (!assignments.some(a => a.memberId === input.memberId)) {
-        return res.status(403).json({ message: "Member not assigned to you" });
-      }
-    }
+  app.get("/api/owner/qr-data", requireRole(["owner"]), async (req, res) => {
+    const gym = await storage.getGym(req.user!.gymId!);
+    res.json({ type: "ogym_checkin", gym_code: gym?.code });
+  });
 
+  // === ATTENDANCE ROUTES ===
+  app.post("/api/attendance/checkin", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({ gym_code: z.string() });
+    const input = schema.parse(req.body);
+    
+    const gym = await storage.getGymByCode(input.gym_code.toUpperCase());
+    if (!gym || gym.id !== req.user!.gymId) {
+      return res.status(403).json({ message: "Invalid gym code" });
+    }
+    
+    const today = new Date().toISOString().split("T")[0];
+    const existing = await storage.getAttendanceByMemberDate(req.user!.id, today);
+    
+    if (existing) {
+      if (existing.verifiedMethod === "workout") {
+        await storage.updateAttendanceMethod(existing.id, "both");
+      }
+      return res.json(existing);
+    }
+    
     const record = await storage.markAttendance({
-      ...input,
       gymId: req.user!.gymId!,
+      memberId: req.user!.id,
+      date: today,
+      status: "present",
+      verifiedMethod: "qr",
       markedByUserId: req.user!.id
     });
     res.status(201).json(record);
   });
 
-  // === PAYMENTS ROUTES ===
-  app.get(api.payments.list.path, requireAuth, async (req, res) => {
-    let memberId = req.query.memberId ? Number(req.query.memberId) : undefined;
-    
-    if (req.user!.role === 'member') {
-      memberId = req.user!.id;
-    }
-
-    const records = await storage.getPayments(req.user!.gymId!, memberId, req.query.month as string);
-
-    // Trainer filter
-    if (req.user!.role === 'trainer' && !memberId) {
-       const assignments = await storage.getTrainerMembers(req.user!.id);
-       const assignedIds = assignments.map(a => a.memberId);
-       const filtered = records.filter(r => assignedIds.includes(r.memberId));
-       return res.json(filtered);
-    }
-
+  app.get("/api/attendance/my", requireRole(["member"]), async (req, res) => {
+    const records = await storage.getMemberAttendance(req.user!.id);
     res.json(records);
   });
 
-  app.post(api.payments.mark.path, requireRole(['owner']), async (req, res) => {
-    const input = api.payments.mark.input.parse(req.body);
+  app.get("/api/attendance/gym", requireRole(["owner"]), async (req, res) => {
+    const records = await storage.getAttendance(req.user!.gymId!);
+    res.json(records);
+  });
+
+  // === PAYMENTS ROUTES ===
+  app.get("/api/payments/my", requireRole(["member"]), async (req, res) => {
+    const records = await storage.getMemberPayments(req.user!.id);
+    res.json(records);
+  });
+
+  app.get("/api/payments/gym", requireRole(["owner"]), async (req, res) => {
+    const records = await storage.getPayments(req.user!.gymId!);
+    res.json(records);
+  });
+
+  app.post("/api/payments/mark", requireRole(["owner"]), async (req, res) => {
+    const schema = z.object({
+      memberId: z.number(),
+      month: z.string(),
+      amountDue: z.number(),
+      amountPaid: z.number(),
+      status: z.enum(["paid", "unpaid", "partial"]),
+      note: z.string().optional()
+    });
+    const input = schema.parse(req.body);
     const record = await storage.markPayment({
       ...input,
       gymId: req.user!.gymId!,
@@ -217,16 +223,29 @@ export async function registerRoutes(
     res.status(201).json(record);
   });
 
-  // === WORKOUT ROUTES ===
-  app.get(api.trainer.getCycles.path, requireRole(['trainer']), async (req, res) => {
+  // === TRAINER ROUTES ===
+  app.get("/api/trainer/members", requireRole(["trainer"]), async (req, res) => {
+    const assignments = await storage.getTrainerMembers(req.user!.id);
+    const memberIds = assignments.map(a => a.memberId);
+    const allMembers = await storage.getGymMembers(req.user!.gymId!);
+    const assignedMembers = allMembers.filter(m => memberIds.includes(m.id));
+    res.json(assignedMembers);
+  });
+
+  app.get("/api/trainer/cycles", requireRole(["trainer"]), async (req, res) => {
     const cycles = await storage.getTrainerCycles(req.user!.id);
     res.json(cycles);
   });
 
-  app.post(api.trainer.createCycle.path, requireRole(['trainer']), async (req, res) => {
-    const input = api.trainer.createCycle.input.parse(req.body);
+  app.post("/api/trainer/cycles", requireRole(["trainer"]), async (req, res) => {
+    const schema = z.object({
+      memberId: z.number(),
+      name: z.string(),
+      startDate: z.string(),
+      endDate: z.string()
+    });
+    const input = schema.parse(req.body);
     
-    // Verify member is assigned to this trainer
     const assignments = await storage.getTrainerMembers(req.user!.id);
     if (!assignments.some(a => a.memberId === input.memberId)) {
       return res.status(403).json({ message: "Member not assigned to you" });
@@ -240,94 +259,184 @@ export async function registerRoutes(
     res.status(201).json(cycle);
   });
 
-  app.post(api.trainer.addWorkout.path, requireRole(['trainer']), async (req, res) => {
-    const input = api.trainer.addWorkout.input.parse(req.body);
-    const cycle = await storage.getCycle(input.cycleId);
+  app.post("/api/trainer/cycles/:cycleId/items", requireRole(["trainer"]), async (req, res) => {
+    const cycleId = parseInt(req.params.cycleId);
+    const schema = z.object({
+      dayOfWeek: z.number().min(0).max(6),
+      exerciseName: z.string(),
+      sets: z.number().min(1),
+      reps: z.number().min(1),
+      weight: z.string().optional(),
+      orderIndex: z.number().default(0)
+    });
+    const input = schema.parse(req.body);
+    
+    const cycle = await storage.getCycle(cycleId);
     if (!cycle || cycle.trainerId !== req.user!.id) {
       return res.status(403).json({ message: "Not authorized" });
     }
-    const workout = await storage.addWorkout(input);
-    res.status(201).json(workout);
+    
+    const item = await storage.addWorkoutItem({ ...input, cycleId });
+    res.status(201).json(item);
   });
 
-  app.get(api.member.getCycle.path, requireRole(['member']), async (req, res) => {
+  app.get("/api/trainer/activity", requireRole(["trainer"]), async (req, res) => {
+    const assignments = await storage.getTrainerMembers(req.user!.id);
+    const memberIds = assignments.map(a => a.memberId);
+    const activity = await storage.getActivityFeed(req.user!.gymId!, memberIds);
+    res.json(activity);
+  });
+
+  // === MEMBER WORKOUT ROUTES ===
+  app.get("/api/workouts/cycles/my", requireRole(["member"]), async (req, res) => {
     const cycle = await storage.getMemberCycle(req.user!.id);
     if (!cycle) return res.json(null);
-    const workouts = await storage.getWorkoutsByCycle(cycle.id);
-    res.json({ cycle, workouts });
+    const items = await storage.getWorkoutItems(cycle.id);
+    res.json({ ...cycle, items });
   });
 
-  app.post(api.member.completeWorkout.path, requireRole(['member']), async (req, res) => {
-    const input = api.member.completeWorkout.input.parse(req.body);
+  app.get("/api/workouts/today", requireRole(["member"]), async (req, res) => {
+    const cycle = await storage.getMemberCycle(req.user!.id);
+    if (!cycle) return res.json({ items: [], message: "No active workout cycle" });
     
-    // Verify workout belongs to member's cycle
-    const memberCycle = await storage.getMemberCycle(req.user!.id);
-    if (!memberCycle) {
-      return res.status(403).json({ message: "No workout cycle assigned" });
+    const todayDow = (new Date().getDay());
+    const items = await storage.getWorkoutItemsByDay(cycle.id, todayDow);
+    const today = new Date().toISOString().split("T")[0];
+    const completions = await storage.getCompletions(req.user!.id, today);
+    const completedIds = new Set(completions.map(c => c.workoutItemId));
+    
+    const itemsWithStatus = items.map(i => ({
+      ...i,
+      completed: completedIds.has(i.id)
+    }));
+    
+    res.json({ cycleName: cycle.name, dayOfWeek: todayDow, items: itemsWithStatus });
+  });
+
+  app.post("/api/workouts/complete", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({ workoutItemId: z.number() });
+    const input = schema.parse(req.body);
+    
+    const item = await storage.getWorkoutItem(input.workoutItemId);
+    if (!item) return res.status(404).json({ message: "Workout item not found" });
+    
+    const cycle = await storage.getCycle(item.cycleId);
+    if (!cycle || cycle.memberId !== req.user!.id) {
+      return res.status(403).json({ message: "Not your workout" });
     }
     
-    const workouts = await storage.getWorkoutsByCycle(memberCycle.id);
-    if (!workouts.some(w => w.id === input.workoutId)) {
-      return res.status(403).json({ message: "Workout not in your cycle" });
+    const today = new Date().toISOString().split("T")[0];
+    
+    const existing = await storage.getCompletionByItemDate(input.workoutItemId, req.user!.id, today);
+    if (existing) {
+      return res.json({ message: "Already completed", id: existing.id });
     }
     
     const completion = await storage.completeWorkout({
-      ...input,
-      memberId: req.user!.id
+      gymId: req.user!.gymId!,
+      cycleId: cycle.id,
+      workoutItemId: input.workoutItemId,
+      memberId: req.user!.id,
+      completedDate: today
     });
+    
+    // Auto-mark attendance
+    const existingAttendance = await storage.getAttendanceByMemberDate(req.user!.id, today);
+    if (!existingAttendance) {
+      await storage.markAttendance({
+        gymId: req.user!.gymId!,
+        memberId: req.user!.id,
+        date: today,
+        status: "present",
+        verifiedMethod: "workout",
+        markedByUserId: req.user!.id
+      });
+    } else if (existingAttendance.verifiedMethod === "qr") {
+      await storage.updateAttendanceMethod(existingAttendance.id, "both");
+    }
+    
     res.status(201).json(completion);
   });
 
-  // Seed Data function (internal use or via special endpoint if needed, but easier to just call it)
-  // We'll call it once server starts in index.ts or here if table empty.
-  // Actually, let's just create a quick endpoint for demo setup or auto-seed on first request to login?
-  // Better: Check in this file at the end of registerRoutes if we should seed.
-  await seedDemoData();
+  app.get("/api/workouts/history/my", requireRole(["member"]), async (req, res) => {
+    const history = await storage.getMemberWorkoutHistory(req.user!.id);
+    res.json(history);
+  });
 
+  app.get("/api/workouts/stats/my", requireRole(["member"]), async (req, res) => {
+    const stats = await storage.getMemberStats(req.user!.id);
+    res.json(stats);
+  });
+
+  await seedDemoData();
   return httpServer;
 }
 
 async function seedDemoData() {
-  const existingGym = await storage.getGymByCode("DEMO123");
-  if (existingGym) return; // Already seeded
+  const existingGym = await storage.getGymByCode("DEMO01");
+  if (existingGym) return;
 
   console.log("Seeding demo data...");
-  const gym = await storage.createGym({ name: "OGym Demo", code: "DEMO123" });
+  const gym = await storage.createGym({ name: "OGym Demo", code: "DEMO01" });
   const gymId = gym.id;
 
   const password = await hashPassword("password123");
 
-  // Owner
-  const owner = await storage.createUser({
-    username: "owner", password, role: "owner", gymId
+  const owner = await storage.createUser({ username: "owner", password, role: "owner", gymId });
+  const trainer = await storage.createUser({ username: "trainer", password, role: "trainer", gymId });
+  const member1 = await storage.createUser({ username: "member1", password, role: "member", gymId });
+  const member2 = await storage.createUser({ username: "member2", password, role: "member", gymId });
+
+  await storage.assignTrainer(trainer.id, member1.id, gymId);
+  await storage.assignTrainer(trainer.id, member2.id, gymId);
+
+  const today = new Date();
+  const startDate = today.toISOString().split("T")[0];
+  const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  const cycle = await storage.createWorkoutCycle({
+    gymId,
+    memberId: member1.id,
+    trainerId: trainer.id,
+    name: "Push-Pull-Legs Beginner",
+    startDate,
+    endDate
   });
 
-  // Trainer
-  const trainer = await storage.createUser({
-    username: "trainer", password, role: "trainer", gymId
-  });
+  const exercises = [
+    { dayOfWeek: 1, exerciseName: "Bench Press", sets: 3, reps: 10, weight: "40kg", orderIndex: 0 },
+    { dayOfWeek: 1, exerciseName: "Overhead Press", sets: 3, reps: 10, weight: "20kg", orderIndex: 1 },
+    { dayOfWeek: 2, exerciseName: "Deadlift", sets: 3, reps: 8, weight: "60kg", orderIndex: 0 },
+    { dayOfWeek: 2, exerciseName: "Barbell Row", sets: 3, reps: 10, weight: "40kg", orderIndex: 1 },
+    { dayOfWeek: 3, exerciseName: "Squats", sets: 3, reps: 10, weight: "50kg", orderIndex: 0 },
+    { dayOfWeek: 3, exerciseName: "Leg Press", sets: 3, reps: 12, weight: "80kg", orderIndex: 1 },
+  ];
 
-  // Members
-  const m1 = await storage.createUser({
-    username: "member1", password, role: "member", gymId
-  });
-  const m2 = await storage.createUser({
-    username: "member2", password, role: "member", gymId
-  });
+  for (const ex of exercises) {
+    await storage.addWorkoutItem({ ...ex, cycleId: cycle.id });
+  }
 
-  // Assign trainer
-  await storage.assignTrainer(trainer.id, m1.id, gymId);
-  await storage.assignTrainer(trainer.id, m2.id, gymId);
-
-  // Attendance
+  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   await storage.markAttendance({
-    gymId, memberId: m1.id, markedByUserId: owner.id, date: "2024-01-01", status: "present"
+    gymId,
+    memberId: member1.id,
+    date: yesterday,
+    status: "present",
+    verifiedMethod: "qr",
+    markedByUserId: owner.id
   });
 
-  // Payment
+  const thisMonth = today.toISOString().slice(0, 7);
   await storage.markPayment({
-    gymId, memberId: m1.id, month: "2024-01", amountDue: 5000, amountPaid: 5000, status: "paid", note: "January fee"
+    gymId,
+    memberId: member1.id,
+    month: thisMonth,
+    amountDue: 5000,
+    amountPaid: 5000,
+    status: "paid",
+    note: "Monthly membership"
   });
 
-  console.log("Seeding complete. Use gym code DEMO123 to join.");
+  console.log("Seed complete! Gym Code: DEMO01");
+  console.log("Users: owner/password123, trainer/password123, member1/password123, member2/password123");
 }
