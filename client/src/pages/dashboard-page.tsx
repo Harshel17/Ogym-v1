@@ -46,6 +46,7 @@ function StatCard({ title, value, icon: Icon, description, trend }: any) {
 }
 
 function OwnerDashboard() {
+  const { user } = useAuth();
   const { data: members = [] } = useMembers();
   const { data: attendance = [] } = useAttendance();
   const { data: payments = [] } = usePayments();
@@ -70,8 +71,39 @@ function OwnerDashboard() {
     count: attendance.filter(a => a.date === date && a.status === 'present').length
   }));
 
+  const handleCopyCode = () => {
+    if (user?.gym?.code) {
+      navigator.clipboard.writeText(user.gym.code);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Gym Info Card */}
+      {user?.gym && (
+        <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">{user.gym.name}</h3>
+                <p className="text-sm text-muted-foreground mt-1">Share this code with trainers and members</p>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <div className="bg-background border-2 border-primary rounded-lg px-4 py-2 font-mono font-bold text-lg text-primary">
+                  {user.gym.code}
+                </div>
+                <button 
+                  onClick={handleCopyCode}
+                  className="text-xs px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition"
+                >
+                  Copy Code
+                </button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard 
           title="Total Members" 
