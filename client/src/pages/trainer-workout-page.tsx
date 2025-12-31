@@ -28,8 +28,6 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import type { WorkoutItem } from "@shared/schema";
 
-const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const shortDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function TrainerWorkoutPage() {
   const { user } = useAuth();
@@ -164,6 +162,8 @@ export default function TrainerWorkoutPage() {
 
 function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
   const member = members.find(m => m.id === cycle.memberId);
+  const cycleLength = cycle.cycleLength || 3;
+  
   const { data: items = [], isLoading } = useQuery<WorkoutItem[]>({
     queryKey: ["/api/trainer/cycles", cycle.id, "items"],
     queryFn: async () => {
@@ -173,11 +173,11 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
     },
   });
 
-  const itemsByDay = days.map((day, idx) => ({
-    day,
-    shortDay: shortDays[idx],
+  const itemsByDay = Array.from({ length: cycleLength }, (_, idx) => ({
+    dayLabel: `Day ${idx + 1}`,
+    shortLabel: `D${idx + 1}`,
     dayIndex: idx,
-    exercises: items.filter(item => item.dayOfWeek === idx).sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
+    exercises: items.filter(item => item.dayIndex === idx).sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
   }));
 
   const daysWithExercises = itemsByDay.filter(d => d.exercises.length > 0);
@@ -200,14 +200,14 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
               {totalExercises} exercises
             </Badge>
             <Badge variant="outline">
-              {daysWithExercises.length} days/week
+              {cycleLength}-day cycle
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
             {cycle.startDate} to {cycle.endDate}
           </p>
         </div>
-        <AddWorkoutDialog cycleId={cycle.id} />
+        <AddWorkoutDialog cycleId={cycle.id} cycleLength={cycleLength} />
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -225,25 +225,25 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
         ) : (
           <Tabs defaultValue={daysWithExercises[0]?.dayIndex.toString() || "0"} className="w-full">
             <TabsList className="w-full flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
-              {itemsByDay.map(({ shortDay, dayIndex, exercises }) => (
+              {itemsByDay.map(({ shortLabel, dayIndex, exercises }) => (
                 <TabsTrigger 
                   key={dayIndex} 
                   value={dayIndex.toString()}
                   disabled={exercises.length === 0}
-                  className="flex-1 min-w-[40px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  className="flex-1 min-w-[50px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   data-testid={`tab-day-${dayIndex}`}
                 >
-                  <span className="text-xs">{shortDay}</span>
+                  <span className="text-xs">{shortLabel}</span>
                   {exercises.length > 0 && (
                     <span className="ml-1 text-[10px] opacity-70">({exercises.length})</span>
                   )}
                 </TabsTrigger>
               ))}
             </TabsList>
-            {itemsByDay.map(({ day, dayIndex, exercises }) => (
+            {itemsByDay.map(({ dayLabel, dayIndex, exercises }) => (
               <TabsContent key={dayIndex} value={dayIndex.toString()} className="mt-4">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm text-muted-foreground">{day}</h4>
+                  <h4 className="font-semibold text-sm text-muted-foreground">{dayLabel}</h4>
                   {exercises.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">No exercises for this day.</p>
                   ) : (
@@ -293,13 +293,14 @@ function CreateCycleDialog({ members }: { members: any[] }) {
   const formSchema = z.object({
     memberId: z.coerce.number().min(1, "Select a member"),
     name: z.string().min(1, "Name is required"),
+    cycleLength: z.coerce.number().min(1).max(7),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().min(1, "End date is required"),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", startDate: "", endDate: "" },
+    defaultValues: { name: "", cycleLength: 3, startDate: "", endDate: "" },
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
@@ -361,6 +362,30 @@ function CreateCycleDialog({ members }: { members: any[] }) {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="cycleLength"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cycle Pattern (days)</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-cycle-length">
+                        <SelectValue placeholder="Select cycle length" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {[2, 3, 4, 5, 6, 7].map((n) => (
+                        <SelectItem key={n} value={n.toString()}>
+                          {n}-day cycle
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -405,13 +430,13 @@ function CreateCycleDialog({ members }: { members: any[] }) {
 const muscleTypes = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Glutes", "Full Body"];
 const bodyParts = ["Upper Body", "Lower Body", "Full Body"];
 
-function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
+function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLength: number }) {
   const [open, setOpen] = useState(false);
   const addWorkoutMutation = useAddWorkoutItem();
   const queryClient = useQueryClient();
 
   const formSchema = z.object({
-    dayOfWeek: z.coerce.number().min(0).max(6),
+    dayIndex: z.coerce.number().min(0),
     muscleType: z.string().min(1, "Select a muscle type"),
     bodyPart: z.string().min(1, "Select a body part"),
     exerciseName: z.string().min(1, "Exercise name is required"),
@@ -427,7 +452,7 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
       sets: 3, 
       reps: 10, 
       weight: "", 
-      dayOfWeek: 1,
+      dayIndex: 0,
       muscleType: "Chest",
       bodyPart: "Upper Body"
     },
@@ -443,13 +468,18 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
           sets: 3, 
           reps: 10, 
           weight: "", 
-          dayOfWeek: data.dayOfWeek,
+          dayIndex: data.dayIndex,
           muscleType: data.muscleType,
           bodyPart: data.bodyPart
         });
       },
     });
   };
+
+  const dayOptions = Array.from({ length: cycleLength }, (_, i) => ({
+    value: i.toString(),
+    label: `Day ${i + 1}`
+  }));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -466,10 +496,10 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
             <FormField
               control={form.control}
-              name="dayOfWeek"
+              name="dayIndex"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Day of Week</FormLabel>
+                  <FormLabel>Day</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
                     <FormControl>
                       <SelectTrigger data-testid="select-day">
@@ -477,8 +507,8 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {days.map((day, idx) => (
-                        <SelectItem key={idx} value={idx.toString()}>{day}</SelectItem>
+                      {dayOptions.map((day) => (
+                        <SelectItem key={day.value} value={day.value}>{day.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

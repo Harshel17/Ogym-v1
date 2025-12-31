@@ -53,7 +53,7 @@ export interface IStorage {
   getCycle(cycleId: number): Promise<WorkoutCycle | undefined>;
   addWorkoutItem(data: InsertWorkoutItem): Promise<WorkoutItem>;
   getWorkoutItems(cycleId: number): Promise<WorkoutItem[]>;
-  getWorkoutItemsByDay(cycleId: number, dayOfWeek: number): Promise<WorkoutItem[]>;
+  getWorkoutItemsByDay(cycleId: number, dayIndex: number): Promise<WorkoutItem[]>;
   getWorkoutItem(id: number): Promise<WorkoutItem | undefined>;
   completeWorkout(data: InsertWorkoutCompletion): Promise<WorkoutCompletion>;
   getCompletions(memberId: number, date: string): Promise<WorkoutCompletion[]>;
@@ -225,12 +225,12 @@ export class DatabaseStorage implements IStorage {
   async getWorkoutItems(cycleId: number): Promise<WorkoutItem[]> {
     return await db.select().from(workoutItems)
       .where(eq(workoutItems.cycleId, cycleId))
-      .orderBy(workoutItems.dayOfWeek, workoutItems.orderIndex);
+      .orderBy(workoutItems.dayIndex, workoutItems.orderIndex);
   }
 
-  async getWorkoutItemsByDay(cycleId: number, dayOfWeek: number): Promise<WorkoutItem[]> {
+  async getWorkoutItemsByDay(cycleId: number, dayIndex: number): Promise<WorkoutItem[]> {
     return await db.select().from(workoutItems)
-      .where(and(eq(workoutItems.cycleId, cycleId), eq(workoutItems.dayOfWeek, dayOfWeek)))
+      .where(and(eq(workoutItems.cycleId, cycleId), eq(workoutItems.dayIndex, dayIndex)))
       .orderBy(workoutItems.orderIndex);
   }
 

@@ -240,6 +240,10 @@ function MemberDashboard() {
   const attendedCount = attendanceList.length;
   const lastPayment = paymentsList[0];
 
+  const workoutData = todayWorkout as any;
+  const currentDayIndex = workoutData?.dayIndex ?? 0;
+  const cycleLength = workoutData?.cycleLength ?? 3;
+
   const allCompleted = workoutItems.length > 0 && workoutItems.every((i: any) => i.completed);
   const incompleteIds = workoutItems.filter((i: any) => !i.completed).map((i: any) => i.id);
   const completedCount = workoutItems.filter((i: any) => i.completed).length;
@@ -288,7 +292,12 @@ function MemberDashboard() {
             <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer hover-elevate">
               <div className="flex items-center gap-2">
                 <Dumbbell className="w-5 h-5 text-primary" />
-                <CardTitle className="text-lg">Today's Workout</CardTitle>
+                <div>
+                  <CardTitle className="text-lg">Today's Workout</CardTitle>
+                  {workoutItems.length > 0 && (
+                    <p className="text-xs text-muted-foreground">Day {currentDayIndex + 1} of {cycleLength}</p>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 {workoutItems.length > 0 && (

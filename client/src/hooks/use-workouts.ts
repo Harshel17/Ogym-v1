@@ -25,7 +25,7 @@ export function useCreateCycle() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { memberId: number; name: string; startDate: string; endDate: string }) => {
+    mutationFn: async (data: { memberId: number; name: string; cycleLength: number; startDate: string; endDate: string }) => {
       return apiRequest("POST", "/api/trainer/cycles", data);
     },
     onSuccess: () => {
@@ -43,7 +43,7 @@ export function useAddWorkoutItem() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { cycleId: number; dayOfWeek: number; exerciseName: string; sets: number; reps: number; weight?: string; orderIndex?: number }) => {
+    mutationFn: async (data: { cycleId: number; dayIndex: number; muscleType?: string; bodyPart?: string; exerciseName: string; sets: number; reps: number; weight?: string; orderIndex?: number }) => {
       const { cycleId, ...rest } = data;
       return apiRequest("POST", `/api/trainer/cycles/${cycleId}/items`, rest);
     },

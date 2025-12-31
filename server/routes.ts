@@ -250,6 +250,7 @@ export async function registerRoutes(
     const schema = z.object({
       memberId: z.number(),
       name: z.string(),
+      cycleLength: z.number().min(1).max(7),
       startDate: z.string(),
       endDate: z.string()
     });
@@ -283,7 +284,7 @@ export async function registerRoutes(
     const muscleTypes = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Glutes", "Full Body"] as const;
     const bodyParts = ["Upper Body", "Lower Body", "Full Body"] as const;
     const schema = z.object({
-      dayOfWeek: z.number().min(0).max(6),
+      dayIndex: z.number().min(0),
       muscleType: z.enum(muscleTypes).default("Chest"),
       bodyPart: z.enum(bodyParts).default("Upper Body"),
       exerciseName: z.string(),
@@ -297,6 +298,10 @@ export async function registerRoutes(
     const cycle = await storage.getCycle(cycleId);
     if (!cycle || cycle.trainerId !== req.user!.id) {
       return res.status(403).json({ message: "Not authorized" });
+    }
+    
+    if (input.dayIndex >= cycle.cycleLength) {
+      return res.status(400).json({ message: "Day index exceeds cycle length" });
     }
     
     const item = await storage.addWorkoutItem({ ...input, cycleId });
@@ -322,10 +327,14 @@ export async function registerRoutes(
     const cycle = await storage.getMemberCycle(req.user!.id);
     if (!cycle) return res.json({ items: [], message: "No active workout cycle" });
     
-    const todayDow = (new Date().getDay());
-    const items = await storage.getWorkoutItemsByDay(cycle.id, todayDow);
-    const today = new Date().toISOString().split("T")[0];
-    const completions = await storage.getCompletions(req.user!.id, today);
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    const startDate = new Date(cycle.startDate);
+    const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    
+    const items = await storage.getWorkoutItemsByDay(cycle.id, currentDayIndex);
+    const completions = await storage.getCompletions(req.user!.id, todayStr);
     const completedIds = new Set(completions.map(c => c.workoutItemId));
     
     const itemsWithStatus = items.map(i => ({
@@ -333,7 +342,12 @@ export async function registerRoutes(
       completed: completedIds.has(i.id)
     }));
     
-    res.json({ cycleName: cycle.name, dayOfWeek: todayDow, items: itemsWithStatus });
+    res.json({ 
+      cycleName: cycle.name, 
+      dayIndex: currentDayIndex, 
+      cycleLength: cycle.cycleLength,
+      items: itemsWithStatus 
+    });
   });
 
   app.post("/api/workouts/complete", requireRole(["member"]), async (req, res) => {
@@ -477,17 +491,18 @@ async function seedDemoData() {
     memberId: member1.id,
     trainerId: trainer.id,
     name: "Push-Pull-Legs Beginner",
+    cycleLength: 3,
     startDate,
     endDate
   });
 
   const exercises = [
-    { dayOfWeek: 1, exerciseName: "Bench Press", sets: 3, reps: 10, weight: "40kg", orderIndex: 0 },
-    { dayOfWeek: 1, exerciseName: "Overhead Press", sets: 3, reps: 10, weight: "20kg", orderIndex: 1 },
-    { dayOfWeek: 2, exerciseName: "Deadlift", sets: 3, reps: 8, weight: "60kg", orderIndex: 0 },
-    { dayOfWeek: 2, exerciseName: "Barbell Row", sets: 3, reps: 10, weight: "40kg", orderIndex: 1 },
-    { dayOfWeek: 3, exerciseName: "Squats", sets: 3, reps: 10, weight: "50kg", orderIndex: 0 },
-    { dayOfWeek: 3, exerciseName: "Leg Press", sets: 3, reps: 12, weight: "80kg", orderIndex: 1 },
+    { dayIndex: 0, exerciseName: "Bench Press", sets: 3, reps: 10, weight: "40kg", orderIndex: 0, muscleType: "Chest", bodyPart: "Upper Body" },
+    { dayIndex: 0, exerciseName: "Overhead Press", sets: 3, reps: 10, weight: "20kg", orderIndex: 1, muscleType: "Shoulders", bodyPart: "Upper Body" },
+    { dayIndex: 1, exerciseName: "Deadlift", sets: 3, reps: 8, weight: "60kg", orderIndex: 0, muscleType: "Back", bodyPart: "Full Body" },
+    { dayIndex: 1, exerciseName: "Barbell Row", sets: 3, reps: 10, weight: "40kg", orderIndex: 1, muscleType: "Back", bodyPart: "Upper Body" },
+    { dayIndex: 2, exerciseName: "Squats", sets: 3, reps: 10, weight: "50kg", orderIndex: 0, muscleType: "Legs", bodyPart: "Lower Body" },
+    { dayIndex: 2, exerciseName: "Leg Press", sets: 3, reps: 12, weight: "80kg", orderIndex: 1, muscleType: "Legs", bodyPart: "Lower Body" },
   ];
 
   for (const ex of exercises) {

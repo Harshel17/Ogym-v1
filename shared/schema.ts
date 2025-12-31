@@ -59,6 +59,7 @@ export const workoutCycles = pgTable("workout_cycles", {
   trainerId: integer("trainer_id").references(() => users.id).notNull(),
   memberId: integer("member_id").references(() => users.id).notNull(),
   name: text("name").notNull(),
+  cycleLength: integer("cycle_length").notNull().default(3),
   startDate: text("start_date").notNull(),
   endDate: text("end_date").notNull(),
   isActive: boolean("is_active").default(true),
@@ -68,7 +69,7 @@ export const workoutCycles = pgTable("workout_cycles", {
 export const workoutItems = pgTable("workout_items", {
   id: serial("id").primaryKey(),
   cycleId: integer("cycle_id").references(() => workoutCycles.id).notNull(),
-  dayOfWeek: integer("day_of_week").notNull(),
+  dayIndex: integer("day_index").notNull(),
   muscleType: text("muscle_type").notNull().default("Chest"),
   bodyPart: text("body_part").notNull().default("Upper Body"),
   exerciseName: text("exercise_name").notNull(),
