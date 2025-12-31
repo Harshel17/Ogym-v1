@@ -244,6 +244,9 @@ function MemberDashboard() {
   const currentDayIndex = workoutData?.dayIndex ?? 0;
   const cycleLength = workoutData?.cycleLength ?? 3;
   const dayLabel = workoutData?.dayLabel || null;
+  
+  const muscleTypes = [...new Set(workoutItems.map((i: any) => i.muscleType).filter(Boolean))];
+  const muscleTypesDisplay = muscleTypes.length > 0 ? muscleTypes.join(" + ") : null;
 
   const allCompleted = workoutItems.length > 0 && workoutItems.every((i: any) => i.completed);
   const incompleteIds = workoutItems.filter((i: any) => !i.completed).map((i: any) => i.id);
@@ -296,13 +299,16 @@ function MemberDashboard() {
                 <div>
                   <CardTitle className="text-lg">Today's Workout</CardTitle>
                   {workoutItems.length > 0 && (
-                    <p className="text-xs text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       {dayLabel ? (
                         <span className="font-medium">{dayLabel}</span>
                       ) : (
-                        `Day ${currentDayIndex + 1} of ${cycleLength}`
+                        <span>Day {currentDayIndex + 1} of {cycleLength}</span>
                       )}
-                    </p>
+                      {muscleTypesDisplay && (
+                        <span className="ml-1 text-primary font-medium"> - {muscleTypesDisplay}</span>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
