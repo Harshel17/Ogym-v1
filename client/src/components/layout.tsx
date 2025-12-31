@@ -19,6 +19,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isOwner = user.role === "owner";
   const isTrainer = user.role === "trainer";
 
+  const isMember = user.role === "member";
+
   const navItems = [
     { 
       label: "Dashboard", 
@@ -30,7 +32,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Members", 
       href: "/members", 
       icon: Users,
-      visible: isOwner
+      visible: isOwner || isTrainer
     },
     { 
       label: "Attendance", 
@@ -43,6 +45,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
       href: "/payments", 
       icon: CreditCard,
       visible: true
+    },
+    { 
+      label: "Workouts", 
+      href: "/workouts", 
+      icon: Dumbbell,
+      visible: isTrainer
+    },
+    { 
+      label: "My Workout", 
+      href: "/my-workout", 
+      icon: Dumbbell,
+      visible: isMember
     },
   ];
 

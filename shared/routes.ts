@@ -144,9 +144,54 @@ export const api = {
     mark: {
       method: 'POST' as const,
       path: '/api/payments',
-      input: insertPaymentSchema.omit({ gymId: true, updatedByUserId: true }), // Backend infers these
+      input: insertPaymentSchema.omit({ gymId: true, updatedByUserId: true }),
       responses: {
         201: z.custom<typeof payments.$inferSelect>(),
+      },
+    },
+  },
+  trainer: {
+    getCycles: {
+      method: 'GET' as const,
+      path: '/api/trainer/cycles',
+      responses: {
+        200: z.array(z.custom<typeof workoutCycles.$inferSelect>()),
+      },
+    },
+    createCycle: {
+      method: 'POST' as const,
+      path: '/api/trainer/cycles',
+      input: insertWorkoutCycleSchema.omit({ gymId: true, trainerId: true }),
+      responses: {
+        201: z.custom<typeof workoutCycles.$inferSelect>(),
+      },
+    },
+    addWorkout: {
+      method: 'POST' as const,
+      path: '/api/trainer/workouts',
+      input: insertWorkoutSchema,
+      responses: {
+        201: z.custom<typeof workouts.$inferSelect>(),
+      },
+    },
+  },
+  member: {
+    getCycle: {
+      method: 'GET' as const,
+      path: '/api/member/cycle',
+      responses: {
+        200: z.object({
+          cycle: z.custom<typeof workoutCycles.$inferSelect>(),
+          workouts: z.array(z.custom<typeof workouts.$inferSelect>()),
+        }).nullable(),
+      },
+    },
+    completeWorkout: {
+      method: 'POST' as const,
+      path: '/api/member/workouts/complete',
+      input: insertWorkoutCompletionSchema.omit({ memberId: true }),
+      responses: {
+        201: z.custom<typeof workoutCompletions.$inferSelect>(),
       },
     },
   },

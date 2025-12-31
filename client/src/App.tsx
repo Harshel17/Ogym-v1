@@ -11,6 +11,8 @@ import DashboardPage from "@/pages/dashboard-page";
 import MembersPage from "@/pages/members-page";
 import AttendancePage from "@/pages/attendance-page";
 import PaymentsPage from "@/pages/payments-page";
+import TrainerWorkoutPage from "@/pages/trainer-workout-page";
+import MemberWorkoutPage from "@/pages/member-workout-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -55,6 +57,14 @@ function Router() {
       
       <Route path="/payments">
         <ProtectedRoute component={PaymentsPage} />
+      </Route>
+
+      <Route path="/workouts">
+        <ProtectedRoute component={TrainerWorkoutPage} />
+      </Route>
+
+      <Route path="/my-workout">
+        <ProtectedRoute component={MemberWorkoutPage} />
       </Route>
 
       <Route component={NotFound} />
