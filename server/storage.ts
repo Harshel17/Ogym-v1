@@ -192,6 +192,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWorkoutCycle(data: InsertWorkoutCycle): Promise<WorkoutCycle> {
+    // Deactivate any existing active cycles for this member first
+    await db.update(workoutCycles)
+      .set({ isActive: false })
+      .where(and(eq(workoutCycles.memberId, data.memberId), eq(workoutCycles.isActive, true)));
+    
     const [cycle] = await db.insert(workoutCycles).values(data).returning();
     return cycle;
   }
@@ -202,7 +207,8 @@ export class DatabaseStorage implements IStorage {
 
   async getMemberCycle(memberId: number): Promise<WorkoutCycle | undefined> {
     const [cycle] = await db.select().from(workoutCycles)
-      .where(and(eq(workoutCycles.memberId, memberId), eq(workoutCycles.isActive, true)));
+      .where(and(eq(workoutCycles.memberId, memberId), eq(workoutCycles.isActive, true)))
+      .orderBy(desc(workoutCycles.id));
     return cycle;
   }
 
