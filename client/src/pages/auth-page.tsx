@@ -227,35 +227,48 @@ export default function AuthPage() {
                         )}
                       />
 
-                      {selectedRole === "owner" ? (
-                        <FormField
-                          control={registerForm.control}
-                          name="gymName"
-                          render={({ field }) => (
-                            <FormItem className="animate-in fade-in zoom-in-95 duration-200">
-                              <FormLabel>Gym Name</FormLabel>
-                              <FormControl>
-                                <Input placeholder="e.g. Iron Paradise" {...field} className="h-11" data-testid="input-gym-name" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      ) : (
-                        <FormField
-                          control={registerForm.control}
-                          name="gymCode"
-                          render={({ field }) => (
-                            <FormItem className="animate-in fade-in zoom-in-95 duration-200">
-                              <FormLabel>Gym Code</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter the code provided by your gym" {...field} className="h-11" data-testid="input-gym-code" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
+                      <FormField
+                        control={registerForm.control}
+                        name="gymName"
+                        render={({ field }) => (
+                          <FormItem className={selectedRole === "owner" ? "animate-in fade-in zoom-in-95 duration-200" : "hidden"}>
+                            <FormLabel>Gym Name</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="e.g. Iron Paradise" 
+                                value={field.value || ""} 
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                name={field.name}
+                                className="h-11" 
+                                data-testid="input-gym-name" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={registerForm.control}
+                        name="gymCode"
+                        render={({ field }) => (
+                          <FormItem className={selectedRole !== "owner" ? "animate-in fade-in zoom-in-95 duration-200" : "hidden"}>
+                            <FormLabel>Gym Code</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter the code provided by your gym" 
+                                value={field.value || ""} 
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                name={field.name}
+                                className="h-11" 
+                                data-testid="input-gym-code" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
                       <Button 
                         type="submit" 
