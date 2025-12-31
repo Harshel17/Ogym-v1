@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { nanoid } from "nanoid";
+import passport from "passport";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -62,15 +63,11 @@ export async function registerRoutes(
   });
 
   app.post(api.auth.login.path, (req, res, next) => {
-    // Basic validation
     try {
       api.auth.login.input.parse(req.body);
     } catch (err) {
       return res.status(400).json({ message: "Invalid input" });
     }
-    next();
-  }, (req, res, next) => {
-    const passport = require("passport");
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) return next(err);
       if (!user) return res.status(401).json({ message: "Invalid credentials" });
