@@ -90,7 +90,21 @@ export const workoutCompletions = pgTable("workout_completions", {
   actualSets: integer("actual_sets"),
   actualReps: integer("actual_reps"),
   actualWeight: text("actual_weight"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const memberRequests = pgTable("member_requests", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  trainerId: integer("trainer_id").references(() => users.id),
+  type: text("type", { enum: ["feedback", "change_request", "question"] }).notNull(),
+  message: text("message").notNull(),
+  status: text("status", { enum: ["pending", "read", "resolved"] }).default("pending"),
+  response: text("response"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // === RELATIONS ===
@@ -116,6 +130,7 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true,
 export const insertWorkoutCycleSchema = createInsertSchema(workoutCycles).omit({ id: true, createdAt: true });
 export const insertWorkoutItemSchema = createInsertSchema(workoutItems).omit({ id: true });
 export const insertWorkoutCompletionSchema = createInsertSchema(workoutCompletions).omit({ id: true, createdAt: true });
+export const insertMemberRequestSchema = createInsertSchema(memberRequests).omit({ id: true, createdAt: true, updatedAt: true });
 
 // === EXPLICIT TYPES ===
 
@@ -127,6 +142,7 @@ export type Payment = typeof payments.$inferSelect;
 export type WorkoutCycle = typeof workoutCycles.$inferSelect;
 export type WorkoutItem = typeof workoutItems.$inferSelect;
 export type WorkoutCompletion = typeof workoutCompletions.$inferSelect;
+export type MemberRequest = typeof memberRequests.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertGym = z.infer<typeof insertGymSchema>;
@@ -135,3 +151,4 @@ export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type InsertWorkoutCycle = z.infer<typeof insertWorkoutCycleSchema>;
 export type InsertWorkoutItem = z.infer<typeof insertWorkoutItemSchema>;
 export type InsertWorkoutCompletion = z.infer<typeof insertWorkoutCompletionSchema>;
+export type InsertMemberRequest = z.infer<typeof insertMemberRequestSchema>;

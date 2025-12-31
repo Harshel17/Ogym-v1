@@ -505,6 +505,58 @@ export async function registerRoutes(
     res.json(stats);
   });
 
+  // === MEMBER PROFILE & PROGRESS ROUTES ===
+  app.get("/api/member/profile", requireRole(["member"]), async (req, res) => {
+    const profile = await storage.getMemberProfile(req.user!.id);
+    res.json(profile);
+  });
+
+  app.get("/api/member/progress", requireRole(["member"]), async (req, res) => {
+    const progress = await storage.getMemberProgress(req.user!.id);
+    res.json(progress);
+  });
+
+  // === MEMBER REQUESTS ROUTES ===
+  app.post("/api/member/requests", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      type: z.enum(["feedback", "change_request", "question"]),
+      message: z.string().min(1)
+    });
+    const input = schema.parse(req.body);
+    
+    // Find member's trainer
+    const assignments = await storage.getGymAssignments(req.user!.gymId!);
+    const assignment = assignments.find(a => a.memberId === req.user!.id);
+    
+    const request = await storage.createMemberRequest({
+      gymId: req.user!.gymId!,
+      memberId: req.user!.id,
+      trainerId: assignment?.trainerId || null,
+      type: input.type,
+      message: input.message
+    });
+    res.status(201).json(request);
+  });
+
+  app.get("/api/member/requests", requireRole(["member"]), async (req, res) => {
+    const requests = await storage.getMemberRequests(req.user!.id);
+    res.json(requests);
+  });
+
+  app.get("/api/trainer/requests", requireRole(["trainer"]), async (req, res) => {
+    const requests = await storage.getTrainerRequests(req.user!.id);
+    res.json(requests);
+  });
+
+  app.patch("/api/trainer/requests/:requestId/respond", requireRole(["trainer"]), async (req, res) => {
+    const requestId = parseInt(req.params.requestId);
+    const schema = z.object({ response: z.string().min(1) });
+    const input = schema.parse(req.body);
+    
+    const updated = await storage.respondToRequest(requestId, input.response);
+    res.json(updated);
+  });
+
   await seedDemoData();
   return httpServer;
 }

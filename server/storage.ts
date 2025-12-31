@@ -1,12 +1,13 @@
 import { 
-  users, gyms, attendance, payments, trainerMembers, workoutCycles, workoutItems, workoutCompletions,
+  users, gyms, attendance, payments, trainerMembers, workoutCycles, workoutItems, workoutCompletions, memberRequests,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
   type TrainerMember,
   type WorkoutCycle, type InsertWorkoutCycle,
   type WorkoutItem, type InsertWorkoutItem,
-  type WorkoutCompletion, type InsertWorkoutCompletion
+  type WorkoutCompletion, type InsertWorkoutCompletion,
+  type MemberRequest, type InsertMemberRequest
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, sql } from "drizzle-orm";
@@ -77,6 +78,25 @@ export interface IStorage {
     cycleEndDate: string | null;
     paymentStatus: string | null;
   }[]>;
+  
+  // Member Profile & Progress
+  getMemberProfile(memberId: number): Promise<{
+    trainerName: string | null;
+    cycleEndDate: string | null;
+    cycleName: string | null;
+  }>;
+  getMemberProgress(memberId: number): Promise<{
+    exerciseName: string;
+    muscleType: string;
+    history: { date: string; weight: string | null; reps: number | null }[];
+    personalRecord: { weight: string | null; reps: number | null; date: string } | null;
+  }[]>;
+  
+  // Member Requests
+  createMemberRequest(data: InsertMemberRequest): Promise<MemberRequest>;
+  getMemberRequests(memberId: number): Promise<(MemberRequest & { trainerName: string | null })[]>;
+  getTrainerRequests(trainerId: number): Promise<(MemberRequest & { memberName: string })[]>;
+  respondToRequest(requestId: number, response: string): Promise<MemberRequest>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -459,6 +479,127 @@ export class DatabaseStorage implements IStorage {
     }));
     
     return result;
+  }
+
+  async getMemberProfile(memberId: number): Promise<{
+    trainerName: string | null;
+    cycleEndDate: string | null;
+    cycleName: string | null;
+  }> {
+    const [assignment] = await db.select()
+      .from(trainerMembers)
+      .where(eq(trainerMembers.memberId, memberId));
+    
+    let trainerName: string | null = null;
+    if (assignment) {
+      const [trainer] = await db.select().from(users).where(eq(users.id, assignment.trainerId));
+      trainerName = trainer?.username || null;
+    }
+    
+    const cycle = await this.getMemberCycle(memberId);
+    
+    return {
+      trainerName,
+      cycleEndDate: cycle?.endDate || null,
+      cycleName: cycle?.name || null
+    };
+  }
+
+  async getMemberProgress(memberId: number): Promise<{
+    exerciseName: string;
+    muscleType: string;
+    history: { date: string; weight: string | null; reps: number | null }[];
+    personalRecord: { weight: string | null; reps: number | null; date: string } | null;
+  }[]> {
+    const completions = await db.select({
+      completion: workoutCompletions,
+      item: workoutItems
+    })
+    .from(workoutCompletions)
+    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .where(eq(workoutCompletions.memberId, memberId))
+    .orderBy(desc(workoutCompletions.completedDate));
+
+    const exerciseMap = new Map<string, {
+      exerciseName: string;
+      muscleType: string;
+      history: { date: string; weight: string | null; reps: number | null }[];
+    }>();
+
+    for (const { completion, item } of completions) {
+      const key = item.exerciseName;
+      if (!exerciseMap.has(key)) {
+        exerciseMap.set(key, {
+          exerciseName: item.exerciseName,
+          muscleType: item.muscleType,
+          history: []
+        });
+      }
+      exerciseMap.get(key)!.history.push({
+        date: completion.completedDate,
+        weight: completion.actualWeight,
+        reps: completion.actualReps
+      });
+    }
+
+    return Array.from(exerciseMap.values()).map(exercise => {
+      let personalRecord: { weight: string | null; reps: number | null; date: string } | null = null;
+      let maxWeight = 0;
+
+      for (const h of exercise.history) {
+        const weight = parseFloat(h.weight || '0');
+        if (weight > maxWeight) {
+          maxWeight = weight;
+          personalRecord = { weight: h.weight, reps: h.reps, date: h.date };
+        }
+      }
+
+      return { ...exercise, personalRecord };
+    });
+  }
+
+  async createMemberRequest(data: InsertMemberRequest): Promise<MemberRequest> {
+    const [request] = await db.insert(memberRequests).values(data).returning();
+    return request;
+  }
+
+  async getMemberRequests(memberId: number): Promise<(MemberRequest & { trainerName: string | null })[]> {
+    const requests = await db.select()
+      .from(memberRequests)
+      .where(eq(memberRequests.memberId, memberId))
+      .orderBy(desc(memberRequests.createdAt));
+
+    const result = await Promise.all(requests.map(async (req) => {
+      let trainerName: string | null = null;
+      if (req.trainerId) {
+        const [trainer] = await db.select().from(users).where(eq(users.id, req.trainerId));
+        trainerName = trainer?.username || null;
+      }
+      return { ...req, trainerName };
+    }));
+
+    return result;
+  }
+
+  async getTrainerRequests(trainerId: number): Promise<(MemberRequest & { memberName: string })[]> {
+    const requests = await db.select({
+      request: memberRequests,
+      member: users
+    })
+    .from(memberRequests)
+    .innerJoin(users, eq(memberRequests.memberId, users.id))
+    .where(eq(memberRequests.trainerId, trainerId))
+    .orderBy(desc(memberRequests.createdAt));
+
+    return requests.map(r => ({ ...r.request, memberName: r.member.username }));
+  }
+
+  async respondToRequest(requestId: number, response: string): Promise<MemberRequest> {
+    const [updated] = await db.update(memberRequests)
+      .set({ response, status: 'resolved', updatedAt: new Date() })
+      .where(eq(memberRequests.id, requestId))
+      .returning();
+    return updated;
   }
 }
 

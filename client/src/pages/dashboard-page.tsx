@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
-import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout } from "@/hooks/use-workouts";
+import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout, useMemberProfile } from "@/hooks/use-workouts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -229,12 +229,14 @@ function MemberDashboard() {
   const { data: payments = [] } = useMemberPayments();
   const { data: stats } = useMemberStats();
   const { data: todayWorkout, isLoading: workoutLoading } = useTodayWorkout();
+  const { data: profile } = useMemberProfile();
   const completeAllMutation = useCompleteAllWorkouts();
   const completeWorkoutMutation = useCompleteWorkout();
 
   const attendanceList = attendance as any[];
   const paymentsList = payments as any[];
   const memberStats = stats as any;
+  const memberProfile = profile as any;
   const workoutItems = (todayWorkout as any)?.items || [];
 
   const attendedCount = attendanceList.length;
@@ -489,6 +491,37 @@ function MemberDashboard() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {memberProfile && (memberProfile.trainerName || memberProfile.cycleEndDate) && (
+        <Card className="border-2 border-primary/10 bg-gradient-to-r from-primary/5 to-accent/5">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              {memberProfile.trainerName && (
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-full text-primary">
+                    <User2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Your Trainer</p>
+                    <p className="font-semibold text-foreground">{memberProfile.trainerName}</p>
+                  </div>
+                </div>
+              )}
+              {memberProfile.cycleEndDate && (
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-full text-primary">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Cycle Ends</p>
+                    <p className="font-semibold text-foreground">{memberProfile.cycleEndDate}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-4 md:grid-cols-2">

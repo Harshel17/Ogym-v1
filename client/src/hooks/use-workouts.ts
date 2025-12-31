@@ -139,3 +139,63 @@ export function useCompleteAllWorkouts() {
     },
   });
 }
+
+export function useMemberProfile() {
+  return useQuery({
+    queryKey: ['/api/member/profile'],
+  });
+}
+
+export function useMemberProgress() {
+  return useQuery({
+    queryKey: ['/api/member/progress'],
+  });
+}
+
+export function useMemberRequests() {
+  return useQuery({
+    queryKey: ['/api/member/requests'],
+  });
+}
+
+export function useTrainerRequests() {
+  return useQuery({
+    queryKey: ['/api/trainer/requests'],
+  });
+}
+
+export function useCreateRequest() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { type: string; message: string }) => {
+      return apiRequest("POST", "/api/member/requests", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/member/requests'] });
+      toast({ title: "Sent!", description: "Your request has been sent to your trainer" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to send request", variant: "destructive" });
+    },
+  });
+}
+
+export function useRespondToRequest() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { requestId: number; response: string }) => {
+      return apiRequest("PATCH", `/api/trainer/requests/${data.requestId}/respond`, { response: data.response });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trainer/requests'] });
+      toast({ title: "Responded!", description: "Your response has been sent" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to respond", variant: "destructive" });
+    },
+  });
+}

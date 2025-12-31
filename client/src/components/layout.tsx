@@ -7,7 +7,9 @@ import {
   CalendarCheck, 
   CreditCard, 
   LogOut, 
-  Dumbbell 
+  Dumbbell,
+  TrendingUp,
+  MessageSquare
 } from "lucide-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -63,6 +65,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
       href: "/my-workout", 
       icon: Dumbbell,
       visible: isMember
+    },
+    { 
+      label: "Progress", 
+      href: "/progress", 
+      icon: TrendingUp,
+      visible: isMember
+    },
+    { 
+      label: "Requests", 
+      href: "/requests", 
+      icon: MessageSquare,
+      visible: isMember || isTrainer
     },
   ];
 
