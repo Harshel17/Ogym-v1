@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMembers, useTrainers, useAssignTrainer } from "@/hooks/use-gym";
+import { useTrainerMembers } from "@/hooks/use-workouts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, UserPlus, Shield } from "lucide-react";
+import { Search, Shield } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -34,8 +35,16 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 
 export default function MembersPage() {
   const { user } = useAuth();
-  const { data: members = [], isLoading } = useMembers();
   const [search, setSearch] = useState("");
+  
+  const isOwner = user?.role === "owner";
+  const isTrainer = user?.role === "trainer";
+  
+  const { data: ownerMembers = [], isLoading: ownerLoading } = useMembers();
+  const { data: trainerMembers = [], isLoading: trainerLoading } = useTrainerMembers();
+  
+  const members = isOwner ? (ownerMembers as any[]) : (trainerMembers as any[]);
+  const isLoading = isOwner ? ownerLoading : trainerLoading;
 
   if (user?.role === "member") {
     return (
@@ -47,13 +56,10 @@ export default function MembersPage() {
     );
   }
 
-  const filteredMembers = members.filter(m => 
-    m.username.toLowerCase().includes(search.toLowerCase()) || 
-    m.role.toLowerCase().includes(search.toLowerCase())
+  const filteredMembers = members.filter((m: any) => 
+    m.username?.toLowerCase().includes(search.toLowerCase()) || 
+    m.role?.toLowerCase().includes(search.toLowerCase())
   );
-  
-  const isOwner = user?.role === "owner";
-  const isTrainer = user?.role === "trainer";
 
   return (
     <div className="space-y-8">
@@ -66,7 +72,6 @@ export default function MembersPage() {
             {isOwner ? "View and manage all members in your gym." : "Members assigned to you for training."}
           </p>
         </div>
-        {/* Note: Member creation is done via registration with gym code, but we could add invite logic here */}
       </div>
 
       <Card className="dashboard-card">
@@ -79,6 +84,7 @@ export default function MembersPage() {
                 className="pl-8"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                data-testid="input-search-members"
               />
             </div>
           </div>
@@ -91,45 +97,47 @@ export default function MembersPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  {isOwner && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">Loading...</TableCell>
+                    <TableCell colSpan={isOwner ? 4 : 3} className="h-24 text-center">Loading...</TableCell>
                   </TableRow>
                 ) : filteredMembers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                      No members found.
+                    <TableCell colSpan={isOwner ? 4 : 3} className="h-24 text-center text-muted-foreground">
+                      {isTrainer ? "No members assigned to you yet." : "No members found."}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredMembers.map((member) => (
-                    <TableRow key={member.id} className="hover:bg-muted/50 transition-colors">
+                  filteredMembers.map((member: any) => (
+                    <TableRow key={member.id} className="hover:bg-muted/50 transition-colors" data-testid={`row-member-${member.id}`}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                            {member.username.slice(0, 2).toUpperCase()}
+                            {member.username?.slice(0, 2).toUpperCase() || '??'}
                           </div>
                           {member.username}
                         </div>
                       </TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium capitalize 
-                          ${member.role === 'trainer' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                          ${member.role === 'trainer' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'}`}>
                           {member.role}
                         </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : '-'}
                       </TableCell>
-                      <TableCell className="text-right">
-                        {isOwner && member.role === 'member' && (
-                          <AssignTrainerDialog memberId={member.id} memberName={member.username} />
-                        )}
-                      </TableCell>
+                      {isOwner && (
+                        <TableCell className="text-right">
+                          {member.role === 'member' && (
+                            <AssignTrainerDialog memberId={member.id} memberName={member.username} />
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
@@ -146,6 +154,8 @@ function AssignTrainerDialog({ memberId, memberName }: { memberId: number, membe
   const [open, setOpen] = useState(false);
   const { data: trainers = [] } = useTrainers();
   const assignMutation = useAssignTrainer();
+  
+  const trainersList = trainers as any[];
   
   const formSchema = z.object({
     trainerId: z.coerce.number().min(1, "Please select a trainer"),
@@ -164,9 +174,11 @@ function AssignTrainerDialog({ memberId, memberName }: { memberId: number, membe
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">Assign Trainer</Button>
+        <Button variant="outline" size="sm" data-testid={`button-assign-trainer-${memberId}`}>
+          Assign Trainer
+        </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Assign Trainer to {memberName}</DialogTitle>
         </DialogHeader>
@@ -180,12 +192,12 @@ function AssignTrainerDialog({ memberId, memberName }: { memberId: number, membe
                   <FormLabel>Select Trainer</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger data-testid="select-trainer">
                         <SelectValue placeholder="Select a trainer" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {trainers.map((t) => (
+                      {trainersList.map((t: any) => (
                         <SelectItem key={t.id} value={t.id.toString()}>
                           {t.username}
                         </SelectItem>
@@ -198,7 +210,7 @@ function AssignTrainerDialog({ memberId, memberName }: { memberId: number, membe
             />
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={assignMutation.isPending}>
+              <Button type="submit" disabled={assignMutation.isPending} data-testid="button-submit-assign">
                 {assignMutation.isPending ? "Assigning..." : "Assign"}
               </Button>
             </div>
