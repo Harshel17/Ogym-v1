@@ -37,12 +37,12 @@ export default function MembersPage() {
   const { data: members = [], isLoading } = useMembers();
   const [search, setSearch] = useState("");
 
-  if (user?.role !== "owner") {
+  if (user?.role === "member") {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] text-center">
         <Shield className="w-16 h-16 text-muted-foreground mb-4" />
         <h2 className="text-2xl font-bold">Access Restricted</h2>
-        <p className="text-muted-foreground">Only gym owners can manage members.</p>
+        <p className="text-muted-foreground">Only gym owners and trainers can view members.</p>
       </div>
     );
   }
@@ -51,13 +51,20 @@ export default function MembersPage() {
     m.username.toLowerCase().includes(search.toLowerCase()) || 
     m.role.toLowerCase().includes(search.toLowerCase())
   );
+  
+  const isOwner = user?.role === "owner";
+  const isTrainer = user?.role === "trainer";
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Member Management</h2>
-          <p className="text-muted-foreground mt-1">View and manage all members in your gym.</p>
+          <h2 className="text-3xl font-bold font-display text-foreground">
+            {isOwner ? "Member Management" : "My Assigned Members"}
+          </h2>
+          <p className="text-muted-foreground mt-1">
+            {isOwner ? "View and manage all members in your gym." : "Members assigned to you for training."}
+          </p>
         </div>
         {/* Note: Member creation is done via registration with gym code, but we could add invite logic here */}
       </div>
@@ -119,7 +126,7 @@ export default function MembersPage() {
                         {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : '-'}
                       </TableCell>
                       <TableCell className="text-right">
-                        {member.role === 'member' && (
+                        {isOwner && member.role === 'member' && (
                           <AssignTrainerDialog memberId={member.id} memberName={member.username} />
                         )}
                       </TableCell>
