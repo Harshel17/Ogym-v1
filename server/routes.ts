@@ -268,6 +268,16 @@ export async function registerRoutes(
     res.status(201).json(cycle);
   });
 
+  app.get("/api/trainer/cycles/:cycleId/items", requireRole(["trainer"]), async (req, res) => {
+    const cycleId = parseInt(req.params.cycleId);
+    const cycle = await storage.getCycle(cycleId);
+    if (!cycle || cycle.trainerId !== req.user!.id) {
+      return res.status(404).json({ message: "Cycle not found" });
+    }
+    const items = await storage.getWorkoutItems(cycleId);
+    res.json(items);
+  });
+
   app.post("/api/trainer/cycles/:cycleId/items", requireRole(["trainer"]), async (req, res) => {
     const cycleId = parseInt(req.params.cycleId);
     const schema = z.object({

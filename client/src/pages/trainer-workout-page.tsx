@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTrainerCycles, useTrainerMembers, useCreateCycle, useAddWorkoutItem, useTrainerActivity } from "@/hooks/use-workouts";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Dialog, 
   DialogContent, 
@@ -18,20 +21,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Shield, Plus, Dumbbell, Activity } from "lucide-react";
+import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { formatDistanceToNow } from "date-fns";
+import type { WorkoutItem } from "@shared/schema";
 
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const shortDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function TrainerWorkoutPage() {
   const { user } = useAuth();
   const { data: members = [], isLoading: membersLoading } = useTrainerMembers();
   const { data: cycles = [], isLoading: cyclesLoading } = useTrainerCycles();
   const { data: activity = [], isLoading: activityLoading } = useTrainerActivity();
+  const [selectedCycleId, setSelectedCycleId] = useState<number | null>(null);
+
+  const isLoading = membersLoading || cyclesLoading;
 
   if (user?.role !== "trainer") {
     return (
@@ -43,46 +50,86 @@ export default function TrainerWorkoutPage() {
     );
   }
 
+  const selectedCycle = (cycles as any[]).find(c => c.id === selectedCycleId);
+
   return (
-    <div className="space-y-8">
+    <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Workout Cycles</h2>
-          <p className="text-muted-foreground mt-1">Create and manage workout plans for your members.</p>
+          <h1 className="text-2xl font-bold" data-testid="text-workouts-title">Workout Cycles</h1>
+          <p className="text-muted-foreground">Create and manage workout plans for your members.</p>
         </div>
         <CreateCycleDialog members={members as any[]} />
       </div>
 
-      {cyclesLoading ? (
-        <p className="text-muted-foreground">Loading cycles...</p>
-      ) : (cycles as any[]).length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Dumbbell className="w-12 h-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No workout cycles yet.</p>
-            <p className="text-sm text-muted-foreground mt-2">Create a cycle for your assigned members.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {(cycles as any[]).map((cycle) => {
-            const member = (members as any[]).find(m => m.id === cycle.memberId);
-            return (
-              <Card key={cycle.id}>
-                <CardHeader className="flex flex-row items-start justify-between gap-2">
-                  <div>
-                    <CardTitle>{cycle.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      For: {member?.username || 'Unknown'} | {cycle.startDate} to {cycle.endDate}
-                    </p>
-                  </div>
-                  <AddWorkoutDialog cycleId={cycle.id} />
-                </CardHeader>
-              </Card>
-            );
-          })}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-1 space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Your Cycles</h3>
+          
+          {isLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
+              ))}
+            </div>
+          ) : (cycles as any[]).length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-8">
+                <Dumbbell className="w-10 h-10 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground text-center">No workout cycles yet.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {(cycles as any[]).map((cycle) => {
+                const member = (members as any[]).find(m => m.id === cycle.memberId);
+                const isSelected = selectedCycleId === cycle.id;
+                return (
+                  <Card 
+                    key={cycle.id} 
+                    className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-primary' : 'hover-elevate'}`}
+                    onClick={() => setSelectedCycleId(cycle.id)}
+                    data-testid={`card-cycle-${cycle.id}`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold truncate" data-testid={`text-cycle-name-${cycle.id}`}>
+                            {cycle.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <User className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              {member?.username || 'Unknown'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {cycle.startDate} to {cycle.endDate}
+                          </p>
+                        </div>
+                        <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
+
+        <div className="lg:col-span-2">
+          {selectedCycle ? (
+            <CycleDetailView cycle={selectedCycle} members={members as any[]} />
+          ) : (
+            <Card className="h-full min-h-[300px]">
+              <CardContent className="flex flex-col items-center justify-center h-full py-12">
+                <Calendar className="w-12 h-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground text-center">Select a cycle to view and edit exercises</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center gap-2">
@@ -95,14 +142,14 @@ export default function TrainerWorkoutPage() {
           ) : (activity as any[]).length === 0 ? (
             <p className="text-muted-foreground">No recent activity from your members.</p>
           ) : (
-            <div className="space-y-3">
-              {(activity as any[]).slice(0, 10).map((item, idx) => (
-                <div key={idx} className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
-                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{item.memberName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Completed {item.exerciseName} - {item.date}
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(activity as any[]).slice(0, 6).map((item, idx) => (
+                <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                  <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{item.memberName}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {item.exerciseName} - {item.date}
                     </p>
                   </div>
                 </div>
@@ -112,6 +159,124 @@ export default function TrainerWorkoutPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
+  const member = members.find(m => m.id === cycle.memberId);
+  const { data: items = [], isLoading } = useQuery<WorkoutItem[]>({
+    queryKey: ["/api/trainer/cycles", cycle.id, "items"],
+    queryFn: async () => {
+      const res = await fetch(`/api/trainer/cycles/${cycle.id}/items`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch items");
+      return res.json();
+    },
+  });
+
+  const itemsByDay = days.map((day, idx) => ({
+    day,
+    shortDay: shortDays[idx],
+    dayIndex: idx,
+    exercises: items.filter(item => item.dayOfWeek === idx).sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
+  }));
+
+  const daysWithExercises = itemsByDay.filter(d => d.exercises.length > 0);
+  const totalExercises = items.length;
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 pb-4">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Dumbbell className="w-5 h-5" />
+            {cycle.name}
+          </CardTitle>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <Badge variant="secondary">
+              <User className="w-3 h-3 mr-1" />
+              {member?.username || 'Unknown'}
+            </Badge>
+            <Badge variant="outline">
+              {totalExercises} exercises
+            </Badge>
+            <Badge variant="outline">
+              {daysWithExercises.length} days/week
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {cycle.startDate} to {cycle.endDate}
+          </p>
+        </div>
+        <AddWorkoutDialog cycleId={cycle.id} />
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-12 bg-muted animate-pulse rounded" />
+            ))}
+          </div>
+        ) : totalExercises === 0 ? (
+          <div className="text-center py-8 bg-muted/30 rounded-lg">
+            <Dumbbell className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-muted-foreground">No exercises added yet.</p>
+            <p className="text-sm text-muted-foreground">Click "Add Exercise" to get started.</p>
+          </div>
+        ) : (
+          <Tabs defaultValue={daysWithExercises[0]?.dayIndex.toString() || "0"} className="w-full">
+            <TabsList className="w-full flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
+              {itemsByDay.map(({ shortDay, dayIndex, exercises }) => (
+                <TabsTrigger 
+                  key={dayIndex} 
+                  value={dayIndex.toString()}
+                  disabled={exercises.length === 0}
+                  className="flex-1 min-w-[40px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  data-testid={`tab-day-${dayIndex}`}
+                >
+                  <span className="text-xs">{shortDay}</span>
+                  {exercises.length > 0 && (
+                    <span className="ml-1 text-[10px] opacity-70">({exercises.length})</span>
+                  )}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {itemsByDay.map(({ day, dayIndex, exercises }) => (
+              <TabsContent key={dayIndex} value={dayIndex.toString()} className="mt-4">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">{day}</h4>
+                  {exercises.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center">No exercises for this day.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {exercises.map((exercise, idx) => (
+                        <div 
+                          key={exercise.id} 
+                          className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                          data-testid={`exercise-item-${exercise.id}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                              {idx + 1}
+                            </div>
+                            <div>
+                              <p className="font-medium">{exercise.exerciseName}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {exercise.sets} sets x {exercise.reps} reps
+                                {exercise.weight && ` @ ${exercise.weight}`}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -190,36 +355,38 @@ function CreateCycleDialog({ members }: { members: any[] }) {
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="startDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Start Date</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} data-testid="input-start-date" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="endDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>End Date</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} data-testid="input-end-date" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex justify-end gap-2">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} data-testid="input-start-date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} data-testid="input-end-date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={createCycleMutation.isPending} data-testid="button-submit-cycle">
-                {createCycleMutation.isPending ? "Creating..." : "Create"}
+                {createCycleMutation.isPending ? "Creating..." : "Create Cycle"}
               </Button>
             </div>
           </form>
@@ -232,6 +399,7 @@ function CreateCycleDialog({ members }: { members: any[] }) {
 function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
   const [open, setOpen] = useState(false);
   const addWorkoutMutation = useAddWorkoutItem();
+  const queryClient = useQueryClient();
 
   const formSchema = z.object({
     dayOfWeek: z.coerce.number().min(0).max(6),
@@ -243,14 +411,15 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { exerciseName: "", sets: 3, reps: 10, weight: "" },
+    defaultValues: { exerciseName: "", sets: 3, reps: 10, weight: "", dayOfWeek: 1 },
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
     addWorkoutMutation.mutate({ ...data, cycleId }, {
       onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/trainer/cycles", cycleId, "items"] });
         setOpen(false);
-        form.reset();
+        form.reset({ exerciseName: "", sets: 3, reps: 10, weight: "", dayOfWeek: data.dayOfWeek });
       },
     });
   };
@@ -258,13 +427,13 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" data-testid={`button-add-workout-${cycleId}`}>
-          <Plus className="w-4 h-4" />
+        <Button variant="outline" data-testid={`button-add-workout-${cycleId}`}>
+          <Plus className="w-4 h-4 mr-2" /> Add Exercise
         </Button>
       </DialogTrigger>
       <DialogContent aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>Add Exercise</DialogTitle>
+          <DialogTitle>Add Exercise to Cycle</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
@@ -273,7 +442,7 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
               name="dayOfWeek"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Day</FormLabel>
+                  <FormLabel>Day of Week</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
                     <FormControl>
                       <SelectTrigger data-testid="select-day">
@@ -295,15 +464,15 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
               name="exerciseName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Exercise</FormLabel>
+                  <FormLabel>Exercise Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Bench Press" {...field} data-testid="input-exercise" />
+                    <Input placeholder="e.g., Bench Press, Squats, Deadlift" {...field} data-testid="input-exercise" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3">
               <FormField
                 control={form.control}
                 name="sets"
@@ -311,8 +480,9 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
                   <FormItem>
                     <FormLabel>Sets</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} data-testid="input-sets" />
+                      <Input type="number" min={1} {...field} data-testid="input-sets" />
                     </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -323,8 +493,9 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
                   <FormItem>
                     <FormLabel>Reps</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} data-testid="input-reps" />
+                      <Input type="number" min={1} {...field} data-testid="input-reps" />
                     </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -335,16 +506,17 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
                   <FormItem>
                     <FormLabel>Weight</FormLabel>
                     <FormControl>
-                      <Input placeholder="10kg" {...field} data-testid="input-weight" />
+                      <Input placeholder="e.g., 50kg" {...field} data-testid="input-weight" />
                     </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={addWorkoutMutation.isPending} data-testid="button-submit-workout">
-                {addWorkoutMutation.isPending ? "Adding..." : "Add"}
+                {addWorkoutMutation.isPending ? "Adding..." : "Add Exercise"}
               </Button>
             </div>
           </form>
