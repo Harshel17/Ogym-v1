@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useMembers, useAttendance, usePayments } from "@/hooks/use-gym";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, CalendarCheck, TrendingUp, AlertCircle } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
