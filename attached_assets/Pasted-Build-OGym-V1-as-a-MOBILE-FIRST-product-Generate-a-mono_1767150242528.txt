@@ -1,0 +1,197 @@
+Build OGym V1 as a MOBILE-FIRST product. Generate a monorepo with 3 folders:
+
+1) backend/  -> FastAPI (Python 3.11) REST API + PostgreSQL (or SQLite fallback for demo)
+2) mobile/   -> Expo React Native (TypeScript) (this is the main client users will use)
+3) admin-web/ (optional but recommended) -> simple Next.js web panel for Owner QR display + quick management (can be minimal)
+
+THE GOAL (MY EXACT V1 VISION):
+OGym V1 is a gym management app with 3 roles:
+- OWNER (gym owner)
+- TRAINER
+- MEMBER
+
+Core modules:
+- Gym registration + gym code onboarding
+- Owner assigns trainers to members
+- Attendance via ONE permanent QR code stuck at gym door (Option B)
+- Payment tracking (record keeping only, no payment processing)
+- Workout cycle assignment by trainer to assigned members
+- Member workout completion + history + stats
+- Trainer member tracking feed: trainer sees what members completed
+
+CRITICAL REQUIREMENTS:
+- Multi-tenant safety: Every record is isolated by gym_id. NEVER leak data across gyms.
+- Backend-enforced permissions (not just UI).
+- Clean, runnable app in Replit.
+- Provide seed data for demo.
+- Provide exact run commands and environment variables.
+
+========================
+A) AUTH + GYM ONBOARDING
+========================
+1) Owner Registration:
+- Owner creates account AND registers a gym name
+- System generates a unique 6-character gym_code (e.g., A1B2C3)
+- Owner can see gym_code in the app
+
+2) Trainer + Member Registration:
+- Trainer and Member sign up using gym_code provided by owner
+- They can only join existing gyms using valid gym_code
+
+Auth approach:
+- Use JWT access tokens (simple for mobile)
+- Password hashing (bcrypt)
+- /api/auth/register-owner
+- /api/auth/register-join (trainer/member join using gym_code)
+- /api/auth/login
+- /api/auth/me
+
+========================
+B) OWNER FEATURES (MOBILE UI)
+========================
+Owner dashboard modules:
+1) Members List
+2) Trainers List
+3) Assignments (assign trainer to members)
+4) Attendance Reports (view gym attendance)
+5) Payments (view/edit payment tracking)
+6) Permanent QR (display QR for gym door)
+
+Owner rules:
+- Owner can view all members and trainers in their gym
+- Owner can assign trainers to members
+- Owner can mark/adjust payments for any member in gym
+- Owner can view attendance for gym
+
+PERMANENT QR (Option B):
+- QR is permanent and should encode JSON payload like:
+  {"type":"ogym_checkin","gym_code":"A1B2C3"}
+- Owner can view QR image in app and print it.
+
+========================
+C) ATTENDANCE (QR-based self check-in)
+========================
+Attendance rule:
+- Members scan the permanent QR at gym entry and attendance for TODAY is marked.
+- If member forgets to scan, when they complete their workout and tap "Mark Workout Done",
+  attendance for TODAY should ALSO be marked automatically if not already marked.
+
+Attendance endpoints:
+- POST /api/attendance/checkin (member scans QR payload)
+- GET  /api/attendance/my (member sees own attendance)
+- GET  /api/attendance/gym (owner sees gym attendance)
+- Ensure idempotency: ONLY ONE attendance per member per day.
+  Enforce unique constraint: (gym_id, member_id, date)
+
+Attendance record fields:
+- id, gym_id, member_id, date(YYYY-MM-DD), status(present), verified_method("qr"|"workout"|"both"), created_at
+
+========================
+D) TRAINER FEATURES (MOBILE UI)
+========================
+Trainer dashboard modules:
+1) My Members (only assigned by owner)
+2) Workout Cycles (create/assign per member)
+3) Member Tracking (activity feed showing completions by assigned members)
+
+Trainer rules:
+- Trainer can ONLY see members assigned to them (trainer_members table)
+- Trainer can create workout cycles ONLY for assigned members
+- Trainer can view member workout history/completions ONLY for assigned members
+
+========================
+E) WORKOUT CYCLE SYSTEM (Trainer assigns, Member completes)
+========================
+Trainer creates workout cycles per member:
+- Cycle name, start_date, end_date, active flag
+- Weekly plan (Sun..Sat) with exercises per day:
+  exercise_name, sets, reps, optional weight, order_index
+
+Member experience:
+- Today’s Workout screen: shows exercises for today
+- Member taps "Mark as Done" (per exercise and/or complete whole day)
+- When member completes day workout, create completion records
+- Completion should also mark attendance for today automatically if not already marked.
+
+Member additional screens:
+- Workout Details (full weekly plan + drill down)
+- History (past completions by date)
+- Stats (basic V1: workouts completed count, streak, last 7 days count)
+- Payments (view only)
+- Attendance (view own)
+
+Trainer Tracking feed:
+- Trainer can see a feed like:
+  "Member X completed Bench Press (3x10) on 2025-12-30"
+  and also daily summary.
+
+Workout tables:
+- workout_cycles: id, gym_id, member_id, trainer_id, name, start_date, end_date, is_active, created_at
+- workout_items: id, cycle_id, day_of_week(0-6), exercise_name, sets, reps, weight, order_index
+- workout_completions: id, gym_id, cycle_id, workout_item_id, member_id, completed_date(YYYY-MM-DD), completed_at
+- (Optional) workout_logs: actual_sets, actual_reps, actual_weight, notes for deeper tracking
+
+Endpoints:
+- GET  /api/trainer/members
+- POST /api/workouts/cycles (trainer create cycle for assigned member)
+- GET  /api/workouts/cycles/my (member gets active cycle)
+- GET  /api/workouts/today (member gets today’s plan)
+- POST /api/workouts/complete (member completes workout item/day; also marks attendance)
+- GET  /api/workouts/history/my (member history)
+- GET  /api/trainer/activity (trainer feed for assigned members)
+
+========================
+F) PAYMENT TRACKING
+========================
+Owner can create/update monthly payment records for members:
+- month (YYYY-MM), amount_due, amount_paid, status(paid/unpaid/partial), note, updated_at
+Member can view own payment history (read-only).
+
+Endpoints:
+- GET  /api/payments/my (member)
+- GET  /api/payments/gym (owner)
+- POST /api/payments/mark (owner only)
+
+========================
+G) SECURITY / PERMISSIONS (BACKEND ENFORCED)
+========================
+- All routes require JWT except auth routes.
+- Every query must filter by gym_id derived from JWT user.
+- Trainer can only access members linked in trainer_members.
+- Member can only access their own data.
+- If access denied: return 403.
+- If cross-gym object requested: return 404 (don’t leak existence).
+- Add indexes on gym_id, member_id, trainer_id, date fields.
+
+========================
+H) DEMO DATA (SEED)
+========================
+Create seed script:
+- Gym: "OGym Demo" with gym_code
+- Owner: owner/owner123
+- Trainer: trainer/trainer123
+- Members: member1/member123, member2/member123
+- Assign trainer -> both members
+- Create a sample workout cycle + items for member1
+- Create sample payments + attendance rows
+
+========================
+I) REPLIT RUNNABILITY
+========================
+- Provide README with exact steps.
+- Provide one command to run backend and expo dev server.
+- In Replit, backend on :8000.
+- Expo runs and can be opened as a web preview; also supports QR to run on phone via Expo Go if possible.
+- Use env vars:
+  BACKEND_DATABASE_URL
+  JWT_SECRET
+  API_BASE_URL for mobile (default http://localhost:8000)
+- CORS configured for Expo web preview.
+
+DELIVERABLES:
+- Full code for backend/, mobile/ (Expo RN), optional admin-web/
+- Clear folder structure
+- Requirements/package files
+- Seed script
+- Exact run commands
+- Confirm all features above are implemented.
