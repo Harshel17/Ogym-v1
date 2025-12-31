@@ -115,6 +115,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async assignTrainer(trainerId: number, memberId: number, gymId: number): Promise<TrainerMember> {
+    await db.delete(trainerMembers).where(
+      and(eq(trainerMembers.gymId, gymId), eq(trainerMembers.memberId, memberId))
+    );
+    
     const [assignment] = await db.insert(trainerMembers).values({
       trainerId, memberId, gymId
     }).returning();

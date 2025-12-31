@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -25,7 +25,9 @@ export const trainerMembers = pgTable("trainer_members", {
   gymId: integer("gym_id").references(() => gyms.id).notNull(),
   trainerId: integer("trainer_id").references(() => users.id).notNull(),
   memberId: integer("member_id").references(() => users.id).notNull(),
-});
+}, (table) => ({
+  uniqueMemberPerGym: uniqueIndex("unique_member_per_gym").on(table.gymId, table.memberId),
+}));
 
 export const attendance = pgTable("attendance", {
   id: serial("id").primaryKey(),
