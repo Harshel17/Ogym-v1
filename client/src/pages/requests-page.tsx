@@ -123,9 +123,9 @@ function MemberRequestsView() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="feedback">Feedback</SelectItem>
-                          <SelectItem value="change_request">Workout Change Request</SelectItem>
-                          <SelectItem value="question">Question</SelectItem>
+                          <SelectItem value="feedback" data-testid="option-feedback">Feedback</SelectItem>
+                          <SelectItem value="change_request" data-testid="option-change-request">Workout Change Request</SelectItem>
+                          <SelectItem value="question" data-testid="option-question">Question</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -151,7 +151,7 @@ function MemberRequestsView() {
                   )}
                 />
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)} data-testid="button-cancel-request">
                     Cancel
                   </Button>
                   <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit-request">
@@ -192,16 +192,16 @@ function MemberRequestsView() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm">{req.message}</p>
+                <p className="text-sm" data-testid={`text-message-${req.id}`}>{req.message}</p>
                 {req.response && (
                   <div className="p-3 bg-muted/50 rounded-lg border border-border">
                     <div className="flex items-center gap-2 mb-1">
                       <MessageCircle className="w-4 h-4 text-primary" />
-                      <span className="text-xs font-medium text-primary">
+                      <span className="text-xs font-medium text-primary" data-testid={`text-trainer-name-${req.id}`}>
                         Response from {req.trainerName || "Trainer"}
                       </span>
                     </div>
-                    <p className="text-sm">{req.response}</p>
+                    <p className="text-sm" data-testid={`text-response-${req.id}`}>{req.response}</p>
                   </div>
                 )}
               </CardContent>
@@ -261,7 +261,7 @@ function TrainerRequestsView() {
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{req.memberName}</span>
+                    <span className="font-medium" data-testid={`text-member-name-${req.id}`}>{req.memberName}</span>
                     <RequestTypeBadge type={req.type} />
                     <StatusBadge status={req.status} />
                   </div>
@@ -271,14 +271,14 @@ function TrainerRequestsView() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm">{req.message}</p>
+                <p className="text-sm" data-testid={`text-trainer-message-${req.id}`}>{req.message}</p>
                 {req.response ? (
                   <div className="p-3 bg-muted/50 rounded-lg border border-border">
                     <div className="flex items-center gap-2 mb-1">
                       <CheckCircle2 className="w-4 h-4 text-green-600" />
                       <span className="text-xs font-medium text-green-600">Your Response</span>
                     </div>
-                    <p className="text-sm">{req.response}</p>
+                    <p className="text-sm" data-testid={`text-trainer-response-${req.id}`}>{req.response}</p>
                   </div>
                 ) : (
                   <>
@@ -299,6 +299,7 @@ function TrainerRequestsView() {
                               setRespondingTo(null);
                               setResponse("");
                             }}
+                            data-testid={`button-cancel-response-${req.id}`}
                           >
                             Cancel
                           </Button>
