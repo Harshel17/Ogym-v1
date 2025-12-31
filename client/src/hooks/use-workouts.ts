@@ -57,6 +57,25 @@ export function useAddWorkoutItem() {
   });
 }
 
+export function useUpdateDayLabels() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { cycleId: number; dayLabels: string[] }) => {
+      const { cycleId, dayLabels } = data;
+      return apiRequest("PATCH", `/api/trainer/cycles/${cycleId}/labels`, { dayLabels });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trainer/cycles'] });
+      toast({ title: "Saved", description: "Day names updated" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to update day names", variant: "destructive" });
+    },
+  });
+}
+
 export function useMemberCycle() {
   return useQuery({
     queryKey: ['/api/workouts/cycles/my'],

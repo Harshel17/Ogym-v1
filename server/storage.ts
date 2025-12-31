@@ -51,6 +51,7 @@ export interface IStorage {
   getTrainerCycles(trainerId: number): Promise<WorkoutCycle[]>;
   getMemberCycle(memberId: number): Promise<WorkoutCycle | undefined>;
   getCycle(cycleId: number): Promise<WorkoutCycle | undefined>;
+  updateCycleDayLabels(cycleId: number, dayLabels: string[]): Promise<WorkoutCycle>;
   addWorkoutItem(data: InsertWorkoutItem): Promise<WorkoutItem>;
   getWorkoutItems(cycleId: number): Promise<WorkoutItem[]>;
   getWorkoutItemsByDay(cycleId: number, dayIndex: number): Promise<WorkoutItem[]>;
@@ -214,6 +215,14 @@ export class DatabaseStorage implements IStorage {
 
   async getCycle(cycleId: number): Promise<WorkoutCycle | undefined> {
     const [cycle] = await db.select().from(workoutCycles).where(eq(workoutCycles.id, cycleId));
+    return cycle;
+  }
+
+  async updateCycleDayLabels(cycleId: number, dayLabels: string[]): Promise<WorkoutCycle> {
+    const [cycle] = await db.update(workoutCycles)
+      .set({ dayLabels })
+      .where(eq(workoutCycles.id, cycleId))
+      .returning();
     return cycle;
   }
 

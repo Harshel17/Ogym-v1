@@ -243,6 +243,7 @@ function MemberDashboard() {
   const workoutData = todayWorkout as any;
   const currentDayIndex = workoutData?.dayIndex ?? 0;
   const cycleLength = workoutData?.cycleLength ?? 3;
+  const dayLabel = workoutData?.dayLabel || null;
 
   const allCompleted = workoutItems.length > 0 && workoutItems.every((i: any) => i.completed);
   const incompleteIds = workoutItems.filter((i: any) => !i.completed).map((i: any) => i.id);
@@ -295,7 +296,13 @@ function MemberDashboard() {
                 <div>
                   <CardTitle className="text-lg">Today's Workout</CardTitle>
                   {workoutItems.length > 0 && (
-                    <p className="text-xs text-muted-foreground">Day {currentDayIndex + 1} of {cycleLength}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {dayLabel ? (
+                        <span className="font-medium">{dayLabel}</span>
+                      ) : (
+                        `Day ${currentDayIndex + 1} of ${cycleLength}`
+                      )}
+                    </p>
                   )}
                 </div>
               </div>

@@ -251,6 +251,7 @@ export async function registerRoutes(
       memberId: z.number(),
       name: z.string(),
       cycleLength: z.number().min(1).max(7),
+      dayLabels: z.array(z.string()).optional(),
       startDate: z.string(),
       endDate: z.string()
     });
@@ -267,6 +268,31 @@ export async function registerRoutes(
       trainerId: req.user!.id
     });
     res.status(201).json(cycle);
+  });
+
+  app.patch("/api/trainer/cycles/:cycleId/labels", requireRole(["trainer"]), async (req, res) => {
+    const cycleId = parseInt(req.params.cycleId);
+    const schema = z.object({
+      dayLabels: z.array(z.string())
+    });
+    const input = schema.parse(req.body);
+    
+    const cycle = await storage.getCycle(cycleId);
+    if (!cycle || cycle.trainerId !== req.user!.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    
+    if (cycle.gymId !== req.user!.gymId) {
+      return res.status(403).json({ message: "Not authorized for this gym" });
+    }
+    
+    let normalizedLabels = input.dayLabels.slice(0, cycle.cycleLength);
+    while (normalizedLabels.length < cycle.cycleLength) {
+      normalizedLabels.push("");
+    }
+    
+    const updated = await storage.updateCycleDayLabels(cycleId, normalizedLabels);
+    res.json(updated);
   });
 
   app.get("/api/trainer/cycles/:cycleId/items", requireRole(["trainer"]), async (req, res) => {
@@ -342,10 +368,12 @@ export async function registerRoutes(
       completed: completedIds.has(i.id)
     }));
     
+    const dayLabel = cycle.dayLabels?.[currentDayIndex] || null;
     res.json({ 
       cycleName: cycle.name, 
       dayIndex: currentDayIndex, 
       cycleLength: cycle.cycleLength,
+      dayLabel,
       items: itemsWithStatus 
     });
   });

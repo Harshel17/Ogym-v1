@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useTrainerCycles, useTrainerMembers, useCreateCycle, useAddWorkoutItem, useTrainerActivity } from "@/hooks/use-workouts";
+import { useTrainerCycles, useTrainerMembers, useCreateCycle, useAddWorkoutItem, useTrainerActivity, useUpdateDayLabels } from "@/hooks/use-workouts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -163,6 +163,15 @@ export default function TrainerWorkoutPage() {
 function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
   const member = members.find(m => m.id === cycle.memberId);
   const cycleLength = cycle.cycleLength || 3;
+  const updateLabelsMutation = useUpdateDayLabels();
+  
+  const initialLabels = cycle.dayLabels || Array.from({ length: cycleLength }, () => "");
+  const [dayLabels, setDayLabels] = useState<string[]>(initialLabels);
+  const [editingDay, setEditingDay] = useState<number | null>(null);
+  
+  useEffect(() => {
+    setDayLabels(cycle.dayLabels || Array.from({ length: cycleLength }, () => ""));
+  }, [cycle.id, cycle.dayLabels, cycleLength]);
   
   const { data: items = [], isLoading } = useQuery<WorkoutItem[]>({
     queryKey: ["/api/trainer/cycles", cycle.id, "items"],
@@ -173,9 +182,23 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
     },
   });
 
+  const saveDayLabel = (dayIndex: number, label: string) => {
+    const currentLabel = dayLabels[dayIndex] || "";
+    if (label === currentLabel) {
+      setEditingDay(null);
+      return;
+    }
+    const newLabels = [...dayLabels];
+    newLabels[dayIndex] = label;
+    setDayLabels(newLabels);
+    updateLabelsMutation.mutate({ cycleId: cycle.id, dayLabels: newLabels });
+    setEditingDay(null);
+  };
+
   const itemsByDay = Array.from({ length: cycleLength }, (_, idx) => ({
-    dayLabel: `Day ${idx + 1}`,
-    shortLabel: `D${idx + 1}`,
+    dayLabel: dayLabels[idx] || `Day ${idx + 1}`,
+    customLabel: dayLabels[idx] || "",
+    shortLabel: dayLabels[idx] ? dayLabels[idx].substring(0, 10) : `D${idx + 1}`,
     dayIndex: idx,
     exercises: items.filter(item => item.dayIndex === idx).sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
   }));
@@ -240,10 +263,37 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
                 </TabsTrigger>
               ))}
             </TabsList>
-            {itemsByDay.map(({ dayLabel, dayIndex, exercises }) => (
+            {itemsByDay.map(({ dayLabel, customLabel, dayIndex, exercises }) => (
               <TabsContent key={dayIndex} value={dayIndex.toString()} className="mt-4">
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm text-muted-foreground">{dayLabel}</h4>
+                  <div className="flex items-center gap-2">
+                    {editingDay === dayIndex ? (
+                      <Input
+                        autoFocus
+                        placeholder={`e.g., Chest + Shoulders`}
+                        defaultValue={customLabel}
+                        className="h-8 text-sm max-w-[200px]"
+                        onBlur={(e) => saveDayLabel(dayIndex, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            saveDayLabel(dayIndex, (e.target as HTMLInputElement).value);
+                          } else if (e.key === 'Escape') {
+                            setEditingDay(null);
+                          }
+                        }}
+                        data-testid={`input-day-label-${dayIndex}`}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditingDay(dayIndex)}
+                        className="font-semibold text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                        data-testid={`button-edit-day-label-${dayIndex}`}
+                      >
+                        {dayLabel}
+                        <span className="text-xs opacity-50">(click to name)</span>
+                      </button>
+                    )}
+                  </div>
                   {exercises.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">No exercises for this day.</p>
                   ) : (
