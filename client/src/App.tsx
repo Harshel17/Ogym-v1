@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import AuthPage from "@/pages/auth-page";
 import DashboardPage from "@/pages/dashboard-page";
 import MembersPage from "@/pages/members-page";
+import TrainersPage from "@/pages/trainers-page";
 import AttendancePage from "@/pages/attendance-page";
 import PaymentsPage from "@/pages/payments-page";
 import TrainerWorkoutPage from "@/pages/trainer-workout-page";
@@ -49,6 +50,10 @@ function Router() {
       
       <Route path="/members">
         <ProtectedRoute component={MembersPage} />
+      </Route>
+
+      <Route path="/trainers">
+        <ProtectedRoute component={TrainersPage} />
       </Route>
       
       <Route path="/attendance">

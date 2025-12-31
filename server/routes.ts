@@ -136,6 +136,15 @@ export async function registerRoutes(
     res.json(trainers);
   });
 
+  app.get("/api/owner/trainers-overview", requireRole(["owner"]), async (req, res) => {
+    const trainersWithMembers = await storage.getGymTrainersWithMembers(req.user!.gymId!);
+    const sanitized = trainersWithMembers.map(({ trainer, members }) => ({
+      trainer: { id: trainer.id, username: trainer.username, role: trainer.role, createdAt: trainer.createdAt },
+      members: members.map(m => ({ id: m.id, username: m.username, role: m.role, createdAt: m.createdAt }))
+    }));
+    res.json(sanitized);
+  });
+
   app.post("/api/owner/assign-trainer", requireRole(["owner"]), async (req, res) => {
     const schema = z.object({ trainerId: z.number(), memberId: z.number() });
     const input = schema.parse(req.body);

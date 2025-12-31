@@ -29,6 +29,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       visible: true
     },
     { 
+      label: "Trainers", 
+      href: "/trainers", 
+      icon: Users,
+      visible: isOwner
+    },
+    { 
       label: "Members", 
       href: "/members", 
       icon: Users,

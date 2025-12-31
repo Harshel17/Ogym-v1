@@ -61,6 +61,7 @@ export interface IStorage {
   getMemberWorkoutHistory(memberId: number): Promise<WorkoutCompletion[]>;
   getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }>;
   getActivityFeed(gymId: number, memberIds: number[]): Promise<any[]>;
+  getGymTrainersWithMembers(gymId: number): Promise<{ trainer: User; members: User[] }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -315,6 +316,26 @@ export class DatabaseStorage implements IStorage {
       date: c.completion.completedDate,
       createdAt: c.completion.createdAt
     }));
+  }
+
+  async getGymTrainersWithMembers(gymId: number): Promise<{ trainer: User; members: User[] }[]> {
+    const trainers = await this.getGymTrainers(gymId);
+    
+    const result: { trainer: User; members: User[] }[] = [];
+    
+    for (const trainer of trainers) {
+      const assignments = await this.getTrainerMembers(trainer.id);
+      const memberIds = assignments.map(a => a.memberId);
+      
+      let members: User[] = [];
+      if (memberIds.length > 0) {
+        members = await db.select().from(users).where(inArray(users.id, memberIds));
+      }
+      
+      result.push({ trainer, members });
+    }
+    
+    return result;
   }
 }
 
