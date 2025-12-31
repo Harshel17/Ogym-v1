@@ -1,8 +1,9 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
-import { useMemberStats } from "@/hooks/use-workouts";
+import { useMemberStats, useTodayWorkout, useCompleteWorkout } from "@/hooks/use-workouts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell } from "lucide-react";
 import { format } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -219,16 +220,84 @@ function MemberDashboard() {
   const { data: attendance = [] } = useMemberAttendance();
   const { data: payments = [] } = useMemberPayments();
   const { data: stats } = useMemberStats();
+  const { data: todayWorkout, isLoading: workoutLoading } = useTodayWorkout();
+  const completeMutation = useCompleteWorkout();
 
   const attendanceList = attendance as any[];
   const paymentsList = payments as any[];
   const memberStats = stats as any;
+  const workoutItems = (todayWorkout as any)?.items || [];
 
   const attendedCount = attendanceList.length;
   const lastPayment = paymentsList[0];
 
+  const handleComplete = (workoutItemId: number) => {
+    completeMutation.mutate({ workoutItemId });
+  };
+
   return (
     <div className="space-y-6">
+      <Card className="dashboard-card">
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Dumbbell className="w-5 h-5 text-primary" />
+            <CardTitle>Your Workout Today</CardTitle>
+          </div>
+          <span className="text-sm text-muted-foreground">
+            {format(new Date(), 'EEEE, MMM d')}
+          </span>
+        </CardHeader>
+        <CardContent>
+          {workoutLoading ? (
+            <p className="text-muted-foreground">Loading...</p>
+          ) : workoutItems.length === 0 ? (
+            <p className="text-muted-foreground">No workout scheduled for today. Ask your trainer to create a workout plan!</p>
+          ) : (
+            <div className="space-y-3">
+              {workoutItems.map((item: any) => (
+                <div 
+                  key={item.id} 
+                  className={`flex items-center justify-between p-3 rounded-lg border ${
+                    item.completed 
+                      ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' 
+                      : 'bg-muted/30 border-border'
+                  }`}
+                  data-testid={`workout-item-${item.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                      item.completed 
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-primary/10 text-primary'
+                    }`}>
+                      {item.completed ? <CheckCircle2 className="w-4 h-4" /> : item.orderIndex + 1}
+                    </div>
+                    <div>
+                      <p className={`font-medium ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                        {item.exerciseName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.sets} sets x {item.reps} reps {item.weight ? `@ ${item.weight}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  {!item.completed && (
+                    <Button 
+                      size="sm"
+                      onClick={() => handleComplete(item.id)}
+                      disabled={completeMutation.isPending}
+                      data-testid={`button-complete-${item.id}`}
+                    >
+                      Done
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {memberStats && (
         <div className="grid grid-cols-3 gap-4">
           <Card>
@@ -269,15 +338,6 @@ function MemberDashboard() {
           description={lastPayment ? `Status: ${lastPayment.status}` : 'No payment history'}
         />
       </div>
-      
-      <Card className="dashboard-card">
-        <CardHeader>
-          <CardTitle>My Progress</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Go to "Workout" in the menu to see today's exercises and mark them complete!</p>
-        </CardContent>
-      </Card>
     </div>
   );
 }
