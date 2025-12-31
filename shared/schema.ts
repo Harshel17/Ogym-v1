@@ -69,6 +69,8 @@ export const workoutItems = pgTable("workout_items", {
   id: serial("id").primaryKey(),
   cycleId: integer("cycle_id").references(() => workoutCycles.id).notNull(),
   dayOfWeek: integer("day_of_week").notNull(),
+  muscleType: text("muscle_type").notNull().default("Chest"),
+  bodyPart: text("body_part").notNull().default("Upper Body"),
   exerciseName: text("exercise_name").notNull(),
   sets: integer("sets").notNull(),
   reps: integer("reps").notNull(),

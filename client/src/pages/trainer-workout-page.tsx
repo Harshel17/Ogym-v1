@@ -259,10 +259,16 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
                               {idx + 1}
                             </div>
                             <div>
-                              <p className="font-medium">{exercise.exerciseName}</p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-medium">{exercise.exerciseName}</p>
+                                {exercise.muscleType && (
+                                  <Badge variant="secondary" className="text-xs">{exercise.muscleType}</Badge>
+                                )}
+                              </div>
                               <p className="text-sm text-muted-foreground">
                                 {exercise.sets} sets x {exercise.reps} reps
                                 {exercise.weight && ` @ ${exercise.weight}`}
+                                {exercise.bodyPart && ` - ${exercise.bodyPart}`}
                               </p>
                             </div>
                           </div>
@@ -396,6 +402,9 @@ function CreateCycleDialog({ members }: { members: any[] }) {
   );
 }
 
+const muscleTypes = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Glutes", "Full Body"];
+const bodyParts = ["Upper Body", "Lower Body", "Full Body"];
+
 function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
   const [open, setOpen] = useState(false);
   const addWorkoutMutation = useAddWorkoutItem();
@@ -403,6 +412,8 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
 
   const formSchema = z.object({
     dayOfWeek: z.coerce.number().min(0).max(6),
+    muscleType: z.string().min(1, "Select a muscle type"),
+    bodyPart: z.string().min(1, "Select a body part"),
     exerciseName: z.string().min(1, "Exercise name is required"),
     sets: z.coerce.number().min(1, "At least 1 set"),
     reps: z.coerce.number().min(1, "At least 1 rep"),
@@ -411,7 +422,15 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { exerciseName: "", sets: 3, reps: 10, weight: "", dayOfWeek: 1 },
+    defaultValues: { 
+      exerciseName: "", 
+      sets: 3, 
+      reps: 10, 
+      weight: "", 
+      dayOfWeek: 1,
+      muscleType: "Chest",
+      bodyPart: "Upper Body"
+    },
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
@@ -419,7 +438,15 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["/api/trainer/cycles", cycleId, "items"] });
         setOpen(false);
-        form.reset({ exerciseName: "", sets: 3, reps: 10, weight: "", dayOfWeek: data.dayOfWeek });
+        form.reset({ 
+          exerciseName: "", 
+          sets: 3, 
+          reps: 10, 
+          weight: "", 
+          dayOfWeek: data.dayOfWeek,
+          muscleType: data.muscleType,
+          bodyPart: data.bodyPart
+        });
       },
     });
   };
@@ -431,7 +458,7 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
           <Plus className="w-4 h-4 mr-2" /> Add Exercise
         </Button>
       </DialogTrigger>
-      <DialogContent aria-describedby={undefined}>
+      <DialogContent aria-describedby={undefined} className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Add Exercise to Cycle</DialogTitle>
         </DialogHeader>
@@ -459,6 +486,52 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
                 </FormItem>
               )}
             />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="muscleType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Muscle Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-muscle-type">
+                          <SelectValue placeholder="Select muscle" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {muscleTypes.map((muscle) => (
+                          <SelectItem key={muscle} value={muscle}>{muscle}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bodyPart"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Body Part</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-body-part">
+                          <SelectValue placeholder="Select body part" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {bodyParts.map((part) => (
+                          <SelectItem key={part} value={part}>{part}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
               name="exerciseName"
@@ -504,7 +577,7 @@ function AddWorkoutDialog({ cycleId }: { cycleId: number }) {
                 name="weight"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Weight</FormLabel>
+                    <FormLabel>Weight (optional)</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., 50kg" {...field} data-testid="input-weight" />
                     </FormControl>

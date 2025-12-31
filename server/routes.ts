@@ -280,8 +280,12 @@ export async function registerRoutes(
 
   app.post("/api/trainer/cycles/:cycleId/items", requireRole(["trainer"]), async (req, res) => {
     const cycleId = parseInt(req.params.cycleId);
+    const muscleTypes = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Glutes", "Full Body"] as const;
+    const bodyParts = ["Upper Body", "Lower Body", "Full Body"] as const;
     const schema = z.object({
       dayOfWeek: z.number().min(0).max(6),
+      muscleType: z.enum(muscleTypes).default("Chest"),
+      bodyPart: z.enum(bodyParts).default("Upper Body"),
       exerciseName: z.string(),
       sets: z.number().min(1),
       reps: z.number().min(1),
