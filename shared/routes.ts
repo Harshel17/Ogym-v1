@@ -4,11 +4,17 @@ import {
   insertGymSchema, 
   insertAttendanceSchema, 
   insertPaymentSchema,
+  insertWorkoutCycleSchema,
+  insertWorkoutSchema,
+  insertWorkoutCompletionSchema,
   users, 
   gyms, 
   attendance, 
   payments,
-  trainerMembers
+  trainerMembers,
+  workoutCycles,
+  workouts,
+  workoutCompletions
 } from './schema';
 
 // ============================================

@@ -217,6 +217,48 @@ export async function registerRoutes(
     res.status(201).json(record);
   });
 
+  // === WORKOUT ROUTES ===
+  app.get(api.trainer.getCycles.path, requireRole(['trainer']), async (req, res) => {
+    const cycles = await storage.getTrainerCycles(req.user!.id);
+    res.json(cycles);
+  });
+
+  app.post(api.trainer.createCycle.path, requireRole(['trainer']), async (req, res) => {
+    const input = api.trainer.createCycle.input.parse(req.body);
+    const cycle = await storage.createWorkoutCycle({
+      ...input,
+      gymId: req.user!.gymId!,
+      trainerId: req.user!.id
+    });
+    res.status(201).json(cycle);
+  });
+
+  app.post(api.trainer.addWorkout.path, requireRole(['trainer']), async (req, res) => {
+    const input = api.trainer.addWorkout.input.parse(req.body);
+    const cycle = await storage.getCycle(input.cycleId);
+    if (!cycle || cycle.trainerId !== req.user!.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    const workout = await storage.addWorkout(input);
+    res.status(201).json(workout);
+  });
+
+  app.get(api.member.getCycle.path, requireRole(['member']), async (req, res) => {
+    const cycle = await storage.getMemberCycle(req.user!.id);
+    if (!cycle) return res.json(null);
+    const workouts = await storage.getWorkoutsByCycle(cycle.id);
+    res.json({ cycle, workouts });
+  });
+
+  app.post(api.member.completeWorkout.path, requireRole(['member']), async (req, res) => {
+    const input = api.member.completeWorkout.input.parse(req.body);
+    const completion = await storage.completeWorkout({
+      ...input,
+      memberId: req.user!.id
+    });
+    res.status(201).json(completion);
+  });
+
   // Seed Data function (internal use or via special endpoint if needed, but easier to just call it)
   // We'll call it once server starts in index.ts or here if table empty.
   // Actually, let's just create a quick endpoint for demo setup or auto-seed on first request to login?

@@ -50,6 +50,35 @@ export const payments = pgTable("payments", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const workoutCycles = pgTable("workout_cycles", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  trainerId: integer("trainer_id").references(() => users.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  name: text("name").notNull(),
+  startDate: text("start_date").notNull(), // YYYY-MM-DD
+  endDate: text("end_date").notNull(), // YYYY-MM-DD
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const workouts = pgTable("workouts", {
+  id: serial("id").primaryKey(),
+  cycleId: integer("cycle_id").references(() => workoutCycles.id).notNull(),
+  dayOfWeek: integer("day_of_week").notNull(), // 0=Sunday to 6=Saturday
+  exercise: text("exercise").notNull(),
+  sets: integer("sets").notNull(),
+  reps: integer("reps").notNull(),
+  weight: text("weight"), // e.g., "10kg", "bodyweight"
+});
+
+export const workoutCompletions = pgTable("workout_completions", {
+  id: serial("id").primaryKey(),
+  workoutId: integer("workout_id").references(() => workouts.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD
+  completed: boolean("completed").default(false),
+});
+
 // === RELATIONS ===
 
 export const gymsRelations = relations(gyms, ({ many }) => ({
@@ -70,6 +99,9 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true, creat
 export const insertTrainerMemberSchema = createInsertSchema(trainerMembers).omit({ id: true });
 export const insertAttendanceSchema = createInsertSchema(attendance).omit({ id: true, createdAt: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, updatedAt: true });
+export const insertWorkoutCycleSchema = createInsertSchema(workoutCycles).omit({ id: true, createdAt: true });
+export const insertWorkoutSchema = createInsertSchema(workouts).omit({ id: true });
+export const insertWorkoutCompletionSchema = createInsertSchema(workoutCompletions).omit({ id: true });
 
 // === EXPLICIT TYPES ===
 
@@ -78,8 +110,14 @@ export type User = typeof users.$inferSelect;
 export type TrainerMember = typeof trainerMembers.$inferSelect;
 export type Attendance = typeof attendance.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
+export type WorkoutCycle = typeof workoutCycles.$inferSelect;
+export type Workout = typeof workouts.$inferSelect;
+export type WorkoutCompletion = typeof workoutCompletions.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertGym = z.infer<typeof insertGymSchema>;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type InsertWorkoutCycle = z.infer<typeof insertWorkoutCycleSchema>;
+export type InsertWorkout = z.infer<typeof insertWorkoutSchema>;
+export type InsertWorkoutCompletion = z.infer<typeof insertWorkoutCompletionSchema>;

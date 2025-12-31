@@ -1,9 +1,12 @@
 import { 
-  users, gyms, attendance, payments, trainerMembers,
+  users, gyms, attendance, payments, trainerMembers, workoutCycles, workouts, workoutCompletions,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
-  type TrainerMember
+  type TrainerMember,
+  type WorkoutCycle, type InsertWorkoutCycle,
+  type Workout, type InsertWorkout,
+  type WorkoutCompletion, type InsertWorkoutCompletion
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -37,6 +40,17 @@ export interface IStorage {
   // Payments
   getPayments(gymId: number, memberId?: number, month?: string): Promise<(Payment & { member: User })[]>;
   markPayment(data: InsertPayment): Promise<Payment>;
+  
+  // Workout Cycles
+  createWorkoutCycle(data: InsertWorkoutCycle): Promise<WorkoutCycle>;
+  getTrainerCycles(trainerId: number): Promise<WorkoutCycle[]>;
+  getMemberCycle(memberId: number): Promise<WorkoutCycle | undefined>;
+  getCycle(cycleId: number): Promise<WorkoutCycle | undefined>;
+  addWorkout(data: InsertWorkout): Promise<Workout>;
+  getWorkoutsByCycle(cycleId: number): Promise<Workout[]>;
+  getMemberWorkouts(memberId: number): Promise<Workout[]>;
+  completeWorkout(data: InsertWorkoutCompletion): Promise<WorkoutCompletion>;
+  getCompletions(memberId: number, date: string): Promise<WorkoutCompletion[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -142,6 +156,51 @@ export class DatabaseStorage implements IStorage {
   async markPayment(data: InsertPayment): Promise<Payment> {
     const [record] = await db.insert(payments).values(data).returning();
     return record;
+  }
+
+  async createWorkoutCycle(data: InsertWorkoutCycle): Promise<WorkoutCycle> {
+    const [cycle] = await db.insert(workoutCycles).values(data).returning();
+    return cycle;
+  }
+
+  async getTrainerCycles(trainerId: number): Promise<WorkoutCycle[]> {
+    return await db.select().from(workoutCycles).where(eq(workoutCycles.trainerId, trainerId));
+  }
+
+  async getMemberCycle(memberId: number): Promise<WorkoutCycle | undefined> {
+    const [cycle] = await db.select().from(workoutCycles).where(eq(workoutCycles.memberId, memberId));
+    return cycle;
+  }
+
+  async getCycle(cycleId: number): Promise<WorkoutCycle | undefined> {
+    const [cycle] = await db.select().from(workoutCycles).where(eq(workoutCycles.id, cycleId));
+    return cycle;
+  }
+
+  async addWorkout(data: InsertWorkout): Promise<Workout> {
+    const [workout] = await db.insert(workouts).values(data).returning();
+    return workout;
+  }
+
+  async getWorkoutsByCycle(cycleId: number): Promise<Workout[]> {
+    return await db.select().from(workouts).where(eq(workouts.cycleId, cycleId));
+  }
+
+  async getMemberWorkouts(memberId: number): Promise<Workout[]> {
+    const cycle = await this.getMemberCycle(memberId);
+    if (!cycle) return [];
+    return await this.getWorkoutsByCycle(cycle.id);
+  }
+
+  async completeWorkout(data: InsertWorkoutCompletion): Promise<WorkoutCompletion> {
+    const [record] = await db.insert(workoutCompletions).values(data).returning();
+    return record;
+  }
+
+  async getCompletions(memberId: number, date: string): Promise<WorkoutCompletion[]> {
+    return await db.select().from(workoutCompletions).where(
+      and(eq(workoutCompletions.memberId, memberId), eq(workoutCompletions.date, date))
+    );
   }
 }
 
