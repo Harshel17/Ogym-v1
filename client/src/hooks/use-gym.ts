@@ -10,6 +10,12 @@ export function useMembers() {
   });
 }
 
+export function useMembersDetails() {
+  return useQuery({
+    queryKey: ['/api/owner/members-details'],
+  });
+}
+
 export function useTrainers() {
   return useQuery({
     queryKey: ['/api/owner/trainers'],
@@ -32,6 +38,7 @@ export function useAssignTrainer() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/owner/members'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/owner/members-details'] });
       queryClient.invalidateQueries({ queryKey: ['/api/owner/assignments'] });
       toast({ title: "Success", description: "Trainer assigned successfully" });
     },

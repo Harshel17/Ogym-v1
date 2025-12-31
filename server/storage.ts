@@ -68,6 +68,15 @@ export interface IStorage {
     cycle: (WorkoutCycle & { items: WorkoutItem[]; trainerName: string }) | null;
     history: { id: number; exerciseName: string; muscleType: string | null; completedDate: string; actualSets: number | null; actualReps: number | null; actualWeight: string | null }[];
   }>;
+  getMembersWithDetails(gymId: number): Promise<{
+    id: number;
+    username: string;
+    role: string;
+    createdAt: Date | null;
+    trainerName: string | null;
+    cycleEndDate: string | null;
+    paymentStatus: string | null;
+  }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -404,6 +413,52 @@ export class DatabaseStorage implements IStorage {
     }));
 
     return { member, cycle: cycleWithDetails, history };
+  }
+
+  async getMembersWithDetails(gymId: number): Promise<{
+    id: number;
+    username: string;
+    role: string;
+    createdAt: Date | null;
+    trainerName: string | null;
+    cycleEndDate: string | null;
+    paymentStatus: string | null;
+  }[]> {
+    const members = await this.getGymMembers(gymId);
+    const assignments = await this.getGymAssignments(gymId);
+    const trainers = await this.getGymTrainers(gymId);
+    
+    const trainerMap = new Map(trainers.map(t => [t.id, t.username]));
+    const memberTrainerMap = new Map(assignments.map(a => [a.memberId, a.trainerId]));
+    
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    
+    const result = await Promise.all(members.map(async (member) => {
+      const trainerId = memberTrainerMap.get(member.id);
+      const trainerName = trainerId ? trainerMap.get(trainerId) || null : null;
+      
+      const cycle = await this.getMemberCycle(member.id);
+      const cycleEndDate = cycle?.endDate || null;
+      
+      const [latestPayment] = await db.select()
+        .from(payments)
+        .where(and(eq(payments.memberId, member.id), eq(payments.month, currentMonth)))
+        .limit(1);
+      
+      const paymentStatus = latestPayment?.status || null;
+      
+      return {
+        id: member.id,
+        username: member.username,
+        role: member.role,
+        createdAt: member.createdAt,
+        trainerName,
+        cycleEndDate,
+        paymentStatus
+      };
+    }));
+    
+    return result;
   }
 }
 

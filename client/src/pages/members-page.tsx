@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useMembers, useTrainers, useAssignTrainer } from "@/hooks/use-gym";
+import { useMembers, useTrainers, useAssignTrainer, useMembersDetails } from "@/hooks/use-gym";
 import { useTrainerMembers } from "@/hooks/use-workouts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { 
   Table, 
@@ -27,11 +28,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Shield } from "lucide-react";
+import { Search, Shield, Check, X, Minus } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
+type MemberDetail = {
+  id: number;
+  username: string;
+  role: string;
+  createdAt: string | null;
+  trainerName: string | null;
+  cycleEndDate: string | null;
+  paymentStatus: string | null;
+};
 
 export default function MembersPage() {
   const { user } = useAuth();
@@ -40,10 +51,10 @@ export default function MembersPage() {
   const isOwner = user?.role === "owner";
   const isTrainer = user?.role === "trainer";
   
-  const { data: ownerMembers = [], isLoading: ownerLoading } = useMembers();
+  const { data: ownerMembersDetails = [], isLoading: ownerLoading } = useMembersDetails();
   const { data: trainerMembers = [], isLoading: trainerLoading } = useTrainerMembers();
   
-  const members = isOwner ? (ownerMembers as any[]) : (trainerMembers as any[]);
+  const members = isOwner ? (ownerMembersDetails as MemberDetail[]) : (trainerMembers as any[]);
   const isLoading = isOwner ? ownerLoading : trainerLoading;
 
   if (user?.role === "member") {
@@ -90,12 +101,14 @@ export default function MembersPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border border-border overflow-hidden">
+          <div className="rounded-md border border-border overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Role</TableHead>
+                  {isOwner && <TableHead>Trainer</TableHead>}
+                  {isOwner && <TableHead>Subscription End</TableHead>}
+                  {isOwner && <TableHead>Payment</TableHead>}
                   <TableHead>Joined</TableHead>
                   {isOwner && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
@@ -103,11 +116,11 @@ export default function MembersPage() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={isOwner ? 4 : 3} className="h-24 text-center">Loading...</TableCell>
+                    <TableCell colSpan={isOwner ? 6 : 2} className="h-24 text-center">Loading...</TableCell>
                   </TableRow>
                 ) : filteredMembers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isOwner ? 4 : 3} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={isOwner ? 6 : 2} className="h-24 text-center text-muted-foreground">
                       {isTrainer ? "No members assigned to you yet." : "No members found."}
                     </TableCell>
                   </TableRow>
@@ -122,19 +135,36 @@ export default function MembersPage() {
                           {member.username}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium capitalize 
-                          ${member.role === 'trainer' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'}`}>
-                          {member.role}
-                        </span>
-                      </TableCell>
+                      {isOwner && (
+                        <TableCell>
+                          {member.trainerName ? (
+                            <span className="text-sm">{member.trainerName}</span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Not assigned</span>
+                          )}
+                        </TableCell>
+                      )}
+                      {isOwner && (
+                        <TableCell>
+                          {member.cycleEndDate ? (
+                            <span className="text-sm">{member.cycleEndDate}</span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No cycle</span>
+                          )}
+                        </TableCell>
+                      )}
+                      {isOwner && (
+                        <TableCell>
+                          <PaymentBadge status={member.paymentStatus} />
+                        </TableCell>
+                      )}
                       <TableCell className="text-muted-foreground text-sm">
                         {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : '-'}
                       </TableCell>
                       {isOwner && (
                         <TableCell className="text-right">
                           {member.role === 'member' && (
-                            <AssignTrainerDialog memberId={member.id} memberName={member.username} />
+                            <AssignTrainerDialog memberId={member.id} memberName={member.username} currentTrainer={member.trainerName} />
                           )}
                         </TableCell>
                       )}
@@ -150,7 +180,42 @@ export default function MembersPage() {
   );
 }
 
-function AssignTrainerDialog({ memberId, memberName }: { memberId: number, memberName: string }) {
+function PaymentBadge({ status }: { status: string | null }) {
+  if (!status) {
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        <Minus className="w-3 h-3 mr-1" />
+        N/A
+      </Badge>
+    );
+  }
+  
+  if (status === 'paid') {
+    return (
+      <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
+        <Check className="w-3 h-3 mr-1" />
+        Paid
+      </Badge>
+    );
+  }
+  
+  if (status === 'partial') {
+    return (
+      <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+        Partial
+      </Badge>
+    );
+  }
+  
+  return (
+    <Badge className="bg-red-500/10 text-red-600 border-red-500/30">
+      <X className="w-3 h-3 mr-1" />
+      Unpaid
+    </Badge>
+  );
+}
+
+function AssignTrainerDialog({ memberId, memberName, currentTrainer }: { memberId: number; memberName: string; currentTrainer: string | null }) {
   const [open, setOpen] = useState(false);
   const { data: trainers = [] } = useTrainers();
   const assignMutation = useAssignTrainer();
@@ -175,7 +240,7 @@ function AssignTrainerDialog({ memberId, memberName }: { memberId: number, membe
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" data-testid={`button-assign-trainer-${memberId}`}>
-          Assign Trainer
+          {currentTrainer ? "Reassign" : "Assign Trainer"}
         </Button>
       </DialogTrigger>
       <DialogContent aria-describedby={undefined}>

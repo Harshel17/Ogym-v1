@@ -131,6 +131,11 @@ export async function registerRoutes(
     res.json(members);
   });
 
+  app.get("/api/owner/members-details", requireRole(["owner"]), async (req, res) => {
+    const members = await storage.getMembersWithDetails(req.user!.gymId!);
+    res.json(members);
+  });
+
   app.get("/api/owner/trainers", requireRole(["owner"]), async (req, res) => {
     const trainers = await storage.getGymTrainers(req.user!.gymId!);
     res.json(trainers);
