@@ -1,0 +1,143 @@
+Build a FULLY WORKING MVP web app called “OGym V1” with TWO folders: backend/ (FastAPI) and frontend/ (Next.js 14 App Router). It must run in Replit with one command and show working pages immediately after install.
+
+GOAL:
+A simple multi-gym B2B app with role-based access: Owner / Trainer / Member.
+V1 focuses on: Attendance tracking + Payment tracking (NOT payment processing).
+Multi-tenant safety is required: ALL data is isolated by gym_id, and backend must enforce it (not UI).
+
+TECH REQUIREMENTS:
+Backend:
+- Python 3.11 + FastAPI
+- SQLAlchemy ORM
+- SQLite database for Replit demo (file db at backend/ogym.db)
+- JWT Auth (access token)
+- Password hashing (passlib bcrypt)
+- CORS configured to allow frontend in Replit
+- Pydantic schemas
+- Clear logging + error handling
+- Seed script to create demo data
+- OpenAPI docs available at /docs
+
+Frontend:
+- Next.js 14 (App Router) + TypeScript
+- Basic clean UI (no Tailwind required; you can use simple CSS modules)
+- Pages: Login, Register, Dashboard, Attendance, Payments, Members, Trainers (Owner only)
+- Use fetch() to call backend APIs.
+- Store JWT token in localStorage.
+- Protect routes: if no token, redirect to /login.
+- Display current user (username + role + gym name) in header.
+- Logout button clears token.
+
+ROLES & PERMISSIONS (BACKEND ENFORCED):
+- Owner:
+  - Can view/manage: Members, Trainers
+  - Can create attendance records for any member in same gym
+  - Can mark payments for any member in same gym
+  - Can view all attendance/payment records for gym
+- Trainer:
+  - Can view members assigned to them (trainer_members table)
+  - Can create attendance for assigned members only
+  - Can view attendance for assigned members only
+  - Payments: view only for assigned members (no edit)
+- Member:
+  - Can view ONLY their own attendance and payment history
+  - Can NOT see other members
+Important: NEVER allow cross-gym access. Every query must filter by gym_id from token.
+
+DATA MODEL (SQLite):
+Gym:
+- id (uuid or int), name
+User:
+- id, gym_id (FK), username, email, hashed_password, role (owner/trainer/member), created_at
+TrainerMember:
+- id, gym_id, trainer_id (FK User), member_id (FK User)
+Attendance:
+- id, gym_id, member_id, marked_by_user_id, date (YYYY-MM-DD), status (present/absent), created_at
+Payment:
+- id, gym_id, member_id, month (YYYY-MM), amount_due, amount_paid, status (paid/unpaid/partial), note, updated_by_user_id, updated_at
+
+API ENDPOINTS:
+Auth:
+- POST /api/auth/register  (creates user in a gym; allow creating a new gym when owner registers)
+- POST /api/auth/login     (returns JWT token + user info)
+- GET  /api/auth/me        (returns current user info from token)
+
+Owner management:
+- GET  /api/owner/members
+- POST /api/owner/members (create member)
+- GET  /api/owner/trainers
+- POST /api/owner/trainers (create trainer)
+- POST /api/owner/assign-trainer (trainer_id + member_id)
+
+Attendance:
+- GET  /api/attendance (role-based: owner sees all gym, trainer sees assigned, member sees self)
+- POST /api/attendance/mark (member_id + date + status) with permission checks
+
+Payments:
+- GET  /api/payments (role-based like attendance)
+- POST /api/payments/mark (member_id + month + amount_due + amount_paid + status + note) only owner allowed; trainer cannot edit; member cannot edit
+
+SEED DATA:
+Create backend/scripts/seed.py that:
+- Creates 1 gym: “OGym Demo”
+- Creates 1 owner: owner / owner123
+- Creates 1 trainer: trainer / trainer123
+- Creates 2 members: member1/member123 and member2/member123
+- Assign trainer to both members
+- Adds some attendance + payment sample rows
+This must run automatically on first start if DB not exists OR provide a command.
+
+REPLIT RUN REQUIREMENTS:
+- Provide root package structure:
+  - backend/
+  - frontend/
+  - README.md with exact run steps
+- Add a root script to run both backend and frontend together in Replit
+  Options:
+   A) Use a root-level start.sh that starts backend (uvicorn) and frontend (npm run dev) concurrently
+   OR
+   B) Use a root-level package.json with concurrently to run both
+- Ports:
+  - backend on 8000
+  - frontend on 3000
+- Frontend must call backend using an environment variable:
+  - NEXT_PUBLIC_API_BASE_URL defaulting to http://localhost:8000
+  - In Replit it should still work (use relative proxy if needed)
+- Ensure CORS works in Replit environment (allow origin * for demo)
+
+FRONTEND UX DETAILS:
+- /login: username + password; on success redirect to /dashboard
+- /register: choose role (owner/trainer/member). If owner: input gym name; else: input gym code or gym name lookup (simple: for demo allow selecting “OGym Demo” by name)
+- /dashboard: show quick links cards to Attendance/Payments/Members
+- Attendance page:
+  - Owner: select member + date + present/absent; see table of gym attendance
+  - Trainer: select assigned member only; see assigned attendance
+  - Member: see their own attendance only
+- Payments page:
+  - Owner: mark payment for member + month + amount due/paid + note
+  - Trainer: view only (no mark button)
+  - Member: view own only
+- Members page: Owner only list/create members
+- Trainers page: Owner only list/create trainers + assignment UI
+
+QUALITY & SAFETY:
+- No hardcoding gym_id in queries; always derive gym_id from JWT user
+- If role check fails, return 403
+- If trying to access another gym data, return 404 (do not leak existence)
+- Validate inputs (date formats, month format)
+- Make sure the app is actually runnable and tested.
+
+OUTPUT:
+Generate all code files with correct folder structure.
+Include:
+- backend/requirements.txt
+- backend/main.py
+- backend/database.py, models.py, schemas.py, auth.py, deps.py
+- backend/routers/*.py (auth, owner, attendance, payments)
+- backend/scripts/seed.py
+- frontend/package.json, tsconfig, next config
+- frontend/app/* pages
+- frontend/lib/api.ts (fetch wrapper + token)
+- README.md with exact Replit steps
+
+After generating code, also provide the exact single command to run the whole app in Replit.
