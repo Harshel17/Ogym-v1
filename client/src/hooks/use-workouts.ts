@@ -86,7 +86,7 @@ export function useCompleteWorkout() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { workoutItemId: number }) => {
+    mutationFn: async (data: { workoutItemId: number; actualSets?: number; actualReps?: number; actualWeight?: string }) => {
       return apiRequest("POST", "/api/workouts/complete", data);
     },
     onSuccess: () => {
@@ -97,6 +97,26 @@ export function useCompleteWorkout() {
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message || "Failed to complete workout", variant: "destructive" });
+    },
+  });
+}
+
+export function useCompleteAllWorkouts() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { workoutItemIds: number[] }) => {
+      return apiRequest("POST", "/api/workouts/complete-all", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/stats/my'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
+      toast({ title: "All Done!", description: "All workouts completed and attendance marked" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to complete workouts", variant: "destructive" });
     },
   });
 }

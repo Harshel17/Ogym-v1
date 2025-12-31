@@ -337,7 +337,12 @@ export async function registerRoutes(
   });
 
   app.post("/api/workouts/complete", requireRole(["member"]), async (req, res) => {
-    const schema = z.object({ workoutItemId: z.number() });
+    const schema = z.object({ 
+      workoutItemId: z.number(),
+      actualSets: z.number().optional(),
+      actualReps: z.number().optional(),
+      actualWeight: z.string().optional()
+    });
     const input = schema.parse(req.body);
     
     const item = await storage.getWorkoutItem(input.workoutItemId);
@@ -360,7 +365,10 @@ export async function registerRoutes(
       cycleId: cycle.id,
       workoutItemId: input.workoutItemId,
       memberId: req.user!.id,
-      completedDate: today
+      completedDate: today,
+      actualSets: input.actualSets,
+      actualReps: input.actualReps,
+      actualWeight: input.actualWeight
     });
     
     // Auto-mark attendance
@@ -379,6 +387,53 @@ export async function registerRoutes(
     }
     
     res.status(201).json(completion);
+  });
+
+  app.post("/api/workouts/complete-all", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({ workoutItemIds: z.array(z.number()) });
+    const input = schema.parse(req.body);
+    
+    const today = new Date().toISOString().split("T")[0];
+    const completions = [];
+    
+    for (const workoutItemId of input.workoutItemIds) {
+      const item = await storage.getWorkoutItem(workoutItemId);
+      if (!item) continue;
+      
+      const cycle = await storage.getCycle(item.cycleId);
+      if (!cycle || cycle.memberId !== req.user!.id) continue;
+      
+      const existing = await storage.getCompletionByItemDate(workoutItemId, req.user!.id, today);
+      if (existing) continue;
+      
+      const completion = await storage.completeWorkout({
+        gymId: req.user!.gymId!,
+        cycleId: cycle.id,
+        workoutItemId,
+        memberId: req.user!.id,
+        completedDate: today
+      });
+      completions.push(completion);
+    }
+    
+    // Auto-mark attendance if any completed
+    if (completions.length > 0) {
+      const existingAttendance = await storage.getAttendanceByMemberDate(req.user!.id, today);
+      if (!existingAttendance) {
+        await storage.markAttendance({
+          gymId: req.user!.gymId!,
+          memberId: req.user!.id,
+          date: today,
+          status: "present",
+          verifiedMethod: "workout",
+          markedByUserId: req.user!.id
+        });
+      } else if (existingAttendance.verifiedMethod === "qr") {
+        await storage.updateAttendanceMethod(existingAttendance.id, "both");
+      }
+    }
+    
+    res.status(201).json({ completed: completions.length });
   });
 
   app.get("/api/workouts/history/my", requireRole(["member"]), async (req, res) => {

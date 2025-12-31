@@ -85,6 +85,9 @@ export const workoutCompletions = pgTable("workout_completions", {
   workoutItemId: integer("workout_item_id").references(() => workoutItems.id).notNull(),
   memberId: integer("member_id").references(() => users.id).notNull(),
   completedDate: text("completed_date").notNull(),
+  actualSets: integer("actual_sets"),
+  actualReps: integer("actual_reps"),
+  actualWeight: text("actual_weight"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

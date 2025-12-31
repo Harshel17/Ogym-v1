@@ -1,11 +1,22 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTodayWorkout, useCompleteWorkout, useMemberStats, useMemberCycle } from "@/hooks/use-workouts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle2, Flame, Target, Calendar } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp } from "lucide-react";
 
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+interface ExerciseInputs {
+  [id: number]: {
+    sets: string;
+    reps: string;
+    weight: string;
+  };
+}
 
 export default function MemberWorkoutPage() {
   const { user } = useAuth();
@@ -13,12 +24,52 @@ export default function MemberWorkoutPage() {
   const { data: statsData, isLoading: statsLoading } = useMemberStats();
   const { data: cycleData, isLoading: cycleLoading } = useMemberCycle();
   const completeWorkoutMutation = useCompleteWorkout();
+  
+  const [expandedExercise, setExpandedExercise] = useState<number | null>(null);
+  const [exerciseInputs, setExerciseInputs] = useState<ExerciseInputs>({});
 
   if (user?.role !== 'member') return null;
 
   const today = todayData as any;
   const stats = statsData as any;
   const cycle = cycleData as any;
+
+  const getInputs = (itemId: number, item: any) => {
+    return exerciseInputs[itemId] || {
+      sets: String(item.sets),
+      reps: String(item.reps),
+      weight: item.weight || '',
+    };
+  };
+
+  const updateInput = (itemId: number, field: string, value: string) => {
+    setExerciseInputs(prev => ({
+      ...prev,
+      [itemId]: {
+        ...getInputs(itemId, { sets: '', reps: '', weight: '' }),
+        ...prev[itemId],
+        [field]: value,
+      }
+    }));
+  };
+
+  const handleCompleteExercise = (item: any) => {
+    const inputs = getInputs(item.id, item);
+    completeWorkoutMutation.mutate({
+      workoutItemId: item.id,
+      actualSets: parseInt(inputs.sets) || item.sets,
+      actualReps: parseInt(inputs.reps) || item.reps,
+      actualWeight: inputs.weight || item.weight || undefined,
+    });
+    setExpandedExercise(null);
+  };
+
+  const groupedByBodyPart = (today?.items || []).reduce((acc: any, item: any) => {
+    const part = item.bodyPart || 'Other';
+    if (!acc[part]) acc[part] = [];
+    acc[part].push(item);
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-6">
@@ -81,37 +132,125 @@ export default function MemberWorkoutPage() {
             {!today?.items || today.items.length === 0 ? (
               <p className="text-muted-foreground">Rest day! No workout scheduled.</p>
             ) : (
-              <div className="space-y-3">
-                {today.items.map((item: any) => (
-                  <div 
-                    key={item.id} 
-                    className={`flex items-start gap-4 p-3 border rounded-md ${item.completed ? 'bg-green-500/10 border-green-500/30' : 'hover:bg-muted/50'}`}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{item.exerciseName}</h3>
-                        {item.completed && <Badge variant="outline" className="text-green-600">Done</Badge>}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {item.sets} sets x {item.reps} reps
-                        {item.weight && ` @ ${item.weight}`}
-                      </p>
+              <div className="space-y-6">
+                {Object.entries(groupedByBodyPart).map(([bodyPart, items]: [string, any]) => (
+                  <div key={bodyPart}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Badge variant="secondary">{bodyPart}</Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {items.filter((i: any) => i.completed).length}/{items.length} completed
+                      </span>
                     </div>
-                    {!item.completed && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          completeWorkoutMutation.mutate({
-                            workoutItemId: item.id,
-                          });
-                        }}
-                        disabled={completeWorkoutMutation.isPending}
-                        data-testid={`button-complete-${item.id}`}
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <div className="space-y-3">
+                      {items.map((item: any) => {
+                        const isExpanded = expandedExercise === item.id;
+                        const inputs = getInputs(item.id, item);
+                        
+                        return (
+                          <div 
+                            key={item.id} 
+                            className={`border rounded-lg overflow-hidden ${
+                              item.completed 
+                                ? 'bg-green-500/10 border-green-500/30' 
+                                : 'border-border'
+                            }`}
+                            data-testid={`exercise-card-${item.id}`}
+                          >
+                            <div 
+                              className="flex items-center justify-between p-3 cursor-pointer"
+                              onClick={() => !item.completed && setExpandedExercise(isExpanded ? null : item.id)}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                  item.completed 
+                                    ? 'bg-green-500 text-white' 
+                                    : 'bg-primary/10 text-primary'
+                                }`}>
+                                  {item.completed ? <CheckCircle2 className="w-4 h-4" /> : item.orderIndex + 1}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className={`font-semibold ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                      {item.exerciseName}
+                                    </h3>
+                                    {item.muscleType && (
+                                      <Badge variant="outline" className="text-xs">{item.muscleType}</Badge>
+                                    )}
+                                    {item.completed && (
+                                      <Badge className="bg-green-500 text-white text-xs">Done</Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">
+                                    Target: {item.sets} sets x {item.reps} reps
+                                    {item.weight && ` @ ${item.weight}`}
+                                  </p>
+                                </div>
+                              </div>
+                              {!item.completed && (
+                                <Button size="icon" variant="ghost">
+                                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                </Button>
+                              )}
+                            </div>
+                            
+                            {isExpanded && !item.completed && (
+                              <div className="p-4 pt-0 border-t bg-muted/30">
+                                <p className="text-sm text-muted-foreground mb-3">
+                                  Enter your actual performance:
+                                </p>
+                                <div className="grid grid-cols-3 gap-3 mb-4">
+                                  <div>
+                                    <Label htmlFor={`sets-${item.id}`} className="text-xs">Sets</Label>
+                                    <Input
+                                      id={`sets-${item.id}`}
+                                      type="number"
+                                      min="1"
+                                      value={inputs.sets}
+                                      onChange={(e) => updateInput(item.id, 'sets', e.target.value)}
+                                      className="mt-1"
+                                      data-testid={`input-sets-${item.id}`}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor={`reps-${item.id}`} className="text-xs">Reps</Label>
+                                    <Input
+                                      id={`reps-${item.id}`}
+                                      type="number"
+                                      min="1"
+                                      value={inputs.reps}
+                                      onChange={(e) => updateInput(item.id, 'reps', e.target.value)}
+                                      className="mt-1"
+                                      data-testid={`input-reps-${item.id}`}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor={`weight-${item.id}`} className="text-xs">Weight</Label>
+                                    <Input
+                                      id={`weight-${item.id}`}
+                                      type="text"
+                                      placeholder="e.g. 50kg"
+                                      value={inputs.weight}
+                                      onChange={(e) => updateInput(item.id, 'weight', e.target.value)}
+                                      className="mt-1"
+                                      data-testid={`input-weight-${item.id}`}
+                                    />
+                                  </div>
+                                </div>
+                                <Button
+                                  className="w-full"
+                                  onClick={() => handleCompleteExercise(item)}
+                                  disabled={completeWorkoutMutation.isPending}
+                                  data-testid={`button-complete-${item.id}`}
+                                >
+                                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                                  Mark as Done
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -138,9 +277,15 @@ export default function MemberWorkoutPage() {
                     ) : (
                       <div className="space-y-1 text-sm">
                         {dayItems.map((w: any) => (
-                          <p key={w.id} className="text-muted-foreground">
-                            {w.exerciseName} - {w.sets}x{w.reps} {w.weight && `@ ${w.weight}`}
-                          </p>
+                          <div key={w.id} className="flex items-center gap-2 text-muted-foreground">
+                            <span>{w.exerciseName}</span>
+                            <span>-</span>
+                            <span>{w.sets}x{w.reps}</span>
+                            {w.weight && <span>@ {w.weight}</span>}
+                            {w.muscleType && (
+                              <Badge variant="outline" className="text-xs ml-auto">{w.muscleType}</Badge>
+                            )}
+                          </div>
                         ))}
                       </div>
                     )}
