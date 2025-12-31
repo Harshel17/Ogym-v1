@@ -1,7 +1,8 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useMembers, useAttendance, usePayments } from "@/hooks/use-gym";
+import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
+import { useMemberStats } from "@/hooks/use-workouts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -24,10 +25,10 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ title, value, icon: Icon, description, trend }: any) {
+function StatCard({ title, value, icon: Icon, description }: any) {
   return (
-    <Card className="dashboard-card border-none shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    <Card className="dashboard-card border-none shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
           {title}
         </CardTitle>
@@ -51,15 +52,17 @@ function OwnerDashboard() {
   const { data: attendance = [] } = useAttendance();
   const { data: payments = [] } = usePayments();
 
-  // Simple stats calculation
-  const totalMembers = members.length;
-  const presentToday = attendance.filter(a => a.date === format(new Date(), 'yyyy-MM-dd') && a.status === 'present').length;
-  const pendingPayments = payments.filter(p => p.status !== 'paid').length;
-  const revenue = payments
+  const membersList = members as any[];
+  const attendanceList = attendance as any[];
+  const paymentsList = payments as any[];
+
+  const totalMembers = membersList.length;
+  const presentToday = attendanceList.filter(a => a.date === format(new Date(), 'yyyy-MM-dd') && a.status === 'present').length;
+  const pendingPayments = paymentsList.filter(p => p.status !== 'paid').length;
+  const revenue = paymentsList
     .filter(p => p.status === 'paid')
     .reduce((acc, curr) => acc + (curr.amountPaid || 0), 0);
 
-  // Chart data preparation
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
@@ -68,7 +71,7 @@ function OwnerDashboard() {
 
   const chartData = last7Days.map(date => ({
     date: format(new Date(date), 'MMM dd'),
-    count: attendance.filter(a => a.date === date && a.status === 'present').length
+    count: attendanceList.filter(a => a.date === date && a.status === 'present').length
   }));
 
   const handleCopyCode = () => {
@@ -79,11 +82,10 @@ function OwnerDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Gym Info Card */}
       {user?.gym && (
         <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-foreground">{user.gym.name}</h3>
                 <p className="text-sm text-muted-foreground mt-1">Share this code with trainers and members</p>
@@ -95,6 +97,7 @@ function OwnerDashboard() {
                 <button 
                   onClick={handleCopyCode}
                   className="text-xs px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition"
+                  data-testid="button-copy-code"
                 >
                   Copy Code
                 </button>
@@ -176,21 +179,21 @@ function OwnerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {attendance.slice(0, 5).map((record) => (
+              {attendanceList.slice(0, 5).map((record: any) => (
                 <div key={record.id} className="flex items-center">
                   <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-bold mr-3">
-                    {record.member.username.slice(0, 2).toUpperCase()}
+                    {record.member?.username?.slice(0, 2).toUpperCase() || '??'}
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium leading-none">{record.member.username}</p>
-                    <p className="text-xs text-muted-foreground">Checked in at {new Date(record.createdAt!).toLocaleTimeString()}</p>
+                    <p className="text-sm font-medium leading-none">{record.member?.username || 'Unknown'}</p>
+                    <p className="text-xs text-muted-foreground">Checked in {record.date}</p>
                   </div>
                   <div className="ml-auto font-medium text-xs text-primary">
-                    {record.status}
+                    {record.verifiedMethod || record.status}
                   </div>
                 </div>
               ))}
-              {attendance.length === 0 && <p className="text-sm text-muted-foreground">No recent activity.</p>}
+              {attendanceList.length === 0 && <p className="text-sm text-muted-foreground">No recent activity.</p>}
             </div>
           </CardContent>
         </Card>
@@ -200,25 +203,12 @@ function OwnerDashboard() {
 }
 
 function TrainerDashboard() {
-  const { data: attendance = [] } = useAttendance();
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const todayCount = attendance.filter(a => a.date === today && a.status === 'present').length;
-
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard 
-          title="My Members Present" 
-          value={todayCount} 
-          icon={Users} 
-          description="Assigned members here today"
-        />
-        {/* Trainers see a simplified view */}
-      </div>
       <Card>
         <CardHeader><CardTitle>Welcome, Trainer</CardTitle></CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">Select "Attendance" from the menu to mark members present.</p>
+          <p className="text-muted-foreground">Go to "Workouts" to create training programs for your members, or check the activity feed to see their progress.</p>
         </CardContent>
       </Card>
     </div>
@@ -226,25 +216,55 @@ function TrainerDashboard() {
 }
 
 function MemberDashboard() {
-  const { user } = useAuth();
-  const { data: attendance = [] } = useAttendance({ memberId: user?.id });
-  const { data: payments = [] } = usePayments({ memberId: user?.id });
+  const { data: attendance = [] } = useMemberAttendance();
+  const { data: payments = [] } = useMemberPayments();
+  const { data: stats } = useMemberStats();
 
-  const attendedThisMonth = attendance.length;
-  const lastPayment = payments[0];
+  const attendanceList = attendance as any[];
+  const paymentsList = payments as any[];
+  const memberStats = stats as any;
+
+  const attendedCount = attendanceList.length;
+  const lastPayment = paymentsList[0];
 
   return (
     <div className="space-y-6">
+      {memberStats && (
+        <div className="grid grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-4">
+              <Flame className="w-8 h-8 text-orange-500 mb-2" />
+              <p className="text-2xl font-bold">{memberStats.streak}</p>
+              <p className="text-xs text-muted-foreground">Day Streak</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-4">
+              <Target className="w-8 h-8 text-blue-500 mb-2" />
+              <p className="text-2xl font-bold">{memberStats.totalWorkouts}</p>
+              <p className="text-xs text-muted-foreground">Total Workouts</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-4">
+              <Calendar className="w-8 h-8 text-green-500 mb-2" />
+              <p className="text-2xl font-bold">{memberStats.last7Days}</p>
+              <p className="text-xs text-muted-foreground">Last 7 Days</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
-         <StatCard 
+        <StatCard 
           title="My Attendance" 
-          value={attendedThisMonth} 
+          value={attendedCount} 
           icon={CalendarCheck} 
           description="Total sessions logged"
         />
         <StatCard 
           title="Last Payment" 
-          value={lastPayment ? `$${(lastPayment.amountPaid || 0) / 100}` : 'N/A'} 
+          value={lastPayment ? `$${((lastPayment.amountPaid || 0) / 100).toFixed(2)}` : 'N/A'} 
           icon={CreditCard} 
           description={lastPayment ? `Status: ${lastPayment.status}` : 'No payment history'}
         />
@@ -255,7 +275,7 @@ function MemberDashboard() {
           <CardTitle>My Progress</CardTitle>
         </CardHeader>
         <CardContent>
-           <p className="text-muted-foreground">Keep showing up! Consistency is key.</p>
+          <p className="text-muted-foreground">Go to "Workout" in the menu to see today's exercises and mark them complete!</p>
         </CardContent>
       </Card>
     </div>

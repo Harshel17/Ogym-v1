@@ -1,30 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
-import { InsertAttendance, InsertPayment } from "@shared/schema";
-import { z } from "zod";
+import { apiRequest } from "@/lib/queryClient";
 
 // === MEMBERS & TRAINERS ===
 
 export function useMembers() {
   return useQuery({
-    queryKey: [api.owner.getMembers.path],
-    queryFn: async () => {
-      const res = await fetch(api.owner.getMembers.path, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch members");
-      return api.owner.getMembers.responses[200].parse(await res.json());
-    },
+    queryKey: ['/api/owner/members'],
   });
 }
 
 export function useTrainers() {
   return useQuery({
-    queryKey: [api.owner.getTrainers.path],
-    queryFn: async () => {
-      const res = await fetch(api.owner.getTrainers.path, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch trainers");
-      return api.owner.getTrainers.responses[200].parse(await res.json());
-    },
+    queryKey: ['/api/owner/trainers'],
+  });
+}
+
+export function useAssignments() {
+  return useQuery({
+    queryKey: ['/api/owner/assignments'],
   });
 }
 
@@ -33,89 +27,69 @@ export function useAssignTrainer() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: z.infer<typeof api.owner.assignTrainer.input>) => {
-      const res = await fetch(api.owner.assignTrainer.path, {
-        method: api.owner.assignTrainer.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to assign trainer");
-      return api.owner.assignTrainer.responses[201].parse(await res.json());
+    mutationFn: async (data: { trainerId: number; memberId: number }) => {
+      return apiRequest("POST", "/api/owner/assign-trainer", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.owner.getMembers.path] });
+      queryClient.invalidateQueries({ queryKey: ['/api/owner/members'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/owner/assignments'] });
       toast({ title: "Success", description: "Trainer assigned successfully" });
     },
-    onError: (err) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to assign trainer", variant: "destructive" });
     },
+  });
+}
+
+export function useQRData() {
+  return useQuery({
+    queryKey: ['/api/owner/qr-data'],
   });
 }
 
 // === ATTENDANCE ===
 
-export function useAttendance(filters?: { memberId?: number; date?: string }) {
-  // Convert filters to URL params, removing undefined
-  const params: Record<string, string> = {};
-  if (filters?.memberId) params.memberId = filters.memberId.toString();
-  if (filters?.date) params.date = filters.date;
-  
-  const queryString = new URLSearchParams(params).toString();
-  const path = `${api.attendance.list.path}?${queryString}`;
-
+export function useAttendance() {
   return useQuery({
-    queryKey: [api.attendance.list.path, filters],
-    queryFn: async () => {
-      const res = await fetch(path, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch attendance");
-      return api.attendance.list.responses[200].parse(await res.json());
-    },
+    queryKey: ['/api/attendance/gym'],
   });
 }
 
-export function useMarkAttendance() {
+export function useMemberAttendance() {
+  return useQuery({
+    queryKey: ['/api/attendance/my'],
+  });
+}
+
+export function useCheckin() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: Omit<InsertAttendance, "gymId" | "markedByUserId">) => {
-      const res = await fetch(api.attendance.mark.path, {
-        method: api.attendance.mark.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to mark attendance");
-      return api.attendance.mark.responses[201].parse(await res.json());
+    mutationFn: async (data: { gym_code: string }) => {
+      return apiRequest("POST", "/api/attendance/checkin", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.attendance.list.path] });
-      toast({ title: "Success", description: "Attendance marked" });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
+      toast({ title: "Checked In!", description: "Your attendance has been recorded" });
     },
-    onError: (err) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Check-in failed", variant: "destructive" });
     },
   });
 }
 
 // === PAYMENTS ===
 
-export function usePayments(filters?: { memberId?: number; month?: string }) {
-  const params: Record<string, string> = {};
-  if (filters?.memberId) params.memberId = filters.memberId.toString();
-  if (filters?.month) params.month = filters.month;
-
-  const queryString = new URLSearchParams(params).toString();
-  const path = `${api.payments.list.path}?${queryString}`;
-
+export function usePayments() {
   return useQuery({
-    queryKey: [api.payments.list.path, filters],
-    queryFn: async () => {
-      const res = await fetch(path, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch payments");
-      return api.payments.list.responses[200].parse(await res.json());
-    },
+    queryKey: ['/api/payments/gym'],
+  });
+}
+
+export function useMemberPayments() {
+  return useQuery({
+    queryKey: ['/api/payments/my'],
   });
 }
 
@@ -124,22 +98,15 @@ export function useMarkPayment() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: Omit<InsertPayment, "gymId" | "updatedByUserId">) => {
-      const res = await fetch(api.payments.mark.path, {
-        method: api.payments.mark.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to record payment");
-      return api.payments.mark.responses[201].parse(await res.json());
+    mutationFn: async (data: { memberId: number; month: string; amountDue: number; amountPaid: number; status: 'paid' | 'unpaid' | 'partial'; note?: string }) => {
+      return apiRequest("POST", "/api/payments/mark", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.payments.list.path] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payments/gym'] });
       toast({ title: "Success", description: "Payment recorded" });
     },
-    onError: (err) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to record payment", variant: "destructive" });
     },
   });
 }

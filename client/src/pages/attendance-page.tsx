@@ -1,35 +1,38 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useMembers, useAttendance, useMarkAttendance } from "@/hooks/use-gym";
+import { useMembers, useAttendance, useMemberAttendance, useCheckin } from "@/hooks/use-gym";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { CalendarIcon, Plus, CheckCircle2, XCircle } from "lucide-react";
+import { CalendarIcon, QrCode, CheckCircle2, XCircle } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Badge } from "@/components/ui/badge";
 
 export default function AttendancePage() {
   const { user } = useAuth();
   const [date, setDate] = useState<Date>(new Date());
   
-  // Format date for API (YYYY-MM-DD)
   const dateStr = format(date, "yyyy-MM-dd");
   
-  // Fetch attendance for selected date
-  // If member, only fetch their own
-  const filters = user?.role === 'member' 
-    ? { memberId: user.id } 
-    : { date: dateStr };
+  const { data: gymAttendance = [], isLoading: gymLoading } = useAttendance();
+  const { data: myAttendance = [], isLoading: myLoading } = useMemberAttendance();
 
-  const { data: attendance = [], isLoading } = useAttendance(filters);
+  const isOwner = user?.role === 'owner';
+  const isMember = user?.role === 'member';
+  
+  const attendanceList = (isOwner ? gymAttendance : myAttendance) as any[];
+  const isLoading = isOwner ? gymLoading : myLoading;
+  
+  const filteredList = isOwner 
+    ? attendanceList.filter(a => a.date === dateStr)
+    : attendanceList;
 
   return (
     <div className="space-y-8">
@@ -38,34 +41,36 @@ export default function AttendancePage() {
           <h2 className="text-3xl font-bold font-display text-foreground">Attendance</h2>
           <p className="text-muted-foreground mt-1">Track daily check-ins and history.</p>
         </div>
-        {user?.role !== 'member' && <MarkAttendanceDialog />}
+        {isMember && <CheckinDialog />}
       </div>
 
       <div className="grid lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1">
-          <Card className="dashboard-card h-full">
-            <CardHeader>
-              <CardTitle>Filter by Date</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={(d) => d && setDate(d)}
-                className="rounded-md border w-full"
-              />
-            </CardContent>
-          </Card>
-        </div>
+        {isOwner && (
+          <div className="lg:col-span-1">
+            <Card className="dashboard-card h-full">
+              <CardHeader>
+                <CardTitle>Filter by Date</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={(d) => d && setDate(d)}
+                  className="rounded-md border w-full"
+                />
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-        <div className="lg:col-span-3">
+        <div className={isOwner ? "lg:col-span-3" : "lg:col-span-4"}>
           <Card className="dashboard-card min-h-[500px]">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
               <CardTitle>
-                Records for {format(date, "MMMM do, yyyy")}
+                {isOwner ? `Records for ${format(date, "MMMM do, yyyy")}` : 'My Attendance History'}
               </CardTitle>
               <div className="text-sm text-muted-foreground font-medium">
-                Total: {attendance.length}
+                Total: {filteredList.length}
               </div>
             </CardHeader>
             <CardContent>
@@ -73,46 +78,54 @@ export default function AttendancePage() {
                 <Table>
                   <TableHeader className="bg-muted/50">
                     <TableRow>
-                      <TableHead>Member</TableHead>
-                      <TableHead>Status</TableHead>
+                      {isOwner && <TableHead>Member</TableHead>}
                       <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Method</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={3} className="h-24 text-center">Loading...</TableCell>
+                        <TableCell colSpan={4} className="h-24 text-center">Loading...</TableCell>
                       </TableRow>
-                    ) : attendance.length === 0 ? (
+                    ) : filteredList.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
-                          No records found for this date.
+                        <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                          No records found.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      attendance.map((record) => (
+                      filteredList.map((record: any) => (
                         <TableRow key={record.id} className="hover:bg-muted/50 transition-colors">
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
-                                {record.member.username.slice(0, 2).toUpperCase()}
+                          {isOwner && (
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
+                                  {record.member?.username?.slice(0, 2).toUpperCase() || '??'}
+                                </div>
+                                {record.member?.username || 'Unknown'}
                               </div>
-                              {record.member.username}
-                            </div>
+                            </TableCell>
+                          )}
+                          <TableCell className="text-muted-foreground">
+                            {record.date}
                           </TableCell>
                           <TableCell>
                             {record.status === 'present' ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
                                 <CheckCircle2 className="w-3.5 h-3.5" /> Present
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
                                 <XCircle className="w-3.5 h-3.5" /> Absent
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {record.date}
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {record.verifiedMethod || 'manual'}
+                            </Badge>
                           </TableCell>
                         </TableRow>
                       ))
@@ -128,27 +141,21 @@ export default function AttendancePage() {
   );
 }
 
-function MarkAttendanceDialog() {
+function CheckinDialog() {
   const [open, setOpen] = useState(false);
-  const { data: members = [] } = useMembers(); // Should be filtered for trainers to only see assigned
-  const markMutation = useMarkAttendance();
+  const checkinMutation = useCheckin();
   
   const formSchema = z.object({
-    memberId: z.coerce.number().min(1, "Select a member"),
-    status: z.enum(["present", "absent"]),
-    date: z.string().min(1, "Date required"),
+    gym_code: z.string().min(1, "Gym code is required"),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      status: "present",
-      date: format(new Date(), "yyyy-MM-dd"),
-    },
+    defaultValues: { gym_code: "" },
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
-    markMutation.mutate(data, {
+    checkinMutation.mutate(data, {
       onSuccess: () => {
         setOpen(false);
         form.reset();
@@ -159,81 +166,41 @@ function MarkAttendanceDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="shadow-lg shadow-primary/20">
-          <Plus className="w-4 h-4 mr-2" /> Mark Attendance
+        <Button className="shadow-lg shadow-primary/20" data-testid="button-checkin">
+          <QrCode className="w-4 h-4 mr-2" /> Check In
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>Mark Attendance</DialogTitle>
+          <DialogTitle>Check In to Gym</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
             <FormField
               control={form.control}
-              name="memberId"
+              name="gym_code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Member</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select member" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {members.filter(m => m.role === 'member').map((m) => (
-                        <SelectItem key={m.id} value={m.id.toString()}>
-                          {m.username}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date</FormLabel>
+                  <FormLabel>Gym Code</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <Input 
+                      placeholder="Enter gym code (e.g., DEMO01)" 
+                      {...field} 
+                      className="h-11 text-center font-mono text-lg uppercase"
+                      data-testid="input-gym-code"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="present">Present</SelectItem>
-                      <SelectItem value="absent">Absent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+            <p className="text-sm text-muted-foreground">
+              Scan the QR code at your gym or enter the code manually.
+            </p>
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={markMutation.isPending}>
-                {markMutation.isPending ? "Saving..." : "Save Record"}
+              <Button type="submit" disabled={checkinMutation.isPending} data-testid="button-submit-checkin">
+                {checkinMutation.isPending ? "Checking in..." : "Check In"}
               </Button>
             </div>
           </form>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useMembers, usePayments, useMarkPayment } from "@/hooks/use-gym";
+import { useMembers, usePayments, useMemberPayments, useMarkPayment } from "@/hooks/use-gym";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, DollarSign, Filter } from "lucide-react";
+import { DollarSign, Filter } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -19,36 +19,46 @@ export default function PaymentsPage() {
   const { user } = useAuth();
   const [monthFilter, setMonthFilter] = useState(format(new Date(), "yyyy-MM"));
   
-  // Filter logic
-  const filters = user?.role === 'member' 
-    ? { memberId: user.id } 
-    : { month: monthFilter };
+  const isOwner = user?.role === 'owner';
+  
+  const { data: gymPayments = [], isLoading: gymLoading } = usePayments();
+  const { data: myPayments = [], isLoading: myLoading } = useMemberPayments();
 
-  const { data: payments = [], isLoading } = usePayments(filters);
+  const paymentsList = (isOwner ? gymPayments : myPayments) as any[];
+  const isLoading = isOwner ? gymLoading : myLoading;
+  
+  const filteredPayments = isOwner 
+    ? paymentsList.filter((p: any) => p.month === monthFilter)
+    : paymentsList;
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold font-display text-foreground">Payments</h2>
-          <p className="text-muted-foreground mt-1">Manage invoices and track revenue.</p>
+          <p className="text-muted-foreground mt-1">
+            {isOwner ? 'Manage invoices and track revenue.' : 'View your payment history.'}
+          </p>
         </div>
-        {user?.role === 'owner' && <RecordPaymentDialog />}
+        {isOwner && <RecordPaymentDialog />}
       </div>
 
       <Card className="dashboard-card">
         <CardHeader className="pb-3 border-b border-border/50">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle>Payment History</CardTitle>
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <Input 
-                type="month" 
-                value={monthFilter} 
-                onChange={(e) => setMonthFilter(e.target.value)}
-                className="w-40 h-8 text-sm"
-              />
-            </div>
+            {isOwner && (
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                <Input 
+                  type="month" 
+                  value={monthFilter} 
+                  onChange={(e) => setMonthFilter(e.target.value)}
+                  className="w-40 h-8 text-sm"
+                  data-testid="input-month-filter"
+                />
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="pt-4">
@@ -56,7 +66,7 @@ export default function PaymentsPage() {
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableHead>Member</TableHead>
+                  {isOwner && <TableHead>Member</TableHead>}
                   <TableHead>Month</TableHead>
                   <TableHead>Amount Paid</TableHead>
                   <TableHead>Amount Due</TableHead>
@@ -69,18 +79,20 @@ export default function PaymentsPage() {
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">Loading...</TableCell>
                   </TableRow>
-                ) : payments.length === 0 ? (
+                ) : filteredPayments.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                       No payment records found.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  payments.map((payment) => (
+                  filteredPayments.map((payment: any) => (
                     <TableRow key={payment.id} className="hover:bg-muted/50 transition-colors">
-                      <TableCell className="font-medium">
-                        {payment.member.username}
-                      </TableCell>
+                      {isOwner && (
+                        <TableCell className="font-medium">
+                          {payment.member?.username || 'Unknown'}
+                        </TableCell>
+                      )}
                       <TableCell>{payment.month}</TableCell>
                       <TableCell className="font-mono">
                         ${((payment.amountPaid || 0) / 100).toFixed(2)}
@@ -109,11 +121,11 @@ export default function PaymentsPage() {
 function PaymentStatusBadge({ status }: { status: string }) {
   switch (status) {
     case 'paid':
-      return <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200 shadow-none">Paid</Badge>;
+      return <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200 shadow-none dark:bg-green-900 dark:text-green-300">Paid</Badge>;
     case 'partial':
-      return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-yellow-200 shadow-none">Partial</Badge>;
+      return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-yellow-200 shadow-none dark:bg-yellow-900 dark:text-yellow-300">Partial</Badge>;
     case 'unpaid':
-      return <Badge className="bg-red-100 text-red-700 hover:bg-red-200 border-red-200 shadow-none">Unpaid</Badge>;
+      return <Badge className="bg-red-100 text-red-700 hover:bg-red-200 border-red-200 shadow-none dark:bg-red-900 dark:text-red-300">Unpaid</Badge>;
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
@@ -123,6 +135,8 @@ function RecordPaymentDialog() {
   const [open, setOpen] = useState(false);
   const { data: members = [] } = useMembers();
   const paymentMutation = useMarkPayment();
+  
+  const membersList = members as any[];
   
   const formSchema = z.object({
     memberId: z.coerce.number().min(1, "Select a member"),
@@ -138,25 +152,13 @@ function RecordPaymentDialog() {
     defaultValues: {
       status: "paid",
       month: format(new Date(), "yyyy-MM"),
-      amountDue: 5000, // Default $50.00 (in cents)
+      amountDue: 5000,
       amountPaid: 5000,
       note: ""
     },
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
-    // Amounts are already numbers from z.coerce, but input might be dollars.
-    // The Schema expects integer (cents). 
-    // Wait, the input is likely users typing "50". We need to handle this.
-    // Let's assume input is in CENTS for simplicity or dollars? 
-    // Real app would use a currency input. Let's assume user inputs standard integer dollars for now, 
-    // but the schema stores cents? The prompt says "amountDue: integer". 
-    // Let's assume the form inputs are raw numbers matching schema storage for MVP simplicity.
-    // Actually, let's treat input as dollars and multiply by 100 for storage to be proper.
-    
-    // NOTE: For this generation, I will treat the input as CENTS directly to match the schema strictly without complex conversion logic risks.
-    // Ideally: input type="number" step="0.01" -> convert to cents.
-    
     paymentMutation.mutate(data, {
       onSuccess: () => {
         setOpen(false);
@@ -168,11 +170,11 @@ function RecordPaymentDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="shadow-lg shadow-primary/20">
+        <Button className="shadow-lg shadow-primary/20" data-testid="button-record-payment">
           <DollarSign className="w-4 h-4 mr-2" /> Record Payment
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Record Payment</DialogTitle>
         </DialogHeader>
@@ -186,12 +188,12 @@ function RecordPaymentDialog() {
                   <FormLabel>Member</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger data-testid="select-payment-member">
                         <SelectValue placeholder="Select member" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {members.filter(m => m.role === 'member').map((m) => (
+                      {membersList.filter(m => m.role === 'member').map((m: any) => (
                         <SelectItem key={m.id} value={m.id.toString()}>
                           {m.username}
                         </SelectItem>
@@ -210,7 +212,7 @@ function RecordPaymentDialog() {
                 <FormItem>
                   <FormLabel>Billing Month</FormLabel>
                   <FormControl>
-                    <Input type="month" {...field} />
+                    <Input type="month" {...field} data-testid="input-billing-month" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -225,7 +227,7 @@ function RecordPaymentDialog() {
                   <FormItem>
                     <FormLabel>Amount Due (cents)</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" {...field} data-testid="input-amount-due" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -238,7 +240,7 @@ function RecordPaymentDialog() {
                   <FormItem>
                     <FormLabel>Amount Paid (cents)</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" {...field} data-testid="input-amount-paid" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -254,7 +256,7 @@ function RecordPaymentDialog() {
                   <FormLabel>Status</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger data-testid="select-payment-status">
                         <SelectValue />
                       </SelectTrigger>
                     </FormControl>
@@ -276,7 +278,7 @@ function RecordPaymentDialog() {
                 <FormItem>
                   <FormLabel>Note (Optional)</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="e.g. Cash payment" />
+                    <Input {...field} placeholder="e.g. Cash payment" data-testid="input-payment-note" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -285,7 +287,7 @@ function RecordPaymentDialog() {
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={paymentMutation.isPending}>
+              <Button type="submit" disabled={paymentMutation.isPending} data-testid="button-submit-payment">
                 {paymentMutation.isPending ? "Saving..." : "Save Record"}
               </Button>
             </div>
