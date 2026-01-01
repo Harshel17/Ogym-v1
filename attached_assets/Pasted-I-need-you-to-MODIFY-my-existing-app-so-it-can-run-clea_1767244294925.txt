@@ -1,0 +1,82 @@
+I need you to MODIFY my existing app so it can run cleanly with PostgreSQL, while keeping the current behavior intact.
+
+This is NOT a rewrite. This is a controlled database upgrade for local + production readiness.
+
+IMPORTANT CONTEXT:
+- The app currently works on SQLite in Replit
+- I want it to ALSO work with PostgreSQL
+- When I download and run locally, it must work without errors
+- This is for demo + pilot gyms, so stability > refactor
+
+WHAT I WANT YOU TO DO (STEP BY STEP):
+
+1) DATABASE ABSTRACTION
+- Keep SQLite support for Replit/demo if needed
+- Add PostgreSQL support using DATABASE_URL
+- Database selection must be environment-based:
+  - If DATABASE_URL starts with "postgres", use PostgreSQL
+  - Otherwise fall back to SQLite
+
+2) CONFIGURATION
+- Use a single DATABASE_URL variable
+- Ensure the app runs correctly with:
+  - sqlite (file-based) in Replit
+  - postgresql in local / production
+- Do NOT hardcode paths or credentials
+
+3) ORM / DRIVER CHANGES
+- Ensure the ORM configuration (Drizzle / Prisma / SQLAlchemy / etc.) works with PostgreSQL
+- Replace any SQLite-only adapters or pragmas
+- Fix schema definitions that are SQLite-specific:
+  - booleans
+  - autoincrement IDs
+  - date/time fields
+  - foreign keys
+  - unique constraints
+
+4) MIGRATIONS / SCHEMA
+- Ensure schema creation works on PostgreSQL
+- If migrations exist:
+  - Make them PostgreSQL-compatible
+- If schema is auto-created:
+  - Ensure tables are created correctly in PostgreSQL
+
+5) DATA SAFETY
+- Do NOT delete existing tables
+- Do NOT drop data automatically
+- Do NOT change table names
+- Do NOT refactor business logic
+
+6) COMPATIBILITY CHECK
+- Verify all existing features still work:
+  - auth
+  - gym creation
+  - trainer assignment
+  - workouts
+  - attendance
+  - payments
+- Fix only DB-related issues that block PostgreSQL
+
+7) DOCUMENTATION (REQUIRED)
+After changes, clearly explain:
+- What files were changed
+- How DB switching works
+- How to run locally with PostgreSQL
+- Example .env for local development
+
+WHAT YOU MUST NOT DO:
+- Do NOT rebuild the app
+- Do NOT change UI
+- Do NOT remove SQLite unless explicitly told
+- Do NOT introduce new features
+- Do NOT rename core models or tables
+
+OUTPUT EXPECTATION:
+- App runs on PostgreSQL using DATABASE_URL
+- App still works in Replit
+- Project can be downloaded and run locally without DB errors
+
+If anything is unclear:
+- ASK QUESTIONS before making changes
+
+Proceed carefully and incrementally.

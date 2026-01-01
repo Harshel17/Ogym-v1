@@ -129,3 +129,67 @@ Test accounts:
 - **TypeScript** - Type safety across full stack
 - **Tailwind CSS** - Utility-first styling
 - **Zod** - Runtime schema validation shared between client/server
+
+## Local Development Setup
+
+### Prerequisites
+- Node.js 18+
+- PostgreSQL 14+ running locally or via Docker
+
+### Database Setup (Local)
+
+**Option 1: Local PostgreSQL**
+```bash
+# Create database
+psql -U postgres -c "CREATE DATABASE ogym;"
+```
+
+**Option 2: Docker**
+```bash
+docker run --name ogym-postgres -e POSTGRES_PASSWORD=password -e POSTGRES_DB=ogym -p 5432:5432 -d postgres:14
+```
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and fill in your values:
+```bash
+cp .env.example .env
+```
+
+Required variables:
+- `DATABASE_URL` - PostgreSQL connection string (e.g., `postgresql://postgres:password@localhost:5432/ogym`)
+- `SESSION_SECRET` - Secure random string for session encryption
+
+### Running Locally
+
+```bash
+# Install dependencies
+npm install
+
+# Push database schema
+npm run db:push
+
+# Start development server
+npm run dev
+```
+
+The app will be available at `http://localhost:5000`
+
+### Seed Demo Data
+
+To create demo users and gym, you can use the registration flow or run SQL:
+```sql
+-- After running db:push, the tables will be created
+-- Register via the app UI at /auth
+```
+
+### Production Build
+
+```bash
+npm run build
+npm run start
+```
+
+## Notes on Legacy Code
+
+The `/backend` folder contains a legacy Python/FastAPI implementation that is **NOT currently in use**. The active backend is the Express.js server in `/server`. The Python code is preserved for reference but can be safely ignored or removed.
