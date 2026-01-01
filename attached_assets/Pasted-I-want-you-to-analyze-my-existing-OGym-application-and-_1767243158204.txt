@@ -1,0 +1,82 @@
+I want you to analyze my existing OGym application and then produce a CLEAN, STRUCTURED SUMMARY that I can copy-paste into ChatGPT for help.
+
+Your output must be written AS IF you are explaining the app to a senior developer who has never seen the code.
+
+DO NOT write code.
+DO NOT suggest fixes.
+DO NOT refactor anything.
+
+ONLY produce the following sections, in this exact order and format:
+
+1) APP OVERVIEW
+- What this app does (in 5–7 bullet points)
+- Target users
+- Current maturity level (demo / pilot / partial / production-ready)
+
+2) TECH STACK & SETUP
+- Backend framework
+- Frontend framework
+- Database (SQLite / PostgreSQL)
+- Auth method (JWT / session / none)
+- Hosting / environment (Replit / local / deployed)
+- Any env variables used
+
+3) PROJECT STRUCTURE
+- High-level folder structure (backend/, frontend/, etc.)
+- Important files and their purpose
+- Entry points for backend and frontend
+
+4) USER ROLES & PERMISSIONS
+- List each role (Owner, Trainer, Member)
+- What each role can and cannot do
+- Where role checks are enforced (backend / frontend / missing)
+
+5) DATA MODEL SUMMARY
+- Main tables/models
+- Key fields
+- Relationships (user → gym → attendance, etc.)
+- Whether multi-gym isolation exists or is partial
+
+6) CORE FEATURES STATUS
+For each feature, mark clearly:
+- WORKING
+- PARTIALLY WORKING
+- NOT IMPLEMENTED
+
+Features to cover:
+- User authentication
+- Gym creation
+- Member management
+- Attendance tracking
+- Payment tracking (non-payment, tracking only)
+- Dashboards
+- Navigation / routing
+
+7) CURRENT ISSUES & RISKS
+- Known bugs
+- Incomplete flows
+- Data-loss risks
+- Scalability concerns
+- Anything unsafe for real users
+
+8) DEMO READINESS
+- What works well in a demo
+- What may confuse a gym owner
+- What must be explained manually during demo
+
+9) LIMITATIONS (INTENTIONAL)
+- Features intentionally not included yet
+- Technical shortcuts taken for demo
+
+10) IMMEDIATE NEXT STEPS (NO CODE)
+- Top 5 non-breaking improvements to make the app clearer for demo
+- Things to avoid changing right now
+
+Formatting rules:
+- Use clear headings
+- Use bullet points
+- No long paragraphs
+- No emojis
+- No marketing language
+
+Once done, STOP.
