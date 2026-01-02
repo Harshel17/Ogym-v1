@@ -82,6 +82,12 @@ export interface IStorage {
   getCompletionByItemDate(workoutItemId: number, memberId: number, date: string): Promise<WorkoutCompletion | undefined>;
   getMemberWorkoutHistory(memberId: number): Promise<WorkoutCompletion[]>;
   getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }>;
+  getMemberDailyWorkouts(memberId: number, startDate?: string, endDate?: string): Promise<{
+    date: string;
+    muscleGroups: string[];
+    exerciseCount: number;
+    exercises: { name: string; muscleType: string; sets: number | null; reps: number | null; weight: string | null }[];
+  }[]>;
   getActivityFeed(gymId: number, memberIds: number[]): Promise<any[]>;
   getGymTrainersWithMembers(gymId: number): Promise<{ trainer: User; members: User[] }[]>;
   getMemberOverview(gymId: number, memberId: number): Promise<{
@@ -489,6 +495,69 @@ export class DatabaseStorage implements IStorage {
     }
     
     return { streak, totalWorkouts, last7Days };
+  }
+
+  async getMemberDailyWorkouts(memberId: number, startDate?: string, endDate?: string): Promise<{
+    date: string;
+    muscleGroups: string[];
+    exerciseCount: number;
+    exercises: { name: string; muscleType: string; sets: number | null; reps: number | null; weight: string | null }[];
+  }[]> {
+    let query = db.select({
+      completion: workoutCompletions,
+      workoutItem: workoutItems
+    })
+    .from(workoutCompletions)
+    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .where(eq(workoutCompletions.memberId, memberId))
+    .orderBy(desc(workoutCompletions.completedDate));
+
+    const completions = await query;
+
+    // Filter by date range if provided
+    let filtered = completions;
+    if (startDate) {
+      filtered = filtered.filter(c => c.completion.completedDate >= startDate);
+    }
+    if (endDate) {
+      filtered = filtered.filter(c => c.completion.completedDate <= endDate);
+    }
+
+    // Group by date
+    const byDate = new Map<string, typeof filtered>();
+    for (const c of filtered) {
+      const date = c.completion.completedDate;
+      if (!byDate.has(date)) {
+        byDate.set(date, []);
+      }
+      byDate.get(date)!.push(c);
+    }
+
+    // Transform to result format
+    const result: {
+      date: string;
+      muscleGroups: string[];
+      exerciseCount: number;
+      exercises: { name: string; muscleType: string; sets: number | null; reps: number | null; weight: string | null }[];
+    }[] = [];
+
+    for (const [date, items] of byDate) {
+      const muscleGroups = Array.from(new Set(items.map(i => i.workoutItem.muscleType).filter(Boolean)));
+      result.push({
+        date,
+        muscleGroups,
+        exerciseCount: items.length,
+        exercises: items.map(i => ({
+          name: i.workoutItem.exerciseName,
+          muscleType: i.workoutItem.muscleType,
+          sets: i.completion.actualSets,
+          reps: i.completion.actualReps,
+          weight: i.completion.actualWeight
+        }))
+      });
+    }
+
+    return result.sort((a, b) => b.date.localeCompare(a.date));
   }
 
   async getActivityFeed(gymId: number, memberIds: number[]): Promise<any[]> {

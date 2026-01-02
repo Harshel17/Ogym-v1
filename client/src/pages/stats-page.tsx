@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays } from "lucide-react";
 import { Link } from "wouter";
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { format, parseISO } from "date-fns";
 
 type MemberStats = {
   streak: number;
@@ -22,13 +25,25 @@ type MemberStats = {
   weeklyTrend: { week: string; count: number }[];
 };
 
+type DailyWorkout = {
+  date: string;
+  muscleGroups: string[];
+  exerciseCount: number;
+  exercises: { name: string; muscleType: string; sets: number | null; reps: number | null; weight: string | null }[];
+};
+
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6', '#8b5cf6', '#f97316'];
 
 export default function StatsPage() {
   const { user } = useAuth();
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
   const { data: stats, isLoading } = useQuery<MemberStats>({
     queryKey: ["/api/me/stats"],
+  });
+
+  const { data: dailyWorkouts = [] } = useQuery<DailyWorkout[]>({
+    queryKey: ["/api/me/workouts/daily"],
   });
 
   if (user?.role !== "member") {
@@ -213,6 +228,82 @@ export default function StatsPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {dailyWorkouts.length > 0 && (
+            <Card data-testid="card-workout-history">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarDays className="w-5 h-5" />
+                  Workout History
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {dailyWorkouts.map((day) => {
+                  const isExpanded = expandedDate === day.date;
+                  return (
+                    <Collapsible
+                      key={day.date}
+                      open={isExpanded}
+                      onOpenChange={() => setExpandedDate(isExpanded ? null : day.date)}
+                    >
+                      <CollapsibleTrigger asChild>
+                        <div
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate"
+                          data-testid={`workout-day-${day.date}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <CalendarDays className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">
+                                {format(parseISO(day.date), "EEEE, MMM d, yyyy")}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {day.muscleGroups.join(" + ")}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">{day.exerciseCount} exercises</Badge>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                            )}
+                          </div>
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="mt-2 ml-4 space-y-2 border-l-2 border-muted pl-4">
+                          {day.exercises.map((exercise, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between p-2 rounded bg-background"
+                              data-testid={`exercise-${day.date}-${idx}`}
+                            >
+                              <div>
+                                <p className="font-medium text-sm">{exercise.name}</p>
+                                <p className="text-xs text-muted-foreground">{exercise.muscleType}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-medium">
+                                  {exercise.sets || "-"}x{exercise.reps || "-"}
+                                </p>
+                                {exercise.weight && (
+                                  <p className="text-xs text-muted-foreground">@ {exercise.weight}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  );
+                })}
               </CardContent>
             </Card>
           )}

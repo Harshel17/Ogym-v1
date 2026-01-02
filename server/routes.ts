@@ -678,6 +678,14 @@ export async function registerRoutes(
     res.json(calendar);
   });
 
+  // Daily workout summary with date filtering
+  app.get("/api/me/workouts/daily", requireRole(["member"]), async (req, res) => {
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+    const workouts = await storage.getMemberDailyWorkouts(req.user!.id, startDate, endDate);
+    res.json(workouts);
+  });
+
   // === MEMBER PROFILE & PROGRESS ROUTES ===
   app.get("/api/member/profile", requireRole(["member"]), async (req, res) => {
     const profile = await storage.getMemberProfile(req.user!.id);
