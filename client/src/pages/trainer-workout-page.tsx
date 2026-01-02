@@ -21,7 +21,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil } from "lucide-react";
+import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useMutation } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -35,6 +48,16 @@ export default function TrainerWorkoutPage() {
   const { data: cycles = [], isLoading: cyclesLoading } = useTrainerCycles();
   const { data: activity = [], isLoading: activityLoading } = useTrainerActivity();
   const [selectedCycleId, setSelectedCycleId] = useState<number | null>(null);
+
+  const deleteCycleMutation = useMutation({
+    mutationFn: async (cycleId: number) => {
+      await apiRequest("DELETE", `/api/trainer/cycles/${cycleId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/cycles"] });
+      setSelectedCycleId(null);
+    },
+  });
 
   const isLoading = membersLoading || cyclesLoading;
 
@@ -105,7 +128,44 @@ export default function TrainerWorkoutPage() {
                             {cycle.startDate} to {cycle.endDate}
                           </p>
                         </div>
-                        <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+                        <div className="flex items-center gap-1">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-destructive"
+                                onClick={(e) => e.stopPropagation()}
+                                data-testid={`button-delete-cycle-${cycle.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Workout Cycle</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{cycle.name}"? This will remove all exercises in this cycle. This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteCycleMutation.mutate(cycle.id);
+                                  }}
+                                  disabled={deleteCycleMutation.isPending}
+                                  className="bg-destructive text-destructive-foreground"
+                                  data-testid={`button-confirm-delete-cycle-${cycle.id}`}
+                                >
+                                  {deleteCycleMutation.isPending ? "Deleting..." : "Delete"}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                          <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
