@@ -201,6 +201,8 @@ export const workoutSessions = pgTable("workout_sessions", {
   cycleId: integer("cycle_id").references(() => workoutCycles.id),
   cycleDayIndex: integer("cycle_day_index"),
   focusLabel: text("focus_label").notNull(), // e.g., "Chest", "Back + Shoulders"
+  isManuallyCompleted: boolean("is_manually_completed").default(false), // User clicked "Mark Day Done"
+  completedAt: timestamp("completed_at"), // When marked done (null if not completed)
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   uniqueSessionPerDay: uniqueIndex("unique_session_per_member_date_gym").on(table.gymId, table.memberId, table.date),

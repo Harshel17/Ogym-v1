@@ -1,0 +1,92 @@
+You are a senior fullstack engineer.
+
+I need you to fix and improve workout history + stats logic and add missed workout tracking. Do NOT change authentication, roles, or database schema unless absolutely required.
+
+PROBLEM 1: "My Workouts" page should show ALL workouts in the current cycle (planned + completed)
+- Right now "My Workouts" shows only some completed sessions.
+- I want this page to show the FULL cycle calendar/list:
+  A) Planned workout days (from the active cycle schedule: day labels like Chest/Back/Legs/Rest)
+  B) Completed workouts marked as DONE if user completed at least one exercise OR manually marks the day done
+  C) In progress workouts if the day has partial completion and is not manually marked done
+  D) Not started workouts if no completion exists
+  E) Rest days should display as REST DAY and not count toward stats
+- Each date card must show:
+  - Date
+  - Cycle Day label (e.g., Chest + Shoulders)
+  - Status badge: DONE / IN PROGRESS / NOT STARTED / REST DAY
+  - Count: completed exercises / total exercises for that day
+- Clicking a day should open the details modal:
+  - Show all exercises planned for that day
+  - Exercises completed should appear marked as done
+  - Exercises not completed should appear as pending
+
+IMPORTANT: This page must merge "planned schedule" + "actual completions". It should not only show completed sessions.
+
+NEW FEATURE 1: Manual "Mark Day Done"
+- Add a "Mark Day Done" button for a workout day.
+- This means: even if the user completed only some exercises, they can finalize the day as DONE with partial completion.
+- Example:
+  - Total planned = 4 exercises
+  - Completed = 2 exercises
+  - If user clicks "Mark Day Done", the day status becomes DONE (2/4) instead of staying IN PROGRESS.
+- The UI should clearly show:
+  - DONE (2/4) if partial
+  - DONE (4/4) if full
+- Add an optional confirmation popup:
+  - "You completed 2/4 exercises. Mark day as done anyway?"
+
+TECH RULES:
+- Day status should be computed like this:
+  - REST DAY: if cycle day is Rest
+  - DONE: if user clicked Mark Day Done OR completed all exercises
+  - IN PROGRESS: if some exercises completed but not marked done
+  - NOT STARTED: if none completed and not marked done
+
+PROBLEM 2: "Progress → My Stats" must count unique workout DAYS, not exercise completions
+- Currently Days (Last 7) and Days (This Month) are wrong (I hit gym 1 day but it shows 2).
+- Fix it to count UNIQUE dates where the user has workout activity.
+- Rules:
+  - A "gym day" = user has at least 1 completion OR user manually marked the day DONE
+  - Count unique YYYY-MM-DD dates
+  - Scope must be correct by gymId + memberId
+  - Do NOT count multiple exercises on the same day as multiple days
+  - Rest days should not count as gym days
+
+NEW FEATURE 2: "Missed Workouts" tab in Progress
+- Add a new section/tab called "Missed Workouts"
+- It should show dates where the user had a planned workout day (not REST) but did not complete all exercises.
+- Group by date and show:
+  - Date
+  - Workout label (e.g., Chest + Shoulders)
+  - Missed exercises list (exercise names)
+  - Completed count / total count
+  - Status:
+    - "Missed (0/4)" if none done
+    - "Partial (2/4)" if some done but not marked done
+    - If day was manually marked DONE with 2/4, it should NOT be counted as missed, but can appear as "Done Partial" optionally if you think useful.
+- Provide filters:
+  - Last 7 days
+  - This month
+  - All time (optional)
+
+IMPLEMENTATION REQUIREMENTS:
+- Prefer using the newer session-based approach (workout_sessions) if available.
+- If the app currently uses legacy workout_completions, convert the counting logic to session-based unique-day counting.
+- If you need to store "marked done" status, do it minimally:
+  - Prefer adding a boolean field in session if exists
+  - If no session exists, create one when marking done
+  - Avoid schema changes if possible; if unavoidable, explain why
+
+VALIDATION / DEBUG:
+- Add temporary logs on backend when building stats:
+  - print the exact list of dates counted for last7 and thisMonth for a memberId
+- Then tell me exactly how to test:
+  - If I complete 5 exercises in the same day, daysLast7 increases only by 1
+  - If I mark a day done at 2/4, it counts as 1 gym day and does not show up in Missed Workouts
+
+OUTPUT:
+1) Explain what was wrong and why counts were inflated
+2) List files changed
+3) Explain the new logic in plain English
+4) Confirm "My Workouts" now shows full cycle schedule with DONE / IN PROGRESS markers
+5) Confirm "Missed Workouts" works and shows missed exercises grouped by date
