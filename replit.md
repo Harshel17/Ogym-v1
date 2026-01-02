@@ -52,6 +52,14 @@ OGym is a multi-tenant B2B web application for gym management with role-based ac
   - Workouts tab: session list with date-based grouping, modal for exercise details
   - Stats tab: streak, weekly/monthly metrics, volume progression, muscle breakdown, PRs
   - 3-level access control: assigned, starred, same gym
+- **Added React Native + Expo Mobile App** (`mobile/` folder)
+  - Full authentication flow with Login/Register screens
+  - Role-based bottom tab navigation for Member, Trainer, and Owner roles
+  - Member screens: Dashboard, My Workout, Attendance, Progress, Profile
+  - Trainer screens: Home, Members, Star Members, Diet Plans, Profile
+  - Owner screens: Dashboard, Members, Payments, Announcements, Profile
+  - Shared API client with session-based authentication via axios
+  - See `mobile/README.md` for setup instructions
 
 **January 2025:**
 - Added user profile system with auto-generated publicId (OWN/TRN/MEM prefix + 5-char suffix)
