@@ -1208,7 +1208,7 @@ export async function registerRoutes(
   });
 
   // === TRANSFER REQUESTS ROUTES ===
-  app.post("/api/member/transfer-request", requireRole(["member"]), async (req, res) => {
+  app.post("/api/member/transfer-request", requireRole(["member", "trainer"]), async (req, res) => {
     const schema = z.object({ gymCode: z.string().min(1) });
     const input = schema.parse(req.body);
     
@@ -1234,7 +1234,7 @@ export async function registerRoutes(
     res.status(201).json(request);
   });
 
-  app.get("/api/member/transfer-request", requireRole(["member"]), async (req, res) => {
+  app.get("/api/member/transfer-request", requireRole(["member", "trainer"]), async (req, res) => {
     const request = await storage.getMemberTransferRequest(req.user!.id);
     res.json(request || null);
   });

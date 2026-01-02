@@ -986,14 +986,39 @@ export class DatabaseStorage implements IStorage {
     .where(eq(gymHistory.gymId, gymId))
     .orderBy(desc(gymHistory.joinedAt));
 
+    const memberIds = history.filter(h => h.history.leftAt).map(h => h.member.id);
+    
+    const transfers = memberIds.length > 0 ? await db.select({
+      transfer: transferRequests,
+      toGym: gyms
+    })
+    .from(transferRequests)
+    .innerJoin(gyms, eq(transferRequests.toGymId, gyms.id))
+    .where(
+      and(
+        eq(transferRequests.fromGymId, gymId),
+        eq(transferRequests.status, "approved"),
+        inArray(transferRequests.memberId, memberIds)
+      )
+    ) : [];
+    
+    const transferMap = new Map<number, string>();
+    for (const t of transfers) {
+      if (!transferMap.has(t.transfer.memberId)) {
+        transferMap.set(t.transfer.memberId, (t.toGym as any).name);
+      }
+    }
+
     return history.map(h => ({
       id: h.history.id,
       memberId: h.history.memberId,
       memberName: h.member.username,
+      memberRole: h.member.role,
       gymId: h.history.gymId,
       gymName: (h.gym as any).name,
       joinedAt: h.history.joinedAt,
-      leftAt: h.history.leftAt
+      leftAt: h.history.leftAt,
+      destinationGymName: h.history.leftAt ? transferMap.get(h.member.id) || null : null
     }));
   }
 

@@ -28,10 +28,12 @@ type GymHistoryRecord = {
   id: number;
   memberId: number;
   memberName: string;
+  memberRole: string;
   gymId: number;
   gymName: string;
   joinedAt: string;
   leftAt: string | null;
+  destinationGymName: string | null;
 };
 
 export default function TransfersPage() {
@@ -239,8 +241,10 @@ export default function TransfersPage() {
                     <TableHeader className="bg-muted/50">
                       <TableRow>
                         <TableHead>Member</TableHead>
+                        <TableHead>Role</TableHead>
                         <TableHead>Joined</TableHead>
                         <TableHead>Left</TableHead>
+                        <TableHead>Transferred To</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -256,6 +260,11 @@ export default function TransfersPage() {
                             </div>
                           </TableCell>
                           <TableCell>
+                            <Badge variant="outline" className="capitalize">
+                              {record.memberRole}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
                             <div className="flex items-center gap-1.5 text-green-600">
                               <LogIn className="w-3.5 h-3.5" />
                               {format(new Date(record.joinedAt), "dd MMM yyyy")}
@@ -266,6 +275,16 @@ export default function TransfersPage() {
                               <div className="flex items-center gap-1.5 text-red-500">
                                 <LogOut className="w-3.5 h-3.5" />
                                 {format(new Date(record.leftAt), "dd MMM yyyy")}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {record.destinationGymName ? (
+                              <div className="flex items-center gap-1.5">
+                                <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                                {record.destinationGymName}
                               </div>
                             ) : (
                               <span className="text-muted-foreground">-</span>
