@@ -164,7 +164,7 @@ export interface IStorage {
     date: string;
     title: string;
     exercises: {
-      completionId: number;
+      completionId: number | null;
       exerciseName: string;
       muscleType: string;
       sets: number;
@@ -174,6 +174,7 @@ export interface IStorage {
       actualReps: number | null;
       actualWeight: string | null;
       notes: string | null;
+      completed: boolean;
     }[];
   }[]>;
   updateWorkoutCompletion(completionId: number, memberId: number, data: { actualSets?: number; actualReps?: number; actualWeight?: string; notes?: string }): Promise<WorkoutCompletion | null>;
@@ -1169,7 +1170,7 @@ export class DatabaseStorage implements IStorage {
     date: string;
     title: string;
     exercises: {
-      completionId: number;
+      completionId: number | null;
       exerciseName: string;
       muscleType: string;
       sets: number;
@@ -1179,8 +1180,21 @@ export class DatabaseStorage implements IStorage {
       actualReps: number | null;
       actualWeight: string | null;
       notes: string | null;
+      completed: boolean;
     }[];
   }[]> {
+    // Get member's user info to find gym
+    const [member] = await db.select().from(users).where(eq(users.id, memberId));
+    if (!member || !member.gymId) return [];
+
+    // Get member's active cycle
+    const cycle = await this.getMemberCycle(memberId);
+    if (!cycle) return [];
+
+    // Get all items for this cycle
+    const items = await this.getWorkoutItems(cycle.id);
+    
+    // Get all completions for this member
     const completions = await db.select({
       completion: workoutCompletions,
       item: workoutItems
@@ -1190,44 +1204,87 @@ export class DatabaseStorage implements IStorage {
     .where(eq(workoutCompletions.memberId, memberId))
     .orderBy(desc(workoutCompletions.completedDate));
 
-    // Group by date
+    // Build a map of completed exercises by date and exercise name
+    const completionsByDateAndName = new Map<string, Map<string, typeof completions[0]>>();
+    const datesWithCompletions = new Set<string>();
+    
+    for (const row of completions) {
+      const date = row.completion.completedDate;
+      datesWithCompletions.add(date);
+      if (!completionsByDateAndName.has(date)) {
+        completionsByDateAndName.set(date, new Map());
+      }
+      completionsByDateAndName.get(date)!.set(row.item.exerciseName, row);
+    }
+
+    // Get items by day index
+    const itemsByDay: Record<number, typeof items> = {};
+    for (const item of items) {
+      if (!itemsByDay[item.dayIndex]) {
+        itemsByDay[item.dayIndex] = [];
+      }
+      itemsByDay[item.dayIndex].push(item);
+    }
+
+    // Build sessions - for each date with any completion, show all planned exercises
     const sessionMap = new Map<string, {
       date: string;
       title: string;
       exercises: any[];
     }>();
 
-    for (const { completion, item } of completions) {
-      const date = completion.completedDate;
-      if (!sessionMap.has(date)) {
-        sessionMap.set(date, {
-          date,
-          title: "",
-          exercises: []
-        });
-      }
-      const session = sessionMap.get(date)!;
-      session.exercises.push({
-        completionId: completion.id,
-        exerciseName: item.exerciseName,
-        muscleType: item.muscleType,
-        sets: item.sets,
-        reps: item.reps,
-        weight: item.weight,
-        actualSets: completion.actualSets,
-        actualReps: completion.actualReps,
-        actualWeight: completion.actualWeight,
-        notes: completion.notes
+    const cycleStartDate = new Date(cycle.startDate);
+    
+    for (const date of Array.from(datesWithCompletions)) {
+      const dateObj = new Date(date);
+      const daysSinceStart = Math.floor((dateObj.getTime() - cycleStartDate.getTime()) / (1000 * 60 * 60 * 24));
+      const dayIndex = ((daysSinceStart % cycle.cycleLength) + cycle.cycleLength) % cycle.cycleLength;
+      
+      const dayItems = itemsByDay[dayIndex] || [];
+      const completionsForDate = completionsByDateAndName.get(date) || new Map();
+      
+      const exercises = dayItems.map(item => {
+        const completionRow = completionsForDate.get(item.exerciseName);
+        if (completionRow) {
+          return {
+            completionId: completionRow.completion.id,
+            exerciseName: item.exerciseName,
+            muscleType: item.muscleType || "",
+            sets: item.sets,
+            reps: item.reps,
+            weight: item.weight,
+            actualSets: completionRow.completion.actualSets,
+            actualReps: completionRow.completion.actualReps,
+            actualWeight: completionRow.completion.actualWeight,
+            notes: completionRow.completion.notes,
+            completed: true
+          };
+        } else {
+          return {
+            completionId: null,
+            exerciseName: item.exerciseName,
+            muscleType: item.muscleType || "",
+            sets: item.sets,
+            reps: item.reps,
+            weight: item.weight,
+            actualSets: null,
+            actualReps: null,
+            actualWeight: null,
+            notes: null,
+            completed: false
+          };
+        }
       });
+
+      // Generate title from muscle types
+      const muscleTypes = Array.from(new Set(dayItems.map(e => e.muscleType).filter(Boolean)));
+      const title = muscleTypes.join(" + ") || "Workout";
+
+      sessionMap.set(date, { date, title, exercises });
     }
 
-    // Generate titles from muscle types
-    for (const session of Array.from(sessionMap.values())) {
-      const muscleTypes = Array.from(new Set(session.exercises.map((e: any) => e.muscleType)));
-      session.title = muscleTypes.join(" + ") || "Workout";
-    }
-
-    return Array.from(sessionMap.values());
+    // Sort by date descending
+    return Array.from(sessionMap.values()).sort((a, b) => b.date.localeCompare(a.date));
   }
 
   async updateWorkoutCompletion(completionId: number, memberId: number, data: { actualSets?: number; actualReps?: number; actualWeight?: string; notes?: string }): Promise<WorkoutCompletion | null> {

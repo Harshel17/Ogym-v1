@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Calendar, Dumbbell, Shield, ChevronRight, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, Dumbbell, Shield, ChevronRight, Save, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 
@@ -16,7 +16,7 @@ type WorkoutSession = {
   date: string;
   title: string;
   exercises: {
-    completionId: number;
+    completionId: number | null;
     exerciseName: string;
     muscleType: string;
     sets: number;
@@ -26,6 +26,7 @@ type WorkoutSession = {
     actualReps: number | null;
     actualWeight: string | null;
     notes: string | null;
+    completed: boolean;
   }[];
 };
 
@@ -68,12 +69,14 @@ export default function WorkoutHistoryPage() {
     setSelectedSession(session);
     const inputs: Record<number, { sets: string; reps: string; weight: string; notes: string }> = {};
     session.exercises.forEach(ex => {
-      inputs[ex.completionId] = {
-        sets: ex.actualSets?.toString() || ex.sets.toString(),
-        reps: ex.actualReps?.toString() || ex.reps.toString(),
-        weight: ex.actualWeight || ex.weight || "",
-        notes: ex.notes || ""
-      };
+      if (ex.completionId) {
+        inputs[ex.completionId] = {
+          sets: ex.actualSets?.toString() || ex.sets.toString(),
+          reps: ex.actualReps?.toString() || ex.reps.toString(),
+          weight: ex.actualWeight || ex.weight || "",
+          notes: ex.notes || ""
+        };
+      }
     });
     setEditInputs(inputs);
   };
@@ -149,7 +152,9 @@ export default function WorkoutHistoryPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{session.exercises.length} exercises</Badge>
+                    <Badge variant="secondary">
+                      {session.exercises.filter(e => e.completed).length}/{session.exercises.length} done
+                    </Badge>
                     <ChevronRight className="w-5 h-5 text-muted-foreground" />
                   </div>
                 </div>
@@ -172,78 +177,100 @@ export default function WorkoutHistoryPage() {
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
-            {selectedSession?.exercises.map((exercise) => {
-              const inputs = editInputs[exercise.completionId] || {};
+            {selectedSession?.exercises.map((exercise, idx) => {
+              const inputs = exercise.completionId ? editInputs[exercise.completionId] || {} : {};
               return (
-                <Card key={exercise.completionId} className="border bg-muted/30">
+                <Card 
+                  key={exercise.completionId ?? `skipped-${idx}`} 
+                  className={`border ${
+                    exercise.completed 
+                      ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" 
+                      : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                  }`}
+                >
                   <CardHeader className="py-3 pb-2">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base">{exercise.exerciseName}</CardTitle>
-                      <Badge variant="outline">{exercise.muscleType}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{exercise.muscleType}</Badge>
+                        {exercise.completed ? (
+                          <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            Done
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30">
+                            <XCircle className="w-3 h-3 mr-1" />
+                            Skipped
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Prescribed: {exercise.sets}x{exercise.reps} {exercise.weight ? `@ ${exercise.weight}` : ''}
                     </p>
                   </CardHeader>
-                  <CardContent className="py-3 space-y-3">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Sets</label>
-                        <Input
-                          type="number"
-                          value={inputs.sets || ''}
-                          onChange={(e) => handleInputChange(exercise.completionId, 'sets', e.target.value)}
-                          className="h-9"
-                          data-testid={`input-sets-${exercise.completionId}`}
-                        />
+                  {exercise.completed && exercise.completionId && (
+                    <CardContent className="py-3 space-y-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground mb-1 block">Sets</label>
+                          <Input
+                            type="number"
+                            value={inputs.sets || ''}
+                            onChange={(e) => handleInputChange(exercise.completionId!, 'sets', e.target.value)}
+                            className="h-9"
+                            data-testid={`input-sets-${exercise.completionId}`}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground mb-1 block">Reps</label>
+                          <Input
+                            type="number"
+                            value={inputs.reps || ''}
+                            onChange={(e) => handleInputChange(exercise.completionId!, 'reps', e.target.value)}
+                            className="h-9"
+                            data-testid={`input-reps-${exercise.completionId}`}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground mb-1 block">Weight</label>
+                          <Input
+                            type="text"
+                            value={inputs.weight || ''}
+                            onChange={(e) => handleInputChange(exercise.completionId!, 'weight', e.target.value)}
+                            className="h-9"
+                            data-testid={`input-weight-${exercise.completionId}`}
+                          />
+                        </div>
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Reps</label>
-                        <Input
-                          type="number"
-                          value={inputs.reps || ''}
-                          onChange={(e) => handleInputChange(exercise.completionId, 'reps', e.target.value)}
-                          className="h-9"
-                          data-testid={`input-reps-${exercise.completionId}`}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">Weight</label>
+                        <label className="text-xs text-muted-foreground mb-1 block">Notes</label>
                         <Input
                           type="text"
-                          value={inputs.weight || ''}
-                          onChange={(e) => handleInputChange(exercise.completionId, 'weight', e.target.value)}
+                          placeholder="Add notes..."
+                          value={inputs.notes || ''}
+                          onChange={(e) => handleInputChange(exercise.completionId!, 'notes', e.target.value)}
                           className="h-9"
-                          data-testid={`input-weight-${exercise.completionId}`}
+                          data-testid={`input-notes-${exercise.completionId}`}
                         />
                       </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground mb-1 block">Notes</label>
-                      <Input
-                        type="text"
-                        placeholder="Add notes..."
-                        value={inputs.notes || ''}
-                        onChange={(e) => handleInputChange(exercise.completionId, 'notes', e.target.value)}
-                        className="h-9"
-                        data-testid={`input-notes-${exercise.completionId}`}
-                      />
-                    </div>
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={() => handleSaveExercise(exercise.completionId)}
-                      disabled={updateExerciseMutation.isPending}
-                      data-testid={`button-save-${exercise.completionId}`}
-                    >
-                      {updateExerciseMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
-                      Save Changes
-                    </Button>
-                  </CardContent>
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        onClick={() => handleSaveExercise(exercise.completionId!)}
+                        disabled={updateExerciseMutation.isPending}
+                        data-testid={`button-save-${exercise.completionId}`}
+                      >
+                        {updateExerciseMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4 mr-2" />
+                        )}
+                        Save Changes
+                      </Button>
+                    </CardContent>
+                  )}
                 </Card>
               );
             })}
