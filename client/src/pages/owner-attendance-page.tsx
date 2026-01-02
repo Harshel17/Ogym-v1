@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,25 +29,46 @@ type AttendanceTrend = {
   trend: { date: string; count: number }[];
 };
 
+type ServerDate = {
+  serverDate: string;
+};
+
 export default function OwnerAttendancePage() {
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  // Get server's today date to avoid timezone mismatch
+  const { data: serverDateData } = useQuery<ServerDate>({
+    queryKey: ["/api/server-date"]
+  });
+  
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  
+  // Initialize date from server once available
+  useEffect(() => {
+    if (serverDateData?.serverDate && !selectedDate) {
+      setSelectedDate(serverDateData.serverDate);
+    }
+  }, [serverDateData, selectedDate]);
+  
+  // Fallback to local date if server date not available
+  const effectiveDate = selectedDate || format(new Date(), "yyyy-MM-dd");
 
   const { data: summary, isLoading: summaryLoading } = useQuery<AttendanceSummary>({
-    queryKey: ["/api/owner/attendance/summary", selectedDate],
+    queryKey: ["/api/owner/attendance/summary", effectiveDate],
     queryFn: async () => {
-      const res = await fetch(`/api/owner/attendance/summary?date=${selectedDate}`, { credentials: "include" });
+      const res = await fetch(`/api/owner/attendance/summary?date=${effectiveDate}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch summary");
       return res.json();
-    }
+    },
+    enabled: !!effectiveDate
   });
 
   const { data: dayData, isLoading: dayLoading } = useQuery<AttendanceDay>({
-    queryKey: ["/api/owner/attendance/day", selectedDate],
+    queryKey: ["/api/owner/attendance/day", effectiveDate],
     queryFn: async () => {
-      const res = await fetch(`/api/owner/attendance/day?date=${selectedDate}`, { credentials: "include" });
+      const res = await fetch(`/api/owner/attendance/day?date=${effectiveDate}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch day data");
       return res.json();
-    }
+    },
+    enabled: !!effectiveDate
   });
 
   const { data: trendData } = useQuery<AttendanceTrend>({
@@ -78,7 +99,7 @@ export default function OwnerAttendancePage() {
           <span className="text-sm text-muted-foreground">Select Date:</span>
           <Input 
             type="date" 
-            value={selectedDate}
+            value={effectiveDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             className="w-auto"
             data-testid="input-date"
@@ -86,7 +107,7 @@ export default function OwnerAttendancePage() {
         </div>
         <Button 
           variant="outline" 
-          onClick={() => setSelectedDate(format(new Date(), "yyyy-MM-dd"))}
+          onClick={() => setSelectedDate(serverDateData?.serverDate || format(new Date(), "yyyy-MM-dd"))}
           data-testid="button-today"
         >
           Today

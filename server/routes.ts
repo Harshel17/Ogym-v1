@@ -114,6 +114,14 @@ export async function registerRoutes(
     res.json(user);
   });
 
+  // === UTILITY ROUTES ===
+  // Server date endpoint to get server's current date (avoids timezone mismatch with client)
+  app.get("/api/server-date", (req, res) => {
+    const now = new Date();
+    const serverDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    res.json({ serverDate });
+  });
+
   // === MIDDLEWARE ===
   const requireAuth = (req: any, res: any, next: any) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
