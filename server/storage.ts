@@ -1988,13 +1988,14 @@ export class DatabaseStorage implements IStorage {
       const session = sessionsByDate[dateStr];
       const totalExercises = itemsByDay[dayIndex]?.length || 0;
       const completedExercises = session ? (sessionExerciseCounts[session.id] || 0) : 0;
-      const isManuallyCompleted = session?.isManuallyCompleted || false;
+      const isManuallyCompleted = Boolean(session?.isManuallyCompleted);
       
+      // Status priority: manual completion > rest day > organic completion
       let status: "done" | "in_progress" | "not_started" | "rest_day";
-      if (isRestDay) {
-        status = "rest_day";
-      } else if (isManuallyCompleted || (completedExercises >= totalExercises && totalExercises > 0)) {
+      if (isManuallyCompleted || (completedExercises >= totalExercises && totalExercises > 0)) {
         status = "done";
+      } else if (isRestDay) {
+        status = "rest_day";
       } else if (completedExercises > 0) {
         status = "in_progress";
       } else {
