@@ -24,6 +24,19 @@ type WorkoutSummary = {
   calendarDays: { date: string; focusLabel: string }[];
 };
 
+type PlannedExercise = {
+  id: number;
+  exerciseName: string;
+  sets: number;
+  reps: number;
+  weight: string | null;
+  muscleType: string | null;
+  completed: boolean;
+  completedSets?: number;
+  completedReps?: number;
+  completedWeight?: string;
+};
+
 type ScheduleDay = {
   date: string;
   dayIndex: number;
@@ -33,6 +46,7 @@ type ScheduleDay = {
   completedExercises: number;
   totalExercises: number;
   sessionId: number | null;
+  plannedExercises: PlannedExercise[];
 };
 
 type CycleSchedule = {
@@ -535,99 +549,64 @@ export default function MyWorkoutsPage() {
                             </div>
                           </div>
                           
-                          {!day.sessionId ? (
+                          {day.plannedExercises.length === 0 ? (
                             <p className="text-sm text-muted-foreground py-2">
-                              No exercises completed yet. Go to Today's Workout to start!
+                              No exercises planned for this day.
                             </p>
-                          ) : !detail ? (
-                            <p className="text-sm text-muted-foreground py-2">Loading exercises...</p>
-                          ) : detail.exercises.length === 0 ? (
-                            <p className="text-sm text-muted-foreground py-2">No exercises recorded for this session.</p>
                           ) : (
                             <div className="space-y-3">
-                              {detail.exercises.map((exercise, idx) => {
-                                const edited = editedExercises[exercise.id];
-                                
-                                return (
-                                  <div
-                                    key={exercise.id || idx}
-                                    className={`p-3 rounded-lg border ${isEditing ? "bg-background" : "bg-background/50"}`}
-                                    data-testid={`exercise-${day.date}-${idx}`}
-                                  >
-                                    <div className="flex items-start justify-between mb-2">
+                              {day.plannedExercises.map((exercise, idx) => (
+                                <div
+                                  key={exercise.id || idx}
+                                  className={`p-3 rounded-lg border ${
+                                    exercise.completed 
+                                      ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" 
+                                      : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                                  }`}
+                                  data-testid={`exercise-${day.date}-${idx}`}
+                                >
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="flex items-center gap-2">
                                       <h5 className="font-medium">{exercise.exerciseName}</h5>
-                                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                      {exercise.muscleType && (
+                                        <Badge variant="secondary" className="text-xs">
+                                          {exercise.muscleType}
+                                        </Badge>
+                                      )}
                                     </div>
-                                    
-                                    {isEditing ? (
-                                      <div className="space-y-3">
-                                        <div className="grid grid-cols-3 gap-3">
-                                          <div>
-                                            <Label className="text-xs text-muted-foreground">Sets</Label>
-                                            <Input
-                                              type="number"
-                                              min="0"
-                                              value={edited?.sets ?? ""}
-                                              onChange={(e) => updateExerciseField(exercise.id, "sets", e.target.value)}
-                                              className="mt-1"
-                                            />
-                                          </div>
-                                          <div>
-                                            <Label className="text-xs text-muted-foreground">Reps</Label>
-                                            <Input
-                                              type="number"
-                                              min="0"
-                                              value={edited?.reps ?? ""}
-                                              onChange={(e) => updateExerciseField(exercise.id, "reps", e.target.value)}
-                                              className="mt-1"
-                                            />
-                                          </div>
-                                          <div>
-                                            <Label className="text-xs text-muted-foreground">Weight</Label>
-                                            <Input
-                                              type="text"
-                                              placeholder="e.g. 50kg"
-                                              value={edited?.weight ?? ""}
-                                              onChange={(e) => updateExerciseField(exercise.id, "weight", e.target.value)}
-                                              className="mt-1"
-                                            />
-                                          </div>
-                                        </div>
-                                        <div>
-                                          <Label className="text-xs text-muted-foreground">Notes</Label>
-                                          <Textarea
-                                            placeholder="Optional notes..."
-                                            value={edited?.notes ?? ""}
-                                            onChange={(e) => updateExerciseField(exercise.id, "notes", e.target.value)}
-                                            className="mt-1 min-h-[60px]"
-                                          />
-                                        </div>
-                                      </div>
+                                    {exercise.completed ? (
+                                      <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30">
+                                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                                        Done
+                                      </Badge>
                                     ) : (
-                                      <div className="grid grid-cols-3 gap-3 text-sm">
-                                        <div>
-                                          <span className="text-muted-foreground">Sets:</span>{" "}
-                                          <span className="font-medium">{exercise.sets ?? "-"}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-muted-foreground">Reps:</span>{" "}
-                                          <span className="font-medium">{exercise.reps ?? "-"}</span>
-                                        </div>
-                                        <div>
-                                          <span className="text-muted-foreground">Weight:</span>{" "}
-                                          <span className="font-medium">{exercise.weight ?? "-"}</span>
-                                        </div>
-                                        {exercise.notes && (
-                                          <div className="col-span-3 mt-1">
-                                            <span className="text-muted-foreground">Notes:</span>{" "}
-                                            <span>{exercise.notes}</span>
-                                          </div>
-                                        )}
+                                      <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30">
+                                        <XCircle className="w-3 h-3 mr-1" />
+                                        Skipped
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-3 gap-3 text-sm">
+                                    <div>
+                                      <span className="text-muted-foreground">Prescribed:</span>{" "}
+                                      <span className="font-medium">{exercise.sets}x{exercise.reps}</span>
+                                      {exercise.weight && (
+                                        <span className="font-medium"> @ {exercise.weight}</span>
+                                      )}
+                                    </div>
+                                    {exercise.completed && (
+                                      <div className="col-span-2">
+                                        <span className="text-muted-foreground">Actual:</span>{" "}
+                                        <span className="font-medium text-green-600 dark:text-green-400">
+                                          {exercise.completedSets}x{exercise.completedReps}
+                                          {exercise.completedWeight && ` @ ${exercise.completedWeight}`}
+                                        </span>
                                       </div>
                                     )}
                                   </div>
-                                );
-                              })}
+                                </div>
+                              ))}
                             </div>
                           )}
                         </>

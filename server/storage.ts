@@ -1927,6 +1927,18 @@ export class DatabaseStorage implements IStorage {
       completedExercises: number;
       totalExercises: number;
       sessionId: number | null;
+      plannedExercises: {
+        id: number;
+        exerciseName: string;
+        sets: number;
+        reps: number;
+        weight: string | null;
+        muscleType: string | null;
+        completed: boolean;
+        completedSets?: number;
+        completedReps?: number;
+        completedWeight?: string;
+      }[];
     }[];
   }> {
     const cycle = await this.getMemberCycle(memberId);
@@ -1938,12 +1950,21 @@ export class DatabaseStorage implements IStorage {
     const sessions = await db.select().from(workoutSessions)
       .where(and(eq(workoutSessions.gymId, gymId), eq(workoutSessions.memberId, memberId)));
     
-    // Get exercises for each session
+    // Get exercises for each session with details
     const sessionExerciseCounts: Record<number, number> = {};
+    const sessionExercisesByName: Record<number, Record<string, { sets: number; reps: number; weight: string | null }>> = {};
     for (const session of sessions) {
       const exercises = await db.select().from(workoutSessionExercises)
         .where(eq(workoutSessionExercises.sessionId, session.id));
       sessionExerciseCounts[session.id] = exercises.length;
+      sessionExercisesByName[session.id] = {};
+      for (const ex of exercises) {
+        sessionExercisesByName[session.id][ex.exerciseName] = {
+          sets: ex.sets,
+          reps: ex.reps,
+          weight: ex.weight
+        };
+      }
     }
     
     // Build session map by date
@@ -1966,6 +1987,19 @@ export class DatabaseStorage implements IStorage {
     const startDate = new Date(cycle.startDate);
     const endDate = new Date(Math.min(new Date(cycle.endDate).getTime(), new Date(today).getTime()));
     
+    type PlannedExercise = {
+      id: number;
+      exerciseName: string;
+      sets: number;
+      reps: number;
+      weight: string | null;
+      muscleType: string | null;
+      completed: boolean;
+      completedSets?: number;
+      completedReps?: number;
+      completedWeight?: string;
+    };
+    
     const schedule: {
       date: string;
       dayIndex: number;
@@ -1975,6 +2009,7 @@ export class DatabaseStorage implements IStorage {
       completedExercises: number;
       totalExercises: number;
       sessionId: number | null;
+      plannedExercises: PlannedExercise[];
     }[] = [];
     
     let currentDate = new Date(startDate);
@@ -1986,9 +2021,28 @@ export class DatabaseStorage implements IStorage {
       const isRestDay = dayLabel.toLowerCase().includes("rest");
       
       const session = sessionsByDate[dateStr];
-      const totalExercises = itemsByDay[dayIndex]?.length || 0;
+      const dayItems = itemsByDay[dayIndex] || [];
+      const totalExercises = dayItems.length;
       const completedExercises = session ? (sessionExerciseCounts[session.id] || 0) : 0;
       const isManuallyCompleted = Boolean(session?.isManuallyCompleted);
+      
+      // Build planned exercises with completion status
+      const completedByName = session ? (sessionExercisesByName[session.id] || {}) : {};
+      const plannedExercises: PlannedExercise[] = dayItems.map(item => {
+        const completed = completedByName[item.exerciseName];
+        return {
+          id: item.id,
+          exerciseName: item.exerciseName,
+          sets: item.sets,
+          reps: item.reps,
+          weight: item.weight,
+          muscleType: item.muscleType,
+          completed: !!completed,
+          completedSets: completed?.sets,
+          completedReps: completed?.reps,
+          completedWeight: completed?.weight || undefined
+        };
+      });
       
       // Status priority: manual completion > rest day > organic completion
       let status: "done" | "in_progress" | "not_started" | "rest_day";
@@ -2010,7 +2064,8 @@ export class DatabaseStorage implements IStorage {
         isManuallyCompleted,
         completedExercises,
         totalExercises,
-        sessionId: session?.id || null
+        sessionId: session?.id || null,
+        plannedExercises
       });
       
       currentDate.setDate(currentDate.getDate() + 1);
