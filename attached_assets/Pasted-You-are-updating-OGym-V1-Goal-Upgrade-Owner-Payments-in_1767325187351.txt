@@ -1,0 +1,171 @@
+You are updating OGym V1.
+
+Goal: Upgrade Owner → Payments into an India-style membership tracking module (INR), with plans, installments/partial payments, subscription status, and expiry alerts. Do NOT implement real payment processing; this is tracking-only. Do NOT break existing logins, gym isolation, attendance, workouts.
+
+1) Currency: INR (₹)
+
+Replace any cents-based display logic.
+
+Store money values in the DB as integer paise (recommended) OR decimal rupees. Pick one and use consistently.
+
+UI must display ₹ with proper formatting (e.g., ₹1,500).
+
+2) Add Membership Plans (per gym)
+
+Create DB tables/models + API routes:
+membership_plans
+
+id
+
+gymId
+
+name (e.g., “Monthly”, “Quarterly”, “Half-Yearly”)
+
+durationMonths (1/3/6 or custom integer)
+
+priceAmount (INR)
+
+isActive
+
+createdAt
+
+Owner UI:
+
+Plans tab inside Payments page
+
+Create/Edit/Deactivate plan
+
+Quick buttons: 1 mo, 3 mo, 6 mo, plus “Custom months”
+
+3) Add Member Subscriptions
+
+Create table:
+member_subscriptions
+
+id
+
+gymId
+
+memberId
+
+planId (nullable if custom)
+
+startDate
+
+endDate (calculated from startDate + durationMonths)
+
+totalAmount (INR)
+
+status: active | endingSoon | overdue | ended
+
+paymentMode: full | partial | emi
+
+notes
+
+createdAt, updatedAt
+
+Owner can assign a subscription to a member:
+
+choose plan OR custom months + custom price
+
+choose start date
+
+auto-calc end date
+
+choose paymentMode (full/partial/emi)
+
+4) Payment Ledger (tracking)
+
+Create table:
+payment_transactions
+
+id
+
+gymId
+
+memberId
+
+subscriptionId
+
+paidOn (date)
+
+amountPaid (INR)
+
+method: cash | upi | card | bank | other
+
+referenceNote (optional)
+
+createdAt
+
+UI:
+
+For each member show:
+
+subscription status (Active, Ending Soon, Overdue)
+
+start/end dates
+
+total amount
+
+total paid so far
+
+remaining balance
+
+last payment date
+
+Add “Add Payment” button (records a transaction)
+
+Show clean ledger list per member (date, amount, method, note)
+
+5) Alerts / Expiry
+
+Backend should compute alerts:
+
+endingSoon if endDate is within next 7 days
+
+overdue if endDate is past and remainingBalance > 0 OR status ended but unpaid
+Owner Payments dashboard should show:
+
+Ending in 7 days count
+
+Overdue count
+
+Filter/sort by status
+
+6) Navigation and Cleanup
+
+Owner sidebar “Payments” stays
+
+Trainer login: remove Payments tab completely (owner-only)
+
+Member login: show read-only “My Subscription” in Profile (status, expiry, balance), but no editing
+
+7) Permissions / Multi-gym Safety
+
+Owner can only see members of their gym
+
+Trainers cannot access payments routes
+
+Members can only view their own subscription summary
+
+8) Seed / Demo
+
+Update seed data:
+
+add at least 2 plans for demo gym
+
+create one subscription for a member
+
+add 1-2 payment transactions so UI is not empty
+
+9) Testing
+
+After implementation:
+
+Owner: create plan → assign subscription → add partial payment → verify remaining shows correctly
+
+Verify endingSoon triggers when endDate is within 7 days (add a test record)
+
+Ensure all amounts show in ₹ and not cents
+
+Implement end-to-end: DB + API + UI. Keep UI professional and clean like existing OGym pages.

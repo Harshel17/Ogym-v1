@@ -191,6 +191,45 @@ export const announcementReads = pgTable("announcement_reads", {
   uniqueRead: uniqueIndex("unique_announcement_read").on(table.announcementId, table.userId),
 }));
 
+// === MEMBERSHIP & SUBSCRIPTION TABLES (INR-based, amounts in paise) ===
+
+export const membershipPlans = pgTable("membership_plans", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  name: text("name").notNull(),
+  durationMonths: integer("duration_months").notNull(),
+  priceAmount: integer("price_amount").notNull(), // in paise (100 paise = 1 rupee)
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const memberSubscriptions = pgTable("member_subscriptions", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  planId: integer("plan_id").references(() => membershipPlans.id),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  totalAmount: integer("total_amount").notNull(), // in paise
+  status: text("status", { enum: ["active", "endingSoon", "overdue", "ended"] }).notNull().default("active"),
+  paymentMode: text("payment_mode", { enum: ["full", "partial", "emi"] }).notNull().default("full"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const paymentTransactions = pgTable("payment_transactions", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  subscriptionId: integer("subscription_id").references(() => memberSubscriptions.id).notNull(),
+  paidOn: text("paid_on").notNull(),
+  amountPaid: integer("amount_paid").notNull(), // in paise
+  method: text("method", { enum: ["cash", "upi", "card", "bank", "other"] }).notNull(),
+  referenceNote: text("reference_note"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === RELATIONS ===
 
 export const gymsRelations = relations(gyms, ({ many }) => ({
@@ -223,6 +262,9 @@ export const insertTransferRequestSchema = createInsertSchema(transferRequests).
 export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true, isDeleted: true });
 export const insertUserNotificationPreferencesSchema = createInsertSchema(userNotificationPreferences).omit({ id: true });
 export const insertAnnouncementReadSchema = createInsertSchema(announcementReads).omit({ id: true, readAt: true });
+export const insertMembershipPlanSchema = createInsertSchema(membershipPlans).omit({ id: true, createdAt: true });
+export const insertMemberSubscriptionSchema = createInsertSchema(memberSubscriptions).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertPaymentTransactionSchema = createInsertSchema(paymentTransactions).omit({ id: true, createdAt: true });
 
 // === EXPLICIT TYPES ===
 
@@ -261,3 +303,10 @@ export type AnnouncementRead = typeof announcementReads.$inferSelect;
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type InsertUserNotificationPreferences = z.infer<typeof insertUserNotificationPreferencesSchema>;
 export type InsertAnnouncementRead = z.infer<typeof insertAnnouncementReadSchema>;
+
+export type MembershipPlan = typeof membershipPlans.$inferSelect;
+export type MemberSubscription = typeof memberSubscriptions.$inferSelect;
+export type PaymentTransaction = typeof paymentTransactions.$inferSelect;
+export type InsertMembershipPlan = z.infer<typeof insertMembershipPlanSchema>;
+export type InsertMemberSubscription = z.infer<typeof insertMemberSubscriptionSchema>;
+export type InsertPaymentTransaction = z.infer<typeof insertPaymentTransactionSchema>;
