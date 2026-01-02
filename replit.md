@@ -22,6 +22,16 @@ OGym is a multi-tenant B2B web application for gym management with role-based ac
 ## Recent Changes
 
 **January 2026:**
+- **Upgraded Payments to INR-based Membership Tracking System**
+  - New tables: `membership_plans`, `member_subscriptions`, `payment_transactions`
+  - Amounts stored in paise (100 paise = 1 rupee) for financial precision
+  - Subscription statuses: active, endingSoon (7 days before expiry), overdue, ended
+  - Payment modes: full, partial, emi | Methods: cash, upi, card, bank, other
+  - New Owner endpoints: GET/POST /api/owner/membership-plans, GET/POST /api/owner/subscriptions, POST /api/owner/subscriptions/:id/payments, GET /api/owner/subscription-alerts
+  - New Member endpoint: GET /api/member/subscription (read-only view)
+  - Completely rewritten Payments UI with Plans tab and Subscriptions tab
+  - Payment ledger view per subscription with transaction history
+  - Security: memberId derived server-side from verified subscription
 - Added Owner Dashboard Analytics with new metrics (checked-in today/yesterday, new enrollments)
   - Clickable "Checked-in Today" card navigates to Attendance Analytics page
   - New endpoint: GET /api/owner/dashboard-metrics
@@ -99,7 +109,10 @@ The API contract is defined in `shared/routes.ts` with typed input/output schema
 - `users` - All user types (owner/trainer/member) with gym association, publicId, email, phone
 - `trainer_members` - Many-to-many relationship for trainer assignments
 - `attendance` - Daily attendance records with `verifiedMethod` (qr/workout/both/manual)
-- `payments` - Monthly payment tracking
+- `payments` - Monthly payment tracking (legacy)
+- `membership_plans` - Subscription pricing tiers with duration and amount in paise
+- `member_subscriptions` - Member subscription records with status, dates, payment mode
+- `payment_transactions` - Payment ledger entries for each subscription
 - `workout_cycles` - Training programs with date range and `isActive` flag
 - `workout_items` - Individual exercises with `exerciseName`, `orderIndex`, day of week
 - `workout_completions` - Records of completed exercises per member
