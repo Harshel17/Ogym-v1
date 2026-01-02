@@ -1296,6 +1296,12 @@ export async function registerRoutes(
     res.json(history);
   });
 
+  // === OWNER GYM SUBSCRIPTION STATUS (OGym Platform Subscription) ===
+  app.get("/api/owner/gym-subscription", requireRole(["owner"]), async (req, res) => {
+    const subscription = await storage.getGymSubscription(req.user!.gymId!);
+    res.json(subscription);
+  });
+
   // === OWNER DASHBOARD & ATTENDANCE ANALYTICS ===
   app.get("/api/owner/dashboard-metrics", requireRole(["owner"]), async (req, res) => {
     const metrics = await storage.getOwnerDashboardMetrics(req.user!.gymId!);
@@ -1483,45 +1489,6 @@ export async function registerRoutes(
   app.get("/api/gym-requests/my", requireAuth, async (req, res) => {
     const request = await storage.getGymRequestByOwner(req.user!.id);
     res.json(request || null);
-  });
-  
-  // Admin gets all pending gym requests
-  app.get("/api/admin/gym-requests", requireAuth, async (req, res) => {
-    // For now, we'll allow owners to be admins. In production, add proper admin role.
-    if (req.user!.role !== "owner") {
-      return res.status(403).json({ message: "Admin access required" });
-    }
-    const requests = await storage.getPendingGymRequests();
-    res.json(requests);
-  });
-  
-  // Admin approves a gym request
-  app.post("/api/admin/gym-requests/:id/approve", requireAuth, async (req, res) => {
-    if (req.user!.role !== "owner") {
-      return res.status(403).json({ message: "Admin access required" });
-    }
-    try {
-      const requestId = parseInt(req.params.id);
-      const result = await storage.approveGymRequest(requestId);
-      res.json(result);
-    } catch (err) {
-      res.status(500).json({ message: "Failed to approve request" });
-    }
-  });
-  
-  // Admin rejects a gym request
-  app.post("/api/admin/gym-requests/:id/reject", requireAuth, async (req, res) => {
-    if (req.user!.role !== "owner") {
-      return res.status(403).json({ message: "Admin access required" });
-    }
-    try {
-      const requestId = parseInt(req.params.id);
-      const { adminNotes } = req.body;
-      const result = await storage.rejectGymRequest(requestId, adminNotes || "");
-      res.json(result);
-    } catch (err) {
-      res.status(500).json({ message: "Failed to reject request" });
-    }
   });
   
   // === JOIN REQUESTS (Trainer/Member joining gym) ===

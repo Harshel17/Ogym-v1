@@ -22,6 +22,17 @@ OGym is a multi-tenant B2B web application for gym management with role-based ac
 ## Recent Changes
 
 **January 2026:**
+- **Added Admin System with JWT Authentication**
+  - New table: `gym_subscriptions` for platform subscription tracking
+  - New field: `isAdmin` on users table for admin access
+  - Admin auth: Separate JWT-based authentication (8-hour tokens), completely independent from user session auth
+  - Admin credentials stored as secrets: ADMIN_USERNAME, ADMIN_PASSWORD
+  - Auto-seed admin user on server startup via `server/seed-admin.ts`
+  - Admin API endpoints with `requireAdmin` middleware: POST /api/admin/login, GET /api/admin/me
+  - Admin dashboard endpoints: GET /api/admin/all-gym-requests, GET /api/admin/all-gyms, POST /api/admin/gym-requests/:id/approve, POST /api/admin/gym-requests/:id/reject
+  - Subscription management: GET /api/admin/gym-subscriptions, GET /api/admin/gym-subscriptions/:gymId, POST /api/admin/gym-subscriptions/:gymId
+  - Admin frontend: /admin (login), /admin/dashboard (3-tab dashboard: Gym Requests, Gyms, Subscriptions)
+  - Owner dashboard shows their gym's OGym platform subscription status
 - **Upgraded Payments to INR-based Membership Tracking System**
   - New tables: `membership_plans`, `member_subscriptions`, `payment_transactions`
   - Amounts stored in paise (100 paise = 1 rupee) for financial precision

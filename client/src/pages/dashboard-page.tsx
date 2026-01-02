@@ -55,6 +55,17 @@ function StatCard({ title, value, icon: Icon, description }: any) {
   );
 }
 
+type GymSubscription = {
+  id: number;
+  gymId: number;
+  planType: string;
+  amountPaid: number;
+  paymentStatus: string;
+  paidOn: string | null;
+  validUntil: string | null;
+  notes: string | null;
+};
+
 function OwnerDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -68,6 +79,10 @@ function OwnerDashboard() {
     newEnrollmentsLast30Days: number;
   }>({
     queryKey: ["/api/owner/dashboard-metrics"]
+  });
+
+  const { data: gymSubscription } = useQuery<GymSubscription | null>({
+    queryKey: ["/api/owner/gym-subscription"]
   });
 
   const attendanceList = attendance as any[];
@@ -120,6 +135,48 @@ function OwnerDashboard() {
                   Copy Code
                 </button>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {gymSubscription && (
+        <Card className={`border-2 ${
+          gymSubscription.paymentStatus === 'paid' 
+            ? 'border-green-500/30 bg-green-50/50 dark:bg-green-950/20' 
+            : gymSubscription.paymentStatus === 'overdue'
+            ? 'border-red-500/30 bg-red-50/50 dark:bg-red-950/20'
+            : 'border-yellow-500/30 bg-yellow-50/50 dark:bg-yellow-950/20'
+        }`}>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-full ${
+                  gymSubscription.paymentStatus === 'paid'
+                    ? 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400'
+                    : gymSubscription.paymentStatus === 'overdue'
+                    ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400'
+                    : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-400'
+                }`}>
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-foreground">OGym Platform Subscription</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Plan: {gymSubscription.planType.replace('_', ' ')}
+                    {gymSubscription.validUntil && ` | Valid until: ${format(new Date(gymSubscription.validUntil), 'PP')}`}
+                  </p>
+                </div>
+              </div>
+              <Badge className={
+                gymSubscription.paymentStatus === 'paid'
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                  : gymSubscription.paymentStatus === 'overdue'
+                  ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+              }>
+                {gymSubscription.paymentStatus.charAt(0).toUpperCase() + gymSubscription.paymentStatus.slice(1)}
+              </Badge>
             </div>
           </CardContent>
         </Card>
@@ -301,7 +358,7 @@ function MemberDashboard() {
   const cycleLength = workoutData?.cycleLength ?? 3;
   const dayLabel = workoutData?.dayLabel || null;
   
-  const muscleTypes = [...new Set(workoutItems.map((i: any) => i.muscleType).filter(Boolean))];
+  const muscleTypes = Array.from(new Set(workoutItems.map((i: any) => i.muscleType).filter(Boolean)));
   const muscleTypesDisplay = muscleTypes.length > 0 ? muscleTypes.join(" + ") : null;
 
   const allCompleted = workoutItems.length > 0 && workoutItems.every((i: any) => i.completed);

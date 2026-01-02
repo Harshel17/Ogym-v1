@@ -33,6 +33,8 @@ import GymRequestPage from "@/pages/gym-request-page";
 import JoinGymPage from "@/pages/join-gym-page";
 import OwnerJoinRequestsPage from "@/pages/owner-join-requests-page";
 import AdminGymRequestsPage from "@/pages/admin-gym-requests-page";
+import AdminLoginPage from "@/pages/admin-login-page";
+import AdminDashboardPage from "@/pages/admin-dashboard-page";
 import PendingApprovalPage from "@/pages/pending-approval-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
@@ -183,6 +185,9 @@ function Router() {
       <Route path="/admin/gym-requests">
         <ProtectedRoute component={AdminGymRequestsPage} requiredRole="owner" />
       </Route>
+
+      <Route path="/admin" component={AdminLoginPage} />
+      <Route path="/admin/dashboard" component={AdminDashboardPage} />
 
       <Route component={NotFound} />
     </Switch>
