@@ -19,6 +19,8 @@ export async function registerRoutes(
         username: z.string().min(1),
         password: z.string().min(6),
         gymName: z.string().min(1),
+        phone: z.string().optional(),
+        address: z.string().optional(),
       });
       const input = schema.parse(req.body);
       
@@ -27,20 +29,26 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Username already exists" });
       }
 
-      const code = nanoid(6).toUpperCase();
-      const gym = await storage.createGym({ name: input.gymName, code });
-
       const hashedPassword = await hashPassword(input.password);
       const user = await storage.createUser({
         username: input.username,
         password: hashedPassword,
         role: "owner",
-        gymId: gym.id
+        gymId: null
+      });
+
+      await storage.createGymRequest({
+        ownerUserId: user.id,
+        gymName: input.gymName,
+        phone: input.phone || null,
+        address: input.address || null,
+        pointOfContactName: input.username,
+        pointOfContactEmail: null,
       });
 
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Login failed" });
-        res.status(201).json({ ...user, gym });
+        res.status(201).json({ ...user, gym: null, pendingGymRequest: true });
       });
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -75,12 +83,17 @@ export async function registerRoutes(
         username: input.username,
         password: hashedPassword,
         role: input.role,
-        gymId: gym.id
+        gymId: null
+      });
+
+      await storage.createJoinRequest({
+        userId: user.id,
+        gymId: gym.id,
       });
 
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Login failed" });
-        res.status(201).json({ ...user, gym });
+        res.status(201).json({ ...user, gym: null, pendingJoinRequest: true, requestedGymName: gym.name });
       });
     } catch (err) {
       if (err instanceof z.ZodError) {
