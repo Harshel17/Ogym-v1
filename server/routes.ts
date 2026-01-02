@@ -257,6 +257,130 @@ export async function registerRoutes(
     res.status(201).json(record);
   });
 
+  // === MEMBERSHIP PLANS & SUBSCRIPTIONS (INR-based tracking) ===
+  
+  // Plans CRUD
+  app.get("/api/owner/membership-plans", requireRole(["owner"]), async (req, res) => {
+    const plans = await storage.getMembershipPlans(req.user!.gymId!);
+    res.json(plans);
+  });
+
+  app.post("/api/owner/membership-plans", requireRole(["owner"]), async (req, res) => {
+    const schema = z.object({
+      name: z.string().min(1),
+      durationMonths: z.number().min(1),
+      priceAmount: z.number().min(0), // in paise
+      isActive: z.boolean().optional().default(true)
+    });
+    const input = schema.parse(req.body);
+    const plan = await storage.createMembershipPlan({
+      ...input,
+      gymId: req.user!.gymId!
+    });
+    res.status(201).json(plan);
+  });
+
+  app.patch("/api/owner/membership-plans/:planId", requireRole(["owner"]), async (req, res) => {
+    const planId = parseInt(req.params.planId);
+    const schema = z.object({
+      name: z.string().min(1).optional(),
+      durationMonths: z.number().min(1).optional(),
+      priceAmount: z.number().min(0).optional(),
+      isActive: z.boolean().optional()
+    });
+    const input = schema.parse(req.body);
+    const plan = await storage.updateMembershipPlan(planId, input);
+    res.json(plan);
+  });
+
+  app.delete("/api/owner/membership-plans/:planId", requireRole(["owner"]), async (req, res) => {
+    const planId = parseInt(req.params.planId);
+    await storage.deactivateMembershipPlan(planId);
+    res.sendStatus(204);
+  });
+
+  // Subscriptions
+  app.get("/api/owner/subscriptions", requireRole(["owner"]), async (req, res) => {
+    // Update expired subscriptions first
+    await storage.updateExpiredSubscriptions(req.user!.gymId!);
+    const subs = await storage.getMemberSubscriptions(req.user!.gymId!);
+    res.json(subs);
+  });
+
+  app.post("/api/owner/subscriptions", requireRole(["owner"]), async (req, res) => {
+    const schema = z.object({
+      memberId: z.number(),
+      planId: z.number().optional(),
+      startDate: z.string(),
+      durationMonths: z.number().min(1),
+      totalAmount: z.number().min(0), // in paise
+      paymentMode: z.enum(["full", "partial", "emi"]).default("full"),
+      notes: z.string().optional()
+    });
+    const input = schema.parse(req.body);
+    
+    // Calculate end date
+    const startDate = new Date(input.startDate);
+    const endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + input.durationMonths);
+    
+    const sub = await storage.createMemberSubscription({
+      gymId: req.user!.gymId!,
+      memberId: input.memberId,
+      planId: input.planId || null,
+      startDate: input.startDate,
+      endDate: endDate.toISOString().split('T')[0],
+      totalAmount: input.totalAmount,
+      paymentMode: input.paymentMode,
+      notes: input.notes,
+      status: "active"
+    });
+    res.status(201).json(sub);
+  });
+
+  // Payment Transactions
+  app.get("/api/owner/subscriptions/:subscriptionId/transactions", requireRole(["owner"]), async (req, res) => {
+    const subscriptionId = parseInt(req.params.subscriptionId);
+    const transactions = await storage.getSubscriptionTransactions(subscriptionId);
+    res.json(transactions);
+  });
+
+  app.post("/api/owner/subscriptions/:subscriptionId/payments", requireRole(["owner"]), async (req, res) => {
+    const subscriptionId = parseInt(req.params.subscriptionId);
+    const schema = z.object({
+      memberId: z.number(),
+      paidOn: z.string(),
+      amountPaid: z.number().min(1), // in paise
+      method: z.enum(["cash", "upi", "card", "bank", "other"]),
+      referenceNote: z.string().optional()
+    });
+    const input = schema.parse(req.body);
+    
+    const txn = await storage.addPaymentTransaction({
+      gymId: req.user!.gymId!,
+      memberId: input.memberId,
+      subscriptionId,
+      paidOn: input.paidOn,
+      amountPaid: input.amountPaid,
+      method: input.method,
+      referenceNote: input.referenceNote
+    });
+    res.status(201).json(txn);
+  });
+
+  // Subscription Alerts
+  app.get("/api/owner/subscription-alerts", requireRole(["owner"]), async (req, res) => {
+    await storage.updateExpiredSubscriptions(req.user!.gymId!);
+    const alerts = await storage.getSubscriptionAlerts(req.user!.gymId!);
+    res.json(alerts);
+  });
+
+  // Member subscription view (read-only for members)
+  app.get("/api/member/subscription", requireRole(["member"]), async (req, res) => {
+    const sub = await storage.getMemberSubscription(req.user!.id);
+    res.json(sub);
+  });
+
   // === TRAINER ROUTES ===
   app.get("/api/trainer/members", requireRole(["trainer"]), async (req, res) => {
     const assignments = await storage.getTrainerMembers(req.user!.id);
