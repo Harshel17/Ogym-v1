@@ -1,0 +1,69 @@
+You are a senior product-focused frontend + backend engineer.
+
+Please review and improve ONLY the Workouts tab and Workout Details page behavior and UI clarity.
+Do NOT change authentication, database schema, or core workout logic.
+
+GOALS (FUNCTIONAL BEHAVIOR):
+
+1. Workouts Tab (My Workouts Page)
+   - When the user scrolls down, show workouts that were already marked as completed on the MAIN DASHBOARD.
+   - Each workout card should clearly show:
+     - Date
+     - Workout name (body parts)
+     - Number of exercises completed
+     - Completion status (Completed / Edited)
+   - The list must reflect actual completed workout sessions (not planned workouts).
+
+2. Workout Details View (Modal / Page)
+   - By default, all workout data should be in READ-ONLY mode:
+     - Sets
+     - Reps
+     - Weight
+     - Notes
+   - Users should NOT be able to edit anything immediately.
+
+3. Edit Mode Behavior
+   - Add a clear "Edit Workout" button (top-right or header area).
+   - Only after clicking "Edit Workout":
+     - Enable editing of sets, reps, weight, and notes.
+     - Show clear Save / Cancel actions.
+   - On Cancel:
+     - Revert changes to last saved values.
+   - On Save:
+     - Update the existing workout session (do NOT create duplicates).
+     - Maintain workout completion status and streak integrity.
+
+4. Permissions & Constraints
+   - Users can only edit workouts they completed.
+   - Past workouts remain editable only through Edit Mode.
+   - No edits allowed without explicitly entering Edit Mode.
+
+GOALS (UI / UX CLARITY):
+
+1. Visual Clarity
+   - Clearly separate:
+     - Workout summary (date, body parts)
+     - Individual exercises
+   - Use subtle dividers, spacing, or cards for exercises.
+   - Make "read-only" vs "edit" state visually obvious (disabled inputs, muted colors).
+
+2. UX Improvements
+   - Make it obvious that:
+     - Workouts shown here are completed workouts.
+     - Editing is optional and intentional.
+   - Reduce confusion between dashboard workouts and history workouts.
+
+IMPORTANT RULES:
+- Do NOT redesign the entire app.
+- Do NOT touch login, auth, or role logic.
+- Do NOT change how streaks or sessions are calculated.
+- Improve clarity, structure, and intent — not feature scope.
+
+OUTPUT REQUIRED:
+- Explain clearly:
+  - What behavior is changed
+  - What UI elements were added or modified
+  - Why this improves clarity
+- If code is modified:
+  - Comment the logic
+  - Keep changes minimal and isolated

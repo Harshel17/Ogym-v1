@@ -829,6 +829,40 @@ export async function registerRoutes(
     res.status(201).json(fullSession);
   });
 
+  // Update a workout session exercise (for editing past workouts)
+  app.put("/api/member/workout/session/exercise/:exerciseId", requireRole(["member"]), async (req, res) => {
+    const exerciseId = parseInt(req.params.exerciseId);
+    if (isNaN(exerciseId)) {
+      return res.status(400).json({ message: "Invalid exercise ID" });
+    }
+    
+    const schema = z.object({
+      sets: z.number().nullable().optional(),
+      reps: z.number().nullable().optional(),
+      weight: z.string().nullable().optional(),
+      notes: z.string().nullable().optional()
+    });
+    const input = schema.parse(req.body);
+    
+    const updated = await storage.updateWorkoutSessionExercise(
+      exerciseId, 
+      req.user!.gymId!, 
+      req.user!.id, 
+      {
+        sets: input.sets ?? undefined,
+        reps: input.reps ?? undefined,
+        weight: input.weight ?? undefined,
+        notes: input.notes ?? undefined
+      }
+    );
+    
+    if (!updated) {
+      return res.status(404).json({ message: "Exercise not found or access denied" });
+    }
+    
+    res.json(updated);
+  });
+
   // === MEMBER PROFILE & PROGRESS ROUTES ===
   app.get("/api/member/profile", requireRole(["member"]), async (req, res) => {
     const profile = await storage.getMemberProfile(req.user!.id);

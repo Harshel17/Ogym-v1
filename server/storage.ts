@@ -258,6 +258,8 @@ export interface IStorage {
     date: string;
     focusLabel: string;
   }[]>;
+  
+  updateWorkoutSessionExercise(exerciseId: number, gymId: number, memberId: number, data: { sets?: number; reps?: number; weight?: string; notes?: string }): Promise<WorkoutSessionExercise | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1838,6 +1840,32 @@ export class DatabaseStorage implements IStorage {
       date: s.date,
       focusLabel: s.focusLabel
     }));
+  }
+
+  async updateWorkoutSessionExercise(exerciseId: number, gymId: number, memberId: number, data: { sets?: number; reps?: number; weight?: string; notes?: string }): Promise<WorkoutSessionExercise | null> {
+    const [exercise] = await db.select({
+      exercise: workoutSessionExercises,
+      session: workoutSessions
+    })
+    .from(workoutSessionExercises)
+    .innerJoin(workoutSessions, eq(workoutSessionExercises.sessionId, workoutSessions.id))
+    .where(eq(workoutSessionExercises.id, exerciseId));
+    
+    if (!exercise) return null;
+    if (exercise.session.gymId !== gymId || exercise.session.memberId !== memberId) return null;
+    
+    const updateData: any = {};
+    if (data.sets !== undefined) updateData.sets = data.sets;
+    if (data.reps !== undefined) updateData.reps = data.reps;
+    if (data.weight !== undefined) updateData.weight = data.weight;
+    if (data.notes !== undefined) updateData.notes = data.notes;
+    
+    const [updated] = await db.update(workoutSessionExercises)
+      .set(updateData)
+      .where(eq(workoutSessionExercises.id, exerciseId))
+      .returning();
+    
+    return updated;
   }
 }
 
