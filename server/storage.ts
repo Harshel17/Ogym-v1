@@ -2099,10 +2099,9 @@ export class DatabaseStorage implements IStorage {
     }[] = [];
     
     for (const day of scheduleData.schedule) {
-      // Skip future dates, rest days, and completed days
+      // Skip future dates and pure rest days
       if (day.date >= today) continue;
       if (day.status === "rest_day") continue;
-      if (day.status === "done") continue;
       
       // Apply date filters
       if (from && day.date < from) continue;
@@ -2119,14 +2118,20 @@ export class DatabaseStorage implements IStorage {
       const allExercises = itemsByDay[day.dayIndex] || [];
       const missedExercises = allExercises.filter(e => !completedExerciseNames.includes(e));
       
-      missed.push({
-        date: day.date,
-        dayLabel: day.dayLabel,
-        completedCount: day.completedExercises,
-        totalCount: day.totalExercises,
-        status: day.completedExercises === 0 ? "missed" : "partial",
-        missedExercises
-      });
+      // Include if: not done, OR done but has missed exercises (partial completion)
+      const isDone = day.status === "done";
+      const hasIncompleteExercises = missedExercises.length > 0 && allExercises.length > 0;
+      
+      if (!isDone || (isDone && hasIncompleteExercises)) {
+        missed.push({
+          date: day.date,
+          dayLabel: day.dayLabel,
+          completedCount: day.completedExercises,
+          totalCount: day.totalExercises,
+          status: day.completedExercises === 0 ? "missed" : "partial",
+          missedExercises
+        });
+      }
     }
     
     return missed;
