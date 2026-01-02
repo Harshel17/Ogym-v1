@@ -1,0 +1,49 @@
+You are a senior mobile + backend engineer.
+
+Please do a FULL REVIEW of my OGym app focusing ONLY on the following areas:
+
+1. Streak Logic
+   - Verify how streaks are calculated (daily / weekly / monthly).
+   - Check if a streak increases only when a workout is completed.
+   - Ensure streaks do NOT increase on app open or login.
+   - Validate streak break conditions (missed days).
+   - Confirm streak data is stored and read correctly per user and per gym.
+   - Fix the logic if it is incorrect or inconsistent.
+   - Clearly explain in plain English how streaks currently work.
+
+2. Workout Cycle Logic
+   - Review how workout cycles are handled (e.g., Chest+Shoulder → Back+Biceps → Legs → Rest).
+   - Ensure each day’s workout is correctly logged with:
+     - date
+     - body part(s)
+     - exercises
+   - Confirm past days are immutable (cannot be overwritten accidentally).
+   - Verify that daily workout history displays correctly when selecting a date.
+   - Fix any issues found and explain the corrections.
+
+3. Data Integrity & Edge Cases
+   - Ensure streaks and workouts are NOT duplicated on refresh, re-login, or navigation.
+   - Verify timezone handling (local date vs server date).
+   - Check for string vs boolean or number type mismatches that could break logic.
+   - Ensure logic works for first-time users and returning users.
+
+4. What I Want in the Output
+   - A clear summary:
+     - “What is working correctly”
+     - “What is broken”
+     - “What was fixed”
+     - “What still needs improvement”
+   - If you change any code:
+     - Keep existing logins and authentication untouched
+     - Do NOT change database schema unless absolutely required
+     - Add comments explaining the logic
+   - If something should NOT be fixed yet, explain why.
+
+IMPORTANT RULES:
+- Do NOT redesign UI.
+- Do NOT change authentication flows.
+- Do NOT remove features.
+- Only fix logic bugs or data consistency issues.
+- Be explicit and transparent in explanations.
+
+Start by scanning the codebase, then proceed section by section.

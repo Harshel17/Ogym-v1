@@ -569,6 +569,13 @@ export async function registerRoutes(
       actualWeight: input.actualWeight
     });
     
+    // Calculate current day index for session creation
+    // This determines which day of the cycle we're on based on cycle start date
+    const startDate = new Date(cycle.startDate);
+    const todayDate = new Date(today);
+    const daysSinceStart = Math.floor((todayDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    
     // Create/update workout session for proper session-based stats
     const todayItems = await storage.getWorkoutItemsByDay(cycle.id, currentDayIndex);
     const muscleTypes = [...new Set(todayItems.map(i => i.muscleType).filter(Boolean))];
