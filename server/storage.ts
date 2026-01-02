@@ -652,12 +652,14 @@ export class DatabaseStorage implements IStorage {
     const result: { trainer: User; members: User[] }[] = [];
     
     for (const trainer of trainers) {
-      const assignments = await this.getTrainerMembers(trainer.id);
+      const assignments = await db.select().from(trainerMembers)
+        .where(and(eq(trainerMembers.trainerId, trainer.id), eq(trainerMembers.gymId, gymId)));
       const memberIds = assignments.map(a => a.memberId);
       
       let members: User[] = [];
       if (memberIds.length > 0) {
-        members = await db.select().from(users).where(inArray(users.id, memberIds));
+        members = await db.select().from(users)
+          .where(and(inArray(users.id, memberIds), eq(users.gymId, gymId)));
       }
       
       result.push({ trainer, members });
