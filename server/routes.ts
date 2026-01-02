@@ -569,6 +569,29 @@ export async function registerRoutes(
       actualWeight: input.actualWeight
     });
     
+    // Create/update workout session for proper session-based stats
+    const todayItems = await storage.getWorkoutItemsByDay(cycle.id, currentDayIndex);
+    const muscleTypes = [...new Set(todayItems.map(i => i.muscleType).filter(Boolean))];
+    const focusLabel = muscleTypes.join(" + ") || cycle.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
+    
+    const session = await storage.getOrCreateWorkoutSession({
+      gymId: req.user!.gymId!,
+      memberId: req.user!.id,
+      date: today,
+      cycleId: cycle.id,
+      cycleDayIndex: currentDayIndex,
+      focusLabel
+    });
+    
+    // Add exercise to session
+    await storage.addWorkoutSessionExercise({
+      sessionId: session.id,
+      exerciseName: item.exerciseName,
+      sets: input.actualSets || item.sets,
+      reps: input.actualReps || item.reps,
+      weight: input.actualWeight || item.weight || null
+    });
+    
     // Auto-mark attendance
     const existingAttendance = await storage.getAttendanceByMemberDate(req.user!.id, today);
     if (!existingAttendance) {
@@ -593,6 +616,7 @@ export async function registerRoutes(
     
     const today = new Date().toISOString().split("T")[0];
     const completions = [];
+    let session: any = null;
     
     for (const workoutItemId of input.workoutItemIds) {
       const item = await storage.getWorkoutItem(workoutItemId);
@@ -612,6 +636,38 @@ export async function registerRoutes(
         completedDate: today
       });
       completions.push(completion);
+      
+      // Create workout session on first completion
+      if (!session) {
+        const startDate = new Date(cycle.startDate);
+        const todayDate = new Date(today);
+        const daysDiff = Math.floor((todayDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        const currentDayIndex = daysDiff % cycle.cycleLength;
+        
+        const todayItems = await storage.getWorkoutItemsByDay(cycle.id, currentDayIndex);
+        const muscleTypes = [...new Set(todayItems.map(i => i.muscleType).filter(Boolean))];
+        const focusLabel = muscleTypes.join(" + ") || cycle.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
+        
+        session = await storage.getOrCreateWorkoutSession({
+          gymId: req.user!.gymId!,
+          memberId: req.user!.id,
+          date: today,
+          cycleId: cycle.id,
+          cycleDayIndex: currentDayIndex,
+          focusLabel
+        });
+      }
+      
+      // Add exercise to session
+      if (session) {
+        await storage.addWorkoutSessionExercise({
+          sessionId: session.id,
+          exerciseName: item.exerciseName,
+          sets: item.sets,
+          reps: item.reps,
+          weight: item.weight || null
+        });
+      }
     }
     
     // Auto-mark attendance if any completed
@@ -684,6 +740,86 @@ export async function registerRoutes(
     const endDate = req.query.endDate as string | undefined;
     const workouts = await storage.getMemberDailyWorkouts(req.user!.id, startDate, endDate);
     res.json(workouts);
+  });
+
+  // === MEMBER WORKOUT SESSION ROUTES ===
+  
+  // Get workout summary (streak, total, last 7 days, this month, calendar days)
+  app.get("/api/member/workout/summary", requireRole(["member"]), async (req, res) => {
+    const summary = await storage.getMemberWorkoutSummary(req.user!.gymId!, req.user!.id);
+    res.json(summary);
+  });
+
+  // Get workout history with optional date filtering
+  app.get("/api/member/workout/history", requireRole(["member"]), async (req, res) => {
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+    const history = await storage.getMemberWorkoutHistory(req.user!.gymId!, req.user!.id, from, to);
+    res.json(history);
+  });
+
+  // Get single session with exercises
+  app.get("/api/member/workout/session/:sessionId", requireRole(["member"]), async (req, res) => {
+    const sessionId = parseInt(req.params.sessionId);
+    // Fetch session with gym scoping for multi-tenant security
+    const session = await storage.getWorkoutSession(req.user!.gymId!, sessionId);
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+    // Verify member owns this session
+    if (session.memberId !== req.user!.id) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    res.json(session);
+  });
+
+  // Create or update workout session with exercises
+  app.post("/api/member/workout/session", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      date: z.string(),
+      focusLabel: z.string(),
+      cycleId: z.number().nullable().optional(),
+      cycleDayIndex: z.number().nullable().optional(),
+      exercises: z.array(z.object({
+        exerciseName: z.string(),
+        sets: z.number().nullable().optional(),
+        reps: z.number().nullable().optional(),
+        weight: z.string().nullable().optional(),
+        notes: z.string().nullable().optional()
+      })).optional()
+    });
+    
+    const input = schema.parse(req.body);
+    
+    // Get or create session
+    const session = await storage.getOrCreateWorkoutSession({
+      gymId: req.user!.gymId!,
+      memberId: req.user!.id,
+      date: input.date,
+      focusLabel: input.focusLabel,
+      cycleId: input.cycleId || null,
+      cycleDayIndex: input.cycleDayIndex || null
+    });
+    
+    // Add exercises if provided
+    if (input.exercises && input.exercises.length > 0) {
+      for (let i = 0; i < input.exercises.length; i++) {
+        const ex = input.exercises[i];
+        await storage.addWorkoutSessionExercise({
+          sessionId: session.id,
+          exerciseName: ex.exerciseName,
+          sets: ex.sets || null,
+          reps: ex.reps || null,
+          weight: ex.weight || null,
+          notes: ex.notes || null,
+          orderIndex: i
+        });
+      }
+    }
+    
+    // Return full session with exercises
+    const fullSession = await storage.getWorkoutSession(session.id);
+    res.status(201).json(fullSession);
   });
 
   // === MEMBER PROFILE & PROGRESS ROUTES ===

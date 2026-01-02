@@ -1,7 +1,7 @@
 import { 
   users, gyms, attendance, payments, trainerMembers, workoutCycles, workoutItems, workoutCompletions, memberRequests,
   gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests, announcements, userNotificationPreferences, announcementReads,
-  membershipPlans, memberSubscriptions, paymentTransactions,
+  membershipPlans, memberSubscriptions, paymentTransactions, workoutSessions, workoutSessionExercises,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
@@ -20,7 +20,9 @@ import {
   type AnnouncementRead, type InsertAnnouncementRead,
   type MembershipPlan, type InsertMembershipPlan,
   type MemberSubscription, type InsertMemberSubscription,
-  type PaymentTransaction, type InsertPaymentTransaction
+  type PaymentTransaction, type InsertPaymentTransaction,
+  type WorkoutSession, type InsertWorkoutSession,
+  type WorkoutSessionExercise, type InsertWorkoutSessionExercise
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, sql, isNull } from "drizzle-orm";
@@ -238,6 +240,24 @@ export interface IStorage {
   // Subscription Alerts
   getSubscriptionAlerts(gymId: number): Promise<{ endingSoon: number; overdue: number }>;
   updateExpiredSubscriptions(gymId: number): Promise<void>;
+  
+  // Workout Sessions
+  getOrCreateWorkoutSession(data: InsertWorkoutSession): Promise<WorkoutSession>;
+  getWorkoutSession(gymId: number, sessionId: number): Promise<(WorkoutSession & { exercises: WorkoutSessionExercise[] }) | null>;
+  getWorkoutSessionByMemberDate(gymId: number, memberId: number, date: string): Promise<WorkoutSession | null>;
+  addWorkoutSessionExercise(data: InsertWorkoutSessionExercise): Promise<WorkoutSessionExercise>;
+  getMemberWorkoutSummary(gymId: number, memberId: number): Promise<{
+    streak: number;
+    totalWorkouts: number;
+    last7DaysCount: number;
+    thisMonthCount: number;
+    calendarDays: { date: string; focusLabel: string }[];
+  }>;
+  getMemberWorkoutHistory(gymId: number, memberId: number, from?: string, to?: string): Promise<{
+    sessionId: number;
+    date: string;
+    focusLabel: string;
+  }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1676,6 +1696,148 @@ export class DatabaseStorage implements IStorage {
           .where(eq(memberSubscriptions.id, sub.id));
       }
     }
+  }
+
+  // === WORKOUT SESSIONS ===
+  async getOrCreateWorkoutSession(data: InsertWorkoutSession): Promise<WorkoutSession> {
+    const existing = await db.select().from(workoutSessions)
+      .where(and(
+        eq(workoutSessions.gymId, data.gymId),
+        eq(workoutSessions.memberId, data.memberId),
+        eq(workoutSessions.date, data.date)
+      ));
+    
+    if (existing.length > 0) {
+      // Update focus label if different
+      if (existing[0].focusLabel !== data.focusLabel) {
+        const [updated] = await db.update(workoutSessions)
+          .set({ focusLabel: data.focusLabel, cycleId: data.cycleId, cycleDayIndex: data.cycleDayIndex })
+          .where(eq(workoutSessions.id, existing[0].id))
+          .returning();
+        return updated;
+      }
+      return existing[0];
+    }
+    
+    const [session] = await db.insert(workoutSessions).values(data).returning();
+    return session;
+  }
+
+  async getWorkoutSession(gymId: number, sessionId: number): Promise<(WorkoutSession & { exercises: WorkoutSessionExercise[] }) | null> {
+    const [session] = await db.select().from(workoutSessions)
+      .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.gymId, gymId)));
+    
+    if (!session) return null;
+    
+    const exercises = await db.select().from(workoutSessionExercises)
+      .where(eq(workoutSessionExercises.sessionId, sessionId))
+      .orderBy(workoutSessionExercises.orderIndex);
+    
+    return { ...session, exercises };
+  }
+
+  async getWorkoutSessionByMemberDate(gymId: number, memberId: number, date: string): Promise<WorkoutSession | null> {
+    const [session] = await db.select().from(workoutSessions)
+      .where(and(
+        eq(workoutSessions.gymId, gymId),
+        eq(workoutSessions.memberId, memberId),
+        eq(workoutSessions.date, date)
+      ));
+    return session || null;
+  }
+
+  async addWorkoutSessionExercise(data: InsertWorkoutSessionExercise): Promise<WorkoutSessionExercise> {
+    // Check for existing exercise with same name in session to avoid duplicates
+    const existing = await db.select().from(workoutSessionExercises)
+      .where(and(
+        eq(workoutSessionExercises.sessionId, data.sessionId),
+        eq(workoutSessionExercises.exerciseName, data.exerciseName)
+      ));
+    
+    if (existing.length > 0) {
+      // Update existing exercise instead of creating duplicate
+      const [updated] = await db.update(workoutSessionExercises)
+        .set({ sets: data.sets, reps: data.reps, weight: data.weight })
+        .where(eq(workoutSessionExercises.id, existing[0].id))
+        .returning();
+      return updated;
+    }
+    
+    const [exercise] = await db.insert(workoutSessionExercises).values(data).returning();
+    return exercise;
+  }
+
+  async getMemberWorkoutSummary(gymId: number, memberId: number): Promise<{
+    streak: number;
+    totalWorkouts: number;
+    last7DaysCount: number;
+    thisMonthCount: number;
+    calendarDays: { date: string; focusLabel: string }[];
+  }> {
+    const sessions = await db.select().from(workoutSessions)
+      .where(and(eq(workoutSessions.gymId, gymId), eq(workoutSessions.memberId, memberId)))
+      .orderBy(desc(workoutSessions.date));
+    
+    const today = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const monthStart = today.slice(0, 7) + '-01';
+    
+    // Calculate streak
+    let streak = 0;
+    const sessionDates = new Set(sessions.map(s => s.date));
+    let checkDate = new Date(today);
+    
+    // If no workout today, start from yesterday
+    if (!sessionDates.has(today)) {
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    
+    while (sessionDates.has(checkDate.toISOString().split('T')[0])) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    
+    // Calculate counts
+    const last7DaysCount = sessions.filter(s => s.date >= sevenDaysAgo).length;
+    const thisMonthCount = sessions.filter(s => s.date >= monthStart).length;
+    
+    // Calendar days (last 90 days for display)
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const calendarDays = sessions
+      .filter(s => s.date >= ninetyDaysAgo)
+      .map(s => ({ date: s.date, focusLabel: s.focusLabel }));
+    
+    return {
+      streak,
+      totalWorkouts: sessions.length,
+      last7DaysCount,
+      thisMonthCount,
+      calendarDays
+    };
+  }
+
+  async getMemberWorkoutHistory(gymId: number, memberId: number, from?: string, to?: string): Promise<{
+    sessionId: number;
+    date: string;
+    focusLabel: string;
+  }[]> {
+    const sessions = await db.select().from(workoutSessions)
+      .where(and(eq(workoutSessions.gymId, gymId), eq(workoutSessions.memberId, memberId)))
+      .orderBy(desc(workoutSessions.date));
+    
+    let filtered = sessions;
+    if (from) {
+      filtered = filtered.filter(s => s.date >= from);
+    }
+    if (to) {
+      filtered = filtered.filter(s => s.date <= to);
+    }
+    
+    return filtered.map(s => ({
+      sessionId: s.id,
+      date: s.date,
+      focusLabel: s.focusLabel
+    }));
   }
 }
 

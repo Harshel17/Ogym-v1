@@ -1,0 +1,224 @@
+Title: Member Dashboard Stat Cards → Drilldowns (Workouts / Streak / Calendar / Stats) with Sets/Reps/Weights
+
+Prompt:
+
+You are working on OGym V1 (multi-gym app Owner/Trainer/Member).
+I need you to upgrade the Member dashboard + Progress/Stats pages to support proper drill-down navigation and correct stats calculations.
+
+✅ Goal
+
+On Member Dashboard, the 4 stat cards must show the right counts and must be clickable. Each card click takes the member to a relevant drill-down view where they can see daily history like:
+
+“12/12/2025 – Chest + Shoulder”
+
+Expand row → show all exercises done that day, with sets/reps/weight if entered
+
+✅ Must NOT break
+
+Existing login/auth, gym isolation, trainer assignment, attendance, current workout cycle flows
+
+Existing UI styling theme (keep consistent)
+
+1) Fix Definitions (data + calculations)
+
+Ensure “workout session” means: one completed workout for a day (the workout type/body part / cycle day).
+
+Member dashboard cards should be:
+
+A) Day Streak
+
+Consecutive days up to today where a workout session exists.
+
+If no workout today, streak should count up to yesterday only.
+
+B) Total Workouts
+
+Count of workout sessions in history (not exercises).
+
+Example: if user worked out 9 days total, show 9.
+
+C) Last 7 Days
+
+Count of workout sessions in last 7 calendar days (including today).
+
+D) This Month (or This Week if your UI uses “This Week”)
+
+If it says “This Week”: count workout sessions Mon–Sun current week.
+
+If it says “This Month”: count workout sessions in current month.
+
+Calendar behavior
+
+Calendar should highlight days with workout sessions.
+
+Show a small badge/dot or count marker on days that have a workout.
+
+Clicking a day opens the drill-down detail view filtered to that day.
+
+2) Add / Update Data Model (if missing)
+
+We need a stable backend table for logging workout sessions and exercises performed.
+
+If not already present, add:
+
+workout_sessions
+
+id (uuid or int)
+
+gym_id
+
+member_id
+
+date (YYYY-MM-DD)
+
+cycle_id (nullable)
+
+cycle_day_index (nullable)
+
+focus_label (string like “Chest”, “Back”, “Legs”, “Chest+Shoulder”)
+
+created_at
+
+workout_session_exercises
+
+id
+
+session_id
+
+exercise_name
+
+sets (int nullable)
+
+reps (int nullable)
+
+weight (float nullable)
+
+notes (text nullable)
+
+created_at
+
+Rules:
+
+Ensure unique session per member per date per gym (enforce unique index/constraint)
+
+All queries MUST be gym-scoped and member-scoped
+
+3) API Endpoints
+
+Create or update these endpoints:
+
+GET /api/member/workout/summary
+
+Returns:
+
+streak
+
+totalWorkouts
+
+last7DaysCount
+
+thisWeekCount OR thisMonthCount (match UI label)
+
+calendarDays: array of {date, focus_label}
+
+GET /api/member/workout/history?from=YYYY-MM-DD&to=YYYY-MM-DD
+
+Returns sessions in range:
+
+date
+
+focus_label
+
+session_id
+
+GET /api/member/workout/session/:id
+
+Returns detail:
+
+date
+
+focus_label
+
+exercises: [{exercise_name, sets, reps, weight, notes}]
+
+POST /api/member/workout/session
+
+Used when member completes workout OR when they enter sets/reps/weight
+
+Upsert session for date
+
+Upsert exercises
+
+Also create trainer read-only access endpoints for starred member drilldown later (do not break).
+
+4) Frontend UX Requirements
+Member Dashboard (current page)
+
+Make each stat card clickable:
+
+Day Streak → opens “Workout History” page filtered to last 30 days, focus on streak explanation and daily list
+
+Total Workouts → opens Workout History page (all time, paginated)
+
+Last 7 Days → opens Workout History filtered to last 7 days
+
+This Week / This Month → opens Workout History filtered accordingly
+
+Calendar card: clicking a date should navigate to the same Workout History page with that date selected.
+
+New or Updated Page: “My Workouts” (History page)
+
+Route suggestion:
+
+/progress/workouts OR /my-workout/history
+UI layout:
+
+Top filters: Date picker (from/to), quick buttons (Today, 7d, 30d, This Month, All)
+
+Table/list: grouped by date
+
+Row shows: date + focus_label (ex: “Jan 1, 2026 — Chest”)
+
+Expand/collapse row → shows exercises list including sets/reps/weight
+
+Pagination for large history
+
+Updated “My Stats” page
+
+Must reflect correct totals based on workout_sessions + exercises
+
+Add “Sessions by muscle group” and volume totals only if we have exercise set/reps/weight
+
+If missing values, handle gracefully (show “—” or exclude from volume)
+
+Sets/Reps/Weight capture
+
+On Workout completion screen (or workout page), add inputs for sets/reps/weight per exercise
+
+Save to backend using POST /api/member/workout/session
+
+5) Implementation Notes
+
+Use SQL migrations (drizzle or whatever project uses) and keep schema consistent.
+
+Ensure the seed data creates workout sessions for demo accounts so UI shows data.
+
+Fix any “Total Workouts” that currently equals number of exercises; it must equal sessions count.
+
+Keep code clean, modular, and readable.
+
+6) Acceptance Tests
+
+Member dashboard numbers match:
+
+If a member has 9 workout sessions, Total Workouts shows 9.
+
+Calendar highlights those 9 days.
+
+Clicking each stat card routes correctly and shows filtered list.
+
+Clicking a workout day shows the body part label and expanding shows exercises.
+
+If sets/reps/weight entered, they show up in details and stats calculations.
+
+Implement all changes and tell me exactly what files were updated and how to test each route.

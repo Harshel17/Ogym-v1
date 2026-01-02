@@ -246,6 +246,14 @@ function TrainerDashboard() {
   );
 }
 
+type WorkoutSummary = {
+  streak: number;
+  totalWorkouts: number;
+  last7DaysCount: number;
+  thisMonthCount: number;
+  calendarDays: { date: string; focusLabel: string }[];
+};
+
 function MemberDashboard() {
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
@@ -254,6 +262,9 @@ function MemberDashboard() {
   const { data: attendance = [] } = useMemberAttendance();
   const { data: payments = [] } = useMemberPayments();
   const { data: stats } = useMemberStats();
+  const { data: workoutSummary } = useQuery<WorkoutSummary>({
+    queryKey: ["/api/member/workout/summary"],
+  });
   const { data: todayWorkout, isLoading: workoutLoading } = useTodayWorkout();
   const { data: profile } = useMemberProfile();
   const completeAllMutation = useCompleteAllWorkouts();
@@ -493,32 +504,41 @@ function MemberDashboard() {
         </Card>
       </Collapsible>
 
-      {memberStats && (
-        <div className="grid grid-cols-3 gap-4">
-          <Link href="/progress/stats">
+      {workoutSummary && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Link href="/progress/workouts">
             <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30" data-testid="card-streak-link">
               <CardContent className="flex flex-col items-center justify-center py-4">
                 <Flame className="w-8 h-8 text-orange-500 mb-2" />
-                <p className="text-2xl font-bold">{memberStats.streak}</p>
+                <p className="text-2xl font-bold">{workoutSummary.streak}</p>
                 <p className="text-xs text-muted-foreground">Day Streak</p>
               </CardContent>
             </Card>
           </Link>
-          <Link href="/progress/stats">
+          <Link href="/progress/workouts">
             <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30" data-testid="card-total-link">
               <CardContent className="flex flex-col items-center justify-center py-4">
                 <Target className="w-8 h-8 text-blue-500 mb-2" />
-                <p className="text-2xl font-bold">{memberStats.totalWorkouts}</p>
-                <p className="text-xs text-muted-foreground">Total Workouts</p>
+                <p className="text-2xl font-bold">{workoutSummary.totalWorkouts}</p>
+                <p className="text-xs text-muted-foreground">Total Sessions</p>
               </CardContent>
             </Card>
           </Link>
-          <Link href="/progress/stats">
+          <Link href="/progress/workouts">
             <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30" data-testid="card-week-link">
               <CardContent className="flex flex-col items-center justify-center py-4">
                 <Calendar className="w-8 h-8 text-green-500 mb-2" />
-                <p className="text-2xl font-bold">{memberStats.last7Days}</p>
+                <p className="text-2xl font-bold">{workoutSummary.last7DaysCount}</p>
                 <p className="text-xs text-muted-foreground">Last 7 Days</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/progress/workouts">
+            <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30" data-testid="card-month-link">
+              <CardContent className="flex flex-col items-center justify-center py-4">
+                <CreditCard className="w-8 h-8 text-purple-500 mb-2" />
+                <p className="text-2xl font-bold">{workoutSummary.thisMonthCount}</p>
+                <p className="text-xs text-muted-foreground">This Month</p>
               </CardContent>
             </Card>
           </Link>

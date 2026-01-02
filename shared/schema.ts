@@ -191,6 +191,33 @@ export const announcementReads = pgTable("announcement_reads", {
   uniqueRead: uniqueIndex("unique_announcement_read").on(table.announcementId, table.userId),
 }));
 
+// === WORKOUT SESSIONS (Session-level tracking for stats) ===
+
+export const workoutSessions = pgTable("workout_sessions", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD
+  cycleId: integer("cycle_id").references(() => workoutCycles.id),
+  cycleDayIndex: integer("cycle_day_index"),
+  focusLabel: text("focus_label").notNull(), // e.g., "Chest", "Back + Shoulders"
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueSessionPerDay: uniqueIndex("unique_session_per_member_date_gym").on(table.gymId, table.memberId, table.date),
+}));
+
+export const workoutSessionExercises = pgTable("workout_session_exercises", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").references(() => workoutSessions.id).notNull(),
+  exerciseName: text("exercise_name").notNull(),
+  sets: integer("sets"),
+  reps: integer("reps"),
+  weight: text("weight"),
+  notes: text("notes"),
+  orderIndex: integer("order_index").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === MEMBERSHIP & SUBSCRIPTION TABLES (INR-based, amounts in paise) ===
 
 export const membershipPlans = pgTable("membership_plans", {
@@ -265,6 +292,8 @@ export const insertAnnouncementReadSchema = createInsertSchema(announcementReads
 export const insertMembershipPlanSchema = createInsertSchema(membershipPlans).omit({ id: true, createdAt: true });
 export const insertMemberSubscriptionSchema = createInsertSchema(memberSubscriptions).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPaymentTransactionSchema = createInsertSchema(paymentTransactions).omit({ id: true, createdAt: true });
+export const insertWorkoutSessionSchema = createInsertSchema(workoutSessions).omit({ id: true, createdAt: true });
+export const insertWorkoutSessionExerciseSchema = createInsertSchema(workoutSessionExercises).omit({ id: true, createdAt: true });
 
 // === EXPLICIT TYPES ===
 
@@ -310,3 +339,8 @@ export type PaymentTransaction = typeof paymentTransactions.$inferSelect;
 export type InsertMembershipPlan = z.infer<typeof insertMembershipPlanSchema>;
 export type InsertMemberSubscription = z.infer<typeof insertMemberSubscriptionSchema>;
 export type InsertPaymentTransaction = z.infer<typeof insertPaymentTransactionSchema>;
+
+export type WorkoutSession = typeof workoutSessions.$inferSelect;
+export type WorkoutSessionExercise = typeof workoutSessionExercises.$inferSelect;
+export type InsertWorkoutSession = z.infer<typeof insertWorkoutSessionSchema>;
+export type InsertWorkoutSessionExercise = z.infer<typeof insertWorkoutSessionExerciseSchema>;
