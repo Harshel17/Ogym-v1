@@ -2,14 +2,15 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
 import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout, useMemberProfile } from "@/hooks/use-workouts";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { Link, useLocation } from "wouter";
@@ -258,6 +259,7 @@ function MemberDashboard() {
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [exerciseInputs, setExerciseInputs] = useState<Record<number, { sets: string; reps: string; weight: string }>>({});
+  const [showMarkDoneDialog, setShowMarkDoneDialog] = useState(false);
   
   const { data: attendance = [] } = useMemberAttendance();
   const { data: payments = [] } = useMemberPayments();
@@ -269,6 +271,21 @@ function MemberDashboard() {
   const { data: profile } = useMemberProfile();
   const completeAllMutation = useCompleteAllWorkouts();
   const completeWorkoutMutation = useCompleteWorkout();
+  
+  const todayDate = format(new Date(), 'yyyy-MM-dd');
+  
+  const markDayDoneMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/member/workout/day/${todayDate}/mark-done`);
+    },
+    onSuccess: () => {
+      setShowMarkDoneDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/workout/summary'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/workout/schedule'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/workout/missed'] });
+    }
+  });
 
   const attendanceList = attendance as any[];
   const paymentsList = payments as any[];
@@ -371,7 +388,17 @@ function MemberDashboard() {
               {workoutLoading ? (
                 <p className="text-muted-foreground text-center py-4">Loading...</p>
               ) : workoutItems.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">No workout scheduled for today.</p>
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground mb-4">No workout scheduled for today.</p>
+                  <Button 
+                    variant="secondary"
+                    onClick={() => setShowMarkDoneDialog(true)}
+                    data-testid="button-mark-rest-day-done"
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    Mark Day as Done
+                  </Button>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {workoutItems.map((item: any, index: number) => {
@@ -497,6 +524,18 @@ function MemberDashboard() {
                       Complete All Remaining
                     </Button>
                   )}
+                  
+                  {!allCompleted && (
+                    <Button 
+                      variant="secondary"
+                      className="w-full mt-2"
+                      onClick={() => setShowMarkDoneDialog(true)}
+                      data-testid="button-mark-day-done"
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      Mark Day as Done
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -592,6 +631,41 @@ function MemberDashboard() {
           description={lastPayment ? `Status: ${lastPayment.status}` : 'No payment history'}
         />
       </div>
+
+      <Dialog open={showMarkDoneDialog} onOpenChange={setShowMarkDoneDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark Today as Done?</DialogTitle>
+            <DialogDescription>
+              {workoutItems.length > 0 ? (
+                <>
+                  You've completed {completedCount} of {workoutItems.length} exercises today.
+                  {completedCount < workoutItems.length && (
+                    <span className="block mt-2 text-muted-foreground">
+                      Marking as done will count this as a completed workout day even though some exercises are incomplete.
+                    </span>
+                  )}
+                </>
+              ) : (
+                "No workout was scheduled for today, but you can still mark the day as done if you did some activity."
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowMarkDoneDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => markDayDoneMutation.mutate()}
+              disabled={markDayDoneMutation.isPending}
+              data-testid="button-confirm-mark-done"
+            >
+              <Check className="w-4 h-4 mr-2" />
+              {markDayDoneMutation.isPending ? "Marking..." : "Yes, Mark as Done"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
