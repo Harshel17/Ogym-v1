@@ -2,7 +2,7 @@ import {
   users, gyms, attendance, payments, trainerMembers, workoutCycles, workoutItems, workoutCompletions, memberRequests,
   gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests, announcements, userNotificationPreferences, announcementReads,
   membershipPlans, memberSubscriptions, paymentTransactions, workoutSessions, workoutSessionExercises,
-  gymRequests, joinRequests,
+  gymRequests, joinRequests, gymSubscriptions,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
@@ -25,7 +25,8 @@ import {
   type WorkoutSession, type InsertWorkoutSession,
   type WorkoutSessionExercise, type InsertWorkoutSessionExercise,
   type GymRequest, type InsertGymRequest,
-  type JoinRequest, type InsertJoinRequest
+  type JoinRequest, type InsertJoinRequest,
+  type GymSubscription, type InsertGymSubscription
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, sql, isNull } from "drizzle-orm";
@@ -310,6 +311,23 @@ export interface IStorage {
   getPendingJoinRequestsForGym(gymId: number): Promise<(JoinRequest & { userName: string; userRole: string })[]>;
   approveJoinRequest(requestId: number): Promise<JoinRequest>;
   rejectJoinRequest(requestId: number): Promise<JoinRequest>;
+  
+  // Admin functions
+  getAllGymRequestsWithOwner(): Promise<(GymRequest & { ownerName: string; ownerEmail: string | null })[]>;
+  getAllGymsWithDetails(): Promise<{
+    id: number;
+    name: string;
+    code: string;
+    createdAt: Date | null;
+    ownerName: string | null;
+    ownerEmail: string | null;
+    subscriptionStatus: string | null;
+    planType: string | null;
+    validUntil: Date | null;
+  }[]>;
+  getGymSubscription(gymId: number): Promise<GymSubscription | null>;
+  getAllGymSubscriptions(): Promise<(GymSubscription & { gymName: string })[]>;
+  upsertGymSubscription(gymId: number, data: Partial<InsertGymSubscription>): Promise<GymSubscription>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2425,6 +2443,102 @@ export class DatabaseStorage implements IStorage {
       .where(eq(joinRequests.id, requestId))
       .returning();
     return request;
+  }
+  
+  // === Admin Functions ===
+  async getAllGymRequestsWithOwner(): Promise<(GymRequest & { ownerName: string; ownerEmail: string | null })[]> {
+    const requests = await db.select({
+      request: gymRequests,
+      owner: users
+    })
+    .from(gymRequests)
+    .innerJoin(users, eq(gymRequests.ownerUserId, users.id))
+    .orderBy(desc(gymRequests.createdAt));
+    
+    return requests.map(r => ({
+      ...r.request,
+      ownerName: r.owner.username,
+      ownerEmail: r.owner.email
+    }));
+  }
+  
+  async getAllGymsWithDetails(): Promise<{
+    id: number;
+    name: string;
+    code: string;
+    createdAt: Date | null;
+    ownerName: string | null;
+    ownerEmail: string | null;
+    subscriptionStatus: string | null;
+    planType: string | null;
+    validUntil: Date | null;
+  }[]> {
+    const results = await db.select({
+      gym: gyms,
+      owner: users,
+      subscription: gymSubscriptions
+    })
+    .from(gyms)
+    .leftJoin(users, and(eq(gyms.ownerUserId, users.id)))
+    .leftJoin(gymSubscriptions, eq(gyms.id, gymSubscriptions.gymId))
+    .orderBy(desc(gyms.createdAt));
+    
+    return results.map(r => ({
+      id: r.gym.id,
+      name: r.gym.name,
+      code: r.gym.code,
+      createdAt: r.gym.createdAt,
+      ownerName: r.owner?.username || null,
+      ownerEmail: r.owner?.email || null,
+      subscriptionStatus: r.subscription?.paymentStatus || null,
+      planType: r.subscription?.planType || null,
+      validUntil: r.subscription?.validUntil || null
+    }));
+  }
+  
+  async getGymSubscription(gymId: number): Promise<GymSubscription | null> {
+    const [subscription] = await db.select().from(gymSubscriptions).where(eq(gymSubscriptions.gymId, gymId));
+    return subscription || null;
+  }
+  
+  async getAllGymSubscriptions(): Promise<(GymSubscription & { gymName: string })[]> {
+    const results = await db.select({
+      subscription: gymSubscriptions,
+      gym: gyms
+    })
+    .from(gymSubscriptions)
+    .innerJoin(gyms, eq(gymSubscriptions.gymId, gyms.id))
+    .orderBy(desc(gymSubscriptions.updatedAt));
+    
+    return results.map(r => ({
+      ...r.subscription,
+      gymName: r.gym.name
+    }));
+  }
+  
+  async upsertGymSubscription(gymId: number, data: Partial<InsertGymSubscription>): Promise<GymSubscription> {
+    const existing = await this.getGymSubscription(gymId);
+    
+    if (existing) {
+      const [updated] = await db.update(gymSubscriptions)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(gymSubscriptions.gymId, gymId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(gymSubscriptions)
+        .values({
+          gymId,
+          planType: data.planType || "1_month",
+          amountPaid: data.amountPaid || 0,
+          paymentStatus: data.paymentStatus || "pending",
+          paidOn: data.paidOn,
+          validUntil: data.validUntil,
+          notes: data.notes
+        })
+        .returning();
+      return created;
+    }
   }
 }
 

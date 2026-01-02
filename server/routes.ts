@@ -1,10 +1,13 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth, hashPassword } from "./auth";
+import { setupAuth, hashPassword, comparePasswords } from "./auth";
 import { storage } from "./storage";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import passport from "passport";
+import jwt from "jsonwebtoken";
+
+const ADMIN_JWT_SECRET = process.env.SESSION_SECRET || "admin-jwt-fallback-secret";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -1599,6 +1602,161 @@ export async function registerRoutes(
     } catch (err) {
       res.status(500).json({ message: "Failed to reject request" });
     }
+  });
+
+  // === ADMIN AUTH ROUTES (Separate from user auth) ===
+  
+  // Admin JWT middleware
+  const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Admin authentication required" });
+    }
+    
+    const token = authHeader.split(" ")[1];
+    try {
+      const decoded = jwt.verify(token, ADMIN_JWT_SECRET) as { userId: number; username: string; isAdmin: boolean };
+      if (!decoded.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      (req as any).adminUser = decoded;
+      next();
+    } catch (err) {
+      return res.status(401).json({ message: "Invalid or expired admin token" });
+    }
+  };
+  
+  // Admin login - completely separate from user login
+  app.post("/api/admin/login", async (req, res) => {
+    try {
+      const schema = z.object({
+        username: z.string().min(1),
+        password: z.string().min(1)
+      });
+      const { username, password } = schema.parse(req.body);
+      
+      const user = await storage.getUserByUsername(username);
+      if (!user || !user.isAdmin) {
+        return res.status(401).json({ message: "Invalid admin credentials" });
+      }
+      
+      const isValid = await comparePasswords(password, user.password);
+      if (!isValid) {
+        return res.status(401).json({ message: "Invalid admin credentials" });
+      }
+      
+      const token = jwt.sign(
+        { userId: user.id, username: user.username, isAdmin: true },
+        ADMIN_JWT_SECRET,
+        { expiresIn: "8h" }
+      );
+      
+      res.json({ token, user: { id: user.id, username: user.username, isAdmin: true } });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+  
+  // Admin me - verify token
+  app.get("/api/admin/me", requireAdmin, async (req, res) => {
+    const adminUser = (req as any).adminUser;
+    res.json({ id: adminUser.userId, username: adminUser.username, isAdmin: true });
+  });
+  
+  // === ADMIN DASHBOARD ROUTES ===
+  
+  // Get all gym requests (with owner info)
+  app.get("/api/admin/all-gym-requests", requireAdmin, async (req, res) => {
+    const requests = await storage.getAllGymRequestsWithOwner();
+    res.json(requests);
+  });
+  
+  // Get all gyms with owner and subscription info
+  app.get("/api/admin/all-gyms", requireAdmin, async (req, res) => {
+    const gyms = await storage.getAllGymsWithDetails();
+    res.json(gyms);
+  });
+  
+  // Admin approve gym request
+  app.post("/api/admin/gym-requests/:id/approve", requireAdmin, async (req, res) => {
+    try {
+      const requestId = parseInt(req.params.id);
+      const result = await storage.approveGymRequest(requestId);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to approve request" });
+    }
+  });
+  
+  // Admin reject gym request
+  app.post("/api/admin/gym-requests/:id/reject", requireAdmin, async (req, res) => {
+    try {
+      const requestId = parseInt(req.params.id);
+      const { adminNotes } = req.body;
+      const result = await storage.rejectGymRequest(requestId, adminNotes || "");
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to reject request" });
+    }
+  });
+  
+  // === GYM SUBSCRIPTION MANAGEMENT ===
+  
+  // Get all gym subscriptions
+  app.get("/api/admin/gym-subscriptions", requireAdmin, async (req, res) => {
+    const subscriptions = await storage.getAllGymSubscriptions();
+    res.json(subscriptions);
+  });
+  
+  // Get subscription for a specific gym
+  app.get("/api/admin/gym-subscriptions/:gymId", requireAdmin, async (req, res) => {
+    const gymId = parseInt(req.params.gymId);
+    const subscription = await storage.getGymSubscription(gymId);
+    res.json(subscription || null);
+  });
+  
+  // Create or update gym subscription
+  app.post("/api/admin/gym-subscriptions/:gymId", requireAdmin, async (req, res) => {
+    try {
+      const gymId = parseInt(req.params.gymId);
+      const schema = z.object({
+        planType: z.enum(["1_month", "3_month", "6_month", "custom"]),
+        amountPaid: z.number().min(0),
+        paymentStatus: z.enum(["pending", "paid", "overdue"]),
+        validUntil: z.string().optional(),
+        notes: z.string().optional()
+      });
+      const input = schema.parse(req.body);
+      
+      const subscription = await storage.upsertGymSubscription(gymId, {
+        gymId,
+        planType: input.planType,
+        amountPaid: input.amountPaid,
+        paymentStatus: input.paymentStatus,
+        paidOn: input.paymentStatus === "paid" ? new Date() : null,
+        validUntil: input.validUntil ? new Date(input.validUntil) : null,
+        notes: input.notes || null
+      });
+      
+      res.json(subscription);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to update subscription" });
+    }
+  });
+  
+  // Owner: Get their gym's subscription status (read-only)
+  app.get("/api/owner/gym-subscription", requireAuth, async (req, res) => {
+    if (req.user!.role !== "owner" || !req.user!.gymId) {
+      return res.status(403).json({ message: "Owner access required" });
+    }
+    const subscription = await storage.getGymSubscription(req.user!.gymId);
+    res.json(subscription || null);
   });
 
   await seedDemoData();
