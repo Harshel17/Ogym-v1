@@ -2,14 +2,17 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
 import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout, useMemberProfile } from "@/hooks/use-workouts";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock } from "lucide-react";
-import { format } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { Link, useLocation } from "wouter";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -469,29 +472,37 @@ function MemberDashboard() {
 
       {memberStats && (
         <div className="grid grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-4">
-              <Flame className="w-8 h-8 text-orange-500 mb-2" />
-              <p className="text-2xl font-bold">{memberStats.streak}</p>
-              <p className="text-xs text-muted-foreground">Day Streak</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-4">
-              <Target className="w-8 h-8 text-blue-500 mb-2" />
-              <p className="text-2xl font-bold">{memberStats.totalWorkouts}</p>
-              <p className="text-xs text-muted-foreground">Total Workouts</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-4">
-              <Calendar className="w-8 h-8 text-green-500 mb-2" />
-              <p className="text-2xl font-bold">{memberStats.last7Days}</p>
-              <p className="text-xs text-muted-foreground">Last 7 Days</p>
-            </CardContent>
-          </Card>
+          <Link href="/progress/stats">
+            <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30" data-testid="card-streak-link">
+              <CardContent className="flex flex-col items-center justify-center py-4">
+                <Flame className="w-8 h-8 text-orange-500 mb-2" />
+                <p className="text-2xl font-bold">{memberStats.streak}</p>
+                <p className="text-xs text-muted-foreground">Day Streak</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/progress/stats">
+            <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30" data-testid="card-total-link">
+              <CardContent className="flex flex-col items-center justify-center py-4">
+                <Target className="w-8 h-8 text-blue-500 mb-2" />
+                <p className="text-2xl font-bold">{memberStats.totalWorkouts}</p>
+                <p className="text-xs text-muted-foreground">Total Workouts</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/progress/stats">
+            <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30" data-testid="card-week-link">
+              <CardContent className="flex flex-col items-center justify-center py-4">
+                <Calendar className="w-8 h-8 text-green-500 mb-2" />
+                <p className="text-2xl font-bold">{memberStats.last7Days}</p>
+                <p className="text-xs text-muted-foreground">Last 7 Days</p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       )}
+
+      <MemberCalendarWidget />
 
       {memberProfile && (memberProfile.trainerName || memberProfile.cycleEndDate) && (
         <Card className="border-2 border-primary/10 bg-gradient-to-r from-primary/5 to-accent/5">
@@ -539,5 +550,130 @@ function MemberDashboard() {
         />
       </div>
     </div>
+  );
+}
+
+function MemberCalendarWidget() {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [, navigate] = useLocation();
+  
+  const monthStr = format(currentMonth, "yyyy-MM");
+  
+  const { data: calendarData = [] } = useQuery<{ date: string; title: string; count: number }[]>({
+    queryKey: ["/api/me/calendar", monthStr],
+  });
+
+  const workoutDates = new Map(calendarData.map(d => [d.date, d]));
+  
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  
+  const selectedWorkout = selectedDate ? workoutDates.get(selectedDate) : null;
+
+  const prevMonth = () => {
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(newDate.getMonth() - 1);
+    setCurrentMonth(newDate);
+  };
+
+  const nextMonth = () => {
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(newDate.getMonth() + 1);
+    setCurrentMonth(newDate);
+  };
+
+  const handleDateClick = (dateStr: string) => {
+    if (workoutDates.has(dateStr)) {
+      setSelectedDate(dateStr);
+    }
+  };
+
+  return (
+    <Card data-testid="card-calendar">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Calendar className="w-5 h-5" />
+          Workout Calendar
+        </CardTitle>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={prevMonth} data-testid="button-prev-month">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <span className="text-sm font-medium min-w-[100px] text-center">
+            {format(currentMonth, "MMMM yyyy")}
+          </span>
+          <Button variant="ghost" size="icon" onClick={nextMonth} data-testid="button-next-month">
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-7 gap-1 text-center mb-2">
+          {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(day => (
+            <div key={day} className="text-xs text-muted-foreground font-medium py-1">
+              {day}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+            <div key={`empty-${i}`} />
+          ))}
+          {days.map(day => {
+            const dateStr = format(day, "yyyy-MM-dd");
+            const hasWorkout = workoutDates.has(dateStr);
+            const isTodayDate = isToday(day);
+            
+            return (
+              <button
+                key={dateStr}
+                onClick={() => handleDateClick(dateStr)}
+                disabled={!hasWorkout}
+                className={`
+                  p-2 text-sm rounded-md transition-colors relative
+                  ${hasWorkout ? 'bg-green-500/20 text-green-700 dark:text-green-400 cursor-pointer hover:bg-green-500/30' : 'text-muted-foreground'}
+                  ${isTodayDate ? 'ring-2 ring-primary' : ''}
+                  ${!hasWorkout ? 'cursor-default' : ''}
+                `}
+                data-testid={`calendar-day-${dateStr}`}
+              >
+                {format(day, "d")}
+                {hasWorkout && (
+                  <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-green-500 rounded-full" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </CardContent>
+
+      <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Dumbbell className="w-5 h-5" />
+              Workout on {selectedDate && format(new Date(selectedDate), "MMMM d, yyyy")}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedWorkout && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="font-semibold text-lg">{selectedWorkout.title}</p>
+                <p className="text-sm text-muted-foreground">{selectedWorkout.count} exercises completed</p>
+              </div>
+              <Button 
+                className="w-full" 
+                onClick={() => navigate("/progress/workouts")}
+                data-testid="button-view-session"
+              >
+                View Full Session Details
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }

@@ -1,0 +1,88 @@
+You are working on OGym-V1. The app runs and logins work. DO NOT refactor the whole project. DO NOT break auth, gym isolation, or existing routes. Implement ONLY the missing Member Progress system described below.
+
+GOAL: Build a professional “Member Progress” experience with:
+- Progress landing page with 2 options: “My Workouts” and “View My Stats”
+- Workout session history list by date (with workout title like Chest+Shoulders)
+- Drill-down into a workout session to see exercises + allow sets/reps/weight inputs
+- Stats dashboard with muscle-group breakdown %, streak, and volume stats
+- Member Dashboard shows streak card and calendar; clicking them deep-links into Progress pages
+
+STRICT REQUIREMENTS (DO NOT SKIP):
+1) Member Progress entry:
+- In Member left sidebar, Progress should open a NEW landing page with TWO buttons/cards:
+  A) My Workouts
+  B) View My Stats
+
+2) My Workouts:
+- Show a list of past workout sessions, ordered newest first:
+  Example rows:
+    11/10/2025 – Chest + Shoulders
+    11/11/2025 – Back
+- Each session row is clickable.
+- Clicking opens a workout session details page (or modal) showing:
+  - Date
+  - Workout title/type
+  - All exercises performed
+  - For each exercise, show editable optional inputs:
+      sets (int), reps (int), weight (float), notes (string), duration_minutes (optional)
+- Member can add/edit these inputs and save.
+- Data must be stored in DB (not only UI memory).
+
+3) View My Stats:
+- Build a proper analysis page using the stored sessions + exercises:
+  - Muscle group breakdown (% of workouts by muscle group)
+  - Workouts this week and this month
+  - Streak (consecutive days with at least one workout session)
+  - If sets/reps/weight exist, show volume metrics:
+      total_sets, total_reps, total_volume (sets * reps * weight if weight exists)
+  - If duration_minutes exists, show “time spent by muscle group”; otherwise show “sessions by muscle group”
+- Must look like a clean mobile dashboard: cards + clean layout (no overlap).
+
+4) Member Dashboard changes:
+- Add a “Streak” card on main member dashboard.
+- Clicking the streak card must navigate to Progress -> Stats page.
+- Add a calendar widget (or calendar modal) on dashboard:
+  - highlight dates with workouts
+  - clicking a date shows what workout happened (title), and a link/button to open that session details
+
+5) Data model + APIs:
+- Confirm existing workout tables. If missing, add:
+  - workout_sessions: id, member_id, gym_id, session_date, title, created_at
+  - workout_exercises: id, session_id, name, muscle_group (optional), sets, reps, weight, duration_minutes, notes, created_at
+- Add API endpoints (member-protected):
+  - GET /api/me/workouts (list sessions)
+  - GET /api/me/workouts/:id (session detail)
+  - POST /api/me/workouts (create session) OR reuse existing creation if it exists
+  - PUT /api/me/workouts/:id/exercises (update sets/reps/weight/notes/duration)
+  - GET /api/me/stats (computed stats summary)
+  - GET /api/me/calendar (dates + workout titles for month)
+- Enforce: member can only access their own data, in their own gym.
+
+6) Muscle-group mapping:
+- Implement a simple mapping approach:
+  - If exercise already has muscle_group stored, use it.
+  - Else infer from exercise name using a basic mapping list:
+      chest: bench, chest press, fly
+      back: row, lat pulldown, pull-up
+      legs: squat, leg press, deadlift, lunge
+      shoulders: shoulder press, lateral raise
+      arms: curl, tricep, dip
+      core: plank, crunch
+    Fallback: Other
+- Use this mapping for percentage stats.
+
+PROCESS INSTRUCTIONS:
+A) First print:
+- Which files you will change
+- Which DB schema/migration you will add or update
+- Which routes you will add
+B) Then implement step-by-step.
+C) After implementation provide:
+- The exact UI clicks to test:
+  - Member -> Progress -> My Workouts -> open session -> edit sets/reps -> save
+  - Member -> Progress -> View My Stats
+  - Member dashboard -> click streak -> goes to stats
+  - Member dashboard -> calendar date click -> shows workout -> open session
+- Demo seed should still work.
+
+DO NOT STOP AFTER PLANNING. Implement fully and keep the app runnable.

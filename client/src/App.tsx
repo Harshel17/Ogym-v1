@@ -15,6 +15,8 @@ import PaymentsPage from "@/pages/payments-page";
 import TrainerWorkoutPage from "@/pages/trainer-workout-page";
 import MemberWorkoutPage from "@/pages/member-workout-page";
 import ProgressPage from "@/pages/progress-page";
+import WorkoutHistoryPage from "@/pages/workout-history-page";
+import StatsPage from "@/pages/stats-page";
 import RequestsPage from "@/pages/requests-page";
 import ProfilePage from "@/pages/profile-page";
 import StarMembersPage from "@/pages/star-members-page";
@@ -81,6 +83,14 @@ function Router() {
 
       <Route path="/progress">
         <ProtectedRoute component={ProgressPage} />
+      </Route>
+
+      <Route path="/progress/workouts">
+        <ProtectedRoute component={WorkoutHistoryPage} />
+      </Route>
+
+      <Route path="/progress/stats">
+        <ProtectedRoute component={StatsPage} />
       </Route>
 
       <Route path="/requests">

@@ -505,6 +505,40 @@ export async function registerRoutes(
     res.json(stats);
   });
 
+  // === MEMBER PROGRESS - GROUPED SESSIONS ===
+  app.get("/api/me/workouts", requireRole(["member"]), async (req, res) => {
+    const sessions = await storage.getMemberWorkoutSessions(req.user!.id);
+    res.json(sessions);
+  });
+
+  app.put("/api/me/workouts/exercise/:completionId", requireRole(["member"]), async (req, res) => {
+    const completionId = parseInt(req.params.completionId);
+    const schema = z.object({
+      actualSets: z.number().optional(),
+      actualReps: z.number().optional(),
+      actualWeight: z.string().optional(),
+      notes: z.string().optional()
+    });
+    const input = schema.parse(req.body);
+    
+    const updated = await storage.updateWorkoutCompletion(completionId, req.user!.id, input);
+    if (!updated) {
+      return res.status(404).json({ message: "Completion not found" });
+    }
+    res.json(updated);
+  });
+
+  app.get("/api/me/stats", requireRole(["member"]), async (req, res) => {
+    const stats = await storage.getEnhancedMemberStats(req.user!.id);
+    res.json(stats);
+  });
+
+  app.get("/api/me/calendar", requireRole(["member"]), async (req, res) => {
+    const month = req.query.month as string || new Date().toISOString().slice(0, 7);
+    const calendar = await storage.getMemberCalendar(req.user!.id, month);
+    res.json(calendar);
+  });
+
   // === MEMBER PROFILE & PROGRESS ROUTES ===
   app.get("/api/member/profile", requireRole(["member"]), async (req, res) => {
     const profile = await storage.getMemberProfile(req.user!.id);

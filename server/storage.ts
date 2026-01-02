@@ -16,7 +16,7 @@ import {
   type TransferRequest, type InsertTransferRequest
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, inArray, gte, sql, isNull } from "drizzle-orm";
+import { eq, and, desc, inArray, gte, lt, sql, isNull } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -143,6 +143,35 @@ export interface IStorage {
   
   // Workout Cycle deletion
   deleteCycle(cycleId: number): Promise<void>;
+  
+  // Member Progress - Grouped Sessions
+  getMemberWorkoutSessions(memberId: number): Promise<{
+    date: string;
+    title: string;
+    exercises: {
+      completionId: number;
+      exerciseName: string;
+      muscleType: string;
+      sets: number;
+      reps: number;
+      weight: string | null;
+      actualSets: number | null;
+      actualReps: number | null;
+      actualWeight: string | null;
+      notes: string | null;
+    }[];
+  }[]>;
+  updateWorkoutCompletion(completionId: number, memberId: number, data: { actualSets?: number; actualReps?: number; actualWeight?: string; notes?: string }): Promise<WorkoutCompletion | null>;
+  getEnhancedMemberStats(memberId: number): Promise<{
+    streak: number;
+    totalWorkouts: number;
+    last7Days: number;
+    thisMonth: number;
+    muscleGroupBreakdown: { name: string; count: number; percentage: number }[];
+    volumeStats: { totalSets: number; totalReps: number; totalVolume: number };
+    weeklyTrend: { week: string; count: number }[];
+  }>;
+  getMemberCalendar(memberId: number, month: string): Promise<{ date: string; title: string; count: number }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -922,6 +951,211 @@ export class DatabaseStorage implements IStorage {
     await db.update(workoutCycles)
       .set({ isActive: false })
       .where(eq(workoutCycles.id, cycleId));
+  }
+
+  async getMemberWorkoutSessions(memberId: number): Promise<{
+    date: string;
+    title: string;
+    exercises: {
+      completionId: number;
+      exerciseName: string;
+      muscleType: string;
+      sets: number;
+      reps: number;
+      weight: string | null;
+      actualSets: number | null;
+      actualReps: number | null;
+      actualWeight: string | null;
+      notes: string | null;
+    }[];
+  }[]> {
+    const completions = await db.select({
+      completion: workoutCompletions,
+      item: workoutItems
+    })
+    .from(workoutCompletions)
+    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .where(eq(workoutCompletions.memberId, memberId))
+    .orderBy(desc(workoutCompletions.completedDate));
+
+    // Group by date
+    const sessionMap = new Map<string, {
+      date: string;
+      title: string;
+      exercises: any[];
+    }>();
+
+    for (const { completion, item } of completions) {
+      const date = completion.completedDate;
+      if (!sessionMap.has(date)) {
+        sessionMap.set(date, {
+          date,
+          title: "",
+          exercises: []
+        });
+      }
+      const session = sessionMap.get(date)!;
+      session.exercises.push({
+        completionId: completion.id,
+        exerciseName: item.exerciseName,
+        muscleType: item.muscleType,
+        sets: item.sets,
+        reps: item.reps,
+        weight: item.weight,
+        actualSets: completion.actualSets,
+        actualReps: completion.actualReps,
+        actualWeight: completion.actualWeight,
+        notes: completion.notes
+      });
+    }
+
+    // Generate titles from muscle types
+    for (const session of sessionMap.values()) {
+      const muscleTypes = [...new Set(session.exercises.map(e => e.muscleType))];
+      session.title = muscleTypes.join(" + ") || "Workout";
+    }
+
+    return Array.from(sessionMap.values());
+  }
+
+  async updateWorkoutCompletion(completionId: number, memberId: number, data: { actualSets?: number; actualReps?: number; actualWeight?: string; notes?: string }): Promise<WorkoutCompletion | null> {
+    const [existing] = await db.select().from(workoutCompletions)
+      .where(and(eq(workoutCompletions.id, completionId), eq(workoutCompletions.memberId, memberId)));
+    
+    if (!existing) return null;
+
+    const updateData: any = {};
+    if (data.actualSets !== undefined) updateData.actualSets = data.actualSets;
+    if (data.actualReps !== undefined) updateData.actualReps = data.actualReps;
+    if (data.actualWeight !== undefined) updateData.actualWeight = data.actualWeight;
+    if (data.notes !== undefined) updateData.notes = data.notes;
+
+    const [updated] = await db.update(workoutCompletions)
+      .set(updateData)
+      .where(eq(workoutCompletions.id, completionId))
+      .returning();
+    
+    return updated;
+  }
+
+  async getEnhancedMemberStats(memberId: number): Promise<{
+    streak: number;
+    totalWorkouts: number;
+    last7Days: number;
+    thisMonth: number;
+    muscleGroupBreakdown: { name: string; count: number; percentage: number }[];
+    volumeStats: { totalSets: number; totalReps: number; totalVolume: number };
+    weeklyTrend: { week: string; count: number }[];
+  }> {
+    const completions = await db.select({
+      completion: workoutCompletions,
+      item: workoutItems
+    })
+    .from(workoutCompletions)
+    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .where(eq(workoutCompletions.memberId, memberId))
+    .orderBy(desc(workoutCompletions.completedDate));
+
+    const basicStats = await this.getMemberStats(memberId);
+    
+    const today = new Date();
+    const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+    const thisMonth = completions.filter(c => c.completion.completedDate >= thisMonthStart).length;
+
+    // Muscle group breakdown
+    const muscleMap = new Map<string, number>();
+    let totalSets = 0;
+    let totalReps = 0;
+    let totalVolume = 0;
+
+    for (const { completion, item } of completions) {
+      const muscle = item.muscleType || "Other";
+      muscleMap.set(muscle, (muscleMap.get(muscle) || 0) + 1);
+      
+      const sets = completion.actualSets || item.sets;
+      const reps = completion.actualReps || item.reps;
+      totalSets += sets;
+      totalReps += sets * reps;
+      
+      const weightStr = completion.actualWeight || item.weight;
+      if (weightStr) {
+        const weight = parseFloat(weightStr);
+        if (!isNaN(weight)) {
+          totalVolume += sets * reps * weight;
+        }
+      }
+    }
+
+    const totalExercises = completions.length;
+    const muscleGroupBreakdown = Array.from(muscleMap.entries()).map(([name, count]) => ({
+      name,
+      count,
+      percentage: totalExercises > 0 ? Math.round((count / totalExercises) * 100) : 0
+    })).sort((a, b) => b.count - a.count);
+
+    // Weekly trend (last 8 weeks)
+    const weeklyTrend: { week: string; count: number }[] = [];
+    for (let i = 7; i >= 0; i--) {
+      const weekStart = new Date(today);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay() - (i * 7));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      
+      const startStr = weekStart.toISOString().split("T")[0];
+      const endStr = weekEnd.toISOString().split("T")[0];
+      
+      const count = completions.filter(c => 
+        c.completion.completedDate >= startStr && c.completion.completedDate <= endStr
+      ).length;
+      
+      const weekLabel = `${(weekStart.getMonth() + 1)}/${weekStart.getDate()}`;
+      weeklyTrend.push({ week: weekLabel, count });
+    }
+
+    return {
+      streak: basicStats.streak,
+      totalWorkouts: basicStats.totalWorkouts,
+      last7Days: basicStats.last7Days,
+      thisMonth,
+      muscleGroupBreakdown,
+      volumeStats: { totalSets, totalReps, totalVolume: Math.round(totalVolume) },
+      weeklyTrend
+    };
+  }
+
+  async getMemberCalendar(memberId: number, month: string): Promise<{ date: string; title: string; count: number }[]> {
+    const [year, mon] = month.split("-").map(Number);
+    const startDate = `${year}-${String(mon).padStart(2, "0")}-01`;
+    const endDate = `${year}-${String(mon + 1).padStart(2, "0")}-01`;
+
+    const completions = await db.select({
+      completion: workoutCompletions,
+      item: workoutItems
+    })
+    .from(workoutCompletions)
+    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .where(and(
+      eq(workoutCompletions.memberId, memberId),
+      gte(workoutCompletions.completedDate, startDate),
+      lt(workoutCompletions.completedDate, endDate)
+    ));
+
+    const dateMap = new Map<string, { muscles: Set<string>; count: number }>();
+    for (const { completion, item } of completions) {
+      const date = completion.completedDate;
+      if (!dateMap.has(date)) {
+        dateMap.set(date, { muscles: new Set(), count: 0 });
+      }
+      const entry = dateMap.get(date)!;
+      entry.muscles.add(item.muscleType);
+      entry.count++;
+    }
+
+    return Array.from(dateMap.entries()).map(([date, { muscles, count }]) => ({
+      date,
+      title: Array.from(muscles).join(" + ") || "Workout",
+      count
+    }));
   }
 }
 
