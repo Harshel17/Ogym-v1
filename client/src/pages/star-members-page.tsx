@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Star, StarOff, Shield, TrendingUp, Dumbbell, Loader2, User } from "lucide-react";
+import { Star, StarOff, Shield, TrendingUp, Dumbbell, Loader2, User, ChevronRight } from "lucide-react";
+import { Link } from "wouter";
 
 type Member = {
   id: number;
@@ -151,8 +152,8 @@ function MemberCard({
     enabled: isStar
   });
 
-  return (
-    <Card className={isStar ? "border-yellow-500/50" : ""} data-testid={`card-member-${member.id}`}>
+  const cardContent = (
+    <Card className={`${isStar ? "border-yellow-500/50" : ""} ${isStar ? "hover-elevate cursor-pointer" : ""}`} data-testid={`card-member-${member.id}`}>
       <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${isStar ? "bg-yellow-500" : "bg-primary"}`}>
@@ -168,16 +169,19 @@ function MemberCard({
             )}
           </div>
         </div>
-        <Button
-          size="icon"
-          variant={isStar ? "default" : "outline"}
-          onClick={onToggleStar}
-          disabled={isPending}
-          className={isStar ? "bg-yellow-500 hover:bg-yellow-600" : ""}
-          data-testid={`button-toggle-star-${member.id}`}
-        >
-          {isStar ? <StarOff className="w-4 h-4" /> : <Star className="w-4 h-4" />}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="icon"
+            variant={isStar ? "default" : "outline"}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleStar(); }}
+            disabled={isPending}
+            className={isStar ? "bg-yellow-500 hover:bg-yellow-600" : ""}
+            data-testid={`button-toggle-star-${member.id}`}
+          >
+            {isStar ? <StarOff className="w-4 h-4" /> : <Star className="w-4 h-4" />}
+          </Button>
+          {isStar && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+        </div>
       </CardHeader>
       <CardContent>
         {isStar && stats?.full ? (
@@ -207,4 +211,14 @@ function MemberCard({
       </CardContent>
     </Card>
   );
+
+  if (isStar) {
+    return (
+      <Link href={`/star-members/${member.id}`} data-testid={`link-member-detail-${member.id}`}>
+        {cardContent}
+      </Link>
+    );
+  }
+
+  return cardContent;
 }

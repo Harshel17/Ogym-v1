@@ -20,6 +20,7 @@ import StatsPage from "@/pages/stats-page";
 import RequestsPage from "@/pages/requests-page";
 import ProfilePage from "@/pages/profile-page";
 import StarMembersPage from "@/pages/star-members-page";
+import StarMemberDetailPage from "@/pages/star-member-detail-page";
 import DietPlansPage from "@/pages/diet-plans-page";
 import MyDietPlanPage from "@/pages/my-diet-plan-page";
 import TransfersPage from "@/pages/transfers-page";
@@ -99,6 +100,10 @@ function Router() {
 
       <Route path="/profile">
         <ProtectedRoute component={ProfilePage} />
+      </Route>
+
+      <Route path="/star-members/:memberId">
+        <ProtectedRoute component={StarMemberDetailPage} />
       </Route>
 
       <Route path="/star-members">

@@ -1,0 +1,65 @@
+You are working on OGym-V1. App runs. Do NOT refactor the whole project. Implement ONLY the missing trainer flow.
+
+Goal:
+In TRAINER login:
+Star Members page -> clicking a starred member should open a “Star Member Detail” page where trainer can view that member’s:
+1) Workouts history (list by date + title)
+2) Workout session details (exercises + sets/reps/weight/duration/notes)
+3) Stats dashboard (muscle group %, streak, volume metrics, workouts/week/month)
+
+Access control (MUST enforce on backend):
+- Trainer can only access this detail view if:
+  a) member is assigned to that trainer AND
+  b) member is marked as STAR by that trainer AND
+  c) member belongs to the same gym_id
+Otherwise return 403.
+
+Implementation requirements:
+A) Backend endpoints (trainer-protected):
+1) GET /api/trainer/star-members
+   - returns starred members list
+2) GET /api/trainer/star-members/:memberId/workouts
+   - returns workout sessions list for that member
+3) GET /api/trainer/star-members/:memberId/workouts/:sessionId
+   - returns session details with exercises and logged inputs
+4) GET /api/trainer/star-members/:memberId/stats
+   - returns computed stats for that member (same logic used for member self stats)
+
+B) Frontend:
+1) Star Members page:
+   - make each starred member row clickable -> navigate to
+     /trainer/star-members/:memberId
+2) Create new Trainer page:
+   /trainer/star-members/:memberId
+   Layout:
+   - Top header: member name + member public_id + gym name/code
+   - Tabs or segmented control:
+     - Workouts
+     - Stats
+     - Diet Plans (optional, if already implemented)
+3) Workouts tab:
+   - show sessions list (date + title)
+   - clicking session opens details view (modal or nested route) showing exercises and sets/reps/weight inputs
+4) Stats tab:
+   - show cards: streak, workouts week/month, muscle group breakdown %, volume metrics
+   - consistent styling, mobile friendly
+
+C) Data rules:
+- Trainer view is read-only for workouts and stats.
+- If you allow editing, limit edits to adding notes only (do NOT let trainer change member logged sets unless explicitly supported).
+
+D) Query/cache:
+- Ensure clicking different members works and data loads reliably.
+- Invalidate/refetch starred members list after star toggles.
+
+Process:
+1) Print the exact files you will change.
+2) Implement backend endpoints with proper role checks.
+3) Implement the new trainer detail page and routing.
+4) Provide test instructions:
+   - login as trainer
+   - star a member
+   - open Star Members page
+   - click member -> see workouts list and stats
+   - verify non-star member access blocked (403)
+Do not stop after planning. Implement fully.

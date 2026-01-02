@@ -644,6 +644,118 @@ export async function registerRoutes(
     res.sendStatus(204);
   });
 
+  // Star member detail - get member info
+  app.get("/api/trainer/star-members/:memberId", requireRole(["trainer"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    
+    // Access control: must be assigned, starred, and same gym
+    const assignments = await storage.getTrainerMembers(req.user!.id);
+    if (!assignments.some(a => a.memberId === memberId)) {
+      return res.status(403).json({ message: "Member not assigned to you" });
+    }
+    
+    const isStar = await storage.isStarMember(req.user!.id, memberId);
+    if (!isStar) {
+      return res.status(403).json({ message: "Member is not a star member" });
+    }
+    
+    const member = await storage.getUser(memberId);
+    if (!member || member.gymId !== req.user!.gymId) {
+      return res.status(403).json({ message: "Member not in your gym" });
+    }
+    
+    const gym = await storage.getGym(req.user!.gymId!);
+    
+    res.json({
+      id: member.id,
+      username: member.username,
+      publicId: member.publicId,
+      gymName: gym?.name || null,
+      gymCode: gym?.code || null
+    });
+  });
+
+  // Star member detail - get workout sessions
+  app.get("/api/trainer/star-members/:memberId/workouts", requireRole(["trainer"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    
+    // Access control
+    const assignments = await storage.getTrainerMembers(req.user!.id);
+    if (!assignments.some(a => a.memberId === memberId)) {
+      return res.status(403).json({ message: "Member not assigned to you" });
+    }
+    
+    const isStar = await storage.isStarMember(req.user!.id, memberId);
+    if (!isStar) {
+      return res.status(403).json({ message: "Member is not a star member" });
+    }
+    
+    const member = await storage.getUser(memberId);
+    if (!member || member.gymId !== req.user!.gymId) {
+      return res.status(403).json({ message: "Member not in your gym" });
+    }
+    
+    const sessions = await storage.getMemberWorkoutSessions(memberId);
+    res.json(sessions);
+  });
+
+  // Star member detail - get specific workout session
+  app.get("/api/trainer/star-members/:memberId/workouts/:date", requireRole(["trainer"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    const { date } = req.params;
+    
+    // Access control
+    const assignments = await storage.getTrainerMembers(req.user!.id);
+    if (!assignments.some(a => a.memberId === memberId)) {
+      return res.status(403).json({ message: "Member not assigned to you" });
+    }
+    
+    const isStar = await storage.isStarMember(req.user!.id, memberId);
+    if (!isStar) {
+      return res.status(403).json({ message: "Member is not a star member" });
+    }
+    
+    const member = await storage.getUser(memberId);
+    if (!member || member.gymId !== req.user!.gymId) {
+      return res.status(403).json({ message: "Member not in your gym" });
+    }
+    
+    const sessions = await storage.getMemberWorkoutSessions(memberId);
+    const session = sessions.find(s => s.date === date);
+    
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+    
+    res.json(session);
+  });
+
+  // Star member detail - get stats
+  app.get("/api/trainer/star-members/:memberId/stats", requireRole(["trainer"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    
+    // Access control
+    const assignments = await storage.getTrainerMembers(req.user!.id);
+    if (!assignments.some(a => a.memberId === memberId)) {
+      return res.status(403).json({ message: "Member not assigned to you" });
+    }
+    
+    const isStar = await storage.isStarMember(req.user!.id, memberId);
+    if (!isStar) {
+      return res.status(403).json({ message: "Member is not a star member" });
+    }
+    
+    const member = await storage.getUser(memberId);
+    if (!member || member.gymId !== req.user!.gymId) {
+      return res.status(403).json({ message: "Member not in your gym" });
+    }
+    
+    const stats = await storage.getEnhancedMemberStats(memberId);
+    const progress = await storage.getMemberProgress(memberId);
+    
+    res.json({ stats, progress });
+  });
+
   app.get("/api/trainer/members/:memberId/stats", requireRole(["trainer"]), async (req, res) => {
     const memberId = parseInt(req.params.memberId);
     const isStar = await storage.isStarMember(req.user!.id, memberId);
