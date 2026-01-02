@@ -1,0 +1,155 @@
+You are working on OGym-V1 (multi-gym B2B app with roles Owner / Trainer / Member). The app currently runs and demo logins work. DO NOT BREAK existing auth, gym isolation, attendance, or current pages. Keep it stable and professional.
+
+HIGH-LEVEL GOAL:
+Implement “Profiles + Progress + Trainer Star Members + Diet Plans + Gym Transfer Requests”, with a mobile-app quality UX.
+
+IMPORTANT RULES:
+- Do NOT remove existing functionality unless explicitly requested.
+- Enforce strict tenant isolation: users only access data for their gym_id.
+- Role rules:
+  - Member: only self data
+  - Trainer: only assigned members in same gym
+  - Owner: all members/trainers in own gym
+- Build this in a clean, scalable way: DB schema updates + backend endpoints + frontend pages.
+- Make minimal UI disruption: preserve sidebar/nav patterns but adjust per-role tabs.
+- After each section, keep the app runnable.
+
+PHASED IMPLEMENTATION (MUST FOLLOW THIS ORDER):
+Phase 0 — Inspection + Plan
+1) Identify the authoritative backend: (FastAPI backend folder vs Node/Express server folder). Use ONLY ONE backend as the source of truth (don’t duplicate logic).
+2) Print a short plan and list exact files you will change.
+
+Phase 1 — Unique Public IDs + Profile Pages
+A) Unique ID generation:
+- On user creation (member/trainer/owner), generate a unique human-friendly public_id (example: MEM-7F2K9, TRN-41AD2, OWN-99QW1).
+- public_id must be unique across all users.
+- Store it in DB.
+- Show public_id in Profile pages.
+
+B) Member Profile Page:
+- When a MEMBER clicks left sidebar “My Profile”, route to a NEW page.
+- Show:
+  - public_id
+  - name
+  - email
+  - phone number (add field if missing)
+  - current gym info (gym name + gym code)
+  - gym history (for now, show a list/table: gym_id, joined_at, left_at; later used for transfers)
+  - assigned trainer info (trainer name + trainer public_id)
+
+C) Trainer Profile Page:
+- When TRAINER clicks “My Profile”, show:
+  - trainer public_id
+  - name/email/phone
+  - gym info
+  - total members assigned to trainer
+  - total “star members” assigned to trainer
+  - list of assigned members with quick view
+
+D) Owner View Member Profile:
+- In OWNER -> Members list: clicking a member opens a detail view page showing:
+  - member profile data (same as member sees)
+  - workouts history
+  - stats
+  - gym history
+  - transfer status (if any)
+
+Phase 2 — Member Progress System (Workouts + Stats + Streak + Calendar)
+A) Member “Progress” page structure:
+- Add “Progress” section with 2 tabs/buttons:
+  1) My Workouts
+  2) View My Stats
+
+B) My Workouts requirements:
+- Show a list of workout sessions by date, like:
+  - 11/10/2025 – Chest + Shoulders
+  - 11/11/2025 – Back
+- Clicking a session opens session details:
+  - list of exercises performed
+  - optional sets/reps/weight fields if entered
+- Member can log sets/reps/weight (optional) for each exercise in a session.
+
+C) Stats requirements:
+- Based on workout logs + cycle/exercise categories:
+  - show breakdown % by muscle group (chest/back/legs/shoulders/arms/core)
+  - total workouts this week/month
+  - total minutes (if tracked) OR total sessions
+  - if sets/reps/weight exist, show volume stats (e.g., total sets, total reps, estimated volume)
+- Must look like a clean mobile dashboard (cards + charts if available).
+
+D) Dashboard improvements (Member):
+- Show workout streak on main dashboard.
+- Clicking streak or stats card should deep-link into Progress -> Stats.
+- Add a small calendar (or calendar modal) showing workout days; clicking a date shows “You did X workout on this day”.
+
+Phase 3 — Trainer Features (Star Members + Diet Plans + Remove Payments Tab)
+A) Trainer sidebar changes:
+- Remove “Payments” tab from TRAINER role UI only.
+
+B) Trainer Members page:
+- Add ability for trainer to mark/unmark “Star Member” among their assigned members.
+- Star members list should be visible in trainer UI.
+
+C) Trainer access to member stats:
+- Trainer can view full stats/workout details ONLY for star members.
+- For non-star members, trainer sees limited summary only.
+
+D) Diet Plan feature:
+- Add “Diet Plans” page in Trainer UI.
+- Trainer can create diet plans for star members:
+  - plan has title, duration, daily meals, notes
+  - store structured plan (not just plain text)
+- Star member can view diet plans assigned to them in Member UI.
+
+Phase 4 — Workout Cycles Improvements
+- In workouts/cycles management, add option to delete a workout cycle safely.
+- Ensure deletion does not break existing logs (either prevent deletion if logs exist OR soft delete).
+
+Phase 5 — Gym Transfer Requests (Member initiated + dual owner approval)
+A) Member initiated transfer:
+- In Member Profile page, add “Transfer Gym” action.
+- Member enters destination gym code and submits request.
+
+B) Approval flow:
+- Transfer request must be approved by:
+  1) current gym owner
+  2) destination gym owner
+- Only after BOTH approve, member is moved to new gym:
+  - update member.gym_id
+  - append gym_history record (left_at old gym, joined_at new gym)
+  - keep workout history intact
+  - update trainer assignment appropriately (set to null OR require new gym trainer assignment)
+
+C) Owner UI:
+- Both owners should have “Transfer Requests” section where they can approve/deny.
+- Show pending transfer requests with member details and destination gym.
+
+TECHNICAL REQUIREMENTS:
+- DB schema updates needed:
+  - users: add public_id, phone, etc
+  - gym_history: member_id, gym_id, joined_at, left_at
+  - workout_sessions: member_id, gym_id, date, title/type, duration(optional)
+  - workout_exercises: session_id, name, sets(optional), reps(optional), weight(optional)
+  - muscle_group mapping for stats (either in exercise metadata or a lookup)
+  - trainer_star_members: trainer_id, member_id, gym_id, unique constraint
+  - diet_plans + diet_plan_items
+  - transfer_requests: member_id, from_gym_id, to_gym_id, status, approved_by_from_owner, approved_by_to_owner, created_at
+
+- Create/Update APIs for all features with auth checks.
+- Add indexes (gym_id, member_id, trainer_id, created_at).
+- Keep seed/demo users working; ensure they get public_id too.
+
+DELIVERABLES:
+1) Implement all phases with clean, readable code.
+2) Provide exact run commands.
+3) Provide a QA checklist for each role:
+   - Member profile + progress + diet plan view + transfer request
+   - Trainer star members + view stats + diet plans
+   - Owner member detail view + transfer approvals
+
+IMPORTANT:
+Before coding, output:
+- A brief plan
+- Which backend you are using
+- The list of files you will modify
+Then proceed step-by-step, keeping the app runnable.
