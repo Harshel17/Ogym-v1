@@ -1420,6 +1420,174 @@ export async function registerRoutes(
     res.json(prefs);
   });
 
+  // === GYM REQUESTS (Owner Onboarding) ===
+  // Owner creates a gym request
+  app.post("/api/gym-requests", requireAuth, async (req, res) => {
+    try {
+      if (req.user!.role !== "owner") {
+        return res.status(403).json({ message: "Only owners can create gym requests" });
+      }
+      if (req.user!.gymId) {
+        return res.status(400).json({ message: "You already have a gym" });
+      }
+      
+      const existingRequest = await storage.getGymRequestByOwner(req.user!.id);
+      if (existingRequest && existingRequest.status === "pending") {
+        return res.status(400).json({ message: "You already have a pending request" });
+      }
+      
+      const schema = z.object({
+        gymName: z.string().min(1),
+        phone: z.string().optional(),
+        address: z.string().optional(),
+        pointOfContactName: z.string().optional(),
+        pointOfContactEmail: z.string().email().optional().or(z.literal(""))
+      });
+      const input = schema.parse(req.body);
+      
+      const request = await storage.createGymRequest({
+        ownerUserId: req.user!.id,
+        gymName: input.gymName,
+        phone: input.phone || null,
+        address: input.address || null,
+        pointOfContactName: input.pointOfContactName || null,
+        pointOfContactEmail: input.pointOfContactEmail || null
+      });
+      
+      res.status(201).json(request);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create gym request" });
+    }
+  });
+  
+  // Owner gets their gym request status
+  app.get("/api/gym-requests/my", requireAuth, async (req, res) => {
+    const request = await storage.getGymRequestByOwner(req.user!.id);
+    res.json(request || null);
+  });
+  
+  // Admin gets all pending gym requests
+  app.get("/api/admin/gym-requests", requireAuth, async (req, res) => {
+    // For now, we'll allow owners to be admins. In production, add proper admin role.
+    if (req.user!.role !== "owner") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    const requests = await storage.getPendingGymRequests();
+    res.json(requests);
+  });
+  
+  // Admin approves a gym request
+  app.post("/api/admin/gym-requests/:id/approve", requireAuth, async (req, res) => {
+    if (req.user!.role !== "owner") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    try {
+      const requestId = parseInt(req.params.id);
+      const result = await storage.approveGymRequest(requestId);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to approve request" });
+    }
+  });
+  
+  // Admin rejects a gym request
+  app.post("/api/admin/gym-requests/:id/reject", requireAuth, async (req, res) => {
+    if (req.user!.role !== "owner") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    try {
+      const requestId = parseInt(req.params.id);
+      const { adminNotes } = req.body;
+      const result = await storage.rejectGymRequest(requestId, adminNotes || "");
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to reject request" });
+    }
+  });
+  
+  // === JOIN REQUESTS (Trainer/Member joining gym) ===
+  // User submits a join request
+  app.post("/api/join-requests", requireAuth, async (req, res) => {
+    try {
+      if (req.user!.gymId) {
+        return res.status(400).json({ message: "You already belong to a gym" });
+      }
+      
+      const existingRequest = await storage.getJoinRequestByUser(req.user!.id);
+      if (existingRequest && existingRequest.status === "pending") {
+        return res.status(400).json({ message: "You already have a pending request" });
+      }
+      
+      const schema = z.object({
+        gymCode: z.string().min(1)
+      });
+      const input = schema.parse(req.body);
+      
+      const gym = await storage.getGymByCode(input.gymCode.toUpperCase());
+      if (!gym) {
+        return res.status(400).json({ message: "Invalid gym code" });
+      }
+      
+      const request = await storage.createJoinRequest({
+        userId: req.user!.id,
+        gymId: gym.id
+      });
+      
+      res.status(201).json({ ...request, gymName: gym.name, gymCode: gym.code });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create join request" });
+    }
+  });
+  
+  // User gets their join request status
+  app.get("/api/join-requests/my", requireAuth, async (req, res) => {
+    const request = await storage.getJoinRequestByUser(req.user!.id);
+    res.json(request || null);
+  });
+  
+  // Owner gets pending join requests for their gym
+  app.get("/api/owner/join-requests", requireAuth, async (req, res) => {
+    if (req.user!.role !== "owner" || !req.user!.gymId) {
+      return res.status(403).json({ message: "Owner access required" });
+    }
+    const requests = await storage.getPendingJoinRequestsForGym(req.user!.gymId);
+    res.json(requests);
+  });
+  
+  // Owner approves a join request
+  app.post("/api/owner/join-requests/:id/approve", requireAuth, async (req, res) => {
+    if (req.user!.role !== "owner" || !req.user!.gymId) {
+      return res.status(403).json({ message: "Owner access required" });
+    }
+    try {
+      const requestId = parseInt(req.params.id);
+      const result = await storage.approveJoinRequest(requestId);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to approve request" });
+    }
+  });
+  
+  // Owner rejects a join request
+  app.post("/api/owner/join-requests/:id/reject", requireAuth, async (req, res) => {
+    if (req.user!.role !== "owner" || !req.user!.gymId) {
+      return res.status(403).json({ message: "Owner access required" });
+    }
+    try {
+      const requestId = parseInt(req.params.id);
+      const result = await storage.rejectJoinRequest(requestId);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to reject request" });
+    }
+  });
+
   await seedDemoData();
   return httpServer;
 }
