@@ -260,6 +260,38 @@ export interface IStorage {
   }[]>;
   
   updateWorkoutSessionExercise(exerciseId: number, gymId: number, memberId: number, data: { sets?: number; reps?: number; weight?: string; notes?: string }): Promise<WorkoutSessionExercise | null>;
+  
+  // Cycle Schedule - Full cycle with planned + completed merged
+  getCycleSchedule(gymId: number, memberId: number): Promise<{
+    cycleId: number | null;
+    cycleName: string | null;
+    cycleLength: number;
+    startDate: string | null;
+    endDate: string | null;
+    schedule: {
+      date: string;
+      dayIndex: number;
+      dayLabel: string;
+      status: "done" | "in_progress" | "not_started" | "rest_day";
+      isManuallyCompleted: boolean;
+      completedExercises: number;
+      totalExercises: number;
+      sessionId: number | null;
+    }[];
+  }>;
+  
+  // Mark day done (partial completion)
+  markDayDone(gymId: number, memberId: number, date: string): Promise<{ success: boolean; sessionId: number }>;
+  
+  // Missed workouts
+  getMissedWorkouts(gymId: number, memberId: number, from?: string, to?: string): Promise<{
+    date: string;
+    dayLabel: string;
+    completedCount: number;
+    totalCount: number;
+    status: "missed" | "partial";
+    missedExercises: string[];
+  }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -488,18 +520,24 @@ export class DatabaseStorage implements IStorage {
       .where(eq(workoutCompletions.memberId, memberId))
       .orderBy(desc(workoutCompletions.completedDate));
     
-    const totalWorkouts = allCompletions.length;
-    
     const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
-    const last7Days = allCompletions.filter(c => c.completedDate >= sevenDaysAgoStr).length;
+    
+    // FIX: Count UNIQUE DATES, not individual exercise completions
+    const uniqueDates = Array.from(new Set(allCompletions.map(c => c.completedDate))).sort().reverse();
+    const totalWorkouts = uniqueDates.length; // Count unique days, not exercises
+    
+    // FIX: Count unique dates in last 7 days
+    const last7DaysDates = uniqueDates.filter(d => d >= sevenDaysAgoStr);
+    const last7Days = last7DaysDates.length; // Count unique days
+    
+    // Debug logging (temporary - can be removed after verification)
+    console.log(`[getMemberStats] memberId=${memberId}, uniqueDates=${JSON.stringify(uniqueDates.slice(0, 10))}, last7DaysDates=${JSON.stringify(last7DaysDates)}`);
     
     let streak = 0;
-    const uniqueDates = Array.from(new Set(allCompletions.map(c => c.completedDate))).sort().reverse();
-    
     if (uniqueDates.length > 0) {
-      const todayStr = today.toISOString().split("T")[0];
       const yesterdayStr = new Date(today.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
       
       if (uniqueDates[0] === todayStr || uniqueDates[0] === yesterdayStr) {
@@ -1784,9 +1822,12 @@ export class DatabaseStorage implements IStorage {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const monthStart = today.slice(0, 7) + '-01';
     
+    // Get unique dates (workout_sessions already has unique constraint per gym+member+date)
+    const uniqueDates = Array.from(new Set(sessions.map(s => s.date))).sort().reverse();
+    
     // Calculate streak
     let streak = 0;
-    const sessionDates = new Set(sessions.map(s => s.date));
+    const sessionDates = new Set(uniqueDates);
     let checkDate = new Date(today);
     
     // If no workout today, start from yesterday
@@ -1799,9 +1840,12 @@ export class DatabaseStorage implements IStorage {
       checkDate.setDate(checkDate.getDate() - 1);
     }
     
-    // Calculate counts
-    const last7DaysCount = sessions.filter(s => s.date >= sevenDaysAgo).length;
-    const thisMonthCount = sessions.filter(s => s.date >= monthStart).length;
+    // Calculate counts using unique dates
+    const last7DaysDates = uniqueDates.filter(d => d >= sevenDaysAgo);
+    const thisMonthDates = uniqueDates.filter(d => d >= monthStart);
+    
+    // Debug logging (temporary)
+    console.log(`[getMemberWorkoutSummary] memberId=${memberId}, uniqueDates=${JSON.stringify(uniqueDates.slice(0, 10))}, last7Days=${JSON.stringify(last7DaysDates)}, thisMonth=${JSON.stringify(thisMonthDates)}`);
     
     // Calendar days (last 90 days for display)
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -1811,9 +1855,9 @@ export class DatabaseStorage implements IStorage {
     
     return {
       streak,
-      totalWorkouts: sessions.length,
-      last7DaysCount,
-      thisMonthCount,
+      totalWorkouts: uniqueDates.length,
+      last7DaysCount: last7DaysDates.length,
+      thisMonthCount: thisMonthDates.length,
       calendarDays
     };
   }
@@ -1866,6 +1910,225 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return updated;
+  }
+
+  async getCycleSchedule(gymId: number, memberId: number): Promise<{
+    cycleId: number | null;
+    cycleName: string | null;
+    cycleLength: number;
+    startDate: string | null;
+    endDate: string | null;
+    schedule: {
+      date: string;
+      dayIndex: number;
+      dayLabel: string;
+      status: "done" | "in_progress" | "not_started" | "rest_day";
+      isManuallyCompleted: boolean;
+      completedExercises: number;
+      totalExercises: number;
+      sessionId: number | null;
+    }[];
+  }> {
+    const cycle = await this.getMemberCycle(memberId);
+    if (!cycle) {
+      return { cycleId: null, cycleName: null, cycleLength: 0, startDate: null, endDate: null, schedule: [] };
+    }
+
+    const items = await this.getWorkoutItems(cycle.id);
+    const sessions = await db.select().from(workoutSessions)
+      .where(and(eq(workoutSessions.gymId, gymId), eq(workoutSessions.memberId, memberId)));
+    
+    // Get exercises for each session
+    const sessionExerciseCounts: Record<number, number> = {};
+    for (const session of sessions) {
+      const exercises = await db.select().from(workoutSessionExercises)
+        .where(eq(workoutSessionExercises.sessionId, session.id));
+      sessionExerciseCounts[session.id] = exercises.length;
+    }
+    
+    // Build session map by date
+    const sessionsByDate: Record<string, typeof sessions[0]> = {};
+    for (const s of sessions) {
+      sessionsByDate[s.date] = s;
+    }
+    
+    // Get items grouped by dayIndex
+    const itemsByDay: Record<number, typeof items> = {};
+    for (const item of items) {
+      if (!itemsByDay[item.dayIndex]) {
+        itemsByDay[item.dayIndex] = [];
+      }
+      itemsByDay[item.dayIndex].push(item);
+    }
+    
+    // Generate schedule from startDate to today (or endDate if past)
+    const today = new Date().toISOString().split('T')[0];
+    const startDate = new Date(cycle.startDate);
+    const endDate = new Date(Math.min(new Date(cycle.endDate).getTime(), new Date(today).getTime()));
+    
+    const schedule: {
+      date: string;
+      dayIndex: number;
+      dayLabel: string;
+      status: "done" | "in_progress" | "not_started" | "rest_day";
+      isManuallyCompleted: boolean;
+      completedExercises: number;
+      totalExercises: number;
+      sessionId: number | null;
+    }[] = [];
+    
+    let currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const daysSinceStart = Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const dayIndex = daysSinceStart % cycle.cycleLength;
+      const dayLabel = cycle.dayLabels?.[dayIndex] || `Day ${dayIndex + 1}`;
+      const isRestDay = dayLabel.toLowerCase().includes("rest");
+      
+      const session = sessionsByDate[dateStr];
+      const totalExercises = itemsByDay[dayIndex]?.length || 0;
+      const completedExercises = session ? (sessionExerciseCounts[session.id] || 0) : 0;
+      const isManuallyCompleted = session?.isManuallyCompleted || false;
+      
+      let status: "done" | "in_progress" | "not_started" | "rest_day";
+      if (isRestDay) {
+        status = "rest_day";
+      } else if (isManuallyCompleted || (completedExercises >= totalExercises && totalExercises > 0)) {
+        status = "done";
+      } else if (completedExercises > 0) {
+        status = "in_progress";
+      } else {
+        status = "not_started";
+      }
+      
+      schedule.push({
+        date: dateStr,
+        dayIndex,
+        dayLabel,
+        status,
+        isManuallyCompleted,
+        completedExercises,
+        totalExercises,
+        sessionId: session?.id || null
+      });
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Return in reverse chronological order (most recent first)
+    return {
+      cycleId: cycle.id,
+      cycleName: cycle.name,
+      cycleLength: cycle.cycleLength,
+      startDate: cycle.startDate,
+      endDate: cycle.endDate,
+      schedule: schedule.reverse()
+    };
+  }
+
+  async markDayDone(gymId: number, memberId: number, date: string): Promise<{ success: boolean; sessionId: number }> {
+    const cycle = await this.getMemberCycle(memberId);
+    if (!cycle) {
+      throw new Error("No active cycle found");
+    }
+    
+    // Calculate dayIndex for this date
+    const startDate = new Date(cycle.startDate);
+    const targetDate = new Date(date);
+    const daysSinceStart = Math.floor((targetDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const dayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    const dayLabel = cycle.dayLabels?.[dayIndex] || `Day ${dayIndex + 1}`;
+    
+    // Check for existing session
+    let session = await this.getWorkoutSessionByMemberDate(gymId, memberId, date);
+    
+    if (session) {
+      // Update existing session to mark as done
+      const [updated] = await db.update(workoutSessions)
+        .set({ isManuallyCompleted: true, completedAt: new Date() })
+        .where(eq(workoutSessions.id, session.id))
+        .returning();
+      return { success: true, sessionId: updated.id };
+    } else {
+      // Create new session with manual completion
+      const [newSession] = await db.insert(workoutSessions).values({
+        gymId,
+        memberId,
+        date,
+        cycleId: cycle.id,
+        cycleDayIndex: dayIndex,
+        focusLabel: dayLabel,
+        isManuallyCompleted: true,
+        completedAt: new Date()
+      }).returning();
+      return { success: true, sessionId: newSession.id };
+    }
+  }
+
+  async getMissedWorkouts(gymId: number, memberId: number, from?: string, to?: string): Promise<{
+    date: string;
+    dayLabel: string;
+    completedCount: number;
+    totalCount: number;
+    status: "missed" | "partial";
+    missedExercises: string[];
+  }[]> {
+    const scheduleData = await this.getCycleSchedule(gymId, memberId);
+    if (!scheduleData.cycleId) {
+      return [];
+    }
+    
+    const items = await this.getWorkoutItems(scheduleData.cycleId);
+    const itemsByDay: Record<number, string[]> = {};
+    for (const item of items) {
+      if (!itemsByDay[item.dayIndex]) {
+        itemsByDay[item.dayIndex] = [];
+      }
+      itemsByDay[item.dayIndex].push(item.exerciseName);
+    }
+    
+    const today = new Date().toISOString().split('T')[0];
+    const missed: {
+      date: string;
+      dayLabel: string;
+      completedCount: number;
+      totalCount: number;
+      status: "missed" | "partial";
+      missedExercises: string[];
+    }[] = [];
+    
+    for (const day of scheduleData.schedule) {
+      // Skip future dates, rest days, and completed days
+      if (day.date >= today) continue;
+      if (day.status === "rest_day") continue;
+      if (day.status === "done") continue;
+      
+      // Apply date filters
+      if (from && day.date < from) continue;
+      if (to && day.date > to) continue;
+      
+      // Get completed exercise names for this day
+      let completedExerciseNames: string[] = [];
+      if (day.sessionId) {
+        const exercises = await db.select().from(workoutSessionExercises)
+          .where(eq(workoutSessionExercises.sessionId, day.sessionId));
+        completedExerciseNames = exercises.map(e => e.exerciseName);
+      }
+      
+      const allExercises = itemsByDay[day.dayIndex] || [];
+      const missedExercises = allExercises.filter(e => !completedExerciseNames.includes(e));
+      
+      missed.push({
+        date: day.date,
+        dayLabel: day.dayLabel,
+        completedCount: day.completedExercises,
+        totalCount: day.totalExercises,
+        status: day.completedExercises === 0 ? "missed" : "partial",
+        missedExercises
+      });
+    }
+    
+    return missed;
   }
 }
 

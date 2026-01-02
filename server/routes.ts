@@ -825,7 +825,7 @@ export async function registerRoutes(
     }
     
     // Return full session with exercises
-    const fullSession = await storage.getWorkoutSession(session.id);
+    const fullSession = await storage.getWorkoutSession(req.user!.gymId!, session.id);
     res.status(201).json(fullSession);
   });
 
@@ -861,6 +861,36 @@ export async function registerRoutes(
     }
     
     res.json(updated);
+  });
+
+  // Get full cycle schedule with planned + completed merged
+  app.get("/api/member/workout/schedule", requireRole(["member"]), async (req, res) => {
+    const schedule = await storage.getCycleSchedule(req.user!.gymId!, req.user!.id);
+    res.json(schedule);
+  });
+
+  // Mark a workout day as done (even with partial completion)
+  app.post("/api/member/workout/day/:date/mark-done", requireRole(["member"]), async (req, res) => {
+    const date = req.params.date;
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD" });
+    }
+    
+    try {
+      const result = await storage.markDayDone(req.user!.gymId!, req.user!.id, date);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Get missed workouts
+  app.get("/api/member/workout/missed", requireRole(["member"]), async (req, res) => {
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+    const missed = await storage.getMissedWorkouts(req.user!.gymId!, req.user!.id, from, to);
+    res.json(missed);
   });
 
   // === MEMBER PROFILE & PROGRESS ROUTES ===

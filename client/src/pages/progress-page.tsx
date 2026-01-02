@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dumbbell, BarChart3, Shield, ChevronRight } from "lucide-react";
+import { Dumbbell, BarChart3, Shield, ChevronRight, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
 
 export default function ProgressPage() {
@@ -64,6 +64,28 @@ export default function ProgressPage() {
             <CardContent>
               <Button variant="outline" className="w-full" data-testid="button-view-stats">
                 View Statistics
+              </Button>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/progress/missed">
+          <Card className="cursor-pointer transition-all hover:shadow-lg hover:border-red-500/50 h-full" data-testid="card-missed-workouts">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-3 bg-red-500/10 rounded-lg">
+                  <AlertCircle className="w-8 h-8 text-red-500" />
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Missed Workouts</CardTitle>
+              <CardDescription>
+                Track which workout days you skipped or missed from your cycle.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full" data-testid="button-view-missed">
+                View Missed Days
               </Button>
             </CardContent>
           </Card>

@@ -24,6 +24,7 @@ import StarMemberDetailPage from "@/pages/star-member-detail-page";
 import DietPlansPage from "@/pages/diet-plans-page";
 import MyDietPlanPage from "@/pages/my-diet-plan-page";
 import TransfersPage from "@/pages/transfers-page";
+import MissedWorkoutsPage from "@/pages/missed-workouts-page";
 import OwnerAttendancePage from "@/pages/owner-attendance-page";
 import OwnerMemberDetailPage from "@/pages/owner-member-detail-page";
 import OwnerAnnouncementsPage from "@/pages/owner-announcements-page";
@@ -96,6 +97,10 @@ function Router() {
 
       <Route path="/progress/stats">
         <ProtectedRoute component={StatsPage} />
+      </Route>
+
+      <Route path="/progress/missed">
+        <ProtectedRoute component={MissedWorkoutsPage} />
       </Route>
 
       <Route path="/requests">
