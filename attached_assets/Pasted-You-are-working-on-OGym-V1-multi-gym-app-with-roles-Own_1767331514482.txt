@@ -1,0 +1,174 @@
+You are working on OGym V1 (multi-gym app with roles Owner/Trainer/Member).
+Right now it runs as a web dashboard. I want you to convert it into a proper native mobile app experience with a modern UI and better graphics, WITHOUT changing any login logic or backend/core business logic.
+
+Hard Rules (DO NOT BREAK)
+
+Do not change authentication, signup, login API behavior, JWT/session logic, or role checks.
+
+Do not change backend routes, database schema, or multi-gym isolation logic.
+
+Do not rename existing endpoints or remove existing features.
+
+Only refactor UI / routing / layout / styling to be mobile-native.
+
+1) Target: Native App (Mobile-first)
+
+Convert the frontend to a mobile app structure using ONE of these:
+
+If the repo already contains a mobile/ folder or React Native setup → use that.
+
+If not, create a React Native + Expo app inside /mobile that consumes the same backend APIs.
+
+The mobile app must support:
+
+Owner, Trainer, Member logins
+
+Role-based navigation (each role sees only their tabs)
+
+Existing pages/features mapped into mobile screens
+
+2) UX / Navigation (Native patterns)
+
+Replace sidebar layout with bottom tab navigation + stack navigation:
+
+Member Tabs
+
+Home
+
+My Workout
+
+Progress
+
+Requests
+
+Profile
+
+Trainer Tabs
+
+Home
+
+Members
+
+Star Members
+
+Diet Plans
+
+Profile
+
+Owner Tabs
+
+Home
+
+Trainers
+
+Members
+
+Attendance
+
+Payments
+
+Announcements
+
+Profile
+
+Use a stack navigator for drilldowns:
+
+Member detail
+
+Workout detail
+
+Stats detail
+
+Attendance analytics
+
+3) UI Design Requirements (Advanced, professional)
+
+Make it look like a premium mobile product:
+
+Clean modern typography, consistent spacing, rounded cards
+
+Real mobile padding (safe area, notch support)
+
+Smooth animations (screen transitions, expanding cards)
+
+Modern icons (Ionicons / Lucide)
+
+Better charts (native chart library) for stats/trends
+
+“Glass” or gradient header sections (light theme)
+
+Maintain fast performance (no heavy over-rendering)
+
+Add these visual upgrades:
+
+A role-based “Welcome header” with avatar + gym name + quick actions
+
+Skeleton loaders for network calls
+
+Empty states with illustrations/icons
+
+Toast notifications for success/failure
+
+Pull-to-refresh on lists
+
+4) Keep API the same (important)
+
+The mobile frontend must call the same endpoints currently used by the web app.
+
+Create a clean API layer:
+
+mobile/src/api/client.ts (base URL + auth token handling)
+
+mobile/src/api/* modules (members, workouts, attendance, payments, announcements)
+
+Use environment config:
+
+EXPO_PUBLIC_API_URL for backend URL
+
+5) Pages mapping (UI only)
+
+Recreate these screens using mobile components:
+
+Member
+
+Dashboard → “Home” screen with cards (streak, total workouts, calendar)
+
+Progress → “Progress” screen with stats + charts
+
+Workout history/detail screens
+
+Requests + Transfers pages
+
+Profile page with unique ID, gym, trainer, history
+
+Trainer
+
+Members list + star toggle UI
+
+Star member detail → view member workout history + stats + diet plans
+
+Trainer profile
+
+Owner
+
+Dashboard → KPI cards + trend charts
+
+Attendance analytics → date filter + checked-in/not checked-in list
+
+Payments → INR formatting + plan duration + dues/partial/paid + alerts
+
+Announcements → create + target audience + list history
+
+All screens must match mobile patterns and not look like a desktop site.
+
+6) Output expectations
+
+After implementing:
+
+Provide instructions to run the mobile app locally (Expo).
+
+Confirm logins still work and roles show correct navigation.
+
+List which folders/files were added/changed.
+
+Ensure the web app still runs (do not delete it) — mobile is an additional client.
