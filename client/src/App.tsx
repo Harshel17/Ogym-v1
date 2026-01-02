@@ -32,10 +32,12 @@ import AnnouncementsPage from "@/pages/announcements-page";
 import GymRequestPage from "@/pages/gym-request-page";
 import JoinGymPage from "@/pages/join-gym-page";
 import OwnerJoinRequestsPage from "@/pages/owner-join-requests-page";
+import AdminGymRequestsPage from "@/pages/admin-gym-requests-page";
+import PendingApprovalPage from "@/pages/pending-approval-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function ProtectedRoute({ component: Component, allowWithoutGym = false }: { component: React.ComponentType; allowWithoutGym?: boolean }) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -48,6 +50,11 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
   if (!user) {
     return <Redirect to="/auth" />;
+  }
+
+  // Redirect users without gym to pending approval page (except for specific allowed routes)
+  if (!user.gymId && !allowWithoutGym) {
+    return <PendingApprovalPage />;
   }
 
   return (
@@ -160,6 +167,10 @@ function Router() {
 
       <Route path="/owner/join-requests">
         <ProtectedRoute component={OwnerJoinRequestsPage} />
+      </Route>
+
+      <Route path="/admin/gym-requests">
+        <ProtectedRoute component={AdminGymRequestsPage} />
       </Route>
 
       <Route component={NotFound} />

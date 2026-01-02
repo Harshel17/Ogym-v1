@@ -94,9 +94,12 @@ function useRegisterMutation() {
     },
     onSuccess: (user) => {
       queryClient.setQueryData(["/api/auth/me"], user);
+      const isPending = user.pendingGymRequest || user.pendingJoinRequest;
       toast({
-        title: "Welcome to OGym!",
-        description: `Account created successfully.`,
+        title: isPending ? "Request Submitted!" : "Welcome to OGym!",
+        description: isPending 
+          ? "Your request has been submitted and is pending approval."
+          : "Account created successfully.",
       });
     },
     onError: (error: Error) => {

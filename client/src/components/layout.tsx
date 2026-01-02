@@ -133,16 +133,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       visible: isOwner && !!user.gymId
     },
     { 
-      label: "Register Gym", 
-      href: "/gym-request", 
+      label: "Gym Requests", 
+      href: "/admin/gym-requests", 
       icon: Building2,
-      visible: isOwner && !user.gymId
-    },
-    { 
-      label: "Join Gym", 
-      href: "/join-gym", 
-      icon: Building2,
-      visible: (isTrainer || isMember) && !user.gymId
+      visible: isOwner && !!user.gymId
     },
   ];
 
