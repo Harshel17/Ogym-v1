@@ -1,0 +1,301 @@
+You are working on OGym V1 (multi-gym app with roles Owner / Trainer / Member).
+Implement the following features WITHOUT breaking existing login, gym isolation, attendance logging, or routing.
+
+A) Owner Dashboard + Attendance Analytics Upgrade
+A1) Owner Dashboard cards
+
+On Owner Dashboard:
+
+Replace/update attendance widgets to show:
+
+Total Members Enrolled (in this gym)
+
+Checked-in Today (unique members)
+
+Checked-in Yesterday (unique members)
+
+Make the Checked-in Today card clickable → navigate to a new Owner page:
+
+Route: /owner/attendance (or consistent routing pattern in the app)
+
+A2) New page: Owner Attendance Analytics (/owner/attendance)
+
+Create a clean, mobile-app style page with these sections:
+
+Top Summary Cards
+
+Total enrolled members (gym)
+
+Checked-in on selected day (unique members)
+
+Not checked-in on selected day
+
+New enrollments in last 30 days
+
+Date Filter
+
+Add a date picker/calendar selector
+
+Default date = today
+
+On selecting a date, update all data below
+
+Lists/Tables
+
+Show two lists with pagination if needed:
+
+Checked-in members for selected date (name, time, method)
+
+Not checked-in members for selected date (name, assigned trainer)
+
+Trend chart
+
+Simple attendance trend for last 14 days (count per day)
+
+A3) Backend endpoints (Owner-only + gym isolation)
+
+Add these endpoints:
+
+GET /api/owner/dashboard-metrics
+
+Return:
+{
+totalMembers,
+checkedInToday,
+checkedInYesterday,
+newEnrollmentsLast30Days
+}
+
+GET /api/owner/attendance/summary?date=YYYY-MM-DD
+
+Return:
+{
+date,
+totalMembers,
+checkedInCount,
+notCheckedInCount,
+newEnrollmentsLast30Days
+}
+
+GET /api/owner/attendance/day?date=YYYY-MM-DD
+
+Return:
+{
+date,
+checkedIn: [{ memberId, name, time, method }],
+notCheckedIn: [{ memberId, name, trainerName }]
+}
+
+GET /api/owner/attendance/trend?days=14
+
+Return:
+{
+days,
+trend: [{ date, count }]
+}
+
+Rules:
+
+Check-in counts must be unique members per day
+
+Use correct day boundaries (start/end of day)
+
+Owner must only see their gym data
+
+Keep existing attendance system working
+
+B) Owner can view Member “Stats” page same as Trainer Star Member view
+B1) Owner Members list click-through
+
+In Owner login, go to Members page → clicking a member should open a new page:
+
+Route example:
+
+/owner/members/:memberId (or consistent pattern)
+
+This page must include tabs (or sections):
+
+Profile (basic details)
+
+Workouts history (same structure trainers see for star members)
+
+Stats/Analytics (same view trainers see for star members)
+
+B2) Reuse existing trainer “star member detail” logic
+
+The Owner member detail page should show the SAME data trainers see:
+
+workout history by day
+
+workout detail per day (exercises, sets/reps if tracked)
+
+summary stats (percent split by muscle group, time spent, streaks if available)
+
+If the trainer stats view is implemented already, refactor to a shared component/service so owner can reuse it without duplicating code.
+
+B3) Backend endpoints needed (Owner-only)
+
+Add endpoints for owners to fetch member workout + stats, respecting gym isolation:
+
+GET /api/owner/members/:memberId/profile
+GET /api/owner/members/:memberId/workouts?from=YYYY-MM-DD&to=YYYY-MM-DD
+GET /api/owner/members/:memberId/stats?range=30d (or from/to)
+
+Rules:
+
+Owner can view any member in their gym only
+
+If memberId not in owner gym → return 403
+
+Do not break trainer star member endpoints
+
+C) Announcements Module (Owner creates, members/trainers receive)
+C1) Add sidebar menu item: “Announcements”
+
+In Owner sidebar:
+
+Add “Announcements” tab/page: /owner/announcements
+
+In Member and Trainer sidebar:
+
+Add “Announcements” tab/page: /announcements (role-aware, show relevant)
+
+C2) Owner Announcement Create UI
+
+On Owner Announcements page:
+
+Form fields:
+
+Title (required)
+
+Message body (required)
+
+Audience selector (required): Members / Trainers / Everyone
+
+Delivery method toggles: In-App (required always), Email, SMS
+
+Post button: “Publish Announcement”
+
+After publishing:
+
+Show list of announcements created (most recent first)
+
+Allow owner to delete an announcement (soft-delete preferred)
+
+C3) Member/Trainer Notification Preferences
+
+Add in Member Profile and Trainer Profile:
+
+Notification preferences:
+
+In-App (always ON, cannot disable)
+
+Email (toggle)
+
+SMS (toggle)
+
+Email address field (already exists if you have it; if not add)
+
+Phone number field (if not exists add)
+
+Save preferences (persist in DB)
+
+C4) Announcement delivery behavior
+
+Minimum viable implementation:
+
+In-App announcements ALWAYS show for the target audience.
+
+When a user logs in:
+
+Show a small popup/toast/modal “New Announcement” for unread announcements
+
+Also show announcements inside Announcements page list
+
+Mark announcements as “read” per user when opened
+
+Email/SMS:
+
+If Email/SMS toggles are enabled, implement as:
+
+Phase 1: create placeholders in backend (“queued notifications”) and log to console (do not require Twilio/SendGrid right now)
+
+Keep structure ready for real integration later
+
+C5) Backend data model + endpoints
+
+Add DB tables (or equivalent):
+
+announcements:
+
+id, gymId, title, body, audience (members/trainers/everyone), createdAt, createdByOwnerId, isDeleted
+
+user_notification_preferences:
+
+userId, gymId, emailEnabled, smsEnabled, email, phone
+
+announcement_reads:
+
+id, announcementId, userId, readAt
+
+Add endpoints:
+
+Owner
+
+POST /api/owner/announcements
+GET /api/owner/announcements
+DELETE /api/owner/announcements/:id
+
+Member/Trainer
+
+GET /api/announcements (returns announcements relevant to their role + gym)
+POST /api/announcements/:id/read (marks read)
+
+Notification prefs
+
+GET /api/me/notification-preferences
+PUT /api/me/notification-preferences
+
+Rules:
+
+Strict gym isolation everywhere
+
+Audience filtering:
+
+Everyone → show to all roles
+
+Members → show only members
+
+Trainers → show only trainers
+
+Owner announcements are gym-scoped only
+
+D) UX Requirements
+
+Keep styling consistent with current OGym UI
+
+No overlapping layouts; responsive
+
+Add loading + empty states
+
+Do not remove existing features
+
+Update replit.md documentation with new pages + endpoints
+
+E) Testing checklist (must perform)
+
+Owner dashboard numbers correct for gym
+
+Attendance analytics date picker works, lists correct
+
+Owner clicking member shows full stats page
+
+Owner can publish announcement to Members only, Trainers only, Everyone
+
+Member login shows unread announcement popup + announcements page list
+
+Trainer login shows unread announcement popup + announcements page list
+
+“Mark as read” persists per user
+
+Implement now.

@@ -22,6 +22,20 @@ OGym is a multi-tenant B2B web application for gym management with role-based ac
 ## Recent Changes
 
 **January 2026:**
+- Added Owner Dashboard Analytics with new metrics (checked-in today/yesterday, new enrollments)
+  - Clickable "Checked-in Today" card navigates to Attendance Analytics page
+  - New endpoint: GET /api/owner/dashboard-metrics
+- Added Owner Attendance Analytics page with date filtering and trend visualization
+  - New endpoints: GET /api/owner/attendance/summary, /day, /trend
+  - Date picker, summary cards, 14-day line chart, checked-in/absent member lists
+- Added Owner access to detailed member stats (profile, workout history, progress, PRs)
+  - New endpoints: GET /api/owner/members/:memberId/profile, /workouts, /workouts/:date, /stats
+  - Reuses trainer star member logic without star member requirement
+- Added Announcements module for owner-to-member/trainer communication
+  - New tables: announcements, announcement_reads, user_notification_preferences
+  - New endpoints: POST/GET/DELETE /api/owner/announcements, GET /api/announcements, POST /api/announcements/:id/read
+  - Audience targeting: members, trainers, or everyone
+  - Auto-read tracking on view
 - Added Star Member Detail page for trainers with full workout history and stats
   - New endpoints: GET /api/trainer/star-members/:memberId, /workouts, /workouts/:date, /stats
   - Clickable starred member cards navigate to detail page
@@ -94,6 +108,9 @@ The API contract is defined in `shared/routes.ts` with typed input/output schema
 - `diet_plans` - Meal plans created by trainers for star members
 - `diet_plan_meals` - Individual meals within diet plans
 - `transfer_requests` - Gym transfer requests with dual-owner approval
+- `announcements` - Owner announcements with audience targeting (members/trainers/everyone)
+- `announcement_reads` - Tracks which users have read which announcements
+- `user_notification_preferences` - User email/SMS notification preferences
 
 ### Multi-Tenancy Pattern
 All queries filter by `gym_id` extracted from the authenticated user's session. The backend enforces tenant isolation - the UI does not control data access boundaries.

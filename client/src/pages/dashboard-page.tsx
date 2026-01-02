@@ -56,16 +56,25 @@ function StatCard({ title, value, icon: Icon, description }: any) {
 
 function OwnerDashboard() {
   const { user } = useAuth();
-  const { data: members = [] } = useMembers();
+  const [, navigate] = useLocation();
   const { data: attendance = [] } = useAttendance();
   const { data: payments = [] } = usePayments();
 
-  const membersList = members as any[];
+  const { data: dashboardMetrics } = useQuery<{
+    totalMembers: number;
+    checkedInToday: number;
+    checkedInYesterday: number;
+    newEnrollmentsLast30Days: number;
+  }>({
+    queryKey: ["/api/owner/dashboard-metrics"]
+  });
+
   const attendanceList = attendance as any[];
   const paymentsList = payments as any[];
 
-  const totalMembers = membersList.length;
-  const presentToday = attendanceList.filter(a => a.date === format(new Date(), 'yyyy-MM-dd') && a.status === 'present').length;
+  const totalMembers = dashboardMetrics?.totalMembers || 0;
+  const checkedInToday = dashboardMetrics?.checkedInToday || 0;
+  const checkedInYesterday = dashboardMetrics?.checkedInYesterday || 0;
   const pendingPayments = paymentsList.filter(p => p.status !== 'paid').length;
   const revenue = paymentsList
     .filter(p => p.status === 'paid')
@@ -122,17 +131,31 @@ function OwnerDashboard() {
           icon={Users} 
           description="Active gym members"
         />
+        <Card 
+          className="dashboard-card border-none shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 cursor-pointer hover-elevate"
+          onClick={() => navigate("/owner/attendance")}
+          data-testid="card-checked-in-today"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Checked-in Today
+            </CardTitle>
+            <div className="p-2 bg-primary/10 rounded-full text-primary">
+              <CalendarCheck className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold font-display text-foreground">{checkedInToday}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Click to view analytics
+            </p>
+          </CardContent>
+        </Card>
         <StatCard 
-          title="Attendance Today" 
-          value={presentToday} 
-          icon={CalendarCheck} 
-          description="Members checked in today"
-        />
-        <StatCard 
-          title="Revenue (Month)" 
-          value={`$${(revenue / 100).toFixed(2)}`} 
-          icon={TrendingUp} 
-          description="Total collected this month"
+          title="Yesterday" 
+          value={checkedInYesterday} 
+          icon={Calendar} 
+          description="Members checked in yesterday"
         />
         <StatCard 
           title="Pending Payments" 

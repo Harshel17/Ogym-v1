@@ -1,6 +1,6 @@
 import { 
   users, gyms, attendance, payments, trainerMembers, workoutCycles, workoutItems, workoutCompletions, memberRequests,
-  gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests,
+  gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests, announcements, userNotificationPreferences, announcementReads,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
@@ -13,7 +13,10 @@ import {
   type StarMember, type InsertStarMember,
   type DietPlan, type InsertDietPlan,
   type DietPlanMeal, type InsertDietPlanMeal,
-  type TransferRequest, type InsertTransferRequest
+  type TransferRequest, type InsertTransferRequest,
+  type Announcement, type InsertAnnouncement,
+  type UserNotificationPreferences, type InsertUserNotificationPreferences,
+  type AnnouncementRead, type InsertAnnouncementRead
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, sql, isNull } from "drizzle-orm";
@@ -172,6 +175,39 @@ export interface IStorage {
     weeklyTrend: { week: string; count: number }[];
   }>;
   getMemberCalendar(memberId: number, month: string): Promise<{ date: string; title: string; count: number }[]>;
+  
+  // Owner Dashboard & Attendance Analytics
+  getOwnerDashboardMetrics(gymId: number): Promise<{
+    totalMembers: number;
+    checkedInToday: number;
+    checkedInYesterday: number;
+    newEnrollmentsLast30Days: number;
+  }>;
+  getOwnerAttendanceSummary(gymId: number, date: string): Promise<{
+    date: string;
+    totalMembers: number;
+    checkedInCount: number;
+    notCheckedInCount: number;
+    newEnrollmentsLast30Days: number;
+  }>;
+  getOwnerAttendanceDay(gymId: number, date: string): Promise<{
+    date: string;
+    checkedIn: { memberId: number; name: string; time: string; method: string }[];
+    notCheckedIn: { memberId: number; name: string; trainerName: string | null }[];
+  }>;
+  getOwnerAttendanceTrend(gymId: number, days: number): Promise<{ date: string; count: number }[]>;
+  
+  // Announcements
+  createAnnouncement(data: InsertAnnouncement): Promise<Announcement>;
+  getOwnerAnnouncements(gymId: number): Promise<Announcement[]>;
+  deleteAnnouncement(announcementId: number): Promise<void>;
+  getUserAnnouncements(gymId: number, role: string): Promise<(Announcement & { isRead: boolean })[]>;
+  markAnnouncementRead(announcementId: number, userId: number): Promise<AnnouncementRead>;
+  getUnreadAnnouncementCount(gymId: number, userId: number, role: string): Promise<number>;
+  
+  // Notification Preferences
+  getNotificationPreferences(userId: number): Promise<UserNotificationPreferences | undefined>;
+  upsertNotificationPreferences(userId: number, gymId: number, data: { emailEnabled?: boolean; smsEnabled?: boolean }): Promise<UserNotificationPreferences>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1156,6 +1192,212 @@ export class DatabaseStorage implements IStorage {
       title: Array.from(muscles).join(" + ") || "Workout",
       count
     }));
+  }
+
+  // Owner Dashboard & Attendance Analytics
+  async getOwnerDashboardMetrics(gymId: number): Promise<{
+    totalMembers: number;
+    checkedInToday: number;
+    checkedInYesterday: number;
+    newEnrollmentsLast30Days: number;
+  }> {
+    const today = new Date().toISOString().split("T")[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
+
+    const members = await db.select().from(users).where(and(eq(users.gymId, gymId), eq(users.role, "member")));
+    const totalMembers = members.length;
+
+    const todayAttendance = await db.select({ memberId: attendance.memberId })
+      .from(attendance)
+      .where(and(eq(attendance.gymId, gymId), eq(attendance.date, today), eq(attendance.status, "present")));
+    const checkedInToday = new Set(todayAttendance.map(a => a.memberId)).size;
+
+    const yesterdayAttendance = await db.select({ memberId: attendance.memberId })
+      .from(attendance)
+      .where(and(eq(attendance.gymId, gymId), eq(attendance.date, yesterday), eq(attendance.status, "present")));
+    const checkedInYesterday = new Set(yesterdayAttendance.map(a => a.memberId)).size;
+
+    const newEnrollmentsLast30Days = members.filter(m => m.createdAt && m.createdAt >= thirtyDaysAgo).length;
+
+    return { totalMembers, checkedInToday, checkedInYesterday, newEnrollmentsLast30Days };
+  }
+
+  async getOwnerAttendanceSummary(gymId: number, date: string): Promise<{
+    date: string;
+    totalMembers: number;
+    checkedInCount: number;
+    notCheckedInCount: number;
+    newEnrollmentsLast30Days: number;
+  }> {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
+
+    const members = await db.select().from(users).where(and(eq(users.gymId, gymId), eq(users.role, "member")));
+    const totalMembers = members.length;
+
+    const dayAttendance = await db.select({ memberId: attendance.memberId })
+      .from(attendance)
+      .where(and(eq(attendance.gymId, gymId), eq(attendance.date, date), eq(attendance.status, "present")));
+    const checkedInCount = new Set(dayAttendance.map(a => a.memberId)).size;
+    const notCheckedInCount = totalMembers - checkedInCount;
+
+    const newEnrollmentsLast30Days = members.filter(m => m.createdAt && m.createdAt >= thirtyDaysAgo).length;
+
+    return { date, totalMembers, checkedInCount, notCheckedInCount, newEnrollmentsLast30Days };
+  }
+
+  async getOwnerAttendanceDay(gymId: number, date: string): Promise<{
+    date: string;
+    checkedIn: { memberId: number; name: string; time: string; method: string }[];
+    notCheckedIn: { memberId: number; name: string; trainerName: string | null }[];
+  }> {
+    const members = await db.select().from(users).where(and(eq(users.gymId, gymId), eq(users.role, "member")));
+    
+    const dayAttendance = await db.select({
+      memberId: attendance.memberId,
+      createdAt: attendance.createdAt,
+      verifiedMethod: attendance.verifiedMethod
+    })
+    .from(attendance)
+    .where(and(eq(attendance.gymId, gymId), eq(attendance.date, date), eq(attendance.status, "present")));
+
+    const checkedInMemberIds = new Set(dayAttendance.map(a => a.memberId));
+
+    // Get trainer assignments
+    const assignments = await db.select({
+      memberId: trainerMembers.memberId,
+      trainerId: trainerMembers.trainerId
+    }).from(trainerMembers).where(eq(trainerMembers.gymId, gymId));
+    
+    const trainers = await db.select({ id: users.id, username: users.username })
+      .from(users).where(eq(users.gymId, gymId));
+    const trainerMap = new Map(trainers.map(t => [t.id, t.username]));
+    const memberTrainerMap = new Map(assignments.map(a => [a.memberId, a.trainerId]));
+
+    const checkedIn = dayAttendance.map(a => {
+      const member = members.find(m => m.id === a.memberId);
+      return {
+        memberId: a.memberId,
+        name: member?.username || "Unknown",
+        time: a.createdAt ? new Date(a.createdAt).toLocaleTimeString() : "",
+        method: a.verifiedMethod || "manual"
+      };
+    });
+
+    const notCheckedIn = members
+      .filter(m => !checkedInMemberIds.has(m.id))
+      .map(m => ({
+        memberId: m.id,
+        name: m.username,
+        trainerName: trainerMap.get(memberTrainerMap.get(m.id) || 0) || null
+      }));
+
+    return { date, checkedIn, notCheckedIn };
+  }
+
+  async getOwnerAttendanceTrend(gymId: number, days: number): Promise<{ date: string; count: number }[]> {
+    const result: { date: string; count: number }[] = [];
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(Date.now() - i * 86400000).toISOString().split("T")[0];
+      const dayAttendance = await db.select({ memberId: attendance.memberId })
+        .from(attendance)
+        .where(and(eq(attendance.gymId, gymId), eq(attendance.date, date), eq(attendance.status, "present")));
+      
+      result.push({ date, count: new Set(dayAttendance.map(a => a.memberId)).size });
+    }
+    
+    return result;
+  }
+
+  // Announcements
+  async createAnnouncement(data: InsertAnnouncement): Promise<Announcement> {
+    const [announcement] = await db.insert(announcements).values(data).returning();
+    return announcement;
+  }
+
+  async getOwnerAnnouncements(gymId: number): Promise<Announcement[]> {
+    return db.select().from(announcements)
+      .where(and(eq(announcements.gymId, gymId), eq(announcements.isDeleted, false)))
+      .orderBy(desc(announcements.createdAt));
+  }
+
+  async deleteAnnouncement(announcementId: number): Promise<void> {
+    await db.update(announcements).set({ isDeleted: true }).where(eq(announcements.id, announcementId));
+  }
+
+  async getUserAnnouncements(gymId: number, role: string, userId?: number): Promise<(Announcement & { isRead: boolean })[]> {
+    const allAnnouncements = await db.select().from(announcements)
+      .where(and(eq(announcements.gymId, gymId), eq(announcements.isDeleted, false)))
+      .orderBy(desc(announcements.createdAt));
+    
+    const filtered = allAnnouncements.filter(a => 
+      a.audience === "everyone" || 
+      (a.audience === "members" && role === "member") ||
+      (a.audience === "trainers" && role === "trainer")
+    );
+
+    // Get read status if userId is provided
+    let readIds = new Set<number>();
+    if (userId) {
+      const reads = await db.select({ announcementId: announcementReads.announcementId })
+        .from(announcementReads)
+        .where(eq(announcementReads.userId, userId));
+      readIds = new Set(reads.map(r => r.announcementId));
+    }
+
+    return filtered.map(a => ({ ...a, isRead: readIds.has(a.id) }));
+  }
+
+  async markAnnouncementRead(announcementId: number, userId: number): Promise<AnnouncementRead> {
+    try {
+      const existing = await db.select().from(announcementReads)
+        .where(and(eq(announcementReads.announcementId, announcementId), eq(announcementReads.userId, userId)));
+      
+      if (existing.length > 0) {
+        return existing[0];
+      }
+
+      const [read] = await db.insert(announcementReads).values({ announcementId, userId }).returning();
+      return read;
+    } catch (error: any) {
+      // Handle duplicate key violation gracefully (race condition)
+      if (error.code === '23505') {
+        const [existing] = await db.select().from(announcementReads)
+          .where(and(eq(announcementReads.announcementId, announcementId), eq(announcementReads.userId, userId)));
+        return existing;
+      }
+      throw error;
+    }
+  }
+
+  async getUnreadAnnouncementCount(gymId: number, userId: number, role: string): Promise<number> {
+    // Get announcements with read status
+    const allAnnouncements = await this.getUserAnnouncements(gymId, role, userId);
+    return allAnnouncements.filter(a => !a.isRead).length;
+  }
+
+  // Notification Preferences
+  async getNotificationPreferences(userId: number): Promise<UserNotificationPreferences | undefined> {
+    const [prefs] = await db.select().from(userNotificationPreferences).where(eq(userNotificationPreferences.userId, userId));
+    return prefs;
+  }
+
+  async upsertNotificationPreferences(userId: number, gymId: number, data: { emailEnabled?: boolean; smsEnabled?: boolean }): Promise<UserNotificationPreferences> {
+    const existing = await this.getNotificationPreferences(userId);
+    
+    if (existing) {
+      const [updated] = await db.update(userNotificationPreferences)
+        .set(data)
+        .where(eq(userNotificationPreferences.userId, userId))
+        .returning();
+      return updated;
+    }
+
+    const [created] = await db.insert(userNotificationPreferences)
+      .values({ userId, gymId, ...data })
+      .returning();
+    return created;
   }
 }
 

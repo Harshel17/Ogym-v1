@@ -895,6 +895,146 @@ export async function registerRoutes(
     res.json(history);
   });
 
+  // === OWNER DASHBOARD & ATTENDANCE ANALYTICS ===
+  app.get("/api/owner/dashboard-metrics", requireRole(["owner"]), async (req, res) => {
+    const metrics = await storage.getOwnerDashboardMetrics(req.user!.gymId!);
+    res.json(metrics);
+  });
+
+  app.get("/api/owner/attendance/summary", requireRole(["owner"]), async (req, res) => {
+    const date = (req.query.date as string) || new Date().toISOString().split("T")[0];
+    const summary = await storage.getOwnerAttendanceSummary(req.user!.gymId!, date);
+    res.json(summary);
+  });
+
+  app.get("/api/owner/attendance/day", requireRole(["owner"]), async (req, res) => {
+    const date = (req.query.date as string) || new Date().toISOString().split("T")[0];
+    const data = await storage.getOwnerAttendanceDay(req.user!.gymId!, date);
+    res.json(data);
+  });
+
+  app.get("/api/owner/attendance/trend", requireRole(["owner"]), async (req, res) => {
+    const days = parseInt(req.query.days as string) || 14;
+    const trend = await storage.getOwnerAttendanceTrend(req.user!.gymId!, days);
+    res.json({ days, trend });
+  });
+
+  // === OWNER MEMBER STATS (reuse trainer star member logic) ===
+  app.get("/api/owner/members/:memberId/profile", requireRole(["owner"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    const members = await storage.getGymMembers(req.user!.gymId!);
+    const member = members.find(m => m.id === memberId);
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+    const profile = await storage.getFullMemberProfile(memberId);
+    res.json(profile);
+  });
+
+  app.get("/api/owner/members/:memberId/workouts", requireRole(["owner"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    const members = await storage.getGymMembers(req.user!.gymId!);
+    const member = members.find(m => m.id === memberId);
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+    const sessions = await storage.getMemberWorkoutSessions(memberId);
+    res.json(sessions);
+  });
+
+  app.get("/api/owner/members/:memberId/workouts/:date", requireRole(["owner"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    const date = req.params.date;
+    const members = await storage.getGymMembers(req.user!.gymId!);
+    const member = members.find(m => m.id === memberId);
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+    const sessions = await storage.getMemberWorkoutSessions(memberId);
+    const session = sessions.find(s => s.date === date);
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+    res.json(session);
+  });
+
+  app.get("/api/owner/members/:memberId/stats", requireRole(["owner"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    const members = await storage.getGymMembers(req.user!.gymId!);
+    const member = members.find(m => m.id === memberId);
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+    const stats = await storage.getEnhancedMemberStats(memberId);
+    const progress = await storage.getMemberProgress(memberId);
+    res.json({ ...stats, progress });
+  });
+
+  // === ANNOUNCEMENTS ===
+  app.post("/api/owner/announcements", requireRole(["owner"]), async (req, res) => {
+    const { title, body, audience } = req.body;
+    if (!title || !body || !audience) {
+      return res.status(400).json({ message: "Title, body, and audience are required" });
+    }
+    const announcement = await storage.createAnnouncement({
+      gymId: req.user!.gymId!,
+      title,
+      body,
+      audience,
+      createdByOwnerId: req.user!.id
+    });
+    res.status(201).json(announcement);
+  });
+
+  app.get("/api/owner/announcements", requireRole(["owner"]), async (req, res) => {
+    const announcements = await storage.getOwnerAnnouncements(req.user!.gymId!);
+    res.json(announcements);
+  });
+
+  app.delete("/api/owner/announcements/:id", requireRole(["owner"]), async (req, res) => {
+    const announcementId = parseInt(req.params.id);
+    await storage.deleteAnnouncement(announcementId);
+    res.sendStatus(204);
+  });
+
+  app.get("/api/announcements", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "No gym associated" });
+    }
+    const announcements = await storage.getUserAnnouncements(req.user!.gymId, req.user!.role, req.user!.id);
+    res.json(announcements);
+  });
+
+  app.post("/api/announcements/:id/read", requireAuth, async (req, res) => {
+    const announcementId = parseInt(req.params.id);
+    const read = await storage.markAnnouncementRead(announcementId, req.user!.id);
+    res.json(read);
+  });
+
+  app.get("/api/announcements/unread-count", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.json({ count: 0 });
+    }
+    const count = await storage.getUnreadAnnouncementCount(req.user!.gymId, req.user!.id, req.user!.role);
+    res.json({ count });
+  });
+
+  // === NOTIFICATION PREFERENCES ===
+  app.get("/api/me/notification-preferences", requireAuth, async (req, res) => {
+    const prefs = await storage.getNotificationPreferences(req.user!.id);
+    res.json(prefs || { emailEnabled: false, smsEnabled: false });
+  });
+
+  app.put("/api/me/notification-preferences", requireAuth, async (req, res) => {
+    const { emailEnabled, smsEnabled } = req.body;
+    const prefs = await storage.upsertNotificationPreferences(
+      req.user!.id,
+      req.user!.gymId!,
+      { emailEnabled, smsEnabled }
+    );
+    res.json(prefs);
+  });
+
   await seedDemoData();
   return httpServer;
 }

@@ -24,6 +24,10 @@ import StarMemberDetailPage from "@/pages/star-member-detail-page";
 import DietPlansPage from "@/pages/diet-plans-page";
 import MyDietPlanPage from "@/pages/my-diet-plan-page";
 import TransfersPage from "@/pages/transfers-page";
+import OwnerAttendancePage from "@/pages/owner-attendance-page";
+import OwnerMemberDetailPage from "@/pages/owner-member-detail-page";
+import OwnerAnnouncementsPage from "@/pages/owner-announcements-page";
+import AnnouncementsPage from "@/pages/announcements-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -120,6 +124,22 @@ function Router() {
 
       <Route path="/transfers">
         <ProtectedRoute component={TransfersPage} />
+      </Route>
+
+      <Route path="/owner/attendance">
+        <ProtectedRoute component={OwnerAttendancePage} />
+      </Route>
+
+      <Route path="/owner/members/:memberId">
+        <ProtectedRoute component={OwnerMemberDetailPage} />
+      </Route>
+
+      <Route path="/owner/announcements">
+        <ProtectedRoute component={OwnerAnnouncementsPage} />
+      </Route>
+
+      <Route path="/announcements">
+        <ProtectedRoute component={AnnouncementsPage} />
       </Route>
 
       <Route component={NotFound} />

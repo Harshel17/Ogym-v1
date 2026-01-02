@@ -13,7 +13,8 @@ import {
   Star,
   Utensils,
   UserCircle,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Megaphone
 } from "lucide-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -110,6 +111,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
       href: "/transfers", 
       icon: ArrowRightLeft,
       visible: isOwner
+    },
+    { 
+      label: "Announcements", 
+      href: "/owner/announcements", 
+      icon: Megaphone,
+      visible: isOwner
+    },
+    { 
+      label: "Announcements", 
+      href: "/announcements", 
+      icon: Megaphone,
+      visible: isTrainer || isMember
     },
   ];
 

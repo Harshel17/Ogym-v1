@@ -163,6 +163,34 @@ export const transferRequests = pgTable("transfer_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const announcements = pgTable("announcements", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  audience: text("audience", { enum: ["members", "trainers", "everyone"] }).notNull(),
+  createdByOwnerId: integer("created_by_owner_id").references(() => users.id).notNull(),
+  isDeleted: boolean("is_deleted").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const userNotificationPreferences = pgTable("user_notification_preferences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull().unique(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  emailEnabled: boolean("email_enabled").default(false),
+  smsEnabled: boolean("sms_enabled").default(false),
+});
+
+export const announcementReads = pgTable("announcement_reads", {
+  id: serial("id").primaryKey(),
+  announcementId: integer("announcement_id").references(() => announcements.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  readAt: timestamp("read_at").defaultNow(),
+}, (table) => ({
+  uniqueRead: uniqueIndex("unique_announcement_read").on(table.announcementId, table.userId),
+}));
+
 // === RELATIONS ===
 
 export const gymsRelations = relations(gyms, ({ many }) => ({
@@ -192,6 +220,9 @@ export const insertStarMemberSchema = createInsertSchema(starMembers).omit({ id:
 export const insertDietPlanSchema = createInsertSchema(dietPlans).omit({ id: true, createdAt: true });
 export const insertDietPlanMealSchema = createInsertSchema(dietPlanMeals).omit({ id: true });
 export const insertTransferRequestSchema = createInsertSchema(transferRequests).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true, isDeleted: true });
+export const insertUserNotificationPreferencesSchema = createInsertSchema(userNotificationPreferences).omit({ id: true });
+export const insertAnnouncementReadSchema = createInsertSchema(announcementReads).omit({ id: true, readAt: true });
 
 // === EXPLICIT TYPES ===
 
@@ -223,3 +254,10 @@ export type InsertStarMember = z.infer<typeof insertStarMemberSchema>;
 export type InsertDietPlan = z.infer<typeof insertDietPlanSchema>;
 export type InsertDietPlanMeal = z.infer<typeof insertDietPlanMealSchema>;
 export type InsertTransferRequest = z.infer<typeof insertTransferRequestSchema>;
+
+export type Announcement = typeof announcements.$inferSelect;
+export type UserNotificationPreferences = typeof userNotificationPreferences.$inferSelect;
+export type AnnouncementRead = typeof announcementReads.$inferSelect;
+export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
+export type InsertUserNotificationPreferences = z.infer<typeof insertUserNotificationPreferencesSchema>;
+export type InsertAnnouncementRead = z.infer<typeof insertAnnouncementReadSchema>;
