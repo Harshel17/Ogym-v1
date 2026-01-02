@@ -13,8 +13,24 @@ OGym is a multi-tenant B2B web application for gym management with role-based ac
 - Member stats (streak, total workouts, last 7 days)
 - Trainer activity feed showing member progress
 - Gym code-based membership joining system
+- User profiles with publicId, email, phone
+- Star Members feature for trainers to track top performers
+- Diet plans for star members with meal tracking
+- Gym transfer requests with dual-owner approval workflow
+- Gym history tracking for member transfers
 
 ## Recent Changes
+
+**January 2025:**
+- Added user profile system with auto-generated publicId (OWN/TRN/MEM prefix + 5-char suffix)
+- Added email and phone fields to user profiles
+- Added gym history table to track member gym transfers
+- Added Star Members feature - trainers can mark top performers for full stats access
+- Added Diet Plans system - trainers can create meal plans for star members only
+- Added Gym Transfer Requests with dual-owner approval workflow
+- Added soft delete for workout cycles (sets isActive=false)
+- Removed Payments tab from Trainer sidebar (trainers don't handle payments)
+- Added 5 new frontend pages: Profile, Star Members, Diet Plans, My Diet Plan, Transfers
 
 **December 2024:**
 - Added QR code attendance system with `verifiedMethod` field (qr, workout, both, manual)
@@ -58,13 +74,18 @@ The API contract is defined in `shared/routes.ts` with typed input/output schema
 
 **Key Tables:**
 - `gyms` - Gym entities with unique join codes
-- `users` - All user types (owner/trainer/member) with gym association
+- `users` - All user types (owner/trainer/member) with gym association, publicId, email, phone
 - `trainer_members` - Many-to-many relationship for trainer assignments
 - `attendance` - Daily attendance records with `verifiedMethod` (qr/workout/both/manual)
 - `payments` - Monthly payment tracking
 - `workout_cycles` - Training programs with date range and `isActive` flag
 - `workout_items` - Individual exercises with `exerciseName`, `orderIndex`, day of week
 - `workout_completions` - Records of completed exercises per member
+- `gym_history` - Tracks member/trainer join and leave dates per gym
+- `star_members` - Trainer's favorite members with full stats access
+- `diet_plans` - Meal plans created by trainers for star members
+- `diet_plan_meals` - Individual meals within diet plans
+- `transfer_requests` - Gym transfer requests with dual-owner approval
 
 ### Multi-Tenancy Pattern
 All queries filter by `gym_id` extracted from the authenticated user's session. The backend enforces tenant isolation - the UI does not control data access boundaries.

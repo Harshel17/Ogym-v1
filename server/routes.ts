@@ -557,6 +557,198 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // === PROFILE ROUTES ===
+  app.get("/api/profile/my", requireAuth, async (req, res) => {
+    if (req.user!.role === "member") {
+      const profile = await storage.getFullMemberProfile(req.user!.id);
+      res.json(profile);
+    } else if (req.user!.role === "trainer") {
+      const profile = await storage.getTrainerProfile(req.user!.id);
+      res.json(profile);
+    } else {
+      const user = await storage.getUser(req.user!.id);
+      res.json(user);
+    }
+  });
+
+  app.patch("/api/profile/my", requireAuth, async (req, res) => {
+    const schema = z.object({
+      email: z.string().email().optional(),
+      phone: z.string().optional()
+    });
+    const input = schema.parse(req.body);
+    const updated = await storage.updateUserProfile(req.user!.id, input);
+    res.json(updated);
+  });
+
+  // === STAR MEMBERS ROUTES ===
+  app.get("/api/trainer/star-members", requireRole(["trainer"]), async (req, res) => {
+    const stars = await storage.getStarMembers(req.user!.id);
+    res.json(stars);
+  });
+
+  app.post("/api/trainer/star-members", requireRole(["trainer"]), async (req, res) => {
+    const schema = z.object({ memberId: z.number() });
+    const input = schema.parse(req.body);
+    
+    const assignments = await storage.getTrainerMembers(req.user!.id);
+    if (!assignments.some(a => a.memberId === input.memberId)) {
+      return res.status(403).json({ message: "Member not assigned to you" });
+    }
+    
+    const star = await storage.addStarMember({
+      gymId: req.user!.gymId!,
+      trainerId: req.user!.id,
+      memberId: input.memberId
+    });
+    res.status(201).json(star);
+  });
+
+  app.delete("/api/trainer/star-members/:memberId", requireRole(["trainer"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    await storage.removeStarMember(req.user!.id, memberId);
+    res.sendStatus(204);
+  });
+
+  app.get("/api/trainer/members/:memberId/stats", requireRole(["trainer"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    const isStar = await storage.isStarMember(req.user!.id, memberId);
+    
+    const assignments = await storage.getTrainerMembers(req.user!.id);
+    if (!assignments.some(a => a.memberId === memberId)) {
+      return res.status(403).json({ message: "Member not assigned to you" });
+    }
+    
+    if (isStar) {
+      const stats = await storage.getMemberStats(memberId);
+      const progress = await storage.getMemberProgress(memberId);
+      res.json({ full: true, stats, progress });
+    } else {
+      const stats = await storage.getMemberStats(memberId);
+      res.json({ full: false, stats: { totalWorkouts: stats.totalWorkouts, streak: stats.streak } });
+    }
+  });
+
+  // === DIET PLANS ROUTES ===
+  app.get("/api/trainer/diet-plans", requireRole(["trainer"]), async (req, res) => {
+    const plans = await storage.getDietPlans(req.user!.id);
+    res.json(plans);
+  });
+
+  app.post("/api/trainer/diet-plans", requireRole(["trainer"]), async (req, res) => {
+    const schema = z.object({
+      memberId: z.number(),
+      title: z.string().min(1),
+      durationWeeks: z.number().min(1).default(4),
+      notes: z.string().optional()
+    });
+    const input = schema.parse(req.body);
+    
+    const isStar = await storage.isStarMember(req.user!.id, input.memberId);
+    if (!isStar) {
+      return res.status(403).json({ message: "Diet plans can only be created for star members" });
+    }
+    
+    const plan = await storage.createDietPlan({
+      gymId: req.user!.gymId!,
+      trainerId: req.user!.id,
+      memberId: input.memberId,
+      title: input.title,
+      durationWeeks: input.durationWeeks,
+      notes: input.notes
+    });
+    res.status(201).json(plan);
+  });
+
+  app.post("/api/trainer/diet-plans/:planId/meals", requireRole(["trainer"]), async (req, res) => {
+    const planId = parseInt(req.params.planId);
+    const schema = z.object({
+      dayIndex: z.number().min(0),
+      mealType: z.enum(["breakfast", "lunch", "dinner", "snack"]),
+      description: z.string().min(1),
+      calories: z.number().optional(),
+      protein: z.number().optional(),
+      orderIndex: z.number().default(0)
+    });
+    const input = schema.parse(req.body);
+    
+    const meal = await storage.addDietPlanMeal({ ...input, planId });
+    res.status(201).json(meal);
+  });
+
+  app.get("/api/member/diet-plans", requireRole(["member"]), async (req, res) => {
+    const plans = await storage.getMemberDietPlans(req.user!.id);
+    res.json(plans);
+  });
+
+  // === TRANSFER REQUESTS ROUTES ===
+  app.post("/api/member/transfer-request", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({ gymCode: z.string().min(1) });
+    const input = schema.parse(req.body);
+    
+    const existingRequest = await storage.getMemberTransferRequest(req.user!.id);
+    if (existingRequest) {
+      return res.status(400).json({ message: "You already have a pending transfer request" });
+    }
+    
+    const toGym = await storage.getGymByCode(input.gymCode.toUpperCase());
+    if (!toGym) {
+      return res.status(400).json({ message: "Invalid gym code" });
+    }
+    
+    if (toGym.id === req.user!.gymId) {
+      return res.status(400).json({ message: "You are already in this gym" });
+    }
+    
+    const request = await storage.createTransferRequest({
+      memberId: req.user!.id,
+      fromGymId: req.user!.gymId!,
+      toGymId: toGym.id
+    });
+    res.status(201).json(request);
+  });
+
+  app.get("/api/member/transfer-request", requireRole(["member"]), async (req, res) => {
+    const request = await storage.getMemberTransferRequest(req.user!.id);
+    res.json(request || null);
+  });
+
+  app.get("/api/owner/transfer-requests", requireRole(["owner"]), async (req, res) => {
+    const requests = await storage.getTransferRequestsForOwner(req.user!.gymId!);
+    res.json(requests);
+  });
+
+  app.post("/api/owner/transfer-requests/:requestId/approve", requireRole(["owner"]), async (req, res) => {
+    const requestId = parseInt(req.params.requestId);
+    const updated = await storage.approveTransferByOwner(requestId, req.user!.gymId!);
+    res.json(updated);
+  });
+
+  app.post("/api/owner/transfer-requests/:requestId/reject", requireRole(["owner"]), async (req, res) => {
+    const requestId = parseInt(req.params.requestId);
+    const updated = await storage.rejectTransferRequest(requestId);
+    res.json(updated);
+  });
+
+  // === CYCLE DELETION ===
+  app.delete("/api/trainer/cycles/:cycleId", requireRole(["trainer"]), async (req, res) => {
+    const cycleId = parseInt(req.params.cycleId);
+    const cycle = await storage.getCycle(cycleId);
+    
+    if (!cycle || cycle.trainerId !== req.user!.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    
+    await storage.deleteCycle(cycleId);
+    res.sendStatus(204);
+  });
+
+  // === GYM HISTORY ===
+  app.get("/api/member/gym-history", requireRole(["member"]), async (req, res) => {
+    const history = await storage.getGymHistory(req.user!.id);
+    res.json(history);
+  });
+
   await seedDemoData();
   return httpServer;
 }

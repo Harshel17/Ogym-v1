@@ -9,7 +9,11 @@ import {
   LogOut, 
   Dumbbell,
   TrendingUp,
-  MessageSquare
+  MessageSquare,
+  Star,
+  Utensils,
+  UserCircle,
+  ArrowRightLeft
 } from "lucide-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -20,7 +24,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const isOwner = user.role === "owner";
   const isTrainer = user.role === "trainer";
-
   const isMember = user.role === "member";
 
   const navItems = [
@@ -28,6 +31,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Dashboard", 
       href: "/", 
       icon: LayoutDashboard,
+      visible: true
+    },
+    { 
+      label: "Profile", 
+      href: "/profile", 
+      icon: UserCircle,
       visible: true
     },
     { 
@@ -52,12 +61,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Payments", 
       href: "/payments", 
       icon: CreditCard,
-      visible: true
+      visible: isOwner || isMember
     },
     { 
       label: "Workouts", 
       href: "/workouts", 
       icon: Dumbbell,
+      visible: isTrainer
+    },
+    { 
+      label: "Star Members", 
+      href: "/star-members", 
+      icon: Star,
+      visible: isTrainer
+    },
+    { 
+      label: "Diet Plans", 
+      href: "/diet-plans", 
+      icon: Utensils,
       visible: isTrainer
     },
     { 
@@ -73,10 +94,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
       visible: isMember
     },
     { 
+      label: "My Diet Plan", 
+      href: "/my-diet-plan", 
+      icon: Utensils,
+      visible: isMember
+    },
+    { 
       label: "Requests", 
       href: "/requests", 
       icon: MessageSquare,
       visible: isMember || isTrainer
+    },
+    { 
+      label: "Transfers", 
+      href: "/transfers", 
+      icon: ArrowRightLeft,
+      visible: isOwner
     },
   ];
 

@@ -16,6 +16,11 @@ import TrainerWorkoutPage from "@/pages/trainer-workout-page";
 import MemberWorkoutPage from "@/pages/member-workout-page";
 import ProgressPage from "@/pages/progress-page";
 import RequestsPage from "@/pages/requests-page";
+import ProfilePage from "@/pages/profile-page";
+import StarMembersPage from "@/pages/star-members-page";
+import DietPlansPage from "@/pages/diet-plans-page";
+import MyDietPlanPage from "@/pages/my-diet-plan-page";
+import TransfersPage from "@/pages/transfers-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -80,6 +85,26 @@ function Router() {
 
       <Route path="/requests">
         <ProtectedRoute component={RequestsPage} />
+      </Route>
+
+      <Route path="/profile">
+        <ProtectedRoute component={ProfilePage} />
+      </Route>
+
+      <Route path="/star-members">
+        <ProtectedRoute component={StarMembersPage} />
+      </Route>
+
+      <Route path="/diet-plans">
+        <ProtectedRoute component={DietPlansPage} />
+      </Route>
+
+      <Route path="/my-diet-plan">
+        <ProtectedRoute component={MyDietPlanPage} />
+      </Route>
+
+      <Route path="/transfers">
+        <ProtectedRoute component={TransfersPage} />
       </Route>
 
       <Route component={NotFound} />

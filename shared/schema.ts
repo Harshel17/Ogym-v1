@@ -13,10 +13,13 @@ export const gyms = pgTable("gyms", {
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
+  publicId: text("public_id").unique(),
   gymId: integer("gym_id").references(() => gyms.id),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   role: text("role", { enum: ["owner", "trainer", "member"] }).notNull(),
+  email: text("email"),
+  phone: text("phone"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -107,6 +110,59 @@ export const memberRequests = pgTable("member_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const gymHistory = pgTable("gym_history", {
+  id: serial("id").primaryKey(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  leftAt: timestamp("left_at"),
+});
+
+export const starMembers = pgTable("star_members", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  trainerId: integer("trainer_id").references(() => users.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueStarMember: uniqueIndex("unique_star_member").on(table.trainerId, table.memberId),
+}));
+
+export const dietPlans = pgTable("diet_plans", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  trainerId: integer("trainer_id").references(() => users.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  title: text("title").notNull(),
+  durationWeeks: integer("duration_weeks").default(4),
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const dietPlanMeals = pgTable("diet_plan_meals", {
+  id: serial("id").primaryKey(),
+  planId: integer("plan_id").references(() => dietPlans.id).notNull(),
+  dayIndex: integer("day_index").notNull(),
+  mealType: text("meal_type", { enum: ["breakfast", "lunch", "dinner", "snack"] }).notNull(),
+  description: text("description").notNull(),
+  calories: integer("calories"),
+  protein: integer("protein"),
+  orderIndex: integer("order_index").default(0),
+});
+
+export const transferRequests = pgTable("transfer_requests", {
+  id: serial("id").primaryKey(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  fromGymId: integer("from_gym_id").references(() => gyms.id).notNull(),
+  toGymId: integer("to_gym_id").references(() => gyms.id).notNull(),
+  status: text("status", { enum: ["pending", "approved", "rejected", "cancelled"] }).default("pending"),
+  approvedByFromOwner: boolean("approved_by_from_owner").default(false),
+  approvedByToOwner: boolean("approved_by_to_owner").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // === RELATIONS ===
 
 export const gymsRelations = relations(gyms, ({ many }) => ({
@@ -131,6 +187,11 @@ export const insertWorkoutCycleSchema = createInsertSchema(workoutCycles).omit({
 export const insertWorkoutItemSchema = createInsertSchema(workoutItems).omit({ id: true });
 export const insertWorkoutCompletionSchema = createInsertSchema(workoutCompletions).omit({ id: true, createdAt: true });
 export const insertMemberRequestSchema = createInsertSchema(memberRequests).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertGymHistorySchema = createInsertSchema(gymHistory).omit({ id: true });
+export const insertStarMemberSchema = createInsertSchema(starMembers).omit({ id: true, createdAt: true });
+export const insertDietPlanSchema = createInsertSchema(dietPlans).omit({ id: true, createdAt: true });
+export const insertDietPlanMealSchema = createInsertSchema(dietPlanMeals).omit({ id: true });
+export const insertTransferRequestSchema = createInsertSchema(transferRequests).omit({ id: true, createdAt: true, updatedAt: true });
 
 // === EXPLICIT TYPES ===
 
@@ -143,6 +204,11 @@ export type WorkoutCycle = typeof workoutCycles.$inferSelect;
 export type WorkoutItem = typeof workoutItems.$inferSelect;
 export type WorkoutCompletion = typeof workoutCompletions.$inferSelect;
 export type MemberRequest = typeof memberRequests.$inferSelect;
+export type GymHistory = typeof gymHistory.$inferSelect;
+export type StarMember = typeof starMembers.$inferSelect;
+export type DietPlan = typeof dietPlans.$inferSelect;
+export type DietPlanMeal = typeof dietPlanMeals.$inferSelect;
+export type TransferRequest = typeof transferRequests.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertGym = z.infer<typeof insertGymSchema>;
@@ -152,3 +218,8 @@ export type InsertWorkoutCycle = z.infer<typeof insertWorkoutCycleSchema>;
 export type InsertWorkoutItem = z.infer<typeof insertWorkoutItemSchema>;
 export type InsertWorkoutCompletion = z.infer<typeof insertWorkoutCompletionSchema>;
 export type InsertMemberRequest = z.infer<typeof insertMemberRequestSchema>;
+export type InsertGymHistory = z.infer<typeof insertGymHistorySchema>;
+export type InsertStarMember = z.infer<typeof insertStarMemberSchema>;
+export type InsertDietPlan = z.infer<typeof insertDietPlanSchema>;
+export type InsertDietPlanMeal = z.infer<typeof insertDietPlanMealSchema>;
+export type InsertTransferRequest = z.infer<typeof insertTransferRequestSchema>;

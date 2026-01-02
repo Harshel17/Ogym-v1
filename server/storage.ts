@@ -1,5 +1,6 @@
 import { 
   users, gyms, attendance, payments, trainerMembers, workoutCycles, workoutItems, workoutCompletions, memberRequests,
+  gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
@@ -7,15 +8,27 @@ import {
   type WorkoutCycle, type InsertWorkoutCycle,
   type WorkoutItem, type InsertWorkoutItem,
   type WorkoutCompletion, type InsertWorkoutCompletion,
-  type MemberRequest, type InsertMemberRequest
+  type MemberRequest, type InsertMemberRequest,
+  type GymHistory, type InsertGymHistory,
+  type StarMember, type InsertStarMember,
+  type DietPlan, type InsertDietPlan,
+  type DietPlanMeal, type InsertDietPlanMeal,
+  type TransferRequest, type InsertTransferRequest
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, inArray, gte, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, gte, sql, isNull } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
+import { nanoid } from "nanoid";
 
 const PostgresSessionStore = connectPg(session);
+
+function generatePublicId(role: string): string {
+  const prefix = role === "owner" ? "OWN" : role === "trainer" ? "TRN" : "MEM";
+  const suffix = nanoid(5).toUpperCase();
+  return `${prefix}-${suffix}`;
+}
 
 export interface IStorage {
   sessionStore: session.Store;
@@ -97,6 +110,39 @@ export interface IStorage {
   getMemberRequests(memberId: number): Promise<(MemberRequest & { trainerName: string | null })[]>;
   getTrainerRequests(trainerId: number): Promise<(MemberRequest & { memberName: string })[]>;
   respondToRequest(requestId: number, response: string): Promise<MemberRequest>;
+  
+  // Profile
+  updateUserProfile(userId: number, data: { email?: string; phone?: string }): Promise<User>;
+  getFullMemberProfile(memberId: number): Promise<any>;
+  getTrainerProfile(trainerId: number): Promise<any>;
+  
+  // Gym History
+  getGymHistory(memberId: number): Promise<GymHistory[]>;
+  createGymHistory(data: InsertGymHistory): Promise<GymHistory>;
+  
+  // Star Members
+  getStarMembers(trainerId: number): Promise<StarMember[]>;
+  addStarMember(data: InsertStarMember): Promise<StarMember>;
+  removeStarMember(trainerId: number, memberId: number): Promise<void>;
+  isStarMember(trainerId: number, memberId: number): Promise<boolean>;
+  
+  // Diet Plans
+  getDietPlans(trainerId: number): Promise<DietPlan[]>;
+  getMemberDietPlans(memberId: number): Promise<(DietPlan & { meals: DietPlanMeal[] })[]>;
+  createDietPlan(data: InsertDietPlan): Promise<DietPlan>;
+  addDietPlanMeal(data: InsertDietPlanMeal): Promise<DietPlanMeal>;
+  getDietPlanMeals(planId: number): Promise<DietPlanMeal[]>;
+  
+  // Transfer Requests
+  createTransferRequest(data: InsertTransferRequest): Promise<TransferRequest>;
+  getTransferRequestsForOwner(gymId: number): Promise<(TransferRequest & { memberName: string; fromGymName: string; toGymName: string })[]>;
+  getMemberTransferRequest(memberId: number): Promise<TransferRequest | undefined>;
+  approveTransferByOwner(requestId: number, gymId: number): Promise<TransferRequest>;
+  rejectTransferRequest(requestId: number): Promise<TransferRequest>;
+  executeTransfer(requestId: number): Promise<void>;
+  
+  // Workout Cycle deletion
+  deleteCycle(cycleId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -122,7 +168,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    const publicId = generatePublicId(insertUser.role);
+    const [user] = await db.insert(users).values({ ...insertUser, publicId }).returning();
+    
+    // Create gym history record for new member/trainer
+    if (insertUser.gymId && (insertUser.role === "member" || insertUser.role === "trainer")) {
+      await db.insert(gymHistory).values({
+        memberId: user.id,
+        gymId: insertUser.gymId
+      });
+    }
+    
     return user;
   }
 
@@ -600,6 +656,272 @@ export class DatabaseStorage implements IStorage {
       .where(eq(memberRequests.id, requestId))
       .returning();
     return updated;
+  }
+
+  // === Profile Methods ===
+  async updateUserProfile(userId: number, data: { email?: string; phone?: string }): Promise<User> {
+    const [user] = await db.update(users)
+      .set(data)
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async getFullMemberProfile(memberId: number): Promise<any> {
+    const [member] = await db.select().from(users).where(eq(users.id, memberId));
+    if (!member) return null;
+
+    const [gym] = await db.select().from(gyms).where(eq(gyms.id, member.gymId!));
+    
+    const [assignment] = await db.select().from(trainerMembers).where(eq(trainerMembers.memberId, memberId));
+    let trainer = null;
+    if (assignment) {
+      const [t] = await db.select().from(users).where(eq(users.id, assignment.trainerId));
+      trainer = t ? { id: t.id, publicId: t.publicId, username: t.username } : null;
+    }
+
+    const cycle = await this.getMemberCycle(memberId);
+    const history = await this.getGymHistory(memberId);
+    const stats = await this.getMemberStats(memberId);
+
+    return {
+      id: member.id,
+      publicId: member.publicId,
+      username: member.username,
+      email: member.email,
+      phone: member.phone,
+      role: member.role,
+      createdAt: member.createdAt,
+      gym: gym ? { id: gym.id, name: gym.name, code: gym.code } : null,
+      trainer,
+      cycle: cycle ? { id: cycle.id, name: cycle.name, endDate: cycle.endDate } : null,
+      gymHistory: history,
+      stats
+    };
+  }
+
+  async getTrainerProfile(trainerId: number): Promise<any> {
+    const [trainer] = await db.select().from(users).where(eq(users.id, trainerId));
+    if (!trainer) return null;
+
+    const [gym] = await db.select().from(gyms).where(eq(gyms.id, trainer.gymId!));
+    const assignments = await this.getTrainerMembers(trainerId);
+    const memberIds = assignments.map(a => a.memberId);
+    
+    let members: User[] = [];
+    if (memberIds.length > 0) {
+      members = await db.select().from(users).where(inArray(users.id, memberIds));
+    }
+
+    const stars = await this.getStarMembers(trainerId);
+    const starMemberIds = new Set(stars.map(s => s.memberId));
+
+    return {
+      id: trainer.id,
+      publicId: trainer.publicId,
+      username: trainer.username,
+      email: trainer.email,
+      phone: trainer.phone,
+      role: trainer.role,
+      createdAt: trainer.createdAt,
+      gym: gym ? { id: gym.id, name: gym.name, code: gym.code } : null,
+      totalMembers: members.length,
+      totalStarMembers: stars.length,
+      members: members.map(m => ({
+        id: m.id,
+        publicId: m.publicId,
+        username: m.username,
+        isStar: starMemberIds.has(m.id)
+      }))
+    };
+  }
+
+  // === Gym History Methods ===
+  async getGymHistory(memberId: number): Promise<GymHistory[]> {
+    const history = await db.select({
+      history: gymHistory,
+      gym: gyms
+    })
+    .from(gymHistory)
+    .innerJoin(gyms, eq(gymHistory.gymId, gyms.id))
+    .where(eq(gymHistory.memberId, memberId))
+    .orderBy(desc(gymHistory.joinedAt));
+
+    return history.map(h => ({ ...h.history, gymName: (h.gym as any).name })) as any;
+  }
+
+  async createGymHistory(data: InsertGymHistory): Promise<GymHistory> {
+    const [record] = await db.insert(gymHistory).values(data).returning();
+    return record;
+  }
+
+  // === Star Members Methods ===
+  async getStarMembers(trainerId: number): Promise<StarMember[]> {
+    return await db.select().from(starMembers).where(eq(starMembers.trainerId, trainerId));
+  }
+
+  async addStarMember(data: InsertStarMember): Promise<StarMember> {
+    const [star] = await db.insert(starMembers).values(data).returning();
+    return star;
+  }
+
+  async removeStarMember(trainerId: number, memberId: number): Promise<void> {
+    await db.delete(starMembers).where(
+      and(eq(starMembers.trainerId, trainerId), eq(starMembers.memberId, memberId))
+    );
+  }
+
+  async isStarMember(trainerId: number, memberId: number): Promise<boolean> {
+    const [star] = await db.select().from(starMembers).where(
+      and(eq(starMembers.trainerId, trainerId), eq(starMembers.memberId, memberId))
+    );
+    return !!star;
+  }
+
+  // === Diet Plans Methods ===
+  async getDietPlans(trainerId: number): Promise<DietPlan[]> {
+    return await db.select().from(dietPlans)
+      .where(eq(dietPlans.trainerId, trainerId))
+      .orderBy(desc(dietPlans.createdAt));
+  }
+
+  async getMemberDietPlans(memberId: number): Promise<(DietPlan & { meals: DietPlanMeal[] })[]> {
+    const plans = await db.select().from(dietPlans)
+      .where(and(eq(dietPlans.memberId, memberId), eq(dietPlans.isActive, true)))
+      .orderBy(desc(dietPlans.createdAt));
+
+    const result = await Promise.all(plans.map(async (plan) => {
+      const meals = await this.getDietPlanMeals(plan.id);
+      return { ...plan, meals };
+    }));
+
+    return result;
+  }
+
+  async createDietPlan(data: InsertDietPlan): Promise<DietPlan> {
+    const [plan] = await db.insert(dietPlans).values(data).returning();
+    return plan;
+  }
+
+  async addDietPlanMeal(data: InsertDietPlanMeal): Promise<DietPlanMeal> {
+    const [meal] = await db.insert(dietPlanMeals).values(data).returning();
+    return meal;
+  }
+
+  async getDietPlanMeals(planId: number): Promise<DietPlanMeal[]> {
+    return await db.select().from(dietPlanMeals)
+      .where(eq(dietPlanMeals.planId, planId))
+      .orderBy(dietPlanMeals.dayIndex, dietPlanMeals.orderIndex);
+  }
+
+  // === Transfer Requests Methods ===
+  async createTransferRequest(data: InsertTransferRequest): Promise<TransferRequest> {
+    const [request] = await db.insert(transferRequests).values(data).returning();
+    return request;
+  }
+
+  async getTransferRequestsForOwner(gymId: number): Promise<(TransferRequest & { memberName: string; fromGymName: string; toGymName: string })[]> {
+    const requests = await db.select().from(transferRequests)
+      .where(
+        and(
+          eq(transferRequests.status, 'pending'),
+          sql`(${transferRequests.fromGymId} = ${gymId} OR ${transferRequests.toGymId} = ${gymId})`
+        )
+      )
+      .orderBy(desc(transferRequests.createdAt));
+
+    const result = await Promise.all(requests.map(async (req) => {
+      const [member] = await db.select().from(users).where(eq(users.id, req.memberId));
+      const [fromGym] = await db.select().from(gyms).where(eq(gyms.id, req.fromGymId));
+      const [toGym] = await db.select().from(gyms).where(eq(gyms.id, req.toGymId));
+      return {
+        ...req,
+        memberName: member?.username || 'Unknown',
+        fromGymName: fromGym?.name || 'Unknown',
+        toGymName: toGym?.name || 'Unknown'
+      };
+    }));
+
+    return result;
+  }
+
+  async getMemberTransferRequest(memberId: number): Promise<TransferRequest | undefined> {
+    const [request] = await db.select().from(transferRequests)
+      .where(and(eq(transferRequests.memberId, memberId), eq(transferRequests.status, 'pending')));
+    return request;
+  }
+
+  async approveTransferByOwner(requestId: number, gymId: number): Promise<TransferRequest> {
+    const [request] = await db.select().from(transferRequests).where(eq(transferRequests.id, requestId));
+    if (!request) throw new Error('Request not found');
+
+    let updateData: any = { updatedAt: new Date() };
+    if (request.fromGymId === gymId) {
+      updateData.approvedByFromOwner = true;
+    } else if (request.toGymId === gymId) {
+      updateData.approvedByToOwner = true;
+    }
+
+    const [updated] = await db.update(transferRequests)
+      .set(updateData)
+      .where(eq(transferRequests.id, requestId))
+      .returning();
+
+    // Check if both owners approved
+    if (updated.approvedByFromOwner && updated.approvedByToOwner) {
+      await this.executeTransfer(requestId);
+    }
+
+    return updated;
+  }
+
+  async rejectTransferRequest(requestId: number): Promise<TransferRequest> {
+    const [updated] = await db.update(transferRequests)
+      .set({ status: 'rejected', updatedAt: new Date() })
+      .where(eq(transferRequests.id, requestId))
+      .returning();
+    return updated;
+  }
+
+  async executeTransfer(requestId: number): Promise<void> {
+    const [request] = await db.select().from(transferRequests).where(eq(transferRequests.id, requestId));
+    if (!request) return;
+
+    // Update gym history - mark left_at for old gym
+    await db.update(gymHistory)
+      .set({ leftAt: new Date() })
+      .where(and(
+        eq(gymHistory.memberId, request.memberId),
+        eq(gymHistory.gymId, request.fromGymId),
+        isNull(gymHistory.leftAt)
+      ));
+
+    // Create new gym history record
+    await db.insert(gymHistory).values({
+      memberId: request.memberId,
+      gymId: request.toGymId
+    });
+
+    // Update member's gym
+    await db.update(users)
+      .set({ gymId: request.toGymId })
+      .where(eq(users.id, request.memberId));
+
+    // Remove trainer assignment
+    await db.delete(trainerMembers).where(eq(trainerMembers.memberId, request.memberId));
+
+    // Update transfer request status
+    await db.update(transferRequests)
+      .set({ status: 'approved', updatedAt: new Date() })
+      .where(eq(transferRequests.id, requestId));
+  }
+
+  // === Workout Cycle Deletion ===
+  async deleteCycle(cycleId: number): Promise<void> {
+    // Soft delete - just deactivate
+    await db.update(workoutCycles)
+      .set({ isActive: false })
+      .where(eq(workoutCycles.id, cycleId));
   }
 }
 
