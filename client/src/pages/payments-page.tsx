@@ -66,11 +66,11 @@ function OwnerPaymentsView() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10">
+              <div className="p-3 rounded-lg bg-primary/10 shrink-0">
                 <Users className="h-6 w-6 text-primary" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Active Subscriptions</p>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground truncate">Active</p>
                 <p className="text-2xl font-bold" data-testid="text-active-count">-</p>
               </div>
             </div>
@@ -79,11 +79,11 @@ function OwnerPaymentsView() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
+              <div className="p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 shrink-0">
                 <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Ending in 7 Days</p>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground truncate">Ending Soon</p>
                 <p className="text-2xl font-bold" data-testid="text-ending-soon">{alerts?.endingSoon || 0}</p>
               </div>
             </div>
@@ -92,11 +92,11 @@ function OwnerPaymentsView() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-red-100 dark:bg-red-900/30">
+              <div className="p-3 rounded-lg bg-red-100 dark:bg-red-900/30 shrink-0">
                 <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Overdue</p>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground truncate">Overdue</p>
                 <p className="text-2xl font-bold" data-testid="text-overdue">{alerts?.overdue || 0}</p>
               </div>
             </div>
@@ -349,7 +349,18 @@ function SubscriptionsTab() {
   });
 
   const selectedPlanId = form.watch("planId");
+  const watchStartDate = form.watch("startDate");
+  const watchDuration = form.watch("durationMonths");
   const activePlans = plans.filter(p => p.isActive);
+
+  // Compute end date for display
+  const computedEndDate = (() => {
+    if (!watchStartDate || !watchDuration) return null;
+    const start = new Date(watchStartDate);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + Number(watchDuration));
+    return format(end, "dd MMM yyyy");
+  })();
 
   // Auto-fill when plan is selected
   const handlePlanChange = (planId: string) => {
@@ -515,6 +526,12 @@ function SubscriptionsTab() {
                     )}
                   />
                 </div>
+                {computedEndDate && (
+                  <div className="p-3 bg-muted/50 rounded-md">
+                    <p className="text-sm text-muted-foreground">Subscription End Date</p>
+                    <p className="font-medium" data-testid="text-computed-end-date">{computedEndDate}</p>
+                  </div>
+                )}
                 <FormField
                   control={form.control}
                   name="paymentMode"
