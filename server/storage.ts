@@ -2099,8 +2099,12 @@ export class DatabaseStorage implements IStorage {
     }[] = [];
     
     for (const day of scheduleData.schedule) {
-      // Skip future dates and pure rest days
-      if (day.date >= today) continue;
+      // Skip future dates (but allow today if manually completed)
+      const isFutureDate = day.date > today;
+      const isTodayNotDone = day.date === today && !day.isManuallyCompleted;
+      if (isFutureDate || isTodayNotDone) continue;
+      
+      // Skip rest days
       if (day.status === "rest_day") continue;
       
       // Apply date filters
