@@ -355,12 +355,12 @@ function AssignTrainerDialog({ memberId, memberName, currentTrainer }: { memberI
           {currentTrainer ? "Reassign" : "Assign Trainer"}
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle>Assign Trainer to {memberName}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+          <form onSubmit={(e) => { e.stopPropagation(); form.handleSubmit(onSubmit)(e); }} className="space-y-4 pt-4">
             <FormField
               control={form.control}
               name="trainerId"
