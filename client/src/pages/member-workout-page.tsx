@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useTodayWorkout, useCompleteWorkout, useMemberStats, useMemberCycle } from "@/hooks/use-workouts";
+import { useTodayWorkout, useCompleteWorkout, useMemberCycle } from "@/hooks/use-workouts";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp } from "lucide-react";
+
+interface WorkoutSummary {
+  streak: number;
+  totalWorkouts: number;
+  last7DaysCount: number;
+  thisMonthCount: number;
+  calendarDays: { date: string; focusLabel: string }[];
+}
 
 
 interface ExerciseInputs {
@@ -20,7 +29,10 @@ interface ExerciseInputs {
 export default function MemberWorkoutPage() {
   const { user } = useAuth();
   const { data: todayData, isLoading: todayLoading } = useTodayWorkout();
-  const { data: statsData, isLoading: statsLoading } = useMemberStats();
+  // Use the same session-based stats endpoint as Dashboard for consistency
+  const { data: workoutSummary, isLoading: statsLoading } = useQuery<WorkoutSummary>({
+    queryKey: ["/api/member/workout/summary"],
+  });
   const { data: cycleData, isLoading: cycleLoading } = useMemberCycle();
   const completeWorkoutMutation = useCompleteWorkout();
   
@@ -30,7 +42,6 @@ export default function MemberWorkoutPage() {
   if (user?.role !== 'member') return null;
 
   const today = todayData as any;
-  const stats = statsData as any;
   const cycle = cycleData as any;
 
   const getInputs = (itemId: number, item: any) => {
@@ -77,26 +88,26 @@ export default function MemberWorkoutPage() {
         <p className="text-muted-foreground mt-1">Your personalized training program.</p>
       </div>
 
-      {!statsLoading && stats && (
+      {!statsLoading && workoutSummary && (
         <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-4">
               <Flame className="w-8 h-8 text-orange-500 mb-2" />
-              <p className="text-2xl font-bold">{stats.streak}</p>
+              <p className="text-2xl font-bold">{workoutSummary.streak}</p>
               <p className="text-xs text-muted-foreground">Day Streak</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-4">
               <Target className="w-8 h-8 text-blue-500 mb-2" />
-              <p className="text-2xl font-bold">{stats.totalWorkouts}</p>
-              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="text-2xl font-bold">{workoutSummary.totalWorkouts}</p>
+              <p className="text-xs text-muted-foreground">Total Sessions</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-4">
               <Calendar className="w-8 h-8 text-green-500 mb-2" />
-              <p className="text-2xl font-bold">{stats.last7Days}</p>
+              <p className="text-2xl font-bold">{workoutSummary.last7DaysCount}</p>
               <p className="text-xs text-muted-foreground">Last 7 Days</p>
             </CardContent>
           </Card>
