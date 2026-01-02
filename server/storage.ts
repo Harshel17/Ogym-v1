@@ -253,7 +253,7 @@ export interface IStorage {
     thisMonthCount: number;
     calendarDays: { date: string; focusLabel: string }[];
   }>;
-  getMemberWorkoutHistory(gymId: number, memberId: number, from?: string, to?: string): Promise<{
+  getMemberSessionHistory(gymId: number, memberId: number, from?: string, to?: string): Promise<{
     sessionId: number;
     date: string;
     focusLabel: string;
@@ -561,13 +561,13 @@ export class DatabaseStorage implements IStorage {
       exercises: { name: string; muscleType: string; sets: number | null; reps: number | null; weight: string | null }[];
     }[] = [];
 
-    for (const [date, items] of byDate) {
-      const muscleGroups = Array.from(new Set(items.map(i => i.workoutItem.muscleType).filter(Boolean)));
+    for (const [date, items] of Array.from(byDate.entries())) {
+      const muscleGroups: string[] = Array.from(new Set(items.map((i: typeof filtered[0]) => i.workoutItem.muscleType).filter((m): m is string => Boolean(m))));
       result.push({
         date,
         muscleGroups,
         exerciseCount: items.length,
-        exercises: items.map(i => ({
+        exercises: items.map((i: typeof filtered[0]) => ({
           name: i.workoutItem.exerciseName,
           muscleType: i.workoutItem.muscleType,
           sets: i.completion.actualSets,
@@ -1182,8 +1182,8 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Generate titles from muscle types
-    for (const session of sessionMap.values()) {
-      const muscleTypes = [...new Set(session.exercises.map(e => e.muscleType))];
+    for (const session of Array.from(sessionMap.values())) {
+      const muscleTypes = Array.from(new Set(session.exercises.map((e: any) => e.muscleType)));
       session.title = muscleTypes.join(" + ") || "Workout";
     }
 
@@ -1816,7 +1816,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getMemberWorkoutHistory(gymId: number, memberId: number, from?: string, to?: string): Promise<{
+  async getMemberSessionHistory(gymId: number, memberId: number, from?: string, to?: string): Promise<{
     sessionId: number;
     date: string;
     focusLabel: string;
