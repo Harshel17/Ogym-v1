@@ -1505,6 +1505,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(memberSubscriptions.id, subscriptionId));
   }
 
+  async getSubscriptionById(subscriptionId: number, gymId: number): Promise<MemberSubscription | null> {
+    const [sub] = await db.select().from(memberSubscriptions)
+      .where(and(eq(memberSubscriptions.id, subscriptionId), eq(memberSubscriptions.gymId, gymId)));
+    return sub || null;
+  }
+
   // === PAYMENT TRANSACTIONS ===
   async getSubscriptionTransactions(subscriptionId: number): Promise<PaymentTransaction[]> {
     return await db.select().from(paymentTransactions)

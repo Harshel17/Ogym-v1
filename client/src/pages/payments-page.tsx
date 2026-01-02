@@ -395,7 +395,6 @@ function SubscriptionsTab() {
     addPaymentMutation.mutate({
       subscriptionId: selectedSub.id,
       data: {
-        memberId: selectedSub.memberId,
         paidOn: data.paidOn,
         amountPaid: data.amountRupees * 100,
         method: data.method,

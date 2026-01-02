@@ -347,8 +347,14 @@ export async function registerRoutes(
 
   app.post("/api/owner/subscriptions/:subscriptionId/payments", requireRole(["owner"]), async (req, res) => {
     const subscriptionId = parseInt(req.params.subscriptionId);
+    
+    // Verify subscription belongs to this gym
+    const subscription = await storage.getSubscriptionById(subscriptionId, req.user!.gymId!);
+    if (!subscription) {
+      return res.status(404).json({ message: "Subscription not found" });
+    }
+    
     const schema = z.object({
-      memberId: z.number(),
       paidOn: z.string(),
       amountPaid: z.number().min(1), // in paise
       method: z.enum(["cash", "upi", "card", "bank", "other"]),
@@ -356,9 +362,10 @@ export async function registerRoutes(
     });
     const input = schema.parse(req.body);
     
+    // Derive memberId from the verified subscription
     const txn = await storage.addPaymentTransaction({
       gymId: req.user!.gymId!,
-      memberId: input.memberId,
+      memberId: subscription.memberId,
       subscriptionId,
       paidOn: input.paidOn,
       amountPaid: input.amountPaid,
