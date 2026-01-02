@@ -2,6 +2,7 @@ import {
   users, gyms, attendance, payments, trainerMembers, workoutCycles, workoutItems, workoutCompletions, memberRequests,
   gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests, announcements, userNotificationPreferences, announcementReads,
   membershipPlans, memberSubscriptions, paymentTransactions, workoutSessions, workoutSessionExercises,
+  gymRequests, joinRequests,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
@@ -22,7 +23,9 @@ import {
   type MemberSubscription, type InsertMemberSubscription,
   type PaymentTransaction, type InsertPaymentTransaction,
   type WorkoutSession, type InsertWorkoutSession,
-  type WorkoutSessionExercise, type InsertWorkoutSessionExercise
+  type WorkoutSessionExercise, type InsertWorkoutSessionExercise,
+  type GymRequest, type InsertGymRequest,
+  type JoinRequest, type InsertJoinRequest
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, sql, isNull } from "drizzle-orm";
@@ -293,6 +296,20 @@ export interface IStorage {
     status: "missed" | "partial";
     missedExercises: string[];
   }[]>;
+  
+  // Gym Requests (Owner onboarding)
+  createGymRequest(data: InsertGymRequest): Promise<GymRequest>;
+  getGymRequestByOwner(ownerUserId: number): Promise<GymRequest | undefined>;
+  getPendingGymRequests(): Promise<(GymRequest & { ownerName: string })[]>;
+  approveGymRequest(requestId: number): Promise<{ gymRequest: GymRequest; gym: Gym }>;
+  rejectGymRequest(requestId: number, adminNotes: string): Promise<GymRequest>;
+  
+  // Join Requests (Trainer/Member joining gym)
+  createJoinRequest(data: InsertJoinRequest): Promise<JoinRequest>;
+  getJoinRequestByUser(userId: number): Promise<(JoinRequest & { gymName: string; gymCode: string }) | undefined>;
+  getPendingJoinRequestsForGym(gymId: number): Promise<(JoinRequest & { userName: string; userRole: string })[]>;
+  approveJoinRequest(requestId: number): Promise<JoinRequest>;
+  rejectJoinRequest(requestId: number): Promise<JoinRequest>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2278,6 +2295,136 @@ export class DatabaseStorage implements IStorage {
     }
     
     return missed;
+  }
+  
+  // === Gym Requests Methods ===
+  async createGymRequest(data: InsertGymRequest): Promise<GymRequest> {
+    const [request] = await db.insert(gymRequests).values(data).returning();
+    return request;
+  }
+  
+  async getGymRequestByOwner(ownerUserId: number): Promise<GymRequest | undefined> {
+    const [request] = await db.select().from(gymRequests)
+      .where(eq(gymRequests.ownerUserId, ownerUserId))
+      .orderBy(desc(gymRequests.createdAt))
+      .limit(1);
+    return request;
+  }
+  
+  async getPendingGymRequests(): Promise<(GymRequest & { ownerName: string })[]> {
+    const requests = await db.select({
+      request: gymRequests,
+      owner: users
+    })
+    .from(gymRequests)
+    .innerJoin(users, eq(gymRequests.ownerUserId, users.id))
+    .where(eq(gymRequests.status, "pending"))
+    .orderBy(desc(gymRequests.createdAt));
+    
+    return requests.map(r => ({
+      ...r.request,
+      ownerName: r.owner.username
+    }));
+  }
+  
+  async approveGymRequest(requestId: number): Promise<{ gymRequest: GymRequest; gym: Gym }> {
+    const [request] = await db.select().from(gymRequests).where(eq(gymRequests.id, requestId));
+    if (!request) throw new Error("Gym request not found");
+    
+    const code = nanoid(6).toUpperCase();
+    
+    const [gym] = await db.insert(gyms).values({
+      name: request.gymName,
+      code,
+      phone: request.phone,
+      address: request.address,
+      ownerUserId: request.ownerUserId
+    }).returning();
+    
+    await db.update(users).set({ gymId: gym.id }).where(eq(users.id, request.ownerUserId));
+    
+    const [updatedRequest] = await db.update(gymRequests)
+      .set({ status: "approved", reviewedAt: new Date() })
+      .where(eq(gymRequests.id, requestId))
+      .returning();
+    
+    return { gymRequest: updatedRequest, gym };
+  }
+  
+  async rejectGymRequest(requestId: number, adminNotes: string): Promise<GymRequest> {
+    const [request] = await db.update(gymRequests)
+      .set({ status: "rejected", adminNotes, reviewedAt: new Date() })
+      .where(eq(gymRequests.id, requestId))
+      .returning();
+    return request;
+  }
+  
+  // === Join Requests Methods ===
+  async createJoinRequest(data: InsertJoinRequest): Promise<JoinRequest> {
+    const [request] = await db.insert(joinRequests).values(data).returning();
+    return request;
+  }
+  
+  async getJoinRequestByUser(userId: number): Promise<(JoinRequest & { gymName: string; gymCode: string }) | undefined> {
+    const result = await db.select({
+      request: joinRequests,
+      gym: gyms
+    })
+    .from(joinRequests)
+    .innerJoin(gyms, eq(joinRequests.gymId, gyms.id))
+    .where(eq(joinRequests.userId, userId))
+    .orderBy(desc(joinRequests.createdAt))
+    .limit(1);
+    
+    if (result.length === 0) return undefined;
+    return { ...result[0].request, gymName: result[0].gym.name, gymCode: result[0].gym.code };
+  }
+  
+  async getPendingJoinRequestsForGym(gymId: number): Promise<(JoinRequest & { userName: string; userRole: string })[]> {
+    const requests = await db.select({
+      request: joinRequests,
+      user: users
+    })
+    .from(joinRequests)
+    .innerJoin(users, eq(joinRequests.userId, users.id))
+    .where(and(eq(joinRequests.gymId, gymId), eq(joinRequests.status, "pending")))
+    .orderBy(desc(joinRequests.createdAt));
+    
+    return requests.map(r => ({
+      ...r.request,
+      userName: r.user.username,
+      userRole: r.user.role
+    }));
+  }
+  
+  async approveJoinRequest(requestId: number): Promise<JoinRequest> {
+    const [request] = await db.select().from(joinRequests).where(eq(joinRequests.id, requestId));
+    if (!request) throw new Error("Join request not found");
+    
+    await db.update(users).set({ gymId: request.gymId }).where(eq(users.id, request.userId));
+    
+    const [user] = await db.select().from(users).where(eq(users.id, request.userId));
+    if (user && (user.role === "member" || user.role === "trainer")) {
+      await db.insert(gymHistory).values({
+        memberId: request.userId,
+        gymId: request.gymId
+      });
+    }
+    
+    const [updatedRequest] = await db.update(joinRequests)
+      .set({ status: "approved", reviewedAt: new Date() })
+      .where(eq(joinRequests.id, requestId))
+      .returning();
+    
+    return updatedRequest;
+  }
+  
+  async rejectJoinRequest(requestId: number): Promise<JoinRequest> {
+    const [request] = await db.update(joinRequests)
+      .set({ status: "rejected", reviewedAt: new Date() })
+      .where(eq(joinRequests.id, requestId))
+      .returning();
+    return request;
   }
 }
 

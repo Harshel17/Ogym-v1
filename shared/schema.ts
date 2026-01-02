@@ -9,7 +9,36 @@ export const gyms = pgTable("gyms", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   code: text("code").notNull().unique(),
+  phone: text("phone"),
+  address: text("address"),
+  ownerUserId: integer("owner_user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const gymRequests = pgTable("gym_requests", {
+  id: serial("id").primaryKey(),
+  ownerUserId: integer("owner_user_id").references(() => users.id).notNull(),
+  gymName: text("gym_name").notNull(),
+  phone: text("phone"),
+  address: text("address"),
+  pointOfContactName: text("point_of_contact_name"),
+  pointOfContactEmail: text("point_of_contact_email"),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+});
+
+export const joinRequests = pgTable("join_requests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+}, (table) => ({
+  uniquePendingRequest: uniqueIndex("unique_pending_join_request").on(table.userId, table.gymId),
+}));
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -274,8 +303,10 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 
 // === SCHEMAS ===
 
-export const insertGymSchema = createInsertSchema(gyms).omit({ id: true });
+export const insertGymSchema = createInsertSchema(gyms).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertGymRequestSchema = createInsertSchema(gymRequests).omit({ id: true, createdAt: true, reviewedAt: true, status: true, adminNotes: true });
+export const insertJoinRequestSchema = createInsertSchema(joinRequests).omit({ id: true, createdAt: true, reviewedAt: true, status: true });
 export const insertTrainerMemberSchema = createInsertSchema(trainerMembers).omit({ id: true });
 export const insertAttendanceSchema = createInsertSchema(attendance).omit({ id: true, createdAt: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, updatedAt: true });
@@ -300,6 +331,8 @@ export const insertWorkoutSessionExerciseSchema = createInsertSchema(workoutSess
 // === EXPLICIT TYPES ===
 
 export type Gym = typeof gyms.$inferSelect;
+export type GymRequest = typeof gymRequests.$inferSelect;
+export type JoinRequest = typeof joinRequests.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type TrainerMember = typeof trainerMembers.$inferSelect;
 export type Attendance = typeof attendance.$inferSelect;
@@ -316,6 +349,8 @@ export type TransferRequest = typeof transferRequests.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertGym = z.infer<typeof insertGymSchema>;
+export type InsertGymRequest = z.infer<typeof insertGymRequestSchema>;
+export type InsertJoinRequest = z.infer<typeof insertJoinRequestSchema>;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type InsertWorkoutCycle = z.infer<typeof insertWorkoutCycleSchema>;

@@ -1,0 +1,140 @@
+You are a senior full-stack engineer.
+
+Goal: Implement an approval-based onboarding system for OGym (B2B gyms) with:
+A) Owner creates account → submits Gym Details form → goes to admin approval queue → once approved, Gym is created + gym code generated + emailed to owner.
+B) Trainers/Members can create account without gym code → after login they can enter gym code in Profile → join request goes to Owner → Owner approves → user becomes part of gym.
+
+CRITICAL RULES:
+- Do NOT break existing login/auth flows. Keep current auth working.
+- Do NOT redesign the entire UI; add minimal new pages/sections with consistent styling.
+- Enforce gym isolation in backend: no cross-gym data leakage.
+- If a database schema change is needed, keep it minimal and create migrations if you have a migration system. If not, implement schema changes carefully and document them.
+- If email sending is not configured, implement it as:
+  1) email service optional via env vars, and
+  2) always show the gym code in the owner UI after approval as fallback.
+
+PHASE 1 — DATA MODEL (add minimal tables)
+1) gym_requests (owner gym creation request)
+   - id (pk)
+   - owner_user_id (fk -> users.id)
+   - gym_name
+   - phone
+   - address
+   - point_of_contact_name
+   - point_of_contact_phone_or_email
+   - status: PENDING | APPROVED | REJECTED
+   - admin_notes (nullable)
+   - created_at, reviewed_at
+
+2) join_requests (trainer/member joining a gym)
+   - id (pk)
+   - user_id (fk -> users.id)
+   - gym_id (fk -> gyms.id)
+   - status: PENDING | APPROVED | REJECTED
+   - created_at, reviewed_at
+
+3) gyms table: ensure it has
+   - id, name, code (unique), phone, address, created_at
+   - owner_user_id (fk -> users.id) OR use your existing ownership approach
+
+4) users table: ensure users can exist WITHOUT a gym
+   - gym_id should be nullable OR use a membership table if you already have one.
+   - roles remain Owner/Trainer/Member.
+
+Implement uniqueness/constraints:
+- Only one PENDING gym_request per owner_user_id at a time.
+- Only one PENDING join_request per user_id per gym_id at a time.
+- gyms.code must be unique (6 chars).
+
+PHASE 2 — BACKEND ENDPOINTS
+Create endpoints with clear permissions:
+
+A) Owner Gym Request
+- POST /api/gym-requests
+  Auth required; only role=Owner
+  Creates a gym_request with status=PENDING
+  If request already pending for this owner, return 409 with message.
+- GET /api/gym-requests/me
+  Auth required; returns this owner’s latest request (status + details)
+
+B) Admin Approval (for me)
+Add admin flag check (is_admin OR allow by a hardcoded admin email in env for now).
+- GET /api/admin/gym-requests?status=PENDING
+- POST /api/admin/gym-requests/:id/approve
+  Creates gym record, generates gym code, links owner to that gym, marks request APPROVED
+- POST /api/admin/gym-requests/:id/reject
+  Marks request REJECTED + stores admin_notes
+
+C) Join Gym (Trainer/Member)
+- POST /api/join-requests
+  Auth required; role in {Trainer, Member}
+  Body: gymCode
+  Server looks up gym by code; creates join_request status=PENDING
+- GET /api/join-requests/me
+  Auth required; returns the user’s join request status
+
+D) Owner approval of join requests
+- GET /api/owner/join-requests?status=PENDING
+  Auth required; role=Owner; must only return requests for owner’s gym
+- POST /api/owner/join-requests/:id/approve
+  Auth required; role=Owner; verify request gym belongs to this owner
+  On approval: attach user to gym (set user.gym_id or create membership), status=APPROVED
+- POST /api/owner/join-requests/:id/reject
+  status=REJECTED
+
+PHASE 3 — ENFORCEMENT / SECURITY
+- Update middleware/guards so that gym-scoped endpoints verify:
+  user.gym_id matches requested gym_id (or membership exists)
+- Owner endpoints must verify owner owns that gym.
+- Trainer can only access assigned members (keep existing rules).
+
+PHASE 4 — FRONTEND PAGES (minimal but clear)
+1) Owner flow:
+- After owner registers/logs in:
+  If owner has no gym and no approved gym_request:
+    redirect to /owner/gym-request page
+- /owner/gym-request:
+  Form fields: gym name, phone, address, point of contact name + phone/email
+  Submit → shows “Pending approval” status page
+- /owner/gym-status:
+  Shows request status:
+    PENDING → “Waiting for approval”
+    APPROVED → shows gym name + gym code + “copy code”
+    REJECTED → show rejection message/admin notes and allow resubmit
+
+2) Admin flow (simple internal):
+- /admin/gym-requests:
+  Table list of PENDING requests with Approve/Reject buttons
+  Approve → generates gym code
+  Reject → requires reason (admin_notes)
+
+3) Member/Trainer flow:
+- In Profile page:
+  If user.gym_id is null:
+    show “Join a Gym” card with input for gym code and Submit
+    After submit: “Request sent, waiting for owner approval”
+  If approved: show gym details and status ACTIVE
+
+4) Owner approvals:
+- Requests page (you already have “Requests” tab):
+  Add a section “Join Requests”
+  List pending join requests with Approve/Reject
+  On approve, user becomes part of gym
+
+PHASE 5 — EMAIL NOTIFICATIONS (optional with fallback)
+- Add an email utility that sends owner an email with the gym code upon approval
+- Use env vars like:
+  EMAIL_PROVIDER, EMAIL_API_KEY, FROM_EMAIL
+- If not set, skip sending email but:
+  ALWAYS show gym code in Owner UI after approval.
+
+DELIVERABLES REQUIRED
+1) List all files changed.
+2) Provide a short explanation of the new flow.
+3) Show how to test:
+   - Owner registration → gym request → admin approve → owner sees code
+   - Member registration → enter code → owner approves → member gains access
+4) Add basic error messages and loading states.
+5) Add minimal UI improvements (cards, badges: Pending/Approved/Rejected) without changing overall theme.
+
+Start by
