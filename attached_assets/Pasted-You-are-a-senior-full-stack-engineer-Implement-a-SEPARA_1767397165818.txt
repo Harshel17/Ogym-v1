@@ -1,0 +1,101 @@
+You are a senior full-stack engineer.
+
+Implement a SEPARATE ADMIN LOGIN for OGym so I (admin) can:
+1) Approve/Reject gym approval requests
+2) View ALL gyms enrolled
+3) Manage subscription/payments status for gyms (owners pay to access subscription)
+
+IMPORTANT SECURITY RULES:
+- Do NOT hardcode admin username/password in the codebase.
+- Use environment variables / Replit Secrets for admin credentials.
+- Store passwords hashed (bcrypt/argon2).
+- Keep existing user login (Owner/Trainer/Member) unchanged.
+- Admin must be completely separate route and UI.
+
+ADMIN CREDENTIALS (store as env vars):
+- ADMIN_USERNAME = OGmyadmin1
+- ADMIN_PASSWORD = OGmy@0655@
+(Use these only for initial admin creation/seed; never expose in UI or logs.)
+
+PHASE A — DATABASE / USER MODEL
+1) Add/ensure a boolean field on users: is_admin (default false)
+2) Add/ensure is_manager / roles remain unchanged for non-admin.
+3) Ensure admin account exists:
+   - Create a seed script that checks if a user with ADMIN_USERNAME exists.
+   - If not, create it with is_admin=true and hashed password.
+
+PHASE B — BACKEND AUTH
+1) Create admin-only auth endpoints (or reuse existing login with admin check):
+   - POST /api/admin/login
+     - validates username/password
+     - returns JWT token with claims: { userId, username, is_admin: true }
+2) Middleware:
+   - requireAdmin: checks JWT + is_admin === true
+3) Protect all admin routes with requireAdmin
+
+PHASE C — ADMIN UI (SEPARATE)
+1) Create a separate route/page:
+   - /admin/login
+   - clean login form (username + password)
+2) After admin login, redirect to:
+   - /admin/dashboard
+
+Admin Dashboard should include 3 tabs/sections:
+
+SECTION 1: Gym Approval Requests
+- Show all gym_requests with filters: PENDING / APPROVED / REJECTED
+- For PENDING:
+  - Approve button
+  - Reject button (require reason)
+- On approve:
+  - create gym
+  - generate unique gym code
+  - link owner to gym
+  - update gym_request status
+- Show created gym code in dashboard and owner side
+
+SECTION 2: All Gyms Enrolled
+- List all gyms:
+  - gym name, code, created date, owner name/email
+  - current subscription status (active/inactive/trial)
+  - plan (monthly/quarterly/half-year/custom)
+  - amount paid and next due date
+
+SECTION 3: Gym Subscription / Payments Tracking
+- Add a simple table: gym_subscriptions (minimal)
+  Fields:
+  - id, gym_id
+  - plan_type (1_month, 3_month, 6_month, custom)
+  - amount_paid
+  - currency (INR)
+  - payment_status (pending/paid/overdue)
+  - paid_on
+  - valid_until
+  - notes
+- Admin can:
+  - set/modify plan + amount
+  - mark payment as PAID
+  - set valid_until date
+- Owner view:
+  - owner can see subscription status but cannot edit it (admin only)
+
+PHASE D — OWNER PAYMENTS UX (tracking only)
+- In Owner Payments page:
+  - show subscription status (active/inactive)
+  - show plan, amount, valid_until
+  - allow owner to upload payment proof screenshot (optional, if already implemented)
+  - show "Awaiting Admin Confirmation" badge if pending
+
+PHASE E — LOGOUT / SESSION
+- Add admin logout
+- Keep admin session separate from normal user session (token storage keyed differently)
+
+DELIVERABLES:
+1) List all files changed
+2) Explain how admin seeding works + where to set env vars in Replit Secrets
+3) Provide test steps:
+   - Admin login -> approve a gym request -> gym appears in All Gyms
+   - Update subscription -> owner sees status change
+4) Ensure no admin creds appear in the repository
+
+Start by scanning existing codebase and implement with minimal disruption.
