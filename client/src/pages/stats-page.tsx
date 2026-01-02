@@ -108,14 +108,14 @@ export default function StatsPage() {
               <CardContent className="flex flex-col items-center justify-center py-6">
                 <Calendar className="w-10 h-10 text-green-500 mb-2" />
                 <p className="text-3xl font-bold">{stats.last7Days}</p>
-                <p className="text-xs text-muted-foreground text-center">This Week</p>
+                <p className="text-xs text-muted-foreground text-center">Days (Last 7)</p>
               </CardContent>
             </Card>
             <Card data-testid="card-month">
               <CardContent className="flex flex-col items-center justify-center py-6">
-                <Dumbbell className="w-10 h-10 text-purple-500 mb-2" />
+                <CalendarDays className="w-10 h-10 text-purple-500 mb-2" />
                 <p className="text-3xl font-bold">{stats.thisMonth}</p>
-                <p className="text-xs text-muted-foreground text-center">This Month</p>
+                <p className="text-xs text-muted-foreground text-center">Days (This Month)</p>
               </CardContent>
             </Card>
           </div>
