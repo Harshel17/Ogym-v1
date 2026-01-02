@@ -346,7 +346,12 @@ function AssignTrainerDialog({ memberId, memberName, currentTrainer }: { memberI
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" data-testid={`button-assign-trainer-${memberId}`}>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          data-testid={`button-assign-trainer-${memberId}`}
+          onClick={(e) => e.stopPropagation()}
+        >
           {currentTrainer ? "Reassign" : "Assign Trainer"}
         </Button>
       </DialogTrigger>
