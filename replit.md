@@ -21,6 +21,14 @@ OGym is a multi-tenant B2B web application for gym management with role-based ac
 
 ## Recent Changes
 
+**January 2026:**
+- Added Star Member Detail page for trainers with full workout history and stats
+  - New endpoints: GET /api/trainer/star-members/:memberId, /workouts, /workouts/:date, /stats
+  - Clickable starred member cards navigate to detail page
+  - Workouts tab: session list with date-based grouping, modal for exercise details
+  - Stats tab: streak, weekly/monthly metrics, volume progression, muscle breakdown, PRs
+  - 3-level access control: assigned, starred, same gym
+
 **January 2025:**
 - Added user profile system with auto-generated publicId (OWN/TRN/MEM prefix + 5-char suffix)
 - Added email and phone fields to user profiles
