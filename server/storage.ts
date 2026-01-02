@@ -1,6 +1,7 @@
 import { 
   users, gyms, attendance, payments, trainerMembers, workoutCycles, workoutItems, workoutCompletions, memberRequests,
   gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests, announcements, userNotificationPreferences, announcementReads,
+  membershipPlans, memberSubscriptions, paymentTransactions,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
@@ -16,7 +17,10 @@ import {
   type TransferRequest, type InsertTransferRequest,
   type Announcement, type InsertAnnouncement,
   type UserNotificationPreferences, type InsertUserNotificationPreferences,
-  type AnnouncementRead, type InsertAnnouncementRead
+  type AnnouncementRead, type InsertAnnouncementRead,
+  type MembershipPlan, type InsertMembershipPlan,
+  type MemberSubscription, type InsertMemberSubscription,
+  type PaymentTransaction, type InsertPaymentTransaction
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, sql, isNull } from "drizzle-orm";
@@ -208,6 +212,26 @@ export interface IStorage {
   // Notification Preferences
   getNotificationPreferences(userId: number): Promise<UserNotificationPreferences | undefined>;
   upsertNotificationPreferences(userId: number, gymId: number, data: { emailEnabled?: boolean; smsEnabled?: boolean }): Promise<UserNotificationPreferences>;
+  
+  // Membership Plans
+  getMembershipPlans(gymId: number): Promise<MembershipPlan[]>;
+  createMembershipPlan(data: InsertMembershipPlan): Promise<MembershipPlan>;
+  updateMembershipPlan(planId: number, data: Partial<InsertMembershipPlan>): Promise<MembershipPlan>;
+  deactivateMembershipPlan(planId: number): Promise<void>;
+  
+  // Member Subscriptions
+  getMemberSubscriptions(gymId: number): Promise<(MemberSubscription & { member: User; plan: MembershipPlan | null; totalPaid: number })[]>;
+  getMemberSubscription(memberId: number): Promise<(MemberSubscription & { plan: MembershipPlan | null; totalPaid: number }) | null>;
+  createMemberSubscription(data: InsertMemberSubscription): Promise<MemberSubscription>;
+  updateSubscriptionStatus(subscriptionId: number, status: string): Promise<void>;
+  
+  // Payment Transactions
+  getSubscriptionTransactions(subscriptionId: number): Promise<PaymentTransaction[]>;
+  addPaymentTransaction(data: InsertPaymentTransaction): Promise<PaymentTransaction>;
+  
+  // Subscription Alerts
+  getSubscriptionAlerts(gymId: number): Promise<{ endingSoon: number; overdue: number }>;
+  updateExpiredSubscriptions(gymId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1398,6 +1422,162 @@ export class DatabaseStorage implements IStorage {
       .values({ userId, gymId, ...data })
       .returning();
     return created;
+  }
+
+  // === MEMBERSHIP PLANS ===
+  async getMembershipPlans(gymId: number): Promise<MembershipPlan[]> {
+    return await db.select().from(membershipPlans)
+      .where(eq(membershipPlans.gymId, gymId))
+      .orderBy(membershipPlans.durationMonths);
+  }
+
+  async createMembershipPlan(data: InsertMembershipPlan): Promise<MembershipPlan> {
+    const [plan] = await db.insert(membershipPlans).values(data).returning();
+    return plan;
+  }
+
+  async updateMembershipPlan(planId: number, data: Partial<InsertMembershipPlan>): Promise<MembershipPlan> {
+    const [updated] = await db.update(membershipPlans)
+      .set(data)
+      .where(eq(membershipPlans.id, planId))
+      .returning();
+    return updated;
+  }
+
+  async deactivateMembershipPlan(planId: number): Promise<void> {
+    await db.update(membershipPlans)
+      .set({ isActive: false })
+      .where(eq(membershipPlans.id, planId));
+  }
+
+  // === MEMBER SUBSCRIPTIONS ===
+  async getMemberSubscriptions(gymId: number): Promise<(MemberSubscription & { member: User; plan: MembershipPlan | null; totalPaid: number })[]> {
+    const subs = await db.select().from(memberSubscriptions)
+      .leftJoin(users, eq(memberSubscriptions.memberId, users.id))
+      .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+      .where(eq(memberSubscriptions.gymId, gymId))
+      .orderBy(desc(memberSubscriptions.createdAt));
+    
+    const result = [];
+    for (const row of subs) {
+      const transactions = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
+        .from(paymentTransactions)
+        .where(eq(paymentTransactions.subscriptionId, row.member_subscriptions.id));
+      
+      result.push({
+        ...row.member_subscriptions,
+        member: row.users!,
+        plan: row.membership_plans,
+        totalPaid: Number(transactions[0]?.total || 0)
+      });
+    }
+    return result;
+  }
+
+  async getMemberSubscription(memberId: number): Promise<(MemberSubscription & { plan: MembershipPlan | null; totalPaid: number }) | null> {
+    const [sub] = await db.select().from(memberSubscriptions)
+      .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+      .where(eq(memberSubscriptions.memberId, memberId))
+      .orderBy(desc(memberSubscriptions.createdAt))
+      .limit(1);
+    
+    if (!sub) return null;
+
+    const transactions = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
+      .from(paymentTransactions)
+      .where(eq(paymentTransactions.subscriptionId, sub.member_subscriptions.id));
+    
+    return {
+      ...sub.member_subscriptions,
+      plan: sub.membership_plans,
+      totalPaid: Number(transactions[0]?.total || 0)
+    };
+  }
+
+  async createMemberSubscription(data: InsertMemberSubscription): Promise<MemberSubscription> {
+    const [sub] = await db.insert(memberSubscriptions).values(data).returning();
+    return sub;
+  }
+
+  async updateSubscriptionStatus(subscriptionId: number, status: string): Promise<void> {
+    await db.update(memberSubscriptions)
+      .set({ status: status as any, updatedAt: new Date() })
+      .where(eq(memberSubscriptions.id, subscriptionId));
+  }
+
+  // === PAYMENT TRANSACTIONS ===
+  async getSubscriptionTransactions(subscriptionId: number): Promise<PaymentTransaction[]> {
+    return await db.select().from(paymentTransactions)
+      .where(eq(paymentTransactions.subscriptionId, subscriptionId))
+      .orderBy(desc(paymentTransactions.paidOn));
+  }
+
+  async addPaymentTransaction(data: InsertPaymentTransaction): Promise<PaymentTransaction> {
+    const [txn] = await db.insert(paymentTransactions).values(data).returning();
+    return txn;
+  }
+
+  // === SUBSCRIPTION ALERTS ===
+  async getSubscriptionAlerts(gymId: number): Promise<{ endingSoon: number; overdue: number }> {
+    const today = new Date().toISOString().split('T')[0];
+    const sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    const subs = await db.select().from(memberSubscriptions)
+      .where(eq(memberSubscriptions.gymId, gymId));
+    
+    let endingSoon = 0;
+    let overdue = 0;
+    
+    for (const sub of subs) {
+      if (sub.status === 'endingSoon' || (sub.endDate >= today && sub.endDate <= sevenDaysLater && sub.status === 'active')) {
+        endingSoon++;
+      }
+      if (sub.status === 'overdue' || (sub.endDate < today && sub.status !== 'ended')) {
+        overdue++;
+      }
+    }
+    
+    return { endingSoon, overdue };
+  }
+
+  async updateExpiredSubscriptions(gymId: number): Promise<void> {
+    const today = new Date().toISOString().split('T')[0];
+    const sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    // Update endingSoon status
+    await db.update(memberSubscriptions)
+      .set({ status: 'endingSoon', updatedAt: new Date() })
+      .where(and(
+        eq(memberSubscriptions.gymId, gymId),
+        eq(memberSubscriptions.status, 'active'),
+        gte(memberSubscriptions.endDate, today),
+        lt(memberSubscriptions.endDate, sevenDaysLater)
+      ));
+    
+    // Update overdue status (past end date but not fully paid)
+    const allSubs = await db.select().from(memberSubscriptions)
+      .where(and(eq(memberSubscriptions.gymId, gymId), lt(memberSubscriptions.endDate, today)));
+    
+    for (const sub of allSubs) {
+      if (sub.status === 'ended') continue;
+      
+      const [totalPaidResult] = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
+        .from(paymentTransactions)
+        .where(eq(paymentTransactions.subscriptionId, sub.id));
+      
+      const totalPaid = Number(totalPaidResult?.total || 0);
+      const remaining = sub.totalAmount - totalPaid;
+      
+      if (remaining > 0) {
+        await db.update(memberSubscriptions)
+          .set({ status: 'overdue', updatedAt: new Date() })
+          .where(eq(memberSubscriptions.id, sub.id));
+      } else {
+        await db.update(memberSubscriptions)
+          .set({ status: 'ended', updatedAt: new Date() })
+          .where(eq(memberSubscriptions.id, sub.id));
+      }
+    }
   }
 }
 
