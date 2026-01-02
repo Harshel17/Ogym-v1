@@ -14,7 +14,9 @@ import {
   Utensils,
   UserCircle,
   ArrowRightLeft,
-  Megaphone
+  Megaphone,
+  Building2,
+  UserPlus
 } from "lucide-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -123,6 +125,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
       href: "/announcements", 
       icon: Megaphone,
       visible: isTrainer || isMember
+    },
+    { 
+      label: "Join Requests", 
+      href: "/owner/join-requests", 
+      icon: UserPlus,
+      visible: isOwner && !!user.gymId
+    },
+    { 
+      label: "Register Gym", 
+      href: "/gym-request", 
+      icon: Building2,
+      visible: isOwner && !user.gymId
+    },
+    { 
+      label: "Join Gym", 
+      href: "/join-gym", 
+      icon: Building2,
+      visible: (isTrainer || isMember) && !user.gymId
     },
   ];
 

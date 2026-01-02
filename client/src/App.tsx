@@ -29,6 +29,9 @@ import OwnerAttendancePage from "@/pages/owner-attendance-page";
 import OwnerMemberDetailPage from "@/pages/owner-member-detail-page";
 import OwnerAnnouncementsPage from "@/pages/owner-announcements-page";
 import AnnouncementsPage from "@/pages/announcements-page";
+import GymRequestPage from "@/pages/gym-request-page";
+import JoinGymPage from "@/pages/join-gym-page";
+import OwnerJoinRequestsPage from "@/pages/owner-join-requests-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -145,6 +148,18 @@ function Router() {
 
       <Route path="/announcements">
         <ProtectedRoute component={AnnouncementsPage} />
+      </Route>
+
+      <Route path="/gym-request">
+        <ProtectedRoute component={GymRequestPage} />
+      </Route>
+
+      <Route path="/join-gym">
+        <ProtectedRoute component={JoinGymPage} />
+      </Route>
+
+      <Route path="/owner/join-requests">
+        <ProtectedRoute component={OwnerJoinRequestsPage} />
       </Route>
 
       <Route component={NotFound} />
