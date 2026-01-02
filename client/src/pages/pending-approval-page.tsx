@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Building2, CheckCircle2, XCircle, Loader2, LogOut } from "lucide-react";
+import { Clock, Building2, CheckCircle2, XCircle, Loader2, LogOut, RefreshCw } from "lucide-react";
+import { Link } from "wouter";
 
 type GymRequest = {
   id: number;
@@ -123,8 +124,14 @@ export default function PendingApprovalPage() {
                 </div>
               )}
               <p className="text-sm text-center text-muted-foreground">
-                Please contact support or try registering again with updated information.
+                You can submit a new request with updated information.
               </p>
+              <Link href={isOwner ? "/gym-request" : "/join-gym"}>
+                <Button className="w-full" data-testid="button-resubmit-request">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Submit New Request
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         )}
@@ -159,9 +166,18 @@ export default function PendingApprovalPage() {
             <CardHeader className="text-center">
               <CardTitle>No Pending Request</CardTitle>
               <CardDescription>
-                You don't have any pending requests at the moment.
+                {isOwner 
+                  ? "You haven't submitted a gym registration request yet."
+                  : "You haven't submitted a request to join a gym yet."}
               </CardDescription>
             </CardHeader>
+            <CardContent>
+              <Link href={isOwner ? "/gym-request" : "/join-gym"}>
+                <Button className="w-full" data-testid="button-submit-request">
+                  {isOwner ? "Register Your Gym" : "Join a Gym"}
+                </Button>
+              </Link>
+            </CardContent>
           </Card>
         )}
 

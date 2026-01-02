@@ -1,9 +1,7 @@
-import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Shield, Loader2, CheckCircle2, XCircle, Building2, Clock, Phone, MapPin, User } from "lucide-react";
@@ -34,15 +32,13 @@ type GymRequest = {
 };
 
 export default function AdminGymRequestsPage() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
   const { data: requests = [], isLoading } = useQuery<GymRequest[]>({
-    queryKey: ["/api/admin/gym-requests"],
-    enabled: user?.role === "owner"
+    queryKey: ["/api/admin/gym-requests"]
   });
 
   const approveMutation = useMutation({
@@ -85,16 +81,6 @@ export default function AdminGymRequestsPage() {
       rejectMutation.mutate({ requestId: selectedRequestId, notes: rejectReason });
     }
   };
-
-  if (user?.role !== "owner") {
-    return (
-      <div className="flex flex-col items-center justify-center h-[50vh] text-center">
-        <Shield className="w-16 h-16 text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-bold">Access Restricted</h2>
-        <p className="text-muted-foreground">Only administrators can access this page.</p>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
