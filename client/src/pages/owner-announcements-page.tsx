@@ -54,11 +54,7 @@ export default function OwnerAnnouncementsPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: AnnouncementForm) => {
-      return apiRequest("/api/owner/announcements", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" }
-      });
+      return apiRequest("POST", "/api/owner/announcements", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/owner/announcements"] });
@@ -66,21 +62,21 @@ export default function OwnerAnnouncementsPage() {
       setIsOpen(false);
       toast({ title: "Announcement published" });
     },
-    onError: () => {
-      toast({ title: "Failed to publish", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: "Failed to publish", description: error.message, variant: "destructive" });
     }
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/owner/announcements/${id}`, { method: "DELETE" });
+      return apiRequest("DELETE", `/api/owner/announcements/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/owner/announcements"] });
       toast({ title: "Announcement deleted" });
     },
-    onError: () => {
-      toast({ title: "Failed to delete", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: "Failed to delete", description: error.message, variant: "destructive" });
     }
   });
 

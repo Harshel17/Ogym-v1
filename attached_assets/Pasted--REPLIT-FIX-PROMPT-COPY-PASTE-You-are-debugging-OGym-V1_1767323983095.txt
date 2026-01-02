@@ -1,0 +1,105 @@
+🔥 REPLIT FIX PROMPT (COPY/PASTE)
+
+You are debugging OGym V1.
+
+Two issues:
+
+Owner Attendance Analytics “Checked In” stays 0 even after members check-in.
+
+Owner Announcements POST fails (“Failed to post”).
+
+Do NOT break existing login/roles/gym isolation.
+
+1) Fix Attendance Analytics (must be correct by date)
+1.1 Add stable attendance_date
+
+When a member checks in (wherever check-in is stored), ensure the attendance record saves:
+
+checked_in_at (timestamp)
+
+attendance_date (DATE or string YYYY-MM-DD) derived from local date, not UTC.
+
+If DB is Postgres:
+
+Add a migration to add attendance_date DATE NOT NULL DEFAULT CURRENT_DATE to attendance table.
+
+Backfill existing rows by casting checked_in_at to DATE.
+
+If the app uses sqlite in dev, handle both.
+
+1.2 Update analytics queries
+
+Owner analytics endpoints must compute:
+
+checkedInCount = count DISTINCT memberId where attendance_date = selected_date AND gymId = owner gymId
+
+notCheckedInCount = totalMembers - checkedInCount
+
+Trend endpoint must group by attendance_date not timestamp.
+
+1.3 Ensure frontend sends correct date
+
+On /owner/attendance:
+
+selectedDate must be formatted as YYYY-MM-DD and passed to API
+
+“Today” button must set selected date to today (local)
+
+1.4 Add logging
+
+In analytics endpoints log:
+
+gymId, selectedDate, query results
+In check-in endpoint log:
+
+memberId, gymId, attendance_date saved
+
+2) Fix Announcements POST failure
+2.1 Confirm API routes exist and match frontend
+
+Frontend should call:
+POST /api/owner/announcements
+Body: { title, body, audience, delivery: { inApp, email, sms } }
+
+Backend must:
+
+require owner auth
+
+use req.user.gymId (or equivalent) to set gymId
+
+insert into announcements table
+
+2.2 Ensure announcements table exists
+
+If missing, add migration to create:
+announcements(id, gymId, title, body, audience, createdAt, createdByOwnerId, isDeleted)
+
+2.3 Better error reporting
+
+If POST fails:
+
+backend should return JSON with message + error details (dev-safe)
+
+frontend should display error message instead of generic “failed”
+
+2.4 Add console logging
+
+Log the request payload + user gymId + insert result.
+
+3) Verification steps
+
+After fix:
+
+Login as member, check in today.
+
+Go owner → /owner/attendance → select today:
+
+checkedInCount increments
+
+member appears in “checked in list”
+
+Owner posts announcement:
+
+should succeed and show in list
+
+Implement and test end-to-end. If anything fails, show me the exact server error logs and the failing API response.
