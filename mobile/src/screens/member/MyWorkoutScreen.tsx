@@ -73,7 +73,6 @@ export default function MyWorkoutScreen() {
 
       {todayWorkout?.message ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyIcon}>{'😴'}</Text>
           <Text style={styles.emptyTitle}>{todayWorkout.message}</Text>
           <Text style={styles.emptySubtitle}>Contact your trainer to get started</Text>
         </View>
@@ -92,11 +91,11 @@ export default function MyWorkoutScreen() {
                 <View style={styles.muscleTag}>
                   <Text style={styles.muscleText}>{item.muscleType}</Text>
                 </View>
-                {item.completed && (
+                {item.completed ? (
                   <View style={styles.completedTag}>
                     <Text style={styles.completedTagText}>Completed</Text>
                   </View>
-                )}
+                ) : null}
               </View>
               <Text style={styles.exerciseName}>{item.exerciseName}</Text>
               <View style={styles.exerciseStats}>
@@ -108,14 +107,14 @@ export default function MyWorkoutScreen() {
                   <Text style={styles.statValue}>{item.reps}</Text>
                   <Text style={styles.statLabel}>Reps</Text>
                 </View>
-                {item.weight && (
+                {item.weight ? (
                   <View style={styles.stat}>
                     <Text style={styles.statValue}>{item.weight}</Text>
                     <Text style={styles.statLabel}>Weight</Text>
                   </View>
-                )}
+                ) : null}
               </View>
-              {!item.completed && (
+              {!item.completed ? (
                 <TouchableOpacity
                   style={styles.completeButton}
                   onPress={() => handleComplete(item)}
@@ -127,13 +126,12 @@ export default function MyWorkoutScreen() {
                     <Text style={styles.completeButtonText}>Mark Complete</Text>
                   )}
                 </TouchableOpacity>
-              )}
+              ) : null}
             </View>
           ))}
         </>
       ) : (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyIcon}>{'🏋️'}</Text>
           <Text style={styles.emptyTitle}>No Workout Today</Text>
           <Text style={styles.emptySubtitle}>Rest day or no cycle assigned</Text>
         </View>
@@ -254,10 +252,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: spacing.md,
   },
   emptyTitle: {
     fontSize: 20,

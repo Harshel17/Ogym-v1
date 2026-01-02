@@ -68,13 +68,11 @@ export default function MemberDashboard() {
 
       <View style={styles.statsRow}>
         <StatCard
-          icon={<Text style={{ fontSize: 24 }}>{'🔥'}</Text>}
           value={summary?.streak || 0}
           label="Day Streak"
           color={colors.orange}
         />
         <StatCard
-          icon={<Text style={{ fontSize: 24 }}>{'🎯'}</Text>}
           value={summary?.totalWorkouts || 0}
           label="Total Sessions"
           color={colors.blue}
@@ -83,13 +81,11 @@ export default function MemberDashboard() {
 
       <View style={styles.statsRow}>
         <StatCard
-          icon={<Text style={{ fontSize: 24 }}>{'📅'}</Text>}
           value={summary?.last7DaysCount || 0}
           label="Last 7 Days"
           color={colors.green}
         />
         <StatCard
-          icon={<Text style={{ fontSize: 24 }}>{'📊'}</Text>}
           value={summary?.thisMonthCount || 0}
           label="This Month"
           color={colors.purple}
@@ -101,7 +97,6 @@ export default function MemberDashboard() {
         <View style={styles.card}>
           {todayWorkout?.message ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>{'💪'}</Text>
               <Text style={styles.emptyText}>{todayWorkout.message}</Text>
             </View>
           ) : todayWorkout?.items && todayWorkout.items.length > 0 ? (
@@ -117,20 +112,19 @@ export default function MemberDashboard() {
                       {item.sets}x{item.reps} {item.weight ? `@ ${item.weight}` : ''}
                     </Text>
                   </View>
-                  <View style={[styles.statusBadge, item.completed && styles.completedBadge]}>
-                    <Text style={[styles.statusText, item.completed && styles.completedText]}>
+                  <View style={[styles.statusBadge, item.completed ? styles.completedBadge : null]}>
+                    <Text style={[styles.statusText, item.completed ? styles.completedText : null]}>
                       {item.completed ? 'Done' : 'Pending'}
                     </Text>
                   </View>
                 </View>
               ))}
-              {todayWorkout.items.length > 3 && (
+              {todayWorkout.items.length > 3 ? (
                 <Text style={styles.moreText}>+{todayWorkout.items.length - 3} more exercises</Text>
-              )}
+              ) : null}
             </>
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>{'🏋️'}</Text>
               <Text style={styles.emptyText}>No workout scheduled for today</Text>
             </View>
           )}
@@ -150,9 +144,9 @@ export default function MemberDashboard() {
               </View>
             ))}
           </View>
-          {(!summary?.calendarDays || summary.calendarDays.length === 0) && (
+          {(!summary?.calendarDays || summary.calendarDays.length === 0) ? (
             <Text style={styles.emptyText}>Complete workouts to see your calendar</Text>
-          )}
+          ) : null}
         </View>
       </View>
     </ScrollView>
@@ -278,10 +272,6 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     padding: spacing.lg,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: spacing.sm,
   },
   emptyText: {
     fontSize: 16,
