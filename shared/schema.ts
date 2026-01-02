@@ -47,9 +47,24 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   role: text("role", { enum: ["owner", "trainer", "member"] }).notNull(),
+  isAdmin: boolean("is_admin").default(false),
   email: text("email"),
   phone: text("phone"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const gymSubscriptions = pgTable("gym_subscriptions", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull().unique(),
+  planType: text("plan_type", { enum: ["1_month", "3_month", "6_month", "custom"] }).notNull().default("1_month"),
+  amountPaid: integer("amount_paid").notNull().default(0),
+  currency: text("currency").notNull().default("INR"),
+  paymentStatus: text("payment_status", { enum: ["pending", "paid", "overdue"] }).notNull().default("pending"),
+  paidOn: timestamp("paid_on"),
+  validUntil: timestamp("valid_until"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const trainerMembers = pgTable("trainer_members", {
@@ -327,6 +342,7 @@ export const insertMemberSubscriptionSchema = createInsertSchema(memberSubscript
 export const insertPaymentTransactionSchema = createInsertSchema(paymentTransactions).omit({ id: true, createdAt: true });
 export const insertWorkoutSessionSchema = createInsertSchema(workoutSessions).omit({ id: true, createdAt: true });
 export const insertWorkoutSessionExerciseSchema = createInsertSchema(workoutSessionExercises).omit({ id: true, createdAt: true });
+export const insertGymSubscriptionSchema = createInsertSchema(gymSubscriptions).omit({ id: true, createdAt: true, updatedAt: true });
 
 // === EXPLICIT TYPES ===
 
@@ -381,3 +397,6 @@ export type WorkoutSession = typeof workoutSessions.$inferSelect;
 export type WorkoutSessionExercise = typeof workoutSessionExercises.$inferSelect;
 export type InsertWorkoutSession = z.infer<typeof insertWorkoutSessionSchema>;
 export type InsertWorkoutSessionExercise = z.infer<typeof insertWorkoutSessionExerciseSchema>;
+
+export type GymSubscription = typeof gymSubscriptions.$inferSelect;
+export type InsertGymSubscription = z.infer<typeof insertGymSubscriptionSchema>;
