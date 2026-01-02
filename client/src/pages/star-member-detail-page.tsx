@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   ArrowLeft, Star, Calendar, Dumbbell, TrendingUp, 
-  Flame, Activity, Weight, ChevronRight, Loader2, Shield 
+  Flame, Activity, Weight, ChevronRight, Loader2, Shield,
+  CheckCircle2, XCircle, AlertCircle, Clock
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
@@ -25,7 +26,7 @@ type WorkoutSession = {
   date: string;
   title: string;
   exercises: {
-    completionId: number;
+    completionId: number | null;
     exerciseName: string;
     muscleType: string;
     sets: number;
@@ -35,7 +36,17 @@ type WorkoutSession = {
     actualReps: number | null;
     actualWeight: string | null;
     notes: string | null;
+    completed: boolean;
   }[];
+};
+
+type MissedWorkout = {
+  date: string;
+  dayLabel: string;
+  completedCount: number;
+  totalCount: number;
+  status: "missed" | "partial";
+  missedExercises: string[];
 };
 
 type MemberStats = {
@@ -89,6 +100,16 @@ export default function StarMemberDetailPage() {
     queryFn: async () => {
       const res = await fetch(`/api/trainer/star-members/${memberId}/stats`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch stats");
+      return res.json();
+    },
+    enabled: !!memberId
+  });
+
+  const { data: missedWorkouts = [], isLoading: missedLoading } = useQuery<MissedWorkout[]>({
+    queryKey: ["/api/trainer/star-members", memberId, "missed"],
+    queryFn: async () => {
+      const res = await fetch(`/api/trainer/star-members/${memberId}/missed`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch missed workouts");
       return res.json();
     },
     enabled: !!memberId
@@ -184,6 +205,10 @@ export default function StarMemberDetailPage() {
             <Dumbbell className="w-4 h-4 mr-2" />
             Workouts
           </TabsTrigger>
+          <TabsTrigger value="missed" data-testid="tab-missed">
+            <AlertCircle className="w-4 h-4 mr-2" />
+            Missed
+          </TabsTrigger>
           <TabsTrigger value="stats" data-testid="tab-stats">
             <TrendingUp className="w-4 h-4 mr-2" />
             Stats
@@ -205,36 +230,156 @@ export default function StarMemberDetailPage() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {workouts.map((session) => (
-                <Card 
-                  key={session.date} 
-                  className="cursor-pointer hover-elevate"
-                  onClick={() => setSelectedDate(session.date)}
-                  data-testid={`card-session-${session.date}`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Calendar className="w-5 h-5 text-primary" />
+              {workouts.map((session) => {
+                const completedCount = session.exercises.filter(e => e.completed).length;
+                const totalCount = session.exercises.length;
+                return (
+                  <Card 
+                    key={session.date} 
+                    className="cursor-pointer hover-elevate"
+                    onClick={() => setSelectedDate(session.date)}
+                    data-testid={`card-session-${session.date}`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Calendar className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{session.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(parseISO(session.date), "EEEE, MMMM d, yyyy")}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{session.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(parseISO(session.date), "EEEE, MMMM d, yyyy")}
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">
+                            {completedCount}/{totalCount} done
+                          </Badge>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">
-                          {session.exercises.length} exercises
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="missed" className="mt-6">
+          {missedLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : missedWorkouts.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+                  <Dumbbell className="w-8 h-8 text-green-500" />
+                </div>
+                <h3 className="font-semibold text-lg">No Missed Workouts!</h3>
+                <p className="text-muted-foreground mt-2">
+                  This member hasn't missed any workout days in their current cycle.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {missedWorkouts.filter(d => d.status === "missed").length > 0 && (
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-red-500" />
+                      Fully Missed Days
+                      <Badge variant="secondary" className="ml-2">
+                        {missedWorkouts.filter(d => d.status === "missed").length}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {missedWorkouts.filter(d => d.status === "missed").map((day) => (
+                      <div
+                        key={day.date}
+                        className="flex items-center justify-between p-4 rounded-lg border bg-red-500/5"
+                        data-testid={`missed-day-${day.date}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                            <AlertCircle className="w-5 h-5 text-red-500" />
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {format(parseISO(day.date), "EEEE, MMM d, yyyy")}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {day.dayLabel} - {day.totalCount} exercises planned
+                            </p>
+                          </div>
+                        </div>
+                        <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30">
+                          Missed
                         </Badge>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
                       </div>
-                    </div>
+                    ))}
                   </CardContent>
                 </Card>
-              ))}
+              )}
+
+              {missedWorkouts.filter(d => d.status === "partial").length > 0 && (
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-yellow-500" />
+                      Partial Completions
+                      <Badge variant="secondary" className="ml-2">
+                        {missedWorkouts.filter(d => d.status === "partial").length}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {missedWorkouts.filter(d => d.status === "partial").map((day) => (
+                      <div
+                        key={day.date}
+                        className="p-4 rounded-lg border bg-yellow-500/5"
+                        data-testid={`partial-day-${day.date}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                              <Clock className="w-5 h-5 text-yellow-500" />
+                            </div>
+                            <div>
+                              <p className="font-medium">
+                                {format(parseISO(day.date), "EEEE, MMM d, yyyy")}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {day.dayLabel}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30">
+                            {day.completedCount}/{day.totalCount} Done
+                          </Badge>
+                        </div>
+                        {day.missedExercises.length > 0 && (
+                          <div className="mt-3 pl-13">
+                            <p className="text-xs text-muted-foreground mb-1">Missed exercises:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {day.missedExercises.map((ex, idx) => (
+                                <Badge key={idx} variant="outline" className="text-xs">
+                                  {ex}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
         </TabsContent>
@@ -398,37 +543,61 @@ export default function StarMemberDetailPage() {
           ) : (
             <div className="space-y-4 mt-4">
               {selectedSession?.exercises.map((exercise, idx) => (
-                <div 
-                  key={exercise.completionId || idx} 
-                  className="p-4 border rounded-lg"
+                <Card 
+                  key={exercise.completionId ?? `skipped-${idx}`} 
+                  className={`border ${
+                    exercise.completed 
+                      ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" 
+                      : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                  }`}
                   data-testid={`exercise-${idx}`}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div>
-                      <p className="font-medium">{exercise.exerciseName}</p>
-                      <Badge variant="outline" className="text-xs">{exercise.muscleType}</Badge>
+                  <CardHeader className="py-3 pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">{exercise.exerciseName}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{exercise.muscleType}</Badge>
+                        {exercise.completed ? (
+                          <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            Done
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30">
+                            <XCircle className="w-3 h-3 mr-1" />
+                            Skipped
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 text-sm mt-3">
-                    <div className="p-2 bg-muted/50 rounded text-center">
-                      <p className="text-muted-foreground text-xs">Sets</p>
-                      <p className="font-medium">{exercise.actualSets ?? exercise.sets}</p>
-                    </div>
-                    <div className="p-2 bg-muted/50 rounded text-center">
-                      <p className="text-muted-foreground text-xs">Reps</p>
-                      <p className="font-medium">{exercise.actualReps ?? exercise.reps}</p>
-                    </div>
-                    <div className="p-2 bg-muted/50 rounded text-center">
-                      <p className="text-muted-foreground text-xs">Weight</p>
-                      <p className="font-medium">{exercise.actualWeight || exercise.weight || "-"}</p>
-                    </div>
-                  </div>
-                  {exercise.notes && (
-                    <p className="text-sm text-muted-foreground mt-2 italic">
-                      Note: {exercise.notes}
+                    <p className="text-xs text-muted-foreground">
+                      Prescribed: {exercise.sets}x{exercise.reps} {exercise.weight ? `@ ${exercise.weight}` : ''}
                     </p>
+                  </CardHeader>
+                  {exercise.completed && (
+                    <CardContent className="py-3">
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div className="p-2 bg-muted/50 rounded text-center">
+                          <p className="text-muted-foreground text-xs">Sets</p>
+                          <p className="font-medium">{exercise.actualSets ?? exercise.sets}</p>
+                        </div>
+                        <div className="p-2 bg-muted/50 rounded text-center">
+                          <p className="text-muted-foreground text-xs">Reps</p>
+                          <p className="font-medium">{exercise.actualReps ?? exercise.reps}</p>
+                        </div>
+                        <div className="p-2 bg-muted/50 rounded text-center">
+                          <p className="text-muted-foreground text-xs">Weight</p>
+                          <p className="font-medium">{exercise.actualWeight || exercise.weight || "-"}</p>
+                        </div>
+                      </div>
+                      {exercise.notes && (
+                        <p className="text-sm text-muted-foreground mt-2 italic">
+                          Note: {exercise.notes}
+                        </p>
+                      )}
+                    </CardContent>
                   )}
-                </div>
+                </Card>
               ))}
             </div>
           )}
