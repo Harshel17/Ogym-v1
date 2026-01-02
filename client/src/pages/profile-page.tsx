@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
-import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users } from "lucide-react";
+import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 
 type ProfileData = {
   id: number;
@@ -56,6 +57,8 @@ export default function ProfilePage() {
       toast({ title: "Failed to update profile", variant: "destructive" });
     }
   });
+
+  const canTransfer = user?.role === "member" || user?.role === "trainer";
 
   if (isLoading || !profile) {
     return (
@@ -281,7 +284,113 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         )}
+
+        {canTransfer && (
+          <TransferGymCard />
+        )}
       </div>
     </div>
+  );
+}
+
+function TransferGymCard() {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [gymCode, setGymCode] = useState("");
+
+  const { data: pendingTransfer } = useQuery({
+    queryKey: ["/api/member/transfer-request"]
+  });
+
+  const requestTransferMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const res = await apiRequest("POST", "/api/member/transfer-request", { gymCode: code });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/member/transfer-request"] });
+      toast({ title: "Transfer request submitted", description: "Waiting for both gym owners to approve." });
+      setOpen(false);
+      setGymCode("");
+    },
+    onError: (error: any) => {
+      toast({ title: "Transfer request failed", description: error?.message || "Invalid gym code or already pending", variant: "destructive" });
+    }
+  });
+
+  const handleSubmit = () => {
+    if (gymCode.trim()) {
+      requestTransferMutation.mutate(gymCode.trim().toUpperCase());
+    }
+  };
+
+  return (
+    <Card className="md:col-span-2">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ArrowRightLeft className="w-5 h-5" />
+          Transfer Gym
+        </CardTitle>
+        <CardDescription>Request to transfer to a different gym</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {pendingTransfer ? (
+          <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+            <p className="font-medium text-yellow-700 dark:text-yellow-400">Transfer Request Pending</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Your transfer request is awaiting approval from both gym owners.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Enter the code of the gym you want to transfer to. Both your current gym owner and the new gym owner must approve the transfer.
+            </p>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-request-transfer">
+                  <ArrowRightLeft className="w-4 h-4 mr-2" />
+                  Request Transfer
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Transfer to Another Gym</DialogTitle>
+                  <DialogDescription>
+                    Enter the gym code of your new gym. Both owners must approve.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="gymCode">New Gym Code</Label>
+                    <Input
+                      id="gymCode"
+                      placeholder="e.g., DEMO01"
+                      value={gymCode}
+                      onChange={(e) => setGymCode(e.target.value.toUpperCase())}
+                      className="font-mono"
+                      data-testid="input-gym-code"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                    <Button 
+                      onClick={handleSubmit} 
+                      disabled={!gymCode.trim() || requestTransferMutation.isPending}
+                      data-testid="button-submit-transfer"
+                    >
+                      {requestTransferMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : null}
+                      Submit Request
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

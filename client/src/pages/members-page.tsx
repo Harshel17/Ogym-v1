@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMembers, useTrainers, useAssignTrainer, useMembersDetails } from "@/hooks/use-gym";
 import { useTrainerMembers } from "@/hooks/use-workouts";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Shield, Check, X, Minus } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, Shield, Check, X, Minus, Star, Loader2 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -46,13 +50,55 @@ type MemberDetail = {
 
 export default function MembersPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "starred">("all");
   
   const isOwner = user?.role === "owner";
   const isTrainer = user?.role === "trainer";
   
   const { data: ownerMembersDetails = [], isLoading: ownerLoading } = useMembersDetails();
   const { data: trainerMembers = [], isLoading: trainerLoading } = useTrainerMembers();
+  
+  const { data: starMembers = [] } = useQuery<{ id: number; memberId: number }[]>({
+    queryKey: ["/api/trainer/star-members"],
+    enabled: isTrainer
+  });
+  
+  const starMemberIds = new Set((starMembers || []).map(s => s.memberId));
+  
+  const [pendingStarId, setPendingStarId] = useState<number | null>(null);
+  
+  const addStarMutation = useMutation({
+    mutationFn: async (memberId: number) => {
+      const res = await apiRequest("POST", "/api/trainer/star-members", { memberId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/star-members"] });
+      toast({ title: "Member added to stars" });
+      setPendingStarId(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to add star", variant: "destructive" });
+      setPendingStarId(null);
+    }
+  });
+
+  const removeStarMutation = useMutation({
+    mutationFn: async (memberId: number) => {
+      await apiRequest("DELETE", `/api/trainer/star-members/${memberId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/star-members"] });
+      toast({ title: "Member removed from stars" });
+      setPendingStarId(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to remove star", variant: "destructive" });
+      setPendingStarId(null);
+    }
+  });
   
   const members = isOwner ? (ownerMembersDetails as MemberDetail[]) : (trainerMembers as any[]);
   const isLoading = isOwner ? ownerLoading : trainerLoading;
@@ -67,10 +113,21 @@ export default function MembersPage() {
     );
   }
 
-  const filteredMembers = members.filter((m: any) => 
-    m.username?.toLowerCase().includes(search.toLowerCase()) || 
-    m.role?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredMembers = members.filter((m: any) => {
+    const matchesSearch = m.username?.toLowerCase().includes(search.toLowerCase()) || 
+      m.role?.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = filter === "all" || (filter === "starred" && starMemberIds.has(m.id));
+    return matchesSearch && matchesFilter;
+  });
+  
+  const toggleStar = (memberId: number) => {
+    setPendingStarId(memberId);
+    if (starMemberIds.has(memberId)) {
+      removeStarMutation.mutate(memberId);
+    } else {
+      addStarMutation.mutate(memberId);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -87,7 +144,7 @@ export default function MembersPage() {
 
       <Card className="dashboard-card">
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -98,6 +155,17 @@ export default function MembersPage() {
                 data-testid="input-search-members"
               />
             </div>
+            {isTrainer && (
+              <Tabs value={filter} onValueChange={(v) => setFilter(v as "all" | "starred")} className="w-auto">
+                <TabsList>
+                  <TabsTrigger value="all" data-testid="tab-all-members">All</TabsTrigger>
+                  <TabsTrigger value="starred" data-testid="tab-starred-members">
+                    <Star className="w-3 h-3 mr-1 fill-yellow-500 text-yellow-500" />
+                    Starred
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -105,6 +173,7 @@ export default function MembersPage() {
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
+                  {isTrainer && <TableHead className="w-12">Star</TableHead>}
                   <TableHead>Name</TableHead>
                   {isOwner && <TableHead>Trainer</TableHead>}
                   {isOwner && <TableHead>Subscription End</TableHead>}
@@ -125,14 +194,44 @@ export default function MembersPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredMembers.map((member: any) => (
+                  filteredMembers.map((member: any) => {
+                    const isStar = starMemberIds.has(member.id);
+                    const isPendingThis = pendingStarId === member.id;
+                    
+                    return (
                     <TableRow key={member.id} className="hover:bg-muted/50 transition-colors" data-testid={`row-member-${member.id}`}>
+                      {isTrainer && (
+                        <TableCell>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => toggleStar(member.id)}
+                            disabled={isPendingThis}
+                            className={isStar ? "text-yellow-500" : "text-muted-foreground"}
+                            data-testid={`button-star-${member.id}`}
+                          >
+                            {isPendingThis ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Star className={`w-4 h-4 ${isStar ? "fill-yellow-500" : ""}`} />
+                            )}
+                          </Button>
+                        </TableCell>
+                      )}
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${isStar && isTrainer ? "bg-yellow-500/20 text-yellow-600" : "bg-primary/10 text-primary"}`}>
                             {member.username?.slice(0, 2).toUpperCase() || '??'}
                           </div>
-                          {member.username}
+                          <div>
+                            {member.username}
+                            {isStar && isTrainer && (
+                              <Badge variant="secondary" className="ml-2 text-yellow-600 text-xs">
+                                <Star className="w-2 h-2 mr-1 fill-current" />
+                                Star
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                       {isOwner && (
@@ -169,7 +268,8 @@ export default function MembersPage() {
                         </TableCell>
                       )}
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -243,7 +343,7 @@ function AssignTrainerDialog({ memberId, memberName, currentTrainer }: { memberI
           {currentTrainer ? "Reassign" : "Assign Trainer"}
         </Button>
       </DialogTrigger>
-      <DialogContent aria-describedby={undefined}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Assign Trainer to {memberName}</DialogTitle>
         </DialogHeader>
