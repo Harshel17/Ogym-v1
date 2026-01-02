@@ -1110,6 +1110,32 @@ export async function registerRoutes(
     res.json({ stats, progress });
   });
 
+  // Star member detail - get missed workouts
+  app.get("/api/trainer/star-members/:memberId/missed", requireRole(["trainer"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    
+    // Access control
+    const assignments = await storage.getTrainerMembers(req.user!.id);
+    if (!assignments.some(a => a.memberId === memberId)) {
+      return res.status(403).json({ message: "Member not assigned to you" });
+    }
+    
+    const isStar = await storage.isStarMember(req.user!.id, memberId);
+    if (!isStar) {
+      return res.status(403).json({ message: "Member is not a star member" });
+    }
+    
+    const member = await storage.getUser(memberId);
+    if (!member || member.gymId !== req.user!.gymId) {
+      return res.status(403).json({ message: "Member not in your gym" });
+    }
+    
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+    const missed = await storage.getMissedWorkouts(req.user!.gymId!, memberId, from, to);
+    res.json(missed);
+  });
+
   app.get("/api/trainer/members/:memberId/stats", requireRole(["trainer"]), async (req, res) => {
     const memberId = parseInt(req.params.memberId);
     const isStar = await storage.isStarMember(req.user!.id, memberId);
