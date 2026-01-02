@@ -1015,6 +1015,11 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  app.get("/api/owner/gym-history", requireRole(["owner"]), async (req, res) => {
+    const history = await storage.getGymHistoryForGym(req.user!.gymId!);
+    res.json(history);
+  });
+
   // === CYCLE DELETION ===
   app.delete("/api/trainer/cycles/:cycleId", requireRole(["trainer"]), async (req, res) => {
     const cycleId = parseInt(req.params.cycleId);

@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowRight, Shield, Loader2, Check, X, ArrowRightLeft, User, Building2 } from "lucide-react";
+import { ArrowRight, Shield, Loader2, Check, X, ArrowRightLeft, User, Building2, History, LogIn, LogOut } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
 
 type TransferRequest = {
   id: number;
@@ -21,12 +24,26 @@ type TransferRequest = {
   createdAt: string;
 };
 
+type GymHistoryRecord = {
+  id: number;
+  memberId: number;
+  memberName: string;
+  gymId: number;
+  gymName: string;
+  joinedAt: string;
+  leftAt: string | null;
+};
+
 export default function TransfersPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
   const { data: requests = [], isLoading } = useQuery<TransferRequest[]>({
     queryKey: ["/api/owner/transfer-requests"]
+  });
+
+  const { data: gymHistory = [], isLoading: historyLoading } = useQuery<GymHistoryRecord[]>({
+    queryKey: ["/api/owner/gym-history"]
   });
 
   const approveMutation = useMutation({
@@ -70,119 +87,211 @@ export default function TransfersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">Transfer Requests</h2>
+        <h2 className="text-3xl font-bold font-display text-foreground">Transfers</h2>
         <p className="text-muted-foreground mt-1">
-          Review member transfer requests. Both source and destination gym owners must approve.
+          Review transfer requests and member history.
         </p>
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : requests.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <ArrowRightLeft className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-semibold text-lg">No Pending Transfers</h3>
-            <p className="text-muted-foreground mt-2">There are no transfer requests to review.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {requests.map((request) => {
-            const isFromGym = request.fromGymId === user.gymId;
-            const isToGym = request.toGymId === user.gymId;
-            const hasApproved = isFromGym ? request.approvedByFromOwner : request.approvedByToOwner;
-            const otherApproved = isFromGym ? request.approvedByToOwner : request.approvedByFromOwner;
+      <Tabs defaultValue="requests">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="requests" data-testid="tab-requests">
+            <ArrowRightLeft className="w-4 h-4 mr-2" />
+            Pending Requests ({requests.length})
+          </TabsTrigger>
+          <TabsTrigger value="history" data-testid="tab-history">
+            <History className="w-4 h-4 mr-2" />
+            History
+          </TabsTrigger>
+        </TabsList>
 
-            return (
-              <Card key={request.id} data-testid={`card-transfer-${request.id}`}>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-muted-foreground" />
-                        <CardTitle className="text-base">{request.memberName}</CardTitle>
+        <TabsContent value="requests" className="mt-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : requests.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <ArrowRightLeft className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="font-semibold text-lg">No Pending Transfers</h3>
+                <p className="text-muted-foreground mt-2">There are no transfer requests to review.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {requests.map((request) => {
+                const isFromGym = request.fromGymId === user.gymId;
+                const isToGym = request.toGymId === user.gymId;
+                const hasApproved = isFromGym ? request.approvedByFromOwner : request.approvedByToOwner;
+                const otherApproved = isFromGym ? request.approvedByToOwner : request.approvedByFromOwner;
+
+                return (
+                  <Card key={request.id} data-testid={`card-transfer-${request.id}`}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-muted-foreground" />
+                            <CardTitle className="text-base">{request.memberName}</CardTitle>
+                          </div>
+                          <CardDescription className="flex items-center gap-2">
+                            <Building2 className="w-3 h-3" />
+                            {request.fromGymName}
+                            <ArrowRight className="w-4 h-4" />
+                            <Building2 className="w-3 h-3" />
+                            {request.toGymName}
+                          </CardDescription>
+                        </div>
+                        <Badge variant={request.status === "pending" ? "secondary" : "default"}>
+                          {request.status}
+                        </Badge>
                       </div>
-                      <CardDescription className="flex items-center gap-2">
-                        <Building2 className="w-3 h-3" />
-                        {request.fromGymName}
-                        <ArrowRight className="w-4 h-4" />
-                        <Building2 className="w-3 h-3" />
-                        {request.toGymName}
-                      </CardDescription>
-                    </div>
-                    <Badge variant={request.status === "pending" ? "secondary" : "default"}>
-                      {request.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Source:</span>
-                      {request.approvedByFromOwner ? (
-                        <Badge variant="default" className="bg-green-600">
-                          <Check className="w-3 h-3 mr-1" /> Approved
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">Pending</Badge>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center gap-4 text-sm flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Source:</span>
+                          {request.approvedByFromOwner ? (
+                            <Badge variant="default" className="bg-green-600">
+                              <Check className="w-3 h-3 mr-1" /> Approved
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">Pending</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Destination:</span>
+                          {request.approvedByToOwner ? (
+                            <Badge variant="default" className="bg-green-600">
+                              <Check className="w-3 h-3 mr-1" /> Approved
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">Pending</Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      {!hasApproved && (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() => approveMutation.mutate(request.id)}
+                            disabled={approveMutation.isPending || rejectMutation.isPending}
+                            data-testid={`button-approve-${request.id}`}
+                          >
+                            {approveMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            ) : (
+                              <Check className="w-4 h-4 mr-2" />
+                            )}
+                            Approve
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => rejectMutation.mutate(request.id)}
+                            disabled={approveMutation.isPending || rejectMutation.isPending}
+                            data-testid={`button-reject-${request.id}`}
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Reject
+                          </Button>
+                        </div>
                       )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Destination:</span>
-                      {request.approvedByToOwner ? (
-                        <Badge variant="default" className="bg-green-600">
-                          <Check className="w-3 h-3 mr-1" /> Approved
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">Pending</Badge>
+
+                      {hasApproved && !otherApproved && (
+                        <p className="text-sm text-muted-foreground">
+                          Waiting for the other gym owner to approve...
+                        </p>
                       )}
-                    </div>
-                  </div>
 
-                  {!hasApproved && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        onClick={() => approveMutation.mutate(request.id)}
-                        disabled={approveMutation.isPending || rejectMutation.isPending}
-                        data-testid={`button-approve-${request.id}`}
-                      >
-                        {approveMutation.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        ) : (
-                          <Check className="w-4 h-4 mr-2" />
-                        )}
-                        Approve
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={() => rejectMutation.mutate(request.id)}
-                        disabled={approveMutation.isPending || rejectMutation.isPending}
-                        data-testid={`button-reject-${request.id}`}
-                      >
-                        <X className="w-4 h-4 mr-2" />
-                        Reject
-                      </Button>
-                    </div>
-                  )}
+                      <p className="text-xs text-muted-foreground">
+                        Requested {new Date(request.createdAt).toLocaleDateString()}
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
 
-                  {hasApproved && !otherApproved && (
-                    <p className="text-sm text-muted-foreground">
-                      Waiting for the other gym owner to approve...
-                    </p>
-                  )}
-
-                  <p className="text-xs text-muted-foreground">
-                    Requested {new Date(request.createdAt).toLocaleDateString()}
-                  </p>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+        <TabsContent value="history" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="w-5 h-5" />
+                Member Join/Leave History
+              </CardTitle>
+              <CardDescription>Track when members joined or left your gym</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : gymHistory.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  No transfer history yet.
+                </div>
+              ) : (
+                <div className="rounded-md border border-border overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow>
+                        <TableHead>Member</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead>Left</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {gymHistory.map((record) => (
+                        <TableRow key={record.id} data-testid={`row-history-${record.id}`}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                                {record.memberName?.slice(0, 2).toUpperCase() || '??'}
+                              </div>
+                              {record.memberName}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5 text-green-600">
+                              <LogIn className="w-3.5 h-3.5" />
+                              {format(new Date(record.joinedAt), "dd MMM yyyy")}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {record.leftAt ? (
+                              <div className="flex items-center gap-1.5 text-red-500">
+                                <LogOut className="w-3.5 h-3.5" />
+                                {format(new Date(record.leftAt), "dd MMM yyyy")}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {record.leftAt ? (
+                              <Badge variant="outline" className="text-red-500 border-red-500/30">
+                                Left
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
+                                Active
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

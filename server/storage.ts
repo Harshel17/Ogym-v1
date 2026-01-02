@@ -844,6 +844,29 @@ export class DatabaseStorage implements IStorage {
     return record;
   }
 
+  async getGymHistoryForGym(gymId: number): Promise<any[]> {
+    const history = await db.select({
+      history: gymHistory,
+      member: users,
+      gym: gyms
+    })
+    .from(gymHistory)
+    .innerJoin(users, eq(gymHistory.memberId, users.id))
+    .innerJoin(gyms, eq(gymHistory.gymId, gyms.id))
+    .where(eq(gymHistory.gymId, gymId))
+    .orderBy(desc(gymHistory.joinedAt));
+
+    return history.map(h => ({
+      id: h.history.id,
+      memberId: h.history.memberId,
+      memberName: h.member.username,
+      gymId: h.history.gymId,
+      gymName: (h.gym as any).name,
+      joinedAt: h.history.joinedAt,
+      leftAt: h.history.leftAt
+    }));
+  }
+
   // === Star Members Methods ===
   async getStarMembers(trainerId: number): Promise<StarMember[]> {
     return await db.select().from(starMembers).where(eq(starMembers.trainerId, trainerId));

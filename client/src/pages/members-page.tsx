@@ -32,7 +32,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Shield, Check, X, Minus, Star, Loader2 } from "lucide-react";
+import { Search, Shield, Check, X, Minus, Star, Loader2, ExternalLink } from "lucide-react";
+import { useLocation } from "wouter";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -51,6 +52,7 @@ type MemberDetail = {
 export default function MembersPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "starred">("all");
   
@@ -199,7 +201,12 @@ export default function MembersPage() {
                     const isPendingThis = pendingStarId === member.id;
                     
                     return (
-                    <TableRow key={member.id} className="hover:bg-muted/50 transition-colors" data-testid={`row-member-${member.id}`}>
+                    <TableRow 
+                      key={member.id} 
+                      className={`hover:bg-muted/50 transition-colors ${isOwner ? "cursor-pointer" : ""}`}
+                      onClick={isOwner ? () => navigate(`/owner/members/${member.id}`) : undefined}
+                      data-testid={`row-member-${member.id}`}
+                    >
                       {isTrainer && (
                         <TableCell>
                           <Button

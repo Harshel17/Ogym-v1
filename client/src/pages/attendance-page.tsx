@@ -7,13 +7,24 @@ import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { CalendarIcon, QrCode, CheckCircle2, XCircle } from "lucide-react";
+import { CalendarIcon, QrCode, CheckCircle2, XCircle, LogOut, LogIn } from "lucide-react";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
+
+type GymHistoryRecord = {
+  id: number;
+  memberId: number;
+  memberName: string;
+  gymId: number;
+  gymName: string;
+  joinedAt: string;
+  leftAt: string | null;
+};
 
 export default function AttendancePage() {
   const { user } = useAuth();
@@ -23,6 +34,11 @@ export default function AttendancePage() {
   
   const { data: gymAttendance = [], isLoading: gymLoading } = useAttendance();
   const { data: myAttendance = [], isLoading: myLoading } = useMemberAttendance();
+  
+  const { data: gymHistory = [] } = useQuery<GymHistoryRecord[]>({
+    queryKey: ["/api/owner/gym-history"],
+    enabled: user?.role === 'owner'
+  });
 
   const isOwner = user?.role === 'owner';
   const isMember = user?.role === 'member';
@@ -33,6 +49,19 @@ export default function AttendancePage() {
   const filteredList = isOwner 
     ? attendanceList.filter(a => a.date === dateStr)
     : attendanceList;
+    
+  const getTransferStatus = (memberId: number, date: string): { left: boolean; joined: boolean } | null => {
+    const record = gymHistory.find(h => {
+      const leftDate = h.leftAt ? h.leftAt.split('T')[0] : null;
+      const joinedDate = h.joinedAt.split('T')[0];
+      return h.memberId === memberId && (leftDate === date || joinedDate === date);
+    });
+    if (!record) return null;
+    return {
+      left: record.leftAt?.split('T')[0] === date,
+      joined: record.joinedAt.split('T')[0] === date
+    };
+  };
 
   return (
     <div className="space-y-8">
@@ -82,16 +111,17 @@ export default function AttendancePage() {
                       <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Method</TableHead>
+                      {isOwner && <TableHead>Transfer</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center">Loading...</TableCell>
+                        <TableCell colSpan={isOwner ? 5 : 4} className="h-24 text-center">Loading...</TableCell>
                       </TableRow>
                     ) : filteredList.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={isOwner ? 5 : 4} className="h-24 text-center text-muted-foreground">
                           No records found.
                         </TableCell>
                       </TableRow>
@@ -127,6 +157,31 @@ export default function AttendancePage() {
                               {record.verifiedMethod || 'manual'}
                             </Badge>
                           </TableCell>
+                          {isOwner && (
+                            <TableCell>
+                              {(() => {
+                                const transfer = getTransferStatus(record.member?.id, record.date);
+                                if (!transfer) return <span className="text-muted-foreground">-</span>;
+                                if (transfer.left) {
+                                  return (
+                                    <Badge variant="outline" className="text-red-500 border-red-500/30">
+                                      <LogOut className="w-3 h-3 mr-1" />
+                                      Left
+                                    </Badge>
+                                  );
+                                }
+                                if (transfer.joined) {
+                                  return (
+                                    <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
+                                      <LogIn className="w-3 h-3 mr-1" />
+                                      Joined
+                                    </Badge>
+                                  );
+                                }
+                                return <span className="text-muted-foreground">-</span>;
+                              })()}
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     )}
