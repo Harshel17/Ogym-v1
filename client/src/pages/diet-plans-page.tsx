@@ -40,7 +40,7 @@ export default function DietPlansPage() {
   });
 
   const { data: assignedMembers = [] } = useQuery({
-    queryKey: ["/api/trainer/assigned"]
+    queryKey: ["/api/trainer/members"]
   });
 
   const { data: dietPlans = [], isLoading } = useQuery<DietPlan[]>({
@@ -87,7 +87,7 @@ export default function DietPlansPage() {
   }
 
   const starMemberIds = new Set(starMembers.map(s => s.memberId));
-  const starMembersList = (assignedMembers as any[]).filter(m => starMemberIds.has(m.memberId));
+  const starMembersList = (assignedMembers as any[]).filter(m => starMemberIds.has(m.id));
 
   const onSubmit = (data: any) => {
     createMutation.mutate({
@@ -99,8 +99,8 @@ export default function DietPlansPage() {
   };
 
   const getMemberName = (memberId: number) => {
-    const member = (assignedMembers as any[]).find(m => m.memberId === memberId);
-    return member?.memberName || member?.username || "Unknown";
+    const member = (assignedMembers as any[]).find(m => m.id === memberId);
+    return member?.username || "Unknown";
   };
 
   return (
@@ -143,10 +143,10 @@ export default function DietPlansPage() {
                             </div>
                           ) : (
                             starMembersList.map((m: any) => (
-                              <SelectItem key={m.memberId} value={m.memberId.toString()}>
+                              <SelectItem key={m.id} value={m.id.toString()}>
                                 <div className="flex items-center gap-2">
                                   <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                                  {m.memberName || m.username}
+                                  {m.username}
                                 </div>
                               </SelectItem>
                             ))

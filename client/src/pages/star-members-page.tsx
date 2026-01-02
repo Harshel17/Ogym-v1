@@ -10,7 +10,6 @@ import { Star, StarOff, Shield, TrendingUp, Dumbbell, Loader2, User } from "luci
 type Member = {
   id: number;
   username: string;
-  isStar: boolean;
 };
 
 type StarMember = {
@@ -32,22 +31,20 @@ export default function StarMembersPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const { data: members = [], isLoading: membersLoading } = useQuery<Member[]>({
-    queryKey: ["/api/trainer/assigned"],
-    select: (data: any[]) => {
-      const stars: StarMember[] = starMembers || [];
-      const starIds = new Set(stars.map((s: StarMember) => s.memberId));
-      return data.map((m: any) => ({
-        id: m.memberId,
-        username: m.memberName || m.username,
-        isStar: starIds.has(m.memberId)
-      }));
-    }
-  });
-
   const { data: starMembers = [] } = useQuery<StarMember[]>({
     queryKey: ["/api/trainer/star-members"]
   });
+
+  const { data: assignedMembers = [], isLoading: membersLoading } = useQuery<any[]>({
+    queryKey: ["/api/trainer/members"]
+  });
+  
+  const starMemberIds = new Set(starMembers.map((s: StarMember) => s.memberId));
+  
+  const members: Member[] = assignedMembers.map((m: any) => ({
+    id: m.id,
+    username: m.username
+  }));
 
   const addStarMutation = useMutation({
     mutationFn: async (memberId: number) => {
@@ -56,7 +53,7 @@ export default function StarMembersPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/trainer/star-members"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/trainer/assigned"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/members"] });
       toast({ title: "Member added to stars" });
     },
     onError: () => {
@@ -71,7 +68,7 @@ export default function StarMembersPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/trainer/star-members"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/trainer/assigned"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/members"] });
       toast({ title: "Member removed from stars" });
     },
     onError: () => {
@@ -88,8 +85,6 @@ export default function StarMembersPage() {
       </div>
     );
   }
-
-  const starMemberIds = new Set(starMembers.map((s: StarMember) => s.memberId));
 
   return (
     <div className="space-y-6">

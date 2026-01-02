@@ -1,0 +1,71 @@
+You are working on OGym-V1. The app runs. DO NOT refactor the whole app. Make targeted fixes only.
+
+Problem:
+In Trainer login, trainer can mark a member as “Star”, but:
+1) It is NOT reflected in the Star Members page/list.
+2) Trainer cannot set diet plans for star members.
+3) Trainer cannot view star members’ stats/workout details.
+
+Goal:
+Make Star Member selection fully functional end-to-end:
+- The star toggle must persist in DB.
+- Star Members page must accurately list starred members.
+- Diet Plan creation must work for star members.
+- Trainer can view Stats/Progress ONLY for star members.
+
+Rules:
+- Enforce gym isolation and trainer assignment:
+  - Trainer can only star members assigned to them and in same gym.
+  - Trainer can only view stats/diet plans for star members.
+- Owner can see everything in their gym.
+- Member can see only self + diet plans assigned to them.
+
+Required Fix Steps:
+A) Identify current implementation:
+1) Find where star toggle is stored (table or field).
+2) Find where Star Members page loads its data.
+3) Verify whether the Star Members page is using the correct API and filters.
+
+B) Backend must provide consistent endpoints:
+1) GET /api/trainer/members
+   - Returns assigned members with `isStar` boolean.
+2) POST or PUT /api/trainer/star-members/:memberId
+   - Toggles star status, persists to DB.
+3) GET /api/trainer/star-members
+   - Returns only starred members for the logged-in trainer.
+4) GET /api/trainer/star-members/:memberId/stats
+   - Returns member workout stats/progress (only if member is starred)
+5) Diet Plans:
+   - POST /api/trainer/star-members/:memberId/diet-plans (create)
+   - GET /api/trainer/star-members/:memberId/diet-plans (list)
+   - GET /api/member/me/diet-plans (member sees their diet plans)
+
+C) Database:
+- Ensure there is a reliable table for star members:
+  trainer_star_members (gym_id, trainer_id, member_id, created_at)
+- Add a unique constraint (gym_id, trainer_id, member_id)
+- Ensure queries use trainer_id + gym_id filters.
+
+D) Frontend:
+1) Trainer Members page:
+   - Star toggle updates backend and then invalidates/refetches.
+2) Star Members page:
+   - Must call GET /api/trainer/star-members and display correctly.
+3) Star Member detail view:
+   - Buttons: View Stats, Diet Plans
+   - Diet plan form must save successfully.
+4) Fix React Query cache:
+   - Invalidate the correct query keys after starring/un-starring.
+
+E) Validation:
+- After implementation:
+  1) Star a member -> Star Members page shows them immediately after refresh.
+  2) Unstar -> removed from list.
+  3) Trainer can open starred member -> see stats page.
+  4) Trainer can create diet plan -> member can view it in Member login.
+
+Process:
+1) First print: list of files you will modify + what is currently broken.
+2) Then implement fixes.
+3) Provide testing steps with exact pages to click.
+DO NOT STOP AFTER PLAN. IMPLEMENT FULLY.
