@@ -767,6 +767,12 @@ export async function registerRoutes(
     res.json(calendar);
   });
 
+  app.get("/api/me/calendar/enhanced", requireRole(["member"]), async (req, res) => {
+    const month = req.query.month as string || new Date().toISOString().slice(0, 7);
+    const calendar = await storage.getMemberCalendarEnhanced(req.user!.gymId!, req.user!.id, month);
+    res.json(calendar);
+  });
+
   // Daily workout summary with date filtering
   app.get("/api/me/workouts/daily", requireRole(["member"]), async (req, res) => {
     const startDate = req.query.startDate as string | undefined;

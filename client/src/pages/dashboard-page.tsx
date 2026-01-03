@@ -926,6 +926,13 @@ function MemberDashboard() {
   );
 }
 
+type CalendarDayData = {
+  date: string;
+  status: "present" | "absent" | "rest" | "future";
+  completed: { name: string; sets: number; reps: number; weight: string | null }[];
+  missed: { name: string; sets: number; reps: number; weight: string | null }[];
+};
+
 function MemberCalendarWidget() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -933,17 +940,17 @@ function MemberCalendarWidget() {
   
   const monthStr = format(currentMonth, "yyyy-MM");
   
-  const { data: calendarData = [] } = useQuery<{ date: string; title: string; count: number }[]>({
-    queryKey: ["/api/me/calendar", monthStr],
+  const { data: calendarData = [] } = useQuery<CalendarDayData[]>({
+    queryKey: ["/api/me/calendar/enhanced", monthStr],
   });
 
-  const workoutDates = new Map(calendarData.map(d => [d.date, d]));
+  const calendarMap = new Map(calendarData.map(d => [d.date, d]));
   
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
   
-  const selectedWorkout = selectedDate ? workoutDates.get(selectedDate) : null;
+  const selectedDayData = selectedDate ? calendarMap.get(selectedDate) : null;
 
   const prevMonth = () => {
     const newDate = new Date(currentMonth);
@@ -958,8 +965,38 @@ function MemberCalendarWidget() {
   };
 
   const handleDateClick = (dateStr: string) => {
-    if (workoutDates.has(dateStr)) {
+    const dayData = calendarMap.get(dateStr);
+    if (dayData && dayData.status !== "future") {
       setSelectedDate(dateStr);
+    }
+  };
+
+  const getStatusStyles = (status: string, isTodayDate: boolean) => {
+    const baseStyles = "p-2 text-sm rounded-md transition-colors relative";
+    const todayRing = isTodayDate ? "ring-2 ring-primary" : "";
+    
+    switch (status) {
+      case "present":
+        return `${baseStyles} bg-green-500/20 text-green-700 dark:text-green-400 cursor-pointer hover:bg-green-500/30 ${todayRing}`;
+      case "absent":
+        return `${baseStyles} bg-red-500/20 text-red-700 dark:text-red-400 cursor-pointer hover:bg-red-500/30 ${todayRing}`;
+      case "rest":
+        return `${baseStyles} text-muted-foreground cursor-pointer hover:bg-muted/50 ${todayRing}`;
+      case "future":
+        return `${baseStyles} text-muted-foreground/50 cursor-default ${todayRing}`;
+      default:
+        return `${baseStyles} text-muted-foreground ${todayRing}`;
+    }
+  };
+
+  const getStatusDot = (status: string) => {
+    switch (status) {
+      case "present":
+        return <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-green-500 rounded-full" />;
+      case "absent":
+        return <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-500 rounded-full" />;
+      default:
+        return null;
     }
   };
 
@@ -983,6 +1020,16 @@ function MemberCalendarWidget() {
         </div>
       </CardHeader>
       <CardContent>
+        <div className="flex items-center justify-center gap-4 mb-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 bg-green-500 rounded-full" />
+            <span>Present</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 bg-red-500 rounded-full" />
+            <span>Missed</span>
+          </div>
+        </div>
         <div className="grid grid-cols-7 gap-1 text-center mb-2">
           {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(day => (
             <div key={day} className="text-xs text-muted-foreground font-medium py-1">
@@ -996,26 +1043,20 @@ function MemberCalendarWidget() {
           ))}
           {days.map(day => {
             const dateStr = format(day, "yyyy-MM-dd");
-            const hasWorkout = workoutDates.has(dateStr);
+            const dayData = calendarMap.get(dateStr);
+            const status = dayData?.status || "rest";
             const isTodayDate = isToday(day);
             
             return (
               <button
                 key={dateStr}
                 onClick={() => handleDateClick(dateStr)}
-                disabled={!hasWorkout}
-                className={`
-                  p-2 text-sm rounded-md transition-colors relative
-                  ${hasWorkout ? 'bg-green-500/20 text-green-700 dark:text-green-400 cursor-pointer hover:bg-green-500/30' : 'text-muted-foreground'}
-                  ${isTodayDate ? 'ring-2 ring-primary' : ''}
-                  ${!hasWorkout ? 'cursor-default' : ''}
-                `}
+                disabled={status === "future"}
+                className={getStatusStyles(status, isTodayDate)}
                 data-testid={`calendar-day-${dateStr}`}
               >
                 {format(day, "d")}
-                {hasWorkout && (
-                  <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-green-500 rounded-full" />
-                )}
+                {getStatusDot(status)}
               </button>
             );
           })}
@@ -1023,25 +1064,71 @@ function MemberCalendarWidget() {
       </CardContent>
 
       <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Dumbbell className="w-5 h-5" />
-              Workout on {selectedDate && format(new Date(selectedDate), "MMMM d, yyyy")}
+              {selectedDate && format(new Date(selectedDate), "MMMM d, yyyy")}
             </DialogTitle>
+            <DialogDescription>
+              {selectedDayData?.status === "present" && "You completed your workout this day"}
+              {selectedDayData?.status === "absent" && "You missed your scheduled workout"}
+              {selectedDayData?.status === "rest" && "Rest day - no workout scheduled"}
+            </DialogDescription>
           </DialogHeader>
-          {selectedWorkout && (
+          {selectedDayData && (
             <div className="space-y-4">
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="font-semibold text-lg">{selectedWorkout.title}</p>
-                <p className="text-sm text-muted-foreground">{selectedWorkout.count} exercises completed</p>
-              </div>
+              {selectedDayData.completed.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm flex items-center gap-2 text-green-600 dark:text-green-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Completed Exercises ({selectedDayData.completed.length})
+                  </h4>
+                  <div className="space-y-1">
+                    {selectedDayData.completed.map((exercise, i) => (
+                      <div key={i} className="p-2 bg-green-50 dark:bg-green-900/20 rounded-md text-sm flex items-center justify-between">
+                        <span className="font-medium">{exercise.name}</span>
+                        <span className="text-muted-foreground">
+                          {exercise.sets}x{exercise.reps} {exercise.weight ? `@ ${exercise.weight}` : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {selectedDayData.missed.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm flex items-center gap-2 text-red-600 dark:text-red-400">
+                    <AlertCircle className="w-4 h-4" />
+                    Missed Exercises ({selectedDayData.missed.length})
+                  </h4>
+                  <div className="space-y-1">
+                    {selectedDayData.missed.map((exercise, i) => (
+                      <div key={i} className="p-2 bg-red-50 dark:bg-red-900/20 rounded-md text-sm flex items-center justify-between">
+                        <span className="font-medium">{exercise.name}</span>
+                        <span className="text-muted-foreground">
+                          {exercise.sets}x{exercise.reps} {exercise.weight ? `@ ${exercise.weight}` : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {selectedDayData.completed.length === 0 && selectedDayData.missed.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground">
+                  <p>No workout was scheduled for this day.</p>
+                </div>
+              )}
+              
               <Button 
                 className="w-full" 
+                variant="outline"
                 onClick={() => navigate("/progress/workouts")}
                 data-testid="button-view-session"
               >
-                View Full Session Details
+                View Full Workout History
               </Button>
             </div>
           )}

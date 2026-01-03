@@ -192,6 +192,12 @@ export interface IStorage {
     weeklyTrend: { week: string; count: number }[];
   }>;
   getMemberCalendar(memberId: number, month: string): Promise<{ date: string; title: string; count: number }[]>;
+  getMemberCalendarEnhanced(gymId: number, memberId: number, month: string): Promise<{
+    date: string;
+    status: "present" | "absent" | "rest" | "future";
+    completed: { name: string; sets: number; reps: number; weight: string | null }[];
+    missed: { name: string; sets: number; reps: number; weight: string | null }[];
+  }[]>;
   
   // Owner Dashboard & Attendance Analytics
   getOwnerDashboardMetrics(gymId: number): Promise<{
@@ -1536,6 +1542,134 @@ export class DatabaseStorage implements IStorage {
       title: Array.from(muscles).join(" + ") || "Workout",
       count
     }));
+  }
+
+  async getMemberCalendarEnhanced(gymId: number, memberId: number, month: string): Promise<{
+    date: string;
+    status: "present" | "absent" | "rest" | "future";
+    completed: { name: string; sets: number; reps: number; weight: string | null }[];
+    missed: { name: string; sets: number; reps: number; weight: string | null }[];
+  }[]> {
+    const [year, mon] = month.split("-").map(Number);
+    const startDate = `${year}-${String(mon).padStart(2, "0")}-01`;
+    const nextMon = mon === 12 ? 1 : mon + 1;
+    const nextYear = mon === 12 ? year + 1 : year;
+    const endDate = `${nextYear}-${String(nextMon).padStart(2, "0")}-01`;
+    const today = new Date().toISOString().split("T")[0];
+
+    const memberAttendance = await db.select()
+      .from(attendance)
+      .where(and(
+        eq(attendance.gymId, gymId),
+        eq(attendance.memberId, memberId),
+        gte(attendance.date, startDate),
+        lt(attendance.date, endDate)
+      ));
+    const attendanceDates = new Set(memberAttendance.filter(a => a.status === "present").map(a => a.date));
+
+    const completions = await db.select({
+      completion: workoutCompletions,
+      item: workoutItems
+    })
+    .from(workoutCompletions)
+    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .where(and(
+      eq(workoutCompletions.memberId, memberId),
+      gte(workoutCompletions.completedDate, startDate),
+      lt(workoutCompletions.completedDate, endDate)
+    ));
+
+    const memberCycle = await db.select()
+      .from(workoutCycles)
+      .where(and(eq(workoutCycles.gymId, gymId), eq(workoutCycles.memberId, memberId)))
+      .limit(1);
+    
+    let scheduledItems: typeof workoutItems.$inferSelect[] = [];
+    if (memberCycle.length > 0) {
+      scheduledItems = await db.select()
+        .from(workoutItems)
+        .where(eq(workoutItems.cycleId, memberCycle[0].id))
+        .orderBy(workoutItems.dayIndex, workoutItems.exerciseOrder);
+    }
+
+    const completedByDate = new Map<string, Set<number>>();
+    const completedExercisesByDate = new Map<string, { name: string; sets: number; reps: number; weight: string | null }[]>();
+    
+    for (const { completion, item } of completions) {
+      const date = completion.completedDate;
+      if (!completedByDate.has(date)) {
+        completedByDate.set(date, new Set());
+        completedExercisesByDate.set(date, []);
+      }
+      completedByDate.get(date)!.add(completion.workoutItemId);
+      completedExercisesByDate.get(date)!.push({
+        name: item.exerciseName,
+        sets: completion.actualSets || item.sets,
+        reps: completion.actualReps || item.reps,
+        weight: completion.actualWeight || item.weight
+      });
+    }
+
+    const result: {
+      date: string;
+      status: "present" | "absent" | "rest" | "future";
+      completed: { name: string; sets: number; reps: number; weight: string | null }[];
+      missed: { name: string; sets: number; reps: number; weight: string | null }[];
+    }[] = [];
+
+    const daysInMonth = new Date(year, mon, 0).getDate();
+    const cycle = memberCycle.length > 0 ? memberCycle[0] : null;
+    const cycleEndDate = cycle?.endDate || null;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(mon).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      
+      if (dateStr > today) {
+        result.push({ date: dateStr, status: "future", completed: [], missed: [] });
+        continue;
+      }
+
+      const wasPresent = attendanceDates.has(dateStr);
+      const completedIds = completedByDate.get(dateStr) || new Set();
+      const completed = completedExercisesByDate.get(dateStr) || [];
+
+      let dayIndex = -1;
+      let isCycleActive = false;
+      if (cycle) {
+        const cycleStart = new Date(cycle.startDate);
+        const currentDate = new Date(dateStr);
+        const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
+        
+        const withinStart = daysDiff >= 0;
+        const withinEnd = !cycleEndDate || dateStr <= cycleEndDate;
+        
+        if (withinStart && withinEnd) {
+          dayIndex = daysDiff % cycle.daysPerCycle;
+          isCycleActive = true;
+        }
+      }
+
+      const scheduledForDay = isCycleActive ? scheduledItems.filter(item => item.dayIndex === dayIndex) : [];
+      const missed = scheduledForDay
+        .filter(item => !completedIds.has(item.id))
+        .map(item => ({
+          name: item.exerciseName,
+          sets: item.sets,
+          reps: item.reps,
+          weight: item.weight
+        }));
+
+      let status: "present" | "absent" | "rest" | "future" = "rest";
+      if (wasPresent || completed.length > 0) {
+        status = "present";
+      } else if (scheduledForDay.length > 0) {
+        status = "absent";
+      }
+
+      result.push({ date: dateStr, status, completed, missed });
+    }
+
+    return result;
   }
 
   // Owner Dashboard & Attendance Analytics
