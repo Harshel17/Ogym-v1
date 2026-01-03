@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil, Trash2 } from "lucide-react";
+import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil, Trash2, Search, X } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -398,7 +398,12 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
 
 function CreateCycleDialog({ members }: { members: any[] }) {
   const [open, setOpen] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
   const createCycleMutation = useCreateCycle();
+
+  const filteredMembers = members.filter(m => 
+    m.username.toLowerCase().includes(memberSearch.toLowerCase())
+  );
 
   const formSchema = z.object({
     memberId: z.coerce.number().min(1, "Select a member"),
@@ -423,7 +428,7 @@ function CreateCycleDialog({ members }: { members: any[] }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) setMemberSearch(""); }}>
       <DialogTrigger asChild>
         <Button data-testid="button-create-cycle">
           <Plus className="w-4 h-4 mr-2" /> New Cycle
@@ -441,6 +446,28 @@ function CreateCycleDialog({ members }: { members: any[] }) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Member</FormLabel>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search members..."
+                      value={memberSearch}
+                      onChange={e => setMemberSearch(e.target.value)}
+                      className="pl-9 pr-9"
+                      data-testid="input-search-cycle-member"
+                    />
+                    {memberSearch && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                        onClick={() => setMemberSearch("")}
+                        data-testid="button-clear-cycle-member-search"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
                   <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
                     <FormControl>
                       <SelectTrigger data-testid="select-member">
@@ -448,11 +475,15 @@ function CreateCycleDialog({ members }: { members: any[] }) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent position="popper" className="z-[200] max-h-[200px]">
-                      {members.map((m) => (
-                        <SelectItem key={m.id} value={m.id.toString()}>
-                          {m.username}
-                        </SelectItem>
-                      ))}
+                      {filteredMembers.length === 0 ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">No members found</div>
+                      ) : (
+                        filteredMembers.map((m) => (
+                          <SelectItem key={m.id} value={m.id.toString()}>
+                            {m.username}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
