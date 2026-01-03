@@ -10,8 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { IndianRupee, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { IndianRupee, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle, Check, ChevronsUpDown } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -331,6 +334,7 @@ interface SubscriptionsTabProps {
 
 function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: SubscriptionsTabProps) {
   const [open, setOpen] = useState(false);
+  const [memberPopoverOpen, setMemberPopoverOpen] = useState(false);
   const [selectedSub, setSelectedSub] = useState<SubscriptionWithDetails | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const { toast } = useToast();
@@ -509,20 +513,58 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
                   control={form.control}
                   name="memberId"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                       <FormLabel>Member</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value?.toString()}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-member">
-                            <SelectValue placeholder="Select member" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {membersList.map((m: any) => (
-                            <SelectItem key={m.id} value={m.id.toString()}>{m.username}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Popover open={memberPopoverOpen} onOpenChange={setMemberPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={memberPopoverOpen}
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                              data-testid="select-member"
+                            >
+                              {field.value
+                                ? membersList.find((m: any) => m.id === field.value)?.username
+                                : "Search and select member..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[400px] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search member..." data-testid="input-search-member" />
+                            <CommandList>
+                              <CommandEmpty>No member found.</CommandEmpty>
+                              <CommandGroup>
+                                {membersList.map((m: any) => (
+                                  <CommandItem
+                                    key={m.id}
+                                    value={m.username}
+                                    onSelect={() => {
+                                      field.onChange(m.id);
+                                      setMemberPopoverOpen(false);
+                                    }}
+                                    data-testid={`option-member-${m.id}`}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        field.value === m.id ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {m.username}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
