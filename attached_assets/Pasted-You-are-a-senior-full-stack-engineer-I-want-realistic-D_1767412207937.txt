@@ -1,0 +1,89 @@
+You are a senior full-stack engineer.
+
+I want realistic DEMO/SAMPLE DATA for OGym to test the full app (owners, trainers, members, cycles, attendance, workouts, streaks, stats, history).
+
+GOAL:
+Create data that looks like 2 gyms have been actively used for 1–2 months:
+- 2 gym owners (2 gyms)
+- 4–5 trainers per gym
+- 50–100 members per gym
+- Each gym has workout cycles, assigned workout plans, and realistic completion history for members (some consistent, some inconsistent).
+- Attendance and workout history should show realistic patterns (3–6 gym days/week for many, some missed days).
+- Stats page should look real (streaks, days this month, days last 7, total workouts, volume metrics).
+
+CRITICAL RULES:
+- Do NOT change authentication logic.
+- Do NOT change UI flows.
+- Do NOT break multi-gym isolation (each user tied to one gym).
+- Do NOT create fake data across gyms incorrectly.
+- If schema changes are needed, avoid them. Prefer using existing tables.
+- Put everything into a RE-RUNNABLE seed script and a reset script.
+
+IMPLEMENTATION:
+1) Create a script: backend/scripts/seed_demo.py (or seed_demo.ts depending on backend)
+   - It must:
+     a) Optionally wipe previous demo data (only demo data, not real users), OR provide a separate reset_demo script.
+     b) Create 2 gyms with realistic names, addresses, phone numbers.
+     c) Create 2 owners (role=Owner) and link each to one gym.
+     d) Create 4–5 trainers per gym (role=Trainer), with realistic names and emails.
+     e) Create 50–100 members per gym (role=Member), with realistic names and emails.
+
+2) Assign trainer->members
+   - Each trainer gets a subset of members (e.g., 15–25 each depending on total).
+   - Ensure trainer access permissions work with this data.
+
+3) Create Workout Cycles & Plans
+   For each gym:
+   - Create at least 2 workout cycles (ex: Beginner Full Body, Upper/Lower Split)
+   - Each cycle has 4–6 days pattern like:
+     Day 1: Chest+Shoulders
+     Day 2: Back+Biceps
+     Day 3: Legs+Core
+     Day 4: Rest or Cardio
+     (and repeat)
+   - Each day should have 4–8 exercises with realistic prescribed sets/reps/weights.
+   - Ensure cycle start date is 45–60 days ago so history covers 1–2 months.
+
+4) Create Realistic Workout History for members (last 45–60 days)
+   - For each member:
+     - Simulate attendance 3–6 days/week based on a “consistency profile”:
+       * 30% very consistent (5–6 days/week)
+       * 50% moderate (3–4 days/week)
+       * 20% irregular (0–2 days/week with gaps)
+     - For days attended:
+       - mark some exercises completed (some complete all, some partial)
+       - include sets/reps/weight actual values (slightly varied from prescribed)
+       - include occasional notes like "felt heavy", "increase weight next time"
+   - Ensure:
+     - no duplicate completions for same exercise+date
+     - sessions are created properly per day (if your new session-based model exists)
+     - streak and day counts should reflect unique days, not exercises
+
+5) Payments / Subscription Demo Data
+   - For each gym, create subscription/payment entries if your subscription tables exist:
+     - Gym1: paid active plan (3 months), paid_on 20 days ago, valid_until 70 days from now
+     - Gym2: pending/overdue plan (1 month) with proof upload optional
+   - This should make the owner payments screens and admin dashboard look real.
+
+6) Output + Test Instructions
+   - Print demo login credentials at the end (ONLY in terminal output, not in UI):
+     * Owner logins for both gyms
+     * Trainer logins (at least 2 per gym)
+     * Member logins (at least 3 sample members per gym)
+   - Provide steps to run:
+     - command to seed demo data
+     - command to reset demo data
+   - Confirm which endpoints/pages will show the data:
+     - Owner dashboard, Requests, Payments
+     - Member dashboard, My Workouts, Progress Stats, Missed workouts
+     - Admin approvals dashboard
+
+IMPORTANT: Make sure the data reflects "they've been using it for 1–2 months" meaning:
+- progress stats show real counts
+- workout history has many dates
+- some missed workouts exist
+- trainers have assigned members
+- multi-gym separation is correct
+
+Start by scanning the current database models and existing seed scripts (if any),
+then implement seed_demo + reset_demo safely.
