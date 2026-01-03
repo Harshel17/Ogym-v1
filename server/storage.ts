@@ -1896,10 +1896,18 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Calculate total revenue from all payment transactions for this gym
+    // Calculate this month's revenue (not total)
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+    
     const revenueResult = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
       .from(paymentTransactions)
-      .where(eq(paymentTransactions.gymId, gymId));
+      .where(and(
+        eq(paymentTransactions.gymId, gymId),
+        gte(paymentTransactions.paidOn, monthStart),
+        lte(paymentTransactions.paidOn, monthEnd)
+      ));
     const totalRevenue = Number(revenueResult[0]?.total) || 0;
 
     return { totalMembers, checkedInToday, checkedInYesterday, newEnrollmentsLast30Days, pendingPayments, totalRevenue };

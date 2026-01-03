@@ -257,7 +257,7 @@ function OwnerDashboard() {
         >
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Revenue (Paid)
+              This Month
             </CardTitle>
             <div className="p-2 bg-primary/10 rounded-full text-primary">
               <TrendingUp className="h-4 w-4" />
@@ -266,7 +266,7 @@ function OwnerDashboard() {
           <CardContent>
             <div className="text-3xl font-bold font-display text-foreground">{`₹${(revenue / 100).toLocaleString('en-IN')}`}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Total collected amount
+              Revenue collected this month
             </p>
           </CardContent>
         </Card>

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, IndianRupee, Users, Calendar, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { TrendingUp, IndianRupee, Users, Calendar, Loader2, ChevronLeft, ChevronRight, Wallet } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { Link } from "wouter";
@@ -31,6 +32,7 @@ function formatINR(paise: number): string {
 
 export default function OwnerRevenuePage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showTotalModal, setShowTotalModal] = useState(false);
   const monthStr = format(selectedDate, 'yyyy-MM');
 
   const { data: revenueData, isLoading } = useQuery<RevenueData>({
@@ -41,6 +43,9 @@ export default function OwnerRevenuePage() {
       return res.json();
     }
   });
+
+  // Calculate total revenue from all months in breakdown
+  const totalAllTime = revenueData?.monthlyBreakdown?.reduce((sum, m) => sum + m.revenue, 0) || 0;
 
   const goToPreviousMonth = () => setSelectedDate(subMonths(selectedDate, 1));
   const goToNextMonth = () => setSelectedDate(addMonths(selectedDate, 1));
@@ -86,7 +91,7 @@ export default function OwnerRevenuePage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/30 border-green-200 dark:border-green-800">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300 uppercase tracking-wider">
@@ -102,6 +107,29 @@ export default function OwnerRevenuePage() {
             </div>
             <p className="text-xs text-green-600 dark:text-green-400 mt-1">
               Total collected in {format(selectedDate, 'MMMM')}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="cursor-pointer hover-elevate bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950/50 dark:to-indigo-900/30 border-indigo-200 dark:border-indigo-800"
+          onClick={() => setShowTotalModal(true)}
+          data-testid="card-total-revenue"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">
+              Last 6 Months
+            </CardTitle>
+            <div className="p-2 bg-indigo-200 dark:bg-indigo-800 rounded-full text-indigo-700 dark:text-indigo-300">
+              <Wallet className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-indigo-800 dark:text-indigo-200" data-testid="text-total-revenue">
+              {formatINR(totalAllTime)}
+            </div>
+            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
+              Click to view breakdown
             </p>
           </CardContent>
         </Card>
@@ -144,6 +172,40 @@ export default function OwnerRevenuePage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={showTotalModal} onOpenChange={setShowTotalModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              Monthly Revenue Breakdown
+            </DialogTitle>
+            <DialogDescription>
+              Revenue collected each month (last 6 months)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-4">
+            {revenueData?.monthlyBreakdown?.map((item, index) => (
+              <div 
+                key={index} 
+                className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                data-testid={`row-month-revenue-${index}`}
+              >
+                <span className="font-medium">{item.month}</span>
+                <span className="font-bold text-green-600 dark:text-green-400">
+                  {formatINR(item.revenue)}
+                </span>
+              </div>
+            ))}
+            <div className="flex items-center justify-between p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg border-2 border-indigo-300 dark:border-indigo-700">
+              <span className="font-bold">Total</span>
+              <span className="font-bold text-indigo-700 dark:text-indigo-300 text-lg">
+                {formatINR(totalAllTime)}
+              </span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {revenueData?.monthlyBreakdown && revenueData.monthlyBreakdown.length > 0 && (
         <Card>
