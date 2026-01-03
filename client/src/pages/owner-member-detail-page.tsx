@@ -307,13 +307,38 @@ export default function OwnerMemberDetailPage() {
                             cx="50%"
                             cy="50%"
                             outerRadius={70}
-                            label={({ name, percentage }) => `${name} ${percentage}%`}
+                            label={({ cx, cy, midAngle, innerRadius, outerRadius, name, percentage }) => {
+                              const RADIAN = Math.PI / 180;
+                              const radius = outerRadius + 25;
+                              const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                              const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                              return (
+                                <text
+                                  x={x}
+                                  y={y}
+                                  fill="hsl(var(--foreground))"
+                                  textAnchor={x > cx ? 'start' : 'end'}
+                                  dominantBaseline="central"
+                                  fontSize={11}
+                                >
+                                  {`${name} ${percentage}%`}
+                                </text>
+                              );
+                            }}
+                            labelLine={{ stroke: 'hsl(var(--muted-foreground))' }}
                           >
                             {(stats?.muscleGroupBreakdown || []).map((_, idx) => (
                               <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))', 
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                            labelStyle={{ color: 'hsl(var(--foreground))' }}
+                          />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
