@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { IndianRupee, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt } from "lucide-react";
+import { IndianRupee, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -48,10 +48,21 @@ export default function PaymentsPage() {
 
 function OwnerPaymentsView() {
   const [activeTab, setActiveTab] = useState("subscriptions");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   
-  const { data: alerts } = useQuery<{ endingSoon: number; overdue: number }>({
+  const { data: alerts } = useQuery<{ endingSoon: number; overdue: number; active: number }>({
     queryKey: ["/api/owner/subscription-alerts"]
   });
+
+  const handleCardClick = (filter: string) => {
+    if (statusFilter === filter) {
+      setStatusFilter(null);
+    } else {
+      setStatusFilter(filter);
+      setActiveTab("subscriptions");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -62,21 +73,29 @@ function OwnerPaymentsView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card 
+          className={`cursor-pointer transition-all hover-elevate ${statusFilter === 'active' ? 'ring-2 ring-primary' : ''}`}
+          onClick={() => handleCardClick('active')}
+          data-testid="card-filter-active"
+        >
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-lg bg-primary/10 shrink-0">
-                <Users className="h-6 w-6 text-primary" />
+              <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30 shrink-0">
+                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm text-muted-foreground truncate">Active</p>
-                <p className="text-2xl font-bold" data-testid="text-active-count">-</p>
+                <p className="text-2xl font-bold" data-testid="text-active-count">{alerts?.active || 0}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all hover-elevate ${statusFilter === 'endingSoon' ? 'ring-2 ring-yellow-500' : ''}`}
+          onClick={() => handleCardClick('endingSoon')}
+          data-testid="card-filter-ending-soon"
+        >
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 shrink-0">
@@ -89,7 +108,11 @@ function OwnerPaymentsView() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all hover-elevate ${statusFilter === 'overdue' ? 'ring-2 ring-red-500' : ''}`}
+          onClick={() => handleCardClick('overdue')}
+          data-testid="card-filter-overdue"
+        >
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-lg bg-red-100 dark:bg-red-900/30 shrink-0">
@@ -104,13 +127,29 @@ function OwnerPaymentsView() {
         </Card>
       </div>
 
+      {statusFilter && (
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="capitalize">
+            Filtering: {statusFilter === 'endingSoon' ? 'Ending Soon' : statusFilter}
+          </Badge>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setStatusFilter(null)}
+            data-testid="button-clear-filter"
+          >
+            <X className="h-4 w-4 mr-1" /> Clear Filter
+          </Button>
+        </div>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="subscriptions" data-testid="tab-subscriptions">Subscriptions</TabsTrigger>
           <TabsTrigger value="plans" data-testid="tab-plans">Plans</TabsTrigger>
         </TabsList>
         <TabsContent value="subscriptions" className="mt-6">
-          <SubscriptionsTab />
+          <SubscriptionsTab statusFilter={statusFilter} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
         </TabsContent>
         <TabsContent value="plans" className="mt-6">
           <PlansTab />
@@ -284,7 +323,13 @@ function PlansTab() {
   );
 }
 
-function SubscriptionsTab() {
+interface SubscriptionsTabProps {
+  statusFilter: string | null;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+}
+
+function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: SubscriptionsTabProps) {
   const [open, setOpen] = useState(false);
   const [selectedSub, setSelectedSub] = useState<SubscriptionWithDetails | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -292,6 +337,29 @@ function SubscriptionsTab() {
   
   const { data: subscriptions = [], isLoading } = useQuery<SubscriptionWithDetails[]>({
     queryKey: ["/api/owner/subscriptions"]
+  });
+
+  // Filter subscriptions based on status and search query
+  const filteredSubscriptions = subscriptions.filter(sub => {
+    const matchesSearch = !searchQuery || 
+      sub.member?.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sub.plan?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    if (!statusFilter) return true;
+    
+    switch (statusFilter) {
+      case 'active':
+        // Active includes both 'active' and 'endingSoon' statuses
+        return sub.status === 'active' || sub.status === 'endingSoon';
+      case 'endingSoon':
+        return sub.status === 'endingSoon';
+      case 'overdue':
+        return sub.status === 'overdue';
+      default:
+        return true;
+    }
   });
 
   const { data: plans = [] } = useQuery<MembershipPlan[]>({
@@ -418,18 +486,19 @@ function SubscriptionsTab() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap pb-4">
-        <div>
-          <CardTitle>Member Subscriptions</CardTitle>
-          <CardDescription>Manage member memberships and payment tracking</CardDescription>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-assign-subscription">
-              <Plus className="w-4 h-4 mr-2" /> Assign Subscription
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
+      <CardHeader className="pb-4 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <CardTitle>Member Subscriptions</CardTitle>
+            <CardDescription>Manage member memberships and payment tracking</CardDescription>
+          </div>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-assign-subscription">
+                <Plus className="w-4 h-4 mr-2" /> Assign Subscription
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Assign Subscription</DialogTitle>
               <DialogDescription>Create a membership subscription for a member</DialogDescription>
@@ -573,21 +642,45 @@ function SubscriptionsTab() {
                 </Button>
               </form>
             </Form>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by member or plan name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9"
+            data-testid="input-search-subscriptions"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+              onClick={() => setSearchQuery("")}
+              data-testid="button-clear-search"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : subscriptions.length === 0 ? (
+        ) : filteredSubscriptions.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No subscriptions yet. Assign a subscription to get started.</p>
+            <p>{subscriptions.length === 0 ? "No subscriptions yet. Assign a subscription to get started." : "No matching subscriptions found."}</p>
           </div>
         ) : (
-          <div className="rounded-md border border-border overflow-hidden">
+          <div className="rounded-md border border-border overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
@@ -602,7 +695,7 @@ function SubscriptionsTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {subscriptions.map((sub) => {
+                {filteredSubscriptions.map((sub) => {
                   const remaining = sub.totalAmount - sub.totalPaid;
                   return (
                     <TableRow key={sub.id} data-testid={`row-subscription-${sub.id}`}>

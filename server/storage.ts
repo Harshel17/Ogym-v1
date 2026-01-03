@@ -271,7 +271,7 @@ export interface IStorage {
   addPaymentTransaction(data: InsertPaymentTransaction): Promise<PaymentTransaction>;
   
   // Subscription Alerts
-  getSubscriptionAlerts(gymId: number): Promise<{ endingSoon: number; overdue: number }>;
+  getSubscriptionAlerts(gymId: number): Promise<{ active: number; endingSoon: number; overdue: number }>;
   updateExpiredSubscriptions(gymId: number): Promise<void>;
   
   // Workout Sessions
@@ -2162,17 +2162,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   // === SUBSCRIPTION ALERTS ===
-  async getSubscriptionAlerts(gymId: number): Promise<{ endingSoon: number; overdue: number }> {
+  async getSubscriptionAlerts(gymId: number): Promise<{ active: number; endingSoon: number; overdue: number }> {
     const today = new Date().toISOString().split('T')[0];
     const sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
     const subs = await db.select().from(memberSubscriptions)
       .where(eq(memberSubscriptions.gymId, gymId));
     
+    let active = 0;
     let endingSoon = 0;
     let overdue = 0;
     
     for (const sub of subs) {
+      if (sub.status === 'active' || sub.status === 'endingSoon') {
+        active++;
+      }
       if (sub.status === 'endingSoon' || (sub.endDate >= today && sub.endDate <= sevenDaysLater && sub.status === 'active')) {
         endingSoon++;
       }
@@ -2181,7 +2185,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    return { endingSoon, overdue };
+    return { active, endingSoon, overdue };
   }
 
   async updateExpiredSubscriptions(gymId: number): Promise<void> {
