@@ -15,16 +15,31 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isTod
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { Link, useLocation } from "wouter";
 
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   
   if (!user) return null;
 
+  const greeting = getGreeting();
+
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">Dashboard</h2>
-        <p className="text-muted-foreground mt-1">Overview of your gym activities and metrics.</p>
+        <h2 className="text-3xl font-bold font-display text-foreground">
+          {greeting}, {user.username}
+        </h2>
+        <p className="text-muted-foreground mt-1">
+          {user.role === "owner" && "Here's your gym overview for today."}
+          {user.role === "trainer" && "Track your members' progress and workouts."}
+          {user.role === "member" && "Ready to crush your workout today?"}
+        </p>
       </div>
 
       {user.role === "owner" && <OwnerDashboard />}
@@ -182,7 +197,7 @@ function OwnerDashboard() {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <StatCard 
           title="Total Members" 
           value={totalMembers} 
@@ -220,6 +235,12 @@ function OwnerDashboard() {
           value={pendingPayments} 
           icon={AlertCircle} 
           description="Unpaid invoices"
+        />
+        <StatCard 
+          title="Revenue (Paid)" 
+          value={`₹${(revenue / 100).toLocaleString('en-IN')}`} 
+          icon={TrendingUp} 
+          description="Total collected amount"
         />
       </div>
 
@@ -422,6 +443,62 @@ function TrainerDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {dashboardData?.recentActivity && dashboardData.recentActivity.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Recent Member Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {dashboardData.recentActivity.slice(0, 5).map((activity, index) => (
+                <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                  <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{activity.memberName}</p>
+                    <p className="text-xs text-muted-foreground">{activity.action}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{activity.date}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {dashboardData?.memberProgress && dashboardData.memberProgress.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Member Streaks</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {dashboardData.memberProgress
+                .filter((m) => m.streak > 0)
+                .sort((a, b) => b.streak - a.streak)
+                .slice(0, 5)
+                .map((member) => (
+                <div key={member.memberId} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                  <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                    <Flame className="w-4 h-4 text-orange-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{member.memberName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {member.lastWorkout ? `Last: ${member.lastWorkout}` : 'Active'}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                    {member.streak} day streak
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
