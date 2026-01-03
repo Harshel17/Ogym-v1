@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { Link, useLocation } from "wouter";
@@ -223,6 +223,34 @@ function OwnerDashboard() {
         />
       </div>
 
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardTitle>Export Reports</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            <a href="/api/owner/export/members" download>
+              <Button variant="outline" data-testid="button-export-members">
+                <Download className="w-4 h-4 mr-2" />
+                Export Members
+              </Button>
+            </a>
+            <a href="/api/owner/export/payments" download>
+              <Button variant="outline" data-testid="button-export-payments">
+                <Download className="w-4 h-4 mr-2" />
+                Export Payments
+              </Button>
+            </a>
+            <a href="/api/owner/export/attendance" download>
+              <Button variant="outline" data-testid="button-export-attendance">
+                <Download className="w-4 h-4 mr-2" />
+                Export Attendance
+              </Button>
+            </a>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4 dashboard-card">
           <CardHeader>
@@ -291,15 +319,109 @@ function OwnerDashboard() {
   );
 }
 
+type TrainerDashboardData = {
+  totalMembers: number;
+  activeWorkouts: number;
+  starMembers: number;
+  recentActivity: { memberName: string; action: string; date: string }[];
+  memberProgress: { memberId: number; memberName: string; streak: number; lastWorkout: string | null }[];
+};
+
 function TrainerDashboard() {
+  const { data: dashboardData } = useQuery<TrainerDashboardData>({
+    queryKey: ["/api/trainer/dashboard"],
+  });
+
+  const { data: members = [] } = useQuery<any[]>({
+    queryKey: ["/api/trainer/members"],
+  });
+
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader><CardTitle>Welcome, Trainer</CardTitle></CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Go to "Workouts" to create training programs for your members, or check the activity feed to see their progress.</p>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard 
+          title="My Members" 
+          value={dashboardData?.totalMembers || members.length || 0} 
+          icon={Users} 
+          description="Members assigned to you"
+        />
+        <StatCard 
+          title="Active Programs" 
+          value={dashboardData?.activeWorkouts || 0} 
+          icon={Dumbbell} 
+          description="Workout cycles in progress"
+        />
+        <StatCard 
+          title="Star Members" 
+          value={dashboardData?.starMembers || 0} 
+          icon={Target} 
+          description="Your starred members"
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-lg">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Link href="/workouts">
+              <Button variant="outline" className="w-full justify-start" data-testid="link-create-workout">
+                <Dumbbell className="w-4 h-4 mr-2" />
+                Create Workout Program
+              </Button>
+            </Link>
+            <Link href="/star-members">
+              <Button variant="outline" className="w-full justify-start" data-testid="link-star-members">
+                <Target className="w-4 h-4 mr-2" />
+                View Star Members
+              </Button>
+            </Link>
+            <Link href="/members">
+              <Button variant="outline" className="w-full justify-start" data-testid="link-members">
+                <Users className="w-4 h-4 mr-2" />
+                View All Members
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Member Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {members.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No members assigned yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {members.slice(0, 5).map((member: any) => (
+                  <div key={member.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                        {member.username?.slice(0, 2).toUpperCase()}
+                      </div>
+                      <span className="font-medium text-sm">{member.username}</span>
+                    </div>
+                    <Link href={`/workouts`}>
+                      <Button variant="ghost" size="sm" data-testid={`button-view-member-${member.id}`}>
+                        View
+                      </Button>
+                    </Link>
+                  </div>
+                ))}
+                {members.length > 5 && (
+                  <Link href="/members">
+                    <Button variant="link" className="w-full text-sm" data-testid="link-view-all-members">
+                      View all {members.length} members
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { seedAdminUser } from "./seed-admin";
+import { seedDemoData } from "./seed-demo";
 
 const app = express();
 const httpServer = createServer(app);
@@ -62,6 +63,7 @@ app.use((req, res, next) => {
 
 (async () => {
   await seedAdminUser();
+  await seedDemoData();
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -237,6 +237,7 @@ export interface IStorage {
   getMemberSubscription(memberId: number): Promise<(MemberSubscription & { plan: MembershipPlan | null; totalPaid: number }) | null>;
   createMemberSubscription(data: InsertMemberSubscription): Promise<MemberSubscription>;
   updateSubscriptionStatus(subscriptionId: number, status: string): Promise<void>;
+  getSubscriptionsWithPayments(gymId: number): Promise<(MemberSubscription & { plan: MembershipPlan | null; transactions: PaymentTransaction[] })[]>;
   
   // Payment Transactions
   getSubscriptionTransactions(subscriptionId: number): Promise<PaymentTransaction[]>;
@@ -1822,6 +1823,28 @@ export class DatabaseStorage implements IStorage {
     await db.update(memberSubscriptions)
       .set({ status: status as any, updatedAt: new Date() })
       .where(eq(memberSubscriptions.id, subscriptionId));
+  }
+
+  async getSubscriptionsWithPayments(gymId: number): Promise<(MemberSubscription & { plan: MembershipPlan | null; transactions: PaymentTransaction[] })[]> {
+    const subs = await db.select()
+      .from(memberSubscriptions)
+      .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+      .where(eq(memberSubscriptions.gymId, gymId))
+      .orderBy(desc(memberSubscriptions.createdAt));
+    
+    const result = [];
+    for (const sub of subs) {
+      const transactions = await db.select().from(paymentTransactions)
+        .where(eq(paymentTransactions.subscriptionId, sub.member_subscriptions.id))
+        .orderBy(desc(paymentTransactions.paidOn));
+      
+      result.push({
+        ...sub.member_subscriptions,
+        plan: sub.membership_plans,
+        transactions
+      });
+    }
+    return result;
   }
 
   async getSubscriptionById(subscriptionId: number, gymId: number): Promise<MemberSubscription | null> {

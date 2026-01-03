@@ -393,6 +393,28 @@ export async function registerRoutes(
   });
 
   // === TRAINER ROUTES ===
+  app.get("/api/trainer/dashboard", requireRole(["trainer"]), async (req, res) => {
+    try {
+      const assignments = await storage.getTrainerMembers(req.user!.id);
+      const totalMembers = assignments.length;
+      
+      const cycles = await storage.getTrainerCycles(req.user!.id);
+      const activeWorkouts = cycles.filter((c: any) => c.isActive).length;
+      
+      const starMembers = await storage.getStarMembers(req.user!.id);
+      
+      res.json({
+        totalMembers,
+        activeWorkouts,
+        starMembers: starMembers.length,
+        recentActivity: [],
+        memberProgress: []
+      });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to load dashboard" });
+    }
+  });
+
   app.get("/api/trainer/members", requireRole(["trainer"]), async (req, res) => {
     const assignments = await storage.getTrainerMembers(req.user!.id);
     const memberIds = assignments.map(a => a.memberId);
@@ -1390,6 +1412,79 @@ export async function registerRoutes(
     const announcementId = parseInt(req.params.id);
     await storage.deleteAnnouncement(announcementId);
     res.sendStatus(204);
+  });
+
+  // === EXPORT ROUTES ===
+  app.get("/api/owner/export/payments", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const subscriptions = await storage.getSubscriptionsWithPayments(gymId);
+      
+      let csv = "Member,Plan,Start Date,End Date,Total Amount (INR),Status,Payment Mode,Paid Amount (INR),Last Payment Date,Method\n";
+      
+      for (const sub of subscriptions) {
+        const member = await storage.getUser(sub.memberId);
+        const memberName = member?.username || "Unknown";
+        const totalAmountInr = (sub.totalAmount / 100).toFixed(2);
+        const paidAmount = sub.transactions?.reduce((sum: number, t: any) => sum + t.amountPaid, 0) || 0;
+        const paidAmountInr = (paidAmount / 100).toFixed(2);
+        const lastPayment = sub.transactions?.[0];
+        const lastPaymentDate = lastPayment?.paidOn || "-";
+        const method = lastPayment?.method || "-";
+        
+        csv += `"${memberName}","${sub.plan?.name || 'Custom'}","${sub.startDate}","${sub.endDate}","${totalAmountInr}","${sub.status}","${sub.paymentMode}","${paidAmountInr}","${lastPaymentDate}","${method}"\n`;
+      }
+      
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename=payments_export_${new Date().toISOString().split('T')[0]}.csv`);
+      res.send(csv);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to export payments" });
+    }
+  });
+
+  app.get("/api/owner/export/attendance", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const { startDate, endDate } = req.query;
+      const start = startDate as string || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const end = endDate as string || new Date().toISOString().split('T')[0];
+      
+      const attendanceRecords = await storage.getAttendance(gymId);
+      const filteredRecords = attendanceRecords.filter(a => a.date >= start && a.date <= end);
+      
+      let csv = "Date,Member,Status,Method\n";
+      
+      for (const record of filteredRecords) {
+        const memberName = (record as any).member?.username || "Unknown";
+        csv += `"${record.date}","${memberName}","${record.status}","${record.verifiedMethod || 'manual'}"\n`;
+      }
+      
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename=attendance_export_${start}_to_${end}.csv`);
+      res.send(csv);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to export attendance" });
+    }
+  });
+
+  app.get("/api/owner/export/members", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const members = await storage.getMembersWithDetails(gymId);
+      
+      let csv = "ID,Username,Email,Phone,Trainer,Subscription Status,Join Date\n";
+      
+      for (const member of members) {
+        csv += `"${member.publicId || member.id}","${member.username}","${member.email || '-'}","${member.phone || '-'}","${member.trainerUsername || '-'}","${member.subscriptionStatus || 'None'}","${member.createdAt ? new Date(member.createdAt).toISOString().split('T')[0] : '-'}"\n`;
+      }
+      
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename=members_export_${new Date().toISOString().split('T')[0]}.csv`);
+      res.send(csv);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to export members" });
+    }
   });
 
   app.get("/api/announcements", requireAuth, async (req, res) => {
