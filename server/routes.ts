@@ -1566,6 +1566,13 @@ export async function registerRoutes(
     res.json(metrics);
   });
 
+  // Revenue Analytics
+  app.get("/api/owner/revenue", requireRole(["owner"]), async (req, res) => {
+    const month = (req.query.month as string) || new Date().toISOString().slice(0, 7);
+    const revenueData = await storage.getRevenueAnalytics(req.user!.gymId!, month);
+    res.json(revenueData);
+  });
+
   app.get("/api/owner/attendance/summary", requireRole(["owner"]), async (req, res) => {
     const date = (req.query.date as string) || new Date().toISOString().split("T")[0];
     const summary = await storage.getOwnerAttendanceSummary(req.user!.gymId!, date);

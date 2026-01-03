@@ -33,7 +33,7 @@ import {
   type MemberNote, type InsertMemberNote
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, inArray, gte, lt, sql, isNull } from "drizzle-orm";
+import { eq, and, desc, inArray, gte, lt, lte, sql, isNull } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -226,6 +226,8 @@ export interface IStorage {
     checkedInToday: number;
     checkedInYesterday: number;
     newEnrollmentsLast30Days: number;
+    pendingPayments: number;
+    totalRevenue: number;
   }>;
   getOwnerAttendanceSummary(gymId: number, date: string): Promise<{
     date: string;
@@ -277,6 +279,15 @@ export interface IStorage {
     remainingBalance: number;
     transactions: PaymentTransaction[];
   } | null>;
+  
+  // Revenue Analytics
+  getRevenueAnalytics(gymId: number, month: string): Promise<{
+    monthlyRevenue: number;
+    totalTransactions: number;
+    uniquePayers: number;
+    transactions: (PaymentTransaction & { member: User })[];
+    monthlyBreakdown: { month: string; revenue: number }[];
+  }>;
   
   // Subscription Alerts
   getSubscriptionAlerts(gymId: number): Promise<{ active: number; endingSoon: number; overdue: number }>;
@@ -1848,6 +1859,8 @@ export class DatabaseStorage implements IStorage {
     checkedInToday: number;
     checkedInYesterday: number;
     newEnrollmentsLast30Days: number;
+    pendingPayments: number;
+    totalRevenue: number;
   }> {
     const today = new Date().toISOString().split("T")[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
@@ -1868,7 +1881,28 @@ export class DatabaseStorage implements IStorage {
 
     const newEnrollmentsLast30Days = members.filter(m => m.createdAt && m.createdAt >= thirtyDaysAgo).length;
 
-    return { totalMembers, checkedInToday, checkedInYesterday, newEnrollmentsLast30Days };
+    // Calculate pending payments (subscriptions with remaining balance for EMI/partial)
+    const subscriptions = await db.select().from(memberSubscriptions)
+      .where(and(eq(memberSubscriptions.gymId, gymId), inArray(memberSubscriptions.paymentMode, ['emi', 'partial'])));
+    
+    let pendingPayments = 0;
+    for (const sub of subscriptions) {
+      const txns = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
+        .from(paymentTransactions)
+        .where(eq(paymentTransactions.subscriptionId, sub.id));
+      const totalPaid = Number(txns[0]?.total) || 0;
+      if (sub.totalAmount > totalPaid) {
+        pendingPayments++;
+      }
+    }
+
+    // Calculate total revenue from all payment transactions for this gym
+    const revenueResult = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
+      .from(paymentTransactions)
+      .where(eq(paymentTransactions.gymId, gymId));
+    const totalRevenue = Number(revenueResult[0]?.total) || 0;
+
+    return { totalMembers, checkedInToday, checkedInYesterday, newEnrollmentsLast30Days, pendingPayments, totalRevenue };
   }
 
   async getOwnerAttendanceSummary(gymId: number, date: string): Promise<{
@@ -2201,6 +2235,89 @@ export class DatabaseStorage implements IStorage {
       totalPaid,
       remainingBalance,
       transactions
+    };
+  }
+
+  // === REVENUE ANALYTICS ===
+  async getRevenueAnalytics(gymId: number, month: string): Promise<{
+    monthlyRevenue: number;
+    totalTransactions: number;
+    uniquePayers: number;
+    transactions: (PaymentTransaction & { member: User })[];
+    monthlyBreakdown: { month: string; revenue: number }[];
+  }> {
+    // Helper to format date as YYYY-MM-DD without timezone issues
+    const formatDateStr = (y: number, m: number, d: number): string => {
+      return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    };
+    
+    // Get last day of month
+    const getLastDayOfMonth = (y: number, m: number): number => {
+      return new Date(y, m, 0).getDate();
+    };
+    
+    // Parse month (YYYY-MM format)
+    const [year, monthNum] = month.split('-').map(Number);
+    const startDate = formatDateStr(year, monthNum, 1);
+    const endDate = formatDateStr(year, monthNum, getLastDayOfMonth(year, monthNum));
+    
+    // Get transactions for the selected month
+    const monthTxns = await db.select({
+      transaction: paymentTransactions,
+      member: users
+    })
+      .from(paymentTransactions)
+      .leftJoin(users, eq(paymentTransactions.memberId, users.id))
+      .where(and(
+        eq(paymentTransactions.gymId, gymId),
+        gte(paymentTransactions.paidOn, startDate),
+        lte(paymentTransactions.paidOn, endDate)
+      ))
+      .orderBy(desc(paymentTransactions.paidOn));
+    
+    const transactions = monthTxns.map(t => ({
+      ...t.transaction,
+      member: t.member!
+    }));
+    
+    const monthlyRevenue = transactions.reduce((sum, t) => sum + t.amountPaid, 0);
+    const totalTransactions = transactions.length;
+    const uniquePayers = new Set(transactions.map(t => t.memberId)).size;
+    
+    // Get 6-month breakdown
+    const monthlyBreakdown: { month: string; revenue: number }[] = [];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    for (let i = 5; i >= 0; i--) {
+      let targetMonth = monthNum - i;
+      let targetYear = year;
+      while (targetMonth <= 0) {
+        targetMonth += 12;
+        targetYear--;
+      }
+      
+      const mStart = formatDateStr(targetYear, targetMonth, 1);
+      const mEnd = formatDateStr(targetYear, targetMonth, getLastDayOfMonth(targetYear, targetMonth));
+      
+      const result = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
+        .from(paymentTransactions)
+        .where(and(
+          eq(paymentTransactions.gymId, gymId),
+          gte(paymentTransactions.paidOn, mStart),
+          lte(paymentTransactions.paidOn, mEnd)
+        ));
+      
+      monthlyBreakdown.push({
+        month: `${monthNames[targetMonth - 1]} '${String(targetYear).slice(-2)}`,
+        revenue: Number(result[0]?.total) || 0
+      });
+    }
+    
+    return {
+      monthlyRevenue,
+      totalTransactions,
+      uniquePayers,
+      transactions,
+      monthlyBreakdown
     };
   }
 

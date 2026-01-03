@@ -92,6 +92,8 @@ function OwnerDashboard() {
     checkedInToday: number;
     checkedInYesterday: number;
     newEnrollmentsLast30Days: number;
+    pendingPayments: number;
+    totalRevenue: number;
   }>({
     queryKey: ["/api/owner/dashboard-metrics"]
   });
@@ -106,10 +108,8 @@ function OwnerDashboard() {
   const totalMembers = dashboardMetrics?.totalMembers || 0;
   const checkedInToday = dashboardMetrics?.checkedInToday || 0;
   const checkedInYesterday = dashboardMetrics?.checkedInYesterday || 0;
-  const pendingPayments = paymentsList.filter(p => p.status !== 'paid').length;
-  const revenue = paymentsList
-    .filter(p => p.status === 'paid')
-    .reduce((acc, curr) => acc + (curr.amountPaid || 0), 0);
+  const pendingPayments = dashboardMetrics?.pendingPayments || 0;
+  const revenue = dashboardMetrics?.totalRevenue || 0;
 
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -230,18 +230,46 @@ function OwnerDashboard() {
           icon={Calendar} 
           description="Members checked in yesterday"
         />
-        <StatCard 
-          title="Pending Payments" 
-          value={pendingPayments} 
-          icon={AlertCircle} 
-          description="Unpaid invoices"
-        />
-        <StatCard 
-          title="Revenue (Paid)" 
-          value={`₹${(revenue / 100).toLocaleString('en-IN')}`} 
-          icon={TrendingUp} 
-          description="Total collected amount"
-        />
+        <Card 
+          className="dashboard-card border-none shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 cursor-pointer hover-elevate"
+          onClick={() => navigate("/payments")}
+          data-testid="card-pending-payments"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Pending Payments
+            </CardTitle>
+            <div className="p-2 bg-primary/10 rounded-full text-primary">
+              <AlertCircle className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold font-display text-foreground">{pendingPayments}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Unpaid invoices
+            </p>
+          </CardContent>
+        </Card>
+        <Card 
+          className="dashboard-card border-none shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 cursor-pointer hover-elevate"
+          onClick={() => navigate("/owner/revenue")}
+          data-testid="card-revenue"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Revenue (Paid)
+            </CardTitle>
+            <div className="p-2 bg-primary/10 rounded-full text-primary">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold font-display text-foreground">{`₹${(revenue / 100).toLocaleString('en-IN')}`}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Total collected amount
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
