@@ -198,12 +198,26 @@ function OwnerDashboard() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <StatCard 
-          title="Total Members" 
-          value={totalMembers} 
-          icon={Users} 
-          description="Active gym members"
-        />
+        <Card 
+          className="dashboard-card border-none shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 cursor-pointer hover-elevate"
+          onClick={() => navigate("/owner/member-analytics")}
+          data-testid="card-total-members"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Total Members
+            </CardTitle>
+            <div className="p-2 bg-primary/10 rounded-full text-primary">
+              <Users className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold font-display text-foreground">{totalMembers}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Click to view analytics
+            </p>
+          </CardContent>
+        </Card>
         <Card 
           className="dashboard-card border-none shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 cursor-pointer hover-elevate"
           onClick={() => navigate("/owner/attendance")}

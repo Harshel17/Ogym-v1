@@ -293,6 +293,16 @@ export interface IStorage {
   getSubscriptionAlerts(gymId: number): Promise<{ active: number; endingSoon: number; overdue: number }>;
   updateExpiredSubscriptions(gymId: number): Promise<void>;
   
+  // Member Analytics
+  getMemberAnalytics(gymId: number): Promise<{
+    counts: { active: number; ended: number; transferredOut: number; transferredIn: number };
+    activeMembers: { id: number; username: string; publicId: string | null; planName: string | null; startDate: string | null; endDate: string | null; trainerName: string | null }[];
+    endedMembers: { id: number; username: string; publicId: string | null; planName: string | null; startDate: string | null; endDate: string | null; reason: string }[];
+    transferredOut: { id: number; username: string; publicId: string | null; toGymName: string; transferDate: string }[];
+    transferredIn: { id: number; username: string; publicId: string | null; fromGymName: string; transferDate: string }[];
+    monthlyTrend: { month: string; active: number; ended: number }[];
+  }>;
+  
   // Workout Sessions
   getOrCreateWorkoutSession(data: InsertWorkoutSession): Promise<WorkoutSession>;
   getWorkoutSession(gymId: number, sessionId: number): Promise<(WorkoutSession & { exercises: WorkoutSessionExercise[] }) | null>;
@@ -2326,6 +2336,194 @@ export class DatabaseStorage implements IStorage {
       uniquePayers,
       transactions,
       monthlyBreakdown
+    };
+  }
+
+  // === MEMBER ANALYTICS ===
+  async getMemberAnalytics(gymId: number): Promise<{
+    counts: { active: number; ended: number; transferredOut: number; transferredIn: number };
+    activeMembers: { id: number; username: string; publicId: string | null; planName: string | null; startDate: string | null; endDate: string | null; trainerName: string | null }[];
+    endedMembers: { id: number; username: string; publicId: string | null; planName: string | null; startDate: string | null; endDate: string | null; reason: string }[];
+    transferredOut: { id: number; username: string; publicId: string | null; toGymName: string; transferDate: string }[];
+    transferredIn: { id: number; username: string; publicId: string | null; fromGymName: string; transferDate: string }[];
+    monthlyTrend: { month: string; active: number; ended: number }[];
+  }> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get all gym members
+    const allMembers = await db.select().from(users)
+      .where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+    
+    // Get all subscriptions with plans
+    const allSubs = await db.select({
+      sub: memberSubscriptions,
+      plan: membershipPlans,
+      member: users
+    })
+      .from(memberSubscriptions)
+      .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+      .leftJoin(users, eq(memberSubscriptions.memberId, users.id))
+      .where(eq(memberSubscriptions.gymId, gymId));
+    
+    // Get trainer assignments
+    const assignments = await db.select({
+      memberId: trainerMemberAssignments.memberId,
+      trainerUsername: users.username
+    })
+      .from(trainerMemberAssignments)
+      .leftJoin(users, eq(trainerMemberAssignments.trainerId, users.id))
+      .where(and(
+        eq(trainerMemberAssignments.gymId, gymId),
+        eq(trainerMemberAssignments.isActive, true)
+      ));
+    
+    const trainerMap = new Map(assignments.map(a => [a.memberId, a.trainerUsername || null]));
+    
+    // Group subscriptions by member, prioritizing active subscriptions
+    const memberSubMap = new Map<number, { sub: typeof memberSubscriptions.$inferSelect; plan: typeof membershipPlans.$inferSelect | null; member: typeof users.$inferSelect }[]>();
+    
+    for (const item of allSubs) {
+      if (!item.member) continue;
+      const list = memberSubMap.get(item.member.id) || [];
+      list.push(item);
+      memberSubMap.set(item.member.id, list);
+    }
+    
+    // Classify members: if ANY subscription is active, member is active; otherwise ended
+    const activeMembers: { id: number; username: string; publicId: string | null; planName: string | null; startDate: string | null; endDate: string | null; trainerName: string | null }[] = [];
+    const endedMembers: { id: number; username: string; publicId: string | null; planName: string | null; startDate: string | null; endDate: string | null; reason: string }[] = [];
+    
+    for (const [memberId, subs] of memberSubMap) {
+      // Sort subscriptions by startDate descending to get most recent first
+      const sortedSubs = [...subs].sort((a, b) => (b.sub.startDate || '').localeCompare(a.sub.startDate || ''));
+      
+      // Check ALL subscriptions for active status (not just first)
+      const activeSub = sortedSubs.find(s => s.sub.status === 'active' || s.sub.status === 'endingSoon');
+      
+      if (activeSub) {
+        activeMembers.push({
+          id: activeSub.member!.id,
+          username: activeSub.member!.username,
+          publicId: activeSub.member!.publicId,
+          planName: activeSub.plan?.name || null,
+          startDate: activeSub.sub.startDate,
+          endDate: activeSub.sub.endDate,
+          trainerName: trainerMap.get(memberId) || null
+        });
+      } else if (sortedSubs.length > 0) {
+        // No active subscription - use most recent subscription (already sorted)
+        const latestSub = sortedSubs[0];
+        if (latestSub.sub.status === 'ended' || latestSub.sub.status === 'cancelled' || latestSub.sub.status === 'overdue') {
+          endedMembers.push({
+            id: latestSub.member!.id,
+            username: latestSub.member!.username,
+            publicId: latestSub.member!.publicId,
+            planName: latestSub.plan?.name || null,
+            startDate: latestSub.sub.startDate,
+            endDate: latestSub.sub.endDate,
+            reason: latestSub.sub.status === 'cancelled' ? 'Cancelled' : latestSub.sub.status === 'overdue' ? 'Overdue' : 'Expired'
+          });
+        }
+      }
+    }
+    
+    // Get transfer requests
+    const transfersOut = await db.select({
+      request: transferRequests,
+      member: users,
+      toGym: gyms
+    })
+      .from(transferRequests)
+      .leftJoin(users, eq(transferRequests.memberId, users.id))
+      .leftJoin(gyms, eq(transferRequests.toGymId, gyms.id))
+      .where(and(
+        eq(transferRequests.fromGymId, gymId),
+        eq(transferRequests.status, 'approved')
+      ));
+    
+    const transferredOut = transfersOut.map(t => ({
+      id: t.member?.id || 0,
+      username: t.member?.username || 'Unknown',
+      publicId: t.member?.publicId || null,
+      toGymName: t.toGym?.name || 'Unknown Gym',
+      transferDate: t.request.updatedAt?.toISOString().split('T')[0] || ''
+    }));
+    
+    const transfersIn = await db.select({
+      request: transferRequests,
+      member: users,
+      fromGym: gyms
+    })
+      .from(transferRequests)
+      .leftJoin(users, eq(transferRequests.memberId, users.id))
+      .leftJoin(gyms, eq(transferRequests.fromGymId, gyms.id))
+      .where(and(
+        eq(transferRequests.toGymId, gymId),
+        eq(transferRequests.status, 'approved')
+      ));
+    
+    const transferredIn = transfersIn.map(t => ({
+      id: t.member?.id || 0,
+      username: t.member?.username || 'Unknown',
+      publicId: t.member?.publicId || null,
+      fromGymName: t.fromGym?.name || 'Unknown Gym',
+      transferDate: t.request.updatedAt?.toISOString().split('T')[0] || ''
+    }));
+    
+    // Calculate monthly trend (last 6 months) - count unique members
+    const monthlyTrend: { month: string; active: number; ended: number }[] = [];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const now = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).toISOString().split('T')[0];
+      
+      // Count unique members at month end using memberSubMap
+      const activeMembers = new Set<number>();
+      const endedMembers = new Set<number>();
+      
+      for (const [memberId, subs] of memberSubMap) {
+        // Check if member had an active subscription at month end
+        const hadActive = subs.some(s => 
+          s.sub.startDate <= monthEnd && 
+          (s.sub.endDate === null || s.sub.endDate >= monthEnd) &&
+          (s.sub.status === 'active' || s.sub.status === 'endingSoon')
+        );
+        
+        if (hadActive) {
+          activeMembers.add(memberId);
+        } else {
+          // Check if they had any subscription that ended by month end
+          const hadEnded = subs.some(s => 
+            s.sub.startDate <= monthEnd && 
+            s.sub.endDate && s.sub.endDate < monthEnd
+          );
+          if (hadEnded) {
+            endedMembers.add(memberId);
+          }
+        }
+      }
+      
+      monthlyTrend.push({
+        month: `${monthNames[targetDate.getMonth()]} '${String(targetDate.getFullYear()).slice(-2)}`,
+        active: activeMembers.size,
+        ended: endedMembers.size
+      });
+    }
+    
+    return {
+      counts: {
+        active: activeMembers.length,
+        ended: endedMembers.length,
+        transferredOut: transferredOut.length,
+        transferredIn: transferredIn.length
+      },
+      activeMembers,
+      endedMembers,
+      transferredOut,
+      transferredIn,
+      monthlyTrend
     };
   }
 

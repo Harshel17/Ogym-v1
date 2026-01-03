@@ -1573,6 +1573,12 @@ export async function registerRoutes(
     res.json(revenueData);
   });
 
+  // Member Analytics
+  app.get("/api/owner/member-analytics", requireRole(["owner"]), async (req, res) => {
+    const analytics = await storage.getMemberAnalytics(req.user!.gymId!);
+    res.json(analytics);
+  });
+
   app.get("/api/owner/attendance/summary", requireRole(["owner"]), async (req, res) => {
     const date = (req.query.date as string) || new Date().toISOString().split("T")[0];
     const summary = await storage.getOwnerAttendanceSummary(req.user!.gymId!, date);
