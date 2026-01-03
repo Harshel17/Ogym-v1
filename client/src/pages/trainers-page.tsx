@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { User, Users, ChevronDown, ChevronUp, Dumbbell, Calendar, Clock } from "lucide-react";
+import { User, Users, ChevronDown, ChevronUp, Dumbbell, Calendar, Clock, Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import type { User as UserType, WorkoutCycle, WorkoutItem } from "@shared/schema";
 
 type TrainerWithMembers = {
@@ -181,10 +182,24 @@ function MemberDetailPanel({ memberId }: { memberId: number }) {
 
 export default function TrainersPage() {
   const [expandedMember, setExpandedMember] = useState<number | null>(null);
+  const [trainerSearch, setTrainerSearch] = useState("");
+  const [memberSearches, setMemberSearches] = useState<Record<number, string>>({});
   
   const { data: trainersOverview = [], isLoading } = useQuery<TrainerWithMembers[]>({
     queryKey: ["/api/owner/trainers-overview"],
   });
+
+  const filteredTrainers = trainersOverview.filter(({ trainer }) =>
+    trainer.username.toLowerCase().includes(trainerSearch.toLowerCase())
+  );
+
+  const getFilteredMembers = (trainerId: number, members: UserType[]) => {
+    const search = memberSearches[trainerId] || "";
+    if (!search) return members;
+    return members.filter(member =>
+      member.username.toLowerCase().includes(search.toLowerCase())
+    );
+  };
 
   if (isLoading) {
     return (
@@ -200,9 +215,34 @@ export default function TrainersPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold" data-testid="text-trainers-title">Trainer Management</h1>
-        <p className="text-muted-foreground">View trainers and their assigned members.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold" data-testid="text-trainers-title">Trainer Management</h1>
+          <p className="text-muted-foreground">View trainers and their assigned members.</p>
+        </div>
+        {trainersOverview.length > 0 && (
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search trainers..."
+              value={trainerSearch}
+              onChange={(e) => setTrainerSearch(e.target.value)}
+              className="pl-9 pr-9"
+              data-testid="input-search-trainers"
+            />
+            {trainerSearch && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setTrainerSearch("")}
+                data-testid="button-clear-trainer-search"
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {trainersOverview.length === 0 ? (
@@ -222,12 +262,18 @@ export default function TrainersPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Trainers ({trainersOverview.length})
+              Trainers ({filteredTrainers.length}{trainerSearch ? ` of ${trainersOverview.length}` : ""})
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {filteredTrainers.length === 0 && trainerSearch ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>No trainers found matching "{trainerSearch}"</p>
+              </div>
+            ) : (
             <Accordion type="multiple" className="space-y-2">
-              {trainersOverview.map(({ trainer, members }) => (
+              {filteredTrainers.map(({ trainer, members }) => (
                 <AccordionItem
                   key={trainer.id}
                   value={`trainer-${trainer.id}`}
@@ -260,51 +306,89 @@ export default function TrainersPage() {
                         No members assigned to this trainer yet.
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-                          Assigned Members
-                        </p>
-                        <div className="grid gap-2">
-                          {members.map((member) => {
-                            const isExpanded = expandedMember === member.id;
-                            return (
-                              <div
-                                key={member.id}
-                                className="border rounded-lg overflow-hidden"
-                                data-testid={`row-member-${member.id}`}
-                              >
-                                <button
-                                  onClick={() => setExpandedMember(isExpanded ? null : member.id)}
-                                  className="w-full flex items-center justify-between p-3 bg-muted/30 hover-elevate cursor-pointer text-left"
-                                  data-testid={`button-member-expand-${member.id}`}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Assigned Members
+                          </p>
+                          {members.length > 3 && (
+                            <div className="relative flex-1 max-w-48">
+                              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                              <Input
+                                placeholder="Search members..."
+                                value={memberSearches[trainer.id] || ""}
+                                onChange={(e) => setMemberSearches(prev => ({ ...prev, [trainer.id]: e.target.value }))}
+                                className="h-7 pl-7 pr-7 text-xs"
+                                data-testid={`input-search-members-${trainer.id}`}
+                              />
+                              {memberSearches[trainer.id] && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="absolute right-0 top-1/2 -translate-y-1/2 h-7 w-7"
+                                  onClick={() => setMemberSearches(prev => ({ ...prev, [trainer.id]: "" }))}
+                                  data-testid={`button-clear-member-search-${trainer.id}`}
                                 >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-xs">
-                                      {member.username.slice(0, 2).toUpperCase()}
-                                    </div>
-                                    <div>
-                                      <p className="font-medium text-sm" data-testid={`text-member-name-${member.id}`}>
-                                        {member.username}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        Joined {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : "N/A"}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-                                </button>
-                                
-                                {isExpanded && <MemberDetailPanel memberId={member.id} />}
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {(() => {
+                          const filteredMembers = getFilteredMembers(trainer.id, members);
+                          if (filteredMembers.length === 0) {
+                            return (
+                              <div className="text-center py-4 text-muted-foreground text-sm">
+                                No members found matching "{memberSearches[trainer.id]}"
                               </div>
                             );
-                          })}
-                        </div>
+                          }
+                          return (
+                            <div className="grid gap-2">
+                              {filteredMembers.map((member) => {
+                                const isExpanded = expandedMember === member.id;
+                                return (
+                                  <div
+                                    key={member.id}
+                                    className="border rounded-lg overflow-hidden"
+                                    data-testid={`row-member-${member.id}`}
+                                  >
+                                    <button
+                                      onClick={() => setExpandedMember(isExpanded ? null : member.id)}
+                                      className="w-full flex items-center justify-between p-3 bg-muted/30 hover-elevate cursor-pointer text-left"
+                                      data-testid={`button-member-expand-${member.id}`}
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-xs">
+                                          {member.username.slice(0, 2).toUpperCase()}
+                                        </div>
+                                        <div>
+                                          <p className="font-medium text-sm" data-testid={`text-member-name-${member.id}`}>
+                                            {member.username}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            Joined {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : "N/A"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                                    </button>
+                                    
+                                    {isExpanded && <MemberDetailPanel memberId={member.id} />}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>
+            )}
           </CardContent>
         </Card>
       )}
