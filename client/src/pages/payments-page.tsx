@@ -147,12 +147,16 @@ function OwnerPaymentsView() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="subscriptions" data-testid="tab-subscriptions">Subscriptions</TabsTrigger>
+          <TabsTrigger value="outstanding" data-testid="tab-outstanding">Outstanding</TabsTrigger>
           <TabsTrigger value="plans" data-testid="tab-plans">Plans</TabsTrigger>
         </TabsList>
         <TabsContent value="subscriptions" className="mt-6">
           <SubscriptionsTab statusFilter={statusFilter} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+        </TabsContent>
+        <TabsContent value="outstanding" className="mt-6">
+          <OutstandingPaymentsTab />
         </TabsContent>
         <TabsContent value="plans" className="mt-6">
           <PlansTab />
@@ -319,6 +323,102 @@ function PlansTab() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function OutstandingPaymentsTab() {
+  const { data: subscriptions = [], isLoading } = useQuery<SubscriptionWithDetails[]>({
+    queryKey: ["/api/owner/subscriptions"]
+  });
+
+  const outstandingPayments = subscriptions.filter(sub => {
+    const remaining = sub.totalAmount - sub.totalPaid;
+    return remaining > 0 && (sub.paymentMode === 'emi' || sub.paymentMode === 'partial');
+  }).sort((a, b) => (b.totalAmount - b.totalPaid) - (a.totalAmount - a.totalPaid));
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Receipt className="h-5 w-5" />
+          Outstanding Payments (EMI/Partial)
+        </CardTitle>
+        <CardDescription>
+          Members with pending balance on their subscriptions
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {outstandingPayments.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>All payments are complete! No outstanding balances.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {outstandingPayments.map((sub) => {
+              const remaining = sub.totalAmount - sub.totalPaid;
+              const paidPercentage = sub.totalAmount > 0 ? Math.round((sub.totalPaid / sub.totalAmount) * 100) : 100;
+              return (
+                <Card key={sub.id} className="border-l-4 border-l-yellow-500 rounded-none border-y-0 border-r-0">
+                  <CardContent className="py-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold" data-testid={`text-outstanding-member-${sub.id}`}>
+                            {sub.member?.username}
+                          </p>
+                          <Badge variant="outline" className="capitalize">
+                            {sub.paymentMode}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {sub.plan?.name || 'Custom Plan'} - {sub.plan?.durationMonths || 1} month{(sub.plan?.durationMonths || 1) > 1 ? 's' : ''}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Ends: {format(new Date(sub.endDate), "dd MMM yyyy")}
+                        </p>
+                      </div>
+                      <div className="flex-1 max-w-xs space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Paid</span>
+                          <span className="font-medium">{paidPercentage}%</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary transition-all" 
+                            style={{ width: `${paidPercentage}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{formatINR(sub.totalPaid)} paid</span>
+                          <span>{formatINR(sub.totalAmount)} total</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Remaining</p>
+                        <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400" data-testid={`text-remaining-${sub.id}`}>
+                          {formatINR(remaining)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </CardContent>

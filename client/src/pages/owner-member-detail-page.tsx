@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Dumbbell, Calendar, TrendingUp, Flame, Target, BarChart3 } from "lucide-react";
+import { ArrowLeft, Loader2, Dumbbell, Calendar, TrendingUp, Flame, Target, BarChart3, IndianRupee, CreditCard, Receipt } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
 import { format, parseISO } from "date-fns";
 import { Link } from "wouter";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
@@ -56,6 +58,41 @@ type MemberStats = {
   }[];
 };
 
+type PaymentDetails = {
+  subscription: {
+    id: number;
+    memberId: number;
+    gymId: number;
+    planId: number | null;
+    startDate: string;
+    endDate: string;
+    totalAmount: number;
+    status: string;
+    paymentMode: string;
+    plan: { id: number; name: string; durationMonths: number; priceAmount: number } | null;
+  } | null;
+  totalPaid: number;
+  remainingBalance: number;
+  transactions: {
+    id: number;
+    subscriptionId: number;
+    amountPaid: number;
+    paidOn: string;
+    method: string;
+    referenceNote: string | null;
+  }[];
+};
+
+function formatINR(paise: number): string {
+  const rupees = paise / 100;
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(rupees);
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#8884d8', '#82ca9d', '#ffc658', '#ff7300'];
 
 export default function OwnerMemberDetailPage() {
@@ -103,6 +140,16 @@ export default function OwnerMemberDetailPage() {
     enabled: !!selectedDate
   });
 
+  const { data: paymentDetails, isLoading: paymentsLoading } = useQuery<PaymentDetails>({
+    queryKey: ["/api/owner/members", memberId, "payments"],
+    queryFn: async () => {
+      const res = await fetch(`/api/owner/members/${memberId}/payments`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch payments");
+      return res.json();
+    },
+    enabled: !!memberId
+  });
+
   if (profileError) {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] text-center">
@@ -141,6 +188,7 @@ export default function OwnerMemberDetailPage() {
       <Tabs defaultValue="profile" className="w-full">
         <TabsList>
           <TabsTrigger value="profile" data-testid="tab-profile">Profile</TabsTrigger>
+          <TabsTrigger value="payments" data-testid="tab-payments">Payments</TabsTrigger>
           <TabsTrigger value="workouts" data-testid="tab-workouts">Workouts</TabsTrigger>
           <TabsTrigger value="stats" data-testid="tab-stats">Stats</TabsTrigger>
         </TabsList>
@@ -179,6 +227,142 @@ export default function OwnerMemberDetailPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="payments" className="mt-4 space-y-4">
+          {paymentsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : !paymentDetails?.subscription ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No active subscription</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <IndianRupee className="h-5 w-5" />
+                    Subscription Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Plan</p>
+                      <p className="font-medium" data-testid="text-member-plan">
+                        {paymentDetails.subscription.plan?.name || 'Custom Plan'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Duration</p>
+                      <p className="font-medium">
+                        {paymentDetails.subscription.plan?.durationMonths || 1} month{(paymentDetails.subscription.plan?.durationMonths || 1) > 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <Badge 
+                        variant={paymentDetails.subscription.status === 'active' ? 'default' : 
+                                paymentDetails.subscription.status === 'endingSoon' ? 'secondary' : 'destructive'}
+                        data-testid="badge-subscription-status"
+                      >
+                        {paymentDetails.subscription.status}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Payment Mode</p>
+                      <Badge variant="outline" className="capitalize">
+                        {paymentDetails.subscription.paymentMode}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="pt-2">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {format(new Date(paymentDetails.subscription.startDate), "dd MMM yyyy")} - {format(new Date(paymentDetails.subscription.endDate), "dd MMM yyyy")}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Payment Progress</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Amount</span>
+                    <span className="font-semibold">{formatINR(paymentDetails.subscription.totalAmount)}</span>
+                  </div>
+                  <Progress 
+                    value={paymentDetails.subscription.totalAmount > 0 
+                      ? Math.round((paymentDetails.totalPaid / paymentDetails.subscription.totalAmount) * 100) 
+                      : 100} 
+                    className="h-3"
+                  />
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Paid</p>
+                      <p className="text-lg font-bold text-green-600 dark:text-green-400" data-testid="text-total-paid">
+                        {formatINR(paymentDetails.totalPaid)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">Remaining</p>
+                      <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400" data-testid="text-remaining-balance">
+                        {formatINR(paymentDetails.remainingBalance)}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Receipt className="h-5 w-5" />
+                    Payment History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {paymentDetails.transactions.length === 0 ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      No payments recorded yet
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Method</TableHead>
+                            <TableHead>Reference</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paymentDetails.transactions.map((txn) => (
+                            <TableRow key={txn.id} data-testid={`row-payment-${txn.id}`}>
+                              <TableCell>{format(new Date(txn.paidOn), "dd MMM yyyy")}</TableCell>
+                              <TableCell className="font-medium">{formatINR(txn.amountPaid)}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="capitalize">{txn.method}</Badge>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">{txn.referenceNote || '-'}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="workouts" className="mt-4">

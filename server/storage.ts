@@ -270,6 +270,14 @@ export interface IStorage {
   getSubscriptionTransactions(subscriptionId: number): Promise<PaymentTransaction[]>;
   addPaymentTransaction(data: InsertPaymentTransaction): Promise<PaymentTransaction>;
   
+  // Member Payment Details (for owner view)
+  getMemberPaymentDetails(memberId: number, gymId: number): Promise<{
+    subscription: (MemberSubscription & { plan: MembershipPlan | null }) | null;
+    totalPaid: number;
+    remainingBalance: number;
+    transactions: PaymentTransaction[];
+  } | null>;
+  
   // Subscription Alerts
   getSubscriptionAlerts(gymId: number): Promise<{ active: number; endingSoon: number; overdue: number }>;
   updateExpiredSubscriptions(gymId: number): Promise<void>;
@@ -2159,6 +2167,41 @@ export class DatabaseStorage implements IStorage {
   async addPaymentTransaction(data: InsertPaymentTransaction): Promise<PaymentTransaction> {
     const [txn] = await db.insert(paymentTransactions).values(data).returning();
     return txn;
+  }
+
+  async getMemberPaymentDetails(memberId: number, gymId: number): Promise<{
+    subscription: (MemberSubscription & { plan: MembershipPlan | null }) | null;
+    totalPaid: number;
+    remainingBalance: number;
+    transactions: PaymentTransaction[];
+  } | null> {
+    const [sub] = await db.select().from(memberSubscriptions)
+      .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+      .where(and(
+        eq(memberSubscriptions.memberId, memberId),
+        eq(memberSubscriptions.gymId, gymId)
+      ))
+      .orderBy(desc(memberSubscriptions.createdAt))
+      .limit(1);
+    
+    if (!sub) return null;
+
+    const transactions = await db.select().from(paymentTransactions)
+      .where(eq(paymentTransactions.subscriptionId, sub.member_subscriptions.id))
+      .orderBy(desc(paymentTransactions.paidOn));
+    
+    const totalPaid = transactions.reduce((sum, t) => sum + t.amountPaid, 0);
+    const remainingBalance = sub.member_subscriptions.totalAmount - totalPaid;
+    
+    return {
+      subscription: {
+        ...sub.member_subscriptions,
+        plan: sub.membership_plans
+      },
+      totalPaid,
+      remainingBalance,
+      transactions
+    };
   }
 
   // === SUBSCRIPTION ALERTS ===

@@ -1635,6 +1635,17 @@ export async function registerRoutes(
     res.json({ ...stats, progress });
   });
 
+  app.get("/api/owner/members/:memberId/payments", requireRole(["owner"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    const members = await storage.getGymMembers(req.user!.gymId!);
+    const member = members.find(m => m.id === memberId);
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+    const paymentDetails = await storage.getMemberPaymentDetails(memberId, req.user!.gymId!);
+    res.json(paymentDetails || { subscription: null, totalPaid: 0, remainingBalance: 0, transactions: [] });
+  });
+
   // === ANNOUNCEMENTS ===
   app.post("/api/owner/announcements", requireRole(["owner"]), async (req, res) => {
     const { title, body, audience } = req.body;
