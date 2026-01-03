@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
-import { Plus, Loader2, Trash2, Copy, FileText, Dumbbell, Users, Calendar } from "lucide-react";
+import { Plus, Loader2, Trash2, Copy, FileText, Dumbbell, Users, Calendar, Search, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { format, addMonths } from "date-fns";
 
@@ -41,7 +41,7 @@ type TemplateWithItems = WorkoutTemplate & { items: WorkoutTemplateItem[] };
 
 type MemberInfo = { id: number; username: string; publicId: string };
 
-const MUSCLE_TYPES = ["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Legs", "Core", "Glutes", "Hamstrings", "Calves"];
+const MUSCLE_TYPES = ["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Legs", "Core", "Glutes", "Hamstrings", "Calves", "Cardio", "Rest"];
 const BODY_PARTS = ["Upper Body", "Lower Body", "Core", "Full Body"];
 
 export default function WorkoutTemplatesPage() {
@@ -64,6 +64,7 @@ export default function WorkoutTemplatesPage() {
     startDate: new Date().toISOString().split("T")[0],
     endDate: format(addMonths(new Date(), 1), "yyyy-MM-dd")
   });
+  const [memberSearch, setMemberSearch] = useState("");
 
   const { data: templates = [], isLoading } = useQuery<WorkoutTemplate[]>({
     queryKey: ["/api/trainer/templates"]
@@ -339,7 +340,7 @@ export default function WorkoutTemplatesPage() {
         </Dialog>
       </div>
 
-      <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
+      <Dialog open={isAssignOpen} onOpenChange={(open) => { setIsAssignOpen(open); if (!open) setMemberSearch(""); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Template to Member</DialogTitle>
@@ -348,14 +349,39 @@ export default function WorkoutTemplatesPage() {
           <div className="space-y-4">
             <div>
               <Label>Member</Label>
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search members..."
+                  value={memberSearch}
+                  onChange={e => setMemberSearch(e.target.value)}
+                  className="pl-9 pr-9"
+                  data-testid="input-search-assign-member"
+                />
+                {memberSearch && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setMemberSearch("")}
+                    data-testid="button-clear-assign-member-search"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                )}
+              </div>
               <Select value={assignData.memberId} onValueChange={v => setAssignData({ ...assignData, memberId: v })}>
                 <SelectTrigger data-testid="select-member">
                   <SelectValue placeholder="Select member" />
                 </SelectTrigger>
-                <SelectContent>
-                  {members.map(m => (
-                    <SelectItem key={m.id} value={String(m.id)}>{m.username} ({m.publicId})</SelectItem>
-                  ))}
+                <SelectContent className="max-h-[200px]">
+                  {members.filter(m => m.username.toLowerCase().includes(memberSearch.toLowerCase())).length === 0 ? (
+                    <div className="py-6 text-center text-sm text-muted-foreground">No members found</div>
+                  ) : (
+                    members.filter(m => m.username.toLowerCase().includes(memberSearch.toLowerCase())).map(m => (
+                      <SelectItem key={m.id} value={String(m.id)}>{m.username} ({m.publicId})</SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
