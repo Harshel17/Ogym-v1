@@ -1,0 +1,236 @@
+You are a senior full-stack engineer.
+
+I want a COMPLETE, REALISTIC DEMO DATASET for OGym that exercises EVERY feature in the system.
+This demo must make it look like 2 gyms have been actively operating for 2+ months.
+
+CRITICAL RULES:
+- Do NOT change authentication or workflows.
+- Do NOT change UI logic.
+- Do NOT change database schema unless required for demo completeness.
+- Use existing tables, models, APIs.
+- All demo data must be gym-isolated and role-correct.
+- Implement via a re-runnable demo seed script.
+- Include a reset_demo option.
+
+========================
+GYM STRUCTURE (2 GYMS)
+========================
+
+Create TWO gyms:
+
+GYM A:
+- Name: IronForge Fitness
+- Location: Hyderabad
+- Owner active, paid subscription
+
+GYM B:
+- Name: PulseArena Gym
+- Location: Bengaluru
+- Owner active, but with some pending/overdue payments
+
+Each gym must include:
+- 1 Owner
+- 4–5 Trainers
+- 60–100 Members
+- Active for ~60 days
+
+========================
+OWNER (GYM OWNER) DATA
+========================
+
+For each gym owner:
+
+Dashboard & Analytics:
+- Realistic stats:
+  - total members
+  - check-ins today & yesterday
+  - monthly revenue (INR)
+  - pending payments
+- Clicking stats should have data backing them (not empty)
+
+Member Analytics:
+- Active vs ended memberships trend over last 6 months
+- Some members expired, some renewed
+
+Member Management:
+- Members with:
+  - active subscriptions
+  - expired subscriptions
+  - overdue payments
+- Trainer assignments with historical tracking
+- Join requests (pending + approved)
+- Transfer requests:
+  - incoming transfer (approved)
+  - outgoing transfer (rejected)
+
+Trainer Management:
+- 4–5 trainers
+- Each trainer has assigned members
+- Trainer activity history exists
+
+Payments & Revenue:
+- INR-based payments
+- Partial payments / EMI cases
+- Overdue members
+- Monthly revenue breakdown chart (last 2–3 months)
+- Per-member payment history
+
+Attendance:
+- Daily attendance records for last 60 days
+- Patterns: consistent, irregular, drop-offs
+- QR-based check-ins simulated
+
+Subscriptions:
+- Multiple plans:
+  - Monthly
+  - 3-Month
+  - 6-Month
+- Some expiring soon
+- Some overdue
+
+Communication:
+- Announcements:
+  - sent to all members
+  - sent to trainers only
+- Read/unread tracking populated
+
+Gym Settings:
+- Gym profile filled
+- Platform subscription active (Gym A)
+- Platform subscription pending (Gym B)
+
+========================
+TRAINER DATA
+========================
+
+For each trainer:
+
+Member Management:
+- Assigned members (10–25 each)
+- Star members marked
+- Private trainer notes added
+
+Workout Management:
+- Workout cycles created:
+  - Beginner
+  - Intermediate
+  - Fat loss
+- Workout templates reused
+- Exercises with sets/reps/weights
+- Completion history for members
+- Missed workouts tracked
+
+Diet Plans:
+- Diet plans created for star members
+- Meal schedules populated
+- Nutrition notes added
+
+Attendance:
+- Attendance marked for members
+- History available
+
+Communication:
+- Announcements received
+- Requests handled
+
+========================
+MEMBER DATA
+========================
+
+For each member:
+
+Dashboard:
+- Workout streaks (varied)
+- Total workouts completed
+- Today’s workout populated
+
+Workouts:
+- Assigned workout cycles
+- Exercise completion history
+- Missed workouts
+- Recovery attempts logged
+
+Body Measurements:
+- Weight, chest, arms, waist, etc.
+- Weekly / bi-weekly entries for 1–2 months
+- Visible progress trends
+
+Diet Plans:
+- Some members have diet plans
+- Meal schedules visible
+
+Attendance:
+- QR check-ins
+- Auto attendance via workouts
+- History visible
+
+Payments:
+- Subscription details
+- Payment history
+- Outstanding balance for some
+
+Transfers:
+- Transfer requests:
+  - some pending
+  - some approved
+  - some rejected
+
+Communication:
+- Announcements received
+- Notification badges active
+
+Profile:
+- Profile data filled
+- Password change history not required
+
+========================
+SPECIAL FEATURES (ALL ROLES)
+========================
+
+Ensure demo data triggers:
+- Dark mode compatibility
+- Multi-gym isolation (no data leak)
+- Real-time notification badges
+- QR code flows (simulated)
+- INR currency stored in paise
+
+========================
+OUTPUT REQUIREMENTS
+========================
+
+At the end of seeding, PRINT ONLY IN TERMINAL:
+
+1) DEMO LOGIN CREDENTIALS:
+
+ADMIN:
+- username
+- password
+
+GYM A:
+- Owner credentials
+- 2 Trainer credentials
+- 3 Member credentials
+
+GYM B:
+- Owner credentials
+- 2 Trainer credentials
+- 3 Member credentials
+
+2) Seed summary:
+- gyms created
+- trainers created
+- members created
+- workout cycles created
+- payments recorded
+- diet plans created
+- body measurements entries count
+
+3) Commands:
+- how to run seed
+- how to reset demo data
+
+IMPORTANT:
+This demo must look like a REAL business in production for demos, screenshots, and pitching.
+No empty dashboards. No fake-looking data.
+
+Start by scanning the existing demo seed logic and extend it safely.

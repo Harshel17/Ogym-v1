@@ -4,9 +4,9 @@ import {
   attendance, membershipPlans, memberSubscriptions, paymentTransactions, payments,
   workoutCycles, workoutItems, workoutCompletions, workoutSessions, workoutSessionExercises,
   bodyMeasurements, starMembers, gymHistory, dietPlans, dietPlanMeals, announcements, announcementReads,
-  memberNotes, workoutTemplates, workoutTemplateItems, memberRequests
+  memberNotes, workoutTemplates, workoutTemplateItems, memberRequests, transferRequests, joinRequests
 } from "@shared/schema";
-import { eq, like, or, and, inArray } from "drizzle-orm";
+import { eq, or, inArray } from "drizzle-orm";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
 import { format, subDays, addMonths, addDays } from "date-fns";
@@ -33,31 +33,33 @@ const FIRST_NAMES = [
   "Abhishek", "Jyoti", "Saurabh", "Pallavi", "Himanshu", "Ritika", "Aman", "Sonali",
   "Pankaj", "Komal", "Yash", "Garima", "Rishabh", "Aditi", "Tarun", "Megha",
   "Vishal", "Preeti", "Arun", "Shweta", "Sumit", "Radhika", "Kapil", "Namita",
-  "Suresh", "Vandana", "Ramesh", "Rekha", "Mahesh", "Sunita", "Dinesh", "Geeta"
+  "Suresh", "Vandana", "Ramesh", "Rekha", "Mahesh", "Sunita", "Dinesh", "Geeta",
+  "Ashok", "Savita", "Rajendra", "Manju", "Sandeep", "Nisha", "Deepak", "Seema",
+  "Naveen", "Usha", "Manoj", "Kiran", "Vikas", "Asha", "Sanjay", "Mamta"
 ];
 
 const GYM_CONFIGS = [
   {
-    name: "FitZone Pro Gym",
-    code: "FITZONE1",
+    name: "IronForge Fitness",
+    code: "IRONFORGE",
     phone: "+91 9876543210",
-    address: "123 MG Road, Koramangala, Bangalore, Karnataka 560034",
-    ownerUsername: "fitzone_owner",
-    ownerEmail: "owner@fitzonepro.in",
+    address: "Plot 42, Jubilee Hills, Hyderabad, Telangana 500033",
+    ownerUsername: "ironforge_owner",
+    ownerEmail: "owner@ironforge.in",
     subscriptionStatus: "paid" as const,
     trainerCount: 5,
-    memberCount: 75
+    memberCount: 80
   },
   {
-    name: "Iron Temple Fitness",
-    code: "IRONTEMP",
+    name: "PulseArena Gym",
+    code: "PULSEARENA",
     phone: "+91 9123456780",
-    address: "45 Anna Salai, T Nagar, Chennai, Tamil Nadu 600017",
-    ownerUsername: "irontemple_owner",
-    ownerEmail: "owner@irontemple.in",
+    address: "78 Indiranagar, 100 Feet Road, Bengaluru, Karnataka 560038",
+    ownerUsername: "pulsearena_owner",
+    ownerEmail: "owner@pulsearena.in",
     subscriptionStatus: "overdue" as const,
     trainerCount: 4,
-    memberCount: 60
+    memberCount: 65
   }
 ];
 
@@ -74,9 +76,10 @@ const TRAINER_NAMES = [
   { first: "Ravi", last: "Gupta" }
 ];
 
-const WORKOUT_TEMPLATES = [
+const WORKOUT_TEMPLATES_DATA = [
   {
-    name: "PPL Split",
+    name: "PPL Split - Beginner",
+    description: "Push/Pull/Legs split for beginners. 6-day cycle with moderate volume.",
     cycleLength: 6,
     dayLabels: ["Push", "Pull", "Legs", "Push", "Pull", "Legs"],
     days: [
@@ -108,6 +111,7 @@ const WORKOUT_TEMPLATES = [
   },
   {
     name: "Upper Lower Split",
+    description: "Classic upper/lower split. Great for intermediate lifters. 4-day cycle.",
     cycleLength: 4,
     dayLabels: ["Upper Body", "Lower Body", "Upper Body", "Lower Body"],
     days: [
@@ -131,6 +135,7 @@ const WORKOUT_TEMPLATES = [
   },
   {
     name: "Full Body 3 Day",
+    description: "Full body workout 3x per week. Perfect for busy schedules.",
     cycleLength: 3,
     dayLabels: ["Full Body A", "Full Body B", "Full Body C"],
     days: [
@@ -156,6 +161,28 @@ const WORKOUT_TEMPLATES = [
         { name: "Leg Curls", sets: 3, reps: 12, weight: "35kg", muscle: "Hamstrings", body: "Lower Body" }
       ]}
     ]
+  },
+  {
+    name: "Fat Loss HIIT",
+    description: "High intensity circuit for fat loss. Minimal rest between exercises.",
+    cycleLength: 4,
+    dayLabels: ["Circuit A", "Circuit B", "Circuit A", "Circuit B"],
+    days: [
+      { label: "Circuit A", muscles: "Full Body Cardio", exercises: [
+        { name: "Burpees", sets: 4, reps: 12, weight: "BW", muscle: "Full Body", body: "Full Body" },
+        { name: "Mountain Climbers", sets: 4, reps: 20, weight: "BW", muscle: "Core", body: "Core" },
+        { name: "Jump Squats", sets: 4, reps: 15, weight: "BW", muscle: "Quads", body: "Lower Body" },
+        { name: "Push Ups", sets: 4, reps: 15, weight: "BW", muscle: "Chest", body: "Upper Body" },
+        { name: "High Knees", sets: 4, reps: 30, weight: "sec", muscle: "Cardio", body: "Full Body" }
+      ]},
+      { label: "Circuit B", muscles: "Strength Cardio", exercises: [
+        { name: "Kettlebell Swings", sets: 4, reps: 15, weight: "16kg", muscle: "Full Body", body: "Full Body" },
+        { name: "Box Jumps", sets: 4, reps: 10, weight: "BW", muscle: "Quads", body: "Lower Body" },
+        { name: "Battle Ropes", sets: 4, reps: 30, weight: "sec", muscle: "Arms", body: "Arms" },
+        { name: "Thrusters", sets: 4, reps: 12, weight: "20kg", muscle: "Full Body", body: "Full Body" },
+        { name: "Plank Jacks", sets: 4, reps: 20, weight: "BW", muscle: "Core", body: "Core" }
+      ]}
+    ]
   }
 ];
 
@@ -163,6 +190,68 @@ const CONSISTENCY_PROFILES = [
   { name: "very_consistent", daysPerWeek: [5, 6], percentage: 0.30 },
   { name: "moderate", daysPerWeek: [3, 4], percentage: 0.50 },
   { name: "irregular", daysPerWeek: [0, 1, 2], percentage: 0.20 }
+];
+
+const ANNOUNCEMENT_TEMPLATES = [
+  { title: "New Year, New Goals!", body: "Welcome to 2026! Let's crush those fitness goals together. Don't forget to update your body measurements this week.", audience: "everyone" as const },
+  { title: "Gym Timings Update", body: "Starting next week, we'll be open from 5 AM to 11 PM on weekdays. Weekend timings remain the same (6 AM - 9 PM).", audience: "everyone" as const },
+  { title: "Monthly Fitness Challenge", body: "Join our January fitness challenge! Complete 20 workouts this month and get a free protein shake.", audience: "members" as const },
+  { title: "Trainer Meeting - Monday 8 AM", body: "All trainers please join the weekly sync meeting on Monday at 8 AM. We'll discuss new member onboarding.", audience: "trainers" as const },
+  { title: "Equipment Maintenance", body: "The cable machines will be under maintenance on Saturday. We apologize for the inconvenience.", audience: "everyone" as const },
+  { title: "Payment Reminder", body: "Monthly subscriptions are due by the 5th. Please clear any pending dues to continue uninterrupted access.", audience: "members" as const },
+  { title: "New Cardio Equipment", body: "We've added 4 new treadmills and 2 rowing machines! Come try them out.", audience: "everyone" as const },
+  { title: "Client Progress Reports Due", body: "Trainers, please submit your client progress reports by Friday EOD.", audience: "trainers" as const }
+];
+
+const DIET_PLAN_TEMPLATES = [
+  {
+    title: "Weight Loss Plan",
+    durationWeeks: 8,
+    notes: "Calorie deficit diet with high protein. Drink at least 3L water daily.",
+    meals: [
+      { dayIndex: 0, mealType: "breakfast" as const, description: "2 boiled eggs, 1 multigrain toast, green tea", calories: 280, protein: 18 },
+      { dayIndex: 0, mealType: "snack" as const, description: "1 apple + 10 almonds", calories: 150, protein: 4 },
+      { dayIndex: 0, mealType: "lunch" as const, description: "Grilled chicken breast 150g, brown rice 1 cup, mixed salad", calories: 450, protein: 40 },
+      { dayIndex: 0, mealType: "snack" as const, description: "Protein shake with water", calories: 120, protein: 25 },
+      { dayIndex: 0, mealType: "dinner" as const, description: "Fish curry 150g, 2 rotis, vegetables", calories: 380, protein: 35 }
+    ]
+  },
+  {
+    title: "Muscle Gain Plan",
+    durationWeeks: 12,
+    notes: "High protein, moderate carb surplus. Eat every 3 hours.",
+    meals: [
+      { dayIndex: 0, mealType: "breakfast" as const, description: "4 egg omelette, 2 toast with peanut butter, banana shake", calories: 650, protein: 35 },
+      { dayIndex: 0, mealType: "snack" as const, description: "Protein bar + banana", calories: 300, protein: 20 },
+      { dayIndex: 0, mealType: "lunch" as const, description: "Chicken biryani 2 cups, raita, paneer tikka", calories: 750, protein: 50 },
+      { dayIndex: 0, mealType: "snack" as const, description: "Greek yogurt with honey and nuts", calories: 250, protein: 15 },
+      { dayIndex: 0, mealType: "dinner" as const, description: "Mutton curry 200g, 3 rotis, dal, vegetables", calories: 700, protein: 45 }
+    ]
+  },
+  {
+    title: "Lean Maintenance",
+    durationWeeks: 4,
+    notes: "Maintenance calories with balanced macros. Good for maintaining current physique.",
+    meals: [
+      { dayIndex: 0, mealType: "breakfast" as const, description: "Oats with milk, 1 banana, 2 boiled eggs", calories: 400, protein: 22 },
+      { dayIndex: 0, mealType: "lunch" as const, description: "Paneer bhurji 150g, 2 rotis, salad", calories: 500, protein: 30 },
+      { dayIndex: 0, mealType: "snack" as const, description: "Sprouts chaat + buttermilk", calories: 180, protein: 12 },
+      { dayIndex: 0, mealType: "dinner" as const, description: "Grilled fish 150g, quinoa 1 cup, vegetables", calories: 420, protein: 35 }
+    ]
+  }
+];
+
+const MEMBER_NOTE_TEMPLATES = [
+  "Good form on squats today. Increased weight by 5kg.",
+  "Missed last 2 sessions due to work. Need to follow up.",
+  "Showing great progress. Lost 3kg in the last month.",
+  "Needs to focus on mobility. Suggested daily stretching routine.",
+  "Diet compliance is low. Discussed meal prep strategies.",
+  "Excellent dedication. Comes 6 days a week consistently.",
+  "Recovering from minor shoulder injury. Avoiding overhead pressing.",
+  "Interested in competing. Discussing bodybuilding prep.",
+  "Goals: Lose 10kg by March. Currently on track.",
+  "Prefers morning sessions. Performs better with caffeine."
 ];
 
 function getRandomElement<T>(arr: T[]): T {
@@ -211,10 +300,12 @@ function generateWorkoutDays(startDays: number, endDays: number, daysPerWeek: nu
 }
 
 export async function resetDemoData(): Promise<void> {
-  console.log("[Demo Reset] Clearing demo data...");
+  console.log("\n========================================");
+  console.log("RESETTING DEMO DATA");
+  console.log("========================================\n");
   
   const demoGyms = await db.select().from(gyms).where(
-    or(eq(gyms.code, "FITZONE1"), eq(gyms.code, "IRONTEMP"), eq(gyms.code, "DEMO01"))
+    or(eq(gyms.code, "IRONFORGE"), eq(gyms.code, "PULSEARENA"), eq(gyms.code, "FITZONE1"), eq(gyms.code, "IRONTEMP"))
   );
   
   const gymIds = demoGyms.map(g => g.id);
@@ -224,11 +315,10 @@ export async function resetDemoData(): Promise<void> {
     return;
   }
   
-  console.log(`[Demo Reset] Found ${demoGyms.length} demo gyms with IDs: ${gymIds.join(", ")}`);
+  console.log(`[Demo Reset] Found ${demoGyms.length} demo gyms to delete...`);
   
   const demoSessions = await db.select().from(workoutSessions).where(inArray(workoutSessions.gymId, gymIds));
   const sessionIds = demoSessions.map(s => s.id);
-  
   if (sessionIds.length > 0) {
     await db.delete(workoutSessionExercises).where(inArray(workoutSessionExercises.sessionId, sessionIds));
     await db.delete(workoutSessions).where(inArray(workoutSessions.id, sessionIds));
@@ -236,7 +326,6 @@ export async function resetDemoData(): Promise<void> {
   
   const demoCycles = await db.select().from(workoutCycles).where(inArray(workoutCycles.gymId, gymIds));
   const cycleIds = demoCycles.map(c => c.id);
-  
   if (cycleIds.length > 0) {
     await db.delete(workoutCompletions).where(inArray(workoutCompletions.cycleId, cycleIds));
     await db.delete(workoutItems).where(inArray(workoutItems.cycleId, cycleIds));
@@ -246,7 +335,6 @@ export async function resetDemoData(): Promise<void> {
   await db.delete(attendance).where(inArray(attendance.gymId, gymIds));
   await db.delete(bodyMeasurements).where(inArray(bodyMeasurements.gymId, gymIds));
   await db.delete(paymentTransactions).where(inArray(paymentTransactions.gymId, gymIds));
-  await db.delete(payments).where(inArray(payments.gymId, gymIds));
   await db.delete(memberSubscriptions).where(inArray(memberSubscriptions.gymId, gymIds));
   await db.delete(membershipPlans).where(inArray(membershipPlans.gymId, gymIds));
   await db.delete(trainerMemberAssignments).where(inArray(trainerMemberAssignments.gymId, gymIds));
@@ -255,6 +343,7 @@ export async function resetDemoData(): Promise<void> {
   await db.delete(gymHistory).where(inArray(gymHistory.gymId, gymIds));
   await db.delete(memberRequests).where(inArray(memberRequests.gymId, gymIds));
   await db.delete(memberNotes).where(inArray(memberNotes.gymId, gymIds));
+  await db.delete(payments).where(inArray(payments.gymId, gymIds));
   
   const demoAnnouncements = await db.select().from(announcements).where(inArray(announcements.gymId, gymIds));
   const announcementIds = demoAnnouncements.map(a => a.id);
@@ -277,8 +366,15 @@ export async function resetDemoData(): Promise<void> {
     await db.delete(dietPlans).where(inArray(dietPlans.id, dietIds));
   }
   
-  await db.delete(gymSubscriptions).where(inArray(gymSubscriptions.gymId, gymIds));
+  const demoUsers = await db.select().from(users).where(inArray(users.gymId, gymIds));
+  const userIds = demoUsers.map(u => u.id);
   
+  if (userIds.length > 0) {
+    await db.delete(transferRequests).where(inArray(transferRequests.memberId, userIds));
+    await db.delete(joinRequests).where(inArray(joinRequests.userId, userIds));
+  }
+  
+  await db.delete(gymSubscriptions).where(inArray(gymSubscriptions.gymId, gymIds));
   await db.delete(users).where(inArray(users.gymId, gymIds));
   
   for (const gymId of gymIds) {
@@ -286,31 +382,67 @@ export async function resetDemoData(): Promise<void> {
     await db.delete(gyms).where(eq(gyms.id, gymId));
   }
   
-  console.log("[Demo Reset] Demo data cleared successfully.");
+  console.log("[Demo Reset] Demo data cleared successfully!");
 }
 
 export async function seedDemoData(): Promise<void> {
-  console.log("[Demo Seed] Starting comprehensive demo data seeding...");
+  console.log("\n========================================");
+  console.log("SEEDING COMPREHENSIVE DEMO DATA");
+  console.log("========================================\n");
   
   const existingDemoGym = await db.select().from(gyms).where(
-    or(eq(gyms.code, "FITZONE1"), eq(gyms.code, "IRONTEMP"))
+    or(eq(gyms.code, "IRONFORGE"), eq(gyms.code, "PULSEARENA"))
   ).limit(1);
   
   if (existingDemoGym.length > 0) {
-    console.log("[Demo Seed] Demo gyms already exist. Run reset first or skip.");
+    console.log("[Demo Seed] Demo gyms already exist. Run reset first.");
+    console.log("Command: npx tsx server/run-seed.ts --reset");
     return;
   }
 
   const hashedPassword = await hashPassword("demo123");
   const today = new Date();
-  const historyStartDays = 55;
+  const historyStartDays = 60;
   const historyEndDays = 0;
   
   const allCredentials: { gym: string; role: string; username: string; password: string }[] = [];
+  const stats = {
+    gyms: 0,
+    trainers: 0,
+    members: 0,
+    workoutCycles: 0,
+    workoutCompletions: 0,
+    payments: 0,
+    dietPlans: 0,
+    bodyMeasurements: 0,
+    announcements: 0,
+    starMembers: 0,
+    memberNotes: 0,
+    templates: 0,
+    transfers: 0,
+    joinRequests: 0
+  };
+  
   let usedNames = new Set<string>();
+  const allGymsData: { gym: any; owner: any; trainers: any[]; members: any[]; plans: any[] }[] = [];
   
   for (const gymConfig of GYM_CONFIGS) {
     console.log(`\n[Demo Seed] Creating gym: ${gymConfig.name}...`);
+    
+    // Track per-gym stats
+    const gymStats = {
+      trainers: 0,
+      members: 0,
+      templates: 0,
+      workoutCycles: 0,
+      workoutCompletions: 0,
+      payments: 0,
+      starMembers: 0,
+      dietPlans: 0,
+      memberNotes: 0,
+      bodyMeasurements: 0,
+      announcements: 0
+    };
     
     const [gym] = await db.insert(gyms).values({
       name: gymConfig.name,
@@ -318,6 +450,7 @@ export async function seedDemoData(): Promise<void> {
       phone: gymConfig.phone,
       address: gymConfig.address,
     }).returning();
+    stats.gyms++;
     
     const [owner] = await db.insert(users).values({
       username: gymConfig.ownerUsername,
@@ -334,27 +467,46 @@ export async function seedDemoData(): Promise<void> {
     
     await db.insert(gymSubscriptions).values({
       gymId: gym.id,
-      planType: gymConfig.subscriptionStatus === "paid" ? "3_month" : "1_month",
-      amountPaid: gymConfig.subscriptionStatus === "paid" ? 500000 : 0,
+      planType: gymConfig.subscriptionStatus === "paid" ? "6_month" : "1_month",
+      amountPaid: gymConfig.subscriptionStatus === "paid" ? 1000000 : 50000,
       paymentStatus: gymConfig.subscriptionStatus,
-      paidOn: gymConfig.subscriptionStatus === "paid" ? subDays(today, 20) : null,
-      validUntil: gymConfig.subscriptionStatus === "paid" ? addMonths(today, 2) : subDays(today, 5),
-      notes: gymConfig.subscriptionStatus === "paid" ? "Active subscription" : "Payment pending",
+      paidOn: gymConfig.subscriptionStatus === "paid" ? subDays(today, 45) : subDays(today, 35),
+      validUntil: gymConfig.subscriptionStatus === "paid" ? addMonths(today, 4) : subDays(today, 5),
+      notes: gymConfig.subscriptionStatus === "paid" ? "6-month platform subscription - Active" : "Payment overdue - Please renew",
     });
     
-    const [plan] = await db.insert(membershipPlans).values({
+    const plans: any[] = [];
+    const [plan1] = await db.insert(membershipPlans).values({
       gymId: gym.id,
-      name: "Standard Monthly",
+      name: "Monthly Basic",
       durationMonths: 1,
-      priceAmount: 200000,
+      priceAmount: 150000,
       isActive: true,
     }).returning();
+    plans.push(plan1);
+    
+    const [plan3] = await db.insert(membershipPlans).values({
+      gymId: gym.id,
+      name: "3 Month Standard",
+      durationMonths: 3,
+      priceAmount: 400000,
+      isActive: true,
+    }).returning();
+    plans.push(plan3);
+    
+    const [plan6] = await db.insert(membershipPlans).values({
+      gymId: gym.id,
+      name: "6 Month Premium",
+      durationMonths: 6,
+      priceAmount: 700000,
+      isActive: true,
+    }).returning();
+    plans.push(plan6);
     
     const trainers: any[] = [];
-    const randSuffix = getRandomInt(100, 999);
     for (let t = 0; t < gymConfig.trainerCount; t++) {
       const trainerName = TRAINER_NAMES[t % TRAINER_NAMES.length];
-      const trainerUsername = `${trainerName.first.toLowerCase()}${t}_${gym.code.toLowerCase().slice(0, 4)}${randSuffix}`;
+      const trainerUsername = `${trainerName.first.toLowerCase()}_${gym.code.toLowerCase()}`;
       
       const [trainer] = await db.insert(users).values({
         username: trainerUsername,
@@ -362,28 +514,65 @@ export async function seedDemoData(): Promise<void> {
         role: "trainer",
         gymId: gym.id,
         publicId: generatePublicId("TRN"),
-        email: `${trainerName.first.toLowerCase()}${t}@${gymConfig.name.toLowerCase().replace(/\s+/g, '')}.in`,
+        email: `${trainerName.first.toLowerCase()}@${gymConfig.name.toLowerCase().replace(/\s+/g, '')}.in`,
         phone: `+91 98${getRandomInt(10000000, 99999999)}`,
       }).returning();
       
       trainers.push(trainer);
+      stats.trainers++;
+      gymStats.trainers++;
+      
       if (t < 2) {
         allCredentials.push({ gym: gymConfig.name, role: "trainer", username: trainerUsername, password: "demo123" });
       }
     }
-    console.log(`[Demo Seed] Created ${trainers.length} trainers for ${gymConfig.name}`);
+    console.log(`  Created ${trainers.length} trainers`);
+    
+    for (let t = 0; t < trainers.length; t++) {
+      const template = WORKOUT_TEMPLATES_DATA[t % WORKOUT_TEMPLATES_DATA.length];
+      const [wt] = await db.insert(workoutTemplates).values({
+        gymId: gym.id,
+        trainerId: trainers[t].id,
+        name: template.name,
+        description: template.description,
+        daysPerCycle: template.cycleLength,
+        dayLabels: template.dayLabels,
+        isActive: true,
+      }).returning();
+      
+      for (let dayIdx = 0; dayIdx < template.days.length; dayIdx++) {
+        const dayData = template.days[dayIdx];
+        for (let exIdx = 0; exIdx < dayData.exercises.length; exIdx++) {
+          const ex = dayData.exercises[exIdx];
+          await db.insert(workoutTemplateItems).values({
+            templateId: wt.id,
+            dayIndex: dayIdx,
+            muscleType: ex.muscle,
+            bodyPart: ex.body,
+            exerciseName: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            weight: ex.weight,
+            orderIndex: exIdx,
+          });
+        }
+      }
+      stats.templates++;
+      gymStats.templates++;
+    }
+    console.log(`  Created ${gymStats.templates} workout templates`);
     
     const members: any[] = [];
-    const membersPerTrainer = Math.ceil(gymConfig.memberCount / trainers.length);
-    
     for (let m = 0; m < gymConfig.memberCount; m++) {
       let firstName: string;
+      let attempts = 0;
       do {
         firstName = getRandomElement(FIRST_NAMES);
-      } while (usedNames.has(`${firstName}_${gym.code}`));
+        attempts++;
+      } while (usedNames.has(`${firstName}_${gym.code}`) && attempts < 50);
       usedNames.add(`${firstName}_${gym.code}`);
       
-      const memberUsername = `${firstName.toLowerCase()}${m}_${gym.code.toLowerCase().slice(0, 4)}${randSuffix}`;
+      const memberUsername = `${firstName.toLowerCase()}_${gym.code.toLowerCase()}${m}`;
       
       const [member] = await db.insert(users).values({
         username: memberUsername,
@@ -391,21 +580,26 @@ export async function seedDemoData(): Promise<void> {
         role: "member",
         gymId: gym.id,
         publicId: generatePublicId("MEM"),
-        email: `${firstName.toLowerCase()}${getRandomInt(1, 999)}@email.com`,
+        email: `${firstName.toLowerCase()}${getRandomInt(1, 999)}@gmail.com`,
         phone: `+91 ${getRandomInt(7000000000, 9999999999)}`,
       }).returning();
       
+      const assignedTrainer = trainers[m % trainers.length];
+      const consistencyProfile = assignConsistencyProfile();
+      
       members.push({
         ...member,
-        consistencyProfile: assignConsistencyProfile(),
-        assignedTrainer: trainers[m % trainers.length]
+        consistencyProfile,
+        assignedTrainer
       });
+      stats.members++;
+      gymStats.members++;
       
       if (m < 3) {
         allCredentials.push({ gym: gymConfig.name, role: "member", username: memberUsername, password: "demo123" });
       }
     }
-    console.log(`[Demo Seed] Created ${members.length} members for ${gymConfig.name}`);
+    console.log(`  Created ${gymStats.members} members`);
     
     for (const member of members) {
       await db.insert(trainerMembers).values({
@@ -421,26 +615,153 @@ export async function seedDemoData(): Promise<void> {
         startedAt: subDays(today, historyStartDays + getRandomInt(0, 10)),
       });
       
-      const joinDate = subDays(today, historyStartDays + getRandomInt(0, 15));
+      await db.insert(gymHistory).values({
+        gymId: gym.id,
+        memberId: member.id,
+        joinedAt: subDays(today, historyStartDays + getRandomInt(0, 15)),
+      });
+    }
+    
+    for (const member of members) {
+      const joinDateOffset = getRandomInt(0, 30);
+      const joinDate = subDays(today, historyStartDays + joinDateOffset);
+      const selectedPlan = getRandomElement(plans);
+      const endDate = addMonths(joinDate, selectedPlan.durationMonths);
+      
+      let status: "active" | "ended" | "endingSoon" | "overdue" = "active";
+      const rand = Math.random();
+      if (rand < 0.10) status = "ended";
+      else if (rand < 0.15) status = "endingSoon";
+      else if (rand < 0.25) status = "overdue";
+      
+      const paymentMode = rand < 0.70 ? "full" : (rand < 0.85 ? "partial" : "emi");
+      
       const [subscription] = await db.insert(memberSubscriptions).values({
         gymId: gym.id,
         memberId: member.id,
-        planId: plan.id,
+        planId: selectedPlan.id,
         startDate: format(joinDate, "yyyy-MM-dd"),
-        endDate: format(addDays(joinDate, 60), "yyyy-MM-dd"),
-        status: Math.random() > 0.15 ? "active" : "ended",
-        totalAmount: plan.priceAmount,
-        paymentMode: "full",
+        endDate: format(endDate, "yyyy-MM-dd"),
+        status,
+        totalAmount: selectedPlan.priceAmount,
+        paymentMode,
+        notes: paymentMode === "emi" ? "3 EMI payments" : null,
       }).returning();
       
-      member.subscriptionId = subscription.id;
+      member.subscription = subscription;
+      member.plan = selectedPlan;
+      
+      let amountPaidTotal = 0;
+      if (paymentMode === "full" && status !== "overdue") {
+        await db.insert(paymentTransactions).values({
+          gymId: gym.id,
+          memberId: member.id,
+          subscriptionId: subscription.id,
+          paidOn: format(joinDate, "yyyy-MM-dd"),
+          amountPaid: selectedPlan.priceAmount,
+          method: getRandomElement(["cash", "upi", "card", "bank"]),
+          referenceNote: `Full payment - ${selectedPlan.name}`,
+        });
+        amountPaidTotal = selectedPlan.priceAmount;
+        stats.payments++;
+        gymStats.payments++;
+      } else if (paymentMode === "partial" || paymentMode === "emi") {
+        const numPayments = paymentMode === "emi" ? 3 : 2;
+        const paymentAmount = Math.floor(selectedPlan.priceAmount / numPayments);
+        const paymentsMade = status === "overdue" ? 1 : (Math.random() > 0.3 ? numPayments : numPayments - 1);
+        
+        for (let p = 0; p < paymentsMade; p++) {
+          const payDate = addDays(joinDate, p * 15);
+          if (payDate <= today) {
+            await db.insert(paymentTransactions).values({
+              gymId: gym.id,
+              memberId: member.id,
+              subscriptionId: subscription.id,
+              paidOn: format(payDate, "yyyy-MM-dd"),
+              amountPaid: paymentAmount,
+              method: getRandomElement(["cash", "upi", "card"]),
+              referenceNote: `${paymentMode.toUpperCase()} ${p + 1}/${numPayments}`,
+            });
+            amountPaidTotal += paymentAmount;
+            stats.payments++;
+            gymStats.payments++;
+          }
+        }
+      } else if (status === "overdue") {
+        const partialAmount = Math.floor(selectedPlan.priceAmount * 0.3);
+        await db.insert(paymentTransactions).values({
+          gymId: gym.id,
+          memberId: member.id,
+          subscriptionId: subscription.id,
+          paidOn: format(joinDate, "yyyy-MM-dd"),
+          amountPaid: partialAmount,
+          method: "cash",
+          referenceNote: "Partial advance payment",
+        });
+        amountPaidTotal = partialAmount;
+        stats.payments++;
+        gymStats.payments++;
+      }
+      
+      member.amountPaid = amountPaidTotal;
     }
-    console.log(`[Demo Seed] Assigned members to trainers for ${gymConfig.name}`);
+    console.log(`  Created subscriptions and ${gymStats.payments} payment transactions`);
     
-    const workoutCyclesCreated: any[] = [];
     for (let t = 0; t < trainers.length; t++) {
-      const template = WORKOUT_TEMPLATES[t % WORKOUT_TEMPLATES.length];
-      const trainerMembers = members.filter(m => m.assignedTrainer.id === trainers[t].id);
+      const trainer = trainers[t];
+      const trainerMembers = members.filter(m => m.assignedTrainer.id === trainer.id);
+      const template = WORKOUT_TEMPLATES_DATA[t % WORKOUT_TEMPLATES_DATA.length];
+      
+      const starMemberCandidates = trainerMembers.filter(m => m.consistencyProfile === "very_consistent").slice(0, 3);
+      for (const starMember of starMemberCandidates) {
+        await db.insert(starMembers).values({
+          gymId: gym.id,
+          trainerId: trainer.id,
+          memberId: starMember.id,
+        });
+        stats.starMembers++;
+        gymStats.starMembers++;
+        
+        if (Math.random() > 0.3) {
+          const dietTemplate = getRandomElement(DIET_PLAN_TEMPLATES);
+          const [dietPlan] = await db.insert(dietPlans).values({
+            gymId: gym.id,
+            trainerId: trainer.id,
+            memberId: starMember.id,
+            title: dietTemplate.title,
+            durationWeeks: dietTemplate.durationWeeks,
+            notes: dietTemplate.notes,
+            isActive: true,
+          }).returning();
+          
+          for (const meal of dietTemplate.meals) {
+            await db.insert(dietPlanMeals).values({
+              planId: dietPlan.id,
+              dayIndex: meal.dayIndex,
+              mealType: meal.mealType,
+              description: meal.description,
+              calories: meal.calories,
+              protein: meal.protein,
+              orderIndex: 0,
+            });
+          }
+          stats.dietPlans++;
+          gymStats.dietPlans++;
+        }
+      }
+      
+      for (const member of trainerMembers) {
+        if (Math.random() > 0.5) {
+          await db.insert(memberNotes).values({
+            gymId: gym.id,
+            trainerId: trainer.id,
+            memberId: member.id,
+            content: getRandomElement(MEMBER_NOTE_TEMPLATES),
+          });
+          stats.memberNotes++;
+          gymStats.memberNotes++;
+        }
+      }
       
       for (const member of trainerMembers) {
         const cycleStart = subDays(today, historyStartDays);
@@ -448,7 +769,7 @@ export async function seedDemoData(): Promise<void> {
         
         const [cycle] = await db.insert(workoutCycles).values({
           gymId: gym.id,
-          trainerId: trainers[t].id,
+          trainerId: trainer.id,
           memberId: member.id,
           name: template.name,
           cycleLength: template.cycleLength,
@@ -457,6 +778,8 @@ export async function seedDemoData(): Promise<void> {
           endDate: format(cycleEnd, "yyyy-MM-dd"),
           isActive: true,
         }).returning();
+        stats.workoutCycles++;
+        gymStats.workoutCycles++;
         
         const itemsForCycle: any[] = [];
         for (let dayIdx = 0; dayIdx < template.days.length; dayIdx++) {
@@ -488,93 +811,67 @@ export async function seedDemoData(): Promise<void> {
           }
         }
         
-        workoutCyclesCreated.push({ cycle, items: itemsForCycle, member, template });
-      }
-    }
-    console.log(`[Demo Seed] Created workout cycles for ${gymConfig.name}`);
-    
-    let completionsCount = 0;
-    let attendanceCount = 0;
-    
-    for (const { cycle, items, member, template } of workoutCyclesCreated) {
-      const daysPerWeek = getDaysPerWeek(member.consistencyProfile);
-      const workoutDays = generateWorkoutDays(historyStartDays, historyEndDays, daysPerWeek);
-      
-      for (const workoutDate of workoutDays) {
-        const daysSinceStart = Math.floor(
-          (new Date(workoutDate).getTime() - new Date(cycle.startDate).getTime()) / (1000 * 60 * 60 * 24)
-        );
-        const currentDayIndex = ((daysSinceStart % template.cycleLength) + template.cycleLength) % template.cycleLength;
-        const effectiveDayIndex = currentDayIndex % template.days.length;
+        const daysPerWeek = getDaysPerWeek(member.consistencyProfile);
+        const workoutDays = generateWorkoutDays(historyStartDays, historyEndDays, daysPerWeek);
         
-        const dayItems = items.filter((i: any) => i.dayIdx === effectiveDayIndex);
-        
-        const completionRate = member.consistencyProfile === "very_consistent" ? 0.95 :
-                               member.consistencyProfile === "moderate" ? 0.80 : 0.60;
-        
-        const completedItems = dayItems.filter(() => Math.random() < completionRate);
-        
-        for (const item of completedItems) {
-          const setsVar = Math.random() > 0.8 ? getRandomInt(-1, 1) : 0;
-          const repsVar = Math.random() > 0.7 ? getRandomInt(-2, 2) : 0;
+        for (const workoutDate of workoutDays) {
+          const daysSinceStart = Math.floor(
+            (new Date(workoutDate).getTime() - new Date(cycle.startDate).getTime()) / (1000 * 60 * 60 * 24)
+          );
+          const currentDayIndex = ((daysSinceStart % template.cycleLength) + template.cycleLength) % template.cycleLength;
+          const effectiveDayIndex = currentDayIndex % template.days.length;
           
-          const notes = Math.random() > 0.9 ? 
-            getRandomElement(["Felt strong", "Increase weight next time", "Good form", "Slightly tired", "PR attempt"]) : 
-            null;
+          const dayItems = itemsForCycle.filter((i: any) => i.dayIdx === effectiveDayIndex);
           
-          await db.insert(workoutCompletions).values({
-            gymId: gym.id,
-            cycleId: cycle.id,
-            workoutItemId: item.id,
-            memberId: member.id,
-            completedDate: workoutDate,
-            actualSets: Math.max(1, item.sets + setsVar),
-            actualReps: Math.max(1, item.reps + repsVar),
-            actualWeight: item.weight,
-            notes,
-          });
-          completionsCount++;
-        }
-        
-        if (completedItems.length > 0) {
-          await db.insert(attendance).values({
-            gymId: gym.id,
-            memberId: member.id,
-            markedByUserId: member.id,
-            date: workoutDate,
-            status: "present",
-            verifiedMethod: "workout",
-          });
-          attendanceCount++;
+          const completionRate = member.consistencyProfile === "very_consistent" ? 0.95 :
+                                 member.consistencyProfile === "moderate" ? 0.80 : 0.60;
+          
+          const completedItems = dayItems.filter(() => Math.random() < completionRate);
+          
+          for (const item of completedItems) {
+            const setsVar = Math.random() > 0.8 ? getRandomInt(-1, 1) : 0;
+            const repsVar = Math.random() > 0.7 ? getRandomInt(-2, 2) : 0;
+            
+            const notes = Math.random() > 0.9 ? 
+              getRandomElement(["Felt strong", "Struggled a bit", "New PR!", "Need more rest", "Good pump"]) : 
+              null;
+            
+            await db.insert(workoutCompletions).values({
+              gymId: gym.id,
+              cycleId: cycle.id,
+              workoutItemId: item.id,
+              memberId: member.id,
+              completedDate: workoutDate,
+              actualSets: Math.max(1, item.sets + setsVar),
+              actualReps: Math.max(1, item.reps + repsVar),
+              actualWeight: item.weight,
+              notes,
+            });
+            stats.workoutCompletions++;
+            gymStats.workoutCompletions++;
+          }
+          
+          if (completedItems.length > 0) {
+            await db.insert(attendance).values({
+              gymId: gym.id,
+              memberId: member.id,
+              markedByUserId: member.id,
+              date: workoutDate,
+              status: "present",
+              verifiedMethod: getRandomElement(["workout", "qr", "both"]),
+            });
+          }
         }
       }
     }
-    console.log(`[Demo Seed] Created ${completionsCount} workout completions and ${attendanceCount} attendance records for ${gymConfig.name}`);
+    console.log(`  Created ${gymStats.workoutCycles} workout cycles with ${gymStats.workoutCompletions} completions`);
+    console.log(`  Created ${gymStats.starMembers} star members, ${gymStats.dietPlans} diet plans, ${gymStats.memberNotes} notes`);
     
-    let paymentsCount = 0;
-    for (const member of members) {
-      if (!member.subscriptionId) continue;
-      
-      const paymentDate = subDays(today, getRandomInt(20, 50));
-      await db.insert(paymentTransactions).values({
-        gymId: gym.id,
-        memberId: member.id,
-        subscriptionId: member.subscriptionId,
-        paidOn: format(paymentDate, "yyyy-MM-dd"),
-        amountPaid: plan.priceAmount,
-        method: getRandomElement(["cash", "upi", "card", "bank"]),
-        referenceNote: `Monthly payment - ${format(paymentDate, "MMM yyyy")}`,
-      });
-      paymentsCount++;
-    }
-    console.log(`[Demo Seed] Created ${paymentsCount} payment records for ${gymConfig.name}`);
-    
-    // === BODY MEASUREMENTS SEEDING ===
     const MEASUREMENT_NOTES = [
       "Feeling great", "Cut going well", "Bulk phase", "Post cheat meal", 
       "Felt bloated", "Morning weigh-in", "After workout", "Dehydrated",
       "Good progress", "Need to focus on diet", "Consistent training",
-      null, null, null, null, null // More nulls for realism
+      null, null, null, null, null
     ];
     
     type MeasurementProfile = "fat_loss" | "muscle_gain" | "recomp" | "inconsistent";
@@ -589,21 +886,17 @@ export async function seedDemoData(): Promise<void> {
     
     const getMeasurementFrequency = (index: number): number => {
       const rand = index % 10;
-      if (rand < 6) return 7 + getRandomInt(0, 3); // 60%: weekly (7-10 days)
-      if (rand < 9) return 12 + getRandomInt(0, 4); // 30%: bi-weekly (12-16 days)
-      return 999; // 10%: only 1-2 entries
+      if (rand < 6) return 7 + getRandomInt(0, 3);
+      if (rand < 9) return 12 + getRandomInt(0, 4);
+      return 999;
     };
-    
-    let measurementsCount = 0;
-    const sampleMemberLogs: { username: string; profile: MeasurementProfile; entries: any[] }[] = [];
     
     for (let mIdx = 0; mIdx < members.length; mIdx++) {
       const member = members[mIdx];
       const profile = getMemberProfile(mIdx);
       const frequency = getMeasurementFrequency(mIdx);
       
-      // Base measurements - realistic starting values
-      const isMale = mIdx % 3 !== 0; // Roughly 2/3 male
+      const isMale = mIdx % 3 !== 0;
       let baseWeight = isMale ? getRandomInt(65, 90) : getRandomInt(50, 70);
       let baseHeight = isMale ? getRandomInt(165, 185) : getRandomInt(155, 170);
       let baseBodyFat = isMale ? getRandomInt(15, 28) : getRandomInt(22, 35);
@@ -613,26 +906,20 @@ export async function seedDemoData(): Promise<void> {
       let baseBiceps = isMale ? getRandomInt(30, 38) : getRandomInt(25, 32);
       let baseThighs = isMale ? getRandomInt(50, 62) : getRandomInt(48, 58);
       
-      const memberEntries: any[] = [];
-      
-      // Generate entries over the last 55 days
       const measurementDays: number[] = [];
       if (frequency >= 999) {
-        // Inconsistent: only 1-2 entries
         measurementDays.push(getRandomInt(10, 50));
         if (Math.random() > 0.5) measurementDays.push(getRandomInt(5, 25));
       } else {
-        // Regular frequency
-        for (let day = 55; day >= 0; day -= frequency) {
+        for (let day = 60; day >= 0; day -= frequency) {
           measurementDays.push(day + getRandomInt(-2, 2));
         }
       }
       
       for (let i = 0; i < measurementDays.length; i++) {
-        const daysAgo = Math.max(0, Math.min(55, measurementDays[i]));
+        const daysAgo = Math.max(0, Math.min(60, measurementDays[i]));
         const measureDate = format(subDays(today, daysAgo), "yyyy-MM-dd");
         
-        // Apply profile-based progression
         const progressFactor = i / Math.max(1, measurementDays.length - 1);
         
         let weight = baseWeight;
@@ -658,12 +945,10 @@ export async function seedDemoData(): Promise<void> {
           waist = baseWaist - progressFactor * getRandomInt(5, 20) / 10;
           chest = baseChest + progressFactor * getRandomInt(5, 15) / 10;
         } else {
-          // Inconsistent - random variation
           weight = baseWeight + (Math.random() - 0.5) * 6;
           waist = baseWaist + (Math.random() - 0.5) * 4;
         }
         
-        // Add small random noise
         weight = Math.round((weight + (Math.random() - 0.5) * 1) * 10) / 10;
         chest = Math.round((chest + (Math.random() - 0.5) * 1) * 10) / 10;
         waist = Math.round((waist + (Math.random() - 0.5) * 1) * 10) / 10;
@@ -672,7 +957,7 @@ export async function seedDemoData(): Promise<void> {
         thighs = Math.round((thighs + (Math.random() - 0.5) * 1) * 10) / 10;
         bodyFat = Math.round((bodyFat + (Math.random() - 0.5) * 1) * 10) / 10;
         
-        const entry = {
+        await db.insert(bodyMeasurements).values({
           gymId: gym.id,
           memberId: member.id,
           recordedDate: measureDate,
@@ -685,47 +970,135 @@ export async function seedDemoData(): Promise<void> {
           biceps: Math.random() > 0.5 ? Math.round(biceps) : null,
           thighs: Math.random() > 0.5 ? Math.round(thighs) : null,
           notes: getRandomElement(MEASUREMENT_NOTES),
-        };
-        
-        await db.insert(bodyMeasurements).values(entry);
-        measurementsCount++;
-        memberEntries.push({ date: measureDate, weight: entry.weight, waist: entry.waist, bodyFat: entry.bodyFat });
+        });
+        stats.bodyMeasurements++;
+        gymStats.bodyMeasurements++;
       }
+    }
+    console.log(`  Created ${gymStats.bodyMeasurements} body measurements`);
+    
+    const announcementsToCreate = ANNOUNCEMENT_TEMPLATES.slice(0, getRandomInt(4, 6));
+    for (let aIdx = 0; aIdx < announcementsToCreate.length; aIdx++) {
+      const template = announcementsToCreate[aIdx];
+      const daysAgo = getRandomInt(1, 30);
       
-      // Log sample members (first 3 from each gym)
-      if (mIdx < 3) {
-        sampleMemberLogs.push({
-          username: member.username,
-          profile,
-          entries: memberEntries
+      const [announcement] = await db.insert(announcements).values({
+        gymId: gym.id,
+        title: template.title,
+        body: template.body,
+        audience: template.audience,
+        createdByOwnerId: owner.id,
+        createdAt: subDays(today, daysAgo),
+      }).returning();
+      stats.announcements++;
+      gymStats.announcements++;
+      
+      const targetUsers = template.audience === "trainers" 
+        ? trainers 
+        : template.audience === "members" 
+          ? members 
+          : [...trainers, ...members];
+      
+      const readPercentage = Math.random() * 0.6 + 0.2;
+      const usersToMark = targetUsers.slice(0, Math.floor(targetUsers.length * readPercentage));
+      
+      for (const user of usersToMark) {
+        await db.insert(announcementReads).values({
+          announcementId: announcement.id,
+          userId: user.id,
+          readAt: subDays(today, daysAgo - getRandomInt(0, Math.min(daysAgo, 5))),
         });
       }
     }
+    console.log(`  Created ${gymStats.announcements} announcements with read tracking`);
     
-    console.log(`[Demo Seed] Created ${measurementsCount} body measurement records for ${gymConfig.name}`);
-    
-    // Print sample member data
-    if (sampleMemberLogs.length > 0) {
-      console.log(`\n[Demo Seed] Sample Body Measurement History for ${gymConfig.name}:`);
-      for (const sample of sampleMemberLogs) {
-        console.log(`  ${sample.username} (${sample.profile}):`);
-        for (const entry of sample.entries.slice(0, 5)) {
-          console.log(`    ${entry.date}: ${entry.weight}kg, waist ${entry.waist}cm${entry.bodyFat ? `, bf ${entry.bodyFat}%` : ''}`);
-        }
-      }
-    }
+    allGymsData.push({ gym, owner, trainers, members, plans });
   }
   
-  console.log("\n========================================");
+  if (allGymsData.length >= 2) {
+    const gym1 = allGymsData[0];
+    const gym2 = allGymsData[1];
+    
+    const transferMember1 = gym1.members[getRandomInt(10, 20)];
+    await db.insert(transferRequests).values({
+      memberId: transferMember1.id,
+      fromGymId: gym1.gym.id,
+      toGymId: gym2.gym.id,
+      status: "approved",
+      approvedByFromOwner: true,
+      approvedByToOwner: true,
+      createdAt: subDays(today, 15),
+    });
+    stats.transfers++;
+    
+    const transferMember2 = gym2.members[getRandomInt(5, 15)];
+    await db.insert(transferRequests).values({
+      memberId: transferMember2.id,
+      fromGymId: gym2.gym.id,
+      toGymId: gym1.gym.id,
+      status: "rejected",
+      approvedByFromOwner: true,
+      approvedByToOwner: false,
+      createdAt: subDays(today, 10),
+    });
+    stats.transfers++;
+    
+    const pendingTransferMember = gym1.members[getRandomInt(30, 40)];
+    await db.insert(transferRequests).values({
+      memberId: pendingTransferMember.id,
+      fromGymId: gym1.gym.id,
+      toGymId: gym2.gym.id,
+      status: "pending",
+      approvedByFromOwner: false,
+      approvedByToOwner: false,
+      createdAt: subDays(today, 3),
+    });
+    stats.transfers++;
+    
+    console.log(`\n[Demo Seed] Created ${stats.transfers} transfer requests`);
+  }
+  
+  console.log("\n\n========================================");
   console.log("DEMO LOGIN CREDENTIALS");
-  console.log("Password for all accounts: demo123");
+  console.log("========================================");
+  console.log("Password for ALL accounts: demo123");
   console.log("========================================\n");
   
+  console.log("ADMIN:");
+  console.log("  Username: (Use ADMIN_USERNAME from environment)");
+  console.log("  Password: (Use ADMIN_PASSWORD from environment)");
+  console.log("");
+  
+  let currentGym = "";
   for (const cred of allCredentials) {
-    console.log(`[${cred.gym}] ${cred.role.toUpperCase()}: ${cred.username}`);
+    if (cred.gym !== currentGym) {
+      console.log(`\n${cred.gym.toUpperCase()}:`);
+      currentGym = cred.gym;
+    }
+    console.log(`  ${cred.role.charAt(0).toUpperCase() + cred.role.slice(1)}: ${cred.username}`);
   }
   
+  console.log("\n\n========================================");
+  console.log("SEED SUMMARY");
+  console.log("========================================");
+  console.log(`Gyms created:            ${stats.gyms}`);
+  console.log(`Trainers created:        ${stats.trainers}`);
+  console.log(`Members created:         ${stats.members}`);
+  console.log(`Workout templates:       ${stats.templates}`);
+  console.log(`Workout cycles created:  ${stats.workoutCycles}`);
+  console.log(`Workout completions:     ${stats.workoutCompletions}`);
+  console.log(`Payments recorded:       ${stats.payments}`);
+  console.log(`Diet plans created:      ${stats.dietPlans}`);
+  console.log(`Star members:            ${stats.starMembers}`);
+  console.log(`Member notes:            ${stats.memberNotes}`);
+  console.log(`Body measurements:       ${stats.bodyMeasurements}`);
+  console.log(`Announcements:           ${stats.announcements}`);
+  console.log(`Transfer requests:       ${stats.transfers}`);
+  
   console.log("\n========================================");
-  console.log("Demo data seeding completed successfully!");
+  console.log("COMMANDS");
+  console.log("========================================");
+  console.log("Run seed:    npx tsx server/run-seed.ts");
+  console.log("Reset demo:  npx tsx server/run-seed.ts --reset");
   console.log("========================================\n");
 }
