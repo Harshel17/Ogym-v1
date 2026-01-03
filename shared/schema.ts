@@ -76,6 +76,16 @@ export const trainerMembers = pgTable("trainer_members", {
   uniqueMemberPerGym: uniqueIndex("unique_member_per_gym").on(table.gymId, table.memberId),
 }));
 
+export const trainerMemberAssignments = pgTable("trainer_member_assignments", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  trainerId: integer("trainer_id").references(() => users.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+  endReason: text("end_reason", { enum: ["trainer_transfer", "member_transfer", "reassignment", "trainer_left_gym", "manual"] }),
+});
+
 export const attendance = pgTable("attendance", {
   id: serial("id").primaryKey(),
   gymId: integer("gym_id").references(() => gyms.id).notNull(),
@@ -323,6 +333,7 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true, creat
 export const insertGymRequestSchema = createInsertSchema(gymRequests).omit({ id: true, createdAt: true, reviewedAt: true, status: true, adminNotes: true });
 export const insertJoinRequestSchema = createInsertSchema(joinRequests).omit({ id: true, createdAt: true, reviewedAt: true, status: true });
 export const insertTrainerMemberSchema = createInsertSchema(trainerMembers).omit({ id: true });
+export const insertTrainerMemberAssignmentSchema = createInsertSchema(trainerMemberAssignments).omit({ id: true });
 export const insertAttendanceSchema = createInsertSchema(attendance).omit({ id: true, createdAt: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, updatedAt: true });
 export const insertWorkoutCycleSchema = createInsertSchema(workoutCycles).omit({ id: true, createdAt: true });
@@ -351,6 +362,7 @@ export type GymRequest = typeof gymRequests.$inferSelect;
 export type JoinRequest = typeof joinRequests.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type TrainerMember = typeof trainerMembers.$inferSelect;
+export type TrainerMemberAssignment = typeof trainerMemberAssignments.$inferSelect;
 export type Attendance = typeof attendance.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type WorkoutCycle = typeof workoutCycles.$inferSelect;
@@ -367,6 +379,7 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertGym = z.infer<typeof insertGymSchema>;
 export type InsertGymRequest = z.infer<typeof insertGymRequestSchema>;
 export type InsertJoinRequest = z.infer<typeof insertJoinRequestSchema>;
+export type InsertTrainerMemberAssignment = z.infer<typeof insertTrainerMemberAssignmentSchema>;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type InsertWorkoutCycle = z.infer<typeof insertWorkoutCycleSchema>;

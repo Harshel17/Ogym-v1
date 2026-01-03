@@ -1,12 +1,12 @@
 import { 
-  users, gyms, attendance, payments, trainerMembers, workoutCycles, workoutItems, workoutCompletions, memberRequests,
+  users, gyms, attendance, payments, trainerMembers, trainerMemberAssignments, workoutCycles, workoutItems, workoutCompletions, memberRequests,
   gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests, announcements, userNotificationPreferences, announcementReads,
   membershipPlans, memberSubscriptions, paymentTransactions, workoutSessions, workoutSessionExercises,
   gymRequests, joinRequests, gymSubscriptions,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
-  type TrainerMember,
+  type TrainerMember, type TrainerMemberAssignment, type InsertTrainerMemberAssignment,
   type WorkoutCycle, type InsertWorkoutCycle,
   type WorkoutItem, type InsertWorkoutItem,
   type WorkoutCompletion, type InsertWorkoutCompletion,
@@ -391,13 +391,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async assignTrainer(trainerId: number, memberId: number, gymId: number): Promise<TrainerMember> {
+    // Close any existing assignment for this member in this gym
+    await db.update(trainerMemberAssignments)
+      .set({ endedAt: new Date(), endReason: 'reassignment' })
+      .where(and(
+        eq(trainerMemberAssignments.gymId, gymId),
+        eq(trainerMemberAssignments.memberId, memberId),
+        isNull(trainerMemberAssignments.endedAt)
+      ));
+    
+    // Delete current assignment from trainerMembers
     await db.delete(trainerMembers).where(
       and(eq(trainerMembers.gymId, gymId), eq(trainerMembers.memberId, memberId))
     );
     
+    // Create new current assignment
     const [assignment] = await db.insert(trainerMembers).values({
       trainerId, memberId, gymId
     }).returning();
+    
+    // Record in assignment history
+    await db.insert(trainerMemberAssignments).values({
+      trainerId, memberId, gymId, startedAt: new Date()
+    });
+    
     return assignment;
   }
 
@@ -1191,6 +1208,12 @@ export class DatabaseStorage implements IStorage {
     const [request] = await db.select().from(transferRequests).where(eq(transferRequests.id, requestId));
     if (!request) return;
 
+    // Get user to determine role (member or trainer)
+    const [user] = await db.select().from(users).where(eq(users.id, request.memberId));
+    if (!user) return;
+    
+    const isTrainer = user.role === 'trainer';
+
     // Update gym history - mark left_at for old gym
     await db.update(gymHistory)
       .set({ leftAt: new Date() })
@@ -1206,13 +1229,36 @@ export class DatabaseStorage implements IStorage {
       gymId: request.toGymId
     });
 
-    // Update member's gym
+    // Update user's gym
     await db.update(users)
       .set({ gymId: request.toGymId })
       .where(eq(users.id, request.memberId));
 
-    // Remove trainer assignment
-    await db.delete(trainerMembers).where(eq(trainerMembers.memberId, request.memberId));
+    if (isTrainer) {
+      // When trainer transfers, close ALL their member assignments (preserve history)
+      await db.update(trainerMemberAssignments)
+        .set({ endedAt: new Date(), endReason: 'trainer_transfer' })
+        .where(and(
+          eq(trainerMemberAssignments.trainerId, request.memberId),
+          eq(trainerMemberAssignments.gymId, request.fromGymId),
+          isNull(trainerMemberAssignments.endedAt)
+        ));
+      
+      // Remove current assignments from trainerMembers
+      await db.delete(trainerMembers).where(eq(trainerMembers.trainerId, request.memberId));
+    } else {
+      // When member transfers, close their assignment with their trainer (preserve history)
+      await db.update(trainerMemberAssignments)
+        .set({ endedAt: new Date(), endReason: 'member_transfer' })
+        .where(and(
+          eq(trainerMemberAssignments.memberId, request.memberId),
+          eq(trainerMemberAssignments.gymId, request.fromGymId),
+          isNull(trainerMemberAssignments.endedAt)
+        ));
+      
+      // Remove current assignment from trainerMembers
+      await db.delete(trainerMembers).where(eq(trainerMembers.memberId, request.memberId));
+    }
 
     // Update transfer request status
     await db.update(transferRequests)
@@ -1933,28 +1979,44 @@ export class DatabaseStorage implements IStorage {
     thisMonthCount: number;
     calendarDays: { date: string; focusLabel: string }[];
   }> {
+    // Get data from BOTH workout systems:
+    // 1. workoutSessions - standalone sessions members create
+    // 2. workoutCompletions - completions from trainer-assigned cycles
+
     const sessions = await db.select().from(workoutSessions)
       .where(and(eq(workoutSessions.gymId, gymId), eq(workoutSessions.memberId, memberId)))
       .orderBy(desc(workoutSessions.date));
+    
+    // Also get workout completions (from trainer cycles) - these may be in different gyms historically
+    const completions = await db.select({
+      completion: workoutCompletions,
+      workoutItem: workoutItems
+    })
+    .from(workoutCompletions)
+    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .where(eq(workoutCompletions.memberId, memberId))
+    .orderBy(desc(workoutCompletions.completedDate));
     
     const today = new Date().toISOString().split('T')[0];
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const monthStart = today.slice(0, 7) + '-01';
     
-    // Get unique dates (workout_sessions already has unique constraint per gym+member+date)
-    const uniqueDates = Array.from(new Set(sessions.map(s => s.date))).sort().reverse();
+    // Combine unique dates from both sources
+    const sessionDatesSet = new Set(sessions.map(s => s.date));
+    const completionDatesSet = new Set(completions.map(c => c.completion.completedDate));
+    const allDates = new Set([...Array.from(sessionDatesSet), ...Array.from(completionDatesSet)]);
+    const uniqueDates = Array.from(allDates).sort().reverse();
     
     // Calculate streak
     let streak = 0;
-    const sessionDates = new Set(uniqueDates);
     let checkDate = new Date(today);
     
     // If no workout today, start from yesterday
-    if (!sessionDates.has(today)) {
+    if (!allDates.has(today)) {
       checkDate.setDate(checkDate.getDate() - 1);
     }
     
-    while (sessionDates.has(checkDate.toISOString().split('T')[0])) {
+    while (allDates.has(checkDate.toISOString().split('T')[0])) {
       streak++;
       checkDate.setDate(checkDate.getDate() - 1);
     }
@@ -1963,14 +2025,33 @@ export class DatabaseStorage implements IStorage {
     const last7DaysDates = uniqueDates.filter(d => d >= sevenDaysAgo);
     const thisMonthDates = uniqueDates.filter(d => d >= monthStart);
     
-    // Debug logging (temporary)
-    console.log(`[getMemberWorkoutSummary] memberId=${memberId}, uniqueDates=${JSON.stringify(uniqueDates.slice(0, 10))}, last7Days=${JSON.stringify(last7DaysDates)}, thisMonth=${JSON.stringify(thisMonthDates)}`);
-    
-    // Calendar days (last 90 days for display)
+    // Calendar days (last 90 days for display) - combine both sources
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    // Group completions by date with muscle group info
+    const completionsByDate = new Map<string, string>();
+    for (const c of completions) {
+      if (c.completion.completedDate >= ninetyDaysAgo) {
+        if (!completionsByDate.has(c.completion.completedDate)) {
+          completionsByDate.set(c.completion.completedDate, c.workoutItem.muscleType);
+        }
+      }
+    }
+    
+    // Start with sessions and add completion-only days
     const calendarDays = sessions
       .filter(s => s.date >= ninetyDaysAgo)
       .map(s => ({ date: s.date, focusLabel: s.focusLabel }));
+    
+    // Add days from completions that aren't in sessions
+    completionsByDate.forEach((muscleType, date) => {
+      if (!sessionDatesSet.has(date)) {
+        calendarDays.push({ date, focusLabel: muscleType });
+      }
+    });
+    
+    // Sort by date descending
+    calendarDays.sort((a, b) => b.date.localeCompare(a.date));
     
     return {
       streak,
