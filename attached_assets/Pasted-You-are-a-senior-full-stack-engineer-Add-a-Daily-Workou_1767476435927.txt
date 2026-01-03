@@ -1,0 +1,52 @@
+You are a senior full-stack engineer.
+
+Add a Daily Workout Points system to OGym to improve tracking across:
+- Today’s workout
+- Progress / Stats
+- Missed workouts analytics
+WITHOUT changing existing workflows.
+
+DEFINITION:
+- planned_points for a day = number of planned exercises in that day’s cycle plan (ex: 7 exercises => 7 points)
+- earned_points for a day = number of unique exercises completed that day
+- points shown as earned/planned (ex: 4/7)
+- Rest day: planned_points = 0 and should show REST DAY (no points)
+
+RULES:
+1) If member completes 4 out of 7 exercises, earned_points=4 and planned_points=7.
+2) If member clicks "Mark Day Done" while partial (2/7), day becomes DONE(partial) but points remain 2/7.
+3) If member completes all exercises, it is DONE(full) and points = 7/7.
+4) Points must be gym-isolated and member-specific.
+
+IMPLEMENTATION APPROACH:
+- Do NOT change database schema if not needed.
+- First implement as computed values using existing cycle + completion/session data.
+- Create a backend endpoint:
+  GET /api/member/daily-points?from=YYYY-MM-DD&to=YYYY-MM-DD
+  returns array:
+  [
+    { date, plannedPoints, earnedPoints, status, completionPercent, missedPoints, missedExercises[] }
+  ]
+- Status logic:
+  - REST if plannedPoints=0
+  - NOT_STARTED if earnedPoints=0 and not marked done
+  - IN_PROGRESS if earnedPoints>0 and not marked done and earned<planned
+  - DONE_FULL if earned==planned
+  - DONE_PARTIAL if marked done but earned<planned
+
+FRONTEND UI:
+- Today’s workout card: show "Points: X/Y"
+- Progress/My Stats: add a small card:
+  - "Points (Last 7 Days)" = sum earned / sum planned
+  - "Completion %" = total earned / total planned
+- Missed workouts page/tab:
+  - show missedPoints per day and missed exercise list
+
+VALIDATION:
+- Ensure points are calculated per unique date, not per exercise count duplicates.
+- For a single day, completing 5 exercises must not count as 5 days, only 5 points out of planned.
+
+OUTPUT:
+- List files changed
+- Explain the calculation clearly
+- Give test steps: complete 2/7 exercises => points show 2/7; mark day done => status done_partial stays 2/7

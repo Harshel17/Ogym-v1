@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, AlertCircle, Calendar, Dumbbell, Clock } from "lucide-react";
+import { ArrowLeft, AlertCircle, Calendar, Dumbbell, Clock, Trophy } from "lucide-react";
 import { Link } from "wouter";
 import { format, parseISO } from "date-fns";
 
@@ -23,6 +23,11 @@ export default function MissedWorkoutsPage() {
   const fullyMissed = missedWorkouts.filter(d => d.status === "missed");
   const partialMissed = missedWorkouts.filter(d => d.status === "partial");
 
+  // Calculate total missed points
+  const totalMissedPoints = missedWorkouts.reduce((sum, d) => sum + (d.totalCount - d.completedCount), 0);
+  const totalPlannedPoints = missedWorkouts.reduce((sum, d) => sum + d.totalCount, 0);
+  const totalEarnedPoints = missedWorkouts.reduce((sum, d) => sum + d.completedCount, 0);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -38,6 +43,28 @@ export default function MissedWorkoutsPage() {
           </p>
         </div>
       </div>
+
+      {!isLoading && missedWorkouts.length > 0 && (
+        <Card data-testid="card-missed-points-summary">
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
+                <Trophy className="w-6 h-6 text-red-500" />
+              </div>
+              <div>
+                <p className="font-semibold">Missed Points Summary</p>
+                <p className="text-sm text-muted-foreground">
+                  {fullyMissed.length} day{fullyMissed.length !== 1 ? "s" : ""} missed, {partialMissed.length} partial
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-red-500">-{totalMissedPoints}</p>
+              <p className="text-sm text-muted-foreground">{totalEarnedPoints}/{totalPlannedPoints} earned</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {isLoading ? (
         <Card>
@@ -86,7 +113,7 @@ export default function MissedWorkoutsPage() {
                           {format(parseISO(day.date), "EEEE, MMM d, yyyy")}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {day.dayLabel} - {day.totalCount} exercises planned
+                          {day.dayLabel} - {day.totalCount} pts missed
                         </p>
                       </div>
                     </div>
@@ -132,7 +159,7 @@ export default function MissedWorkoutsPage() {
                         </div>
                       </div>
                       <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/30">
-                        {day.completedCount}/{day.totalCount} Done
+                        {day.completedCount}/{day.totalCount} pts
                       </Badge>
                     </div>
                     {day.missedExercises.length > 0 && (

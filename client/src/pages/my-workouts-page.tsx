@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Calendar, ChevronDown, ChevronUp, Dumbbell, Flame, Target, CalendarDays, Filter, X, Pencil, Save, XCircle, CheckCircle2, Clock, AlertCircle, Moon } from "lucide-react";
+import { Calendar, ChevronDown, ChevronUp, Dumbbell, Flame, Target, CalendarDays, Filter, X, Pencil, Save, XCircle, CheckCircle2, Clock, AlertCircle, Moon, Trophy } from "lucide-react";
 import { format, subDays, startOfMonth, parseISO } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useDailyPoints } from "@/hooks/use-workouts";
 import { useToast } from "@/hooks/use-toast";
 
 type WorkoutSummary = {
@@ -102,6 +103,21 @@ export default function MyWorkoutsPage() {
   const { data: scheduleData, isLoading } = useQuery<CycleSchedule>({
     queryKey: ["/api/member/workout/schedule"],
   });
+  
+  // Get daily points for last 7 days
+  const sevenDaysAgoStr = subDays(new Date(), 6).toISOString().split("T")[0];
+  const todayStr = new Date().toISOString().split("T")[0];
+  const { data: weeklyPoints } = useDailyPoints(sevenDaysAgoStr, todayStr);
+  
+  // Calculate weekly points summary
+  const pointsSummary = weeklyPoints ? {
+    earned: weeklyPoints.reduce((sum, d) => sum + d.earnedPoints, 0),
+    planned: weeklyPoints.reduce((sum, d) => sum + d.plannedPoints, 0),
+    completionPercent: weeklyPoints.length > 0 
+      ? Math.round((weeklyPoints.reduce((sum, d) => sum + d.earnedPoints, 0) / 
+                   Math.max(1, weeklyPoints.reduce((sum, d) => sum + d.plannedPoints, 0))) * 100)
+      : 0
+  } : null;
 
   // Filter schedule based on date filter
   const getFilteredSchedule = () => {
@@ -364,6 +380,26 @@ export default function MyWorkoutsPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+      
+      {pointsSummary && pointsSummary.planned > 0 && (
+        <Card data-testid="card-weekly-points">
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                <Trophy className="w-6 h-6 text-yellow-500" />
+              </div>
+              <div>
+                <p className="font-semibold">Points (Last 7 Days)</p>
+                <p className="text-sm text-muted-foreground">Exercise completion score</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold">{pointsSummary.earned}/{pointsSummary.planned}</p>
+              <p className="text-sm text-muted-foreground">{pointsSummary.completionPercent}% Complete</p>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <Card>

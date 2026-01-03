@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useTodayWorkout, useCompleteWorkout, useMemberCycle } from "@/hooks/use-workouts";
+import { useTodayWorkout, useCompleteWorkout, useMemberCycle, useDailyPoints } from "@/hooks/use-workouts";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy } from "lucide-react";
 
 interface WorkoutSummary {
   streak: number;
@@ -34,6 +34,11 @@ export default function MemberWorkoutPage() {
     queryKey: ["/api/member/workout/summary"],
   });
   const { data: cycleData, isLoading: cycleLoading } = useMemberCycle();
+  
+  // Get daily points for today
+  const todayStr = new Date().toISOString().split("T")[0];
+  const { data: dailyPoints } = useDailyPoints(todayStr, todayStr);
+  const todayPoints = dailyPoints?.[0];
   const completeWorkoutMutation = useCompleteWorkout();
   
   const [expandedExercise, setExpandedExercise] = useState<number | null>(null);
@@ -137,6 +142,17 @@ export default function MemberWorkoutPage() {
                 <p className="text-sm text-muted-foreground">{today.cycleName}</p>
               )}
             </div>
+            {todayPoints && todayPoints.plannedPoints > 0 && (
+              <div className="flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-yellow-500" />
+                <div className="text-right" data-testid="points-today">
+                  <p className="text-lg font-bold">
+                    {todayPoints.earnedPoints}/{todayPoints.plannedPoints}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Points</p>
+                </div>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             {!today?.items || today.items.length === 0 ? (

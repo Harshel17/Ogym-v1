@@ -128,6 +128,17 @@ export interface IStorage {
     personalRecord: { weight: string | null; reps: number | null; date: string } | null;
   }[]>;
   
+  // Daily Workout Points
+  getDailyWorkoutPoints(gymId: number, memberId: number, from: string, to: string): Promise<{
+    date: string;
+    plannedPoints: number;
+    earnedPoints: number;
+    status: "REST" | "NOT_STARTED" | "IN_PROGRESS" | "DONE_FULL" | "DONE_PARTIAL";
+    completionPercent: number;
+    missedPoints: number;
+    missedExercises: string[];
+  }[]>;
+  
   // Member Requests
   createMemberRequest(data: InsertMemberRequest): Promise<MemberRequest>;
   getMemberRequests(memberId: number): Promise<(MemberRequest & { trainerName: string | null })[]>;
@@ -960,6 +971,148 @@ export class DatabaseStorage implements IStorage {
 
       return { ...exercise, personalRecord };
     });
+  }
+
+  async getDailyWorkoutPoints(gymId: number, memberId: number, from: string, to: string): Promise<{
+    date: string;
+    plannedPoints: number;
+    earnedPoints: number;
+    status: "REST" | "NOT_STARTED" | "IN_PROGRESS" | "DONE_FULL" | "DONE_PARTIAL";
+    completionPercent: number;
+    missedPoints: number;
+    missedExercises: string[];
+  }[]> {
+    // Get member's active cycle
+    const cycle = await this.getMemberCycle(memberId);
+    if (!cycle) {
+      return [];
+    }
+    
+    // Get all workout items for this cycle
+    const allItems = await db.select()
+      .from(workoutItems)
+      .where(eq(workoutItems.cycleId, cycle.id));
+    
+    // Group items by dayIndex
+    const itemsByDay = new Map<number, typeof allItems>();
+    for (const item of allItems) {
+      const dayItems = itemsByDay.get(item.dayIndex) || [];
+      dayItems.push(item);
+      itemsByDay.set(item.dayIndex, dayItems);
+    }
+    
+    // Get all completions in the date range
+    const completions = await db.select()
+      .from(workoutCompletions)
+      .where(
+        and(
+          eq(workoutCompletions.gymId, gymId),
+          eq(workoutCompletions.memberId, memberId),
+          gte(workoutCompletions.completedDate, from),
+          lte(workoutCompletions.completedDate, to)
+        )
+      );
+    
+    // Get workout sessions to check for "mark done" status
+    const sessions = await db.select()
+      .from(workoutSessions)
+      .where(
+        and(
+          eq(workoutSessions.gymId, gymId),
+          eq(workoutSessions.memberId, memberId),
+          gte(workoutSessions.date, from),
+          lte(workoutSessions.date, to)
+        )
+      );
+    
+    // Build a map of sessions by date
+    const sessionsByDate = new Map<string, typeof sessions[0]>();
+    for (const session of sessions) {
+      sessionsByDate.set(session.date, session);
+    }
+    
+    // Build completion map by date -> set of workoutItemIds completed
+    const completionsByDate = new Map<string, Set<number>>();
+    for (const c of completions) {
+      const dateSet = completionsByDate.get(c.completedDate) || new Set();
+      dateSet.add(c.workoutItemId);
+      completionsByDate.set(c.completedDate, dateSet);
+    }
+    
+    // Generate daily points for each date in range
+    const result: {
+      date: string;
+      plannedPoints: number;
+      earnedPoints: number;
+      status: "REST" | "NOT_STARTED" | "IN_PROGRESS" | "DONE_FULL" | "DONE_PARTIAL";
+      completionPercent: number;
+      missedPoints: number;
+      missedExercises: string[];
+    }[] = [];
+    
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    const cycleStartDate = new Date(cycle.startDate);
+    
+    for (let d = fromDate; d <= toDate; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split("T")[0];
+      
+      // Calculate which day of the cycle this date falls on
+      const daysSinceStart = Math.floor((d.getTime() - cycleStartDate.getTime()) / (1000 * 60 * 60 * 24));
+      const currentDayIndex = ((daysSinceStart % cycle.cycleLength) + cycle.cycleLength) % cycle.cycleLength;
+      
+      // Get planned exercises for this day
+      const dayItems = itemsByDay.get(currentDayIndex) || [];
+      const plannedPoints = dayItems.length;
+      
+      // Get earned points (unique completed items for this date)
+      const completedItemIds = completionsByDate.get(dateStr) || new Set();
+      const earnedPoints = completedItemIds.size;
+      
+      // Check if day was marked done
+      const session = sessionsByDate.get(dateStr);
+      const isMarkedDone = session?.isManuallyCompleted || session?.completedAt !== null;
+      
+      // Calculate missed exercises
+      const missedExercises: string[] = [];
+      for (const item of dayItems) {
+        if (!completedItemIds.has(item.id)) {
+          missedExercises.push(item.exerciseName);
+        }
+      }
+      const missedPoints = plannedPoints - earnedPoints;
+      
+      // Determine status
+      let status: "REST" | "NOT_STARTED" | "IN_PROGRESS" | "DONE_FULL" | "DONE_PARTIAL";
+      if (plannedPoints === 0) {
+        status = "REST";
+      } else if (earnedPoints === 0 && !isMarkedDone) {
+        status = "NOT_STARTED";
+      } else if (earnedPoints >= plannedPoints) {
+        status = "DONE_FULL";
+      } else if (isMarkedDone) {
+        status = "DONE_PARTIAL";
+      } else {
+        status = "IN_PROGRESS";
+      }
+      
+      // Calculate completion percent
+      const completionPercent = plannedPoints > 0 
+        ? Math.round((earnedPoints / plannedPoints) * 100) 
+        : 100;
+      
+      result.push({
+        date: dateStr,
+        plannedPoints,
+        earnedPoints,
+        status,
+        completionPercent,
+        missedPoints,
+        missedExercises
+      });
+    }
+    
+    return result;
   }
 
   async createMemberRequest(data: InsertMemberRequest): Promise<MemberRequest> {

@@ -112,6 +112,7 @@ export function useCompleteWorkout() {
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/stats/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/daily-points'] });
       toast({ title: "Done!", description: "Workout completed and attendance marked" });
     },
     onError: (err: any) => {
@@ -132,6 +133,7 @@ export function useCompleteAllWorkouts() {
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/stats/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/daily-points'] });
       toast({ title: "All Done!", description: "All workouts completed and attendance marked" });
     },
     onError: (err: any) => {
@@ -196,6 +198,35 @@ export function useRespondToRequest() {
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message || "Failed to respond", variant: "destructive" });
+    },
+  });
+}
+
+export type DailyPoints = {
+  date: string;
+  plannedPoints: number;
+  earnedPoints: number;
+  status: "REST" | "NOT_STARTED" | "IN_PROGRESS" | "DONE_FULL" | "DONE_PARTIAL";
+  completionPercent: number;
+  missedPoints: number;
+  missedExercises: string[];
+};
+
+export function useDailyPoints(from?: string, to?: string) {
+  const queryParams = new URLSearchParams();
+  if (from) queryParams.set("from", from);
+  if (to) queryParams.set("to", to);
+  const queryString = queryParams.toString();
+  
+  return useQuery<DailyPoints[]>({
+    queryKey: ['/api/member/daily-points', from, to],
+    queryFn: async () => {
+      const url = queryString 
+        ? `/api/member/daily-points?${queryString}`
+        : '/api/member/daily-points';
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch daily points');
+      return res.json();
     },
   });
 }

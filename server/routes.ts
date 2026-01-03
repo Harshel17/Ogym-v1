@@ -946,6 +946,31 @@ export async function registerRoutes(
     res.json(progress);
   });
 
+  // === DAILY WORKOUT POINTS ===
+  // Returns daily workout points data for a date range
+  // plannedPoints = number of exercises planned for that day
+  // earnedPoints = number of unique exercises completed that day
+  app.get("/api/member/daily-points", requireRole(["member"]), async (req, res) => {
+    const fromStr = req.query.from as string;
+    const toStr = req.query.to as string;
+    
+    // Default to last 7 days if not provided
+    const today = new Date();
+    const defaultFrom = new Date(today);
+    defaultFrom.setDate(defaultFrom.getDate() - 6);
+    
+    const from = fromStr || defaultFrom.toISOString().split("T")[0];
+    const to = toStr || today.toISOString().split("T")[0];
+    
+    const dailyPoints = await storage.getDailyWorkoutPoints(
+      req.user!.gymId!,
+      req.user!.id,
+      from,
+      to
+    );
+    res.json(dailyPoints);
+  });
+
   // === MEMBER REQUESTS ROUTES ===
   app.post("/api/member/requests", requireRole(["member"]), async (req, res) => {
     const schema = z.object({
