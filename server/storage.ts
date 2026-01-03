@@ -1345,91 +1345,52 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // SOURCE 2: Trainer-assigned cycle completions (workoutCompletions)
-    const cycle = await this.getMemberCycle(memberId);
-    if (cycle) {
-      const items = await this.getWorkoutItems(cycle.id);
-      
-      const completions = await db.select({
-        completion: workoutCompletions,
-        item: workoutItems
-      })
-      .from(workoutCompletions)
-      .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
-      .where(eq(workoutCompletions.memberId, memberId))
-      .orderBy(desc(workoutCompletions.completedDate));
+    // SOURCE 2: Trainer-assigned cycle completions (workoutCompletions) - from ANY cycle, not just active
+    const completions = await db.select({
+      completion: workoutCompletions,
+      item: workoutItems,
+      cycle: workoutCycles
+    })
+    .from(workoutCompletions)
+    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .innerJoin(workoutCycles, eq(workoutCompletions.cycleId, workoutCycles.id))
+    .where(eq(workoutCompletions.memberId, memberId))
+    .orderBy(desc(workoutCompletions.completedDate));
 
-      const completionsByDateAndName = new Map<string, Map<string, typeof completions[0]>>();
-      const datesWithCompletions = new Set<string>();
-      
-      for (const row of completions) {
-        const date = row.completion.completedDate;
-        datesWithCompletions.add(date);
-        if (!completionsByDateAndName.has(date)) {
-          completionsByDateAndName.set(date, new Map());
-        }
-        completionsByDateAndName.get(date)!.set(row.item.exerciseName, row);
+    // Group completions by date
+    const completionsByDate = new Map<string, typeof completions>();
+    for (const row of completions) {
+      const date = row.completion.completedDate;
+      if (!completionsByDate.has(date)) {
+        completionsByDate.set(date, []);
       }
+      completionsByDate.get(date)!.push(row);
+    }
 
-      const itemsByDay: Record<number, typeof items> = {};
-      for (const item of items) {
-        if (!itemsByDay[item.dayIndex]) {
-          itemsByDay[item.dayIndex] = [];
-        }
-        itemsByDay[item.dayIndex].push(item);
-      }
-
-      const cycleStartDate = new Date(cycle.startDate);
+    // For each date with completions, build a session
+    for (const [date, dateCompletions] of completionsByDate.entries()) {
+      // Skip if already added from standalone sessions
+      if (sessionMap.has(date)) continue;
       
-      for (const date of Array.from(datesWithCompletions)) {
-        // Skip if already added from standalone sessions - merge instead
-        if (sessionMap.has(date)) continue;
-        
-        const dateObj = new Date(date);
-        const daysSinceStart = Math.floor((dateObj.getTime() - cycleStartDate.getTime()) / (1000 * 60 * 60 * 24));
-        const dayIndex = ((daysSinceStart % cycle.cycleLength) + cycle.cycleLength) % cycle.cycleLength;
-        
-        const dayItems = itemsByDay[dayIndex] || [];
-        const completionsForDate = completionsByDateAndName.get(date) || new Map();
-        
-        const exercises = dayItems.map(item => {
-          const completionRow = completionsForDate.get(item.exerciseName);
-          if (completionRow) {
-            return {
-              completionId: completionRow.completion.id,
-              exerciseName: item.exerciseName,
-              muscleType: item.muscleType || "",
-              sets: item.sets,
-              reps: item.reps,
-              weight: item.weight,
-              actualSets: completionRow.completion.actualSets,
-              actualReps: completionRow.completion.actualReps,
-              actualWeight: completionRow.completion.actualWeight,
-              notes: completionRow.completion.notes,
-              completed: true
-            };
-          } else {
-            return {
-              completionId: null,
-              exerciseName: item.exerciseName,
-              muscleType: item.muscleType || "",
-              sets: item.sets,
-              reps: item.reps,
-              weight: item.weight,
-              actualSets: null,
-              actualReps: null,
-              actualWeight: null,
-              notes: null,
-              completed: false
-            };
-          }
-        });
+      // Get muscle types from the completed exercises
+      const muscleTypes = Array.from(new Set(dateCompletions.map(c => c.item.muscleType).filter(Boolean)));
+      const title = muscleTypes.join(" + ") || "Workout";
 
-        const muscleTypes = Array.from(new Set(dayItems.map(e => e.muscleType).filter(Boolean)));
-        const title = muscleTypes.join(" + ") || "Workout";
+      const exercises = dateCompletions.map(row => ({
+        completionId: row.completion.id,
+        exerciseName: row.item.exerciseName,
+        muscleType: row.item.muscleType || "",
+        sets: row.item.sets,
+        reps: row.item.reps,
+        weight: row.item.weight,
+        actualSets: row.completion.actualSets,
+        actualReps: row.completion.actualReps,
+        actualWeight: row.completion.actualWeight,
+        notes: row.completion.notes,
+        completed: true
+      }));
 
-        sessionMap.set(date, { date, title, exercises });
-      }
+      sessionMap.set(date, { date, title, exercises });
     }
 
     // Sort by date descending
