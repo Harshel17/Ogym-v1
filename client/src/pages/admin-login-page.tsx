@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Shield } from "lucide-react";
+import { ArrowLeft, Loader2, Shield } from "lucide-react";
 
 export default function AdminLoginPage() {
   const [, setLocation] = useLocation();
@@ -109,6 +109,17 @@ export default function AdminLoginPage() {
               )}
             </Button>
           </form>
+
+          <div className="mt-4 text-center">
+            <a 
+              href="/auth" 
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              data-testid="link-back-to-login"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to User Login
+            </a>
+          </div>
         </CardContent>
       </Card>
     </div>
