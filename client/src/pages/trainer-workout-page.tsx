@@ -447,7 +447,7 @@ function CreateCycleDialog({ members }: { members: any[] }) {
                         <SelectValue placeholder="Select a member" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent position="popper" className="z-[200] max-h-[200px]">
                       {members.map((m) => (
                         <SelectItem key={m.id} value={m.id.toString()}>
                           {m.username}
@@ -484,7 +484,7 @@ function CreateCycleDialog({ members }: { members: any[] }) {
                         <SelectValue placeholder="Select cycle length" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent position="popper" className="z-[200]">
                       {[2, 3, 4, 5, 6, 7].map((n) => (
                         <SelectItem key={n} value={n.toString()}>
                           {n}-day cycle
@@ -537,8 +537,8 @@ function CreateCycleDialog({ members }: { members: any[] }) {
   );
 }
 
-const muscleTypes = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Glutes", "Full Body"];
-const bodyParts = ["Upper Body", "Lower Body", "Full Body"];
+const muscleTypes = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Glutes", "Full Body", "Cardio", "Rest"];
+const bodyParts = ["Upper Body", "Lower Body", "Full Body", "Cardio", "Recovery"];
 
 function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLength: number }) {
   const [open, setOpen] = useState(false);
@@ -616,7 +616,7 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
                         <SelectValue placeholder="Select day" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent position="popper" className="z-[200]">
                       {dayOptions.map((day) => (
                         <SelectItem key={day.value} value={day.value}>{day.label}</SelectItem>
                       ))}
@@ -639,7 +639,7 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
                           <SelectValue placeholder="Select muscle" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent position="popper" className="z-[200] max-h-[200px]">
                         {muscleTypes.map((muscle) => (
                           <SelectItem key={muscle} value={muscle}>{muscle}</SelectItem>
                         ))}
@@ -661,7 +661,7 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
                           <SelectValue placeholder="Select body part" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent position="popper" className="z-[200]">
                         {bodyParts.map((part) => (
                           <SelectItem key={part} value={part}>{part}</SelectItem>
                         ))}
