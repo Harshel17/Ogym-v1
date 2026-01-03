@@ -21,7 +21,9 @@ import {
   Building2,
   UserPlus,
   Scale,
-  FileText
+  FileText,
+  Activity,
+  Trophy
 } from "lucide-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -170,6 +172,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
       icon: Megaphone,
       visible: isTrainer || isMember,
       badge: notificationCounts?.unreadAnnouncements || 0
+    },
+    { 
+      label: "Feed", 
+      href: "/feed", 
+      icon: Activity,
+      visible: hasGym,
+      badge: 0
+    },
+    { 
+      label: "Tournaments", 
+      href: "/tournaments", 
+      icon: Trophy,
+      visible: hasGym,
+      badge: 0
     },
     { 
       label: "Join Requests", 

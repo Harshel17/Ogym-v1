@@ -41,6 +41,8 @@ import AdminGymRequestsPage from "@/pages/admin-gym-requests-page";
 import AdminLoginPage from "@/pages/admin-login-page";
 import AdminDashboardPage from "@/pages/admin-dashboard-page";
 import PendingApprovalPage from "@/pages/pending-approval-page";
+import FeedPage from "@/pages/feed-page";
+import TournamentsPage from "@/pages/tournaments-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -194,6 +196,14 @@ function Router() {
 
       <Route path="/announcements">
         <ProtectedRoute component={AnnouncementsPage} />
+      </Route>
+
+      <Route path="/feed">
+        <ProtectedRoute component={FeedPage} />
+      </Route>
+
+      <Route path="/tournaments">
+        <ProtectedRoute component={TournamentsPage} />
       </Route>
 
       <Route path="/gym-request">

@@ -30,7 +30,13 @@ import {
   type WorkoutTemplate, type InsertWorkoutTemplate,
   type WorkoutTemplateItem, type InsertWorkoutTemplateItem,
   type BodyMeasurement, type InsertBodyMeasurement,
-  type MemberNote, type InsertMemberNote
+  type MemberNote, type InsertMemberNote,
+  feedPosts, feedReactions, feedComments, tournaments, tournamentParticipants,
+  type FeedPost, type InsertFeedPost,
+  type FeedReaction, type InsertFeedReaction,
+  type FeedComment, type InsertFeedComment,
+  type Tournament, type InsertTournament,
+  type TournamentParticipant, type InsertTournamentParticipant
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull } from "drizzle-orm";
@@ -414,6 +420,29 @@ export interface IStorage {
   getMemberNotes(gymId: number, trainerId: number, memberId: number): Promise<MemberNote[]>;
   createMemberNote(data: InsertMemberNote): Promise<MemberNote>;
   deleteMemberNote(noteId: number, trainerId: number): Promise<void>;
+  
+  // Social Feed
+  getFeedPosts(gymId: number, limit?: number): Promise<(FeedPost & { user: User; reactions: FeedReaction[]; commentCount: number })[]>;
+  getFeedPost(postId: number): Promise<FeedPost | null>;
+  createFeedPost(data: InsertFeedPost): Promise<FeedPost>;
+  getFeedPostReactions(postId: number): Promise<FeedReaction[]>;
+  addFeedReaction(data: InsertFeedReaction): Promise<FeedReaction>;
+  removeFeedReaction(postId: number, userId: number): Promise<void>;
+  getFeedComments(postId: number): Promise<(FeedComment & { user: User })[]>;
+  addFeedComment(data: InsertFeedComment): Promise<FeedComment>;
+  deleteFeedComment(commentId: number, userId: number): Promise<void>;
+  hideFeedPost(postId: number, gymId: number): Promise<void>;
+  
+  // Tournaments
+  getTournaments(gymId: number): Promise<Tournament[]>;
+  getTournament(tournamentId: number): Promise<Tournament | null>;
+  createTournament(data: InsertTournament): Promise<Tournament>;
+  updateTournament(tournamentId: number, data: Partial<InsertTournament>): Promise<Tournament>;
+  getTournamentParticipants(tournamentId: number): Promise<(TournamentParticipant & { user: User })[]>;
+  joinTournament(data: InsertTournamentParticipant): Promise<TournamentParticipant>;
+  leaveTournament(tournamentId: number, userId: number): Promise<void>;
+  updateTournamentScores(tournamentId: number): Promise<void>;
+  getTournamentLeaderboard(tournamentId: number): Promise<{ rank: number; username: string; score: number; userId: number }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3598,6 +3627,221 @@ export class DatabaseStorage implements IStorage {
   async deleteMemberNote(noteId: number, trainerId: number): Promise<void> {
     await db.delete(memberNotes)
       .where(and(eq(memberNotes.id, noteId), eq(memberNotes.trainerId, trainerId)));
+  }
+  
+  // Social Feed
+  async getFeedPosts(gymId: number, limit: number = 50): Promise<(FeedPost & { user: User; reactions: FeedReaction[]; commentCount: number })[]> {
+    const posts = await db.select()
+      .from(feedPosts)
+      .leftJoin(users, eq(feedPosts.userId, users.id))
+      .where(and(eq(feedPosts.gymId, gymId), eq(feedPosts.isVisible, true)))
+      .orderBy(desc(feedPosts.createdAt))
+      .limit(limit);
+    
+    const result: (FeedPost & { user: User; reactions: FeedReaction[]; commentCount: number })[] = [];
+    
+    for (const row of posts) {
+      if (!row.users) continue;
+      
+      const reactions = await db.select()
+        .from(feedReactions)
+        .where(eq(feedReactions.postId, row.feed_posts.id));
+      
+      const [commentResult] = await db.select({ count: sql<number>`count(*)` })
+        .from(feedComments)
+        .where(and(eq(feedComments.postId, row.feed_posts.id), eq(feedComments.isDeleted, false)));
+      
+      result.push({
+        ...row.feed_posts,
+        user: row.users,
+        reactions,
+        commentCount: Number(commentResult?.count || 0)
+      });
+    }
+    
+    return result;
+  }
+  
+  async getFeedPost(postId: number): Promise<FeedPost | null> {
+    const [post] = await db.select().from(feedPosts).where(eq(feedPosts.id, postId));
+    return post || null;
+  }
+  
+  async createFeedPost(data: InsertFeedPost): Promise<FeedPost> {
+    const [post] = await db.insert(feedPosts).values(data).returning();
+    return post;
+  }
+  
+  async getFeedPostReactions(postId: number): Promise<FeedReaction[]> {
+    return await db.select().from(feedReactions).where(eq(feedReactions.postId, postId));
+  }
+  
+  async addFeedReaction(data: InsertFeedReaction): Promise<FeedReaction> {
+    // Upsert - remove existing reaction first if any
+    await db.delete(feedReactions)
+      .where(and(eq(feedReactions.postId, data.postId), eq(feedReactions.userId, data.userId)));
+    const [reaction] = await db.insert(feedReactions).values(data).returning();
+    return reaction;
+  }
+  
+  async removeFeedReaction(postId: number, userId: number): Promise<void> {
+    await db.delete(feedReactions)
+      .where(and(eq(feedReactions.postId, postId), eq(feedReactions.userId, userId)));
+  }
+  
+  async getFeedComments(postId: number): Promise<(FeedComment & { user: User })[]> {
+    const comments = await db.select()
+      .from(feedComments)
+      .leftJoin(users, eq(feedComments.userId, users.id))
+      .where(and(eq(feedComments.postId, postId), eq(feedComments.isDeleted, false)))
+      .orderBy(feedComments.createdAt);
+    
+    return comments.filter(c => c.users).map(c => ({
+      ...c.feed_comments,
+      user: c.users as User
+    }));
+  }
+  
+  async addFeedComment(data: InsertFeedComment): Promise<FeedComment> {
+    const [comment] = await db.insert(feedComments).values(data).returning();
+    return comment;
+  }
+  
+  async deleteFeedComment(commentId: number, userId: number): Promise<void> {
+    await db.update(feedComments)
+      .set({ isDeleted: true })
+      .where(and(eq(feedComments.id, commentId), eq(feedComments.userId, userId)));
+  }
+  
+  async hideFeedPost(postId: number, gymId: number): Promise<void> {
+    await db.update(feedPosts)
+      .set({ isVisible: false })
+      .where(and(eq(feedPosts.id, postId), eq(feedPosts.gymId, gymId)));
+  }
+  
+  // Tournaments
+  async getTournaments(gymId: number): Promise<Tournament[]> {
+    return await db.select()
+      .from(tournaments)
+      .where(eq(tournaments.gymId, gymId))
+      .orderBy(desc(tournaments.createdAt));
+  }
+  
+  async getTournament(tournamentId: number): Promise<Tournament | null> {
+    const [tournament] = await db.select()
+      .from(tournaments)
+      .where(eq(tournaments.id, tournamentId));
+    return tournament || null;
+  }
+  
+  async createTournament(data: InsertTournament): Promise<Tournament> {
+    const [tournament] = await db.insert(tournaments).values(data).returning();
+    return tournament;
+  }
+  
+  async updateTournament(tournamentId: number, data: Partial<InsertTournament>): Promise<Tournament> {
+    const [tournament] = await db.update(tournaments)
+      .set(data)
+      .where(eq(tournaments.id, tournamentId))
+      .returning();
+    return tournament;
+  }
+  
+  async getTournamentParticipants(tournamentId: number): Promise<(TournamentParticipant & { user: User })[]> {
+    const participants = await db.select()
+      .from(tournamentParticipants)
+      .leftJoin(users, eq(tournamentParticipants.userId, users.id))
+      .where(eq(tournamentParticipants.tournamentId, tournamentId))
+      .orderBy(tournamentParticipants.rank);
+    
+    return participants.filter(p => p.users).map(p => ({
+      ...p.tournament_participants,
+      user: p.users as User
+    }));
+  }
+  
+  async joinTournament(data: InsertTournamentParticipant): Promise<TournamentParticipant> {
+    const [participant] = await db.insert(tournamentParticipants).values(data).returning();
+    return participant;
+  }
+  
+  async leaveTournament(tournamentId: number, userId: number): Promise<void> {
+    await db.delete(tournamentParticipants)
+      .where(and(eq(tournamentParticipants.tournamentId, tournamentId), eq(tournamentParticipants.userId, userId)));
+  }
+  
+  async updateTournamentScores(tournamentId: number): Promise<void> {
+    const tournament = await this.getTournament(tournamentId);
+    if (!tournament) return;
+    
+    const participants = await this.getTournamentParticipants(tournamentId);
+    
+    for (const participant of participants) {
+      let score = 0;
+      
+      if (tournament.metricType === "workout_count") {
+        const completions = await db.select()
+          .from(workoutCompletions)
+          .where(and(
+            eq(workoutCompletions.memberId, participant.userId),
+            gte(workoutCompletions.completedDate, tournament.startDate),
+            lte(workoutCompletions.completedDate, tournament.endDate)
+          ));
+        // Count unique dates
+        const uniqueDates = new Set(completions.map(c => c.completedDate));
+        score = uniqueDates.size;
+      } else if (tournament.metricType === "total_exercises") {
+        const [result] = await db.select({ count: sql<number>`count(*)` })
+          .from(workoutCompletions)
+          .where(and(
+            eq(workoutCompletions.memberId, participant.userId),
+            gte(workoutCompletions.completedDate, tournament.startDate),
+            lte(workoutCompletions.completedDate, tournament.endDate)
+          ));
+        score = Number(result?.count || 0);
+      } else if (tournament.metricType === "attendance_days") {
+        const [result] = await db.select({ count: sql<number>`count(*)` })
+          .from(attendance)
+          .where(and(
+            eq(attendance.memberId, participant.userId),
+            eq(attendance.status, "present"),
+            gte(attendance.date, tournament.startDate),
+            lte(attendance.date, tournament.endDate)
+          ));
+        score = Number(result?.count || 0);
+      }
+      
+      await db.update(tournamentParticipants)
+        .set({ currentScore: score })
+        .where(eq(tournamentParticipants.id, participant.id));
+    }
+    
+    // Update ranks
+    const updatedParticipants = await db.select()
+      .from(tournamentParticipants)
+      .where(eq(tournamentParticipants.tournamentId, tournamentId))
+      .orderBy(desc(tournamentParticipants.currentScore));
+    
+    for (let i = 0; i < updatedParticipants.length; i++) {
+      await db.update(tournamentParticipants)
+        .set({ rank: i + 1 })
+        .where(eq(tournamentParticipants.id, updatedParticipants[i].id));
+    }
+  }
+  
+  async getTournamentLeaderboard(tournamentId: number): Promise<{ rank: number; username: string; score: number; userId: number }[]> {
+    const participants = await db.select()
+      .from(tournamentParticipants)
+      .leftJoin(users, eq(tournamentParticipants.userId, users.id))
+      .where(eq(tournamentParticipants.tournamentId, tournamentId))
+      .orderBy(tournamentParticipants.rank);
+    
+    return participants.filter(p => p.users).map(p => ({
+      rank: p.tournament_participants.rank || 0,
+      username: p.users!.username,
+      score: p.tournament_participants.currentScore || 0,
+      userId: p.tournament_participants.userId
+    }));
   }
 }
 

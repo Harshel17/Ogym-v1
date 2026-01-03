@@ -640,6 +640,23 @@ export async function registerRoutes(
       await storage.updateAttendanceMethod(existingAttendance.id, "both");
     }
     
+    // Create feed post for workout completion
+    try {
+      const todayCompletions = await storage.getCompletions(req.user!.id, today);
+      if (todayCompletions.length === 1) {
+        // First completion of the day - create feed post
+        await storage.createFeedPost({
+          gymId: req.user!.gymId!,
+          userId: req.user!.id,
+          type: "workout_complete",
+          content: null,
+          metadata: JSON.stringify({ exerciseCount: 1, focusLabel })
+        });
+      }
+    } catch (feedErr) {
+      console.error("Failed to create feed post:", feedErr);
+    }
+    
     res.status(201).json(completion);
   });
 
@@ -2168,6 +2185,297 @@ export async function registerRoutes(
     res.json(subscription || null);
   });
 
+  // ==================== SOCIAL FEED ====================
+  
+  // Get gym feed
+  app.get("/api/feed", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+    const posts = await storage.getFeedPosts(req.user!.gymId, limit);
+    res.json(posts);
+  });
+  
+  // Add reaction to post
+  app.post("/api/feed/:postId/react", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    
+    const postId = parseInt(req.params.postId);
+    const { reactionType } = req.body;
+    
+    // Verify post belongs to user's gym and is visible
+    const post = await storage.getFeedPost(postId);
+    if (!post || post.gymId !== req.user!.gymId || post.isVisible === false) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    
+    if (!reactionType || !["like", "fire", "muscle", "clap"].includes(reactionType)) {
+      return res.status(400).json({ message: "Invalid reaction type" });
+    }
+    
+    const reaction = await storage.addFeedReaction({
+      postId,
+      userId: req.user!.id,
+      reactionType
+    });
+    res.json(reaction);
+  });
+  
+  // Remove reaction from post
+  app.delete("/api/feed/:postId/react", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    
+    const postId = parseInt(req.params.postId);
+    
+    // Verify post belongs to user's gym
+    const post = await storage.getFeedPost(postId);
+    if (!post || post.gymId !== req.user!.gymId) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    
+    await storage.removeFeedReaction(postId, req.user!.id);
+    res.json({ success: true });
+  });
+  
+  // Get comments for a post
+  app.get("/api/feed/:postId/comments", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    
+    const postId = parseInt(req.params.postId);
+    
+    // Verify post belongs to user's gym and is visible
+    const post = await storage.getFeedPost(postId);
+    if (!post || post.gymId !== req.user!.gymId || post.isVisible === false) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    
+    const comments = await storage.getFeedComments(postId);
+    res.json(comments);
+  });
+  
+  // Add comment to post
+  app.post("/api/feed/:postId/comments", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    
+    const postId = parseInt(req.params.postId);
+    const { content } = req.body;
+    
+    // Verify post belongs to user's gym and is visible
+    const post = await storage.getFeedPost(postId);
+    if (!post || post.gymId !== req.user!.gymId || post.isVisible === false) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({ message: "Comment content required" });
+    }
+    
+    const comment = await storage.addFeedComment({
+      postId,
+      userId: req.user!.id,
+      content: content.trim()
+    });
+    res.json(comment);
+  });
+  
+  // Delete comment (own only)
+  app.delete("/api/feed/comments/:commentId", requireAuth, async (req, res) => {
+    const commentId = parseInt(req.params.commentId);
+    await storage.deleteFeedComment(commentId, req.user!.id);
+    res.json({ success: true });
+  });
+  
+  // Hide post (owner/trainer moderation)
+  app.patch("/api/feed/:postId/hide", requireAuth, async (req, res) => {
+    if (req.user!.role !== "owner" && req.user!.role !== "trainer") {
+      return res.status(403).json({ message: "Only owners and trainers can hide posts" });
+    }
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    const postId = parseInt(req.params.postId);
+    await storage.hideFeedPost(postId, req.user!.gymId);
+    res.json({ success: true });
+  });
+  
+  // ==================== TOURNAMENTS ====================
+  
+  // Get all tournaments for gym
+  app.get("/api/tournaments", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    const tournamentList = await storage.getTournaments(req.user!.gymId);
+    res.json(tournamentList);
+  });
+  
+  // Get single tournament with participants
+  app.get("/api/tournaments/:id", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    
+    const tournamentId = parseInt(req.params.id);
+    const tournament = await storage.getTournament(tournamentId);
+    if (!tournament || tournament.gymId !== req.user!.gymId) {
+      return res.status(404).json({ message: "Tournament not found" });
+    }
+    
+    // Update scores before returning
+    await storage.updateTournamentScores(tournamentId);
+    
+    const participants = await storage.getTournamentParticipants(tournamentId);
+    const leaderboard = await storage.getTournamentLeaderboard(tournamentId);
+    
+    // Check if current user is participating
+    const isParticipating = participants.some(p => p.userId === req.user!.id);
+    
+    res.json({ ...tournament, participants, leaderboard, isParticipating });
+  });
+  
+  // Create tournament (owner/trainer only)
+  app.post("/api/tournaments", requireAuth, async (req, res) => {
+    if (req.user!.role !== "owner" && req.user!.role !== "trainer") {
+      return res.status(403).json({ message: "Only owners and trainers can create tournaments" });
+    }
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    
+    const { name, description, metricType, startDate, endDate, prizeDescription, maxParticipants } = req.body;
+    
+    if (!name || !metricType || !startDate || !endDate) {
+      return res.status(400).json({ message: "Name, metric type, start date, and end date required" });
+    }
+    
+    const tournament = await storage.createTournament({
+      gymId: req.user!.gymId,
+      createdByUserId: req.user!.id,
+      name,
+      description,
+      metricType,
+      startDate,
+      endDate,
+      prizeDescription,
+      maxParticipants,
+      status: "upcoming"
+    });
+    
+    res.json(tournament);
+  });
+  
+  // Update tournament status
+  app.patch("/api/tournaments/:id", requireAuth, async (req, res) => {
+    if (req.user!.role !== "owner" && req.user!.role !== "trainer") {
+      return res.status(403).json({ message: "Only owners and trainers can update tournaments" });
+    }
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    
+    const tournamentId = parseInt(req.params.id);
+    
+    // Verify tournament belongs to user's gym
+    const existingTournament = await storage.getTournament(tournamentId);
+    if (!existingTournament || existingTournament.gymId !== req.user!.gymId) {
+      return res.status(404).json({ message: "Tournament not found" });
+    }
+    
+    const { status, prizeDescription } = req.body;
+    
+    const tournament = await storage.updateTournament(tournamentId, { status, prizeDescription });
+    res.json(tournament);
+  });
+  
+  // Join tournament (members)
+  app.post("/api/tournaments/:id/join", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    
+    const tournamentId = parseInt(req.params.id);
+    const tournament = await storage.getTournament(tournamentId);
+    
+    // Verify tournament exists and belongs to user's gym
+    if (!tournament || tournament.gymId !== req.user!.gymId) {
+      return res.status(404).json({ message: "Tournament not found" });
+    }
+    
+    if (tournament.status !== "upcoming" && tournament.status !== "active") {
+      return res.status(400).json({ message: "Cannot join this tournament" });
+    }
+    
+    // Check max participants
+    if (tournament.maxParticipants) {
+      const participants = await storage.getTournamentParticipants(tournamentId);
+      if (participants.length >= tournament.maxParticipants) {
+        return res.status(400).json({ message: "Tournament is full" });
+      }
+    }
+    
+    try {
+      const participant = await storage.joinTournament({
+        tournamentId,
+        userId: req.user!.id,
+        currentScore: 0
+      });
+      res.json(participant);
+    } catch (err: any) {
+      if (err.code === "23505") {
+        return res.status(400).json({ message: "Already joined" });
+      }
+      throw err;
+    }
+  });
+  
+  // Leave tournament
+  app.delete("/api/tournaments/:id/leave", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    
+    const tournamentId = parseInt(req.params.id);
+    
+    // Verify tournament belongs to user's gym
+    const tournament = await storage.getTournament(tournamentId);
+    if (!tournament || tournament.gymId !== req.user!.gymId) {
+      return res.status(404).json({ message: "Tournament not found" });
+    }
+    
+    await storage.leaveTournament(tournamentId, req.user!.id);
+    res.json({ success: true });
+  });
+  
+  // Get tournament leaderboard
+  app.get("/api/tournaments/:id/leaderboard", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    
+    const tournamentId = parseInt(req.params.id);
+    
+    // Verify tournament belongs to user's gym
+    const tournament = await storage.getTournament(tournamentId);
+    if (!tournament || tournament.gymId !== req.user!.gymId) {
+      return res.status(404).json({ message: "Tournament not found" });
+    }
+    
+    // Update scores first
+    await storage.updateTournamentScores(tournamentId);
+    
+    const leaderboard = await storage.getTournamentLeaderboard(tournamentId);
+    res.json(leaderboard);
+  });
+
   await seedDemoData();
   return httpServer;
 }
@@ -2237,6 +2545,45 @@ async function seedDemoData() {
     status: "paid",
     note: "Monthly membership"
   });
+
+  // Seed Feed Posts
+  await storage.createFeedPost({
+    gymId,
+    userId: member1.id,
+    type: "workout_complete",
+    content: null,
+    metadata: JSON.stringify({ exerciseCount: 6, focusLabel: "Push Day" })
+  });
+  
+  await storage.createFeedPost({
+    gymId,
+    userId: member2.id,
+    type: "new_member",
+    content: null,
+    metadata: JSON.stringify({})
+  });
+
+  // Seed Tournament
+  const tournamentStart = today.toISOString().split("T")[0];
+  const tournamentEnd = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  
+  const tournament = await storage.createTournament({
+    gymId,
+    createdByUserId: owner.id,
+    name: "New Year Fitness Challenge",
+    description: "Start the year strong! Complete as many workouts as possible.",
+    metricType: "workout_count",
+    startDate: tournamentStart,
+    endDate: tournamentEnd,
+    status: "active",
+    prizeDescription: "1 Month Free Membership",
+    maxParticipants: 50,
+    isPublic: true
+  });
+  
+  // Add participants
+  await storage.joinTournament({ tournamentId: tournament.id, userId: member1.id, currentScore: 0 });
+  await storage.joinTournament({ tournamentId: tournament.id, userId: member2.id, currentScore: 0 });
 
   console.log("Seed complete! Gym Code: DEMO01");
   console.log("Users: owner/password123, trainer/password123, member1/password123, member2/password123");

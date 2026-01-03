@@ -359,6 +359,67 @@ export const workoutTemplateItems = pgTable("workout_template_items", {
   orderIndex: integer("order_index").default(0),
 });
 
+// === SOCIAL FEED ===
+
+export const feedPosts = pgTable("feed_posts", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  type: text("type", { enum: ["workout_complete", "streak_milestone", "new_member", "achievement", "manual"] }).notNull(),
+  content: text("content"),
+  metadata: text("metadata"), // JSON string for additional data (exercise count, streak days, etc.)
+  isVisible: boolean("is_visible").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const feedReactions = pgTable("feed_reactions", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").references(() => feedPosts.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  reactionType: text("reaction_type", { enum: ["like", "fire", "muscle", "clap"] }).notNull().default("like"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueReaction: uniqueIndex("unique_feed_reaction").on(table.postId, table.userId),
+}));
+
+export const feedComments = pgTable("feed_comments", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").references(() => feedPosts.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  isDeleted: boolean("is_deleted").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// === GYM TOURNAMENTS ===
+
+export const tournaments = pgTable("tournaments", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  createdByUserId: integer("created_by_user_id").references(() => users.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  metricType: text("metric_type", { enum: ["workout_count", "streak_days", "total_exercises", "attendance_days"] }).notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  status: text("status", { enum: ["upcoming", "active", "completed", "cancelled"] }).notNull().default("upcoming"),
+  prizeDescription: text("prize_description"),
+  maxParticipants: integer("max_participants"),
+  isPublic: boolean("is_public").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const tournamentParticipants = pgTable("tournament_participants", {
+  id: serial("id").primaryKey(),
+  tournamentId: integer("tournament_id").references(() => tournaments.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  currentScore: integer("current_score").default(0),
+  rank: integer("rank"),
+}, (table) => ({
+  uniqueParticipant: uniqueIndex("unique_tournament_participant").on(table.tournamentId, table.userId),
+}));
+
 // === MEMBER NOTES ===
 
 export const memberNotes = pgTable("member_notes", {
@@ -415,6 +476,11 @@ export const insertBodyMeasurementSchema = createInsertSchema(bodyMeasurements).
 export const insertWorkoutTemplateSchema = createInsertSchema(workoutTemplates).omit({ id: true, createdAt: true });
 export const insertWorkoutTemplateItemSchema = createInsertSchema(workoutTemplateItems).omit({ id: true });
 export const insertMemberNoteSchema = createInsertSchema(memberNotes).omit({ id: true, createdAt: true });
+export const insertFeedPostSchema = createInsertSchema(feedPosts).omit({ id: true, createdAt: true });
+export const insertFeedReactionSchema = createInsertSchema(feedReactions).omit({ id: true, createdAt: true });
+export const insertFeedCommentSchema = createInsertSchema(feedComments).omit({ id: true, createdAt: true });
+export const insertTournamentSchema = createInsertSchema(tournaments).omit({ id: true, createdAt: true });
+export const insertTournamentParticipantSchema = createInsertSchema(tournamentParticipants).omit({ id: true, joinedAt: true });
 
 // === EXPLICIT TYPES ===
 
@@ -479,7 +545,17 @@ export type BodyMeasurement = typeof bodyMeasurements.$inferSelect;
 export type WorkoutTemplate = typeof workoutTemplates.$inferSelect;
 export type WorkoutTemplateItem = typeof workoutTemplateItems.$inferSelect;
 export type MemberNote = typeof memberNotes.$inferSelect;
+export type FeedPost = typeof feedPosts.$inferSelect;
+export type FeedReaction = typeof feedReactions.$inferSelect;
+export type FeedComment = typeof feedComments.$inferSelect;
+export type Tournament = typeof tournaments.$inferSelect;
+export type TournamentParticipant = typeof tournamentParticipants.$inferSelect;
 export type InsertBodyMeasurement = z.infer<typeof insertBodyMeasurementSchema>;
 export type InsertWorkoutTemplate = z.infer<typeof insertWorkoutTemplateSchema>;
 export type InsertWorkoutTemplateItem = z.infer<typeof insertWorkoutTemplateItemSchema>;
 export type InsertMemberNote = z.infer<typeof insertMemberNoteSchema>;
+export type InsertFeedPost = z.infer<typeof insertFeedPostSchema>;
+export type InsertFeedReaction = z.infer<typeof insertFeedReactionSchema>;
+export type InsertFeedComment = z.infer<typeof insertFeedCommentSchema>;
+export type InsertTournament = z.infer<typeof insertTournamentSchema>;
+export type InsertTournamentParticipant = z.infer<typeof insertTournamentParticipantSchema>;
