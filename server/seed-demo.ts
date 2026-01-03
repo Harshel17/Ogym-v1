@@ -2,7 +2,9 @@ import { db } from "./db";
 import { 
   users, gyms, gymSubscriptions, trainerMembers, trainerMemberAssignments,
   attendance, membershipPlans, memberSubscriptions, paymentTransactions, payments,
-  workoutCycles, workoutItems, workoutCompletions, workoutSessions, workoutSessionExercises
+  workoutCycles, workoutItems, workoutCompletions, workoutSessions, workoutSessionExercises,
+  bodyMeasurements, starMembers, gymHistory, dietPlans, dietPlanMeals, announcements, announcementReads,
+  memberNotes, workoutTemplates, workoutTemplateItems, memberRequests
 } from "@shared/schema";
 import { eq, like, or, and, inArray } from "drizzle-orm";
 import { scrypt, randomBytes } from "crypto";
@@ -242,12 +244,39 @@ export async function resetDemoData(): Promise<void> {
   }
   
   await db.delete(attendance).where(inArray(attendance.gymId, gymIds));
+  await db.delete(bodyMeasurements).where(inArray(bodyMeasurements.gymId, gymIds));
   await db.delete(paymentTransactions).where(inArray(paymentTransactions.gymId, gymIds));
   await db.delete(payments).where(inArray(payments.gymId, gymIds));
   await db.delete(memberSubscriptions).where(inArray(memberSubscriptions.gymId, gymIds));
   await db.delete(membershipPlans).where(inArray(membershipPlans.gymId, gymIds));
   await db.delete(trainerMemberAssignments).where(inArray(trainerMemberAssignments.gymId, gymIds));
   await db.delete(trainerMembers).where(inArray(trainerMembers.gymId, gymIds));
+  await db.delete(starMembers).where(inArray(starMembers.gymId, gymIds));
+  await db.delete(gymHistory).where(inArray(gymHistory.gymId, gymIds));
+  await db.delete(memberRequests).where(inArray(memberRequests.gymId, gymIds));
+  await db.delete(memberNotes).where(inArray(memberNotes.gymId, gymIds));
+  
+  const demoAnnouncements = await db.select().from(announcements).where(inArray(announcements.gymId, gymIds));
+  const announcementIds = demoAnnouncements.map(a => a.id);
+  if (announcementIds.length > 0) {
+    await db.delete(announcementReads).where(inArray(announcementReads.announcementId, announcementIds));
+    await db.delete(announcements).where(inArray(announcements.id, announcementIds));
+  }
+  
+  const templates = await db.select().from(workoutTemplates).where(inArray(workoutTemplates.gymId, gymIds));
+  const templateIds = templates.map(t => t.id);
+  if (templateIds.length > 0) {
+    await db.delete(workoutTemplateItems).where(inArray(workoutTemplateItems.templateId, templateIds));
+    await db.delete(workoutTemplates).where(inArray(workoutTemplates.id, templateIds));
+  }
+  
+  const diets = await db.select().from(dietPlans).where(inArray(dietPlans.gymId, gymIds));
+  const dietIds = diets.map(d => d.id);
+  if (dietIds.length > 0) {
+    await db.delete(dietPlanMeals).where(inArray(dietPlanMeals.planId, dietIds));
+    await db.delete(dietPlans).where(inArray(dietPlans.id, dietIds));
+  }
+  
   await db.delete(gymSubscriptions).where(inArray(gymSubscriptions.gymId, gymIds));
   
   await db.delete(users).where(inArray(users.gymId, gymIds));
@@ -539,6 +568,152 @@ export async function seedDemoData(): Promise<void> {
       paymentsCount++;
     }
     console.log(`[Demo Seed] Created ${paymentsCount} payment records for ${gymConfig.name}`);
+    
+    // === BODY MEASUREMENTS SEEDING ===
+    const MEASUREMENT_NOTES = [
+      "Feeling great", "Cut going well", "Bulk phase", "Post cheat meal", 
+      "Felt bloated", "Morning weigh-in", "After workout", "Dehydrated",
+      "Good progress", "Need to focus on diet", "Consistent training",
+      null, null, null, null, null // More nulls for realism
+    ];
+    
+    type MeasurementProfile = "fat_loss" | "muscle_gain" | "recomp" | "inconsistent";
+    
+    const getMemberProfile = (index: number): MeasurementProfile => {
+      const rand = index % 10;
+      if (rand < 3) return "fat_loss";
+      if (rand < 6) return "muscle_gain";
+      if (rand < 9) return "recomp";
+      return "inconsistent";
+    };
+    
+    const getMeasurementFrequency = (index: number): number => {
+      const rand = index % 10;
+      if (rand < 6) return 7 + getRandomInt(0, 3); // 60%: weekly (7-10 days)
+      if (rand < 9) return 12 + getRandomInt(0, 4); // 30%: bi-weekly (12-16 days)
+      return 999; // 10%: only 1-2 entries
+    };
+    
+    let measurementsCount = 0;
+    const sampleMemberLogs: { username: string; profile: MeasurementProfile; entries: any[] }[] = [];
+    
+    for (let mIdx = 0; mIdx < members.length; mIdx++) {
+      const member = members[mIdx];
+      const profile = getMemberProfile(mIdx);
+      const frequency = getMeasurementFrequency(mIdx);
+      
+      // Base measurements - realistic starting values
+      const isMale = mIdx % 3 !== 0; // Roughly 2/3 male
+      let baseWeight = isMale ? getRandomInt(65, 90) : getRandomInt(50, 70);
+      let baseHeight = isMale ? getRandomInt(165, 185) : getRandomInt(155, 170);
+      let baseBodyFat = isMale ? getRandomInt(15, 28) : getRandomInt(22, 35);
+      let baseChest = isMale ? getRandomInt(90, 110) : getRandomInt(80, 100);
+      let baseWaist = isMale ? getRandomInt(78, 95) : getRandomInt(65, 85);
+      let baseHips = isMale ? getRandomInt(90, 105) : getRandomInt(90, 110);
+      let baseBiceps = isMale ? getRandomInt(30, 38) : getRandomInt(25, 32);
+      let baseThighs = isMale ? getRandomInt(50, 62) : getRandomInt(48, 58);
+      
+      const memberEntries: any[] = [];
+      
+      // Generate entries over the last 55 days
+      const measurementDays: number[] = [];
+      if (frequency >= 999) {
+        // Inconsistent: only 1-2 entries
+        measurementDays.push(getRandomInt(10, 50));
+        if (Math.random() > 0.5) measurementDays.push(getRandomInt(5, 25));
+      } else {
+        // Regular frequency
+        for (let day = 55; day >= 0; day -= frequency) {
+          measurementDays.push(day + getRandomInt(-2, 2));
+        }
+      }
+      
+      for (let i = 0; i < measurementDays.length; i++) {
+        const daysAgo = Math.max(0, Math.min(55, measurementDays[i]));
+        const measureDate = format(subDays(today, daysAgo), "yyyy-MM-dd");
+        
+        // Apply profile-based progression
+        const progressFactor = i / Math.max(1, measurementDays.length - 1);
+        
+        let weight = baseWeight;
+        let bodyFat = baseBodyFat;
+        let chest = baseChest;
+        let waist = baseWaist;
+        let hips = baseHips;
+        let biceps = baseBiceps;
+        let thighs = baseThighs;
+        
+        if (profile === "fat_loss") {
+          weight = baseWeight - progressFactor * getRandomInt(10, 40) / 10;
+          bodyFat = baseBodyFat - progressFactor * getRandomInt(10, 30) / 10;
+          waist = baseWaist - progressFactor * getRandomInt(20, 60) / 10;
+        } else if (profile === "muscle_gain") {
+          weight = baseWeight + progressFactor * getRandomInt(5, 30) / 10;
+          chest = baseChest + progressFactor * getRandomInt(10, 30) / 10;
+          biceps = baseBiceps + progressFactor * getRandomInt(5, 15) / 10;
+          thighs = baseThighs + progressFactor * getRandomInt(5, 20) / 10;
+          waist = baseWaist + progressFactor * getRandomInt(0, 15) / 10;
+        } else if (profile === "recomp") {
+          weight = baseWeight + (Math.random() - 0.5) * 2;
+          waist = baseWaist - progressFactor * getRandomInt(5, 20) / 10;
+          chest = baseChest + progressFactor * getRandomInt(5, 15) / 10;
+        } else {
+          // Inconsistent - random variation
+          weight = baseWeight + (Math.random() - 0.5) * 6;
+          waist = baseWaist + (Math.random() - 0.5) * 4;
+        }
+        
+        // Add small random noise
+        weight = Math.round((weight + (Math.random() - 0.5) * 1) * 10) / 10;
+        chest = Math.round((chest + (Math.random() - 0.5) * 1) * 10) / 10;
+        waist = Math.round((waist + (Math.random() - 0.5) * 1) * 10) / 10;
+        hips = Math.round((hips + (Math.random() - 0.5) * 1) * 10) / 10;
+        biceps = Math.round((biceps + (Math.random() - 0.5) * 0.5) * 10) / 10;
+        thighs = Math.round((thighs + (Math.random() - 0.5) * 1) * 10) / 10;
+        bodyFat = Math.round((bodyFat + (Math.random() - 0.5) * 1) * 10) / 10;
+        
+        const entry = {
+          gymId: gym.id,
+          memberId: member.id,
+          recordedDate: measureDate,
+          weight: Math.round(weight),
+          height: baseHeight,
+          bodyFat: Math.random() > 0.3 ? Math.round(bodyFat) : null,
+          chest: Math.random() > 0.2 ? Math.round(chest) : null,
+          waist: Math.round(waist),
+          hips: Math.random() > 0.4 ? Math.round(hips) : null,
+          biceps: Math.random() > 0.5 ? Math.round(biceps) : null,
+          thighs: Math.random() > 0.5 ? Math.round(thighs) : null,
+          notes: getRandomElement(MEASUREMENT_NOTES),
+        };
+        
+        await db.insert(bodyMeasurements).values(entry);
+        measurementsCount++;
+        memberEntries.push({ date: measureDate, weight: entry.weight, waist: entry.waist, bodyFat: entry.bodyFat });
+      }
+      
+      // Log sample members (first 3 from each gym)
+      if (mIdx < 3) {
+        sampleMemberLogs.push({
+          username: member.username,
+          profile,
+          entries: memberEntries
+        });
+      }
+    }
+    
+    console.log(`[Demo Seed] Created ${measurementsCount} body measurement records for ${gymConfig.name}`);
+    
+    // Print sample member data
+    if (sampleMemberLogs.length > 0) {
+      console.log(`\n[Demo Seed] Sample Body Measurement History for ${gymConfig.name}:`);
+      for (const sample of sampleMemberLogs) {
+        console.log(`  ${sample.username} (${sample.profile}):`);
+        for (const entry of sample.entries.slice(0, 5)) {
+          console.log(`    ${entry.date}: ${entry.weight}kg, waist ${entry.waist}cm${entry.bodyFat ? `, bf ${entry.bodyFat}%` : ''}`);
+        }
+      }
+    }
   }
   
   console.log("\n========================================");

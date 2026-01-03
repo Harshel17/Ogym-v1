@@ -1,0 +1,74 @@
+You are a senior full-stack engineer.
+
+I already have a working DEMO seed script that creates:
+- 2 gyms + owners
+- trainers + 50–100 members each
+- workout cycles + 1–2 months of realistic workout history
+
+Now I added a NEW FEATURE: Body Measurements tracking.
+I want DEMO/SAMPLE DATA for body measurements as well, so the UI looks like members have been tracking measurements for 1–2 months.
+
+CRITICAL RULES:
+- Do NOT change authentication.
+- Do NOT break existing demo seed logic.
+- Do NOT change the database schema unless it is missing fields needed for the feature.
+- Add sample body measurement data only for the demo members you already created.
+- Data must be gym-isolated and tied to correct memberId + gymId.
+- Keep it realistic and varied.
+
+WHAT TO GENERATE (BODY MEASUREMENTS):
+For each member in both gyms:
+1) Create measurement entries for the last 45–60 days:
+   - Frequency:
+     - 60% of members: weekly measurements (every 7–10 days)
+     - 30%: bi-weekly (every 12–16 days)
+     - 10%: only 1–2 entries total (inactive)
+2) Each entry should include realistic fields based on my feature schema, such as:
+   - weight (kg)
+   - body_fat_percent (optional if supported)
+   - chest_cm
+   - waist_cm
+   - hips_cm
+   - biceps_cm (left/right optional)
+   - thigh_cm
+   - neck_cm (optional)
+   - notes (optional) like: "cut going well", "bulk phase", "post cheat meal", "felt bloated"
+   (Use ONLY the fields that exist in my current DB/model; map accordingly.)
+
+REALISTIC PATTERNS:
+- Create different “profiles” so it looks natural:
+  A) Fat loss profile (30%):
+     weight down gradually (1–4 kg over 2 months)
+     waist down 2–6 cm
+  B) Muscle gain profile (30%):
+     weight up slightly (0.5–3 kg)
+     chest/biceps/thigh up slightly
+     waist stable or slight up
+  C) Recomp profile (30%):
+     weight stable
+     waist slightly down
+     strength progress implied
+  D) Inconsistent profile (10%):
+     random entries and inconsistent trend
+
+VALIDATION:
+- Ensure no duplicate measurement entry for the same member and same date/time.
+- Use realistic rounding (e.g., 0.1 kg, 0.1 cm).
+- Ensure dates align with existing workout history timeframe (last 45–60 days).
+
+INTEGRATION:
+- Update the existing demo seed script (or add a new step) so that after creating members it also seeds body measurements.
+- If you already have a reset_demo script, ensure body measurements are also wiped for demo users.
+
+OUTPUT REQUIRED:
+1) Tell me which files you modified (seed script + models if needed).
+2) Confirm the total number of body measurement entries created per gym.
+3) Provide 3 sample members’ measurement history (dates + values) in terminal output so I can verify it looks real.
+4) Confirm that the Body Measurements page shows data immediately when I log in as those sample members.
+
+START:
+Scan my codebase to locate:
+- body measurement model/table name
+- API endpoints used by the UI
+- existing demo seed script
+Then implement the demo measurements generator accordingly.
