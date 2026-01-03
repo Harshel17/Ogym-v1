@@ -27,7 +27,6 @@ const registerInput = z.object({
   username: z.string(),
   password: z.string(),
   role: z.enum(["owner", "trainer", "member"]),
-  gymName: z.string().optional(),
   gymCode: z.string().optional(),
 });
 
@@ -77,7 +76,7 @@ function useRegisterMutation() {
         : "/api/auth/register-join";
       
       const payload = data.role === "owner"
-        ? { username: data.username, password: data.password, gymName: data.gymName }
+        ? { username: data.username, password: data.password }
         : { username: data.username, password: data.password, gymCode: data.gymCode, role: data.role };
       
       const res = await fetch(endpoint, {
@@ -94,12 +93,15 @@ function useRegisterMutation() {
     },
     onSuccess: (user) => {
       queryClient.setQueryData(["/api/auth/me"], user);
-      const isPending = user.pendingGymRequest || user.pendingJoinRequest;
+      const isPending = user.pendingJoinRequest;
+      const isOwnerWithoutGym = user.role === "owner" && !user.gymId;
       toast({
         title: isPending ? "Request Submitted!" : "Welcome to OGym!",
         description: isPending 
           ? "Your request has been submitted and is pending approval."
-          : "Account created successfully.",
+          : isOwnerWithoutGym
+            ? "Account created! Please submit your gym details for approval."
+            : "Account created successfully.",
       });
     },
     onError: (error: Error) => {

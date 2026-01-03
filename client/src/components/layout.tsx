@@ -28,43 +28,51 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isOwner = user.role === "owner";
   const isTrainer = user.role === "trainer";
   const isMember = user.role === "member";
+  const hasGym = !!user.gymId;
+  const isOwnerWithoutGym = isOwner && !hasGym;
 
   const navItems = [
     { 
       label: "Dashboard", 
       href: "/", 
       icon: LayoutDashboard,
-      visible: true
+      visible: hasGym
+    },
+    { 
+      label: "Register Gym", 
+      href: "/gym-request", 
+      icon: Building2,
+      visible: isOwnerWithoutGym
     },
     { 
       label: "Profile", 
       href: "/profile", 
       icon: UserCircle,
-      visible: true
+      visible: hasGym
     },
     { 
       label: "Trainers", 
       href: "/trainers", 
       icon: Users,
-      visible: isOwner
+      visible: isOwner && hasGym
     },
     { 
       label: "Members", 
       href: "/members", 
       icon: Users,
-      visible: isOwner || isTrainer
+      visible: (isOwner && hasGym) || isTrainer
     },
     { 
       label: "Attendance", 
       href: "/attendance", 
       icon: CalendarCheck,
-      visible: true
+      visible: hasGym
     },
     { 
       label: "Payments", 
       href: "/payments", 
       icon: CreditCard,
-      visible: isOwner || isMember
+      visible: (isOwner && hasGym) || isMember
     },
     { 
       label: "Workouts", 
@@ -112,13 +120,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Transfers", 
       href: "/transfers", 
       icon: ArrowRightLeft,
-      visible: isOwner
+      visible: isOwner && hasGym
     },
     { 
       label: "Announcements", 
       href: "/owner/announcements", 
       icon: Megaphone,
-      visible: isOwner
+      visible: isOwner && hasGym
     },
     { 
       label: "Announcements", 

@@ -21,9 +21,6 @@ export async function registerRoutes(
       const schema = z.object({
         username: z.string().min(1),
         password: z.string().min(6),
-        gymName: z.string().min(1),
-        phone: z.string().optional(),
-        address: z.string().optional(),
       });
       const input = schema.parse(req.body);
       
@@ -40,18 +37,9 @@ export async function registerRoutes(
         gymId: null
       });
 
-      await storage.createGymRequest({
-        ownerUserId: user.id,
-        gymName: input.gymName,
-        phone: input.phone || null,
-        address: input.address || null,
-        pointOfContactName: input.username,
-        pointOfContactEmail: null,
-      });
-
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Login failed" });
-        res.status(201).json({ ...user, gym: null, pendingGymRequest: true });
+        res.status(201).json({ ...user, gym: null });
       });
     } catch (err) {
       if (err instanceof z.ZodError) {

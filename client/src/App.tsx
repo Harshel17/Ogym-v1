@@ -65,8 +65,13 @@ function ProtectedRoute({ component: Component, allowWithoutGym = false, require
     return <Redirect to="/" />;
   }
 
-  // Redirect users without gym to pending approval page (except for specific allowed routes)
+  // Redirect users without gym to appropriate page (except for specific allowed routes)
   if (!user.gymId && !allowWithoutGym) {
+    // Owners without gym should go to gym-request page
+    if (user.role === "owner") {
+      return <Redirect to="/gym-request" />;
+    }
+    // Trainers/members without gym go to pending approval
     return <PendingApprovalPage />;
   }
 
@@ -171,7 +176,7 @@ function Router() {
       </Route>
 
       <Route path="/gym-request">
-        <ProtectedRoute component={GymRequestPage} allowWithoutGym={true} />
+        <ProtectedRoute component={GymRequestPage} allowWithoutGym={true} requiredRole="owner" />
       </Route>
 
       <Route path="/join-gym">

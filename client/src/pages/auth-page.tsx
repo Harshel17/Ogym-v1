@@ -21,16 +21,7 @@ const registerSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["owner", "trainer", "member"]),
-  gymName: z.string().optional(),
   gymCode: z.string().optional(),
-}).refine((data) => {
-  if (data.role === "owner") {
-    return data.gymName && data.gymName.length > 0;
-  }
-  return true;
-}, {
-  message: "Gym name is required for owners",
-  path: ["gymName"],
 }).refine((data) => {
   if (data.role !== "owner") {
     return data.gymCode && data.gymCode.length > 0;
@@ -62,7 +53,6 @@ export default function AuthPage() {
       username: "", 
       password: "", 
       role: "member",
-      gymName: "",
       gymCode: ""
     },
   });
@@ -227,27 +217,6 @@ export default function AuthPage() {
                         )}
                       />
 
-                      <FormField
-                        control={registerForm.control}
-                        name="gymName"
-                        render={({ field }) => (
-                          <FormItem className={selectedRole === "owner" ? "animate-in fade-in zoom-in-95 duration-200" : "hidden"}>
-                            <FormLabel>Gym Name</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="e.g. Iron Paradise" 
-                                value={field.value || ""} 
-                                onChange={field.onChange}
-                                onBlur={field.onBlur}
-                                name={field.name}
-                                className="h-11" 
-                                data-testid="input-gym-name" 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                       <FormField
                         control={registerForm.control}
                         name="gymCode"

@@ -150,7 +150,7 @@ export default function GymRequestPage() {
                 <p className="text-sm text-muted-foreground">Reason: {existingRequest.adminNotes}</p>
               </div>
             )}
-            <Button onClick={() => queryClient.setQueryData(["/api/gym-requests/my"], null)} data-testid="button-new-request">
+            <Button onClick={() => queryClient.setQueryData<GymRequest | null>(["/api/gym-requests/my"], null)} data-testid="button-new-request">
               Submit New Request
             </Button>
           </CardContent>
