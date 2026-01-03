@@ -1,6 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useNotificationCounts } from "@/hooks/use-notifications";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   LayoutDashboard, 
@@ -25,6 +27,7 @@ import {
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logoutMutation } = useAuth();
   const [location] = useLocation();
+  const { data: notificationCounts } = useNotificationCounts();
 
   if (!user) return null;
 
@@ -39,127 +42,148 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Dashboard", 
       href: "/", 
       icon: LayoutDashboard,
-      visible: hasGym
+      visible: hasGym,
+      badge: 0
     },
     { 
       label: "Register Gym", 
       href: "/gym-request", 
       icon: Building2,
-      visible: isOwnerWithoutGym
+      visible: isOwnerWithoutGym,
+      badge: 0
     },
     { 
       label: "Profile", 
       href: "/profile", 
       icon: UserCircle,
-      visible: hasGym
+      visible: hasGym,
+      badge: 0
     },
     { 
       label: "Trainers", 
       href: "/trainers", 
       icon: Users,
-      visible: isOwner && hasGym
+      visible: isOwner && hasGym,
+      badge: 0
     },
     { 
       label: "Members", 
       href: "/members", 
       icon: Users,
-      visible: (isOwner && hasGym) || isTrainer
+      visible: (isOwner && hasGym) || isTrainer,
+      badge: 0
     },
     { 
       label: "Attendance", 
       href: "/attendance", 
       icon: CalendarCheck,
-      visible: hasGym
+      visible: hasGym,
+      badge: 0
     },
     { 
       label: "Payments", 
       href: "/payments", 
       icon: CreditCard,
-      visible: (isOwner && hasGym) || isMember
+      visible: (isOwner && hasGym) || isMember,
+      badge: 0
     },
     { 
       label: "Workouts", 
       href: "/workouts", 
       icon: Dumbbell,
-      visible: isTrainer
+      visible: isTrainer,
+      badge: 0
     },
     { 
       label: "Star Members", 
       href: "/star-members", 
       icon: Star,
-      visible: isTrainer
+      visible: isTrainer,
+      badge: 0
     },
     { 
       label: "Diet Plans", 
       href: "/diet-plans", 
       icon: Utensils,
-      visible: isTrainer
+      visible: isTrainer,
+      badge: 0
     },
     { 
       label: "Templates", 
       href: "/templates", 
       icon: FileText,
-      visible: isTrainer
+      visible: isTrainer,
+      badge: 0
     },
     { 
       label: "My Workout", 
       href: "/my-workout", 
       icon: Dumbbell,
-      visible: isMember
+      visible: isMember,
+      badge: 0
     },
     { 
       label: "Progress", 
       href: "/progress", 
       icon: TrendingUp,
-      visible: isMember
+      visible: isMember,
+      badge: 0
     },
     { 
       label: "My Diet Plan", 
       href: "/my-diet-plan", 
       icon: Utensils,
-      visible: isMember
+      visible: isMember,
+      badge: 0
     },
     { 
       label: "My Body", 
       href: "/my-body", 
       icon: Scale,
-      visible: isMember
+      visible: isMember,
+      badge: 0
     },
     { 
       label: "Requests", 
       href: "/requests", 
       icon: MessageSquare,
-      visible: isMember || isTrainer
+      visible: isMember || isTrainer,
+      badge: notificationCounts?.pendingRequests || 0
     },
     { 
       label: "Transfers", 
       href: "/transfers", 
       icon: ArrowRightLeft,
-      visible: isOwner && hasGym
+      visible: isOwner && hasGym,
+      badge: notificationCounts?.pendingTransfers || 0
     },
     { 
       label: "Announcements", 
       href: "/owner/announcements", 
       icon: Megaphone,
-      visible: isOwner && hasGym
+      visible: isOwner && hasGym,
+      badge: 0
     },
     { 
       label: "Announcements", 
       href: "/announcements", 
       icon: Megaphone,
-      visible: isTrainer || isMember
+      visible: isTrainer || isMember,
+      badge: notificationCounts?.unreadAnnouncements || 0
     },
     { 
       label: "Join Requests", 
       href: "/owner/join-requests", 
       icon: UserPlus,
-      visible: isOwner && !!user.gymId
+      visible: isOwner && !!user.gymId,
+      badge: notificationCounts?.pendingJoinRequests || 0
     },
     { 
       label: "Gym Requests", 
       href: "/admin/gym-requests", 
       icon: Building2,
-      visible: isOwner && !!user.gymId
+      visible: isOwner && !!user.gymId,
+      badge: 0
     },
   ];
 
@@ -189,15 +213,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Link key={item.href} href={item.href}>
                 <div 
                   className={`
-                    flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
+                    flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
                     ${isActive 
                       ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" 
                       : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                     }
                   `}
                 >
-                  <item.icon className={`w-5 h-5 ${isActive ? "text-primary-foreground" : "text-muted-foreground"}`} />
-                  {item.label}
+                  <div className="flex items-center gap-3">
+                    <item.icon className={`w-5 h-5 ${isActive ? "text-primary-foreground" : "text-muted-foreground"}`} />
+                    {item.label}
+                  </div>
+                  {item.badge > 0 && (
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-xs px-1.5 py-0.5 min-w-[20px] text-center ${isActive ? "bg-white/20 text-primary-foreground" : "bg-primary text-primary-foreground"}`}
+                      data-testid={`badge-${item.label.toLowerCase().replace(/\s+/g, '-')}-count`}
+                    >
+                      {item.badge}
+                    </Badge>
+                  )}
                 </div>
               </Link>
             );
@@ -266,8 +301,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
             const isActive = location === item.href;
             return (
               <Link key={item.href} href={item.href}>
-                <div className={`flex flex-col items-center justify-center w-full h-full cursor-pointer ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-                  <item.icon className="w-5 h-5 mb-1" />
+                <div className={`relative flex flex-col items-center justify-center w-full h-full cursor-pointer ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                  <div className="relative">
+                    <item.icon className="w-5 h-5 mb-1" />
+                    {item.badge > 0 && (
+                      <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[10px] font-medium">{item.label}</span>
                 </div>
               </Link>
