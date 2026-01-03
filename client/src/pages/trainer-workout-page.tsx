@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTrainerCycles, useTrainerMembers, useCreateCycle, useAddWorkoutItem, useTrainerActivity, useUpdateDayLabels } from "@/hooks/use-workouts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -48,6 +48,13 @@ export default function TrainerWorkoutPage() {
   const { data: cycles = [], isLoading: cyclesLoading } = useTrainerCycles();
   const { data: activity = [], isLoading: activityLoading } = useTrainerActivity();
   const [selectedCycleId, setSelectedCycleId] = useState<number | null>(null);
+  const detailViewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedCycleId && detailViewRef.current) {
+      detailViewRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [selectedCycleId]);
 
   const deleteCycleMutation = useMutation({
     mutationFn: async (cycleId: number) => {
@@ -175,7 +182,7 @@ export default function TrainerWorkoutPage() {
           )}
         </div>
 
-        <div className="lg:col-span-2">
+        <div ref={detailViewRef} className="lg:col-span-2 scroll-mt-4">
           {selectedCycle ? (
             <CycleDetailView cycle={selectedCycle} members={members as any[]} />
           ) : (
