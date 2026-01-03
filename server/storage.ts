@@ -1729,17 +1729,20 @@ export class DatabaseStorage implements IStorage {
       const cycle = memberCycle[0];
       const cycleStart = new Date(cycle.startDate);
       const currentDate = new Date(date);
-      const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
       
-      const withinStart = daysDiff >= 0;
-      const withinEnd = !cycle.endDate || date <= cycle.endDate;
-      
-      if (withinStart && withinEnd) {
-        dayIndex = daysDiff % cycle.daysPerCycle;
-        scheduledItems = await db.select()
-          .from(workoutItems)
-          .where(and(eq(workoutItems.cycleId, cycle.id), eq(workoutItems.dayIndex, dayIndex)))
-          .orderBy(workoutItems.orderIndex);
+      if (!isNaN(cycleStart.getTime()) && !isNaN(currentDate.getTime()) && cycle.daysPerCycle > 0) {
+        const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
+        
+        const withinStart = daysDiff >= 0;
+        const withinEnd = !cycle.endDate || date <= cycle.endDate;
+        
+        if (withinStart && withinEnd) {
+          dayIndex = daysDiff % cycle.daysPerCycle;
+          scheduledItems = await db.select()
+            .from(workoutItems)
+            .where(and(eq(workoutItems.cycleId, cycle.id), eq(workoutItems.dayIndex, dayIndex)))
+            .orderBy(workoutItems.orderIndex);
+        }
       }
     }
 
