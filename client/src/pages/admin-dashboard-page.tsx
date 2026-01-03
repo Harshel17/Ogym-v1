@@ -371,16 +371,14 @@ function SubscriptionsTab() {
 
   const handleSave = () => {
     if (selectedGymId) {
-      upsertMutation.mutate({
-        gymId: selectedGymId,
-        data: {
-          planType: formData.planType,
-          amountPaid: Math.round(parseFloat(formData.amountPaid || "0") * 100),
-          paymentStatus: formData.paymentStatus,
-          validUntil: formData.validUntil || null,
-          notes: formData.notes || null,
-        },
-      });
+      const data: Record<string, unknown> = {
+        planType: formData.planType,
+        amountPaid: Math.round(parseFloat(formData.amountPaid || "0") * 100),
+        paymentStatus: formData.paymentStatus,
+      };
+      if (formData.validUntil) data.validUntil = formData.validUntil;
+      if (formData.notes) data.notes = formData.notes;
+      upsertMutation.mutate({ gymId: selectedGymId, data });
     }
   };
 

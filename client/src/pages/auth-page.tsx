@@ -253,6 +253,16 @@ export default function AuthPage() {
               </Card>
             </TabsContent>
           </Tabs>
+
+          <div className="mt-6 text-center">
+            <a 
+              href="/admin" 
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              data-testid="link-admin-login"
+            >
+              Admin Login
+            </a>
+          </div>
         </div>
       </div>
     </div>
