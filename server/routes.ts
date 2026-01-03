@@ -2197,6 +2197,30 @@ export async function registerRoutes(
     res.json(posts);
   });
   
+  // Create a manual feed post
+  app.post("/api/feed", requireAuth, async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    const { content } = req.body;
+    if (!content || typeof content !== "string" || content.trim().length === 0) {
+      return res.status(400).json({ message: "Content is required" });
+    }
+    if (content.length > 500) {
+      return res.status(400).json({ message: "Content too long (max 500 characters)" });
+    }
+    
+    const post = await storage.createFeedPost({
+      gymId: req.user!.gymId,
+      userId: req.user!.id,
+      type: "manual",
+      content: content.trim(),
+      metadata: {},
+      isVisible: true,
+    });
+    res.status(201).json(post);
+  });
+  
   // Add reaction to post
   app.post("/api/feed/:postId/react", requireAuth, async (req, res) => {
     if (!req.user!.gymId) {

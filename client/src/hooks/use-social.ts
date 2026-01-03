@@ -115,6 +115,24 @@ export function useHidePost() {
   });
 }
 
+export function useCreatePost() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async (content: string) => {
+      return apiRequest("POST", "/api/feed", { content });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/feed'] });
+      toast({ title: "Posted!" });
+    },
+    onError: () => {
+      toast({ title: "Failed to create post", variant: "destructive" });
+    },
+  });
+}
+
 export type Tournament = {
   id: number;
   gymId: number;

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFeed, useFeedComments, useAddReaction, useRemoveReaction, useAddComment, useHidePost, type FeedPost } from "@/hooks/use-social";
+import { useFeed, useFeedComments, useAddReaction, useRemoveReaction, useAddComment, useHidePost, useCreatePost, type FeedPost } from "@/hooks/use-social";
 import { useAuth } from "@/hooks/use-auth";
 import { Heart, Flame, Award, HandMetal, MessageCircle, MoreHorizontal, Send, Dumbbell, Trophy, UserPlus, Sparkles } from "lucide-react";
 import { useState } from "react";
@@ -195,6 +195,15 @@ function PostCard({ post }: { post: FeedPost }) {
 
 export default function FeedPage() {
   const { data: posts, isLoading } = useFeed();
+  const [postContent, setPostContent] = useState("");
+  const createPost = useCreatePost();
+  
+  const handleCreatePost = () => {
+    if (!postContent.trim()) return;
+    createPost.mutate(postContent, {
+      onSuccess: () => setPostContent("")
+    });
+  };
   
   if (isLoading) {
     return (
@@ -212,6 +221,25 @@ export default function FeedPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold" data-testid="text-page-title">Gym Feed</h1>
       </div>
+      
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Share an update with your gym..."
+              value={postContent}
+              onChange={(e) => setPostContent(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreatePost()}
+              maxLength={500}
+              data-testid="input-create-post"
+            />
+            <Button onClick={handleCreatePost} disabled={!postContent.trim() || createPost.isPending} data-testid="button-create-post">
+              <Send className="h-4 w-4 mr-2" />
+              Post
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
       
       {(!posts || posts.length === 0) ? (
         <Card>
