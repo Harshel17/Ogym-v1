@@ -162,7 +162,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       href: "/owner/announcements", 
       icon: Megaphone,
       visible: isOwner && hasGym,
-      badge: 0
+      badge: 0  // Owners create announcements, they don't receive them
     },
     { 
       label: "Announcements", 
