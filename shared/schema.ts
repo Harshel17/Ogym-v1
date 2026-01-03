@@ -313,6 +313,63 @@ export const paymentTransactions = pgTable("payment_transactions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// === BODY MEASUREMENTS ===
+
+export const bodyMeasurements = pgTable("body_measurements", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  recordedDate: text("recorded_date").notNull(),
+  weight: integer("weight"),
+  height: integer("height"),
+  bodyFat: integer("body_fat"),
+  chest: integer("chest"),
+  waist: integer("waist"),
+  hips: integer("hips"),
+  biceps: integer("biceps"),
+  thighs: integer("thighs"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// === WORKOUT TEMPLATES ===
+
+export const workoutTemplates = pgTable("workout_templates", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  trainerId: integer("trainer_id").references(() => users.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  daysPerCycle: integer("days_per_cycle").notNull().default(3),
+  dayLabels: text("day_labels").array(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const workoutTemplateItems = pgTable("workout_template_items", {
+  id: serial("id").primaryKey(),
+  templateId: integer("template_id").references(() => workoutTemplates.id).notNull(),
+  dayIndex: integer("day_index").notNull(),
+  muscleType: text("muscle_type").notNull().default("Chest"),
+  bodyPart: text("body_part").notNull().default("Upper Body"),
+  exerciseName: text("exercise_name").notNull(),
+  sets: integer("sets").notNull(),
+  reps: integer("reps").notNull(),
+  weight: text("weight"),
+  orderIndex: integer("order_index").default(0),
+});
+
+// === MEMBER NOTES ===
+
+export const memberNotes = pgTable("member_notes", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  trainerId: integer("trainer_id").references(() => users.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === RELATIONS ===
 
 export const gymsRelations = relations(gyms, ({ many }) => ({
@@ -354,6 +411,10 @@ export const insertPaymentTransactionSchema = createInsertSchema(paymentTransact
 export const insertWorkoutSessionSchema = createInsertSchema(workoutSessions).omit({ id: true, createdAt: true });
 export const insertWorkoutSessionExerciseSchema = createInsertSchema(workoutSessionExercises).omit({ id: true, createdAt: true });
 export const insertGymSubscriptionSchema = createInsertSchema(gymSubscriptions).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertBodyMeasurementSchema = createInsertSchema(bodyMeasurements).omit({ id: true, createdAt: true });
+export const insertWorkoutTemplateSchema = createInsertSchema(workoutTemplates).omit({ id: true, createdAt: true });
+export const insertWorkoutTemplateItemSchema = createInsertSchema(workoutTemplateItems).omit({ id: true });
+export const insertMemberNoteSchema = createInsertSchema(memberNotes).omit({ id: true, createdAt: true });
 
 // === EXPLICIT TYPES ===
 
@@ -413,3 +474,12 @@ export type InsertWorkoutSessionExercise = z.infer<typeof insertWorkoutSessionEx
 
 export type GymSubscription = typeof gymSubscriptions.$inferSelect;
 export type InsertGymSubscription = z.infer<typeof insertGymSubscriptionSchema>;
+
+export type BodyMeasurement = typeof bodyMeasurements.$inferSelect;
+export type WorkoutTemplate = typeof workoutTemplates.$inferSelect;
+export type WorkoutTemplateItem = typeof workoutTemplateItems.$inferSelect;
+export type MemberNote = typeof memberNotes.$inferSelect;
+export type InsertBodyMeasurement = z.infer<typeof insertBodyMeasurementSchema>;
+export type InsertWorkoutTemplate = z.infer<typeof insertWorkoutTemplateSchema>;
+export type InsertWorkoutTemplateItem = z.infer<typeof insertWorkoutTemplateItemSchema>;
+export type InsertMemberNote = z.infer<typeof insertMemberNoteSchema>;
