@@ -1757,6 +1757,47 @@ export async function registerRoutes(
     res.json({ count });
   });
 
+  // === SIDEBAR NOTIFICATION COUNTS ===
+  app.get("/api/notification-counts", requireAuth, async (req, res) => {
+    try {
+      const user = req.user!;
+      const result: { unreadAnnouncements: number; pendingRequests: number; pendingTransfers?: number; pendingJoinRequests?: number } = {
+        unreadAnnouncements: 0,
+        pendingRequests: 0
+      };
+
+      if (!user.gymId) {
+        return res.json(result);
+      }
+
+      // Unread announcements (all roles)
+      result.unreadAnnouncements = await storage.getUnreadAnnouncementCount(user.gymId, user.id, user.role);
+
+      if (user.role === "owner") {
+        // Pending transfer requests for owner
+        const transfers = await storage.getTransferRequestsForOwner(user.gymId);
+        result.pendingTransfers = transfers.filter(t => t.status === "pending").length;
+        
+        // Pending join requests for owner (already filtered to pending)
+        const joinRequests = await storage.getPendingJoinRequestsForGym(user.gymId);
+        result.pendingJoinRequests = joinRequests.length;
+      } else if (user.role === "trainer") {
+        // Pending requests from members assigned to this trainer
+        const requests = await storage.getTrainerRequests(user.id);
+        result.pendingRequests = requests.filter(r => r.status === "pending").length;
+      } else if (user.role === "member") {
+        // Member's own pending requests
+        const requests = await storage.getMemberRequests(user.id);
+        result.pendingRequests = requests.filter(r => r.status === "pending").length;
+      }
+
+      res.json(result);
+    } catch (err) {
+      console.error("Error fetching notification counts:", err);
+      res.status(500).json({ message: "Failed to fetch notification counts" });
+    }
+  });
+
   // === NOTIFICATION PREFERENCES ===
   app.get("/api/me/notification-preferences", requireAuth, async (req, res) => {
     const prefs = await storage.getNotificationPreferences(req.user!.id);
