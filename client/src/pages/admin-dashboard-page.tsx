@@ -15,8 +15,9 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { 
   Shield, LogOut, Building2, Users, CreditCard, Check, X, Loader2, 
-  Clock, CheckCircle, XCircle, Calendar
+  Clock, CheckCircle, XCircle, Calendar, Search, ArrowLeft, UserCheck, Dumbbell
 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 function getAdminToken() {
   return localStorage.getItem("adminToken");
@@ -251,6 +252,7 @@ function GymsTab() {
   const [selectedGymId, setSelectedGymId] = useState<number | null>(null);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [showList, setShowList] = useState<"members" | "trainers" | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: gyms = [], isLoading } = useQuery<GymDetails[]>({
     queryKey: ["/api/admin/all-gyms"],
@@ -266,8 +268,17 @@ function GymsTab() {
   const handleGymClick = (gymId: number) => {
     setSelectedGymId(gymId);
     setShowList(null);
+    setSearchQuery("");
     setShowProfileDialog(true);
   };
+
+  const filteredUsers = showList && profile 
+    ? (showList === "members" ? profile.members : profile.trainers).filter(user =>
+        user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (user.email?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (user.publicId?.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : [];
 
   if (isLoading) {
     return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -336,81 +347,155 @@ function GymsTab() {
         </div>
       )}
 
-      <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{profile?.gym.name || "Gym Profile"}</DialogTitle>
-            <DialogDescription>
-              {profile?.gym.code ? `Code: ${profile.gym.code}` : "Loading..."}
-            </DialogDescription>
-          </DialogHeader>
-          
+      <Dialog open={showProfileDialog} onOpenChange={(open) => {
+        setShowProfileDialog(open);
+        if (!open) {
+          setShowList(null);
+          setSearchQuery("");
+        }
+      }}>
+        <DialogContent className="max-w-lg">
           {profileLoading ? (
-            <div className="flex justify-center p-4">
-              <Loader2 className="h-6 w-6 animate-spin" />
+            <div className="flex justify-center items-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
             </div>
           ) : profile ? (
-            <div className="space-y-4">
+            <>
               {showList === null ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <Card 
-                    className="cursor-pointer hover-elevate"
-                    onClick={() => setShowList("members")}
-                    data-testid="button-view-members"
-                  >
-                    <CardContent className="p-4 text-center">
-                      <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-2xl font-bold">{profile.memberCount}</p>
-                      <p className="text-sm text-muted-foreground">Members</p>
-                    </CardContent>
-                  </Card>
-                  <Card 
-                    className="cursor-pointer hover-elevate"
-                    onClick={() => setShowList("trainers")}
-                    data-testid="button-view-trainers"
-                  >
-                    <CardContent className="p-4 text-center">
-                      <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-2xl font-bold">{profile.trainerCount}</p>
-                      <p className="text-sm text-muted-foreground">Trainers</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-medium">
-                      {showList === "members" ? "Members" : "Trainers"} ({showList === "members" ? profile.memberCount : profile.trainerCount})
-                    </h3>
-                    <Button variant="ghost" size="sm" onClick={() => setShowList(null)}>
-                      Back
-                    </Button>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto space-y-2">
-                    {(showList === "members" ? profile.members : profile.trainers).map((user) => (
-                      <div 
-                        key={user.id} 
-                        className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50"
-                        data-testid={`user-item-${user.id}`}
-                      >
-                        <div>
-                          <p className="font-medium">{user.username}</p>
-                          <p className="text-xs text-muted-foreground">{user.publicId || `ID: ${user.id}`}</p>
-                        </div>
-                        {user.email && (
-                          <p className="text-xs text-muted-foreground truncate max-w-[120px]">{user.email}</p>
-                        )}
+                <>
+                  <DialogHeader className="pb-4 border-b">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-md bg-primary/10">
+                        <Building2 className="h-6 w-6 text-primary" />
                       </div>
-                    ))}
-                    {(showList === "members" ? profile.members : profile.trainers).length === 0 && (
-                      <p className="text-center text-muted-foreground py-4">
-                        No {showList} yet
-                      </p>
-                    )}
+                      <div>
+                        <DialogTitle className="text-xl">{profile.gym.name}</DialogTitle>
+                        <DialogDescription className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="font-mono">{profile.gym.code}</Badge>
+                        </DialogDescription>
+                      </div>
+                    </div>
+                  </DialogHeader>
+                  
+                  <div className="py-4">
+                    <p className="text-sm text-muted-foreground mb-4">Click to view details</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Card 
+                        className="cursor-pointer hover-elevate border-2 border-transparent hover:border-primary/20 transition-colors"
+                        onClick={() => { setShowList("members"); setSearchQuery(""); }}
+                        data-testid="button-view-members"
+                      >
+                        <CardContent className="p-6 text-center">
+                          <div className="p-3 rounded-full bg-blue-500/10 w-fit mx-auto mb-3">
+                            <Users className="h-6 w-6 text-blue-500" />
+                          </div>
+                          <p className="text-3xl font-bold">{profile.memberCount}</p>
+                          <p className="text-sm text-muted-foreground mt-1">Members</p>
+                        </CardContent>
+                      </Card>
+                      <Card 
+                        className="cursor-pointer hover-elevate border-2 border-transparent hover:border-primary/20 transition-colors"
+                        onClick={() => { setShowList("trainers"); setSearchQuery(""); }}
+                        data-testid="button-view-trainers"
+                      >
+                        <CardContent className="p-6 text-center">
+                          <div className="p-3 rounded-full bg-green-500/10 w-fit mx-auto mb-3">
+                            <Dumbbell className="h-6 w-6 text-green-500" />
+                          </div>
+                          <p className="text-3xl font-bold">{profile.trainerCount}</p>
+                          <p className="text-sm text-muted-foreground mt-1">Trainers</p>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
-                </div>
+                </>
+              ) : (
+                <>
+                  <DialogHeader className="pb-4">
+                    <div className="flex items-center gap-3">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => { setShowList(null); setSearchQuery(""); }}
+                        data-testid="button-back-to-profile"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                      </Button>
+                      <div className="flex-1">
+                        <DialogTitle className="flex items-center gap-2">
+                          {showList === "members" ? (
+                            <Users className="h-5 w-5 text-blue-500" />
+                          ) : (
+                            <Dumbbell className="h-5 w-5 text-green-500" />
+                          )}
+                          {showList === "members" ? "Members" : "Trainers"}
+                          <Badge variant="secondary" className="ml-2">
+                            {showList === "members" ? profile.memberCount : profile.trainerCount}
+                          </Badge>
+                        </DialogTitle>
+                        <DialogDescription>{profile.gym.name}</DialogDescription>
+                      </div>
+                    </div>
+                  </DialogHeader>
+
+                  <div className="relative mb-4">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      data-testid="input-search-users"
+                      placeholder={`Search ${showList}...`}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+
+                  <ScrollArea className="h-[320px] pr-4">
+                    <div className="space-y-2">
+                      {filteredUsers.map((user, index) => (
+                        <div 
+                          key={user.id} 
+                          className="flex items-center gap-3 p-3 rounded-md bg-muted/50 hover-elevate"
+                          data-testid={`user-item-${user.id}`}
+                        >
+                          <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary font-semibold text-sm shrink-0">
+                            {user.username.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{user.username}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span className="font-mono">{user.publicId || `#${user.id}`}</span>
+                              {user.email && (
+                                <>
+                                  <span className="opacity-50">|</span>
+                                  <span className="truncate">{user.email}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="shrink-0 text-xs">
+                            #{index + 1}
+                          </Badge>
+                        </div>
+                      ))}
+                      {filteredUsers.length === 0 && (
+                        <div className="text-center py-8">
+                          <Users className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
+                          <p className="text-muted-foreground">
+                            {searchQuery ? `No ${showList} matching "${searchQuery}"` : `No ${showList} yet`}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+
+                  {filteredUsers.length > 0 && searchQuery && (
+                    <p className="text-xs text-muted-foreground text-center pt-2 border-t">
+                      Showing {filteredUsers.length} of {showList === "members" ? profile.memberCount : profile.trainerCount} {showList}
+                    </p>
+                  )}
+                </>
               )}
-            </div>
+            </>
           ) : null}
         </DialogContent>
       </Dialog>
