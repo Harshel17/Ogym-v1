@@ -2484,107 +2484,452 @@ async function seedDemoData() {
   const existingGym = await storage.getGymByCode("DEMO01");
   if (existingGym) return;
 
-  console.log("Seeding demo data...");
+  console.log("Seeding comprehensive demo data...");
   const gym = await storage.createGym({ name: "OGym Demo", code: "DEMO01" });
   const gymId = gym.id;
 
   const password = await hashPassword("password123");
 
-  const owner = await storage.createUser({ username: "owner", password, role: "owner", gymId });
-  const trainer = await storage.createUser({ username: "trainer", password, role: "trainer", gymId });
-  const member1 = await storage.createUser({ username: "member1", password, role: "member", gymId });
-  const member2 = await storage.createUser({ username: "member2", password, role: "member", gymId });
+  // Create users with profile info
+  const owner = await storage.createUser({ username: "owner", password, role: "owner", gymId, email: "owner@ogym.demo", phone: "9876543210" });
+  const trainer = await storage.createUser({ username: "trainer", password, role: "trainer", gymId, email: "trainer@ogym.demo", phone: "9876543211" });
+  const trainer2 = await storage.createUser({ username: "trainer2", password, role: "trainer", gymId, email: "trainer2@ogym.demo" });
+  const member1 = await storage.createUser({ username: "member1", password, role: "member", gymId, email: "member1@ogym.demo", phone: "9876543212" });
+  const member2 = await storage.createUser({ username: "member2", password, role: "member", gymId, email: "member2@ogym.demo", phone: "9876543213" });
+  const member3 = await storage.createUser({ username: "member3", password, role: "member", gymId, email: "member3@ogym.demo" });
+  const member4 = await storage.createUser({ username: "member4", password, role: "member", gymId });
+  const member5 = await storage.createUser({ username: "member5", password, role: "member", gymId });
 
+  // Assign trainers
   await storage.assignTrainer(trainer.id, member1.id, gymId);
   await storage.assignTrainer(trainer.id, member2.id, gymId);
+  await storage.assignTrainer(trainer.id, member3.id, gymId);
+  await storage.assignTrainer(trainer2.id, member4.id, gymId);
+  await storage.assignTrainer(trainer2.id, member5.id, gymId);
+
+  // Mark star members
+  await storage.addStarMember({ trainerId: trainer.id, memberId: member1.id, gymId });
+  await storage.addStarMember({ trainerId: trainer.id, memberId: member2.id, gymId });
 
   const today = new Date();
-  const startDate = today.toISOString().split("T")[0];
-  const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const toDateStr = (d: Date) => d.toISOString().split("T")[0];
+  const daysAgo = (n: number) => new Date(today.getTime() - n * 24 * 60 * 60 * 1000);
+  const daysFromNow = (n: number) => new Date(today.getTime() + n * 24 * 60 * 60 * 1000);
 
-  const cycle = await storage.createWorkoutCycle({
-    gymId,
-    memberId: member1.id,
-    trainerId: trainer.id,
-    name: "Push-Pull-Legs Beginner",
-    cycleLength: 3,
-    startDate,
-    endDate
+  // ===== WORKOUT CYCLES =====
+  // Member1: Push-Pull-Legs (active, very consistent)
+  const cycle1 = await storage.createWorkoutCycle({
+    gymId, memberId: member1.id, trainerId: trainer.id,
+    name: "Push-Pull-Legs Pro", cycleLength: 3,
+    startDate: toDateStr(daysAgo(60)), endDate: toDateStr(daysFromNow(30))
   });
-
-  const exercises = [
-    { dayIndex: 0, exerciseName: "Bench Press", sets: 3, reps: 10, weight: "40kg", orderIndex: 0, muscleType: "Chest", bodyPart: "Upper Body" },
-    { dayIndex: 0, exerciseName: "Overhead Press", sets: 3, reps: 10, weight: "20kg", orderIndex: 1, muscleType: "Shoulders", bodyPart: "Upper Body" },
-    { dayIndex: 1, exerciseName: "Deadlift", sets: 3, reps: 8, weight: "60kg", orderIndex: 0, muscleType: "Back", bodyPart: "Full Body" },
-    { dayIndex: 1, exerciseName: "Barbell Row", sets: 3, reps: 10, weight: "40kg", orderIndex: 1, muscleType: "Back", bodyPart: "Upper Body" },
-    { dayIndex: 2, exerciseName: "Squats", sets: 3, reps: 10, weight: "50kg", orderIndex: 0, muscleType: "Legs", bodyPart: "Lower Body" },
-    { dayIndex: 2, exerciseName: "Leg Press", sets: 3, reps: 12, weight: "80kg", orderIndex: 1, muscleType: "Legs", bodyPart: "Lower Body" },
+  
+  const cycle1Exercises = [
+    { dayIndex: 0, exerciseName: "Bench Press", sets: 4, reps: 8, weight: "60kg", orderIndex: 0, muscleType: "Chest", bodyPart: "Upper Body" },
+    { dayIndex: 0, exerciseName: "Incline Dumbbell Press", sets: 3, reps: 10, weight: "22kg", orderIndex: 1, muscleType: "Chest", bodyPart: "Upper Body" },
+    { dayIndex: 0, exerciseName: "Overhead Press", sets: 3, reps: 10, weight: "30kg", orderIndex: 2, muscleType: "Shoulders", bodyPart: "Upper Body" },
+    { dayIndex: 0, exerciseName: "Tricep Pushdown", sets: 3, reps: 12, weight: "25kg", orderIndex: 3, muscleType: "Triceps", bodyPart: "Upper Body" },
+    { dayIndex: 1, exerciseName: "Deadlift", sets: 4, reps: 6, weight: "100kg", orderIndex: 0, muscleType: "Back", bodyPart: "Full Body" },
+    { dayIndex: 1, exerciseName: "Barbell Row", sets: 4, reps: 8, weight: "50kg", orderIndex: 1, muscleType: "Back", bodyPart: "Upper Body" },
+    { dayIndex: 1, exerciseName: "Lat Pulldown", sets: 3, reps: 10, weight: "55kg", orderIndex: 2, muscleType: "Back", bodyPart: "Upper Body" },
+    { dayIndex: 1, exerciseName: "Bicep Curls", sets: 3, reps: 12, weight: "12kg", orderIndex: 3, muscleType: "Biceps", bodyPart: "Upper Body" },
+    { dayIndex: 2, exerciseName: "Squats", sets: 4, reps: 8, weight: "80kg", orderIndex: 0, muscleType: "Legs", bodyPart: "Lower Body" },
+    { dayIndex: 2, exerciseName: "Leg Press", sets: 3, reps: 12, weight: "120kg", orderIndex: 1, muscleType: "Legs", bodyPart: "Lower Body" },
+    { dayIndex: 2, exerciseName: "Romanian Deadlift", sets: 3, reps: 10, weight: "50kg", orderIndex: 2, muscleType: "Hamstrings", bodyPart: "Lower Body" },
+    { dayIndex: 2, exerciseName: "Calf Raises", sets: 4, reps: 15, weight: "60kg", orderIndex: 3, muscleType: "Calves", bodyPart: "Lower Body" },
   ];
+  for (const ex of cycle1Exercises) await storage.addWorkoutItem({ ...ex, cycleId: cycle1.id });
 
-  for (const ex of exercises) {
-    await storage.addWorkoutItem({ ...ex, cycleId: cycle.id });
+  // Member2: Upper-Lower Split (moderate consistency)
+  const cycle2 = await storage.createWorkoutCycle({
+    gymId, memberId: member2.id, trainerId: trainer.id,
+    name: "Upper-Lower Split", cycleLength: 2,
+    startDate: toDateStr(daysAgo(45)), endDate: toDateStr(daysFromNow(30))
+  });
+  
+  const cycle2Exercises = [
+    { dayIndex: 0, exerciseName: "Bench Press", sets: 3, reps: 10, weight: "40kg", orderIndex: 0, muscleType: "Chest", bodyPart: "Upper Body" },
+    { dayIndex: 0, exerciseName: "Seated Row", sets: 3, reps: 10, weight: "40kg", orderIndex: 1, muscleType: "Back", bodyPart: "Upper Body" },
+    { dayIndex: 0, exerciseName: "Shoulder Press", sets: 3, reps: 10, weight: "15kg", orderIndex: 2, muscleType: "Shoulders", bodyPart: "Upper Body" },
+    { dayIndex: 1, exerciseName: "Squats", sets: 3, reps: 10, weight: "50kg", orderIndex: 0, muscleType: "Legs", bodyPart: "Lower Body" },
+    { dayIndex: 1, exerciseName: "Leg Curl", sets: 3, reps: 12, weight: "30kg", orderIndex: 1, muscleType: "Hamstrings", bodyPart: "Lower Body" },
+    { dayIndex: 1, exerciseName: "Leg Extension", sets: 3, reps: 12, weight: "35kg", orderIndex: 2, muscleType: "Quadriceps", bodyPart: "Lower Body" },
+  ];
+  for (const ex of cycle2Exercises) await storage.addWorkoutItem({ ...ex, cycleId: cycle2.id });
+
+  // Member3: Full Body (inconsistent)
+  const cycle3 = await storage.createWorkoutCycle({
+    gymId, memberId: member3.id, trainerId: trainer.id,
+    name: "Full Body Beginner", cycleLength: 1,
+    startDate: toDateStr(daysAgo(30)), endDate: toDateStr(daysFromNow(30))
+  });
+  
+  const cycle3Exercises = [
+    { dayIndex: 0, exerciseName: "Goblet Squat", sets: 3, reps: 12, weight: "16kg", orderIndex: 0, muscleType: "Legs", bodyPart: "Lower Body" },
+    { dayIndex: 0, exerciseName: "Push-ups", sets: 3, reps: 15, weight: "BW", orderIndex: 1, muscleType: "Chest", bodyPart: "Upper Body" },
+    { dayIndex: 0, exerciseName: "Dumbbell Row", sets: 3, reps: 10, weight: "12kg", orderIndex: 2, muscleType: "Back", bodyPart: "Upper Body" },
+  ];
+  for (const ex of cycle3Exercises) await storage.addWorkoutItem({ ...ex, cycleId: cycle3.id });
+
+  // ===== 60+ DAYS HISTORICAL DATA =====
+  // Get workout items for each cycle
+  const cycle1Items = await storage.getWorkoutItems(cycle1.id);
+  const cycle2Items = await storage.getWorkoutItems(cycle2.id);
+  const cycle3Items = await storage.getWorkoutItems(cycle3.id);
+
+  // Helper function to complete a workout item
+  const completeItem = async (item: any, cycleId: number, memberId: number, date: string) => {
+    await storage.completeWorkout({
+      gymId, cycleId, workoutItemId: item.id, memberId, completedDate: date,
+      actualSets: item.sets, actualReps: item.reps, actualWeight: item.weight
+    });
+  };
+
+  // Member1: Very consistent (5-6 days/week), good completion rates
+  for (let i = 60; i >= 0; i--) {
+    const date = toDateStr(daysAgo(i));
+    const dayOfWeek = daysAgo(i).getDay();
+    
+    // Skip some Sundays (rest day)
+    if (dayOfWeek === 0 && Math.random() > 0.3) continue;
+    
+    // 85% attendance rate
+    if (Math.random() > 0.85) continue;
+    
+    await storage.markAttendance({ gymId, memberId: member1.id, date, status: "present", verifiedMethod: "qr", markedByUserId: owner.id });
+    
+    const dayIndex = i % 3;
+    const dayItems = cycle1Items.filter(item => item.dayIndex === dayIndex);
+    
+    // Completion patterns: 70% full, 25% partial, 5% missed after attending
+    const rand = Math.random();
+    if (rand < 0.70) {
+      // Complete all exercises
+      for (const item of dayItems) {
+        await completeItem(item, cycle1.id, member1.id, date);
+      }
+    } else if (rand < 0.95) {
+      // Partial completion (2-3 exercises)
+      const completeCount = Math.floor(Math.random() * 2) + 2;
+      for (let j = 0; j < Math.min(completeCount, dayItems.length); j++) {
+        await completeItem(dayItems[j], cycle1.id, member1.id, date);
+      }
+    }
+    // else: attended but didn't complete workout (5%)
   }
 
-  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-  await storage.markAttendance({
-    gymId,
-    memberId: member1.id,
-    date: yesterday,
-    status: "present",
-    verifiedMethod: "qr",
-    markedByUserId: owner.id
-  });
+  // Member2: Moderate consistency (3-4 days/week)
+  for (let i = 45; i >= 0; i--) {
+    const date = toDateStr(daysAgo(i));
+    const dayOfWeek = daysAgo(i).getDay();
+    
+    // Skip weekends mostly
+    if ((dayOfWeek === 0 || dayOfWeek === 6) && Math.random() > 0.4) continue;
+    
+    // 65% attendance rate
+    if (Math.random() > 0.65) continue;
+    
+    await storage.markAttendance({ gymId, memberId: member2.id, date, status: "present", verifiedMethod: "manual", markedByUserId: trainer.id });
+    
+    const dayIndex = i % 2;
+    const dayItems = cycle2Items.filter(item => item.dayIndex === dayIndex);
+    
+    // 60% full completion, 30% partial
+    const rand = Math.random();
+    if (rand < 0.60) {
+      for (const item of dayItems) {
+        await completeItem(item, cycle2.id, member2.id, date);
+      }
+    } else if (rand < 0.90) {
+      const completeCount = Math.floor(Math.random() * 2) + 1;
+      for (let j = 0; j < Math.min(completeCount, dayItems.length); j++) {
+        await completeItem(dayItems[j], cycle2.id, member2.id, date);
+      }
+    }
+  }
 
-  const thisMonth = today.toISOString().slice(0, 7);
-  await storage.markPayment({
-    gymId,
-    memberId: member1.id,
-    month: thisMonth,
-    amountDue: 5000,
-    amountPaid: 5000,
-    status: "paid",
-    note: "Monthly membership"
-  });
+  // Member3: Inconsistent (1-2 days/week)
+  for (let i = 30; i >= 0; i--) {
+    const date = toDateStr(daysAgo(i));
+    
+    // Only 30% attendance rate
+    if (Math.random() > 0.30) continue;
+    
+    await storage.markAttendance({ gymId, memberId: member3.id, date, status: "present", verifiedMethod: "qr", markedByUserId: owner.id });
+    
+    const dayItems = cycle3Items;
+    
+    // 50% full, 40% partial
+    const rand = Math.random();
+    if (rand < 0.50) {
+      for (const item of dayItems) {
+        await completeItem(item, cycle3.id, member3.id, date);
+      }
+    } else if (rand < 0.90) {
+      await completeItem(dayItems[0], cycle3.id, member3.id, date);
+    }
+  }
 
-  // Seed Feed Posts
+  // Member4 & 5: Some attendance but no workout cycle yet
+  for (let i = 20; i >= 0; i--) {
+    const date = toDateStr(daysAgo(i));
+    if (Math.random() < 0.4) {
+      await storage.markAttendance({ gymId, memberId: member4.id, date, status: "present", verifiedMethod: "manual", markedByUserId: trainer2.id });
+    }
+    if (Math.random() < 0.25) {
+      await storage.markAttendance({ gymId, memberId: member5.id, date, status: "present", verifiedMethod: "qr", markedByUserId: owner.id });
+    }
+  }
+
+  // ===== PAYMENT HISTORY (6 months) =====
+  for (let m = 5; m >= 0; m--) {
+    const monthDate = new Date(today.getFullYear(), today.getMonth() - m, 1);
+    const month = monthDate.toISOString().slice(0, 7);
+    
+    // Member1: Always paid on time
+    await storage.markPayment({ gymId, memberId: member1.id, month, amountDue: 150000, amountPaid: 150000, status: "paid", note: "Monthly premium" });
+    
+    // Member2: Paid but sometimes partial
+    const m2Paid = m === 0 ? 100000 : 120000;
+    await storage.markPayment({ gymId, memberId: member2.id, month, amountDue: 120000, amountPaid: m2Paid, status: m2Paid >= 120000 ? "paid" : "partial", note: m2Paid < 120000 ? "Balance pending" : "" });
+    
+    // Member3: Irregular payments
+    if (m % 2 === 0) {
+      await storage.markPayment({ gymId, memberId: member3.id, month, amountDue: 100000, amountPaid: 100000, status: "paid" });
+    } else if (m > 0) {
+      await storage.markPayment({ gymId, memberId: member3.id, month, amountDue: 100000, amountPaid: 50000, status: "partial", note: "Promised to pay balance" });
+    }
+  }
+  
+  // Current month pending for members 4 & 5
+  const currentMonth = today.toISOString().slice(0, 7);
+  await storage.markPayment({ gymId, memberId: member4.id, month: currentMonth, amountDue: 100000, amountPaid: 0, status: "unpaid" });
+  await storage.markPayment({ gymId, memberId: member5.id, month: currentMonth, amountDue: 100000, amountPaid: 50000, status: "partial" });
+
+  // ===== BODY MEASUREMENTS (Monthly for 6 months) =====
+  for (let m = 5; m >= 0; m--) {
+    const measureDate = toDateStr(new Date(today.getFullYear(), today.getMonth() - m, 15));
+    
+    // Member1: Consistent progress (all values in integers - weight in grams for precision, measurements in mm)
+    await storage.createBodyMeasurement({
+      gymId, memberId: member1.id, recordedDate: measureDate,
+      weight: Math.round(78000 - m * 800), height: 178,
+      chest: Math.round(102 + m * 0.3), waist: Math.round(82 - m * 0.5),
+      hips: Math.round(98 - m * 0.2), biceps: Math.round(35 + m * 0.2),
+      thighs: Math.round(58 + m * 0.3), bodyFat: Math.round(18 - m * 0.4)
+    });
+    
+    // Member2: Moderate progress
+    if (m % 2 === 0) {
+      await storage.createBodyMeasurement({
+        gymId, memberId: member2.id, recordedDate: measureDate,
+        weight: Math.round(65000 - m * 300), height: 165,
+        chest: Math.round(88 + m * 0.2), waist: Math.round(72 - m * 0.3)
+      });
+    }
+  }
+
+  // ===== MEMBER NOTES =====
+  await storage.createMemberNote({ gymId, trainerId: trainer.id, memberId: member1.id, content: "Excellent form on deadlifts. Ready to increase weight next week." });
+  await storage.createMemberNote({ gymId, trainerId: trainer.id, memberId: member1.id, content: "Mentioned mild shoulder discomfort. Recommend lighter overhead work." });
+  await storage.createMemberNote({ gymId, trainerId: trainer.id, memberId: member2.id, content: "Needs motivation. Suggest group workout sessions." });
+  await storage.createMemberNote({ gymId, trainerId: trainer.id, memberId: member3.id, content: "Struggling with consistency. Set up reminder system." });
+
+  // ===== SOCIAL FEED POSTS (Various types over 14 days) =====
+  // Valid types: workout_complete, streak_milestone, new_member, achievement, manual
+  
+  // New member posts
+  await storage.createFeedPost({ gymId, userId: member4.id, type: "new_member", content: null, metadata: JSON.stringify({}) });
+  await storage.createFeedPost({ gymId, userId: member5.id, type: "new_member", content: null, metadata: JSON.stringify({}) });
+  
+  // Workout completion posts
+  for (let i = 7; i >= 0; i--) {
+    if (Math.random() < 0.7) {
+      await storage.createFeedPost({
+        gymId, userId: member1.id, type: "workout_complete", content: null,
+        metadata: JSON.stringify({ exerciseCount: 4, focusLabel: ["Push Day", "Pull Day", "Leg Day"][i % 3] })
+      });
+    }
+    if (Math.random() < 0.5) {
+      await storage.createFeedPost({
+        gymId, userId: member2.id, type: "workout_complete", content: null,
+        metadata: JSON.stringify({ exerciseCount: 3, focusLabel: ["Upper Body", "Lower Body"][i % 2] })
+      });
+    }
+  }
+  
+  // Streak milestone posts
   await storage.createFeedPost({
-    gymId,
-    userId: member1.id,
-    type: "workout_complete",
-    content: null,
-    metadata: JSON.stringify({ exerciseCount: 6, focusLabel: "Push Day" })
+    gymId, userId: member1.id, type: "streak_milestone", content: null,
+    metadata: JSON.stringify({ streakDays: 50, milestoneType: "workouts" })
+  });
+  await storage.createFeedPost({
+    gymId, userId: member1.id, type: "streak_milestone", content: null,
+    metadata: JSON.stringify({ streakDays: 14 })
+  });
+  await storage.createFeedPost({
+    gymId, userId: member2.id, type: "streak_milestone", content: null,
+    metadata: JSON.stringify({ streakDays: 7 })
   });
   
+  // Achievement posts
   await storage.createFeedPost({
-    gymId,
-    userId: member2.id,
-    type: "new_member",
-    content: null,
-    metadata: JSON.stringify({})
+    gymId, userId: member1.id, type: "achievement", content: null,
+    metadata: JSON.stringify({ type: "personal_record", exercise: "Bench Press", value: "60kg" })
   });
 
-  // Seed Tournament
-  const tournamentStart = today.toISOString().split("T")[0];
-  const tournamentEnd = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-  
-  const tournament = await storage.createTournament({
-    gymId,
-    createdByUserId: owner.id,
-    name: "New Year Fitness Challenge",
-    description: "Start the year strong! Complete as many workouts as possible.",
+  // Add reactions to feed posts
+  const allPosts = await storage.getFeedPosts(gymId, 20);
+  for (const post of allPosts.slice(0, 10)) {
+    const reactions = ["like", "fire", "muscle", "clap"];
+    const reactors = [member1, member2, member3, trainer, owner];
+    
+    for (const reactor of reactors) {
+      if (reactor.id !== post.userId && Math.random() < 0.4) {
+        await storage.addFeedReaction({
+          postId: post.id,
+          userId: reactor.id,
+          reactionType: reactions[Math.floor(Math.random() * reactions.length)]
+        });
+      }
+    }
+  }
+
+  // Add comments to some posts
+  if (allPosts.length > 0) {
+    await storage.addFeedComment({ postId: allPosts[0].id, userId: trainer.id, content: "Great work! Keep it up!" });
+    await storage.addFeedComment({ postId: allPosts[0].id, userId: member2.id, content: "Inspiring!" });
+  }
+  if (allPosts.length > 2) {
+    await storage.addFeedComment({ postId: allPosts[2].id, userId: owner.id, content: "Proud of your progress!" });
+  }
+
+  // ===== TOURNAMENTS =====
+  // Active tournament
+  const activeTournament = await storage.createTournament({
+    gymId, createdByUserId: owner.id,
+    name: "January Fitness Challenge",
+    description: "Complete as many workouts as possible this month! Top 3 winners get prizes.",
     metricType: "workout_count",
-    startDate: tournamentStart,
-    endDate: tournamentEnd,
+    startDate: toDateStr(daysAgo(10)),
+    endDate: toDateStr(daysFromNow(20)),
     status: "active",
-    prizeDescription: "1 Month Free Membership",
+    prizeDescription: "1st: 1 Month Free | 2nd: 50% Off | 3rd: Free T-Shirt",
+    maxParticipants: 30,
+    isPublic: true
+  });
+  await storage.joinTournament({ tournamentId: activeTournament.id, userId: member1.id, currentScore: 0 });
+  await storage.joinTournament({ tournamentId: activeTournament.id, userId: member2.id, currentScore: 0 });
+  await storage.joinTournament({ tournamentId: activeTournament.id, userId: member3.id, currentScore: 0 });
+  await storage.joinTournament({ tournamentId: activeTournament.id, userId: member4.id, currentScore: 0 });
+  await storage.updateTournamentScores(activeTournament.id);
+
+  // Completed tournament
+  const completedTournament = await storage.createTournament({
+    gymId, createdByUserId: owner.id,
+    name: "December Attendance Challenge",
+    description: "Most gym attendance days wins!",
+    metricType: "attendance_days",
+    startDate: toDateStr(daysAgo(45)),
+    endDate: toDateStr(daysAgo(15)),
+    status: "completed",
+    prizeDescription: "Gift Voucher Worth Rs. 2000",
     maxParticipants: 50,
     isPublic: true
   });
-  
-  // Add participants
-  await storage.joinTournament({ tournamentId: tournament.id, userId: member1.id, currentScore: 0 });
-  await storage.joinTournament({ tournamentId: tournament.id, userId: member2.id, currentScore: 0 });
+  await storage.joinTournament({ tournamentId: completedTournament.id, userId: member1.id, currentScore: 0 });
+  await storage.joinTournament({ tournamentId: completedTournament.id, userId: member2.id, currentScore: 0 });
+  await storage.updateTournamentScores(completedTournament.id);
 
-  console.log("Seed complete! Gym Code: DEMO01");
-  console.log("Users: owner/password123, trainer/password123, member1/password123, member2/password123");
+  // Upcoming tournament
+  const upcomingTournament = await storage.createTournament({
+    gymId, createdByUserId: trainer.id,
+    name: "February Exercise Marathon",
+    description: "Complete the most total exercises across all your workouts!",
+    metricType: "total_exercises",
+    startDate: toDateStr(daysFromNow(15)),
+    endDate: toDateStr(daysFromNow(45)),
+    status: "upcoming",
+    prizeDescription: "Personal Training Session + Protein Pack",
+    maxParticipants: 25,
+    isPublic: true
+  });
+  await storage.joinTournament({ tournamentId: upcomingTournament.id, userId: member1.id, currentScore: 0 });
+  await storage.joinTournament({ tournamentId: upcomingTournament.id, userId: member2.id, currentScore: 0 });
+
+  // ===== ANNOUNCEMENTS =====
+  await storage.createAnnouncement({
+    gymId, createdByOwnerId: owner.id,
+    title: "New Year Schedule Changes",
+    body: "Starting January 15th, we will have extended hours on weekends (7 AM - 10 PM). Happy New Year!",
+    audience: "everyone"
+  });
+  await storage.createAnnouncement({
+    gymId, createdByOwnerId: owner.id,
+    title: "Equipment Maintenance",
+    body: "The cable machines will be under maintenance on Thursday. Please plan accordingly.",
+    audience: "everyone"
+  });
+  await storage.createAnnouncement({
+    gymId, createdByOwnerId: owner.id,
+    title: "Group HIIT Class This Saturday",
+    body: "Join us for an intense HIIT session at 9 AM. All fitness levels welcome!",
+    audience: "members"
+  });
+
+  // ===== WORKOUT TEMPLATES =====
+  const template1 = await storage.createWorkoutTemplate({
+    gymId, trainerId: trainer.id,
+    name: "Beginner Full Body",
+    cycleLength: 1,
+    description: "Perfect for newcomers - covers all major muscle groups"
+  });
+  await storage.createWorkoutTemplateItems([
+    { templateId: template1.id, dayIndex: 0, exerciseName: "Goblet Squat", sets: 3, reps: 12, weight: "10kg", orderIndex: 0, muscleType: "Legs", bodyPart: "Lower Body" },
+    { templateId: template1.id, dayIndex: 0, exerciseName: "Push-ups", sets: 3, reps: 10, weight: "BW", orderIndex: 1, muscleType: "Chest", bodyPart: "Upper Body" },
+    { templateId: template1.id, dayIndex: 0, exerciseName: "Lat Pulldown", sets: 3, reps: 12, weight: "30kg", orderIndex: 2, muscleType: "Back", bodyPart: "Upper Body" },
+    { templateId: template1.id, dayIndex: 0, exerciseName: "Plank", sets: 3, reps: 30, weight: "BW", orderIndex: 3, muscleType: "Core", bodyPart: "Core" },
+  ]);
+
+  const template2 = await storage.createWorkoutTemplate({
+    gymId, trainerId: trainer.id,
+    name: "Intermediate PPL",
+    cycleLength: 3,
+    description: "Push-Pull-Legs split for intermediate lifters"
+  });
+  await storage.createWorkoutTemplateItems([
+    { templateId: template2.id, dayIndex: 0, exerciseName: "Bench Press", sets: 4, reps: 8, weight: "50kg", orderIndex: 0, muscleType: "Chest", bodyPart: "Upper Body" },
+    { templateId: template2.id, dayIndex: 0, exerciseName: "Overhead Press", sets: 3, reps: 10, weight: "25kg", orderIndex: 1, muscleType: "Shoulders", bodyPart: "Upper Body" },
+    { templateId: template2.id, dayIndex: 1, exerciseName: "Deadlift", sets: 4, reps: 6, weight: "80kg", orderIndex: 0, muscleType: "Back", bodyPart: "Full Body" },
+    { templateId: template2.id, dayIndex: 1, exerciseName: "Barbell Row", sets: 4, reps: 8, weight: "45kg", orderIndex: 1, muscleType: "Back", bodyPart: "Upper Body" },
+    { templateId: template2.id, dayIndex: 2, exerciseName: "Squats", sets: 4, reps: 8, weight: "70kg", orderIndex: 0, muscleType: "Legs", bodyPart: "Lower Body" },
+    { templateId: template2.id, dayIndex: 2, exerciseName: "Leg Press", sets: 3, reps: 12, weight: "100kg", orderIndex: 1, muscleType: "Legs", bodyPart: "Lower Body" },
+  ]);
+
+  console.log("=".repeat(60));
+  console.log("COMPREHENSIVE DEMO DATA SEEDED SUCCESSFULLY!");
+  console.log("=".repeat(60));
+  console.log("Gym Code: DEMO01");
+  console.log("");
+  console.log("Users (all passwords: password123):");
+  console.log("  - owner    : Gym Owner with full access");
+  console.log("  - trainer  : Primary trainer (5 members, 2 starred)");
+  console.log("  - trainer2 : Secondary trainer (2 members)");
+  console.log("  - member1  : Star member, very active (60 days history)");
+  console.log("  - member2  : Star member, moderate activity");
+  console.log("  - member3  : Inconsistent attendance");
+  console.log("  - member4  : New member, no workout cycle");
+  console.log("  - member5  : New member, minimal activity");
+  console.log("");
+  console.log("Features seeded:");
+  console.log("  - Workout Points: 60+ days of completion data");
+  console.log("  - Attendance: Mixed patterns (present/partial/missed)");
+  console.log("  - Payments: 6 months history (paid/partial/unpaid)");
+  console.log("  - Body Measurements: 6 months progress tracking");
+  console.log("  - Social Feed: Workout posts, milestones, reactions, comments");
+  console.log("  - Tournaments: 1 active, 1 completed, 1 upcoming");
+  console.log("  - Announcements: 3 announcements with priorities");
+  console.log("  - Templates: 2 workout templates ready to assign");
+  console.log("  - Member Notes: Trainer notes on members");
+  console.log("=".repeat(60));
 }
