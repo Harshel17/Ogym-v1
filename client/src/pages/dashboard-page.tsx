@@ -12,7 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { Link, useLocation } from "wouter";
 
 function getGreeting() {
@@ -933,6 +933,29 @@ type CalendarDayData = {
   missed: { name: string; sets: number; reps: number; weight: string | null }[];
 };
 
+type DailyAnalytics = {
+  date: string;
+  totalExercises: number;
+  completedCount: number;
+  missedCount: number;
+  totalVolume: number;
+  muscleBreakdown: { muscle: string; count: number; volume: number }[];
+  exercises: {
+    name: string;
+    muscle: string;
+    sets: number;
+    reps: number;
+    weight: string | null;
+    completed: boolean;
+    volume: number;
+  }[];
+};
+
+const MUSCLE_COLORS = [
+  "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981", "#ec4899", 
+  "#6366f1", "#14b8a6", "#f97316", "#22c55e", "#a855f7"
+];
+
 function MemberCalendarWidget() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -942,6 +965,11 @@ function MemberCalendarWidget() {
   
   const { data: calendarData = [] } = useQuery<CalendarDayData[]>({
     queryKey: [`/api/me/calendar/enhanced?month=${monthStr}`],
+  });
+
+  const { data: dailyAnalytics, isLoading: analyticsLoading } = useQuery<DailyAnalytics>({
+    queryKey: [`/api/me/workout/daily/${selectedDate}`],
+    enabled: !!selectedDate,
   });
 
   const calendarMap = new Map(calendarData.map(d => [d.date, d]));
@@ -998,6 +1026,11 @@ function MemberCalendarWidget() {
       default:
         return null;
     }
+  };
+
+  const formatVolume = (volume: number) => {
+    if (volume >= 1000) return `${(volume / 1000).toFixed(1)}k kg`;
+    return `${volume.toFixed(0)} kg`;
   };
 
   return (
@@ -1064,74 +1097,150 @@ function MemberCalendarWidget() {
       </CardContent>
 
       <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
-        <DialogContent className="max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Dumbbell className="w-5 h-5" />
-              {selectedDate && format(new Date(selectedDate), "MMMM d, yyyy")}
+              {selectedDate && format(new Date(selectedDate), "EEEE, MMMM d, yyyy")}
             </DialogTitle>
             <DialogDescription>
-              {selectedDayData?.status === "present" && "You completed your workout this day"}
-              {selectedDayData?.status === "absent" && "You missed your scheduled workout"}
-              {selectedDayData?.status === "rest" && "Rest day - no workout scheduled"}
+              {selectedDayData?.status === "present" && "Workout completed"}
+              {selectedDayData?.status === "absent" && "Workout missed"}
+              {selectedDayData?.status === "rest" && "Rest day"}
             </DialogDescription>
           </DialogHeader>
-          {selectedDayData && (
+          
+          {analyticsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+            </div>
+          ) : dailyAnalytics && dailyAnalytics.completedCount > 0 ? (
             <div className="space-y-4">
-              {selectedDayData.completed.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm flex items-center gap-2 text-green-600 dark:text-green-400">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Completed Exercises ({selectedDayData.completed.length})
-                  </h4>
-                  <div className="space-y-1">
-                    {selectedDayData.completed.map((exercise, i) => (
-                      <div key={i} className="p-2 bg-green-50 dark:bg-green-900/20 rounded-md text-sm flex items-center justify-between">
-                        <span className="font-medium">{exercise.name}</span>
-                        <span className="text-muted-foreground">
-                          {exercise.sets}x{exercise.reps} {exercise.weight ? `@ ${exercise.weight}` : ''}
-                        </span>
-                      </div>
-                    ))}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{dailyAnalytics.completedCount}</p>
+                  <p className="text-xs text-muted-foreground">Completed</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">{dailyAnalytics.missedCount}</p>
+                  <p className="text-xs text-muted-foreground">Missed</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-2xl font-bold">{formatVolume(dailyAnalytics.totalVolume)}</p>
+                  <p className="text-xs text-muted-foreground">Volume</p>
+                </div>
+              </div>
+
+              {dailyAnalytics.muscleBreakdown.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-sm mb-2">Muscle Groups Trained</h4>
+                  <div className="flex items-center gap-4">
+                    <div className="w-32 h-32">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={dailyAnalytics.muscleBreakdown}
+                            dataKey="count"
+                            nameKey="muscle"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={25}
+                            outerRadius={50}
+                            paddingAngle={2}
+                          >
+                            {dailyAnalytics.muscleBreakdown.map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={MUSCLE_COLORS[index % MUSCLE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      {dailyAnalytics.muscleBreakdown.map((item, index) => (
+                        <div key={item.muscle} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <span 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: MUSCLE_COLORS[index % MUSCLE_COLORS.length] }}
+                            />
+                            <span>{item.muscle}</span>
+                          </div>
+                          <span className="text-muted-foreground">{item.count} exercises</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
-              
+
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Exercise Details</h4>
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {dailyAnalytics.exercises.map((exercise, i) => (
+                    <div 
+                      key={i} 
+                      className={`p-2 rounded-md text-sm flex items-center justify-between ${
+                        exercise.completed 
+                          ? 'bg-green-50 dark:bg-green-900/20' 
+                          : 'bg-red-50 dark:bg-red-900/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {exercise.completed ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                        )}
+                        <div>
+                          <span className="font-medium">{exercise.name}</span>
+                          <span className="text-xs text-muted-foreground ml-2">({exercise.muscle})</span>
+                        </div>
+                      </div>
+                      <span className="text-muted-foreground text-xs">
+                        {exercise.sets}x{exercise.reps} {exercise.weight ? `@ ${exercise.weight}` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : selectedDayData?.status === "absent" ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg text-center">
+                <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400 mx-auto mb-2" />
+                <p className="font-medium">Workout was scheduled but not completed</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {selectedDayData.missed.length} exercises were missed
+                </p>
+              </div>
               {selectedDayData.missed.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm flex items-center gap-2 text-red-600 dark:text-red-400">
-                    <AlertCircle className="w-4 h-4" />
-                    Missed Exercises ({selectedDayData.missed.length})
-                  </h4>
-                  <div className="space-y-1">
-                    {selectedDayData.missed.map((exercise, i) => (
-                      <div key={i} className="p-2 bg-red-50 dark:bg-red-900/20 rounded-md text-sm flex items-center justify-between">
-                        <span className="font-medium">{exercise.name}</span>
-                        <span className="text-muted-foreground">
-                          {exercise.sets}x{exercise.reps} {exercise.weight ? `@ ${exercise.weight}` : ''}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="space-y-1">
+                  {selectedDayData.missed.map((exercise, i) => (
+                    <div key={i} className="p-2 bg-red-50 dark:bg-red-900/20 rounded-md text-sm flex items-center justify-between">
+                      <span className="font-medium">{exercise.name}</span>
+                      <span className="text-muted-foreground">
+                        {exercise.sets}x{exercise.reps} {exercise.weight ? `@ ${exercise.weight}` : ''}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
-              
-              {selectedDayData.completed.length === 0 && selectedDayData.missed.length === 0 && (
-                <div className="text-center py-4 text-muted-foreground">
-                  <p>No workout was scheduled for this day.</p>
-                </div>
-              )}
-              
-              <Button 
-                className="w-full" 
-                variant="outline"
-                onClick={() => navigate("/progress/workouts")}
-                data-testid="button-view-session"
-              >
-                View Full Workout History
-              </Button>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No workout was scheduled for this day.</p>
             </div>
           )}
+          
+          <Button 
+            className="w-full" 
+            variant="outline"
+            onClick={() => navigate("/progress/workouts")}
+            data-testid="button-view-history"
+          >
+            View Full Workout History
+          </Button>
         </DialogContent>
       </Dialog>
     </Card>

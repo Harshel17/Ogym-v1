@@ -198,6 +198,23 @@ export interface IStorage {
     completed: { name: string; sets: number; reps: number; weight: string | null }[];
     missed: { name: string; sets: number; reps: number; weight: string | null }[];
   }[]>;
+  getMemberDailyAnalytics(gymId: number, memberId: number, date: string): Promise<{
+    date: string;
+    totalExercises: number;
+    completedCount: number;
+    missedCount: number;
+    totalVolume: number;
+    muscleBreakdown: { muscle: string; count: number; volume: number }[];
+    exercises: {
+      name: string;
+      muscle: string;
+      sets: number;
+      reps: number;
+      weight: string | null;
+      completed: boolean;
+      volume: number;
+    }[];
+  }>;
   
   // Owner Dashboard & Attendance Analytics
   getOwnerDashboardMetrics(gymId: number): Promise<{
@@ -1670,6 +1687,126 @@ export class DatabaseStorage implements IStorage {
     }
 
     return result;
+  }
+
+  async getMemberDailyAnalytics(gymId: number, memberId: number, date: string): Promise<{
+    date: string;
+    totalExercises: number;
+    completedCount: number;
+    missedCount: number;
+    totalVolume: number;
+    muscleBreakdown: { muscle: string; count: number; volume: number }[];
+    exercises: {
+      name: string;
+      muscle: string;
+      sets: number;
+      reps: number;
+      weight: string | null;
+      completed: boolean;
+      volume: number;
+    }[];
+  }> {
+    const completions = await db.select({
+      completion: workoutCompletions,
+      item: workoutItems
+    })
+    .from(workoutCompletions)
+    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .where(and(
+      eq(workoutCompletions.memberId, memberId),
+      eq(workoutCompletions.completedDate, date)
+    ));
+
+    const memberCycle = await db.select()
+      .from(workoutCycles)
+      .where(and(eq(workoutCycles.gymId, gymId), eq(workoutCycles.memberId, memberId)))
+      .limit(1);
+
+    let scheduledItems: typeof workoutItems.$inferSelect[] = [];
+    let dayIndex = -1;
+
+    if (memberCycle.length > 0) {
+      const cycle = memberCycle[0];
+      const cycleStart = new Date(cycle.startDate);
+      const currentDate = new Date(date);
+      const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const withinStart = daysDiff >= 0;
+      const withinEnd = !cycle.endDate || date <= cycle.endDate;
+      
+      if (withinStart && withinEnd) {
+        dayIndex = daysDiff % cycle.daysPerCycle;
+        scheduledItems = await db.select()
+          .from(workoutItems)
+          .where(and(eq(workoutItems.cycleId, cycle.id), eq(workoutItems.dayIndex, dayIndex)))
+          .orderBy(workoutItems.orderIndex);
+      }
+    }
+
+    const completedIds = new Set(completions.map(c => c.completion.workoutItemId));
+    const muscleMap = new Map<string, { count: number; volume: number }>();
+    const exercises: {
+      name: string;
+      muscle: string;
+      sets: number;
+      reps: number;
+      weight: string | null;
+      completed: boolean;
+      volume: number;
+    }[] = [];
+
+    let totalVolume = 0;
+
+    for (const { completion, item } of completions) {
+      const sets = completion.actualSets || item.sets;
+      const reps = completion.actualReps || item.reps;
+      const weight = parseFloat((completion.actualWeight || item.weight || "0").replace(/[^\d.]/g, "")) || 0;
+      const volume = sets * reps * weight;
+      totalVolume += volume;
+
+      const existing = muscleMap.get(item.muscleType) || { count: 0, volume: 0 };
+      muscleMap.set(item.muscleType, { count: existing.count + 1, volume: existing.volume + volume });
+
+      exercises.push({
+        name: item.exerciseName,
+        muscle: item.muscleType,
+        sets,
+        reps,
+        weight: completion.actualWeight || item.weight,
+        completed: true,
+        volume
+      });
+    }
+
+    for (const item of scheduledItems) {
+      if (!completedIds.has(item.id)) {
+        exercises.push({
+          name: item.exerciseName,
+          muscle: item.muscleType,
+          sets: item.sets,
+          reps: item.reps,
+          weight: item.weight,
+          completed: false,
+          volume: 0
+        });
+      }
+    }
+
+    const muscleBreakdown = Array.from(muscleMap.entries()).map(([muscle, data]) => ({
+      muscle,
+      count: data.count,
+      volume: data.volume
+    })).sort((a, b) => b.count - a.count);
+
+    return {
+      date,
+      totalExercises: scheduledItems.length || completions.length,
+      completedCount: completions.length,
+      missedCount: Math.max(0, scheduledItems.length - completions.length),
+      totalVolume,
+      muscleBreakdown,
+      exercises
+    };
   }
 
   // Owner Dashboard & Attendance Analytics

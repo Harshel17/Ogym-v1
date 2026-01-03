@@ -773,6 +773,16 @@ export async function registerRoutes(
     res.json(calendar);
   });
 
+  app.get("/api/me/workout/daily/:date", requireRole(["member"]), async (req, res) => {
+    const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format");
+    const result = dateSchema.safeParse(req.params.date);
+    if (!result.success) {
+      return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD" });
+    }
+    const analytics = await storage.getMemberDailyAnalytics(req.user!.gymId!, req.user!.id, result.data);
+    res.json(analytics);
+  });
+
   // Daily workout summary with date filtering
   app.get("/api/me/workouts/daily", requireRole(["member"]), async (req, res) => {
     const startDate = req.query.startDate as string | undefined;
