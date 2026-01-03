@@ -239,11 +239,35 @@ function GymRequestsTab() {
   );
 }
 
+type GymProfile = {
+  gym: { id: number; name: string; code: string };
+  members: { id: number; username: string; email: string | null; phone: string | null; publicId: string | null }[];
+  trainers: { id: number; username: string; email: string | null; phone: string | null; publicId: string | null }[];
+  memberCount: number;
+  trainerCount: number;
+};
+
 function GymsTab() {
+  const [selectedGymId, setSelectedGymId] = useState<number | null>(null);
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [showList, setShowList] = useState<"members" | "trainers" | null>(null);
+
   const { data: gyms = [], isLoading } = useQuery<GymDetails[]>({
     queryKey: ["/api/admin/all-gyms"],
     queryFn: () => adminFetch("/api/admin/all-gyms"),
   });
+
+  const { data: profile, isLoading: profileLoading } = useQuery<GymProfile>({
+    queryKey: ["/api/admin/gyms", selectedGymId, "profile"],
+    queryFn: () => adminFetch(`/api/admin/gyms/${selectedGymId}/profile`),
+    enabled: !!selectedGymId && showProfileDialog,
+  });
+
+  const handleGymClick = (gymId: number) => {
+    setSelectedGymId(gymId);
+    setShowList(null);
+    setShowProfileDialog(true);
+  };
 
   if (isLoading) {
     return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -265,7 +289,12 @@ function GymsTab() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {gyms.map((gym) => (
-            <Card key={gym.id} data-testid={`card-gym-${gym.id}`}>
+            <Card 
+              key={gym.id} 
+              data-testid={`card-gym-${gym.id}`}
+              className="cursor-pointer hover-elevate"
+              onClick={() => handleGymClick(gym.id)}
+            >
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">{gym.name}</CardTitle>
                 <CardDescription>Code: {gym.code}</CardDescription>
@@ -306,6 +335,85 @@ function GymsTab() {
           ))}
         </div>
       )}
+
+      <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{profile?.gym.name || "Gym Profile"}</DialogTitle>
+            <DialogDescription>
+              {profile?.gym.code ? `Code: ${profile.gym.code}` : "Loading..."}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {profileLoading ? (
+            <div className="flex justify-center p-4">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : profile ? (
+            <div className="space-y-4">
+              {showList === null ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <Card 
+                    className="cursor-pointer hover-elevate"
+                    onClick={() => setShowList("members")}
+                    data-testid="button-view-members"
+                  >
+                    <CardContent className="p-4 text-center">
+                      <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-2xl font-bold">{profile.memberCount}</p>
+                      <p className="text-sm text-muted-foreground">Members</p>
+                    </CardContent>
+                  </Card>
+                  <Card 
+                    className="cursor-pointer hover-elevate"
+                    onClick={() => setShowList("trainers")}
+                    data-testid="button-view-trainers"
+                  >
+                    <CardContent className="p-4 text-center">
+                      <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-2xl font-bold">{profile.trainerCount}</p>
+                      <p className="text-sm text-muted-foreground">Trainers</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-medium">
+                      {showList === "members" ? "Members" : "Trainers"} ({showList === "members" ? profile.memberCount : profile.trainerCount})
+                    </h3>
+                    <Button variant="ghost" size="sm" onClick={() => setShowList(null)}>
+                      Back
+                    </Button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {(showList === "members" ? profile.members : profile.trainers).map((user) => (
+                      <div 
+                        key={user.id} 
+                        className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/50"
+                        data-testid={`user-item-${user.id}`}
+                      >
+                        <div>
+                          <p className="font-medium">{user.username}</p>
+                          <p className="text-xs text-muted-foreground">{user.publicId || `ID: ${user.id}`}</p>
+                        </div>
+                        {user.email && (
+                          <p className="text-xs text-muted-foreground truncate max-w-[120px]">{user.email}</p>
+                        )}
+                      </div>
+                    ))}
+                    {(showList === "members" ? profile.members : profile.trainers).length === 0 && (
+                      <p className="text-center text-muted-foreground py-4">
+                        No {showList} yet
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

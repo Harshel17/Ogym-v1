@@ -1635,6 +1635,27 @@ export async function registerRoutes(
     res.json(gyms);
   });
   
+  app.get("/api/admin/gyms/:gymId/profile", requireAdmin, async (req, res) => {
+    try {
+      const gymId = parseInt(req.params.gymId);
+      const gym = await storage.getGym(gymId);
+      if (!gym) {
+        return res.status(404).json({ message: "Gym not found" });
+      }
+      const members = await storage.getGymMembers(gymId);
+      const trainers = await storage.getGymTrainers(gymId);
+      res.json({
+        gym,
+        members: members.map(m => ({ id: m.id, username: m.username, email: m.email, phone: m.phone, publicId: m.publicId })),
+        trainers: trainers.map(t => ({ id: t.id, username: t.username, email: t.email, phone: t.phone, publicId: t.publicId })),
+        memberCount: members.length,
+        trainerCount: trainers.length,
+      });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch gym profile" });
+    }
+  });
+  
   // Admin approve gym request
   app.post("/api/admin/gym-requests/:id/approve", requireAdmin, async (req, res) => {
     try {
