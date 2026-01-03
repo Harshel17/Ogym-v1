@@ -2,7 +2,7 @@ import {
   users, gyms, attendance, payments, trainerMembers, trainerMemberAssignments, workoutCycles, workoutItems, workoutCompletions, memberRequests,
   gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests, announcements, userNotificationPreferences, announcementReads,
   membershipPlans, memberSubscriptions, paymentTransactions, workoutSessions, workoutSessionExercises,
-  gymRequests, joinRequests, gymSubscriptions,
+  gymRequests, joinRequests, gymSubscriptions, workoutTemplates, workoutTemplateItems, bodyMeasurements, memberNotes,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
@@ -26,7 +26,11 @@ import {
   type WorkoutSessionExercise, type InsertWorkoutSessionExercise,
   type GymRequest, type InsertGymRequest,
   type JoinRequest, type InsertJoinRequest,
-  type GymSubscription, type InsertGymSubscription
+  type GymSubscription, type InsertGymSubscription,
+  type WorkoutTemplate, type InsertWorkoutTemplate,
+  type WorkoutTemplateItem, type InsertWorkoutTemplateItem,
+  type BodyMeasurement, type InsertBodyMeasurement,
+  type MemberNote, type InsertMemberNote
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, sql, isNull } from "drizzle-orm";
@@ -352,6 +356,24 @@ export interface IStorage {
   getGymSubscription(gymId: number): Promise<GymSubscription | null>;
   getAllGymSubscriptions(): Promise<(GymSubscription & { gymName: string })[]>;
   upsertGymSubscription(gymId: number, data: Partial<InsertGymSubscription>): Promise<GymSubscription>;
+  
+  // Workout Templates
+  getWorkoutTemplates(gymId: number, trainerId: number): Promise<WorkoutTemplate[]>;
+  getWorkoutTemplate(templateId: number): Promise<(WorkoutTemplate & { items: WorkoutTemplateItem[] }) | null>;
+  createWorkoutTemplate(data: InsertWorkoutTemplate): Promise<WorkoutTemplate>;
+  createWorkoutTemplateItems(items: InsertWorkoutTemplateItem[]): Promise<WorkoutTemplateItem[]>;
+  deleteWorkoutTemplate(templateId: number, trainerId: number): Promise<void>;
+  assignTemplateToMember(templateId: number, memberId: number, startDate: string, endDate: string, gymId: number, trainerId: number): Promise<WorkoutCycle>;
+  
+  // Body Measurements
+  getBodyMeasurements(gymId: number, memberId: number): Promise<BodyMeasurement[]>;
+  getLatestBodyMeasurement(gymId: number, memberId: number): Promise<BodyMeasurement | null>;
+  createBodyMeasurement(data: InsertBodyMeasurement): Promise<BodyMeasurement>;
+  
+  // Member Notes
+  getMemberNotes(gymId: number, trainerId: number, memberId: number): Promise<MemberNote[]>;
+  createMemberNote(data: InsertMemberNote): Promise<MemberNote>;
+  deleteMemberNote(noteId: number, trainerId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2919,6 +2941,126 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return created;
     }
+  }
+  
+  // === Workout Templates Methods ===
+  async getWorkoutTemplates(gymId: number, trainerId: number): Promise<WorkoutTemplate[]> {
+    return await db.select().from(workoutTemplates)
+      .where(and(
+        eq(workoutTemplates.gymId, gymId),
+        eq(workoutTemplates.trainerId, trainerId),
+        eq(workoutTemplates.isActive, true)
+      ))
+      .orderBy(desc(workoutTemplates.createdAt));
+  }
+  
+  async getWorkoutTemplate(templateId: number): Promise<(WorkoutTemplate & { items: WorkoutTemplateItem[] }) | null> {
+    const [template] = await db.select().from(workoutTemplates).where(eq(workoutTemplates.id, templateId));
+    if (!template) return null;
+    
+    const items = await db.select().from(workoutTemplateItems)
+      .where(eq(workoutTemplateItems.templateId, templateId))
+      .orderBy(workoutTemplateItems.dayIndex, workoutTemplateItems.orderIndex);
+    
+    return { ...template, items };
+  }
+  
+  async createWorkoutTemplate(data: InsertWorkoutTemplate): Promise<WorkoutTemplate> {
+    const [template] = await db.insert(workoutTemplates).values(data).returning();
+    return template;
+  }
+  
+  async createWorkoutTemplateItems(items: InsertWorkoutTemplateItem[]): Promise<WorkoutTemplateItem[]> {
+    if (items.length === 0) return [];
+    const created = await db.insert(workoutTemplateItems).values(items).returning();
+    return created;
+  }
+  
+  async deleteWorkoutTemplate(templateId: number, trainerId: number): Promise<void> {
+    await db.update(workoutTemplates)
+      .set({ isActive: false })
+      .where(and(
+        eq(workoutTemplates.id, templateId),
+        eq(workoutTemplates.trainerId, trainerId)
+      ));
+  }
+  
+  async assignTemplateToMember(templateId: number, memberId: number, startDate: string, endDate: string, gymId: number, trainerId: number): Promise<WorkoutCycle> {
+    const template = await this.getWorkoutTemplate(templateId);
+    if (!template) throw new Error("Template not found");
+    
+    const [cycle] = await db.insert(workoutCycles).values({
+      gymId,
+      trainerId,
+      memberId,
+      name: template.name,
+      cycleLength: template.daysPerCycle,
+      dayLabels: template.dayLabels,
+      startDate,
+      endDate,
+      isActive: true
+    }).returning();
+    
+    if (template.items.length > 0) {
+      const itemsToInsert = template.items.map(item => ({
+        cycleId: cycle.id,
+        dayIndex: item.dayIndex,
+        muscleType: item.muscleType,
+        bodyPart: item.bodyPart,
+        exerciseName: item.exerciseName,
+        sets: item.sets,
+        reps: item.reps,
+        weight: item.weight,
+        orderIndex: item.orderIndex
+      }));
+      await db.insert(workoutItems).values(itemsToInsert);
+    }
+    
+    return cycle;
+  }
+  
+  // Body Measurements
+  async getBodyMeasurements(gymId: number, memberId: number): Promise<BodyMeasurement[]> {
+    return await db.select()
+      .from(bodyMeasurements)
+      .where(and(eq(bodyMeasurements.gymId, gymId), eq(bodyMeasurements.memberId, memberId)))
+      .orderBy(desc(bodyMeasurements.recordedDate));
+  }
+  
+  async getLatestBodyMeasurement(gymId: number, memberId: number): Promise<BodyMeasurement | null> {
+    const [measurement] = await db.select()
+      .from(bodyMeasurements)
+      .where(and(eq(bodyMeasurements.gymId, gymId), eq(bodyMeasurements.memberId, memberId)))
+      .orderBy(desc(bodyMeasurements.recordedDate))
+      .limit(1);
+    return measurement || null;
+  }
+  
+  async createBodyMeasurement(data: InsertBodyMeasurement): Promise<BodyMeasurement> {
+    const [measurement] = await db.insert(bodyMeasurements).values(data).returning();
+    return measurement;
+  }
+  
+  // Member Notes
+  async getMemberNotes(gymId: number, trainerId: number, memberId: number): Promise<MemberNote[]> {
+    return await db.select()
+      .from(memberNotes)
+      .where(and(
+        eq(memberNotes.gymId, gymId),
+        eq(memberNotes.trainerId, trainerId),
+        eq(memberNotes.memberId, memberId)
+      ))
+      .orderBy(desc(memberNotes.createdAt));
+  }
+  
+  async createMemberNote(data: InsertMemberNote): Promise<MemberNote> {
+    const [note] = await db.insert(memberNotes).values(data).returning();
+    return note;
+  }
+  
+  async deleteMemberNote(noteId: number, trainerId: number): Promise<void> {
+    await db.delete(memberNotes)
+      .where(and(eq(memberNotes.id, noteId), eq(memberNotes.trainerId, trainerId)));
   }
 }
 

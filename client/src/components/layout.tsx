@@ -16,7 +16,9 @@ import {
   ArrowRightLeft,
   Megaphone,
   Building2,
-  UserPlus
+  UserPlus,
+  Scale,
+  FileText
 } from "lucide-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -93,6 +95,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       visible: isTrainer
     },
     { 
+      label: "Templates", 
+      href: "/templates", 
+      icon: FileText,
+      visible: isTrainer
+    },
+    { 
       label: "My Workout", 
       href: "/my-workout", 
       icon: Dumbbell,
@@ -108,6 +116,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "My Diet Plan", 
       href: "/my-diet-plan", 
       icon: Utensils,
+      visible: isMember
+    },
+    { 
+      label: "My Body", 
+      href: "/my-body", 
+      icon: Scale,
       visible: isMember
     },
     { 

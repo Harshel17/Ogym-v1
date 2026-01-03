@@ -19,10 +19,12 @@ import WorkoutHistoryPage from "@/pages/workout-history-page";
 import StatsPage from "@/pages/stats-page";
 import RequestsPage from "@/pages/requests-page";
 import ProfilePage from "@/pages/profile-page";
+import MyBodyPage from "@/pages/my-body-page";
 import StarMembersPage from "@/pages/star-members-page";
 import StarMemberDetailPage from "@/pages/star-member-detail-page";
 import DietPlansPage from "@/pages/diet-plans-page";
 import MyDietPlanPage from "@/pages/my-diet-plan-page";
+import WorkoutTemplatesPage from "@/pages/workout-templates-page";
 import TransfersPage from "@/pages/transfers-page";
 import MissedWorkoutsPage from "@/pages/missed-workouts-page";
 import OwnerAttendancePage from "@/pages/owner-attendance-page";
@@ -139,6 +141,10 @@ function Router() {
         <ProtectedRoute component={ProfilePage} />
       </Route>
 
+      <Route path="/my-body">
+        <ProtectedRoute component={MyBodyPage} requiredRole="member" />
+      </Route>
+
       <Route path="/star-members/:memberId">
         <ProtectedRoute component={StarMemberDetailPage} />
       </Route>
@@ -149,6 +155,10 @@ function Router() {
 
       <Route path="/diet-plans">
         <ProtectedRoute component={DietPlansPage} />
+      </Route>
+
+      <Route path="/templates">
+        <ProtectedRoute component={WorkoutTemplatesPage} requiredRole="trainer" />
       </Route>
 
       <Route path="/my-diet-plan">

@@ -9,8 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { 
   ArrowLeft, Star, Calendar, Dumbbell, TrendingUp, 
   Flame, Activity, Weight, ChevronRight, Loader2, Shield,
-  CheckCircle2, XCircle, AlertCircle, Clock
+  CheckCircle2, XCircle, AlertCircle, Clock, StickyNote, Plus, Trash2
 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
 
@@ -69,11 +74,19 @@ type MemberStats = {
   }[];
 };
 
+type MemberNote = {
+  id: number;
+  content: string;
+  createdAt: string;
+};
+
 export default function StarMemberDetailPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const params = useParams<{ memberId: string }>();
   const memberId = parseInt(params.memberId || "0");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [newNote, setNewNote] = useState("");
 
   const { data: memberInfo, isLoading: memberLoading, error: memberError } = useQuery<MemberInfo>({
     queryKey: ["/api/trainer/star-members", memberId],
@@ -124,6 +137,41 @@ export default function StarMemberDetailPage() {
       return res.json();
     },
     enabled: !!selectedDate
+  });
+
+  const { data: notes = [], isLoading: notesLoading } = useQuery<MemberNote[]>({
+    queryKey: ["/api/trainer/members", memberId, "notes"],
+    queryFn: async () => {
+      const res = await fetch(`/api/trainer/members/${memberId}/notes`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch notes");
+      return res.json();
+    },
+    enabled: !!memberId
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const res = await apiRequest("POST", `/api/trainer/members/${memberId}/notes`, { content });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/members", memberId, "notes"] });
+      toast({ title: "Note added" });
+      setNewNote("");
+    },
+    onError: () => {
+      toast({ title: "Failed to add note", variant: "destructive" });
+    }
+  });
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: async (noteId: number) => {
+      await apiRequest("DELETE", `/api/trainer/members/${memberId}/notes/${noteId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/members", memberId, "notes"] });
+      toast({ title: "Note deleted" });
+    }
   });
 
   if (user?.role !== "trainer") {
@@ -212,6 +260,10 @@ export default function StarMemberDetailPage() {
           <TabsTrigger value="stats" data-testid="tab-stats">
             <TrendingUp className="w-4 h-4 mr-2" />
             Stats
+          </TabsTrigger>
+          <TabsTrigger value="notes" data-testid="tab-notes">
+            <StickyNote className="w-4 h-4 mr-2" />
+            Notes
           </TabsTrigger>
         </TabsList>
 
@@ -522,6 +574,78 @@ export default function StarMemberDetailPage() {
               )}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="notes" className="mt-6">
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="pt-4">
+                <Label htmlFor="new-note">Add a Note</Label>
+                <Textarea
+                  id="new-note"
+                  placeholder="Write a private note about this member..."
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  className="mt-2"
+                  data-testid="input-new-note"
+                />
+                <Button
+                  className="mt-3"
+                  onClick={() => {
+                    if (newNote.trim()) addNoteMutation.mutate(newNote.trim());
+                  }}
+                  disabled={!newNote.trim() || addNoteMutation.isPending}
+                  data-testid="button-add-note"
+                >
+                  {addNoteMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Plus className="w-4 h-4 mr-2" />
+                  )}
+                  Add Note
+                </Button>
+              </CardContent>
+            </Card>
+
+            {notesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : notes.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <StickyNote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="font-semibold text-lg">No Notes Yet</h3>
+                  <p className="text-muted-foreground mt-2">Add a private note about this member.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {notes.map((note) => (
+                  <Card key={note.id} data-testid={`note-${note.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {format(parseISO(note.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                          </p>
+                          <p className="whitespace-pre-wrap">{note.content}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteNoteMutation.mutate(note.id)}
+                          data-testid={`button-delete-note-${note.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 

@@ -1316,6 +1316,238 @@ export async function registerRoutes(
     res.sendStatus(204);
   });
 
+  // === WORKOUT TEMPLATES ===
+  app.get("/api/trainer/templates", requireRole(["trainer"]), async (req, res) => {
+    try {
+      const templates = await storage.getWorkoutTemplates(req.user!.gymId!, req.user!.id);
+      res.json(templates);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch templates" });
+    }
+  });
+
+  app.get("/api/trainer/templates/:id", requireRole(["trainer"]), async (req, res) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      if (isNaN(templateId)) {
+        return res.status(400).json({ message: "Invalid template ID" });
+      }
+      
+      const template = await storage.getWorkoutTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      
+      if (template.trainerId !== req.user!.id || template.gymId !== req.user!.gymId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      res.json(template);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch template" });
+    }
+  });
+
+  app.post("/api/trainer/templates", requireRole(["trainer"]), async (req, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        daysPerCycle: z.number().min(1).max(14),
+        dayLabels: z.array(z.string()).optional(),
+        items: z.array(z.object({
+          dayIndex: z.number().min(0),
+          muscleType: z.string(),
+          bodyPart: z.string(),
+          exerciseName: z.string().min(1),
+          sets: z.number().min(1),
+          reps: z.number().min(1),
+          weight: z.string().optional().nullable(),
+          orderIndex: z.number().optional().default(0)
+        })).optional().default([])
+      });
+      
+      const input = schema.parse(req.body);
+      
+      const template = await storage.createWorkoutTemplate({
+        gymId: req.user!.gymId!,
+        trainerId: req.user!.id,
+        name: input.name,
+        description: input.description || null,
+        daysPerCycle: input.daysPerCycle,
+        dayLabels: input.dayLabels || null,
+        isActive: true
+      });
+      
+      let items: any[] = [];
+      if (input.items.length > 0) {
+        const itemsToInsert = input.items.map(item => ({
+          templateId: template.id,
+          dayIndex: item.dayIndex,
+          muscleType: item.muscleType,
+          bodyPart: item.bodyPart,
+          exerciseName: item.exerciseName,
+          sets: item.sets,
+          reps: item.reps,
+          weight: item.weight || null,
+          orderIndex: item.orderIndex
+        }));
+        items = await storage.createWorkoutTemplateItems(itemsToInsert);
+      }
+      
+      res.status(201).json({ ...template, items });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create template" });
+    }
+  });
+
+  app.delete("/api/trainer/templates/:id", requireRole(["trainer"]), async (req, res) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      if (isNaN(templateId)) {
+        return res.status(400).json({ message: "Invalid template ID" });
+      }
+      
+      const template = await storage.getWorkoutTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      
+      if (template.trainerId !== req.user!.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      await storage.deleteWorkoutTemplate(templateId, req.user!.id);
+      res.sendStatus(204);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete template" });
+    }
+  });
+
+  app.post("/api/trainer/templates/:id/assign", requireRole(["trainer"]), async (req, res) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      if (isNaN(templateId)) {
+        return res.status(400).json({ message: "Invalid template ID" });
+      }
+      
+      const schema = z.object({
+        memberId: z.number(),
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+      });
+      
+      const input = schema.parse(req.body);
+      
+      const template = await storage.getWorkoutTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      
+      if (template.trainerId !== req.user!.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const cycle = await storage.assignTemplateToMember(
+        templateId,
+        input.memberId,
+        input.startDate,
+        input.endDate,
+        req.user!.gymId!,
+        req.user!.id
+      );
+      
+      res.status(201).json(cycle);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      if (err instanceof Error && err.message === "Template not found") {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      res.status(500).json({ message: "Failed to assign template" });
+    }
+  });
+
+  // === BODY MEASUREMENTS ===
+  app.get("/api/me/body", requireRole(["member"]), async (req, res) => {
+    const measurements = await storage.getBodyMeasurements(req.user!.gymId!, req.user!.id);
+    res.json(measurements);
+  });
+
+  app.get("/api/me/body/latest", requireRole(["member"]), async (req, res) => {
+    const measurement = await storage.getLatestBodyMeasurement(req.user!.gymId!, req.user!.id);
+    res.json(measurement);
+  });
+
+  app.post("/api/me/body", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      recordedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      weight: z.number().optional(),
+      height: z.number().optional(),
+      bodyFat: z.number().optional(),
+      chest: z.number().optional(),
+      waist: z.number().optional(),
+      hips: z.number().optional(),
+      biceps: z.number().optional(),
+      thighs: z.number().optional(),
+      notes: z.string().optional()
+    });
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ message: result.error.errors[0].message });
+    }
+    const measurement = await storage.createBodyMeasurement({
+      gymId: req.user!.gymId!,
+      memberId: req.user!.id,
+      ...result.data
+    });
+    res.status(201).json(measurement);
+  });
+
+  // === MEMBER NOTES (Trainer writes notes about members) ===
+  app.get("/api/trainer/members/:memberId/notes", requireRole(["trainer"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    if (isNaN(memberId)) {
+      return res.status(400).json({ message: "Invalid member ID" });
+    }
+    const notes = await storage.getMemberNotes(req.user!.gymId!, req.user!.id, memberId);
+    res.json(notes);
+  });
+
+  app.post("/api/trainer/members/:memberId/notes", requireRole(["trainer"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    if (isNaN(memberId)) {
+      return res.status(400).json({ message: "Invalid member ID" });
+    }
+    const schema = z.object({
+      content: z.string().min(1, "Note content is required")
+    });
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ message: result.error.errors[0].message });
+    }
+    const note = await storage.createMemberNote({
+      gymId: req.user!.gymId!,
+      trainerId: req.user!.id,
+      memberId,
+      content: result.data.content
+    });
+    res.status(201).json(note);
+  });
+
+  app.delete("/api/trainer/members/:memberId/notes/:noteId", requireRole(["trainer"]), async (req, res) => {
+    const noteId = parseInt(req.params.noteId);
+    if (isNaN(noteId)) {
+      return res.status(400).json({ message: "Invalid note ID" });
+    }
+    await storage.deleteMemberNote(noteId, req.user!.id);
+    res.status(204).end();
+  });
+
   // === GYM HISTORY ===
   app.get("/api/member/gym-history", requireRole(["member"]), async (req, res) => {
     const history = await storage.getGymHistory(req.user!.id);
