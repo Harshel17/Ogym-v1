@@ -32,7 +32,20 @@ type DailyWorkout = {
   exercises: { name: string; muscleType: string; sets: number | null; reps: number | null; weight: string | null }[];
 };
 
-const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6', '#8b5cf6', '#f97316'];
+const COLORS: Record<string, string> = {
+  'Chest': '#6366f1',
+  'Back': '#22c55e', 
+  'Legs': '#f59e0b',
+  'Shoulders': '#ec4899',
+  'Arms': '#14b8a6',
+  'Core': '#8b5cf6',
+  'Glutes': '#f97316',
+  'Full Body': '#0ea5e9',
+  'Cardio': '#ef4444',
+  'Rest': '#64748b',
+};
+const DEFAULT_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6', '#8b5cf6', '#f97316'];
+const getColor = (name: string, index: number) => COLORS[name] || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
 
 export default function StatsPage() {
   const { user } = useAuth();
@@ -169,8 +182,8 @@ export default function StatsPage() {
                           outerRadius={80}
                           label={({ name, percentage }) => `${name} ${percentage}%`}
                         >
-                          {stats.muscleGroupBreakdown.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          {stats.muscleGroupBreakdown.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={getColor(entry.name, index)} />
                           ))}
                         </Pie>
                         <Tooltip />
@@ -191,7 +204,7 @@ export default function StatsPage() {
                         <div className="flex items-center gap-2">
                           <div 
                             className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                            style={{ backgroundColor: getColor(group.name, index) }}
                           />
                           <span className="text-sm font-medium">{group.name}</span>
                         </div>

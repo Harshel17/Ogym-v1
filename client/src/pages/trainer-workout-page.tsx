@@ -598,12 +598,12 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
           <Plus className="w-4 h-4 mr-2" /> Add Exercise
         </Button>
       </DialogTrigger>
-      <DialogContent aria-describedby={undefined} className="max-w-lg">
+      <DialogContent aria-describedby={undefined} className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Exercise to Cycle</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
             <FormField
               control={form.control}
               name="dayIndex"
