@@ -1589,7 +1589,7 @@ export class DatabaseStorage implements IStorage {
       scheduledItems = await db.select()
         .from(workoutItems)
         .where(eq(workoutItems.cycleId, memberCycle[0].id))
-        .orderBy(workoutItems.dayIndex, workoutItems.exerciseOrder);
+        .orderBy(workoutItems.dayIndex, workoutItems.orderIndex);
     }
 
     const completedByDate = new Map<string, Set<number>>();

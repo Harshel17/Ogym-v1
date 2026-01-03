@@ -941,7 +941,7 @@ function MemberCalendarWidget() {
   const monthStr = format(currentMonth, "yyyy-MM");
   
   const { data: calendarData = [] } = useQuery<CalendarDayData[]>({
-    queryKey: ["/api/me/calendar/enhanced", monthStr],
+    queryKey: [`/api/me/calendar/enhanced?month=${monthStr}`],
   });
 
   const calendarMap = new Map(calendarData.map(d => [d.date, d]));
