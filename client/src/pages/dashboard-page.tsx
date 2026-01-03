@@ -433,7 +433,7 @@ function TrainerDashboard() {
                 ))}
                 {members.length > 5 && (
                   <Link href="/members">
-                    <Button variant="link" className="w-full text-sm" data-testid="link-view-all-members">
+                    <Button variant="ghost" className="w-full text-sm text-primary" data-testid="link-view-all-members">
                       View all {members.length} members
                     </Button>
                   </Link>
@@ -603,15 +603,17 @@ function MemberDashboard() {
   return (
     <div className="space-y-6">
       <Collapsible open={isWorkoutOpen} onOpenChange={setIsWorkoutOpen}>
-        <Card className="dashboard-card" data-testid="card-today-workout">
+        <Card className="workout-card overflow-hidden" data-testid="card-today-workout">
           <CollapsibleTrigger asChild>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer hover-elevate">
-              <div className="flex items-center gap-2">
-                <Dumbbell className="w-5 h-5 text-primary" />
+            <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer group">
+              <div className="flex items-center gap-3">
+                <div className="premium-gradient p-2.5 rounded-xl shadow-lg shadow-primary/25">
+                  <Dumbbell className="w-5 h-5 text-white" />
+                </div>
                 <div>
                   <CardTitle className="text-lg">Today's Workout</CardTitle>
                   {workoutItems.length > 0 && (
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-muted-foreground mt-0.5">
                       {dayLabel ? (
                         <span className="font-medium">{dayLabel}</span>
                       ) : (
@@ -626,15 +628,20 @@ function MemberDashboard() {
               </div>
               <div className="flex items-center gap-2">
                 {workoutItems.length > 0 && (
-                  <Badge variant={allCompleted ? "default" : "secondary"}>
-                    {completedCount}/{workoutItems.length}
+                  <Badge 
+                    variant={allCompleted ? "default" : "secondary"}
+                    className={allCompleted ? "bg-green-500 hover:bg-green-600" : ""}
+                  >
+                    {allCompleted ? "Done" : `${completedCount}/${workoutItems.length}`}
                   </Badge>
                 )}
-                {isWorkoutOpen ? (
-                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                )}
+                <div className="p-1.5 rounded-lg transition-colors group-hover:bg-muted">
+                  {isWorkoutOpen ? (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </div>
               </div>
             </CardHeader>
           </CollapsibleTrigger>
@@ -802,38 +809,46 @@ function MemberDashboard() {
       {workoutSummary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Link href="/progress/workouts">
-            <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30" data-testid="card-streak-link">
-              <CardContent className="flex flex-col items-center justify-center py-4">
-                <Flame className="w-8 h-8 text-orange-500 mb-2" />
-                <p className="text-2xl font-bold">{workoutSummary.streak}</p>
-                <p className="text-xs text-muted-foreground">Day Streak</p>
+            <Card className="stat-card cursor-pointer group" data-testid="card-streak-link">
+              <CardContent className="flex flex-col items-center justify-center py-5">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 text-white mb-3 shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform">
+                  <Flame className="w-5 h-5" />
+                </div>
+                <p className="text-2xl font-bold font-display">{workoutSummary.streak}</p>
+                <p className="text-xs text-muted-foreground mt-1">Day Streak</p>
               </CardContent>
             </Card>
           </Link>
           <Link href="/progress/workouts">
-            <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30" data-testid="card-total-link">
-              <CardContent className="flex flex-col items-center justify-center py-4">
-                <Target className="w-8 h-8 text-blue-500 mb-2" />
-                <p className="text-2xl font-bold">{workoutSummary.totalWorkouts}</p>
-                <p className="text-xs text-muted-foreground">Total Sessions</p>
+            <Card className="stat-card cursor-pointer group" data-testid="card-total-link">
+              <CardContent className="flex flex-col items-center justify-center py-5">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white mb-3 shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform">
+                  <Target className="w-5 h-5" />
+                </div>
+                <p className="text-2xl font-bold font-display">{workoutSummary.totalWorkouts}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total Sessions</p>
               </CardContent>
             </Card>
           </Link>
           <Link href="/progress/workouts">
-            <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30" data-testid="card-week-link">
-              <CardContent className="flex flex-col items-center justify-center py-4">
-                <Calendar className="w-8 h-8 text-green-500 mb-2" />
-                <p className="text-2xl font-bold">{workoutSummary.last7DaysCount}</p>
-                <p className="text-xs text-muted-foreground">Last 7 Days</p>
+            <Card className="stat-card cursor-pointer group" data-testid="card-week-link">
+              <CardContent className="flex flex-col items-center justify-center py-5">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 text-white mb-3 shadow-lg shadow-green-500/25 group-hover:scale-105 transition-transform">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <p className="text-2xl font-bold font-display">{workoutSummary.last7DaysCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">Last 7 Days</p>
               </CardContent>
             </Card>
           </Link>
           <Link href="/progress/workouts">
-            <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30" data-testid="card-month-link">
-              <CardContent className="flex flex-col items-center justify-center py-4">
-                <CreditCard className="w-8 h-8 text-purple-500 mb-2" />
-                <p className="text-2xl font-bold">{workoutSummary.thisMonthCount}</p>
-                <p className="text-xs text-muted-foreground">This Month</p>
+            <Card className="stat-card cursor-pointer group" data-testid="card-month-link">
+              <CardContent className="flex flex-col items-center justify-center py-5">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white mb-3 shadow-lg shadow-purple-500/25 group-hover:scale-105 transition-transform">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <p className="text-2xl font-bold font-display">{workoutSummary.thisMonthCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">This Month</p>
               </CardContent>
             </Card>
           </Link>

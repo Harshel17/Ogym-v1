@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   LayoutDashboard, 
   Users, 
@@ -165,16 +166,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-secondary/30 flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col sticky top-0 h-screen z-10">
-        <div className="p-6 border-b border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary/10 p-2 rounded-lg">
-              <Dumbbell className="w-6 h-6 text-primary" />
+      <aside className="w-64 bg-sidebar border-r border-sidebar-border hidden md:flex flex-col sticky top-0 h-screen z-10">
+        <div className="p-4 border-b border-sidebar-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="premium-gradient p-2 rounded-lg shadow-lg shadow-primary/25">
+                <Dumbbell className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="font-display font-bold text-lg leading-none">OGym</h1>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Fitness Management</p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-display font-bold text-xl leading-none">OGym</h1>
-              <p className="text-xs text-muted-foreground mt-1">Management v1.0</p>
-            </div>
+            <ThemeToggle />
           </div>
         </div>
 
@@ -235,14 +239,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 overflow-auto">
-        <header className="md:hidden bg-card border-b border-border p-4 flex items-center justify-between sticky top-0 z-20">
+        <header className="md:hidden bg-card border-b border-border p-3 flex items-center justify-between gap-2 sticky top-0 z-20">
            <div className="flex items-center gap-2">
-            <Dumbbell className="w-6 h-6 text-primary" />
-            <span className="font-bold font-display">OGym</span>
+            <div className="premium-gradient p-1.5 rounded-lg">
+              <Dumbbell className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-bold font-display text-sm">OGym</span>
            </div>
-           <Button variant="ghost" size="sm" onClick={() => logoutMutation.mutate()}>
-             <LogOut className="w-5 h-5" />
-           </Button>
+           <div className="flex items-center gap-1">
+             <ThemeToggle />
+             <Button variant="ghost" size="icon" onClick={() => logoutMutation.mutate()}>
+               <LogOut className="w-4 h-4" />
+             </Button>
+           </div>
         </header>
         
         <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">

@@ -1,0 +1,73 @@
+You are a senior UI/UX engineer specializing in premium mobile + web app interfaces.
+
+TASK:
+Upgrade OGym’s UI to look like a premium modern fitness app with great graphics and a theme switch (Light/Dark), WITHOUT changing any workflows, logic, routes, or API behavior.
+
+NON-NEGOTIABLE RULES:
+- Do NOT change authentication, navigation, routes, page structure, or feature workflows.
+- Do NOT remove or rename existing components/endpoints.
+- Do NOT change backend logic.
+- Only UI/UX improvements: layout, typography, spacing, colors, icons, animations, and theming.
+- Keep everything fully functional exactly as it is.
+
+GOALS (PREMIUM UI):
+1) Design System
+- Introduce a consistent premium design system:
+  - modern typography scale
+  - consistent spacing (8pt grid)
+  - rounded corners, shadows, soft elevation
+  - consistent button styles (primary/secondary/ghost)
+  - consistent input styles, validation states
+
+2) Visual Premium Feel
+- Add subtle animations and micro-interactions (hover, press, transitions).
+- Improve card UI across the app (Dashboard tiles, workout cards, stats cards).
+- Improve empty states (illustrations/icons + helpful text).
+- Use professional iconography (lucide/react-icons) consistently.
+
+3) Graphics / Branding
+- Add a premium header style:
+  - app logo + small brand tagline
+- Improve workout “Today’s Workout” component to look like a premium training card:
+  - progress indicator (completed/total)
+  - status chip (Done/In progress)
+  - subtle background gradient or pattern (very light)
+
+4) Theme Switch (Light/Dark)
+- Add a theme toggle:
+  - visible in sidebar header or profile menu
+- Persist theme preference:
+  - localStorage (web) and AsyncStorage/SecureStore (mobile if present)
+- Ensure ALL components support both themes:
+  - background, cards, borders, text, icons, inputs, modals
+
+5) Mobile-first polish (even if web preview)
+- Ensure layouts look good on small screens:
+  - responsive cards, modals, tables
+  - no overflow
+  - better touch targets
+
+SCOPE / PAGES TO POLISH FIRST (most important):
+- Login / Register pages
+- Dashboard (Today’s workout card + stats cards)
+- My Workout / Workout History page + modal
+- Progress / My Stats page (cards, charts, sections)
+- Requests page
+- Payments page
+- Admin pages (keep professional, simple)
+
+TECH REQUIREMENTS:
+- Use CSS variables / theme tokens, not random colors everywhere.
+- Centralize theme tokens in one place:
+  - e.g. theme.ts or global CSS :root variables
+- Do NOT introduce heavy UI libraries that bloat the app unless already used.
+- If you add a small UI library (like shadcn or a light component library), do it carefully and consistently.
+- Keep build fast and stable.
+
+DELIVERABLES:
+1) Summary of UI improvements made (bullet list)
+2) List of files changed
+3) Explain how theme switch works + where it is stored
+4) Confirm NO workflow changes were made
+
+Start by scanning current styling approach and components. Then implement theme system, then apply premium styling page-by-page.

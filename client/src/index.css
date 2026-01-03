@@ -8,36 +8,119 @@
   --font-sans: 'DM Sans', sans-serif;
   --font-display: 'Outfit', sans-serif;
 
-  /* Clean, professional dashboard palette - Indigo/Slate theme */
-  --background: 210 40% 98%;
+  /* Premium Indigo/Slate Light Theme */
+  --background: 220 20% 97%;
   --foreground: 222 47% 11%;
   
-  --primary: 230 85% 60%;
-  --primary-foreground: 210 40% 98%;
+  --primary: 239 84% 67%;
+  --primary-foreground: 0 0% 100%;
   
-  --secondary: 210 40% 96%;
+  --secondary: 220 14% 96%;
   --secondary-foreground: 222 47% 11%;
   
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
   
-  --accent: 230 85% 96%;
-  --accent-foreground: 230 85% 60%;
+  --accent: 239 84% 96%;
+  --accent-foreground: 239 84% 67%;
   
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 210 40% 98%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
 
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 230 85% 60%;
+  --success: 142 76% 36%;
+  --success-foreground: 0 0% 100%;
+
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 100%;
+
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 239 84% 67%;
 
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
+  --card-border: 220 13% 91%;
+  
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --popover-border: 220 13% 91%;
+  
+  --sidebar: 220 20% 98%;
+  --sidebar-foreground: 222 47% 11%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 239 84% 67%;
+  --sidebar-primary: 239 84% 67%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 239 84% 96%;
+  --sidebar-accent-foreground: 239 84% 50%;
+  
+  --chart-1: 239 84% 67%;
+  --chart-2: 160 84% 39%;
+  --chart-3: 38 92% 50%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 0 72% 51%;
   
   --radius: 0.75rem;
 }
 
+.dark {
+  --background: 222 47% 8%;
+  --foreground: 210 40% 98%;
+  
+  --primary: 239 84% 67%;
+  --primary-foreground: 0 0% 100%;
+  
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  
+  --accent: 239 60% 20%;
+  --accent-foreground: 239 84% 70%;
+  
+  --destructive: 0 62% 50%;
+  --destructive-foreground: 0 0% 100%;
+
+  --success: 142 70% 45%;
+  --success-foreground: 0 0% 100%;
+
+  --warning: 38 90% 55%;
+  --warning-foreground: 0 0% 0%;
+
+  --border: 217 33% 20%;
+  --input: 217 33% 20%;
+  --ring: 239 84% 67%;
+
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
+  --card-border: 217 33% 20%;
+  
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+  --popover-border: 217 33% 20%;
+  
+  --sidebar: 222 47% 9%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-border: 217 33% 17%;
+  --sidebar-ring: 239 84% 67%;
+  --sidebar-primary: 239 84% 67%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 239 60% 20%;
+  --sidebar-accent-foreground: 239 84% 70%;
+  
+  --chart-1: 239 84% 67%;
+  --chart-2: 160 80% 45%;
+  --chart-3: 38 90% 55%;
+  --chart-4: 280 60% 65%;
+  --chart-5: 0 62% 55%;
+}
+
 @layer base {
+  * {
+    @apply border-border;
+  }
+
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/20;
     font-family: var(--font-sans);
@@ -51,11 +134,74 @@
 
 @layer utilities {
   .glass-card {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl shadow-black/5;
+    @apply bg-card/80 dark:bg-card/90 backdrop-blur-xl border border-border/50 shadow-xl shadow-black/5 dark:shadow-black/20;
   }
   
   .dashboard-card {
-    @apply bg-card rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow duration-200;
+    @apply bg-card rounded-xl border border-border shadow-sm hover:shadow-md transition-all duration-200;
+  }
+  
+  .premium-gradient {
+    @apply bg-gradient-to-br from-primary via-primary to-indigo-600 dark:from-primary dark:via-indigo-500 dark:to-purple-600;
+  }
+  
+  .premium-gradient-text {
+    @apply bg-gradient-to-r from-primary to-indigo-500 bg-clip-text text-transparent;
+  }
+  
+  .stat-card {
+    @apply bg-card rounded-xl border border-border p-4 transition-all duration-200 hover:shadow-md hover:border-primary/20;
+  }
+  
+  .workout-card {
+    @apply bg-gradient-to-br from-card via-card to-primary/5 dark:to-primary/10 rounded-xl border border-border shadow-sm;
+  }
+  
+  .hover-elevate {
+    @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
+  }
+  
+  .active-elevate-2 {
+    @apply transition-all duration-150 active:scale-[0.98] active:shadow-sm;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from { 
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -75,4 +221,23 @@
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/40;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/50;
+}
+
+/* Premium focus styles */
+*:focus-visible {
+  @apply outline-none ring-2 ring-primary/50 ring-offset-2 ring-offset-background;
+}
+
+/* Smooth transitions for theme switching */
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

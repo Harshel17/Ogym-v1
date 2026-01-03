@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Dumbbell } from "lucide-react";
 
 const loginSchema = z.object({
@@ -94,11 +95,14 @@ export default function AuthPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-center p-6 bg-background">
+      <div className="flex items-center justify-center p-6 bg-background relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
         <div className="w-full max-w-md space-y-8">
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
-            <div className="bg-primary/10 p-2 rounded-lg">
-              <Dumbbell className="w-8 h-8 text-primary" />
+            <div className="premium-gradient p-2.5 rounded-xl shadow-lg shadow-primary/25">
+              <Dumbbell className="w-7 h-7 text-white" />
             </div>
             <span className="text-2xl font-bold font-display text-foreground">OGym</span>
           </div>
