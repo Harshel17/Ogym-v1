@@ -178,13 +178,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       visible: isOwner && !!user.gymId,
       badge: notificationCounts?.pendingJoinRequests || 0
     },
-    { 
-      label: "Gym Requests", 
-      href: "/admin/gym-requests", 
-      icon: Building2,
-      visible: isOwner && !!user.gymId,
-      badge: 0
-    },
   ];
 
   return (
