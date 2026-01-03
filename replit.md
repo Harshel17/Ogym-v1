@@ -49,6 +49,36 @@ Preferred communication style: Simple, everyday language.
 - **Announcements:** Owner-to-member/trainer communication module with audience targeting and read tracking.
 - **Trainer-Member Relationship:** `trainer_member_assignments` table for historical tracking of assignments, preserving workout data on transfers.
 - **Star Members & Diet Plans:** Trainers can mark star members, access their full stats, and create diet plans for them.
+- **Social Feed:** Activity feed with workout completions, streak milestones, achievements, reactions, and comments.
+- **Tournaments:** Monthly gym challenges with leaderboards and participant tracking.
+- **Daily Points:** Computed dynamically from workout completions (planned vs completed exercises).
+
+## Demo Seeding
+
+The project includes comprehensive demo data seeding that generates 8 months of realistic activity:
+
+**Demo Gyms:**
+- IronForge Fitness (Hyderabad) - Gym code: IRONFORGE
+- PulseArena Gym (Bengaluru) - Gym code: PULSEARENA
+
+**Demo Data Scope:**
+- 2 gyms with 4-5 trainers and 60-80 members each
+- 87,000+ workout completions across 8 months
+- 3,300+ body measurements with progression trends
+- 800+ social feed posts with 4,000+ reactions
+- 14 tournaments with 540+ participants
+- 6 transfer requests (3 each direction between gyms)
+- 8 cross-gym join requests
+- 39 announcements with read tracking
+- Diet plans for star members
+
+**Commands:**
+```bash
+npx tsx server/run-seed.ts        # Run demo seed
+npx tsx server/run-seed.ts --reset  # Reset and reseed demo data
+```
+
+**All demo accounts use password:** `demo123`
 
 ## External Dependencies
 

@@ -1,0 +1,216 @@
+You are a senior full-stack engineer.
+
+I have OGym working with these features already:
+- Multi-gym isolation (2 gyms)
+- Roles: Owner, Trainer, Member, Admin
+- Approvals: gym approval requests, join requests
+- Workouts: cycles/templates, exercise completion, workout history, missed workouts
+- Progress: streaks, stats, body measurements
+- Attendance: daily attendance, QR check-in simulation
+- Payments: INR (stored in paise), plans, partial/EMI, overdue, payment history
+- Transfers: member transfer requests in/out
+- Diet plans: created by trainers and assigned to members
+- Announcements: owner announcements + read tracking
+PLUS new features I added:
+- Daily points system (earned/planned points per day, partial completion)
+- Social Feed (workout completions, streak milestones, announcements, measurement updates)
+- Tournaments (monthly challenges + leaderboards)
+
+TASK:
+Create a COMPLETE DEMO DATASET that makes the app look like it has been used actively for 6–8 months,
+and that exercises EVERY FEATURE so that no page feels empty.
+
+NON-NEGOTIABLE RULES:
+- Do NOT change workflows, routes, UI logic, or auth system.
+- Do NOT break current endpoints.
+- Prefer using existing tables/models/endpoints.
+- If any demo-support table is missing (feed_posts, tournaments, points snapshots), add only if truly required; otherwise compute where possible.
+- Demo data must be gym-isolated: NO data leaking between gyms.
+- Seed must be re-runnable and include a reset option.
+- Mark demo accounts/data so reset can safely wipe only demo data.
+
+DEMO SETUP REQUIREMENTS:
+Create 2 gyms:
+GYM A: "IronForge Fitness" (Hyderabad)
+GYM B: "PulseArena Gym" (Bengaluru)
+
+Per gym:
+- 1 Owner
+- 4–5 Trainers
+- 50–60 Members
+
+Create realistic names, usernames, emails, and phone numbers.
+Password rule for all demo users: demo123 (unless existing app requires something else; keep consistent)
+
+HISTORY PERIOD:
+- Seed 6–8 months of history (approx 180–240 days)
+- Distribute activity realistically across time (not same activity every day)
+- Use varying activity patterns per member (very consistent, moderate, irregular, churned)
+
+========================================
+DATA TO GENERATE FOR EVERY FEATURE
+========================================
+
+1) MEMBERSHIPS + SUBSCRIPTIONS
+- Create membership plans per gym (Monthly, Quarterly, Half-Year, Custom)
+- For members:
+  - 70% active subscriptions
+  - 15% expired/ended
+  - 15% overdue/pending renewal
+- Include renewals and end dates across months
+- Create expiring soon list (next 7–14 days)
+
+2) PAYMENTS (INR in paise)
+- For each gym:
+  - Generate monthly revenue totals for 6–8 months
+  - Payment history per member (multiple payments over months)
+  - Include partial/EMI payments (ex: paid 500/1500, remaining due)
+  - Include overdue balances and pending payments
+- Ensure Owner Payments dashboard shows:
+  - Total revenue this month
+  - Outstanding balances
+  - Paid vs overdue breakdown
+
+3) ATTENDANCE (QR + workout attendance)
+- Seed attendance for 6–8 months
+- Patterns:
+  - consistent members: 4–6 days/week
+  - moderate: 2–4 days/week
+  - irregular: gaps
+  - churned: stopped after some months
+- Make “today” and “yesterday” check-in counts realistic
+- If QR check-in model exists, seed QR log events too
+
+4) WORKOUT CYCLES + HISTORY (core)
+- Create multiple cycles/templates per gym:
+  - Beginner PPL
+  - Upper/Lower
+  - Fat loss circuit
+  - Strength focus
+- Trainers assign cycles to members
+- For each member, seed workout sessions for 6–8 months:
+  - Completed days and partial days
+  - Missed workouts list should populate
+  - Workout history page should show lots of dates
+  - Allow “recover missed workouts” to show real missed items
+
+5) DAILY POINTS (new feature)
+- Ensure each workout day has planned_points = # planned exercises (ex 6–10)
+- Earned points equals # exercises completed that day
+- Create plenty of partial days:
+  - Some days 3/8, 5/9 etc
+- Store points if your system stores it; otherwise ensure computed endpoint returns correct values
+- Progress page should show last 7 days points and monthly points totals
+
+6) TOURNAMENTS (new feature)
+- Create tournaments per gym:
+  - Monthly Points Challenge (last 3 months + current month)
+  - Attendance Champion (last 2 months)
+  - Streak King/Queen (last 2 months)
+- Seed participant lists and leaderboards:
+  - winners should be realistic (consistent members)
+  - create tie-break logic if needed
+- Ensure tournament pages show:
+  - current leaderboard
+  - past winners
+- Winners should generate feed posts as well
+
+7) SOCIAL FEED (new feature)
+Create feed activity for 6–8 months per gym, using realistic event distribution:
+- Workout completion posts (including partial vs full)
+- Streak milestone posts (7, 14, 30, 60, 100)
+- Measurement update posts (optional)
+- Tournament winner posts
+- Owner announcements also appear in feed
+Include likes and comments if supported:
+- likes by random members
+- comments like “Nice!”, “Great work!”, “🔥”
+
+Ensure feed is ACTIVE daily for each gym.
+No empty feed.
+
+8) BODY MEASUREMENTS
+- For each member:
+  - weekly or bi-weekly measurement entries across months
+  - trends consistent with their profile (fat loss / muscle gain / recomp / inconsistent)
+- Charts should show real trends and not random noise
+
+9) DIET PLANS
+- Trainers create diet plans for:
+  - star members
+  - members in fat loss challenge
+- Seed meal schedules, nutrition notes
+- Assign diet plans to members and ensure member UI shows it
+
+10) REQUESTS + APPROVALS + TRANSFERS
+- Join requests:
+  - seed some pending join requests
+  - seed some approved join requests history
+- Transfer requests (important):
+  - create at least:
+    * 3 transfer-out requests from Gym A -> Gym B (mix: approved/rejected/pending)
+    * 3 transfer-in requests Gym B -> Gym A (mix)
+  - Ensure owner sees pending transfers and can approve/reject
+- Trainer assignment change requests:
+  - seed some reassignments with historical tracking
+
+11) ANNOUNCEMENTS + READ TRACKING
+- Owner announcements weekly (6–8 months):
+  - new schedule
+  - holiday closure
+  - challenge announcement
+- Seed read/unread tracking so notification badges show correctly
+
+========================================
+IMPLEMENTATION DETAILS
+========================================
+
+- Extend the existing demo seed script (do not create a brand new disconnected seed system).
+- Add a reset_demo script:
+  - delete only demo gyms/users/data (identified by a demo flag or email pattern)
+- Make seeding efficient:
+  - use bulk inserts where possible
+  - avoid per-row slow loops if DB is large
+
+========================================
+OUTPUT REQUIREMENTS
+========================================
+
+After seeding, PRINT ONLY IN TERMINAL:
+
+A) ADMIN LOGIN:
+- username and password
+
+B) Gym A credentials:
+- Owner login
+- 2 trainers
+- 3 members (one consistent, one moderate, one irregular)
+
+C) Gym B credentials:
+- Owner login
+- 2 trainers
+- 3 members (one consistent, one moderate, one irregular)
+
+D) Verification summary:
+- gyms: 2
+- owners: 2
+- trainers: count
+- members: count
+- workout sessions created
+- points records or computed points verified
+- feed posts created + likes/comments count
+- tournaments created + winners
+- payments created + overdue count
+- transfers created + pending count
+- announcements created + unread badge test
+
+E) Commands:
+- how to run seed demo
+- how to reset demo
+
+Finally, give me a short "Demo Walkthrough Path" checklist:
+1) Admin approves gym request
+2) Owner dashboard revenue + pending
+3) Owner sees transfer request + join request
+4) Trainer sees assigned members + diet plan
+5) Member sees points + feed + tournament leaderboard + missed workouts + payments

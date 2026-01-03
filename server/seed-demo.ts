@@ -4,7 +4,8 @@ import {
   attendance, membershipPlans, memberSubscriptions, paymentTransactions, payments,
   workoutCycles, workoutItems, workoutCompletions, workoutSessions, workoutSessionExercises,
   bodyMeasurements, starMembers, gymHistory, dietPlans, dietPlanMeals, announcements, announcementReads,
-  memberNotes, workoutTemplates, workoutTemplateItems, memberRequests, transferRequests, joinRequests
+  memberNotes, workoutTemplates, workoutTemplateItems, memberRequests, transferRequests, joinRequests,
+  feedPosts, feedReactions, feedComments, tournaments, tournamentParticipants
 } from "@shared/schema";
 import { eq, or, inArray } from "drizzle-orm";
 import { scrypt, randomBytes } from "crypto";
@@ -352,6 +353,23 @@ export async function resetDemoData(): Promise<void> {
     await db.delete(announcements).where(inArray(announcements.id, announcementIds));
   }
   
+  // Delete feed posts and related data
+  const demoFeedPosts = await db.select().from(feedPosts).where(inArray(feedPosts.gymId, gymIds));
+  const feedPostIds = demoFeedPosts.map(p => p.id);
+  if (feedPostIds.length > 0) {
+    await db.delete(feedReactions).where(inArray(feedReactions.postId, feedPostIds));
+    await db.delete(feedComments).where(inArray(feedComments.postId, feedPostIds));
+    await db.delete(feedPosts).where(inArray(feedPosts.id, feedPostIds));
+  }
+  
+  // Delete tournaments and participants
+  const demoTournaments = await db.select().from(tournaments).where(inArray(tournaments.gymId, gymIds));
+  const tournamentIds = demoTournaments.map(t => t.id);
+  if (tournamentIds.length > 0) {
+    await db.delete(tournamentParticipants).where(inArray(tournamentParticipants.tournamentId, tournamentIds));
+    await db.delete(tournaments).where(inArray(tournaments.id, tournamentIds));
+  }
+  
   const templates = await db.select().from(workoutTemplates).where(inArray(workoutTemplates.gymId, gymIds));
   const templateIds = templates.map(t => t.id);
   if (templateIds.length > 0) {
@@ -402,10 +420,10 @@ export async function seedDemoData(): Promise<void> {
 
   const hashedPassword = await hashPassword("demo123");
   const today = new Date();
-  const historyStartDays = 60;
+  const historyStartDays = 240; // 8 months of history
   const historyEndDays = 0;
   
-  const allCredentials: { gym: string; role: string; username: string; password: string }[] = [];
+  const allCredentials: { gym: string; role: string; username: string; password: string; profile?: string }[] = [];
   const stats = {
     gyms: 0,
     trainers: 0,
@@ -420,7 +438,12 @@ export async function seedDemoData(): Promise<void> {
     memberNotes: 0,
     templates: 0,
     transfers: 0,
-    joinRequests: 0
+    joinRequests: 0,
+    feedPosts: 0,
+    feedReactions: 0,
+    feedComments: 0,
+    tournaments: 0,
+    tournamentParticipants: 0
   };
   
   let usedNames = new Set<string>();
@@ -595,8 +618,13 @@ export async function seedDemoData(): Promise<void> {
       stats.members++;
       gymStats.members++;
       
-      if (m < 3) {
-        allCredentials.push({ gym: gymConfig.name, role: "member", username: memberUsername, password: "demo123" });
+      // Add sample members with different consistency profiles to credentials
+      if (m === 0) {
+        allCredentials.push({ gym: gymConfig.name, role: "member (very consistent)", username: memberUsername, password: "demo123", profile: "very_consistent" });
+      } else if (m === Math.floor(gymConfig.memberCount * 0.3)) {
+        allCredentials.push({ gym: gymConfig.name, role: "member (moderate)", username: memberUsername, password: "demo123", profile: "moderate" });
+      } else if (m === Math.floor(gymConfig.memberCount * 0.8)) {
+        allCredentials.push({ gym: gymConfig.name, role: "member (irregular)", username: memberUsername, password: "demo123", profile: "irregular" });
       }
     }
     console.log(`  Created ${gymStats.members} members`);
@@ -908,16 +936,16 @@ export async function seedDemoData(): Promise<void> {
       
       const measurementDays: number[] = [];
       if (frequency >= 999) {
-        measurementDays.push(getRandomInt(10, 50));
-        if (Math.random() > 0.5) measurementDays.push(getRandomInt(5, 25));
+        measurementDays.push(getRandomInt(10, 200));
+        if (Math.random() > 0.5) measurementDays.push(getRandomInt(5, 100));
       } else {
-        for (let day = 60; day >= 0; day -= frequency) {
+        for (let day = historyStartDays; day >= 0; day -= frequency) {
           measurementDays.push(day + getRandomInt(-2, 2));
         }
       }
       
       for (let i = 0; i < measurementDays.length; i++) {
-        const daysAgo = Math.max(0, Math.min(60, measurementDays[i]));
+        const daysAgo = Math.max(0, Math.min(historyStartDays, measurementDays[i]));
         const measureDate = format(subDays(today, daysAgo), "yyyy-MM-dd");
         
         const progressFactor = i / Math.max(1, measurementDays.length - 1);
@@ -977,10 +1005,13 @@ export async function seedDemoData(): Promise<void> {
     }
     console.log(`  Created ${gymStats.bodyMeasurements} body measurements`);
     
-    const announcementsToCreate = ANNOUNCEMENT_TEMPLATES.slice(0, getRandomInt(4, 6));
-    for (let aIdx = 0; aIdx < announcementsToCreate.length; aIdx++) {
-      const template = announcementsToCreate[aIdx];
-      const daysAgo = getRandomInt(1, 30);
+    // Create announcements spread across 8 months (2-3 per month)
+    const allAnnouncementTemplates = [...ANNOUNCEMENT_TEMPLATES];
+    for (let month = 0; month < 8; month++) {
+      const announcementsThisMonth = getRandomInt(2, 3);
+      for (let a = 0; a < announcementsThisMonth; a++) {
+        const template = allAnnouncementTemplates[a % allAnnouncementTemplates.length];
+        const daysAgo = month * 30 + getRandomInt(5, 25);
       
       const [announcement] = await db.insert(announcements).values({
         gymId: gym.id,
@@ -1009,8 +1040,209 @@ export async function seedDemoData(): Promise<void> {
           readAt: subDays(today, daysAgo - getRandomInt(0, Math.min(daysAgo, 5))),
         });
       }
+      }
     }
     console.log(`  Created ${gymStats.announcements} announcements with read tracking`);
+    
+    // ===== TOURNAMENTS (Last 4 months) =====
+    const tournamentConfigs = [
+      { name: "January Workout Challenge", metric: "workout_count" as const, startDaysAgo: 180, endDaysAgo: 150, status: "completed" as const },
+      { name: "February Attendance Champion", metric: "attendance_days" as const, startDaysAgo: 150, endDaysAgo: 120, status: "completed" as const },
+      { name: "March Exercise Marathon", metric: "total_exercises" as const, startDaysAgo: 120, endDaysAgo: 90, status: "completed" as const },
+      { name: "April Points Challenge", metric: "workout_count" as const, startDaysAgo: 90, endDaysAgo: 60, status: "completed" as const },
+      { name: "May Streak King", metric: "attendance_days" as const, startDaysAgo: 60, endDaysAgo: 30, status: "completed" as const },
+      { name: "June Fitness Frenzy", metric: "workout_count" as const, startDaysAgo: 30, endDaysAgo: -1, status: "active" as const },
+      { name: "Summer Body Challenge", metric: "total_exercises" as const, startDaysAgo: -7, endDaysAgo: -37, status: "upcoming" as const },
+    ];
+    
+    let gymTournaments = 0;
+    let gymTournamentParticipants = 0;
+    
+    for (const config of tournamentConfigs) {
+      const [tournament] = await db.insert(tournaments).values({
+        gymId: gym.id,
+        createdByUserId: owner.id,
+        name: config.name,
+        description: `Complete as many ${config.metric.replace('_', ' ')} as possible! Top 3 winners get rewards.`,
+        metricType: config.metric,
+        startDate: format(subDays(today, config.startDaysAgo), "yyyy-MM-dd"),
+        endDate: format(subDays(today, config.endDaysAgo), "yyyy-MM-dd"),
+        status: config.status,
+        prizeDescription: config.status === "completed" ? "Winners announced!" : "1st: Free Month | 2nd: 50% Off | 3rd: Merchandise",
+        maxParticipants: 50,
+        isPublic: true,
+      }).returning();
+      gymTournaments++;
+      stats.tournaments++;
+      
+      // Add participants (all members for active/completed, some for upcoming)
+      const participantMembers = config.status === "upcoming" 
+        ? members.slice(0, getRandomInt(10, 30))
+        : members.slice(0, getRandomInt(30, Math.min(50, members.length)));
+      
+      for (const member of participantMembers) {
+        const score = config.status === "completed" 
+          ? (member.consistencyProfile === "very_consistent" ? getRandomInt(20, 35) : 
+             member.consistencyProfile === "moderate" ? getRandomInt(10, 25) : getRandomInt(3, 15))
+          : (config.status === "active" ? getRandomInt(5, 20) : 0);
+        
+        await db.insert(tournamentParticipants).values({
+          tournamentId: tournament.id,
+          userId: member.id,
+          currentScore: score,
+          joinedAt: subDays(today, config.startDaysAgo - getRandomInt(0, 5)),
+        });
+        gymTournamentParticipants++;
+        stats.tournamentParticipants++;
+      }
+    }
+    console.log(`  Created ${gymTournaments} tournaments with ${gymTournamentParticipants} participants`);
+    
+    // ===== SOCIAL FEED (8 months of activity) =====
+    let gymFeedPosts = 0;
+    let gymFeedReactions = 0;
+    let gymFeedComments = 0;
+    
+    const COMMENT_TEMPLATES = ["Great work!", "Keep it up!", "Inspiring!", "Amazing progress!", "You're crushing it!", "Well done!"];
+    const reactionTypes: ("like" | "fire" | "muscle" | "clap")[] = ["like", "fire", "muscle", "clap"];
+    
+    // New member posts (when they joined)
+    for (const member of members.slice(0, 20)) {
+      const joinDaysAgo = getRandomInt(30, historyStartDays);
+      await db.insert(feedPosts).values({
+        gymId: gym.id,
+        userId: member.id,
+        type: "new_member",
+        content: null,
+        metadata: {},
+        isVisible: true,
+        createdAt: subDays(today, joinDaysAgo),
+      });
+      gymFeedPosts++;
+      stats.feedPosts++;
+    }
+    
+    // Workout completion posts (distributed across history)
+    const consistentMembers = members.filter(m => m.consistencyProfile === "very_consistent").slice(0, 15);
+    for (const member of consistentMembers) {
+      // Create 2-4 workout completion posts per month for consistent members
+      for (let month = 0; month < 8; month++) {
+        const postsThisMonth = getRandomInt(2, 4);
+        for (let p = 0; p < postsThisMonth; p++) {
+          const daysAgo = month * 30 + getRandomInt(0, 28);
+          if (daysAgo <= historyStartDays) {
+            const [post] = await db.insert(feedPosts).values({
+              gymId: gym.id,
+              userId: member.id,
+              type: "workout_complete",
+              content: null,
+              metadata: { exerciseCount: getRandomInt(4, 8), focusLabel: getRandomElement(["Push Day", "Pull Day", "Leg Day", "Upper Body", "Lower Body", "Full Body"]) },
+              isVisible: true,
+              createdAt: subDays(today, daysAgo),
+            }).returning();
+            gymFeedPosts++;
+            stats.feedPosts++;
+            
+            // Add reactions (2-8 per post)
+            const reactorCount = getRandomInt(2, 8);
+            const reactors = members.filter(m => m.id !== member.id).slice(0, reactorCount);
+            for (const reactor of reactors) {
+              await db.insert(feedReactions).values({
+                postId: post.id,
+                userId: reactor.id,
+                reactionType: getRandomElement(reactionTypes),
+              });
+              gymFeedReactions++;
+              stats.feedReactions++;
+            }
+            
+            // Add comments (0-2 per post)
+            if (Math.random() > 0.5) {
+              const commenters = members.filter(m => m.id !== member.id).slice(0, getRandomInt(1, 2));
+              for (const commenter of commenters) {
+                await db.insert(feedComments).values({
+                  postId: post.id,
+                  userId: commenter.id,
+                  content: getRandomElement(COMMENT_TEMPLATES),
+                  createdAt: subDays(today, daysAgo - getRandomInt(0, 1)),
+                });
+                gymFeedComments++;
+                stats.feedComments++;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Streak milestone posts
+    for (const member of consistentMembers.slice(0, 10)) {
+      const streakMilestones = [7, 14, 30];
+      for (const streak of streakMilestones) {
+        if (Math.random() > 0.4) {
+          const daysAgo = getRandomInt(streak, 180);
+          const [post] = await db.insert(feedPosts).values({
+            gymId: gym.id,
+            userId: member.id,
+            type: "streak_milestone",
+            content: null,
+            metadata: { streakDays: streak },
+            isVisible: true,
+            createdAt: subDays(today, daysAgo),
+          }).returning();
+          gymFeedPosts++;
+          stats.feedPosts++;
+          
+          // Add reactions
+          const reactorCount = getRandomInt(3, 10);
+          const reactors = members.filter(m => m.id !== member.id).slice(0, reactorCount);
+          for (const reactor of reactors) {
+            await db.insert(feedReactions).values({
+              postId: post.id,
+              userId: reactor.id,
+              reactionType: getRandomElement(reactionTypes),
+            });
+            gymFeedReactions++;
+            stats.feedReactions++;
+          }
+        }
+      }
+    }
+    
+    // Achievement posts
+    for (const member of consistentMembers.slice(0, 8)) {
+      if (Math.random() > 0.3) {
+        const [post] = await db.insert(feedPosts).values({
+          gymId: gym.id,
+          userId: member.id,
+          type: "achievement",
+          content: null,
+          metadata: { type: "personal_record", exercise: getRandomElement(["Bench Press", "Squat", "Deadlift"]), value: `${getRandomInt(60, 120)}kg` },
+          isVisible: true,
+          createdAt: subDays(today, getRandomInt(5, 60)),
+        }).returning();
+        gymFeedPosts++;
+        stats.feedPosts++;
+        
+        // Add reactions
+        const reactorCount = getRandomInt(5, 15);
+        const reactors = members.filter(m => m.id !== member.id).slice(0, reactorCount);
+        for (const reactor of reactors) {
+          await db.insert(feedReactions).values({
+            postId: post.id,
+            userId: reactor.id,
+            reactionType: getRandomElement(reactionTypes),
+          });
+          gymFeedReactions++;
+          stats.feedReactions++;
+        }
+      }
+    }
+    
+    console.log(`  Created ${gymFeedPosts} feed posts, ${gymFeedReactions} reactions, ${gymFeedComments} comments`);
+    
+    // Note: Join requests will be seeded across gyms after all gyms are created
+    // This ensures logical correctness (members from gym A requesting to join gym B)
     
     allGymsData.push({ gym, owner, trainers, members, plans });
   }
@@ -1019,6 +1251,7 @@ export async function seedDemoData(): Promise<void> {
     const gym1 = allGymsData[0];
     const gym2 = allGymsData[1];
     
+    // Transfer requests from Gym A -> Gym B (3 requests: approved, rejected, pending)
     const transferMember1 = gym1.members[getRandomInt(10, 20)];
     await db.insert(transferRequests).values({
       memberId: transferMember1.id,
@@ -1027,25 +1260,25 @@ export async function seedDemoData(): Promise<void> {
       status: "approved",
       approvedByFromOwner: true,
       approvedByToOwner: true,
-      createdAt: subDays(today, 15),
+      createdAt: subDays(today, 45),
     });
     stats.transfers++;
     
-    const transferMember2 = gym2.members[getRandomInt(5, 15)];
+    const transferMember2 = gym1.members[getRandomInt(21, 30)];
     await db.insert(transferRequests).values({
       memberId: transferMember2.id,
-      fromGymId: gym2.gym.id,
-      toGymId: gym1.gym.id,
+      fromGymId: gym1.gym.id,
+      toGymId: gym2.gym.id,
       status: "rejected",
       approvedByFromOwner: true,
       approvedByToOwner: false,
-      createdAt: subDays(today, 10),
+      createdAt: subDays(today, 20),
     });
     stats.transfers++;
     
-    const pendingTransferMember = gym1.members[getRandomInt(30, 40)];
+    const pendingTransferMember1 = gym1.members[getRandomInt(31, 40)];
     await db.insert(transferRequests).values({
-      memberId: pendingTransferMember.id,
+      memberId: pendingTransferMember1.id,
       fromGymId: gym1.gym.id,
       toGymId: gym2.gym.id,
       status: "pending",
@@ -1055,7 +1288,79 @@ export async function seedDemoData(): Promise<void> {
     });
     stats.transfers++;
     
-    console.log(`\n[Demo Seed] Created ${stats.transfers} transfer requests`);
+    // Transfer requests from Gym B -> Gym A (3 requests: approved, rejected, pending)
+    const transferMember3 = gym2.members[getRandomInt(5, 15)];
+    await db.insert(transferRequests).values({
+      memberId: transferMember3.id,
+      fromGymId: gym2.gym.id,
+      toGymId: gym1.gym.id,
+      status: "approved",
+      approvedByFromOwner: true,
+      approvedByToOwner: true,
+      createdAt: subDays(today, 60),
+    });
+    stats.transfers++;
+    
+    const transferMember4 = gym2.members[getRandomInt(16, 25)];
+    await db.insert(transferRequests).values({
+      memberId: transferMember4.id,
+      fromGymId: gym2.gym.id,
+      toGymId: gym1.gym.id,
+      status: "rejected",
+      approvedByFromOwner: true,
+      approvedByToOwner: false,
+      createdAt: subDays(today, 15),
+    });
+    stats.transfers++;
+    
+    const pendingTransferMember2 = gym2.members[getRandomInt(26, 35)];
+    await db.insert(transferRequests).values({
+      memberId: pendingTransferMember2.id,
+      fromGymId: gym2.gym.id,
+      toGymId: gym1.gym.id,
+      status: "pending",
+      approvedByFromOwner: false,
+      approvedByToOwner: false,
+      createdAt: subDays(today, 5),
+    });
+    stats.transfers++;
+    
+    console.log(`\n[Demo Seed] Created ${stats.transfers} transfer requests (3 each direction)`);
+    
+    // Create cross-gym join requests (members from gym1 requesting to join gym2 and vice versa)
+    // This represents users who are members of one gym wanting to also join another
+    for (let j = 0; j < 5; j++) {
+      const gym1Member = gym1.members[getRandomInt(40, 60)];
+      try {
+        await db.insert(joinRequests).values({
+          gymId: gym2.gym.id,
+          userId: gym1Member.id,
+          status: j < 3 ? "pending" : "approved",
+          createdAt: subDays(today, getRandomInt(1, 30)),
+          reviewedAt: j >= 3 ? subDays(today, getRandomInt(0, 5)) : null,
+        });
+        stats.joinRequests++;
+      } catch (e) {
+        // Skip duplicates
+      }
+    }
+    
+    for (let j = 0; j < 5; j++) {
+      const gym2Member = gym2.members[getRandomInt(30, 50)];
+      try {
+        await db.insert(joinRequests).values({
+          gymId: gym1.gym.id,
+          userId: gym2Member.id,
+          status: j < 2 ? "pending" : "approved",
+          createdAt: subDays(today, getRandomInt(1, 30)),
+          reviewedAt: j >= 2 ? subDays(today, getRandomInt(0, 5)) : null,
+        });
+        stats.joinRequests++;
+      } catch (e) {
+        // Skip duplicates
+      }
+    }
+    console.log(`[Demo Seed] Created ${stats.joinRequests} cross-gym join requests`);
   }
   
   console.log("\n\n========================================");
@@ -1094,6 +1399,30 @@ export async function seedDemoData(): Promise<void> {
   console.log(`Body measurements:       ${stats.bodyMeasurements}`);
   console.log(`Announcements:           ${stats.announcements}`);
   console.log(`Transfer requests:       ${stats.transfers}`);
+  console.log(`Join requests:           ${stats.joinRequests}`);
+  console.log(`Feed posts:              ${stats.feedPosts}`);
+  console.log(`Feed reactions:          ${stats.feedReactions}`);
+  console.log(`Feed comments:           ${stats.feedComments}`);
+  console.log(`Tournaments:             ${stats.tournaments}`);
+  console.log(`Tournament participants: ${stats.tournamentParticipants}`);
+  
+  console.log("\n========================================");
+  console.log("DEMO WALKTHROUGH PATH");
+  console.log("========================================");
+  console.log("1. Admin Login: Approve pending gym requests");
+  console.log("2. Owner Dashboard: Check revenue, outstanding balances, payment breakdown");
+  console.log("3. Owner Requests: View pending transfers and join requests");
+  console.log("4. Owner Members: See member list with subscriptions and expiring soon");
+  console.log("5. Owner Announcements: View created announcements and read stats");
+  console.log("6. Trainer Dashboard: See assigned members and star members");
+  console.log("7. Trainer Diet Plans: View/edit diet plans for star members");
+  console.log("8. Member Dashboard: Check points earned today vs planned");
+  console.log("9. Member Workouts: See workout history, missed workouts, recover option");
+  console.log("10. Member Progress: View 6-month body measurement trends");
+  console.log("11. Member Feed: Browse 8 months of social activity with reactions");
+  console.log("12. Member Tournaments: View current leaderboard and past winners");
+  console.log("13. Member Payments: Check payment history and any outstanding dues");
+  console.log("14. Member Attendance: View streak and attendance calendar");
   
   console.log("\n========================================");
   console.log("COMMANDS");
