@@ -48,6 +48,7 @@ export default function TrainerWorkoutPage() {
   const { data: cycles = [], isLoading: cyclesLoading } = useTrainerCycles();
   const { data: activity = [], isLoading: activityLoading } = useTrainerActivity();
   const [selectedCycleId, setSelectedCycleId] = useState<number | null>(null);
+  const [cycleSearch, setCycleSearch] = useState("");
   const detailViewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,6 +95,28 @@ export default function TrainerWorkoutPage() {
         <div className="lg:col-span-1 space-y-4">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Your Cycles</h3>
           
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by member or cycle name..."
+              value={cycleSearch}
+              onChange={e => setCycleSearch(e.target.value)}
+              className="pl-9 pr-9"
+              data-testid="input-search-cycles"
+            />
+            {cycleSearch && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setCycleSearch("")}
+                data-testid="button-clear-cycle-search"
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            )}
+          </div>
+
           {isLoading ? (
             <div className="space-y-2">
               {[1, 2, 3].map(i => (
@@ -107,12 +130,29 @@ export default function TrainerWorkoutPage() {
                 <p className="text-sm text-muted-foreground text-center">No workout cycles yet.</p>
               </CardContent>
             </Card>
-          ) : (
-            <div className="space-y-2">
-              {(cycles as any[]).map((cycle) => {
-                const member = (members as any[]).find(m => m.id === cycle.memberId);
-                const isSelected = selectedCycleId === cycle.id;
-                return (
+          ) : (() => {
+            const filteredCycles = (cycles as any[]).filter(cycle => {
+              const member = (members as any[]).find(m => m.id === cycle.memberId);
+              const memberName = member?.username?.toLowerCase() || '';
+              const cycleName = cycle.name?.toLowerCase() || '';
+              const search = cycleSearch.toLowerCase();
+              return memberName.includes(search) || cycleName.includes(search);
+            });
+            
+            if (filteredCycles.length === 0 && cycleSearch) {
+              return (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">No cycles found matching "{cycleSearch}"</p>
+                </div>
+              );
+            }
+            
+            return (
+              <div className="space-y-2">
+                {filteredCycles.map((cycle) => {
+                  const member = (members as any[]).find(m => m.id === cycle.memberId);
+                  const isSelected = selectedCycleId === cycle.id;
+                  return (
                   <Card 
                     key={cycle.id} 
                     className={`cursor-pointer transition-all ${isSelected ? 'ring-2 ring-primary' : 'hover-elevate'}`}
@@ -176,10 +216,11 @@ export default function TrainerWorkoutPage() {
                       </div>
                     </CardContent>
                   </Card>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
 
         <div ref={detailViewRef} className="lg:col-span-2 scroll-mt-4">
