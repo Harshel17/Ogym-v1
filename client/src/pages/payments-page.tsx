@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { IndianRupee, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle, Check, ChevronsUpDown } from "lucide-react";
+import { IndianRupee, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle, Check, ChevronsUpDown, ChevronDown, ChevronUp } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
@@ -330,14 +330,131 @@ function PlansTab() {
   );
 }
 
+function OutstandingPaymentCard({ sub }: { sub: SubscriptionWithDetails }) {
+  const [expanded, setExpanded] = useState(false);
+  
+  const { data: transactions = [], isLoading: transactionsLoading } = useQuery<PaymentTransaction[]>({
+    queryKey: ["/api/owner/subscriptions", sub.id, "transactions"],
+    queryFn: async () => {
+      const res = await fetch(`/api/owner/subscriptions/${sub.id}/transactions`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: expanded
+  });
+
+  const remaining = sub.totalAmount - sub.totalPaid;
+  const paidPercentage = sub.totalAmount > 0 ? Math.round((sub.totalPaid / sub.totalAmount) * 100) : 100;
+
+  return (
+    <Card key={sub.id} className="border-l-4 border-l-yellow-500 rounded-none border-y-0 border-r-0">
+      <CardContent className="py-4">
+        <div 
+          className="flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover-elevate active-elevate-2 p-2 rounded-md -m-2"
+          onClick={() => setExpanded(!expanded)}
+          data-testid={`button-expand-payment-${sub.id}`}
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <p className="font-semibold" data-testid={`text-outstanding-member-${sub.id}`}>
+                {sub.member?.username}
+              </p>
+              <Badge variant="outline" className="capitalize">
+                {sub.paymentMode}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {sub.plan?.name || 'Custom Plan'} - {sub.plan?.durationMonths || 1} month{(sub.plan?.durationMonths || 1) > 1 ? 's' : ''}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Ends: {format(new Date(sub.endDate), "dd MMM yyyy")}
+            </p>
+          </div>
+          <div className="flex-1 max-w-xs space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Paid</span>
+              <span className="font-medium">{paidPercentage}%</span>
+            </div>
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all" 
+                style={{ width: `${paidPercentage}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{formatINR(sub.totalPaid)} paid</span>
+              <span>{formatINR(sub.totalAmount)} total</span>
+            </div>
+          </div>
+          <div className="text-right flex items-center gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Remaining</p>
+              <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400" data-testid={`text-remaining-${sub.id}`}>
+                {formatINR(remaining)}
+              </p>
+            </div>
+            {expanded ? (
+              <ChevronUp className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+            )}
+          </div>
+        </div>
+        
+        {expanded && (
+          <div className="mt-4 pt-4 border-t">
+            <p className="text-sm font-medium mb-3">Payment History</p>
+            {transactionsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : transactions.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No payments recorded yet</p>
+            ) : (
+              <div className="space-y-2">
+                {transactions.map((txn) => (
+                  <div key={txn.id} className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-md">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <div>
+                        <p className="text-sm font-medium">{formatINR(txn.amountPaid)}</p>
+                        <p className="text-xs text-muted-foreground capitalize">{txn.method}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm">{format(new Date(txn.paidOn), "dd MMM yyyy")}</p>
+                      {txn.referenceNote && (
+                        <p className="text-xs text-muted-foreground">{txn.referenceNote}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function OutstandingPaymentsTab() {
+  const [searchQuery, setSearchQuery] = useState("");
   const { data: subscriptions = [], isLoading } = useQuery<SubscriptionWithDetails[]>({
     queryKey: ["/api/owner/subscriptions"]
   });
 
   const outstandingPayments = subscriptions.filter(sub => {
     const remaining = sub.totalAmount - sub.totalPaid;
-    return remaining > 0 && (sub.paymentMode === 'emi' || sub.paymentMode === 'partial');
+    const isOutstanding = remaining > 0 && (sub.paymentMode === 'emi' || sub.paymentMode === 'partial');
+    if (!isOutstanding) return false;
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return sub.member?.username?.toLowerCase().includes(query) ||
+             sub.plan?.name?.toLowerCase().includes(query);
+    }
+    return true;
   }).sort((a, b) => (b.totalAmount - b.totalPaid) - (a.totalAmount - a.totalPaid));
 
   if (isLoading) {
@@ -353,72 +470,49 @@ function OutstandingPaymentsTab() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Receipt className="h-5 w-5" />
-          Outstanding Payments (EMI/Partial)
-        </CardTitle>
-        <CardDescription>
-          Members with pending balance on their subscriptions
-        </CardDescription>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Outstanding Payments (EMI/Partial)
+            </CardTitle>
+            <CardDescription>
+              Members with pending balance on their subscriptions
+            </CardDescription>
+          </div>
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search members..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+              data-testid="input-outstanding-search"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {outstandingPayments.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>All payments are complete! No outstanding balances.</p>
+            <p>{searchQuery ? "No matching members found" : "All payments are complete! No outstanding balances."}</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {outstandingPayments.map((sub) => {
-              const remaining = sub.totalAmount - sub.totalPaid;
-              const paidPercentage = sub.totalAmount > 0 ? Math.round((sub.totalPaid / sub.totalAmount) * 100) : 100;
-              return (
-                <Card key={sub.id} className="border-l-4 border-l-yellow-500 rounded-none border-y-0 border-r-0">
-                  <CardContent className="py-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold" data-testid={`text-outstanding-member-${sub.id}`}>
-                            {sub.member?.username}
-                          </p>
-                          <Badge variant="outline" className="capitalize">
-                            {sub.paymentMode}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {sub.plan?.name || 'Custom Plan'} - {sub.plan?.durationMonths || 1} month{(sub.plan?.durationMonths || 1) > 1 ? 's' : ''}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Ends: {format(new Date(sub.endDate), "dd MMM yyyy")}
-                        </p>
-                      </div>
-                      <div className="flex-1 max-w-xs space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Paid</span>
-                          <span className="font-medium">{paidPercentage}%</span>
-                        </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary transition-all" 
-                            style={{ width: `${paidPercentage}%` }}
-                          />
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{formatINR(sub.totalPaid)} paid</span>
-                          <span>{formatINR(sub.totalAmount)} total</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Remaining</p>
-                        <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400" data-testid={`text-remaining-${sub.id}`}>
-                          {formatINR(remaining)}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {outstandingPayments.map((sub) => (
+              <OutstandingPaymentCard key={sub.id} sub={sub} />
+            ))}
           </div>
         )}
       </CardContent>
