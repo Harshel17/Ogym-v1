@@ -565,9 +565,22 @@ export async function registerRoutes(
     
     // Support both progression modes
     let currentDayIndex: number;
+    let wasAutoReset = false;
     if (cycle.progressionMode === "completion") {
       // Completion-based: use stored currentDayIndex
       currentDayIndex = cycle.currentDayIndex ?? 0;
+      
+      // Auto-reset logic: if member missed more than 3 consecutive days, reset to day 0
+      if (cycle.lastWorkoutDate) {
+        const lastWorkout = new Date(cycle.lastWorkoutDate);
+        const daysSinceLastWorkout = Math.floor((today.getTime() - lastWorkout.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysSinceLastWorkout > 3 && currentDayIndex !== 0) {
+          // Reset to day 0
+          currentDayIndex = 0;
+          await storage.updateCycleDayIndex(cycle.id, 0);
+          wasAutoReset = true;
+        }
+      }
     } else {
       // Calendar-based (default): calculate from dates
       currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
@@ -638,7 +651,8 @@ export async function registerRoutes(
       swap: swapInfo,
       canSwapRestDay,
       tomorrowDayIndex,
-      progressionMode: cycle.progressionMode || "calendar"
+      progressionMode: cycle.progressionMode || "calendar",
+      wasAutoReset
     });
   });
   
@@ -652,7 +666,8 @@ export async function registerRoutes(
     }
     
     const newDayIndex = ((cycle.currentDayIndex ?? 0) + 1) % cycle.cycleLength;
-    await storage.updateCycleDayIndex(cycle.id, newDayIndex);
+    const todayStr = new Date().toISOString().split("T")[0];
+    await storage.updateCycleDayIndexAndLastWorkout(cycle.id, newDayIndex, todayStr);
     
     res.json({ message: "Day advanced", newDayIndex });
   });

@@ -124,6 +124,7 @@ export const workoutCycles = pgTable("workout_cycles", {
   endDate: text("end_date").notNull(),
   progressionMode: text("progression_mode", { enum: ["calendar", "completion"] }).default("calendar"),
   currentDayIndex: integer("current_day_index").default(0),
+  lastWorkoutDate: text("last_workout_date"), // YYYY-MM-DD - tracks last workout for auto-reset in completion mode
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
