@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface WorkoutSummary {
   streak: number;
@@ -119,6 +120,16 @@ export default function MemberWorkoutPage() {
         <h2 className="text-3xl font-bold font-display text-foreground">My Workout</h2>
         <p className="text-muted-foreground mt-1">Your personalized training program.</p>
       </div>
+
+      {today?.wasAutoReset && (
+        <Alert data-testid="alert-auto-reset">
+          <RotateCcw className="h-4 w-4" />
+          <AlertTitle>Cycle Reset</AlertTitle>
+          <AlertDescription>
+            Your workout cycle has been reset to Day 1 because you missed more than 3 consecutive days. Welcome back!
+          </AlertDescription>
+        </Alert>
+      )}
 
       {!statsLoading && workoutSummary && (
         <div className="grid grid-cols-3 gap-4">
