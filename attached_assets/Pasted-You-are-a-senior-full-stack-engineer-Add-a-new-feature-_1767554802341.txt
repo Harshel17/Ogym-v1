@@ -1,0 +1,69 @@
+You are a senior full-stack engineer.
+
+Add a new feature: Training Phases (Phase 1, Phase 2, etc.) to OGym.
+Phases are time-based blocks that group workout + attendance + points + measurements into a single analytics view.
+
+DO NOT break existing workflows or auth.
+Phases should be additive (grouping + analytics), not rewriting existing history.
+
+FEATURE REQUIREMENTS:
+
+1) Data model
+Create a TrainingPhase model/table (or equivalent):
+- id, gym_id, member_id, trainer_id (optional)
+- name (e.g., "Phase 1 - Strength Block")
+- goal_type (cut/bulk/strength/endurance/rehab)
+- start_date, end_date
+- cycle_id (or cycle_assignment_id) (required)
+- diet_plan_id (optional)
+- notes (optional)
+- created_at
+
+2) Trainer UX
+- In trainer view for a member:
+  - Add a "Phases" section
+  - Allow creating a phase by selecting:
+    name, goal, start date, end date, cycle, optional diet plan, notes
+- Allow phase list view per member (Phase 1, Phase 2, etc.)
+
+3) Member UX
+- On member Progress page, add a "Phases" section:
+  - show list of phases with date range
+  - each phase is clickable
+- Phase Details page should show analytics for that phase only (between start_date and end_date):
+  a) Workouts:
+     - workout days completed
+     - partial days
+     - missed days (only where planned_points>0)
+     - total points earned/planned
+     - completion %
+     - best streak during phase
+  b) Attendance:
+     - total check-ins
+     - weekly trend summary
+  c) Body Measurements:
+     - compare measurement closest to phase start vs phase end
+     - show delta for weight, chest, waist, arms, etc. (use existing measurement fields)
+  d) Most trained muscle / category:
+     - If exercise model has muscle group tags, aggregate completions by muscle group
+     - If not available, show top day labels (Push/Pull/Legs) and top completed exercises instead
+
+4) API
+Add endpoints:
+- Create phase (trainer only)
+- List phases for a member
+- Get phase details analytics (computed on the fly for date range)
+
+5) Demo data
+Update demo seed:
+- For each gym, create phases for multiple members:
+  - Phase 1 (first month), Phase 2 (second month), etc.
+- Ensure the phase analytics pages are not empty.
+
+DELIVERABLES:
+- Files changed
+- Explanation of how analytics are computed
+- Test steps:
+  1) create phase for a member
+  2) open member Progress -> Phases
+  3) open Phase 1 details -> see workouts, points, attendance, measurements deltas

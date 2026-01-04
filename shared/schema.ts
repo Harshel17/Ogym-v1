@@ -221,6 +221,22 @@ export const dietPlanMeals = pgTable("diet_plan_meals", {
   orderIndex: integer("order_index").default(0),
 });
 
+// === TRAINING PHASES ===
+export const trainingPhases = pgTable("training_phases", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  trainerId: integer("trainer_id").references(() => users.id),
+  name: text("name").notNull(),
+  goalType: text("goal_type", { enum: ["cut", "bulk", "strength", "endurance", "rehab", "general"] }).notNull().default("general"),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  cycleId: integer("cycle_id").references(() => workoutCycles.id).notNull(),
+  dietPlanId: integer("diet_plan_id").references(() => dietPlans.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const transferRequests = pgTable("transfer_requests", {
   id: serial("id").primaryKey(),
   memberId: integer("member_id").references(() => users.id).notNull(),
@@ -479,6 +495,7 @@ export const insertGymHistorySchema = createInsertSchema(gymHistory).omit({ id: 
 export const insertStarMemberSchema = createInsertSchema(starMembers).omit({ id: true, createdAt: true });
 export const insertDietPlanSchema = createInsertSchema(dietPlans).omit({ id: true, createdAt: true });
 export const insertDietPlanMealSchema = createInsertSchema(dietPlanMeals).omit({ id: true });
+export const insertTrainingPhaseSchema = createInsertSchema(trainingPhases).omit({ id: true, createdAt: true });
 export const insertTransferRequestSchema = createInsertSchema(transferRequests).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true, isDeleted: true });
 export const insertUserNotificationPreferencesSchema = createInsertSchema(userNotificationPreferences).omit({ id: true });
@@ -518,6 +535,7 @@ export type GymHistory = typeof gymHistory.$inferSelect;
 export type StarMember = typeof starMembers.$inferSelect;
 export type DietPlan = typeof dietPlans.$inferSelect;
 export type DietPlanMeal = typeof dietPlanMeals.$inferSelect;
+export type TrainingPhase = typeof trainingPhases.$inferSelect;
 export type TransferRequest = typeof transferRequests.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -536,6 +554,7 @@ export type InsertGymHistory = z.infer<typeof insertGymHistorySchema>;
 export type InsertStarMember = z.infer<typeof insertStarMemberSchema>;
 export type InsertDietPlan = z.infer<typeof insertDietPlanSchema>;
 export type InsertDietPlanMeal = z.infer<typeof insertDietPlanMealSchema>;
+export type InsertTrainingPhase = z.infer<typeof insertTrainingPhaseSchema>;
 export type InsertTransferRequest = z.infer<typeof insertTransferRequestSchema>;
 
 export type Announcement = typeof announcements.$inferSelect;
