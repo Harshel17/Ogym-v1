@@ -2023,7 +2023,7 @@ export class DatabaseStorage implements IStorage {
         const withinEnd = !cycleEndDate || dateStr <= cycleEndDate;
         
         if (withinStart && withinEnd) {
-          dayIndex = daysDiff % cycle.daysPerCycle;
+          dayIndex = daysDiff % cycle.cycleLength;
           isCycleActive = true;
         }
       }
@@ -2092,14 +2092,14 @@ export class DatabaseStorage implements IStorage {
       const cycleStart = new Date(cycle.startDate);
       const currentDate = new Date(date);
       
-      if (!isNaN(cycleStart.getTime()) && !isNaN(currentDate.getTime()) && cycle.daysPerCycle > 0) {
+      if (!isNaN(cycleStart.getTime()) && !isNaN(currentDate.getTime()) && cycle.cycleLength > 0) {
         const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
         
         const withinStart = daysDiff >= 0;
         const withinEnd = !cycle.endDate || date <= cycle.endDate;
         
         if (withinStart && withinEnd) {
-          dayIndex = daysDiff % cycle.daysPerCycle;
+          dayIndex = daysDiff % cycle.cycleLength;
           scheduledItems = await db.select()
             .from(workoutItems)
             .where(and(eq(workoutItems.cycleId, cycle.id), eq(workoutItems.dayIndex, dayIndex)))
