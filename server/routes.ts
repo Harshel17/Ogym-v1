@@ -968,6 +968,12 @@ export async function registerRoutes(
     res.json(stats);
   });
 
+  app.get("/api/me/stats/consistency", requireRole(["member"]), async (req, res) => {
+    const days = parseInt(req.query.days as string) || 30;
+    const consistencyStats = await storage.getMemberConsistencyStats(req.user!.gymId!, req.user!.id, days);
+    res.json(consistencyStats);
+  });
+
   app.get("/api/me/calendar", requireRole(["member"]), async (req, res) => {
     const month = req.query.month as string || new Date().toISOString().slice(0, 7);
     const calendar = await storage.getMemberCalendar(req.user!.id, month);

@@ -2052,6 +2052,135 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async getMemberConsistencyStats(gymId: number, memberId: number, days: number = 30): Promise<{
+    scheduledDays: number;
+    completedDays: number;
+    missedDays: number;
+    partialDays: number;
+    restDays: number;
+    completionRate: number;
+    totalExercisesScheduled: number;
+    totalExercisesCompleted: number;
+    exerciseCompletionRate: number;
+    recentPartialDays: { date: string; completed: number; missed: number }[];
+  }> {
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - days + 1);
+    
+    let scheduledDays = 0;
+    let completedDays = 0;
+    let missedDays = 0;
+    let partialDays = 0;
+    let restDays = 0;
+    let totalExercisesScheduled = 0;
+    let totalExercisesCompleted = 0;
+    const recentPartialDays: { date: string; completed: number; missed: number }[] = [];
+
+    // Get member's cycle
+    const memberCycle = await db.select()
+      .from(workoutCycles)
+      .where(and(eq(workoutCycles.gymId, gymId), eq(workoutCycles.memberId, memberId)))
+      .limit(1);
+    
+    const cycle = memberCycle.length > 0 ? memberCycle[0] : null;
+    if (!cycle) {
+      return {
+        scheduledDays: 0, completedDays: 0, missedDays: 0, partialDays: 0, restDays: days,
+        completionRate: 0, totalExercisesScheduled: 0, totalExercisesCompleted: 0,
+        exerciseCompletionRate: 0, recentPartialDays: []
+      };
+    }
+
+    // Get scheduled items for the cycle
+    const scheduledItems = await db.select()
+      .from(workoutItems)
+      .where(eq(workoutItems.cycleId, cycle.id));
+
+    // Get completions for the period
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = today.toISOString().split('T')[0];
+    
+    const completions = await db.select()
+      .from(workoutCompletions)
+      .where(and(
+        eq(workoutCompletions.memberId, memberId),
+        gte(workoutCompletions.completedDate, startStr),
+        lte(workoutCompletions.completedDate, endStr)
+      ));
+
+    const completionsByDate = new Map<string, Set<number>>();
+    for (const c of completions) {
+      if (!completionsByDate.has(c.completedDate)) {
+        completionsByDate.set(c.completedDate, new Set());
+      }
+      completionsByDate.get(c.completedDate)!.add(c.workoutItemId);
+    }
+
+    // Iterate through each day
+    const cycleEndDate = cycle.endDate || null;
+    
+    for (let d = 0; d < days; d++) {
+      const currentDate = new Date(startDate);
+      currentDate.setDate(currentDate.getDate() + d);
+      const dateStr = currentDate.toISOString().split('T')[0];
+      
+      if (dateStr > endStr) break;
+
+      // Check if cycle is active for this date (must be within cycle end date)
+      const withinEnd = !cycleEndDate || dateStr <= cycleEndDate;
+      
+      if (!withinEnd) {
+        // Day is after cycle ended - treat as rest
+        restDays++;
+        continue;
+      }
+
+      const cycleStart = new Date(cycle.startDate);
+      const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
+      const dayIndex = ((daysDiff % cycle.cycleLength) + cycle.cycleLength) % cycle.cycleLength;
+      
+      const scheduled = scheduledItems.filter(item => item.dayIndex === dayIndex);
+      const completedIds = completionsByDate.get(dateStr) || new Set();
+      
+      if (scheduled.length === 0) {
+        restDays++;
+      } else {
+        scheduledDays++;
+        totalExercisesScheduled += scheduled.length;
+        const completedCount = scheduled.filter(item => completedIds.has(item.id)).length;
+        totalExercisesCompleted += completedCount;
+        
+        if (completedCount === 0) {
+          missedDays++;
+        } else if (completedCount === scheduled.length) {
+          completedDays++;
+        } else {
+          partialDays++;
+          // Track all partial days, we'll keep only the most recent N at the end
+          recentPartialDays.push({
+            date: dateStr,
+            completed: completedCount,
+            missed: scheduled.length - completedCount
+          });
+        }
+      }
+    }
+
+    return {
+      scheduledDays,
+      completedDays,
+      missedDays,
+      partialDays,
+      restDays,
+      completionRate: scheduledDays > 0 ? Math.round((completedDays / scheduledDays) * 100) : 0,
+      totalExercisesScheduled,
+      totalExercisesCompleted,
+      exerciseCompletionRate: totalExercisesScheduled > 0 ? Math.round((totalExercisesCompleted / totalExercisesScheduled) * 100) : 0,
+      recentPartialDays: recentPartialDays.slice(-5).reverse()
+    };
+  }
+
   async getMemberDailyAnalytics(gymId: number, memberId: number, date: string): Promise<{
     date: string;
     totalExercises: number;

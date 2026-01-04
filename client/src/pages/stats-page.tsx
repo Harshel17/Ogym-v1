@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays, Moon, Search, X } from "lucide-react";
+import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays, Moon, Search, X, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
@@ -40,6 +40,19 @@ type DailyWorkout = {
   exercises: { name: string; muscleType: string; sets: number | null; reps: number | null; weight: string | null }[];
 };
 
+type ConsistencyStats = {
+  scheduledDays: number;
+  completedDays: number;
+  missedDays: number;
+  partialDays: number;
+  restDays: number;
+  completionRate: number;
+  totalExercisesScheduled: number;
+  totalExercisesCompleted: number;
+  exerciseCompletionRate: number;
+  recentPartialDays: { date: string; completed: number; missed: number }[];
+};
+
 const COLORS: Record<string, string> = {
   'Chest': '#6366f1',
   'Back': '#22c55e', 
@@ -68,6 +81,10 @@ export default function StatsPage() {
 
   const { data: dailyWorkouts = [] } = useQuery<DailyWorkout[]>({
     queryKey: ["/api/me/workouts/daily"],
+  });
+
+  const { data: consistencyStats } = useQuery<ConsistencyStats>({
+    queryKey: ["/api/me/stats/consistency", 30],
   });
 
   if (user?.role !== "member") {
@@ -233,6 +250,87 @@ export default function StatsPage() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {consistencyStats && consistencyStats.scheduledDays > 0 && (
+            <Card data-testid="card-consistency">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="w-5 h-5" />
+                  Workout Consistency (Last 30 Days)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="p-3 bg-green-500/10 rounded-lg text-center">
+                      <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto mb-1" />
+                      <p className="text-2xl font-bold text-green-600">{consistencyStats.completedDays}</p>
+                      <p className="text-xs text-muted-foreground">Completed</p>
+                    </div>
+                    <div className="p-3 bg-amber-500/10 rounded-lg text-center">
+                      <AlertCircle className="w-5 h-5 text-amber-500 mx-auto mb-1" />
+                      <p className="text-2xl font-bold text-amber-600">{consistencyStats.partialDays}</p>
+                      <p className="text-xs text-muted-foreground">Partial</p>
+                    </div>
+                    <div className="p-3 bg-red-500/10 rounded-lg text-center">
+                      <XCircle className="w-5 h-5 text-red-500 mx-auto mb-1" />
+                      <p className="text-2xl font-bold text-red-600">{consistencyStats.missedDays}</p>
+                      <p className="text-xs text-muted-foreground">Missed</p>
+                    </div>
+                    <div className="p-3 bg-blue-500/10 rounded-lg text-center">
+                      <Moon className="w-5 h-5 text-blue-500 mx-auto mb-1" />
+                      <p className="text-2xl font-bold text-blue-600">{consistencyStats.restDays}</p>
+                      <p className="text-xs text-muted-foreground">Rest Days</p>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Day Completion Rate</span>
+                        <span className="text-sm font-bold">{consistencyStats.completionRate}%</span>
+                      </div>
+                      <Progress value={consistencyStats.completionRate} className="h-2" />
+                      <p className="text-xs text-muted-foreground">
+                        {consistencyStats.completedDays} of {consistencyStats.scheduledDays} scheduled days fully completed
+                      </p>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Exercise Completion Rate</span>
+                        <span className="text-sm font-bold">{consistencyStats.exerciseCompletionRate}%</span>
+                      </div>
+                      <Progress value={consistencyStats.exerciseCompletionRate} className="h-2" />
+                      <p className="text-xs text-muted-foreground">
+                        {consistencyStats.totalExercisesCompleted} of {consistencyStats.totalExercisesScheduled} exercises completed
+                      </p>
+                    </div>
+                  </div>
+
+                  {consistencyStats.recentPartialDays.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm font-medium mb-2">Recent Partial Days</p>
+                      <div className="space-y-2">
+                        {consistencyStats.recentPartialDays.map((day) => (
+                          <div key={day.date} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                            <span className="text-sm">{format(parseISO(day.date), "MMM d, yyyy")}</span>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="bg-green-500/20 text-green-700">
+                                {day.completed} done
+                              </Badge>
+                              <Badge variant="secondary" className="bg-red-500/20 text-red-700">
+                                {day.missed} missed
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
