@@ -640,27 +640,23 @@ export async function registerRoutes(
       await storage.updateAttendanceMethod(existingAttendance.id, "both");
     }
     
-    // Create feed post for workout completion (if auto-post enabled)
+    // Check if we should ask user to share on feed (first completion of day + auto-post enabled)
+    let askToShare = false;
+    let shareFocusLabel = focusLabel;
     try {
       const user = await storage.getUser(req.user!.id);
       if (user?.autoPostEnabled !== false) {
         const todayCompletions = await storage.getCompletions(req.user!.id, today);
         if (todayCompletions.length === 1) {
-          // First completion of the day - create feed post
-          await storage.createFeedPost({
-            gymId: req.user!.gymId!,
-            userId: req.user!.id,
-            type: "workout_complete",
-            content: null,
-            metadata: JSON.stringify({ exerciseCount: 1, focusLabel })
-          });
+          // First completion of the day - ask user if they want to share
+          askToShare = true;
         }
       }
     } catch (feedErr) {
-      console.error("Failed to create feed post:", feedErr);
+      console.error("Error checking feed post status:", feedErr);
     }
     
-    res.status(201).json(completion);
+    res.status(201).json({ ...completion, askToShare, focusLabel: shareFocusLabel });
   });
 
   app.post("/api/workouts/complete-all", requireRole(["member"]), async (req, res) => {
@@ -2222,6 +2218,27 @@ export async function registerRoutes(
     res.json(posts);
   });
   
+  // Share workout completion on feed (triggered by user confirmation)
+  app.post("/api/feed/share-workout", requireRole(["member"]), async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    const { focusLabel } = req.body;
+    const today = new Date().toISOString().split("T")[0];
+    
+    // Get today's completions to include count
+    const todayCompletions = await storage.getCompletions(req.user!.id, today);
+    
+    const post = await storage.createFeedPost({
+      gymId: req.user!.gymId,
+      userId: req.user!.id,
+      type: "workout_complete",
+      content: null,
+      metadata: { exerciseCount: todayCompletions.length || 1, focusLabel: focusLabel || "Workout" }
+    });
+    res.status(201).json(post);
+  });
+
   // Create a manual feed post
   app.post("/api/feed", requireAuth, async (req, res) => {
     if (!req.user!.gymId) {

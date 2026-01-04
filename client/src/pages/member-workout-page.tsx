@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useTodayWorkout, useCompleteWorkout, useMemberCycle, useDailyPoints } from "@/hooks/use-workouts";
+import { useTodayWorkout, useCompleteWorkout, useMemberCycle, useDailyPoints, useShareWorkout } from "@/hooks/use-workouts";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy } from "lucide-react";
+import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 interface WorkoutSummary {
   streak: number;
@@ -39,7 +40,27 @@ export default function MemberWorkoutPage() {
   const todayStr = new Date().toISOString().split("T")[0];
   const { data: dailyPoints } = useDailyPoints(todayStr, todayStr);
   const todayPoints = dailyPoints?.[0];
-  const completeWorkoutMutation = useCompleteWorkout();
+  
+  // Share workout dialog state
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [pendingShareLabel, setPendingShareLabel] = useState<string>("");
+  const shareWorkoutMutation = useShareWorkout();
+  
+  const handleAskToShare = (focusLabel: string) => {
+    setPendingShareLabel(focusLabel);
+    setShareDialogOpen(true);
+  };
+  
+  const handleShareConfirm = () => {
+    shareWorkoutMutation.mutate(pendingShareLabel);
+    setShareDialogOpen(false);
+  };
+  
+  const handleShareSkip = () => {
+    setShareDialogOpen(false);
+  };
+  
+  const completeWorkoutMutation = useCompleteWorkout(handleAskToShare);
   
   const [expandedExercise, setExpandedExercise] = useState<number | null>(null);
   const [exerciseInputs, setExerciseInputs] = useState<ExerciseInputs>({});
@@ -329,6 +350,36 @@ export default function MemberWorkoutPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Share Workout Confirmation Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="w-5 h-5" />
+              Share Your Workout?
+            </DialogTitle>
+            <DialogDescription>
+              Would you like to share your workout progress on the gym feed? Your gym mates will be able to see and react to your achievement.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">Today's focus:</p>
+              <p className="font-medium">{pendingShareLabel || "Workout"}</p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={handleShareSkip} data-testid="button-skip-share">
+              Skip
+            </Button>
+            <Button onClick={handleShareConfirm} disabled={shareWorkoutMutation.isPending} data-testid="button-confirm-share">
+              <Share2 className="w-4 h-4 mr-2" />
+              Share on Feed
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

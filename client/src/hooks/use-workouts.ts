@@ -100,23 +100,49 @@ export function useMemberHistory() {
   });
 }
 
-export function useCompleteWorkout() {
+export function useCompleteWorkout(onAskToShare?: (focusLabel: string) => void) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (data: { workoutItemId: number; actualSets?: number; actualReps?: number; actualWeight?: string }) => {
-      return apiRequest("POST", "/api/workouts/complete", data);
+      const response = await apiRequest("POST", "/api/workouts/complete", data);
+      return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/stats/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/daily-points'] });
       toast({ title: "Done!", description: "Workout completed and attendance marked" });
+      
+      // If server says to ask about sharing, trigger the callback
+      if (result?.askToShare && onAskToShare) {
+        onAskToShare(result.focusLabel || "Workout");
+      }
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message || "Failed to complete workout", variant: "destructive" });
+    },
+  });
+}
+
+export function useShareWorkout() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (focusLabel: string) => {
+      const response = await apiRequest("POST", "/api/feed/share-workout", { focusLabel });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/feed'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/me/posts'] });
+      toast({ title: "Shared!", description: "Your workout was posted to the gym feed" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to share workout", variant: "destructive" });
     },
   });
 }
