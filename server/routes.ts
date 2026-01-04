@@ -1535,6 +1535,71 @@ export async function registerRoutes(
     res.json(plans);
   });
 
+  // === TRAINING PHASES ROUTES ===
+  app.post("/api/training-phases", requireRole(["trainer"]), async (req, res) => {
+    const schema = z.object({
+      memberId: z.number(),
+      name: z.string().min(1),
+      goalType: z.enum(["cut", "bulk", "strength", "endurance", "rehab", "general"]),
+      startDate: z.string(),
+      endDate: z.string(),
+      cycleId: z.number(),
+      dietPlanId: z.number().optional(),
+      notes: z.string().optional()
+    });
+    const input = schema.parse(req.body);
+    
+    const phase = await storage.createTrainingPhase({
+      gymId: req.user!.gymId!,
+      trainerId: req.user!.id,
+      memberId: input.memberId,
+      name: input.name,
+      goalType: input.goalType,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      cycleId: input.cycleId,
+      dietPlanId: input.dietPlanId,
+      notes: input.notes
+    });
+    res.status(201).json(phase);
+  });
+
+  app.get("/api/training-phases/member/:memberId", requireRole(["trainer", "owner"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    const phases = await storage.getTrainingPhases(req.user!.gymId!, memberId);
+    res.json(phases);
+  });
+
+  app.get("/api/training-phases/me", requireRole(["member"]), async (req, res) => {
+    const phases = await storage.getTrainingPhases(req.user!.gymId!, req.user!.id);
+    res.json(phases);
+  });
+
+  app.get("/api/training-phases/:phaseId", requireRole(["trainer", "member", "owner"]), async (req, res) => {
+    const phaseId = parseInt(req.params.phaseId);
+    const phase = await storage.getTrainingPhaseById(phaseId);
+    if (!phase) {
+      return res.status(404).json({ message: "Phase not found" });
+    }
+    if (phase.gymId !== req.user!.gymId) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    res.json(phase);
+  });
+
+  app.delete("/api/training-phases/:phaseId", requireRole(["trainer"]), async (req, res) => {
+    const phaseId = parseInt(req.params.phaseId);
+    const phase = await storage.getTrainingPhaseById(phaseId);
+    if (!phase) {
+      return res.status(404).json({ message: "Phase not found" });
+    }
+    if (phase.trainerId !== req.user!.id) {
+      return res.status(403).json({ message: "Only the trainer who created this phase can delete it" });
+    }
+    await storage.deleteTrainingPhase(phaseId);
+    res.json({ success: true });
+  });
+
   // === TRANSFER REQUESTS ROUTES ===
   app.post("/api/member/transfer-request", requireRole(["member", "trainer"]), async (req, res) => {
     const schema = z.object({ gymCode: z.string().min(1) });
