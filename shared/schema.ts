@@ -153,6 +153,17 @@ export const workoutCompletions = pgTable("workout_completions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const memberRestDaySwaps = pgTable("member_rest_day_swaps", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  cycleId: integer("cycle_id").references(() => workoutCycles.id).notNull(),
+  swapDate: text("swap_date").notNull(),
+  targetDate: text("target_date").notNull(),
+  targetDayIndex: integer("target_day_index").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const memberRequests = pgTable("member_requests", {
   id: serial("id").primaryKey(),
   gymId: integer("gym_id").references(() => gyms.id).notNull(),
@@ -459,6 +470,7 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true,
 export const insertWorkoutCycleSchema = createInsertSchema(workoutCycles).omit({ id: true, createdAt: true });
 export const insertWorkoutItemSchema = createInsertSchema(workoutItems).omit({ id: true });
 export const insertWorkoutCompletionSchema = createInsertSchema(workoutCompletions).omit({ id: true, createdAt: true });
+export const insertMemberRestDaySwapSchema = createInsertSchema(memberRestDaySwaps).omit({ id: true, createdAt: true });
 export const insertMemberRequestSchema = createInsertSchema(memberRequests).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertGymHistorySchema = createInsertSchema(gymHistory).omit({ id: true });
 export const insertStarMemberSchema = createInsertSchema(starMembers).omit({ id: true, createdAt: true });
@@ -497,6 +509,7 @@ export type Payment = typeof payments.$inferSelect;
 export type WorkoutCycle = typeof workoutCycles.$inferSelect;
 export type WorkoutItem = typeof workoutItems.$inferSelect;
 export type WorkoutCompletion = typeof workoutCompletions.$inferSelect;
+export type MemberRestDaySwap = typeof memberRestDaySwaps.$inferSelect;
 export type MemberRequest = typeof memberRequests.$inferSelect;
 export type GymHistory = typeof gymHistory.$inferSelect;
 export type StarMember = typeof starMembers.$inferSelect;
@@ -514,6 +527,7 @@ export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type InsertWorkoutCycle = z.infer<typeof insertWorkoutCycleSchema>;
 export type InsertWorkoutItem = z.infer<typeof insertWorkoutItemSchema>;
 export type InsertWorkoutCompletion = z.infer<typeof insertWorkoutCompletionSchema>;
+export type InsertMemberRestDaySwap = z.infer<typeof insertMemberRestDaySwapSchema>;
 export type InsertMemberRequest = z.infer<typeof insertMemberRequestSchema>;
 export type InsertGymHistory = z.infer<typeof insertGymHistorySchema>;
 export type InsertStarMember = z.infer<typeof insertStarMemberSchema>;
