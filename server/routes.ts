@@ -1627,6 +1627,65 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
+  // Phase Exercises routes
+  app.get("/api/training-phases/:phaseId/exercises", requireRole(["trainer", "member", "owner"]), async (req, res) => {
+    const phaseId = parseInt(req.params.phaseId);
+    const phase = await storage.getTrainingPhaseById(phaseId);
+    if (!phase) {
+      return res.status(404).json({ message: "Phase not found" });
+    }
+    if (phase.gymId !== req.user!.gymId) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    const exercises = await storage.getPhaseExercises(phaseId);
+    res.json(exercises);
+  });
+
+  app.post("/api/training-phases/:phaseId/exercises", requireRole(["trainer"]), async (req, res) => {
+    const phaseId = parseInt(req.params.phaseId);
+    const phase = await storage.getTrainingPhaseById(phaseId);
+    if (!phase) {
+      return res.status(404).json({ message: "Phase not found" });
+    }
+    if (phase.trainerId !== req.user!.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    const exercise = await storage.addPhaseExercise({ ...req.body, phaseId });
+    res.status(201).json(exercise);
+  });
+
+  app.patch("/api/training-phases/exercises/:exerciseId", requireRole(["trainer"]), async (req, res) => {
+    const exerciseId = parseInt(req.params.exerciseId);
+    const exercise = await storage.updatePhaseExercise(exerciseId, req.body);
+    res.json(exercise);
+  });
+
+  app.delete("/api/training-phases/exercises/:exerciseId", requireRole(["trainer"]), async (req, res) => {
+    const exerciseId = parseInt(req.params.exerciseId);
+    await storage.deletePhaseExercise(exerciseId);
+    res.json({ success: true });
+  });
+
+  app.post("/api/training-phases/:phaseId/copy-from-cycle", requireRole(["trainer"]), async (req, res) => {
+    const phaseId = parseInt(req.params.phaseId);
+    const { cycleId } = req.body;
+    const phase = await storage.getTrainingPhaseById(phaseId);
+    if (!phase) {
+      return res.status(404).json({ message: "Phase not found" });
+    }
+    if (phase.trainerId !== req.user!.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    const exercises = await storage.copyExercisesFromCycle(phaseId, cycleId);
+    res.json(exercises);
+  });
+
+  // Get member's active phase (for auto-assign cycle logic)
+  app.get("/api/member/active-phase", requireRole(["member"]), async (req, res) => {
+    const phase = await storage.getActivePhaseForMember(req.user!.id, req.user!.gymId!);
+    res.json(phase || null);
+  });
+
   // === TRANSFER REQUESTS ROUTES ===
   app.post("/api/member/transfer-request", requireRole(["member", "trainer"]), async (req, res) => {
     const schema = z.object({ gymCode: z.string().min(1) });
