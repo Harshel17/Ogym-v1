@@ -37,7 +37,8 @@ import {
   type FeedComment, type InsertFeedComment,
   type Tournament, type InsertTournament,
   type TournamentParticipant, type InsertTournamentParticipant,
-  type MemberRestDaySwap, type InsertMemberRestDaySwap
+  type MemberRestDaySwap, type InsertMemberRestDaySwap,
+  trainingPhases, type TrainingPhase, type InsertTrainingPhase
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, or } from "drizzle-orm";
@@ -178,6 +179,12 @@ export interface IStorage {
   createDietPlan(data: InsertDietPlan): Promise<DietPlan>;
   addDietPlanMeal(data: InsertDietPlanMeal): Promise<DietPlanMeal>;
   getDietPlanMeals(planId: number): Promise<DietPlanMeal[]>;
+  
+  // Training Phases
+  createTrainingPhase(data: InsertTrainingPhase): Promise<TrainingPhase>;
+  getTrainingPhases(gymId: number, memberId: number): Promise<TrainingPhase[]>;
+  getTrainingPhaseById(phaseId: number): Promise<TrainingPhase | undefined>;
+  deleteTrainingPhase(phaseId: number): Promise<void>;
   
   // Transfer Requests
   createTransferRequest(data: InsertTransferRequest): Promise<TransferRequest>;
@@ -1485,6 +1492,28 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(dietPlanMeals)
       .where(eq(dietPlanMeals.planId, planId))
       .orderBy(dietPlanMeals.dayIndex, dietPlanMeals.orderIndex);
+  }
+
+  // === Training Phases Methods ===
+  async createTrainingPhase(data: InsertTrainingPhase): Promise<TrainingPhase> {
+    const [phase] = await db.insert(trainingPhases).values(data).returning();
+    return phase;
+  }
+
+  async getTrainingPhases(gymId: number, memberId: number): Promise<TrainingPhase[]> {
+    return await db.select().from(trainingPhases)
+      .where(and(eq(trainingPhases.gymId, gymId), eq(trainingPhases.memberId, memberId)))
+      .orderBy(desc(trainingPhases.createdAt));
+  }
+
+  async getTrainingPhaseById(phaseId: number): Promise<TrainingPhase | undefined> {
+    const [phase] = await db.select().from(trainingPhases)
+      .where(eq(trainingPhases.id, phaseId));
+    return phase;
+  }
+
+  async deleteTrainingPhase(phaseId: number): Promise<void> {
+    await db.delete(trainingPhases).where(eq(trainingPhases.id, phaseId));
   }
 
   // === Transfer Requests Methods ===
