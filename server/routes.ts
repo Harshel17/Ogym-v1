@@ -640,18 +640,21 @@ export async function registerRoutes(
       await storage.updateAttendanceMethod(existingAttendance.id, "both");
     }
     
-    // Create feed post for workout completion
+    // Create feed post for workout completion (if auto-post enabled)
     try {
-      const todayCompletions = await storage.getCompletions(req.user!.id, today);
-      if (todayCompletions.length === 1) {
-        // First completion of the day - create feed post
-        await storage.createFeedPost({
-          gymId: req.user!.gymId!,
-          userId: req.user!.id,
-          type: "workout_complete",
-          content: null,
-          metadata: JSON.stringify({ exerciseCount: 1, focusLabel })
-        });
+      const user = await storage.getUser(req.user!.id);
+      if (user?.autoPostEnabled !== false) {
+        const todayCompletions = await storage.getCompletions(req.user!.id, today);
+        if (todayCompletions.length === 1) {
+          // First completion of the day - create feed post
+          await storage.createFeedPost({
+            gymId: req.user!.gymId!,
+            userId: req.user!.id,
+            type: "workout_complete",
+            content: null,
+            metadata: JSON.stringify({ exerciseCount: 1, focusLabel })
+          });
+        }
       }
     } catch (feedErr) {
       console.error("Failed to create feed post:", feedErr);
@@ -1878,6 +1881,28 @@ export async function registerRoutes(
       { emailEnabled, smsEnabled }
     );
     res.json(prefs);
+  });
+
+  // === AUTO-POST SETTINGS ===
+  app.get("/api/me/auto-post", requireAuth, async (req, res) => {
+    const user = await storage.getUser(req.user!.id);
+    res.json({ autoPostEnabled: user?.autoPostEnabled ?? true });
+  });
+
+  app.put("/api/me/auto-post", requireAuth, async (req, res) => {
+    const schema = z.object({ autoPostEnabled: z.boolean() });
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ message: "Invalid request" });
+    }
+    await storage.updateUserAutoPost(req.user!.id, result.data.autoPostEnabled);
+    res.json({ autoPostEnabled: result.data.autoPostEnabled });
+  });
+
+  // === MY POSTS ===
+  app.get("/api/me/posts", requireAuth, async (req, res) => {
+    const posts = await storage.getUserPosts(req.user!.id);
+    res.json(posts);
   });
 
   // === GYM REQUESTS (Owner Onboarding) ===

@@ -60,6 +60,8 @@ export interface IStorage {
   getUser(id: number): Promise<(User & { gym: Gym | null }) | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserAutoPost(userId: number, autoPostEnabled: boolean): Promise<void>;
+  getUserPosts(userId: number): Promise<FeedPost[]>;
   getGym(id: number): Promise<Gym | undefined>;
   getGymByCode(code: string): Promise<Gym | undefined>;
   createGym(gym: InsertGym): Promise<Gym>;
@@ -480,6 +482,14 @@ export class DatabaseStorage implements IStorage {
     }
     
     return user;
+  }
+
+  async updateUserAutoPost(userId: number, autoPostEnabled: boolean): Promise<void> {
+    await db.update(users).set({ autoPostEnabled }).where(eq(users.id, userId));
+  }
+
+  async getUserPosts(userId: number): Promise<FeedPost[]> {
+    return await db.select().from(feedPosts).where(eq(feedPosts.userId, userId)).orderBy(desc(feedPosts.createdAt));
   }
 
   async getGym(id: number): Promise<Gym | undefined> {

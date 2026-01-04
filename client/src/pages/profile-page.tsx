@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
-import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft } from "lucide-react";
+import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { formatDistanceToNow } from "date-fns";
 
 type ProfileData = {
   id: number;
@@ -288,6 +290,14 @@ export default function ProfilePage() {
         {canTransfer && (
           <TransferGymCard />
         )}
+
+        {user?.role === "member" && (
+          <AutoPostSettingsCard />
+        )}
+
+        {user?.role === "member" && (
+          <MyPostsCard />
+        )}
       </div>
     </div>
   );
@@ -388,6 +398,170 @@ function TransferGymCard() {
                 </div>
               </DialogContent>
             </Dialog>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+type FeedPost = {
+  id: number;
+  type: string;
+  content: string | null;
+  metadata: any;
+  createdAt: string;
+  isHidden: boolean;
+};
+
+function AutoPostSettingsCard() {
+  const { toast } = useToast();
+  
+  const { data: autoPostSettings, isLoading } = useQuery<{ autoPostEnabled: boolean }>({
+    queryKey: ["/api/me/auto-post"]
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await apiRequest("PUT", "/api/me/auto-post", { autoPostEnabled: enabled });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/me/auto-post"] });
+      toast({ 
+        title: data.autoPostEnabled ? "Auto-posting enabled" : "Auto-posting disabled",
+        description: data.autoPostEnabled 
+          ? "Your workout completions will be shared on the feed" 
+          : "Your workouts will no longer be automatically shared"
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to update setting", variant: "destructive" });
+    }
+  });
+
+  return (
+    <Card className="md:col-span-2">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Settings className="w-5 h-5" />
+          Feed Settings
+        </CardTitle>
+        <CardDescription>Control how your activity appears on the gym feed</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+          <div>
+            <p className="font-medium">Auto-post workout completions</p>
+            <p className="text-sm text-muted-foreground">
+              When enabled, your daily workout progress will be automatically shared on the gym feed
+            </p>
+          </div>
+          {isLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Switch
+              checked={autoPostSettings?.autoPostEnabled ?? true}
+              onCheckedChange={(checked) => toggleMutation.mutate(checked)}
+              disabled={toggleMutation.isPending}
+              data-testid="switch-auto-post"
+            />
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MyPostsCard() {
+  const { data: posts, isLoading } = useQuery<FeedPost[]>({
+    queryKey: ["/api/me/posts"]
+  });
+
+  const getPostIcon = (type: string) => {
+    switch (type) {
+      case "workout_complete": return <Dumbbell className="w-4 h-4 text-green-500" />;
+      case "streak_milestone": return <Flame className="w-4 h-4 text-orange-500" />;
+      case "achievement": return <Trophy className="w-4 h-4 text-yellow-500" />;
+      case "new_member": return <UserPlus className="w-4 h-4 text-blue-500" />;
+      default: return <MessageSquare className="w-4 h-4 text-muted-foreground" />;
+    }
+  };
+
+  const getPostLabel = (type: string) => {
+    switch (type) {
+      case "workout_complete": return "Workout";
+      case "streak_milestone": return "Streak";
+      case "achievement": return "Achievement";
+      case "new_member": return "Joined";
+      case "manual": return "Post";
+      default: return type;
+    }
+  };
+
+  const getPostDescription = (post: FeedPost) => {
+    const meta = post.metadata || {};
+    switch (post.type) {
+      case "workout_complete":
+        return `Completed ${meta.exerciseCount || 1} exercises${meta.focusLabel ? ` - ${meta.focusLabel}` : ""}`;
+      case "streak_milestone":
+        return `Reached ${meta.streakDays || 0} day streak`;
+      case "achievement":
+        return meta.type === "personal_record" 
+          ? `New PR: ${meta.exercise} - ${meta.value}` 
+          : "Earned achievement";
+      case "new_member":
+        return "Joined the gym";
+      case "manual":
+        return post.content || "Shared an update";
+      default:
+        return post.content || "Activity";
+    }
+  };
+
+  return (
+    <Card className="md:col-span-2">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <MessageSquare className="w-5 h-5" />
+          My Posts
+        </CardTitle>
+        <CardDescription>Your activity and posts on the gym feed</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin" />
+          </div>
+        ) : !posts || posts.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-50" />
+            <p>No posts yet</p>
+            <p className="text-sm">Complete workouts or share updates to see them here</p>
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {posts.map((post) => (
+              <div key={post.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                <div className="mt-0.5">
+                  {getPostIcon(post.type)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary" className="text-xs">
+                      {getPostLabel(post.type)}
+                    </Badge>
+                    {post.isHidden && (
+                      <Badge variant="outline" className="text-xs text-muted-foreground">Hidden</Badge>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                    </span>
+                  </div>
+                  <p className="text-sm mt-1">{getPostDescription(post)}</p>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>

@@ -50,6 +50,7 @@ export const users = pgTable("users", {
   isAdmin: boolean("is_admin").default(false),
   email: text("email"),
   phone: text("phone"),
+  autoPostEnabled: boolean("auto_post_enabled").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
