@@ -1056,6 +1056,24 @@ export class DatabaseStorage implements IStorage {
       itemsByDay.set(item.dayIndex, dayItems);
     }
     
+    // Get all rest day swaps in the date range
+    const swaps = await db.select()
+      .from(memberRestDaySwaps)
+      .where(
+        and(
+          eq(memberRestDaySwaps.memberId, memberId),
+          eq(memberRestDaySwaps.cycleId, cycle.id)
+        )
+      );
+    
+    // Build swap maps: swapDate -> targetDayIndex, targetDate -> isSwappedRestDay
+    const swapDateToTargetDayIndex = new Map<string, number>();
+    const targetDateIsSwappedRestDay = new Set<string>();
+    for (const swap of swaps) {
+      swapDateToTargetDayIndex.set(swap.swapDate, swap.targetDayIndex);
+      targetDateIsSwappedRestDay.add(swap.targetDate);
+    }
+    
     // Get all completions in the date range
     const completions = await db.select()
       .from(workoutCompletions)
@@ -1114,12 +1132,20 @@ export class DatabaseStorage implements IStorage {
       
       // Calculate which day of the cycle this date falls on
       const daysSinceStart = Math.floor((d.getTime() - cycleStartDate.getTime()) / (1000 * 60 * 60 * 24));
-      const currentDayIndex = ((daysSinceStart % cycle.cycleLength) + cycle.cycleLength) % cycle.cycleLength;
+      let currentDayIndex = ((daysSinceStart % cycle.cycleLength) + cycle.cycleLength) % cycle.cycleLength;
+      
+      // Check for rest day swaps - if this date was a swap date, use the target day index
+      if (swapDateToTargetDayIndex.has(dateStr)) {
+        currentDayIndex = swapDateToTargetDayIndex.get(dateStr)!;
+      }
+      
+      // Check if this date is a swapped rest day (it was the target of a swap)
+      const isSwappedRestDay = targetDateIsSwappedRestDay.has(dateStr);
       
       // Get planned exercises for this day
-      const dayItems = itemsByDay.get(currentDayIndex) || [];
+      const dayItems = isSwappedRestDay ? [] : (itemsByDay.get(currentDayIndex) || []);
       const dayLabel = cycle.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
-      const isRestDay = (cycle.restDays?.includes(currentDayIndex)) || dayLabel.toLowerCase().includes("rest") || dayItems.length === 0;
+      const isRestDay = isSwappedRestDay || (cycle.restDays?.includes(currentDayIndex)) || dayLabel.toLowerCase().includes("rest") || dayItems.length === 0;
       const plannedPoints = isRestDay ? 0 : dayItems.length;
       
       // Get earned points (unique completed items for this date)
