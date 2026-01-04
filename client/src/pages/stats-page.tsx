@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays, Moon } from "lucide-react";
+import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays, Moon, Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { format, parseISO } from "date-fns";
@@ -58,6 +59,7 @@ export default function StatsPage() {
   const { user } = useAuth();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [showAllWorkouts, setShowAllWorkouts] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const WORKOUT_LIMIT = 7;
 
   const { data: stats, isLoading } = useQuery<MemberStats>({
@@ -346,17 +348,58 @@ export default function StatsPage() {
             </Card>
           )}
 
-          {dailyWorkouts.length > 0 && (
+          {dailyWorkouts.length > 0 && (() => {
+            const filteredWorkouts = searchQuery 
+              ? dailyWorkouts.filter(day => {
+                  const searchLower = searchQuery.toLowerCase();
+                  const dateFormatted = format(parseISO(day.date), "EEEE, MMM d, yyyy").toLowerCase();
+                  const muscles = day.muscleGroups.join(" ").toLowerCase();
+                  return dateFormatted.includes(searchLower) || 
+                         muscles.includes(searchLower) ||
+                         day.date.includes(searchQuery);
+                })
+              : dailyWorkouts;
+            
+            const displayedWorkouts = searchQuery 
+              ? filteredWorkouts 
+              : (showAllWorkouts ? filteredWorkouts : filteredWorkouts.slice(0, WORKOUT_LIMIT));
+            
+            return (
             <Card data-testid="card-workout-history">
-              <CardHeader className="flex flex-row items-center justify-between gap-2">
-                <CardTitle className="flex items-center gap-2">
-                  <CalendarDays className="w-5 h-5" />
-                  Workout History
-                </CardTitle>
-                <Badge variant="secondary">{dailyWorkouts.length} days</Badge>
+              <CardHeader className="flex flex-col gap-3">
+                <div className="flex flex-row items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-2">
+                    <CalendarDays className="w-5 h-5" />
+                    Workout History
+                  </CardTitle>
+                  <Badge variant="secondary">{filteredWorkouts.length} days</Badge>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by date or muscle group..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-9"
+                    data-testid="input-search-workouts"
+                  />
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={() => setSearchQuery("")}
+                      data-testid="button-clear-search"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-2">
-                {(showAllWorkouts ? dailyWorkouts : dailyWorkouts.slice(0, WORKOUT_LIMIT)).map((day) => {
+                {displayedWorkouts.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">No workouts found for "{searchQuery}"</p>
+                ) : displayedWorkouts.map((day) => {
                   const isExpanded = expandedDate === day.date;
                   return (
                     <Collapsible
@@ -420,7 +463,7 @@ export default function StatsPage() {
                   );
                 })}
                 
-                {dailyWorkouts.length > WORKOUT_LIMIT && (
+                {!searchQuery && filteredWorkouts.length > WORKOUT_LIMIT && (
                   <Button
                     variant="ghost"
                     className="w-full mt-2"
@@ -429,7 +472,7 @@ export default function StatsPage() {
                   >
                     {showAllWorkouts 
                       ? `Show Less` 
-                      : `Show ${dailyWorkouts.length - WORKOUT_LIMIT} More`}
+                      : `Show ${filteredWorkouts.length - WORKOUT_LIMIT} More`}
                     {showAllWorkouts ? (
                       <ChevronUp className="w-4 h-4 ml-2" />
                     ) : (
@@ -439,7 +482,8 @@ export default function StatsPage() {
                 )}
               </CardContent>
             </Card>
-          )}
+          );
+          })()}
         </>
       )}
     </div>
