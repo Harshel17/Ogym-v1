@@ -203,7 +203,7 @@ export interface IStorage {
     weightChange: number | null;
     pointsTrend: { date: string; points: number }[];
     weightTrend: { date: string; weight: number }[];
-    dailyWorkouts: { date: string; exercises: { name: string; sets: number; reps: number; weight: string }[]; points: number }[];
+    dailyWorkouts: { date: string; exercises: { name: string; sets: number; reps: number; weight: string }[]; points: number; expectedPoints: number }[];
   }>;
   
   // Transfer Requests
@@ -1624,7 +1624,7 @@ export class DatabaseStorage implements IStorage {
     weightChange: number | null;
     pointsTrend: { date: string; points: number }[];
     weightTrend: { date: string; weight: number }[];
-    dailyWorkouts: { date: string; exercises: { name: string; sets: number; reps: number; weight: string }[]; points: number }[];
+    dailyWorkouts: { date: string; exercises: { name: string; sets: number; reps: number; weight: string }[]; points: number; expectedPoints: number }[];
   }> {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -1634,6 +1634,29 @@ export class DatabaseStorage implements IStorage {
     const effectiveEndStr = effectiveEnd.toISOString().split('T')[0];
     
     const totalDays = Math.max(1, Math.ceil((effectiveEnd.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    
+    // Get the phase to find linked cycle
+    const phase = await db.select().from(trainingPhases).where(eq(trainingPhases.id, phaseId)).limit(1);
+    const cycleId = phase[0]?.cycleId;
+    const cycleLength = phase[0]?.cycleLength || 7;
+    const restDays = phase[0]?.restDays || [];
+    
+    // Get cycle items to calculate expected exercises per day
+    let cycleItemsByDay: Map<number, number> = new Map();
+    if (cycleId) {
+      const cycleItems = await db.select().from(workoutItems).where(eq(workoutItems.cycleId, cycleId));
+      cycleItems.forEach(item => {
+        const count = cycleItemsByDay.get(item.dayIndex) || 0;
+        cycleItemsByDay.set(item.dayIndex, count + 1);
+      });
+    } else {
+      // Use phase exercises if no cycle linked
+      const phaseExerciseItems = await db.select().from(phaseExercises).where(eq(phaseExercises.phaseId, phaseId));
+      phaseExerciseItems.forEach(item => {
+        const count = cycleItemsByDay.get(item.dayIndex) || 0;
+        cycleItemsByDay.set(item.dayIndex, count + 1);
+      });
+    }
     
     // Attendance records within the phase period and for this gym
     const attendanceRecords = await db.select().from(attendance)
@@ -1742,11 +1765,23 @@ export class DatabaseStorage implements IStorage {
       }
     });
     
-    const dailyWorkouts = Array.from(exercisesByDate.entries()).map(([date, exercises]) => ({
-      date,
-      exercises,
-      points: exercises.length
-    })).sort((a, b) => a.date.localeCompare(b.date));
+    // Helper to calculate day index for a date
+    const getDayIndex = (dateStr: string): number => {
+      const date = new Date(dateStr);
+      const daysSinceStart = Math.floor((date.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      return daysSinceStart % cycleLength;
+    };
+    
+    const dailyWorkouts = Array.from(exercisesByDate.entries()).map(([date, exercises]) => {
+      const dayIndex = getDayIndex(date);
+      const expectedPoints = cycleItemsByDay.get(dayIndex) || 0;
+      return {
+        date,
+        exercises,
+        points: exercises.length,
+        expectedPoints
+      };
+    }).sort((a, b) => a.date.localeCompare(b.date));
     
     return {
       attendanceDays,

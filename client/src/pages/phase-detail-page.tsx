@@ -34,6 +34,7 @@ type DailyWorkout = {
   date: string;
   exercises: { name: string; sets: number; reps: number; weight: string }[];
   points: number;
+  expectedPoints: number;
 };
 
 type PhaseAnalytics = {
@@ -117,9 +118,12 @@ function WorkoutDayItem({ workout }: { workout: DailyWorkout }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="shrink-0">
+            <Badge 
+              variant="secondary" 
+              className={`shrink-0 ${workout.points < workout.expectedPoints ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : ''}`}
+            >
               <Flame className="w-3 h-3 mr-1 text-orange-500" />
-              {workout.points} pts
+              {workout.expectedPoints > 0 ? `${workout.points}/${workout.expectedPoints}` : `${workout.points} pts`}
             </Badge>
             <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </div>
@@ -154,9 +158,12 @@ function PointsDayItem({ workout }: { workout: DailyWorkout }) {
             <span className="text-xs text-muted-foreground">({workout.exercises.length} exercises)</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline">
+            <Badge 
+              variant="outline"
+              className={workout.points < workout.expectedPoints ? 'border-amber-500/50 text-amber-700 dark:text-amber-400' : ''}
+            >
               <Flame className="w-3 h-3 mr-1 text-orange-500" />
-              {workout.points} points
+              {workout.expectedPoints > 0 ? `${workout.points}/${workout.expectedPoints}` : `${workout.points} pts`}
             </Badge>
             <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </div>
@@ -175,6 +182,11 @@ function PointsDayItem({ workout }: { workout: DailyWorkout }) {
               <span className="text-muted-foreground">{ex.sets}x{ex.reps}</span>
             </div>
           ))}
+          {workout.expectedPoints > workout.points && (
+            <div className="flex items-center gap-2 py-1 px-2 text-xs text-muted-foreground">
+              <span className="italic">+{workout.expectedPoints - workout.points} missed</span>
+            </div>
+          )}
         </div>
       </CollapsibleContent>
     </Collapsible>
