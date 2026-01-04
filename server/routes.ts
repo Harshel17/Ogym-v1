@@ -539,6 +539,24 @@ export async function registerRoutes(
     res.status(201).json(item);
   });
 
+  app.delete("/api/trainer/cycles/:cycleId/items/:itemId", requireRole(["trainer"]), async (req, res) => {
+    const cycleId = parseInt(req.params.cycleId);
+    const itemId = parseInt(req.params.itemId);
+    
+    const cycle = await storage.getCycle(cycleId);
+    if (!cycle || cycle.trainerId !== req.user!.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    
+    const item = await storage.getWorkoutItem(itemId);
+    if (!item || item.cycleId !== cycleId) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+    
+    await storage.deleteWorkoutItem(itemId);
+    res.status(204).send();
+  });
+
   app.get("/api/trainer/activity", requireRole(["trainer"]), async (req, res) => {
     const assignments = await storage.getTrainerMembers(req.user!.id);
     const memberIds = assignments.map(a => a.memberId);

@@ -311,6 +311,15 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
     },
   });
 
+  const deleteExerciseMutation = useMutation({
+    mutationFn: async ({ cycleId, itemId }: { cycleId: number; itemId: number }) => {
+      await apiRequest("DELETE", `/api/trainer/cycles/${cycleId}/items/${itemId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/cycles", cycle.id, "items"] });
+    },
+  });
+
   const saveDayLabel = (dayIndex: number, label: string) => {
     const currentLabel = dayLabels[dayIndex] || "";
     if (label === currentLabel) {
@@ -464,6 +473,36 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
                               </p>
                             </div>
                           </div>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-destructive shrink-0"
+                                data-testid={`button-delete-exercise-${exercise.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Exercise</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{exercise.exerciseName}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteExerciseMutation.mutate({ cycleId: cycle.id, itemId: exercise.id })}
+                                  className="bg-destructive text-destructive-foreground"
+                                  data-testid={`button-confirm-delete-exercise-${exercise.id}`}
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       ))}
                     </div>

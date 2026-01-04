@@ -98,6 +98,7 @@ export interface IStorage {
   updateCycleDayIndex(cycleId: number, currentDayIndex: number): Promise<WorkoutCycle>;
   updateCycleDayIndexAndLastWorkout(cycleId: number, currentDayIndex: number, lastWorkoutDate: string): Promise<WorkoutCycle>;
   addWorkoutItem(data: InsertWorkoutItem): Promise<WorkoutItem>;
+  deleteWorkoutItem(itemId: number): Promise<void>;
   getWorkoutItems(cycleId: number): Promise<WorkoutItem[]>;
   getWorkoutItemsByDay(cycleId: number, dayIndex: number): Promise<WorkoutItem[]>;
   getWorkoutItem(id: number): Promise<WorkoutItem | undefined>;
@@ -720,6 +721,10 @@ export class DatabaseStorage implements IStorage {
   async addWorkoutItem(data: InsertWorkoutItem): Promise<WorkoutItem> {
     const [item] = await db.insert(workoutItems).values(data).returning();
     return item;
+  }
+
+  async deleteWorkoutItem(itemId: number): Promise<void> {
+    await db.delete(workoutItems).where(eq(workoutItems.id, itemId));
   }
 
   async getWorkoutItems(cycleId: number): Promise<WorkoutItem[]> {
