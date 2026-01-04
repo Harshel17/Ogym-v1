@@ -1,0 +1,65 @@
+You are a senior full-stack engineer.
+
+I want to FINALIZE and CLEAN UP the Workout Cycle system in OGym.
+The app already follows calendar-based cycle progression. Keep this as default.
+
+DO NOT change authentication or existing workflows.
+Improve clarity, consistency, and trainer control.
+
+FINAL DECISIONS (LOCK THESE):
+- Default progression mode: Calendar-based (A1)
+- Cycle start date: Trainer explicitly chooses start date (B3)
+
+REQUIREMENTS:
+
+1) Workout Cycle Definition (Trainer Side)
+- A cycle consists of Day 1..N with:
+  - day label (Push, Pull, Legs, Rest, etc.)
+  - exercises list (empty or Rest toggle allowed)
+- Keep existing rest detection logic.
+
+2) Cycle Assignment to Member (IMPORTANT)
+- When a trainer assigns a cycle to a member:
+  - Require explicit "Cycle Start Date" selection
+  - Default start date suggestion can be today, but trainer must confirm
+- Store on assignment:
+  - cycle_start_date
+  - progression_mode (default = "calendar")
+
+3) Calendar-Based Progression (DEFAULT – KEEP)
+- Today’s workout dayIndex = (today - cycle_start_date) % cycle_length
+- Cycle progresses strictly by calendar date
+- Missing workouts does NOT stop the cycle
+- Missed workouts continue to be tracked separately
+
+4) Support Completion-Based Mode (OPTIONAL, NOT DEFAULT)
+- Allow trainer to choose progression_mode = "completion" when assigning cycle
+- For completion mode:
+  - Store current_day_index per member-cycle
+  - Advance day only when member marks day done
+  - Rest days auto-advance
+- Calendar mode remains default for all unless explicitly changed
+
+5) Switching / Reassigning Cycles
+- When trainer switches a member to a new cycle:
+  - Trainer must choose start date
+  - Old cycle history must remain intact
+  - New cycle starts cleanly from chosen date
+
+6) Consistency with Existing Systems
+Ensure workout cycle behavior works correctly with:
+- streak logic
+- rest day logic (neutral)
+- points system (planned vs earned)
+- missed workouts
+- tournaments (cap points per calendar day)
+- social feed (workout completion events)
+
+DELIVERABLES:
+- List files changed
+- Explain cycle behavior in plain English
+- Test steps:
+  1) Assign cycle with start date today → verify Day 1 shows
+  2) Miss a day → verify cycle advances, missed workout logged
+  3) Assign new cycle with future start date → verify nothing shows until then
+  4) Assign one member with completion mode → verify pointer-based progression

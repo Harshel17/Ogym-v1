@@ -122,6 +122,8 @@ export const workoutCycles = pgTable("workout_cycles", {
   restDays: integer("rest_days").array(),
   startDate: text("start_date").notNull(),
   endDate: text("end_date").notNull(),
+  progressionMode: text("progression_mode", { enum: ["calendar", "completion"] }).default("calendar"),
+  currentDayIndex: integer("current_day_index").default(0),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
