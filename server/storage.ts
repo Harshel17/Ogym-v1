@@ -183,9 +183,21 @@ export interface IStorage {
   
   // Training Phases
   createTrainingPhase(data: InsertTrainingPhase): Promise<TrainingPhase>;
-  getTrainingPhases(gymId: number, memberId: number): Promise<TrainingPhase[]>;
-  getTrainingPhaseById(phaseId: number): Promise<TrainingPhase | undefined>;
+  getTrainingPhases(gymId: number, memberId: number): Promise<(TrainingPhase & { cycleName: string | null })[]>;
+  getTrainingPhaseById(phaseId: number): Promise<(TrainingPhase & { cycleName: string | null }) | undefined>;
   deleteTrainingPhase(phaseId: number): Promise<void>;
+  getPhaseAnalytics(phaseId: number, memberId: number, startDate: string, endDate: string, gymId: number): Promise<{
+    attendanceDays: number;
+    totalDays: number;
+    totalPoints: number;
+    avgPointsPerDay: number;
+    totalWorkouts: number;
+    startWeight: number | null;
+    endWeight: number | null;
+    weightChange: number | null;
+    pointsTrend: { date: string; points: number }[];
+    weightTrend: { date: string; weight: number }[];
+  }>;
   
   // Transfer Requests
   createTransferRequest(data: InsertTransferRequest): Promise<TransferRequest>;
@@ -1507,20 +1519,136 @@ export class DatabaseStorage implements IStorage {
     return phase;
   }
 
-  async getTrainingPhases(gymId: number, memberId: number): Promise<TrainingPhase[]> {
-    return await db.select().from(trainingPhases)
+  async getTrainingPhases(gymId: number, memberId: number): Promise<(TrainingPhase & { cycleName: string | null })[]> {
+    const phases = await db.select({
+      phase: trainingPhases,
+      cycleName: workoutCycles.name
+    }).from(trainingPhases)
+      .leftJoin(workoutCycles, eq(trainingPhases.cycleId, workoutCycles.id))
       .where(and(eq(trainingPhases.gymId, gymId), eq(trainingPhases.memberId, memberId)))
       .orderBy(desc(trainingPhases.createdAt));
+    return phases.map(p => ({ ...p.phase, cycleName: p.cycleName }));
   }
 
-  async getTrainingPhaseById(phaseId: number): Promise<TrainingPhase | undefined> {
-    const [phase] = await db.select().from(trainingPhases)
+  async getTrainingPhaseById(phaseId: number): Promise<(TrainingPhase & { cycleName: string | null }) | undefined> {
+    const [result] = await db.select({
+      phase: trainingPhases,
+      cycleName: workoutCycles.name
+    }).from(trainingPhases)
+      .leftJoin(workoutCycles, eq(trainingPhases.cycleId, workoutCycles.id))
       .where(eq(trainingPhases.id, phaseId));
-    return phase;
+    if (!result) return undefined;
+    return { ...result.phase, cycleName: result.cycleName };
   }
 
   async deleteTrainingPhase(phaseId: number): Promise<void> {
     await db.delete(trainingPhases).where(eq(trainingPhases.id, phaseId));
+  }
+
+  async getPhaseAnalytics(phaseId: number, memberId: number, startDate: string, endDate: string, gymId: number): Promise<{
+    attendanceDays: number;
+    totalDays: number;
+    totalPoints: number;
+    avgPointsPerDay: number;
+    totalWorkouts: number;
+    startWeight: number | null;
+    endWeight: number | null;
+    weightChange: number | null;
+    pointsTrend: { date: string; points: number }[];
+    weightTrend: { date: string; weight: number }[];
+  }> {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const effectiveEnd = end > today ? today : end;
+    const effectiveEndStr = effectiveEnd.toISOString().split('T')[0];
+    
+    const totalDays = Math.max(1, Math.ceil((effectiveEnd.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    
+    // Attendance records within the phase period and for this gym
+    const attendanceRecords = await db.select().from(attendance)
+      .where(and(
+        eq(attendance.memberId, memberId),
+        eq(attendance.gymId, gymId),
+        gte(attendance.date, startDate),
+        lte(attendance.date, effectiveEndStr)
+      ));
+    const attendanceDays = attendanceRecords.length;
+    
+    // Workout completions within the phase period
+    const completions = await db.select().from(workoutCompletions)
+      .where(and(
+        eq(workoutCompletions.memberId, memberId),
+        gte(workoutCompletions.completedDate, startDate),
+        lte(workoutCompletions.completedDate, effectiveEndStr)
+      ));
+    
+    const completionsByDate = new Map<string, number>();
+    completions.forEach(c => {
+      const date = c.completedDate;
+      completionsByDate.set(date, (completionsByDate.get(date) || 0) + 1);
+    });
+    
+    const totalPoints = completions.length;
+    const avgPointsPerDay = totalDays > 0 ? totalPoints / totalDays : 0;
+    
+    const uniqueWorkoutDates = new Set(completions.map(c => c.completedDate));
+    const totalWorkouts = uniqueWorkoutDates.size;
+    
+    // Body measurements within the phase period and for this gym
+    const measurements = await db.select().from(bodyMeasurements)
+      .where(and(
+        eq(bodyMeasurements.memberId, memberId),
+        eq(bodyMeasurements.gymId, gymId),
+        gte(bodyMeasurements.date, startDate),
+        lte(bodyMeasurements.date, effectiveEndStr)
+      ))
+      .orderBy(bodyMeasurements.date);
+    
+    let startWeight: number | null = null;
+    let endWeight: number | null = null;
+    
+    if (measurements.length > 0) {
+      const firstMeasurement = measurements[0];
+      const lastMeasurement = measurements[measurements.length - 1];
+      if (firstMeasurement.weight) startWeight = parseFloat(firstMeasurement.weight);
+      if (lastMeasurement.weight) endWeight = parseFloat(lastMeasurement.weight);
+    }
+    
+    const weightChange = (startWeight !== null && endWeight !== null) ? 
+      Math.round((endWeight - startWeight) * 10) / 10 : null;
+    
+    const pointsTrend: { date: string; points: number }[] = [];
+    const currentDate = new Date(startDate);
+    while (currentDate <= effectiveEnd) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      pointsTrend.push({
+        date: dateStr,
+        points: completionsByDate.get(dateStr) || 0
+      });
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    const weightTrend = measurements
+      .filter(m => m.weight !== null)
+      .map(m => ({
+        date: m.date,
+        weight: parseFloat(m.weight!)
+      }));
+    
+    return {
+      attendanceDays,
+      totalDays,
+      totalPoints,
+      avgPointsPerDay,
+      totalWorkouts,
+      startWeight,
+      endWeight,
+      weightChange,
+      pointsTrend,
+      weightTrend
+    };
   }
 
   // === Transfer Requests Methods ===

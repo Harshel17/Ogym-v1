@@ -5,7 +5,8 @@ import {
   workoutCycles, workoutItems, workoutCompletions, workoutSessions, workoutSessionExercises,
   bodyMeasurements, starMembers, gymHistory, dietPlans, dietPlanMeals, announcements, announcementReads,
   memberNotes, workoutTemplates, workoutTemplateItems, memberRequests, transferRequests, joinRequests,
-  feedPosts, feedReactions, feedComments, tournaments, tournamentParticipants, memberRestDaySwaps
+  feedPosts, feedReactions, feedComments, tournaments, tournamentParticipants, memberRestDaySwaps,
+  trainingPhases
 } from "@shared/schema";
 import { eq, or, inArray } from "drizzle-orm";
 import { scrypt, randomBytes } from "crypto";
@@ -418,6 +419,8 @@ export async function resetDemoData(): Promise<void> {
     await db.delete(dietPlans).where(inArray(dietPlans.id, dietIds));
   }
   
+  await db.delete(trainingPhases).where(inArray(trainingPhases.gymId, gymIds));
+  
   const demoUsers = await db.select().from(users).where(inArray(users.gymId, gymIds));
   const userIds = demoUsers.map(u => u.id);
   
@@ -470,6 +473,7 @@ export async function seedDemoData(): Promise<void> {
     announcements: 0,
     starMembers: 0,
     memberNotes: 0,
+    trainingPhases: 0,
     templates: 0,
     transfers: 0,
     joinRequests: 0,
@@ -497,6 +501,7 @@ export async function seedDemoData(): Promise<void> {
       starMembers: 0,
       dietPlans: 0,
       memberNotes: 0,
+      trainingPhases: 0,
       bodyMeasurements: 0,
       announcements: 0
     };
@@ -810,6 +815,46 @@ export async function seedDemoData(): Promise<void> {
           stats.dietPlans++;
           gymStats.dietPlans++;
         }
+        
+        // Add training phases for star members who have workout cycles
+        const starMemberCycles = await db.select().from(workoutCycles)
+          .where(eq(workoutCycles.memberId, starMember.id));
+        
+        if (starMemberCycles.length > 0) {
+          const goalTypes = ["cut", "bulk", "strength", "endurance", "rehab", "general"] as const;
+          const phaseCount = Math.random() > 0.5 ? 2 : 1;
+          
+          for (let pi = 0; pi < phaseCount; pi++) {
+            const phaseStartOffset = 60 + (pi * 90); // Each phase offset by ~3 months
+            const phaseDuration = getRandomInt(28, 56); // 4-8 weeks
+            const phaseStart = subDays(today, phaseStartOffset);
+            const phaseEnd = subDays(today, phaseStartOffset - phaseDuration);
+            const goalType = getRandomElement([...goalTypes]);
+            
+            const phaseNames: Record<string, string[]> = {
+              cut: ["Summer Cut", "Fat Loss Phase", "Shred Phase"],
+              bulk: ["Muscle Building", "Off-Season Bulk", "Mass Phase"],
+              strength: ["Strength Block", "Power Phase", "Max Strength"],
+              endurance: ["Cardio Focus", "Conditioning Phase", "Endurance Block"],
+              rehab: ["Recovery Phase", "Rehab Block", "Return to Training"],
+              general: ["Fitness Phase", "General Conditioning", "Base Building"]
+            };
+            
+            await db.insert(trainingPhases).values({
+              gymId: gym.id,
+              trainerId: trainer.id,
+              memberId: starMember.id,
+              cycleId: starMemberCycles[0].id,
+              name: getRandomElement(phaseNames[goalType]),
+              goalType,
+              startDate: format(phaseStart, "yyyy-MM-dd"),
+              endDate: format(phaseEnd, "yyyy-MM-dd"),
+              notes: pi === 0 ? "Good progress so far. Keep pushing!" : null,
+            });
+            stats.trainingPhases++;
+            gymStats.trainingPhases++;
+          }
+        }
       }
       
       for (const member of trainerMembers) {
@@ -928,7 +973,7 @@ export async function seedDemoData(): Promise<void> {
       }
     }
     console.log(`  Created ${gymStats.workoutCycles} workout cycles with ${gymStats.workoutCompletions} completions`);
-    console.log(`  Created ${gymStats.starMembers} star members, ${gymStats.dietPlans} diet plans, ${gymStats.memberNotes} notes`);
+    console.log(`  Created ${gymStats.starMembers} star members, ${gymStats.dietPlans} diet plans, ${gymStats.trainingPhases} phases, ${gymStats.memberNotes} notes`);
     
     const MEASUREMENT_NOTES = [
       "Feeling great", "Cut going well", "Bulk phase", "Post cheat meal", 
@@ -1430,6 +1475,7 @@ export async function seedDemoData(): Promise<void> {
   console.log(`Payments recorded:       ${stats.payments}`);
   console.log(`Diet plans created:      ${stats.dietPlans}`);
   console.log(`Star members:            ${stats.starMembers}`);
+  console.log(`Training phases:         ${stats.trainingPhases}`);
   console.log(`Member notes:            ${stats.memberNotes}`);
   console.log(`Body measurements:       ${stats.bodyMeasurements}`);
   console.log(`Announcements:           ${stats.announcements}`);

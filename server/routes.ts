@@ -1584,7 +1584,34 @@ export async function registerRoutes(
     if (phase.gymId !== req.user!.gymId) {
       return res.status(403).json({ message: "Not authorized" });
     }
+    // Members can only view their own phases
+    if (req.user!.role === "member" && phase.memberId !== req.user!.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
     res.json(phase);
+  });
+
+  app.get("/api/training-phases/:phaseId/analytics", requireRole(["trainer", "member", "owner"]), async (req, res) => {
+    const phaseId = parseInt(req.params.phaseId);
+    const phase = await storage.getTrainingPhaseById(phaseId);
+    if (!phase) {
+      return res.status(404).json({ message: "Phase not found" });
+    }
+    if (phase.gymId !== req.user!.gymId) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    // Members can only view their own phase analytics
+    if (req.user!.role === "member" && phase.memberId !== req.user!.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    const analytics = await storage.getPhaseAnalytics(
+      phaseId, 
+      phase.memberId, 
+      phase.startDate, 
+      phase.endDate,
+      phase.gymId
+    );
+    res.json(analytics);
   });
 
   app.delete("/api/training-phases/:phaseId", requireRole(["trainer"]), async (req, res) => {

@@ -28,6 +28,8 @@ import MyDietPlanPage from "@/pages/my-diet-plan-page";
 import WorkoutTemplatesPage from "@/pages/workout-templates-page";
 import TransfersPage from "@/pages/transfers-page";
 import MissedWorkoutsPage from "@/pages/missed-workouts-page";
+import MemberPhasesPage from "@/pages/member-phases-page";
+import PhaseDetailPage from "@/pages/phase-detail-page";
 import OwnerAttendancePage from "@/pages/owner-attendance-page";
 import OwnerMemberDetailPage from "@/pages/owner-member-detail-page";
 import OwnerRevenuePage from "@/pages/owner-revenue-page";
@@ -140,6 +142,14 @@ function Router() {
 
       <Route path="/progress/missed">
         <ProtectedRoute component={MissedWorkoutsPage} />
+      </Route>
+
+      <Route path="/progress/phases">
+        <ProtectedRoute component={MemberPhasesPage} requiredRole="member" />
+      </Route>
+
+      <Route path="/progress/phases/:phaseId">
+        <ProtectedRoute component={PhaseDetailPage} />
       </Route>
 
       <Route path="/requests">
