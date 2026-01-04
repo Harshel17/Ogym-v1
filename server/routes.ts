@@ -1647,6 +1647,27 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
+  app.patch("/api/training-phases/:phaseId", requireRole(["trainer"]), async (req, res) => {
+    const phaseId = parseInt(req.params.phaseId);
+    const phase = await storage.getTrainingPhaseById(phaseId);
+    if (!phase) {
+      return res.status(404).json({ message: "Phase not found" });
+    }
+    if (phase.trainerId !== req.user!.id) {
+      return res.status(403).json({ message: "Only the trainer who created this phase can update it" });
+    }
+    const schema = z.object({
+      name: z.string().min(1).optional(),
+      goalType: z.enum(["cut", "bulk", "strength", "endurance", "rehab", "general"]).optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      notes: z.string().nullable().optional()
+    });
+    const input = schema.parse(req.body);
+    const updated = await storage.updateTrainingPhase(phaseId, input);
+    res.json(updated);
+  });
+
   // Phase Exercises routes
   app.get("/api/training-phases/:phaseId/exercises", requireRole(["trainer", "member", "owner"]), async (req, res) => {
     const phaseId = parseInt(req.params.phaseId);

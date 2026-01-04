@@ -768,6 +768,7 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
   const [autoAssignCycle, setAutoAssignCycle] = useState(false);
   const [useCustomExercises, setUseCustomExercises] = useState(false);
   const [editingPhaseId, setEditingPhaseId] = useState<number | null>(null);
+  const [editingPhase, setEditingPhase] = useState<TrainingPhase | null>(null);
 
   const { data: phases = [], isLoading } = useQuery<TrainingPhase[]>({
     queryKey: ["/api/training-phases/member", memberId],
@@ -826,6 +827,21 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/training-phases/member", memberId] });
       toast({ title: "Training phase deleted" });
+    }
+  });
+
+  const updatePhaseMutation = useMutation({
+    mutationFn: async ({ phaseId, data }: { phaseId: number; data: Partial<TrainingPhase> }) => {
+      const res = await apiRequest("PATCH", `/api/training-phases/${phaseId}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training-phases/member", memberId] });
+      toast({ title: "Training phase updated" });
+      setEditingPhase(null);
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to update phase", description: err.message, variant: "destructive" });
     }
   });
 
@@ -918,7 +934,12 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
             const isActive = now >= start && now <= end;
             
             return (
-              <Card key={phase.id} data-testid={`phase-${phase.id}`}>
+              <Card 
+                key={phase.id} 
+                data-testid={`phase-${phase.id}`}
+                className="cursor-pointer hover-elevate"
+                onClick={() => setEditingPhase(phase as any)}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
@@ -951,7 +972,7 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setEditingPhaseId(phase.id)}
+                          onClick={(e) => { e.stopPropagation(); setEditingPhaseId(phase.id); }}
                           data-testid={`button-edit-exercises-${phase.id}`}
                         >
                           <Edit className="w-4 h-4" />
@@ -960,7 +981,7 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => deletePhaseMutation.mutate(phase.id)}
+                        onClick={(e) => { e.stopPropagation(); deletePhaseMutation.mutate(phase.id); }}
                         data-testid={`button-delete-phase-${phase.id}`}
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
@@ -1136,6 +1157,127 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
           onClose={() => setEditingPhaseId(null)} 
         />
       )}
+
+      {/* Edit Phase Dialog */}
+      {editingPhase && (
+        <Dialog open={true} onOpenChange={() => setEditingPhase(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => setEditingPhase(null)} data-testid="button-go-back-edit-phase">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+                <DialogTitle>Edit Phase</DialogTitle>
+              </div>
+            </DialogHeader>
+            <EditPhaseForm 
+              phase={editingPhase} 
+              onSave={(data) => updatePhaseMutation.mutate({ phaseId: editingPhase.id, data })}
+              onCancel={() => setEditingPhase(null)}
+              isPending={updatePhaseMutation.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+function EditPhaseForm({ 
+  phase, 
+  onSave, 
+  onCancel,
+  isPending 
+}: { 
+  phase: TrainingPhase; 
+  onSave: (data: Partial<TrainingPhase>) => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState(phase.name);
+  const [goalType, setGoalType] = useState(phase.goalType);
+  const [startDate, setStartDate] = useState(phase.startDate);
+  const [endDate, setEndDate] = useState(phase.endDate);
+  const [notes, setNotes] = useState(phase.notes || "");
+
+  const handleSubmit = () => {
+    onSave({ name, goalType, startDate, endDate, notes: notes || null });
+  };
+
+  return (
+    <div className="space-y-4 py-4">
+      <div>
+        <Label htmlFor="edit-phase-name">Phase Name</Label>
+        <input
+          id="edit-phase-name"
+          type="text"
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm mt-1"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          data-testid="input-edit-phase-name"
+        />
+      </div>
+      <div>
+        <Label htmlFor="edit-goal-type">Goal Type</Label>
+        <select
+          id="edit-goal-type"
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+          value={goalType}
+          onChange={(e) => setGoalType(e.target.value)}
+          data-testid="select-edit-goal-type"
+        >
+          <option value="general">General Fitness</option>
+          <option value="cut">Cut (Fat Loss)</option>
+          <option value="bulk">Bulk (Muscle Gain)</option>
+          <option value="strength">Strength</option>
+          <option value="endurance">Endurance</option>
+          <option value="rehab">Rehabilitation</option>
+        </select>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="edit-start-date">Start Date</Label>
+          <input
+            id="edit-start-date"
+            type="date"
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            data-testid="input-edit-start-date"
+          />
+        </div>
+        <div>
+          <Label htmlFor="edit-end-date">End Date</Label>
+          <input
+            id="edit-end-date"
+            type="date"
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            data-testid="input-edit-end-date"
+          />
+        </div>
+      </div>
+      <div>
+        <Label htmlFor="edit-phase-notes">Notes (Optional)</Label>
+        <Textarea
+          id="edit-phase-notes"
+          placeholder="Any additional notes..."
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="mt-1"
+          data-testid="input-edit-phase-notes"
+        />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} disabled={isPending} data-testid="button-save-phase">
+          {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+          Save Changes
+        </Button>
+      </div>
     </div>
   );
 }

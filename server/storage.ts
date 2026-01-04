@@ -187,6 +187,7 @@ export interface IStorage {
   getTrainingPhases(gymId: number, memberId: number): Promise<(TrainingPhase & { cycleName: string | null })[]>;
   getTrainingPhaseById(phaseId: number): Promise<(TrainingPhase & { cycleName: string | null }) | undefined>;
   deleteTrainingPhase(phaseId: number): Promise<void>;
+  updateTrainingPhase(phaseId: number, data: Partial<InsertTrainingPhase>): Promise<TrainingPhase>;
   getPhaseExercises(phaseId: number): Promise<PhaseExercise[]>;
   addPhaseExercise(data: InsertPhaseExercise): Promise<PhaseExercise>;
   updatePhaseExercise(exerciseId: number, data: Partial<InsertPhaseExercise>): Promise<PhaseExercise>;
@@ -1556,6 +1557,14 @@ export class DatabaseStorage implements IStorage {
   async deleteTrainingPhase(phaseId: number): Promise<void> {
     await db.delete(phaseExercises).where(eq(phaseExercises.phaseId, phaseId));
     await db.delete(trainingPhases).where(eq(trainingPhases.id, phaseId));
+  }
+
+  async updateTrainingPhase(phaseId: number, data: Partial<InsertTrainingPhase>): Promise<TrainingPhase> {
+    const [phase] = await db.update(trainingPhases)
+      .set(data)
+      .where(eq(trainingPhases.id, phaseId))
+      .returning();
+    return phase;
   }
 
   async getPhaseExercises(phaseId: number): Promise<PhaseExercise[]> {
