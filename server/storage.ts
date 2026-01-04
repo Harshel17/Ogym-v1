@@ -4387,6 +4387,147 @@ export class DatabaseStorage implements IStorage {
       eq(memberRestDaySwaps.memberId, memberId)
     ));
   }
+
+  // Auto-assign cycle from active phase
+  async checkAndApplyAutoAssignPhase(gymId: number, memberId: number): Promise<{ phaseApplied: boolean; phaseName?: string }> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Find active phase with autoAssignCycle enabled for this member
+    const activePhases = await db.select()
+      .from(trainingPhases)
+      .where(and(
+        eq(trainingPhases.memberId, memberId),
+        eq(trainingPhases.gymId, gymId),
+        eq(trainingPhases.autoAssignCycle, true),
+        lte(trainingPhases.startDate, today),
+        gte(trainingPhases.endDate, today)
+      ))
+      .orderBy(desc(trainingPhases.startDate))
+      .limit(1);
+
+    if (activePhases.length === 0) {
+      return { phaseApplied: false };
+    }
+
+    const activePhase = activePhases[0];
+    const expectedCycleName = `${activePhase.name} Cycle [Phase ${activePhase.id}]`;
+    
+    // Get member's current cycle
+    const memberCycles = await db.select()
+      .from(workoutCycles)
+      .where(and(eq(workoutCycles.gymId, gymId), eq(workoutCycles.memberId, memberId)))
+      .limit(1);
+
+    let memberCycle: typeof workoutCycles.$inferSelect;
+
+    if (memberCycles.length === 0) {
+      // Create a new cycle for the member if they don't have one
+      const trainerId = activePhase.trainerId;
+      const [newCycle] = await db.insert(workoutCycles).values({
+        gymId,
+        trainerId,
+        memberId,
+        name: expectedCycleName,
+        cycleLength: 3,
+        startDate: activePhase.startDate,
+        endDate: activePhase.endDate,
+        isActive: true
+      }).returning();
+      memberCycle = newCycle;
+    } else {
+      memberCycle = memberCycles[0];
+      
+      // Check if already applied (idempotence check)
+      if (memberCycle.name === expectedCycleName) {
+        return { phaseApplied: false }; // Already applied
+      }
+    }
+    
+    if (activePhase.useCustomExercises) {
+      // Get phase exercises and apply to member's cycle
+      const phaseExercisesList = await db.select()
+        .from(phaseExercises)
+        .where(eq(phaseExercises.phaseId, activePhase.id))
+        .orderBy(phaseExercises.dayIndex, phaseExercises.orderIndex);
+
+      if (phaseExercisesList.length > 0) {
+        // Delete existing workout items for member's cycle
+        await db.delete(workoutItems).where(eq(workoutItems.cycleId, memberCycle.id));
+        
+        // Insert phase exercises as workout items
+        for (const ex of phaseExercisesList) {
+          await db.insert(workoutItems).values({
+            cycleId: memberCycle.id,
+            dayIndex: ex.dayIndex,
+            muscleType: ex.muscleType,
+            bodyPart: ex.bodyPart,
+            exerciseName: ex.exerciseName,
+            sets: ex.sets,
+            reps: ex.reps,
+            weight: ex.weight,
+            orderIndex: ex.orderIndex
+          });
+        }
+
+        // Update cycle dates to match phase
+        const maxDayIndex = Math.max(...phaseExercisesList.map(e => e.dayIndex));
+        await db.update(workoutCycles)
+          .set({
+            startDate: activePhase.startDate,
+            endDate: activePhase.endDate,
+            cycleLength: maxDayIndex + 1,
+            name: expectedCycleName
+          })
+          .where(eq(workoutCycles.id, memberCycle.id));
+      }
+    } else if (activePhase.cycleId) {
+      // Copy exercises from template cycle to member's cycle
+      const templateItems = await db.select()
+        .from(workoutItems)
+        .where(eq(workoutItems.cycleId, activePhase.cycleId))
+        .orderBy(workoutItems.dayIndex, workoutItems.orderIndex);
+
+      if (templateItems.length > 0) {
+        // Delete existing workout items for member's cycle
+        await db.delete(workoutItems).where(eq(workoutItems.cycleId, memberCycle.id));
+        
+        // Copy template items
+        for (const item of templateItems) {
+          await db.insert(workoutItems).values({
+            cycleId: memberCycle.id,
+            dayIndex: item.dayIndex,
+            muscleType: item.muscleType,
+            bodyPart: item.bodyPart,
+            exerciseName: item.exerciseName,
+            sets: item.sets,
+            reps: item.reps,
+            weight: item.weight,
+            orderIndex: item.orderIndex
+          });
+        }
+
+        // Get template cycle to copy settings
+        const [templateCycle] = await db.select()
+          .from(workoutCycles)
+          .where(eq(workoutCycles.id, activePhase.cycleId));
+
+        if (templateCycle) {
+          await db.update(workoutCycles)
+            .set({
+              startDate: activePhase.startDate,
+              endDate: activePhase.endDate,
+              cycleLength: templateCycle.cycleLength,
+              name: expectedCycleName,
+              dayLabels: templateCycle.dayLabels,
+              restDays: templateCycle.restDays
+            })
+            .where(eq(workoutCycles.id, memberCycle.id));
+        }
+      }
+    }
+
+    return { phaseApplied: true, phaseName: activePhase.name };
+  }
 }
 
 export const storage = new DatabaseStorage();

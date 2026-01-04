@@ -1056,6 +1056,8 @@ export async function registerRoutes(
   
   // Get workout summary (streak, total, last 7 days, this month, calendar days)
   app.get("/api/member/workout/summary", requireRole(["member"]), async (req, res) => {
+    // Check and apply auto-assign phase before fetching summary
+    await storage.checkAndApplyAutoAssignPhase(req.user!.gymId!, req.user!.id);
     const summary = await storage.getMemberWorkoutSummary(req.user!.gymId!, req.user!.id);
     res.json(summary);
   });
