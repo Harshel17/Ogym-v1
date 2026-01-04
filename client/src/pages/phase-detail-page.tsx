@@ -123,7 +123,9 @@ function WorkoutDayItem({ workout }: { workout: DailyWorkout }) {
               className={`shrink-0 ${workout.points < workout.expectedPoints ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : ''}`}
             >
               <Flame className="w-3 h-3 mr-1 text-orange-500" />
-              {workout.expectedPoints > 0 ? `${workout.points}/${workout.expectedPoints}` : `${workout.points} pts`}
+              {workout.points < workout.expectedPoints 
+                ? `${workout.points}/${workout.expectedPoints}` 
+                : `${workout.points} pts`}
             </Badge>
             <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </div>
@@ -163,7 +165,9 @@ function PointsDayItem({ workout }: { workout: DailyWorkout }) {
               className={workout.points < workout.expectedPoints ? 'border-amber-500/50 text-amber-700 dark:text-amber-400' : ''}
             >
               <Flame className="w-3 h-3 mr-1 text-orange-500" />
-              {workout.expectedPoints > 0 ? `${workout.points}/${workout.expectedPoints}` : `${workout.points} pts`}
+              {workout.points < workout.expectedPoints 
+                ? `${workout.points}/${workout.expectedPoints}` 
+                : `${workout.points} pts`}
             </Badge>
             <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </div>
