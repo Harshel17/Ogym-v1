@@ -1563,7 +1563,7 @@ export async function registerRoutes(
       goalType: z.enum(["cut", "bulk", "strength", "endurance", "rehab", "general"]),
       startDate: z.string(),
       endDate: z.string(),
-      cycleId: z.number(),
+      cycleId: z.number().nullable().optional(),
       dietPlanId: z.number().optional(),
       notes: z.string().optional()
     });
