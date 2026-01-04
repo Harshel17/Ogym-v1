@@ -25,6 +25,8 @@ type MemberInfo = {
   publicId: string | null;
   gymName: string | null;
   gymCode: string | null;
+  currentCycleName: string | null;
+  currentCycleLength: number | null;
 };
 
 type WorkoutSession = {
@@ -653,7 +655,12 @@ export default function StarMemberDetailPage() {
         </TabsContent>
 
         <TabsContent value="phases" className="mt-6">
-          <TrainingPhasesTab memberId={memberId} memberName={memberInfo.username} />
+          <TrainingPhasesTab 
+            memberId={memberId} 
+            memberName={memberInfo.username}
+            currentCycleName={memberInfo.currentCycleName}
+            currentCycleLength={memberInfo.currentCycleLength}
+          />
         </TabsContent>
       </Tabs>
 
@@ -756,7 +763,12 @@ type WorkoutCycleOption = {
   name: string;
 };
 
-function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberName: string }) {
+function TrainingPhasesTab({ memberId, memberName, currentCycleName, currentCycleLength }: { 
+  memberId: number; 
+  memberName: string;
+  currentCycleName: string | null;
+  currentCycleLength: number | null;
+}) {
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [name, setName] = useState("");
@@ -769,6 +781,7 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
   const [useCustomExercises, setUseCustomExercises] = useState(false);
   const [editingPhaseId, setEditingPhaseId] = useState<number | null>(null);
   const [editingPhase, setEditingPhase] = useState<TrainingPhase | null>(null);
+  const [exerciseSource, setExerciseSource] = useState<"existing" | "custom">("existing");
 
   const { data: phases = [], isLoading } = useQuery<TrainingPhase[]>({
     queryKey: ["/api/training-phases/member", memberId],
@@ -854,6 +867,7 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
     setNotes("");
     setAutoAssignCycle(false);
     setUseCustomExercises(false);
+    setExerciseSource("existing");
   };
 
   const handleCreate = () => {
@@ -907,21 +921,46 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="font-semibold">Training Phases</h3>
+      {/* Header with current cycle info */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h3 className="font-semibold">Training Phases</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Track {memberName}'s progress through different training periods with specific goals.
+          </p>
+        </div>
         <Button onClick={() => setShowCreateDialog(true)} data-testid="button-create-phase">
           <Plus className="w-4 h-4 mr-2" />
           Create Phase
         </Button>
       </div>
 
+      {/* Current workout info */}
+      <Card className="bg-muted/30">
+        <CardContent className="py-3 px-4">
+          <div className="flex items-center gap-3">
+            <Dumbbell className="w-5 h-5 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Current Workout</p>
+              {currentCycleName ? (
+                <p className="text-sm text-muted-foreground">
+                  {currentCycleName}{currentCycleLength ? ` (${currentCycleLength}-day cycle)` : ''}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">No cycle assigned</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {phases.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-semibold text-lg">No Training Phases</h3>
-            <p className="text-muted-foreground mt-2">
-              Create training phases to track {memberName}'s progress over time periods.
+            <h3 className="font-semibold text-lg">No Training Phases Yet</h3>
+            <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+              A phase is a time period (like 8 weeks) with a specific goal. You can either use an existing workout cycle or create custom exercises for the phase.
             </p>
           </CardContent>
         </Card>
@@ -996,89 +1035,135 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
       )}
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Create Training Phase for {memberName}</DialogTitle>
+            <DialogTitle>Create Training Phase</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="phase-name">Phase Name</Label>
-              <input
-                id="phase-name"
-                type="text"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 mt-1"
-                placeholder="e.g., Summer Cut 2025"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                data-testid="input-phase-name"
-              />
-            </div>
+          
+          {/* Info Banner */}
+          <div className="bg-muted/50 rounded-md p-3 text-sm">
+            <p className="text-muted-foreground">
+              A <strong>Training Phase</strong> is a time period (e.g., 8 weeks) focused on a specific goal like fat loss or muscle gain. 
+              You can use their current workout or create a custom plan for this phase.
+            </p>
+          </div>
 
-            <div>
-              <Label htmlFor="goal-type">Goal Type</Label>
-              <select
-                id="goal-type"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
-                value={goalType}
-                onChange={(e) => setGoalType(e.target.value)}
-                data-testid="select-goal-type"
-              >
-                <option value="general">General Fitness</option>
-                <option value="cut">Cut (Fat Loss)</option>
-                <option value="bulk">Bulk (Muscle Gain)</option>
-                <option value="strength">Strength</option>
-                <option value="endurance">Endurance</option>
-                <option value="rehab">Rehabilitation</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="start-date">Start Date</Label>
-                <input
-                  id="start-date"
-                  type="date"
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  data-testid="input-start-date"
-                />
-              </div>
-              <div>
-                <Label htmlFor="end-date">End Date</Label>
-                <input
-                  id="end-date"
-                  type="date"
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  data-testid="input-end-date"
-                />
-              </div>
-            </div>
-
+          <div className="space-y-5 py-2">
+            {/* Step 1: Basic Info */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="use-custom">Custom Exercises</Label>
-                  <p className="text-xs text-muted-foreground">Create custom exercises for this phase instead of using a template cycle</p>
-                </div>
+              <h4 className="text-sm font-medium text-muted-foreground">Step 1: Phase Details</h4>
+              
+              <div>
+                <Label htmlFor="phase-name">Phase Name</Label>
                 <input
-                  id="use-custom"
-                  type="checkbox"
-                  checked={useCustomExercises}
-                  onChange={(e) => setUseCustomExercises(e.target.checked)}
-                  className="h-4 w-4"
-                  data-testid="checkbox-use-custom"
+                  id="phase-name"
+                  type="text"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm mt-1"
+                  placeholder="e.g., 12-Week Lean Bulk"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  data-testid="input-phase-name"
                 />
               </div>
-              
-              {!useCustomExercises && (
+
+              <div>
+                <Label htmlFor="goal-type">Goal Type</Label>
+                <select
+                  id="goal-type"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                  value={goalType}
+                  onChange={(e) => setGoalType(e.target.value)}
+                  data-testid="select-goal-type"
+                >
+                  <option value="general">General Fitness</option>
+                  <option value="cut">Cut (Fat Loss)</option>
+                  <option value="bulk">Bulk (Muscle Gain)</option>
+                  <option value="strength">Strength</option>
+                  <option value="endurance">Endurance</option>
+                  <option value="rehab">Rehabilitation</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="cycle">Template Workout Cycle</Label>
+                  <Label htmlFor="start-date">Start Date</Label>
+                  <input
+                    id="start-date"
+                    type="date"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    data-testid="input-start-date"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="end-date">End Date</Label>
+                  <input
+                    id="end-date"
+                    type="date"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    data-testid="input-end-date"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2: Workout Selection */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-muted-foreground">Step 2: Workout Plan</h4>
+              
+              <div className="space-y-2">
+                <div 
+                  className={`p-3 border rounded-md cursor-pointer ${exerciseSource === "existing" ? "border-primary bg-primary/5" : "border-input hover-elevate"}`}
+                  onClick={() => { setExerciseSource("existing"); setUseCustomExercises(false); }}
+                  data-testid="option-use-existing"
+                >
+                  <div className="flex items-start gap-3">
+                    <input 
+                      type="radio" 
+                      checked={exerciseSource === "existing"} 
+                      onChange={() => {}} 
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="font-medium text-sm">Use existing workout cycle</p>
+                      <p className="text-xs text-muted-foreground">
+                        Member continues with their current or selected workout. No changes to exercises.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div 
+                  className={`p-3 border rounded-md cursor-pointer ${exerciseSource === "custom" ? "border-primary bg-primary/5" : "border-input hover-elevate"}`}
+                  onClick={() => { setExerciseSource("custom"); setUseCustomExercises(true); }}
+                  data-testid="option-use-custom"
+                >
+                  <div className="flex items-start gap-3">
+                    <input 
+                      type="radio" 
+                      checked={exerciseSource === "custom"} 
+                      onChange={() => {}} 
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="font-medium text-sm">Create custom workout plan</p>
+                      <p className="text-xs text-muted-foreground">
+                        Design a new workout specifically for this phase. Can be any number of days.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {exerciseSource === "existing" && (
+                <div>
+                  <Label htmlFor="cycle">Select Workout Cycle</Label>
                   <select
                     id="cycle"
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
                     value={cycleId}
                     onChange={(e) => setCycleId(e.target.value)}
                     data-testid="select-cycle"
@@ -1090,18 +1175,35 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
                       </option>
                     ))}
                   </select>
-                  {cycles.length === 0 && (
+                  {currentCycleName && !cycleId && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      No workout cycles found for this member.
+                      Currently using: {currentCycleName}
                     </p>
                   )}
                 </div>
               )}
 
-              {useCustomExercises && cycleId && (
-                <p className="text-xs text-muted-foreground">
-                  Exercises will be copied from the selected template and can be customized after creation.
-                </p>
+              {exerciseSource === "custom" && (
+                <div>
+                  <Label htmlFor="template-cycle">Start from template (optional)</Label>
+                  <select
+                    id="template-cycle"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    value={cycleId}
+                    onChange={(e) => setCycleId(e.target.value)}
+                    data-testid="select-template-cycle"
+                  >
+                    <option value="">Start from scratch</option>
+                    {cycles.map((cycle) => (
+                      <option key={cycle.id} value={cycle.id.toString()}>
+                        Copy from: {cycle.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {cycleId ? "Exercises will be copied and you can edit them after creation." : "You'll add exercises after creating the phase."}
+                  </p>
+                </div>
               )}
 
               <div className="flex items-center justify-between">

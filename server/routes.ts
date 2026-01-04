@@ -1368,12 +1368,25 @@ export async function registerRoutes(
     
     const gym = await storage.getGym(req.user!.gymId!);
     
+    // Get member's current cycle info
+    let currentCycleName: string | null = null;
+    let currentCycleLength: number | null = null;
+    if (member.cycleId) {
+      const cycle = await storage.getCycle(member.cycleId);
+      if (cycle) {
+        currentCycleName = cycle.name;
+        currentCycleLength = cycle.cycleLength;
+      }
+    }
+    
     res.json({
       id: member.id,
       username: member.username,
       publicId: member.publicId,
       gymName: gym?.name || null,
-      gymCode: gym?.code || null
+      gymCode: gym?.code || null,
+      currentCycleName,
+      currentCycleLength
     });
   });
 
