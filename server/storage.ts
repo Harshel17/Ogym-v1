@@ -38,7 +38,7 @@ import {
   type Tournament, type InsertTournament,
   type TournamentParticipant, type InsertTournamentParticipant,
   type MemberRestDaySwap, type InsertMemberRestDaySwap,
-  trainingPhases, type TrainingPhase, type InsertTrainingPhase
+  trainingPhases, phaseExercises, type TrainingPhase, type InsertTrainingPhase, type PhaseExercise, type InsertPhaseExercise
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, or } from "drizzle-orm";
@@ -186,6 +186,12 @@ export interface IStorage {
   getTrainingPhases(gymId: number, memberId: number): Promise<(TrainingPhase & { cycleName: string | null })[]>;
   getTrainingPhaseById(phaseId: number): Promise<(TrainingPhase & { cycleName: string | null }) | undefined>;
   deleteTrainingPhase(phaseId: number): Promise<void>;
+  getPhaseExercises(phaseId: number): Promise<PhaseExercise[]>;
+  addPhaseExercise(data: InsertPhaseExercise): Promise<PhaseExercise>;
+  updatePhaseExercise(exerciseId: number, data: Partial<InsertPhaseExercise>): Promise<PhaseExercise>;
+  deletePhaseExercise(exerciseId: number): Promise<void>;
+  copyExercisesFromCycle(phaseId: number, cycleId: number): Promise<PhaseExercise[]>;
+  getActivePhaseForMember(memberId: number, gymId: number): Promise<TrainingPhase | undefined>;
   getPhaseAnalytics(phaseId: number, memberId: number, startDate: string, endDate: string, gymId: number): Promise<{
     attendanceDays: number;
     totalDays: number;
@@ -1542,7 +1548,68 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTrainingPhase(phaseId: number): Promise<void> {
+    await db.delete(phaseExercises).where(eq(phaseExercises.phaseId, phaseId));
     await db.delete(trainingPhases).where(eq(trainingPhases.id, phaseId));
+  }
+
+  async getPhaseExercises(phaseId: number): Promise<PhaseExercise[]> {
+    return await db.select().from(phaseExercises)
+      .where(eq(phaseExercises.phaseId, phaseId))
+      .orderBy(phaseExercises.dayIndex, phaseExercises.orderIndex);
+  }
+
+  async addPhaseExercise(data: InsertPhaseExercise): Promise<PhaseExercise> {
+    const [exercise] = await db.insert(phaseExercises).values(data).returning();
+    return exercise;
+  }
+
+  async updatePhaseExercise(exerciseId: number, data: Partial<InsertPhaseExercise>): Promise<PhaseExercise> {
+    const [exercise] = await db.update(phaseExercises)
+      .set(data)
+      .where(eq(phaseExercises.id, exerciseId))
+      .returning();
+    return exercise;
+  }
+
+  async deletePhaseExercise(exerciseId: number): Promise<void> {
+    await db.delete(phaseExercises).where(eq(phaseExercises.id, exerciseId));
+  }
+
+  async copyExercisesFromCycle(phaseId: number, cycleId: number): Promise<PhaseExercise[]> {
+    const cycleExercises = await db.select().from(workoutItems)
+      .where(eq(workoutItems.cycleId, cycleId))
+      .orderBy(workoutItems.dayIndex, workoutItems.orderIndex);
+    
+    const inserted: PhaseExercise[] = [];
+    for (const ex of cycleExercises) {
+      const [newEx] = await db.insert(phaseExercises).values({
+        phaseId,
+        dayIndex: ex.dayIndex,
+        muscleType: ex.muscleType,
+        bodyPart: ex.bodyPart,
+        exerciseName: ex.exerciseName,
+        sets: ex.sets,
+        reps: ex.reps,
+        weight: ex.weight,
+        orderIndex: ex.orderIndex ?? 0,
+      }).returning();
+      inserted.push(newEx);
+    }
+    return inserted;
+  }
+
+  async getActivePhaseForMember(memberId: number, gymId: number): Promise<TrainingPhase | undefined> {
+    const today = new Date().toISOString().split('T')[0];
+    const [phase] = await db.select().from(trainingPhases)
+      .where(and(
+        eq(trainingPhases.memberId, memberId),
+        eq(trainingPhases.gymId, gymId),
+        lte(trainingPhases.startDate, today),
+        gte(trainingPhases.endDate, today)
+      ))
+      .orderBy(desc(trainingPhases.createdAt))
+      .limit(1);
+    return phase;
   }
 
   async getPhaseAnalytics(phaseId: number, memberId: number, startDate: string, endDate: string, gymId: number): Promise<{
