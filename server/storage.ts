@@ -40,7 +40,7 @@ import {
   type MemberRestDaySwap, type InsertMemberRestDaySwap
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, inArray, gte, lt, lte, sql, isNull } from "drizzle-orm";
+import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, or } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -1056,22 +1056,38 @@ export class DatabaseStorage implements IStorage {
       itemsByDay.set(item.dayIndex, dayItems);
     }
     
-    // Get all rest day swaps in the date range
+    // Get all rest day swaps where swapDate or targetDate falls in the date range
     const swaps = await db.select()
       .from(memberRestDaySwaps)
       .where(
         and(
           eq(memberRestDaySwaps.memberId, memberId),
-          eq(memberRestDaySwaps.cycleId, cycle.id)
+          eq(memberRestDaySwaps.cycleId, cycle.id),
+          or(
+            and(
+              gte(memberRestDaySwaps.swapDate, from),
+              lte(memberRestDaySwaps.swapDate, to)
+            ),
+            and(
+              gte(memberRestDaySwaps.targetDate, from),
+              lte(memberRestDaySwaps.targetDate, to)
+            )
+          )
         )
       );
     
     // Build swap maps: swapDate -> targetDayIndex, targetDate -> isSwappedRestDay
+    // Only map dates that actually fall within the query range
     const swapDateToTargetDayIndex = new Map<string, number>();
     const targetDateIsSwappedRestDay = new Set<string>();
     for (const swap of swaps) {
-      swapDateToTargetDayIndex.set(swap.swapDate, swap.targetDayIndex);
-      targetDateIsSwappedRestDay.add(swap.targetDate);
+      // Only apply swap logic for dates within the queried range
+      if (swap.swapDate >= from && swap.swapDate <= to) {
+        swapDateToTargetDayIndex.set(swap.swapDate, swap.targetDayIndex);
+      }
+      if (swap.targetDate >= from && swap.targetDate <= to) {
+        targetDateIsSwappedRestDay.add(swap.targetDate);
+      }
     }
     
     // Get all completions in the date range
