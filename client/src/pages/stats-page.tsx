@@ -57,6 +57,8 @@ const getColor = (name: string, index: number) => COLORS[name] || DEFAULT_COLORS
 export default function StatsPage() {
   const { user } = useAuth();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [showAllWorkouts, setShowAllWorkouts] = useState(false);
+  const WORKOUT_LIMIT = 7;
 
   const { data: stats, isLoading } = useQuery<MemberStats>({
     queryKey: ["/api/me/stats"],
@@ -346,14 +348,15 @@ export default function StatsPage() {
 
           {dailyWorkouts.length > 0 && (
             <Card data-testid="card-workout-history">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2">
                   <CalendarDays className="w-5 h-5" />
                   Workout History
                 </CardTitle>
+                <Badge variant="secondary">{dailyWorkouts.length} days</Badge>
               </CardHeader>
               <CardContent className="space-y-2">
-                {dailyWorkouts.map((day) => {
+                {(showAllWorkouts ? dailyWorkouts : dailyWorkouts.slice(0, WORKOUT_LIMIT)).map((day) => {
                   const isExpanded = expandedDate === day.date;
                   return (
                     <Collapsible
@@ -416,6 +419,24 @@ export default function StatsPage() {
                     </Collapsible>
                   );
                 })}
+                
+                {dailyWorkouts.length > WORKOUT_LIMIT && (
+                  <Button
+                    variant="ghost"
+                    className="w-full mt-2"
+                    onClick={() => setShowAllWorkouts(!showAllWorkouts)}
+                    data-testid="button-toggle-workouts"
+                  >
+                    {showAllWorkouts 
+                      ? `Show Less` 
+                      : `Show ${dailyWorkouts.length - WORKOUT_LIMIT} More`}
+                    {showAllWorkouts ? (
+                      <ChevronUp className="w-4 h-4 ml-2" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 ml-2" />
+                    )}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
