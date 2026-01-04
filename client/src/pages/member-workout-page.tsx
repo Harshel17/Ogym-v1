@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useTodayWorkout, useCompleteWorkout, useMemberCycle, useDailyPoints, useShareWorkout } from "@/hooks/use-workouts";
+import { useTodayWorkout, useCompleteWorkout, useMemberCycle, useDailyPoints, useShareWorkout, useSwapRestDay, useUndoRestDaySwap } from "@/hooks/use-workouts";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles } from "lucide-react";
+import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 interface WorkoutSummary {
@@ -65,6 +65,8 @@ export default function MemberWorkoutPage() {
   };
   
   const completeWorkoutMutation = useCompleteWorkout(handleAskToShare);
+  const swapRestDayMutation = useSwapRestDay();
+  const undoSwapMutation = useUndoRestDaySwap();
   
   const [expandedExercise, setExpandedExercise] = useState<number | null>(null);
   const [exerciseInputs, setExerciseInputs] = useState<ExerciseInputs>({});
@@ -195,6 +197,24 @@ export default function MemberWorkoutPage() {
                     No workout scheduled today. Rest is essential for muscle growth and recovery.
                   </p>
                 </div>
+                
+                {today?.canSwapRestDay && (
+                  <div className="pt-4">
+                    <Button 
+                      onClick={() => swapRestDayMutation.mutate()}
+                      disabled={swapRestDayMutation.isPending}
+                      className="gap-2"
+                      data-testid="button-swap-rest-day"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                      {swapRestDayMutation.isPending ? "Swapping..." : "Do Tomorrow's Workout Today"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Tomorrow will become your rest day instead
+                    </p>
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto pt-4">
                   <div className="p-3 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">Stay Hydrated</p>
@@ -211,7 +231,28 @@ export default function MemberWorkoutPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {today?.isRestDay && (
+                {today?.swap && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20" data-testid="swap-active-banner">
+                    <ArrowRight className="w-5 h-5 text-green-500 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Workout Swapped</p>
+                      <p className="text-xs text-muted-foreground">
+                        You moved tomorrow's workout to today. Tomorrow ({today.swap.targetDate}) will be your rest day.
+                      </p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => undoSwapMutation.mutate(today.swap.id)}
+                      disabled={undoSwapMutation.isPending}
+                      data-testid="button-undo-swap"
+                    >
+                      <Undo2 className="w-4 h-4 mr-1" />
+                      Undo
+                    </Button>
+                  </div>
+                )}
+                {today?.isRestDay && !today?.swap && (
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20" data-testid="rest-day-banner">
                     <Moon className="w-5 h-5 text-indigo-500 flex-shrink-0" />
                     <div className="flex-1">

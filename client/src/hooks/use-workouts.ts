@@ -95,6 +95,42 @@ export function useUpdateRestDays() {
   });
 }
 
+export function useSwapRestDay() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/workouts/rest-day-swap", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
+      toast({ title: "Swapped", description: "Tomorrow's workout is now available today" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to swap rest day", variant: "destructive" });
+    },
+  });
+}
+
+export function useUndoRestDaySwap() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (swapId: number) => {
+      return apiRequest("DELETE", `/api/workouts/rest-day-swap/${swapId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
+      toast({ title: "Cancelled", description: "Rest day swap cancelled" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to cancel swap", variant: "destructive" });
+    },
+  });
+}
+
 export function useMemberCycle() {
   return useQuery({
     queryKey: ['/api/workouts/cycles/my'],
