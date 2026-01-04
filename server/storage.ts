@@ -2019,11 +2019,12 @@ export class DatabaseStorage implements IStorage {
         const currentDate = new Date(dateStr);
         const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
         
-        const withinStart = daysDiff >= 0;
+        // Check if within cycle end date (no restriction on start - cycle pattern applies to historical dates too)
         const withinEnd = !cycleEndDate || dateStr <= cycleEndDate;
         
-        if (withinStart && withinEnd) {
-          dayIndex = daysDiff % cycle.cycleLength;
+        if (withinEnd) {
+          // Handle negative daysDiff for dates before cycle start with proper modulo
+          dayIndex = ((daysDiff % cycle.cycleLength) + cycle.cycleLength) % cycle.cycleLength;
           isCycleActive = true;
         }
       }
