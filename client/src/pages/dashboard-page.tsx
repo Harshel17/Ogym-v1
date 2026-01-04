@@ -1155,7 +1155,7 @@ function MemberCalendarWidget() {
       case "absent":
         return `${baseStyles} bg-red-500/20 text-red-700 dark:text-red-400 cursor-pointer hover:bg-red-500/30 ${todayRing}`;
       case "rest":
-        return `${baseStyles} text-muted-foreground cursor-pointer hover:bg-muted/50 ${todayRing}`;
+        return `${baseStyles} bg-blue-500/10 text-blue-700 dark:text-blue-400 cursor-pointer hover:bg-blue-500/20 ${todayRing}`;
       case "future":
         return `${baseStyles} text-muted-foreground/50 cursor-default ${todayRing}`;
       default:
@@ -1169,6 +1169,8 @@ function MemberCalendarWidget() {
         return <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-green-500 rounded-full" />;
       case "absent":
         return <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-500 rounded-full" />;
+      case "rest":
+        return <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full" />;
       default:
         return null;
     }
@@ -1207,6 +1209,10 @@ function MemberCalendarWidget() {
           <div className="flex items-center gap-1">
             <span className="w-2 h-2 bg-red-500 rounded-full" />
             <span>Missed</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 bg-blue-500 rounded-full" />
+            <span>Rest</span>
           </div>
         </div>
         <div className="grid grid-cols-7 gap-1 text-center mb-2">
