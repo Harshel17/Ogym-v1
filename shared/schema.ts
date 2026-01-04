@@ -231,10 +231,28 @@ export const trainingPhases = pgTable("training_phases", {
   goalType: text("goal_type", { enum: ["cut", "bulk", "strength", "endurance", "rehab", "general"] }).notNull().default("general"),
   startDate: text("start_date").notNull(),
   endDate: text("end_date").notNull(),
-  cycleId: integer("cycle_id").references(() => workoutCycles.id).notNull(),
+  cycleId: integer("cycle_id").references(() => workoutCycles.id),
   dietPlanId: integer("diet_plan_id").references(() => dietPlans.id),
+  autoAssignCycle: boolean("auto_assign_cycle").default(false),
+  useCustomExercises: boolean("use_custom_exercises").default(false),
+  cycleLength: integer("cycle_length").default(3),
+  dayLabels: text("day_labels").array(),
+  restDays: integer("rest_days").array(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const phaseExercises = pgTable("phase_exercises", {
+  id: serial("id").primaryKey(),
+  phaseId: integer("phase_id").references(() => trainingPhases.id).notNull(),
+  dayIndex: integer("day_index").notNull(),
+  muscleType: text("muscle_type").notNull().default("Chest"),
+  bodyPart: text("body_part").notNull().default("Upper Body"),
+  exerciseName: text("exercise_name").notNull(),
+  sets: integer("sets").notNull(),
+  reps: integer("reps").notNull(),
+  weight: text("weight"),
+  orderIndex: integer("order_index").default(0),
 });
 
 export const transferRequests = pgTable("transfer_requests", {
@@ -496,6 +514,7 @@ export const insertStarMemberSchema = createInsertSchema(starMembers).omit({ id:
 export const insertDietPlanSchema = createInsertSchema(dietPlans).omit({ id: true, createdAt: true });
 export const insertDietPlanMealSchema = createInsertSchema(dietPlanMeals).omit({ id: true });
 export const insertTrainingPhaseSchema = createInsertSchema(trainingPhases).omit({ id: true, createdAt: true });
+export const insertPhaseExerciseSchema = createInsertSchema(phaseExercises).omit({ id: true });
 export const insertTransferRequestSchema = createInsertSchema(transferRequests).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true, isDeleted: true });
 export const insertUserNotificationPreferencesSchema = createInsertSchema(userNotificationPreferences).omit({ id: true });
@@ -536,6 +555,7 @@ export type StarMember = typeof starMembers.$inferSelect;
 export type DietPlan = typeof dietPlans.$inferSelect;
 export type DietPlanMeal = typeof dietPlanMeals.$inferSelect;
 export type TrainingPhase = typeof trainingPhases.$inferSelect;
+export type PhaseExercise = typeof phaseExercises.$inferSelect;
 export type TransferRequest = typeof transferRequests.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -555,6 +575,7 @@ export type InsertStarMember = z.infer<typeof insertStarMemberSchema>;
 export type InsertDietPlan = z.infer<typeof insertDietPlanSchema>;
 export type InsertDietPlanMeal = z.infer<typeof insertDietPlanMealSchema>;
 export type InsertTrainingPhase = z.infer<typeof insertTrainingPhaseSchema>;
+export type InsertPhaseExercise = z.infer<typeof insertPhaseExerciseSchema>;
 export type InsertTransferRequest = z.infer<typeof insertTransferRequestSchema>;
 
 export type Announcement = typeof announcements.$inferSelect;
