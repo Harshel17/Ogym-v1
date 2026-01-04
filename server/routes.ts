@@ -435,7 +435,8 @@ export async function registerRoutes(
       cycleLength: z.number().min(1).max(7),
       dayLabels: z.array(z.string()).optional(),
       startDate: z.string(),
-      endDate: z.string()
+      endDate: z.string(),
+      progressionMode: z.enum(["calendar", "completion"]).optional().default("calendar")
     });
     const input = schema.parse(req.body);
     
@@ -561,7 +562,16 @@ export async function registerRoutes(
     const todayStr = today.toISOString().split("T")[0];
     const startDate = new Date(cycle.startDate);
     const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    
+    // Support both progression modes
+    let currentDayIndex: number;
+    if (cycle.progressionMode === "completion") {
+      // Completion-based: use stored currentDayIndex
+      currentDayIndex = cycle.currentDayIndex ?? 0;
+    } else {
+      // Calendar-based (default): calculate from dates
+      currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    }
     
     const items = await storage.getWorkoutItemsByDay(cycle.id, currentDayIndex);
     const completions = await storage.getCompletions(req.user!.id, todayStr);
@@ -627,8 +637,24 @@ export async function registerRoutes(
       items: effectiveItems,
       swap: swapInfo,
       canSwapRestDay,
-      tomorrowDayIndex
+      tomorrowDayIndex,
+      progressionMode: cycle.progressionMode || "calendar"
     });
+  });
+  
+  // Advance day index for completion-based progression
+  app.post("/api/workouts/advance-day", requireRole(["member"]), async (req, res) => {
+    const cycle = await storage.getMemberCycle(req.user!.id);
+    if (!cycle) return res.status(400).json({ message: "No active workout cycle" });
+    
+    if (cycle.progressionMode !== "completion") {
+      return res.status(400).json({ message: "Cycle uses calendar-based progression" });
+    }
+    
+    const newDayIndex = ((cycle.currentDayIndex ?? 0) + 1) % cycle.cycleLength;
+    await storage.updateCycleDayIndex(cycle.id, newDayIndex);
+    
+    res.json({ message: "Day advanced", newDayIndex });
   });
 
   app.post("/api/workouts/rest-day-swap", requireRole(["member"]), async (req, res) => {
