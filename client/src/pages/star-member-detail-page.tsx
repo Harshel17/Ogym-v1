@@ -1216,7 +1216,12 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Phase Exercises</DialogTitle>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-go-back-exercises">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <DialogTitle>Edit Phase Exercises</DialogTitle>
+          </div>
         </DialogHeader>
         
         {isLoading ? (
