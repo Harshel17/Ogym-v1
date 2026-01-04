@@ -1668,10 +1668,10 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(bodyMeasurements.memberId, memberId),
         eq(bodyMeasurements.gymId, gymId),
-        gte(bodyMeasurements.date, startDate),
-        lte(bodyMeasurements.date, effectiveEndStr)
+        gte(bodyMeasurements.recordedDate, startDate),
+        lte(bodyMeasurements.recordedDate, effectiveEndStr)
       ))
-      .orderBy(bodyMeasurements.date);
+      .orderBy(bodyMeasurements.recordedDate);
     
     let startWeight: number | null = null;
     let endWeight: number | null = null;
@@ -1679,8 +1679,8 @@ export class DatabaseStorage implements IStorage {
     if (measurements.length > 0) {
       const firstMeasurement = measurements[0];
       const lastMeasurement = measurements[measurements.length - 1];
-      if (firstMeasurement.weight) startWeight = parseFloat(firstMeasurement.weight);
-      if (lastMeasurement.weight) endWeight = parseFloat(lastMeasurement.weight);
+      if (firstMeasurement.weight) startWeight = firstMeasurement.weight;
+      if (lastMeasurement.weight) endWeight = lastMeasurement.weight;
     }
     
     const weightChange = (startWeight !== null && endWeight !== null) ? 
@@ -1700,8 +1700,8 @@ export class DatabaseStorage implements IStorage {
     const weightTrend = measurements
       .filter(m => m.weight !== null)
       .map(m => ({
-        date: m.date,
-        weight: parseFloat(m.weight!)
+        date: m.recordedDate,
+        weight: m.weight!
       }));
     
     return {
