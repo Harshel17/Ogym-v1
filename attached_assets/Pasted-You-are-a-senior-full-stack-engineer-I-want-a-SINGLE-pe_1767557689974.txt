@@ -1,0 +1,167 @@
+You are a senior full-stack engineer.
+
+I want a SINGLE “perfect demo gym” dataset for OGym to test everything end-to-end.
+Create 1 gym with 50–60 members and 6 months of realistic history, using every feature (including phases, points, feed, tournaments, rest days, missed/partial missed, body measurements, payments, join requests, transfers, announcements, notifications).
+
+NON-NEGOTIABLE:
+- Do NOT change auth, routes, or workflows.
+- Use existing schema/models/endpoints. Add minimal demo-only helpers only if needed.
+- Demo data must look real, not random noise.
+- Seed must be re-runnable and include a reset_demo option.
+- Mark demo accounts/data so reset wipes only demo.
+
+========================
+DEMO GYM
+========================
+Create gym:
+- Name: OGym Demo Elite
+- Location: Hyderabad (or any)
+- Gym is APPROVED and ACTIVE
+- Gym owner has an active platform subscription
+
+Users:
+- 1 Owner
+- 5 Trainers
+- 50–60 Members
+
+Password policy:
+- Set ALL demo user passwords to: demo123 (unless existing app requires something else; keep consistent)
+
+========================
+MIX OF CALENDAR + COMPLETION MODE
+========================
+Member cycle progression mode mix:
+- 70% members in Calendar mode (Option A)
+- 30% members in Completion mode (Option B)
+
+For completion mode members:
+- Ensure current_day_index is used correctly
+- Rest days auto-advance
+- Some members became inactive 3+ days and used “resume/restart day” if that exists
+
+========================
+HISTORY WINDOW
+========================
+- Seed ~6 months (180 days) of data
+- Patterns:
+  - 20% very consistent (4–6 days/week)
+  - 50% moderate (2–4 days/week)
+  - 30% irregular/churn (gaps, missed weeks)
+
+========================
+FEATURE DATA TO INCLUDE
+========================
+
+1) WORKOUT CYCLES + REST + MISSED
+- Create 4–6 workout cycles/templates:
+  - Beginner Full Body
+  - Push/Pull/Legs (with a Rest day)
+  - Upper/Lower (with Rest)
+  - Fat Loss circuit
+  - Strength block
+- Ensure Rest Day exists in cycles using your Rest toggle/label logic
+- Seed for members:
+  - full completed workout days
+  - partial completed days (earnedPoints < plannedPoints)
+  - fully missed days (earned=0 on workout day)
+- Ensure Missed Workouts page shows both:
+  - Partial missed days
+  - Fully missed days
+- Rest days MUST NOT appear in missed list
+
+2) POINTS SYSTEM
+- planned_points = number of planned exercises per day (6–10 typical)
+- earned_points based on completed exercises
+- Include many partial days like 3/8, 5/9 etc
+- Ensure weekly/monthly points stats are non-empty
+- Ensure rest days are excluded from points totals
+
+3) PHASES (NEW FEATURE)
+- For at least 20 members, create 2–3 phases each over the last 6 months:
+  - Phase 1 (4 weeks)
+  - Phase 2 (4 weeks)
+  - Phase 3 (optional)
+- Each phase linked to a cycle assignment and date range
+- Phase analytics must show:
+  - workouts summary (completed/partial/missed)
+  - points earned/planned
+  - attendance counts
+  - measurement deltas (start vs end)
+
+4) BODY MEASUREMENTS
+- For all members:
+  - weekly or bi-weekly measurements for 6 months
+  - realistic trends (some lose weight, some gain, some fluctuate)
+- Ensure charts show visible trends
+
+5) ATTENDANCE
+- Seed attendance logs that correlate with workout activity
+- Today/yesterday check-ins should be realistic
+
+6) PAYMENTS / PLANS (INR in paise)
+- Create membership plans:
+  - Monthly, Quarterly, Half-Year
+- For members:
+  - mix of paid, overdue, expiring soon
+  - partial/EMI payments (e.g., 500/1500)
+- Owner dashboard must show:
+  - this month revenue
+  - pending payments list
+  - payment history per member
+
+7) REQUESTS + TRANSFERS + APPROVALS
+- Create join requests:
+  - some pending
+  - some approved history
+- Create transfer requests:
+  - Since only 1 gym exists, simulate “transfer out” to a placeholder gym or create 1 minimal secondary gym only for transfer testing (do this ONLY if transfers require another gym)
+  - Mix: pending/approved/rejected
+- Ensure notifications/badges show counts for pending items
+
+8) ANNOUNCEMENTS + READ TRACKING
+- Owner announcements over 6 months:
+  - weekly/bi-weekly posts
+- Seed read/unread states for members/trainers
+
+9) SOCIAL FEED
+- Seed an active feed for 6 months:
+  - workout completion posts (include partial vs full)
+  - streak milestone posts (7/14/30/60)
+  - phase completion posts (optional)
+  - tournament updates and winners
+  - announcements appear in feed
+- Add realistic likes and comments if supported
+
+10) TOURNAMENTS
+- Create tournaments (last 3 months + current):
+  - Monthly Points Challenge
+  - Attendance Champion
+  - Streak King/Queen
+- Seed leaderboards and winners
+- Ensure scoring is fair (cap points per calendar day if needed)
+
+========================
+OUTPUT REQUIREMENTS (PRINT IN TERMINAL)
+========================
+After seeding, print:
+
+A) ADMIN credentials (if admin exists)
+B) Gym owner credentials
+C) 2 trainer credentials
+D) 6 member credentials:
+   - 2 calendar-mode consistent
+   - 2 calendar-mode irregular
+   - 1 completion-mode consistent
+   - 1 completion-mode irregular
+
+For each shown member, print:
+- username/email
+- password
+- progression mode
+- one sentence describing their data (e.g., “has Phase 1+2, partial missed days, measurements trend”)
+
+Also print:
+- how to run seed
+- how to reset demo data only
+
+Deliver also a short “Demo Walkthrough Path” checklist so I can quickly test every feature.
