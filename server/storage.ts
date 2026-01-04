@@ -203,6 +203,7 @@ export interface IStorage {
     weightChange: number | null;
     pointsTrend: { date: string; points: number }[];
     weightTrend: { date: string; weight: number }[];
+    dailyWorkouts: { date: string; exercises: { name: string; sets: number; reps: number; weight: string }[]; points: number }[];
   }>;
   
   // Transfer Requests
@@ -1623,6 +1624,7 @@ export class DatabaseStorage implements IStorage {
     weightChange: number | null;
     pointsTrend: { date: string; points: number }[];
     weightTrend: { date: string; weight: number }[];
+    dailyWorkouts: { date: string; exercises: { name: string; sets: number; reps: number; weight: string }[]; points: number }[];
   }> {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -1643,13 +1645,33 @@ export class DatabaseStorage implements IStorage {
       ));
     const attendanceDays = attendanceRecords.length;
     
-    // Workout completions within the phase period
-    const completions = await db.select().from(workoutCompletions)
+    // Workout completions within the phase period with exercise details
+    const completions = await db.select({
+      id: workoutCompletions.id,
+      completedDate: workoutCompletions.completedDate,
+      actualSets: workoutCompletions.actualSets,
+      actualReps: workoutCompletions.actualReps,
+      actualWeight: workoutCompletions.actualWeight,
+      workoutItemId: workoutCompletions.workoutItemId,
+    }).from(workoutCompletions)
       .where(and(
         eq(workoutCompletions.memberId, memberId),
         gte(workoutCompletions.completedDate, startDate),
         lte(workoutCompletions.completedDate, effectiveEndStr)
       ));
+    
+    // Get workout item details for all completions
+    const workoutItemIds = [...new Set(completions.map(c => c.workoutItemId))];
+    const itemDetails = workoutItemIds.length > 0 ? await db.select({
+      id: workoutItems.id,
+      exerciseName: workoutItems.exerciseName,
+      sets: workoutItems.sets,
+      reps: workoutItems.reps,
+      weight: workoutItems.weight,
+    }).from(workoutItems)
+      .where(sql`${workoutItems.id} IN ${workoutItemIds}`) : [];
+    
+    const itemMap = new Map(itemDetails.map(i => [i.id, i]));
     
     const completionsByDate = new Map<string, number>();
     completions.forEach(c => {
@@ -1704,6 +1726,28 @@ export class DatabaseStorage implements IStorage {
         weight: m.weight!
       }));
     
+    // Build daily workouts with exercise details
+    const exercisesByDate = new Map<string, { name: string; sets: number; reps: number; weight: string }[]>();
+    completions.forEach(c => {
+      const item = itemMap.get(c.workoutItemId);
+      if (item) {
+        const exercises = exercisesByDate.get(c.completedDate) || [];
+        exercises.push({
+          name: item.exerciseName,
+          sets: c.actualSets ?? item.sets,
+          reps: c.actualReps ?? item.reps,
+          weight: c.actualWeight ?? item.weight,
+        });
+        exercisesByDate.set(c.completedDate, exercises);
+      }
+    });
+    
+    const dailyWorkouts = Array.from(exercisesByDate.entries()).map(([date, exercises]) => ({
+      date,
+      exercises,
+      points: exercises.length
+    })).sort((a, b) => a.date.localeCompare(b.date));
+    
     return {
       attendanceDays,
       totalDays,
@@ -1714,7 +1758,8 @@ export class DatabaseStorage implements IStorage {
       endWeight,
       weightChange,
       pointsTrend,
-      weightTrend
+      weightTrend,
+      dailyWorkouts
     };
   }
 

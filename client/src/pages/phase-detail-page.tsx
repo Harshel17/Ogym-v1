@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   ArrowLeft, Target, Calendar, Dumbbell, 
-  Loader2, Shield, TrendingUp, CheckCircle2, Flame, Activity, Scale, ChevronRight
+  Loader2, Shield, TrendingUp, CheckCircle2, Flame, Activity, Scale, ChevronRight, ChevronDown
 } from "lucide-react";
 import { format, parseISO, differenceInDays, isWithinInterval, isPast, isFuture } from "date-fns";
 import { 
@@ -29,6 +30,12 @@ type TrainingPhase = {
   gymId: number;
 };
 
+type DailyWorkout = {
+  date: string;
+  exercises: { name: string; sets: number; reps: number; weight: string }[];
+  points: number;
+};
+
 type PhaseAnalytics = {
   attendanceDays: number;
   totalDays: number;
@@ -40,6 +47,7 @@ type PhaseAnalytics = {
   weightChange: number | null;
   pointsTrend: { date: string; points: number }[];
   weightTrend: { date: string; weight: number }[];
+  dailyWorkouts: DailyWorkout[];
 };
 
 type WorkoutCycle = {
@@ -90,6 +98,87 @@ function getPhaseStatus(startDate: string, endDate: string): { label: string; co
     return { label: "Upcoming", color: "bg-blue-500/10 text-blue-700 dark:text-blue-400" };
   }
   return { label: "Unknown", color: "bg-gray-500/10 text-gray-600 dark:text-gray-400" };
+}
+
+function WorkoutDayItem({ workout }: { workout: DailyWorkout }) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover-elevate">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Dumbbell className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium">{format(parseISO(workout.date), "EEEE, MMM d")}</p>
+              <p className="text-sm text-muted-foreground">{workout.exercises.length} exercises</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="shrink-0">
+              <Flame className="w-3 h-3 mr-1 text-orange-500" />
+              {workout.points} pts
+            </Badge>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="mt-2 ml-4 pl-4 border-l-2 border-muted space-y-1">
+          {workout.exercises.map((ex, idx) => (
+            <div key={idx} className="flex items-center justify-between py-1.5 px-2 text-sm">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-3 h-3 text-green-500" />
+                <span>{ex.name}</span>
+              </div>
+              <span className="text-muted-foreground">{ex.sets}x{ex.reps} @ {ex.weight}</span>
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function PointsDayItem({ workout }: { workout: DailyWorkout }) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 cursor-pointer hover-elevate">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{format(parseISO(workout.date), "EEE, MMM d")}</span>
+            <span className="text-xs text-muted-foreground">({workout.exercises.length} exercises)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">
+              <Flame className="w-3 h-3 mr-1 text-orange-500" />
+              {workout.points} points
+            </Badge>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="mt-1 ml-2 space-y-1">
+          {workout.exercises.map((ex, idx) => (
+            <div key={idx} className="flex items-center justify-between py-1 px-2 text-xs bg-background rounded">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <span className="text-[10px] text-green-600 dark:text-green-400 font-bold">+1</span>
+                </div>
+                <span>{ex.name}</span>
+              </div>
+              <span className="text-muted-foreground">{ex.sets}x{ex.reps}</span>
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 export default function PhaseDetailPage() {
@@ -154,7 +243,7 @@ export default function PhaseDetailPage() {
 
   const backUrl = user?.role === "member" ? "/progress/phases" : `/star-members/${phase.memberId}`;
 
-  const workoutDaysWithPoints = analytics?.pointsTrend?.filter(p => p.points > 0) || [];
+  const dailyWorkouts = analytics?.dailyWorkouts || [];
   const groupedExercises = cycle?.items?.reduce((acc, item) => {
     if (!acc[item.dayIndex]) acc[item.dayIndex] = [];
     acc[item.dayIndex].push(item);
@@ -210,30 +299,16 @@ export default function PhaseDetailPage() {
                 Workout History
               </DialogTitle>
               <DialogDescription>
-                Workouts completed during {phase.name}
+                Workouts completed during {phase.name} - tap to see exercises
               </DialogDescription>
             </DialogHeader>
             <ScrollArea className="h-[60vh] pr-4">
-              {workoutDaysWithPoints.length === 0 ? (
+              {dailyWorkouts.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">No workouts recorded during this phase.</p>
               ) : (
                 <div className="space-y-2">
-                  {workoutDaysWithPoints.map((day, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                          <Dumbbell className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{format(parseISO(day.date), "EEEE, MMM d")}</p>
-                          <p className="text-sm text-muted-foreground">{format(parseISO(day.date), "yyyy")}</p>
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className="shrink-0">
-                        <Flame className="w-3 h-3 mr-1 text-orange-500" />
-                        {day.points} pts
-                      </Badge>
-                    </div>
+                  {[...dailyWorkouts].reverse().map((workout, idx) => (
+                    <WorkoutDayItem key={idx} workout={workout} />
                   ))}
                 </div>
               )}
@@ -308,17 +383,17 @@ export default function PhaseDetailPage() {
                 Daily Points Breakdown
               </DialogTitle>
               <DialogDescription>
-                Points earned each day during this phase
+                Points earned each day - tap to see exercise details (+1 point per completed exercise)
               </DialogDescription>
             </DialogHeader>
             <ScrollArea className="h-[60vh] pr-4">
-              {workoutDaysWithPoints.length === 0 ? (
+              {dailyWorkouts.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">No points recorded during this phase.</p>
               ) : (
                 <div className="space-y-4">
-                  <div className="h-48 w-full">
+                  <div className="h-40 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={workoutDaysWithPoints.slice(-14)}>
+                      <BarChart data={dailyWorkouts.slice(-14)}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis 
                           dataKey="date" 
@@ -335,14 +410,8 @@ export default function PhaseDetailPage() {
                     </ResponsiveContainer>
                   </div>
                   <div className="space-y-2">
-                    {workoutDaysWithPoints.map((day, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-                        <span className="text-sm">{format(parseISO(day.date), "EEE, MMM d")}</span>
-                        <Badge variant="outline">
-                          <Flame className="w-3 h-3 mr-1 text-orange-500" />
-                          {day.points} points
-                        </Badge>
-                      </div>
+                    {[...dailyWorkouts].reverse().map((workout, idx) => (
+                      <PointsDayItem key={idx} workout={workout} />
                     ))}
                   </div>
                 </div>
