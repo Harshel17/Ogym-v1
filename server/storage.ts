@@ -426,6 +426,7 @@ export interface IStorage {
   // Social Feed
   getFeedPosts(gymId: number, limit?: number): Promise<(FeedPost & { user: User; reactions: FeedReaction[]; commentCount: number })[]>;
   getFeedPost(postId: number): Promise<FeedPost | null>;
+  getMemberFeedPostsForDate(memberId: number, date: string): Promise<FeedPost[]>;
   createFeedPost(data: InsertFeedPost): Promise<FeedPost>;
   getFeedPostReactions(postId: number): Promise<FeedReaction[]>;
   addFeedReaction(data: InsertFeedReaction): Promise<FeedReaction>;
@@ -3675,6 +3676,18 @@ export class DatabaseStorage implements IStorage {
   async getFeedPost(postId: number): Promise<FeedPost | null> {
     const [post] = await db.select().from(feedPosts).where(eq(feedPosts.id, postId));
     return post || null;
+  }
+  
+  async getMemberFeedPostsForDate(memberId: number, date: string): Promise<FeedPost[]> {
+    const startOfDay = new Date(date + "T00:00:00.000Z");
+    const endOfDay = new Date(date + "T23:59:59.999Z");
+    return await db.select()
+      .from(feedPosts)
+      .where(and(
+        eq(feedPosts.userId, memberId),
+        gte(feedPosts.createdAt, startOfDay),
+        lte(feedPosts.createdAt, endOfDay)
+      ));
   }
   
   async createFeedPost(data: InsertFeedPost): Promise<FeedPost> {

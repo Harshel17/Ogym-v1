@@ -740,10 +740,10 @@ export async function registerRoutes(
     let askToShare = false;
     let focusLabel = "";
     if (completions.length > 0 && req.user!.autoPostEnabled !== false) {
-      // Get all completions for today to check if this was the first batch
-      const todayCompletions = await storage.getCompletionsByMemberDate(req.user!.id, today);
-      // If today's completions equal what we just created, this is the first time completing today
-      if (todayCompletions.length === completions.length) {
+      // Check if user already shared a workout today
+      const todayPosts = await storage.getMemberFeedPostsForDate(req.user!.id, today);
+      const hasSharedToday = todayPosts.some((p: { type: string }) => p.type === "workout_completed");
+      if (!hasSharedToday) {
         askToShare = true;
         focusLabel = session?.focusLabel || "Workout";
       }
