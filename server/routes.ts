@@ -1368,14 +1368,25 @@ export async function registerRoutes(
     
     const gym = await storage.getGym(req.user!.gymId!);
     
-    // Get member's current cycle info
+    // Get member's current cycle info - check both user.cycleId and member's assigned cycles
     let currentCycleName: string | null = null;
     let currentCycleLength: number | null = null;
+    
     if (member.cycleId) {
       const cycle = await storage.getCycle(member.cycleId);
       if (cycle) {
         currentCycleName = cycle.name;
         currentCycleLength = cycle.cycleLength;
+      }
+    }
+    
+    // If no cycleId on user, check for cycles assigned to member
+    if (!currentCycleName) {
+      const memberCycles = await storage.getMemberCycles(memberId);
+      if (memberCycles.length > 0) {
+        const latestCycle = memberCycles[0]; // Already sorted by createdAt desc
+        currentCycleName = latestCycle.name;
+        currentCycleLength = latestCycle.cycleLength;
       }
     }
     
