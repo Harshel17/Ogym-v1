@@ -7,7 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { CalendarIcon, QrCode, CheckCircle2, XCircle, LogOut, LogIn } from "lucide-react";
+import { CalendarIcon, QrCode, CheckCircle2, XCircle, LogOut, LogIn, Search, X } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,6 +29,7 @@ type GymHistoryRecord = {
 export default function AttendancePage() {
   const { user } = useAuth();
   const [date, setDate] = useState<Date>(new Date());
+  const [searchQuery, setSearchQuery] = useState("");
   
   const dateStr = format(date, "yyyy-MM-dd");
   
@@ -46,9 +47,22 @@ export default function AttendancePage() {
   const attendanceList = (isOwner ? gymAttendance : myAttendance) as any[];
   const isLoading = isOwner ? gymLoading : myLoading;
   
-  const filteredList = isOwner 
+  // Apply date filter for owner, then apply search filter for members
+  const dateFilteredList = isOwner 
     ? attendanceList.filter(a => a.date === dateStr)
     : attendanceList;
+  
+  // Apply search filter for member's attendance history
+  const filteredList = (!isOwner && searchQuery)
+    ? dateFilteredList.filter((a: any) => {
+        const searchLower = searchQuery.toLowerCase();
+        const dateMatch = a.date?.includes(searchQuery) || 
+                         format(new Date(a.date), "EEEE, MMMM d").toLowerCase().includes(searchLower);
+        const statusMatch = a.status?.toLowerCase().includes(searchLower);
+        const methodMatch = a.verifiedMethod?.toLowerCase().includes(searchLower);
+        return dateMatch || statusMatch || methodMatch;
+      })
+    : dateFilteredList;
     
   const getTransferStatus = (memberId: number, date: string): { left: boolean; joined: boolean } | null => {
     const record = gymHistory.find(h => {
@@ -94,13 +108,38 @@ export default function AttendancePage() {
 
         <div className={isOwner ? "lg:col-span-3" : "lg:col-span-4"}>
           <Card className="dashboard-card min-h-[500px]">
-            <CardHeader className="flex flex-row items-center justify-between gap-2">
-              <CardTitle>
-                {isOwner ? `Records for ${format(date, "MMMM do, yyyy")}` : 'My Attendance History'}
-              </CardTitle>
-              <div className="text-sm text-muted-foreground font-medium">
-                Total: {filteredList.length}
+            <CardHeader className="flex flex-col gap-3">
+              <div className="flex flex-row items-center justify-between gap-2">
+                <CardTitle>
+                  {isOwner ? `Records for ${format(date, "MMMM do, yyyy")}` : 'My Attendance History'}
+                </CardTitle>
+                <div className="text-sm text-muted-foreground font-medium">
+                  Total: {filteredList.length}
+                </div>
               </div>
+              {!isOwner && (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by date, status, or method..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-9"
+                    data-testid="input-search-attendance"
+                  />
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={() => setSearchQuery("")}
+                      data-testid="button-clear-search"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="rounded-md border border-border overflow-hidden">
