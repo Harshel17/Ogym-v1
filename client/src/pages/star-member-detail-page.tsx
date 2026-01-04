@@ -265,6 +265,10 @@ export default function StarMemberDetailPage() {
             <StickyNote className="w-4 h-4 mr-2" />
             Notes
           </TabsTrigger>
+          <TabsTrigger value="phases" data-testid="tab-phases">
+            <Calendar className="w-4 h-4 mr-2" />
+            Phases
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="workouts" className="mt-6">
@@ -647,6 +651,10 @@ export default function StarMemberDetailPage() {
             )}
           </div>
         </TabsContent>
+
+        <TabsContent value="phases" className="mt-6">
+          <TrainingPhasesTab memberId={memberId} memberName={memberInfo.username} />
+        </TabsContent>
       </Tabs>
 
       <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>
@@ -725,6 +733,315 @@ export default function StarMemberDetailPage() {
               ))}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+type TrainingPhase = {
+  id: number;
+  name: string;
+  goalType: string;
+  startDate: string;
+  endDate: string;
+  cycleId: number;
+  dietPlanId: number | null;
+  notes: string | null;
+  createdAt: string;
+};
+
+type WorkoutCycleOption = {
+  id: number;
+  name: string;
+};
+
+function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberName: string }) {
+  const { toast } = useToast();
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [name, setName] = useState("");
+  const [goalType, setGoalType] = useState<string>("general");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [cycleId, setCycleId] = useState<string>("");
+  const [notes, setNotes] = useState("");
+
+  const { data: phases = [], isLoading } = useQuery<TrainingPhase[]>({
+    queryKey: ["/api/training-phases/member", memberId],
+    queryFn: async () => {
+      const res = await fetch(`/api/training-phases/member/${memberId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch phases");
+      return res.json();
+    },
+    enabled: !!memberId
+  });
+
+  const { data: cycles = [] } = useQuery<WorkoutCycleOption[]>({
+    queryKey: ["/api/trainer/cycles/member", memberId],
+    queryFn: async () => {
+      const res = await fetch(`/api/trainer/members/${memberId}/cycles`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!memberId
+  });
+
+  const createPhaseMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/training-phases", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training-phases/member", memberId] });
+      toast({ title: "Training phase created" });
+      setShowCreateDialog(false);
+      resetForm();
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to create phase", description: err.message, variant: "destructive" });
+    }
+  });
+
+  const deletePhaseMutation = useMutation({
+    mutationFn: async (phaseId: number) => {
+      await apiRequest("DELETE", `/api/training-phases/${phaseId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training-phases/member", memberId] });
+      toast({ title: "Training phase deleted" });
+    }
+  });
+
+  const resetForm = () => {
+    setName("");
+    setGoalType("general");
+    setStartDate("");
+    setEndDate("");
+    setCycleId("");
+    setNotes("");
+  };
+
+  const handleCreate = () => {
+    if (!name || !startDate || !endDate || !cycleId) {
+      toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+    createPhaseMutation.mutate({
+      memberId,
+      name,
+      goalType,
+      startDate,
+      endDate,
+      cycleId: parseInt(cycleId),
+      notes: notes || undefined
+    });
+  };
+
+  const goalTypeLabels: Record<string, string> = {
+    cut: "Cut (Fat Loss)",
+    bulk: "Bulk (Muscle Gain)",
+    strength: "Strength",
+    endurance: "Endurance",
+    rehab: "Rehabilitation",
+    general: "General Fitness"
+  };
+
+  const goalTypeColors: Record<string, string> = {
+    cut: "bg-red-500/10 text-red-700 dark:text-red-400",
+    bulk: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+    strength: "bg-purple-500/10 text-purple-700 dark:text-purple-400",
+    endurance: "bg-green-500/10 text-green-700 dark:text-green-400",
+    rehab: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
+    general: "bg-gray-500/10 text-gray-700 dark:text-gray-400"
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-semibold">Training Phases</h3>
+        <Button onClick={() => setShowCreateDialog(true)} data-testid="button-create-phase">
+          <Plus className="w-4 h-4 mr-2" />
+          Create Phase
+        </Button>
+      </div>
+
+      {phases.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="font-semibold text-lg">No Training Phases</h3>
+            <p className="text-muted-foreground mt-2">
+              Create training phases to track {memberName}'s progress over time periods.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {phases.map((phase) => {
+            const start = parseISO(phase.startDate);
+            const end = parseISO(phase.endDate);
+            const now = new Date();
+            const isActive = now >= start && now <= end;
+            
+            return (
+              <Card key={phase.id} data-testid={`phase-${phase.id}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium">{phase.name}</h4>
+                        {isActive && (
+                          <Badge variant="default" className="text-xs">Active</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge className={goalTypeColors[phase.goalType] || goalTypeColors.general}>
+                          {goalTypeLabels[phase.goalType] || phase.goalType}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {format(start, "MMM d, yyyy")} - {format(end, "MMM d, yyyy")}
+                        </span>
+                      </div>
+                      {phase.notes && (
+                        <p className="text-sm text-muted-foreground mt-2">{phase.notes}</p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deletePhaseMutation.mutate(phase.id)}
+                      data-testid={`button-delete-phase-${phase.id}`}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Training Phase for {memberName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="phase-name">Phase Name</Label>
+              <input
+                id="phase-name"
+                type="text"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 mt-1"
+                placeholder="e.g., Summer Cut 2025"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                data-testid="input-phase-name"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="goal-type">Goal Type</Label>
+              <select
+                id="goal-type"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
+                value={goalType}
+                onChange={(e) => setGoalType(e.target.value)}
+                data-testid="select-goal-type"
+              >
+                <option value="general">General Fitness</option>
+                <option value="cut">Cut (Fat Loss)</option>
+                <option value="bulk">Bulk (Muscle Gain)</option>
+                <option value="strength">Strength</option>
+                <option value="endurance">Endurance</option>
+                <option value="rehab">Rehabilitation</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="start-date">Start Date</Label>
+                <input
+                  id="start-date"
+                  type="date"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  data-testid="input-start-date"
+                />
+              </div>
+              <div>
+                <Label htmlFor="end-date">End Date</Label>
+                <input
+                  id="end-date"
+                  type="date"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  data-testid="input-end-date"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="cycle">Workout Cycle</Label>
+              <select
+                id="cycle"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
+                value={cycleId}
+                onChange={(e) => setCycleId(e.target.value)}
+                data-testid="select-cycle"
+              >
+                <option value="">Select a workout cycle</option>
+                {cycles.map((cycle) => (
+                  <option key={cycle.id} value={cycle.id.toString()}>
+                    {cycle.name}
+                  </option>
+                ))}
+              </select>
+              {cycles.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  No workout cycles found for this member.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="phase-notes">Notes (Optional)</Label>
+              <Textarea
+                id="phase-notes"
+                placeholder="Any additional notes about this training phase..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="mt-1"
+                data-testid="input-phase-notes"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreate} 
+              disabled={createPhaseMutation.isPending}
+              data-testid="button-submit-phase"
+            >
+              {createPhaseMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              Create Phase
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -91,6 +91,7 @@ export interface IStorage {
   createWorkoutCycle(data: InsertWorkoutCycle): Promise<WorkoutCycle>;
   getTrainerCycles(trainerId: number): Promise<WorkoutCycle[]>;
   getMemberCycle(memberId: number): Promise<WorkoutCycle | undefined>;
+  getMemberCycles(memberId: number): Promise<WorkoutCycle[]>;
   getCycle(cycleId: number): Promise<WorkoutCycle | undefined>;
   updateCycleDayLabels(cycleId: number, dayLabels: string[]): Promise<WorkoutCycle>;
   updateCycleRestDays(cycleId: number, restDays: number[]): Promise<WorkoutCycle>;
@@ -652,6 +653,12 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(workoutCycles.memberId, memberId), eq(workoutCycles.isActive, true)))
       .orderBy(desc(workoutCycles.id));
     return cycle;
+  }
+
+  async getMemberCycles(memberId: number): Promise<WorkoutCycle[]> {
+    return await db.select().from(workoutCycles)
+      .where(eq(workoutCycles.memberId, memberId))
+      .orderBy(desc(workoutCycles.createdAt));
   }
 
   async getCycle(cycleId: number): Promise<WorkoutCycle | undefined> {

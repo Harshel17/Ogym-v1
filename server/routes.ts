@@ -1899,6 +1899,16 @@ export async function registerRoutes(
     res.status(204).end();
   });
 
+  // Get member's workout cycles (for phase creation)
+  app.get("/api/trainer/members/:memberId/cycles", requireRole(["trainer", "owner"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    if (isNaN(memberId)) {
+      return res.status(400).json({ message: "Invalid member ID" });
+    }
+    const cycles = await storage.getMemberCycles(memberId);
+    res.json(cycles.map(c => ({ id: c.id, name: c.name })));
+  });
+
   // === GYM HISTORY ===
   app.get("/api/member/gym-history", requireRole(["member"]), async (req, res) => {
     const history = await storage.getGymHistory(req.user!.id);
