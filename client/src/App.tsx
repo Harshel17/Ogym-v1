@@ -134,6 +134,10 @@ function Router() {
         <ProtectedRoute component={StatsPage} />
       </Route>
 
+      <Route path="/stats">
+        <ProtectedRoute component={StatsPage} />
+      </Route>
+
       <Route path="/progress/missed">
         <ProtectedRoute component={MissedWorkoutsPage} />
       </Route>
