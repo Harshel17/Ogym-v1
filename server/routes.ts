@@ -576,14 +576,123 @@ export async function registerRoutes(
     const isRestDay = (cycle.restDays?.includes(currentDayIndex)) || 
                       (dayLabel?.toLowerCase().includes("rest")) || 
                       items.length === 0;
+    // Check for active swap
+    const activeSwap = await storage.getActiveRestDaySwap(req.user!.id, cycle.id, todayStr);
+    
+    // If there's an active swap where today is the swap date, use the target day's exercises
+    let effectiveDayIndex = currentDayIndex;
+    let effectiveItems = itemsWithStatus;
+    let effectiveIsRestDay = isRestDay;
+    let swapInfo: { id: number; targetDate: string } | null = null;
+    
+    if (activeSwap && activeSwap.swapDate === todayStr) {
+      effectiveDayIndex = activeSwap.targetDayIndex;
+      const swappedItems = await storage.getWorkoutItemsByDay(cycle.id, effectiveDayIndex);
+      const swappedItemsWithStatus = swappedItems.map(i => ({
+        ...i,
+        completed: completedIds.has(i.id)
+      }));
+      effectiveItems = swappedItemsWithStatus;
+      effectiveIsRestDay = false;
+      swapInfo = { id: activeSwap.id, targetDate: activeSwap.targetDate };
+    }
+    
+    // Check if today is the targetDate of a swap (meaning it was pushed here)
+    const pushedSwap = await storage.getActiveRestDaySwap(req.user!.id, cycle.id, 
+      new Date(today.getTime() - 86400000).toISOString().split("T")[0]);
+    if (pushedSwap && pushedSwap.targetDate === todayStr) {
+      effectiveIsRestDay = true;
+      effectiveItems = [];
+    }
+    
+    // Check if tomorrow can be swapped (for UI)
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+    const tomorrowDayIndex = (currentDayIndex + 1) % cycle.cycleLength;
+    const tomorrowItems = await storage.getWorkoutItemsByDay(cycle.id, tomorrowDayIndex);
+    const tomorrowDayLabel = cycle.dayLabels?.[tomorrowDayIndex] || null;
+    const tomorrowIsRestDay = (cycle.restDays?.includes(tomorrowDayIndex)) || 
+                              (tomorrowDayLabel?.toLowerCase().includes("rest")) || 
+                              tomorrowItems.length === 0;
+    
+    const canSwapRestDay = isRestDay && !tomorrowIsRestDay && tomorrowItems.length > 0 && !activeSwap;
+    
     res.json({ 
       cycleName: cycle.name, 
-      dayIndex: currentDayIndex, 
+      dayIndex: effectiveDayIndex, 
       cycleLength: cycle.cycleLength,
-      dayLabel,
-      isRestDay,
-      items: itemsWithStatus 
+      dayLabel: activeSwap ? cycle.dayLabels?.[effectiveDayIndex] || null : dayLabel,
+      isRestDay: effectiveIsRestDay,
+      items: effectiveItems,
+      swap: swapInfo,
+      canSwapRestDay,
+      tomorrowDayIndex
     });
+  });
+
+  app.post("/api/workouts/rest-day-swap", requireRole(["member"]), async (req, res) => {
+    const cycle = await storage.getMemberCycle(req.user!.id);
+    if (!cycle) return res.status(400).json({ message: "No active workout cycle" });
+    
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    const startDate = new Date(cycle.startDate);
+    const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    
+    // Verify today is a rest day
+    const todayItems = await storage.getWorkoutItemsByDay(cycle.id, currentDayIndex);
+    const dayLabel = cycle.dayLabels?.[currentDayIndex] || null;
+    const isRestDay = (cycle.restDays?.includes(currentDayIndex)) || 
+                      (dayLabel?.toLowerCase().includes("rest")) || 
+                      todayItems.length === 0;
+    
+    if (!isRestDay) {
+      return res.status(400).json({ message: "Today is not a rest day" });
+    }
+    
+    // Verify tomorrow has a workout
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+    const tomorrowDayIndex = (currentDayIndex + 1) % cycle.cycleLength;
+    const tomorrowItems = await storage.getWorkoutItemsByDay(cycle.id, tomorrowDayIndex);
+    const tomorrowDayLabel = cycle.dayLabels?.[tomorrowDayIndex] || null;
+    const tomorrowIsRestDay = (cycle.restDays?.includes(tomorrowDayIndex)) || 
+                              (tomorrowDayLabel?.toLowerCase().includes("rest")) || 
+                              tomorrowItems.length === 0;
+    
+    if (tomorrowIsRestDay || tomorrowItems.length === 0) {
+      return res.status(400).json({ message: "Tomorrow is also a rest day or has no exercises" });
+    }
+    
+    // Check for existing swap
+    const existingSwap = await storage.getActiveRestDaySwap(req.user!.id, cycle.id, todayStr);
+    if (existingSwap) {
+      return res.status(400).json({ message: "Swap already exists for today" });
+    }
+    
+    const swap = await storage.createRestDaySwap({
+      gymId: req.user!.gymId!,
+      memberId: req.user!.id,
+      cycleId: cycle.id,
+      swapDate: todayStr,
+      targetDate: tomorrowStr,
+      targetDayIndex: tomorrowDayIndex
+    });
+    
+    res.status(201).json(swap);
+  });
+
+  app.delete("/api/workouts/rest-day-swap/:swapId", requireRole(["member"]), async (req, res) => {
+    const swapId = parseInt(req.params.swapId);
+    if (isNaN(swapId)) {
+      return res.status(400).json({ message: "Invalid swap ID" });
+    }
+    
+    await storage.deleteRestDaySwap(swapId, req.user!.id);
+    res.json({ message: "Swap cancelled" });
   });
 
   app.post("/api/workouts/complete", requireRole(["member"]), async (req, res) => {
