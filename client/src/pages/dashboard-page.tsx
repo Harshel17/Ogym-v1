@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
-import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout, useMemberProfile, useShareWorkout } from "@/hooks/use-workouts";
+import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout, useMemberProfile, useShareWorkout, useSwapRestDay, useUndoRestDaySwap } from "@/hooks/use-workouts";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -581,6 +581,8 @@ function MemberDashboard() {
   const completeAllMutation = useCompleteAllWorkouts(handleAskToShare);
   const completeWorkoutMutation = useCompleteWorkout();
   const shareWorkoutMutation = useShareWorkout();
+  const swapRestDayMutation = useSwapRestDay();
+  const undoSwapMutation = useUndoRestDaySwap();
   
   const currentAchievement = shareableAchievements[currentAchievementIndex];
   const showShareDialog = shareableAchievements.length > 0 && currentAchievementIndex < shareableAchievements.length;
@@ -625,6 +627,9 @@ function MemberDashboard() {
   const currentDayIndex = workoutData?.dayIndex ?? 0;
   const cycleLength = workoutData?.cycleLength ?? 3;
   const dayLabel = workoutData?.dayLabel || null;
+  const canSwapRestDay = workoutData?.canSwapRestDay ?? false;
+  const activeSwap = workoutData?.swap ?? null;
+  const isRestDay = workoutData?.isRestDay ?? false;
   
   const muscleTypes = Array.from(new Set(workoutItems.map((i: any) => i.muscleType).filter(Boolean)));
   const muscleTypesDisplay = muscleTypes.length > 0 ? muscleTypes.join(" + ") : null;
@@ -721,15 +726,39 @@ function MemberDashboard() {
                 <p className="text-muted-foreground text-center py-4">Loading...</p>
               ) : workoutItems.length === 0 ? (
                 <div className="text-center py-4">
-                  <p className="text-muted-foreground mb-4">No workout scheduled for today.</p>
-                  <Button 
-                    variant="secondary"
-                    onClick={() => setShowMarkDoneDialog(true)}
-                    data-testid="button-mark-rest-day-done"
-                  >
-                    <Check className="w-4 h-4 mr-2" />
-                    Mark Day as Done
-                  </Button>
+                  <p className="text-muted-foreground mb-4">
+                    {isRestDay ? "Today is a Rest Day" : "No workout scheduled for today."}
+                  </p>
+                  <div className="flex flex-col gap-2 items-center">
+                    {canSwapRestDay && !activeSwap && (
+                      <Button 
+                        onClick={() => swapRestDayMutation.mutate()}
+                        disabled={swapRestDayMutation.isPending}
+                        data-testid="button-swap-rest-day"
+                      >
+                        <Calendar className="w-4 h-4 mr-2" />
+                        {swapRestDayMutation.isPending ? "Swapping..." : "Do Tomorrow's Workout Today"}
+                      </Button>
+                    )}
+                    {activeSwap && (
+                      <Button 
+                        variant="outline"
+                        onClick={() => undoSwapMutation.mutate(activeSwap.id)}
+                        disabled={undoSwapMutation.isPending}
+                        data-testid="button-undo-swap"
+                      >
+                        {undoSwapMutation.isPending ? "Undoing..." : "Undo Swap"}
+                      </Button>
+                    )}
+                    <Button 
+                      variant="secondary"
+                      onClick={() => setShowMarkDoneDialog(true)}
+                      data-testid="button-mark-rest-day-done"
+                    >
+                      <Check className="w-4 h-4 mr-2" />
+                      Mark Day as Done
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2">
