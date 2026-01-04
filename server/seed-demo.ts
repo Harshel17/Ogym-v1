@@ -5,7 +5,7 @@ import {
   workoutCycles, workoutItems, workoutCompletions, workoutSessions, workoutSessionExercises,
   bodyMeasurements, starMembers, gymHistory, dietPlans, dietPlanMeals, announcements, announcementReads,
   memberNotes, workoutTemplates, workoutTemplateItems, memberRequests, transferRequests, joinRequests,
-  feedPosts, feedReactions, feedComments, tournaments, tournamentParticipants
+  feedPosts, feedReactions, feedComments, tournaments, tournamentParticipants, memberRestDaySwaps
 } from "@shared/schema";
 import { eq, or, inArray } from "drizzle-orm";
 import { scrypt, randomBytes } from "crypto";
@@ -79,9 +79,39 @@ const TRAINER_NAMES = [
 
 const WORKOUT_TEMPLATES_DATA = [
   {
+    name: "PPL + Rest Split",
+    description: "Push/Pull/Legs split with rest days. 7-day cycle with built-in recovery.",
+    cycleLength: 7,
+    restDays: [3, 6] as number[], // Wednesday and Saturday are rest days
+    dayLabels: ["Push", "Pull", "Legs", "Rest Day", "Push", "Pull", "Rest Day"],
+    days: [
+      { label: "Push", muscles: "Chest+Shoulders+Triceps", exercises: [
+        { name: "Bench Press", sets: 4, reps: 10, weight: "60kg", muscle: "Chest", body: "Upper Body" },
+        { name: "Incline Dumbbell Press", sets: 3, reps: 12, weight: "20kg", muscle: "Chest", body: "Upper Body" },
+        { name: "Overhead Press", sets: 4, reps: 8, weight: "40kg", muscle: "Shoulders", body: "Upper Body" },
+        { name: "Lateral Raises", sets: 3, reps: 15, weight: "10kg", muscle: "Shoulders", body: "Upper Body" },
+        { name: "Tricep Pushdowns", sets: 3, reps: 12, weight: "25kg", muscle: "Triceps", body: "Arms" }
+      ]},
+      { label: "Pull", muscles: "Back+Biceps", exercises: [
+        { name: "Deadlifts", sets: 4, reps: 6, weight: "100kg", muscle: "Back", body: "Upper Body" },
+        { name: "Lat Pulldowns", sets: 4, reps: 10, weight: "50kg", muscle: "Back", body: "Upper Body" },
+        { name: "Barbell Rows", sets: 4, reps: 8, weight: "60kg", muscle: "Back", body: "Upper Body" },
+        { name: "Barbell Curls", sets: 3, reps: 12, weight: "25kg", muscle: "Biceps", body: "Arms" }
+      ]},
+      { label: "Legs", muscles: "Quads+Hamstrings+Calves", exercises: [
+        { name: "Squats", sets: 4, reps: 8, weight: "80kg", muscle: "Quads", body: "Lower Body" },
+        { name: "Leg Press", sets: 4, reps: 12, weight: "150kg", muscle: "Quads", body: "Lower Body" },
+        { name: "Romanian Deadlifts", sets: 3, reps: 10, weight: "60kg", muscle: "Hamstrings", body: "Lower Body" },
+        { name: "Calf Raises", sets: 4, reps: 15, weight: "60kg", muscle: "Calves", body: "Lower Body" }
+      ]}
+      // Days 3 and 6 are rest days - no exercises
+    ]
+  },
+  {
     name: "PPL Split - Beginner",
     description: "Push/Pull/Legs split for beginners. 6-day cycle with moderate volume.",
     cycleLength: 6,
+    restDays: [] as number[],
     dayLabels: ["Push", "Pull", "Legs", "Push", "Pull", "Legs"],
     days: [
       { label: "Push", muscles: "Chest+Shoulders+Triceps", exercises: [
@@ -114,6 +144,7 @@ const WORKOUT_TEMPLATES_DATA = [
     name: "Upper Lower Split",
     description: "Classic upper/lower split. Great for intermediate lifters. 4-day cycle.",
     cycleLength: 4,
+    restDays: [] as number[],
     dayLabels: ["Upper Body", "Lower Body", "Upper Body", "Lower Body"],
     days: [
       { label: "Upper Body", muscles: "Chest+Back+Shoulders+Arms", exercises: [
@@ -138,6 +169,7 @@ const WORKOUT_TEMPLATES_DATA = [
     name: "Full Body 3 Day",
     description: "Full body workout 3x per week. Perfect for busy schedules.",
     cycleLength: 3,
+    restDays: [] as number[],
     dayLabels: ["Full Body A", "Full Body B", "Full Body C"],
     days: [
       { label: "Full Body A", muscles: "Compound Focus", exercises: [
@@ -167,6 +199,7 @@ const WORKOUT_TEMPLATES_DATA = [
     name: "Fat Loss HIIT",
     description: "High intensity circuit for fat loss. Minimal rest between exercises.",
     cycleLength: 4,
+    restDays: [] as number[],
     dayLabels: ["Circuit A", "Circuit B", "Circuit A", "Circuit B"],
     days: [
       { label: "Circuit A", muscles: "Full Body Cardio", exercises: [
@@ -328,6 +361,7 @@ export async function resetDemoData(): Promise<void> {
   const demoCycles = await db.select().from(workoutCycles).where(inArray(workoutCycles.gymId, gymIds));
   const cycleIds = demoCycles.map(c => c.id);
   if (cycleIds.length > 0) {
+    await db.delete(memberRestDaySwaps).where(inArray(memberRestDaySwaps.cycleId, cycleIds));
     await db.delete(workoutCompletions).where(inArray(workoutCompletions.cycleId, cycleIds));
     await db.delete(workoutItems).where(inArray(workoutItems.cycleId, cycleIds));
     await db.delete(workoutCycles).where(inArray(workoutCycles.id, cycleIds));
@@ -802,6 +836,7 @@ export async function seedDemoData(): Promise<void> {
           name: template.name,
           cycleLength: template.cycleLength,
           dayLabels: template.dayLabels,
+          restDays: template.restDays || [],
           startDate: format(cycleStart, "yyyy-MM-dd"),
           endDate: format(cycleEnd, "yyyy-MM-dd"),
           isActive: true,
@@ -1114,7 +1149,7 @@ export async function seedDemoData(): Promise<void> {
         userId: member.id,
         type: "new_member",
         content: null,
-        metadata: {},
+        metadata: JSON.stringify({}),
         isVisible: true,
         createdAt: subDays(today, joinDaysAgo),
       });
@@ -1136,7 +1171,7 @@ export async function seedDemoData(): Promise<void> {
               userId: member.id,
               type: "workout_complete",
               content: null,
-              metadata: { exerciseCount: getRandomInt(4, 8), focusLabel: getRandomElement(["Push Day", "Pull Day", "Leg Day", "Upper Body", "Lower Body", "Full Body"]) },
+              metadata: JSON.stringify({ exerciseCount: getRandomInt(4, 8), focusLabel: getRandomElement(["Push Day", "Pull Day", "Leg Day", "Upper Body", "Lower Body", "Full Body"]) }),
               isVisible: true,
               createdAt: subDays(today, daysAgo),
             }).returning();
@@ -1186,7 +1221,7 @@ export async function seedDemoData(): Promise<void> {
             userId: member.id,
             type: "streak_milestone",
             content: null,
-            metadata: { streakDays: streak },
+            metadata: JSON.stringify({ streakDays: streak }),
             isVisible: true,
             createdAt: subDays(today, daysAgo),
           }).returning();
@@ -1217,7 +1252,7 @@ export async function seedDemoData(): Promise<void> {
           userId: member.id,
           type: "achievement",
           content: null,
-          metadata: { type: "personal_record", exercise: getRandomElement(["Bench Press", "Squat", "Deadlift"]), value: `${getRandomInt(60, 120)}kg` },
+          metadata: JSON.stringify({ type: "personal_record", exercise: getRandomElement(["Bench Press", "Squat", "Deadlift"]), value: `${getRandomInt(60, 120)}kg` }),
           isVisible: true,
           createdAt: subDays(today, getRandomInt(5, 60)),
         }).returning();
