@@ -84,7 +84,7 @@ export default function StatsPage() {
   });
 
   const { data: consistencyStats } = useQuery<ConsistencyStats>({
-    queryKey: ["/api/me/stats/consistency", 30],
+    queryKey: ["/api/me/stats/consistency"],
   });
 
   if (user?.role !== "member") {
