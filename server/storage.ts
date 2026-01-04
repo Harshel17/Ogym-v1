@@ -215,6 +215,13 @@ export interface IStorage {
     muscleGroupBreakdown: { name: string; count: number; percentage: number }[];
     volumeStats: { totalSets: number; totalReps: number; totalVolume: number };
     weeklyTrend: { week: string; count: number }[];
+    restRecoveryStats: {
+      workoutDays: number;
+      restDays: number;
+      last30Days: { workoutDays: number; restDays: number };
+      breakdown: { name: string; value: number; percentage: number }[];
+      trackingWindowDays: number;
+    };
   }>;
   getMemberCalendar(memberId: number, month: string): Promise<{ date: string; title: string; count: number }[]>;
   getMemberCalendarEnhanced(gymId: number, memberId: number, month: string): Promise<{
@@ -1818,6 +1825,51 @@ export class DatabaseStorage implements IStorage {
       weeklyTrend.push({ week: weekLabel, count });
     }
 
+    // Calculate rest/recovery stats
+    // Get unique workout dates
+    const workoutDatesAll = new Set<string>();
+    for (const { completion } of completions) {
+      workoutDatesAll.add(completion.completedDate);
+    }
+    
+    // Calculate based on actual data: unique dates with workouts
+    const totalWorkoutDays = workoutDatesAll.size;
+    
+    // Calculate tracked period - from first workout to today
+    const firstWorkoutDate = completions.length > 0 
+      ? completions[completions.length - 1].completion.completedDate 
+      : today.toISOString().split("T")[0];
+    const firstDate = new Date(firstWorkoutDate);
+    const daysSinceFirst = Math.max(1, Math.floor((today.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    
+    // Bound the window by actual tracking period (max 30 days, but not more than tracked days)
+    const trackingWindow = Math.min(30, daysSinceFirst);
+    const windowStartDate = new Date(today);
+    windowStartDate.setDate(windowStartDate.getDate() - trackingWindow + 1);
+    const windowStartStr = windowStartDate.toISOString().split("T")[0];
+    
+    // Count workout days within the bounded window
+    let workoutDaysInWindow = 0;
+    const datesArray = Array.from(workoutDatesAll);
+    for (const date of datesArray) {
+      if (date >= windowStartStr) {
+        workoutDaysInWindow++;
+      }
+    }
+    const restDaysInWindow = Math.max(0, trackingWindow - workoutDaysInWindow);
+    
+    // Calculate total estimated rest days (total tracked period)
+    const estimatedRestDays = Math.max(0, daysSinceFirst - totalWorkoutDays);
+    
+    // Build breakdown for pie chart (using actual tracking window)
+    const workoutPercentage = trackingWindow > 0 ? Math.round((workoutDaysInWindow / trackingWindow) * 100) : 0;
+    const restPercentage = trackingWindow > 0 ? Math.round((restDaysInWindow / trackingWindow) * 100) : 0;
+    
+    const restRecoveryBreakdown = [
+      { name: "Workout Days", value: workoutDaysInWindow, percentage: workoutPercentage },
+      { name: "Rest Days", value: restDaysInWindow, percentage: restPercentage }
+    ];
+
     return {
       streak: basicStats.streak,
       totalWorkouts: basicStats.totalWorkouts,
@@ -1825,7 +1877,14 @@ export class DatabaseStorage implements IStorage {
       thisMonth,
       muscleGroupBreakdown,
       volumeStats: { totalSets, totalReps, totalVolume: Math.round(totalVolume) },
-      weeklyTrend
+      weeklyTrend,
+      restRecoveryStats: {
+        workoutDays: totalWorkoutDays,
+        restDays: estimatedRestDays,
+        last30Days: { workoutDays: workoutDaysInWindow, restDays: restDaysInWindow },
+        breakdown: restRecoveryBreakdown,
+        trackingWindowDays: trackingWindow
+      }
     };
   }
 

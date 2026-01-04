@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays } from "lucide-react";
+import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays, Moon } from "lucide-react";
 import { Link } from "wouter";
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { format, parseISO } from "date-fns";
@@ -23,6 +23,13 @@ type MemberStats = {
     totalVolume: number;
   };
   weeklyTrend: { week: string; count: number }[];
+  restRecoveryStats?: {
+    workoutDays: number;
+    restDays: number;
+    last30Days: { workoutDays: number; restDays: number };
+    breakdown: { name: string; value: number; percentage: number }[];
+    trackingWindowDays: number;
+  };
 };
 
 type DailyWorkout = {
@@ -154,6 +161,73 @@ export default function StatsPage() {
                   <div className="p-4 bg-muted/50 rounded-lg">
                     <p className="text-2xl font-bold text-blue-600">{stats.volumeStats.totalVolume.toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">Total Volume</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {stats.restRecoveryStats && (
+            <Card data-testid="card-rest-recovery">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Moon className="w-5 h-5" />
+                  Rest & Recovery {stats.restRecoveryStats.trackingWindowDays < 30 
+                    ? `(Last ${stats.restRecoveryStats.trackingWindowDays} Days)` 
+                    : "(Last 30 Days)"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={stats.restRecoveryStats.breakdown}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={70}
+                          paddingAngle={2}
+                          label={({ name, percentage }) => `${percentage}%`}
+                        >
+                          <Cell fill="#22c55e" />
+                          <Cell fill="#64748b" />
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))', 
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px'
+                          }}
+                          formatter={(value: number, name: string) => [`${value} days`, name]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex flex-col justify-center space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-green-500/10 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Dumbbell className="w-5 h-5 text-green-500" />
+                        <span className="font-medium">Workout Days</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-green-600">{stats.restRecoveryStats.last30Days.workoutDays}</p>
+                        <p className="text-xs text-muted-foreground">{stats.restRecoveryStats.breakdown[0]?.percentage || 0}%</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-slate-500/10 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Moon className="w-5 h-5 text-slate-500" />
+                        <span className="font-medium">Rest Days</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-slate-600">{stats.restRecoveryStats.last30Days.restDays}</p>
+                        <p className="text-xs text-muted-foreground">{stats.restRecoveryStats.breakdown[1]?.percentage || 0}%</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
