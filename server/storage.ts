@@ -31,12 +31,13 @@ import {
   type WorkoutTemplateItem, type InsertWorkoutTemplateItem,
   type BodyMeasurement, type InsertBodyMeasurement,
   type MemberNote, type InsertMemberNote,
-  feedPosts, feedReactions, feedComments, tournaments, tournamentParticipants,
+  feedPosts, feedReactions, feedComments, tournaments, tournamentParticipants, memberRestDaySwaps,
   type FeedPost, type InsertFeedPost,
   type FeedReaction, type InsertFeedReaction,
   type FeedComment, type InsertFeedComment,
   type Tournament, type InsertTournament,
-  type TournamentParticipant, type InsertTournamentParticipant
+  type TournamentParticipant, type InsertTournamentParticipant,
+  type MemberRestDaySwap, type InsertMemberRestDaySwap
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull } from "drizzle-orm";
@@ -447,6 +448,11 @@ export interface IStorage {
   leaveTournament(tournamentId: number, userId: number): Promise<void>;
   updateTournamentScores(tournamentId: number): Promise<void>;
   getTournamentLeaderboard(tournamentId: number): Promise<{ rank: number; username: string; score: number; userId: number }[]>;
+  
+  // Rest Day Swaps
+  getActiveRestDaySwap(memberId: number, cycleId: number, date: string): Promise<MemberRestDaySwap | null>;
+  createRestDaySwap(data: InsertMemberRestDaySwap): Promise<MemberRestDaySwap>;
+  deleteRestDaySwap(swapId: number, memberId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3876,6 +3882,30 @@ export class DatabaseStorage implements IStorage {
       score: p.tournament_participants.currentScore || 0,
       userId: p.tournament_participants.userId
     }));
+  }
+  
+  // Rest Day Swaps
+  async getActiveRestDaySwap(memberId: number, cycleId: number, date: string): Promise<MemberRestDaySwap | null> {
+    const [swap] = await db.select()
+      .from(memberRestDaySwaps)
+      .where(and(
+        eq(memberRestDaySwaps.memberId, memberId),
+        eq(memberRestDaySwaps.cycleId, cycleId),
+        eq(memberRestDaySwaps.swapDate, date)
+      ));
+    return swap || null;
+  }
+  
+  async createRestDaySwap(data: InsertMemberRestDaySwap): Promise<MemberRestDaySwap> {
+    const [swap] = await db.insert(memberRestDaySwaps).values(data).returning();
+    return swap;
+  }
+  
+  async deleteRestDaySwap(swapId: number, memberId: number): Promise<void> {
+    await db.delete(memberRestDaySwaps).where(and(
+      eq(memberRestDaySwaps.id, swapId),
+      eq(memberRestDaySwaps.memberId, memberId)
+    ));
   }
 }
 
