@@ -91,6 +91,7 @@ export interface IStorage {
   getMemberCycle(memberId: number): Promise<WorkoutCycle | undefined>;
   getCycle(cycleId: number): Promise<WorkoutCycle | undefined>;
   updateCycleDayLabels(cycleId: number, dayLabels: string[]): Promise<WorkoutCycle>;
+  updateCycleRestDays(cycleId: number, restDays: number[]): Promise<WorkoutCycle>;
   addWorkoutItem(data: InsertWorkoutItem): Promise<WorkoutItem>;
   getWorkoutItems(cycleId: number): Promise<WorkoutItem[]>;
   getWorkoutItemsByDay(cycleId: number, dayIndex: number): Promise<WorkoutItem[]>;
@@ -644,6 +645,14 @@ export class DatabaseStorage implements IStorage {
     return cycle;
   }
 
+  async updateCycleRestDays(cycleId: number, restDays: number[]): Promise<WorkoutCycle> {
+    const [cycle] = await db.update(workoutCycles)
+      .set({ restDays })
+      .where(eq(workoutCycles.id, cycleId))
+      .returning();
+    return cycle;
+  }
+
   async addWorkoutItem(data: InsertWorkoutItem): Promise<WorkoutItem> {
     const [item] = await db.insert(workoutItems).values(data).returning();
     return item;
@@ -1103,7 +1112,9 @@ export class DatabaseStorage implements IStorage {
       
       // Get planned exercises for this day
       const dayItems = itemsByDay.get(currentDayIndex) || [];
-      const plannedPoints = dayItems.length;
+      const dayLabel = cycle.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
+      const isRestDay = (cycle.restDays?.includes(currentDayIndex)) || dayLabel.toLowerCase().includes("rest") || dayItems.length === 0;
+      const plannedPoints = isRestDay ? 0 : dayItems.length;
       
       // Get earned points (unique completed items for this date)
       const completedItemIds = completionsByDate.get(dateStr) || new Set();
@@ -1124,7 +1135,7 @@ export class DatabaseStorage implements IStorage {
       
       // Determine status
       let status: "REST" | "NOT_STARTED" | "IN_PROGRESS" | "DONE_FULL" | "DONE_PARTIAL";
-      if (plannedPoints === 0) {
+      if (isRestDay) {
         status = "REST";
       } else if (earnedPoints === 0 && !isMarkedDone) {
         status = "NOT_STARTED";
@@ -3116,10 +3127,10 @@ export class DatabaseStorage implements IStorage {
       const daysSinceStart = Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
       const dayIndex = daysSinceStart % cycle.cycleLength;
       const dayLabel = cycle.dayLabels?.[dayIndex] || `Day ${dayIndex + 1}`;
-      const isRestDay = dayLabel.toLowerCase().includes("rest");
+      const dayItems = itemsByDay[dayIndex] || [];
+      const isRestDay = (cycle.restDays?.includes(dayIndex)) || dayLabel.toLowerCase().includes("rest") || dayItems.length === 0;
       
       const session = sessionsByDate[dateStr];
-      const dayItems = itemsByDay[dayIndex] || [];
       const totalExercises = dayItems.length;
       const completedExercises = session ? (sessionExerciseCounts[session.id] || 0) : 0;
       const isManuallyCompleted = Boolean(session?.isManuallyCompleted);

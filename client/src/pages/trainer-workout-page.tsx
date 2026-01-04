@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useTrainerCycles, useTrainerMembers, useCreateCycle, useAddWorkoutItem, useTrainerActivity, useUpdateDayLabels } from "@/hooks/use-workouts";
+import { useTrainerCycles, useTrainerMembers, useCreateCycle, useAddWorkoutItem, useTrainerActivity, useUpdateDayLabels, useUpdateRestDays } from "@/hooks/use-workouts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil, Trash2, Search, X } from "lucide-react";
+import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil, Trash2, Search, X, Moon } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -272,14 +273,34 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
   const member = members.find(m => m.id === cycle.memberId);
   const cycleLength = cycle.cycleLength || 3;
   const updateLabelsMutation = useUpdateDayLabels();
+  const updateRestDaysMutation = useUpdateRestDays();
   
   const initialLabels = cycle.dayLabels || Array.from({ length: cycleLength }, () => "");
+  const initialRestDays = cycle.restDays || [];
   const [dayLabels, setDayLabels] = useState<string[]>(initialLabels);
+  const [restDays, setRestDays] = useState<number[]>(initialRestDays);
   const [editingDay, setEditingDay] = useState<number | null>(null);
   
   useEffect(() => {
     setDayLabels(cycle.dayLabels || Array.from({ length: cycleLength }, () => ""));
-  }, [cycle.id, cycle.dayLabels, cycleLength]);
+    setRestDays(cycle.restDays || []);
+  }, [cycle.id, cycle.dayLabels, cycle.restDays, cycleLength]);
+  
+  const toggleRestDay = (dayIndex: number) => {
+    const previousRestDays = [...restDays];
+    const newRestDays = restDays.includes(dayIndex)
+      ? restDays.filter(d => d !== dayIndex)
+      : [...restDays, dayIndex];
+    setRestDays(newRestDays);
+    updateRestDaysMutation.mutate(
+      { cycleId: cycle.id, restDays: newRestDays },
+      {
+        onError: () => {
+          setRestDays(previousRestDays);
+        }
+      }
+    );
+  };
   
   const { data: items = [], isLoading } = useQuery<WorkoutItem[]>({
     queryKey: ["/api/trainer/cycles", cycle.id, "items"],
@@ -308,6 +329,7 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
     customLabel: dayLabels[idx] || "",
     shortLabel: dayLabels[idx] ? dayLabels[idx].substring(0, 10) : `D${idx + 1}`,
     dayIndex: idx,
+    isRestDay: restDays.includes(idx),
     exercises: items.filter(item => item.dayIndex === idx).sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
   }));
 
@@ -356,51 +378,63 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
         ) : (
           <Tabs defaultValue={daysWithExercises[0]?.dayIndex.toString() || "0"} className="w-full">
             <TabsList className="w-full flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
-              {itemsByDay.map(({ shortLabel, dayIndex, exercises }) => (
+              {itemsByDay.map(({ shortLabel, dayIndex, exercises, isRestDay }) => (
                 <TabsTrigger 
                   key={dayIndex} 
                   value={dayIndex.toString()}
-                  disabled={exercises.length === 0}
+                  disabled={exercises.length === 0 && !isRestDay}
                   className="flex-1 min-w-[50px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   data-testid={`tab-day-${dayIndex}`}
                 >
+                  {isRestDay && <Moon className="w-3 h-3 mr-1" />}
                   <span className="text-xs">{shortLabel}</span>
-                  {exercises.length > 0 && (
+                  {exercises.length > 0 && !isRestDay && (
                     <span className="ml-1 text-[10px] opacity-70">({exercises.length})</span>
                   )}
                 </TabsTrigger>
               ))}
             </TabsList>
-            {itemsByDay.map(({ dayLabel, customLabel, dayIndex, exercises }) => (
+            {itemsByDay.map(({ dayLabel, customLabel, dayIndex, exercises, isRestDay }) => (
               <TabsContent key={dayIndex} value={dayIndex.toString()} className="mt-4">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    {editingDay === dayIndex ? (
-                      <Input
-                        autoFocus
-                        placeholder={`e.g., Chest + Shoulders`}
-                        defaultValue={customLabel}
-                        className="h-8 text-sm max-w-[200px]"
-                        onBlur={(e) => saveDayLabel(dayIndex, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            saveDayLabel(dayIndex, (e.target as HTMLInputElement).value);
-                          } else if (e.key === 'Escape') {
-                            setEditingDay(null);
-                          }
-                        }}
-                        data-testid={`input-day-label-${dayIndex}`}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      {editingDay === dayIndex ? (
+                        <Input
+                          autoFocus
+                          placeholder={`e.g., Chest + Shoulders`}
+                          defaultValue={customLabel}
+                          className="h-8 text-sm max-w-[200px]"
+                          onBlur={(e) => saveDayLabel(dayIndex, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              saveDayLabel(dayIndex, (e.target as HTMLInputElement).value);
+                            } else if (e.key === 'Escape') {
+                              setEditingDay(null);
+                            }
+                          }}
+                          data-testid={`input-day-label-${dayIndex}`}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setEditingDay(dayIndex)}
+                          className="font-semibold text-sm flex items-center gap-2 px-2 py-1 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+                          data-testid={`button-edit-day-label-${dayIndex}`}
+                        >
+                          <span>{dayLabel}</span>
+                          <Pencil className="w-3 h-3 text-muted-foreground" />
+                        </button>
+                      )}
+                      {isRestDay && <Badge variant="secondary"><Moon className="w-3 h-3 mr-1" />Rest Day</Badge>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Rest Day</span>
+                      <Switch
+                        checked={isRestDay}
+                        onCheckedChange={() => toggleRestDay(dayIndex)}
+                        data-testid={`switch-rest-day-${dayIndex}`}
                       />
-                    ) : (
-                      <button
-                        onClick={() => setEditingDay(dayIndex)}
-                        className="font-semibold text-sm flex items-center gap-2 px-2 py-1 rounded-md bg-muted/50 hover:bg-muted transition-colors"
-                        data-testid={`button-edit-day-label-${dayIndex}`}
-                      >
-                        <span>{dayLabel}</span>
-                        <Pencil className="w-3 h-3 text-muted-foreground" />
-                      </button>
-                    )}
+                    </div>
                   </div>
                   {exercises.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">No exercises for this day.</p>

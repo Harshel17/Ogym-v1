@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 interface WorkoutSummary {
@@ -52,7 +52,11 @@ export default function MemberWorkoutPage() {
   };
   
   const handleShareConfirm = () => {
-    shareWorkoutMutation.mutate(pendingShareLabel);
+    shareWorkoutMutation.mutate({
+      type: "workout_completed",
+      label: pendingShareLabel,
+      metadata: {}
+    });
     setShareDialogOpen(false);
   };
   
@@ -177,9 +181,45 @@ export default function MemberWorkoutPage() {
           </CardHeader>
           <CardContent>
             {!today?.items || today.items.length === 0 ? (
-              <p className="text-muted-foreground">Rest day! No workout scheduled.</p>
+              <div className="text-center py-8 space-y-4" data-testid="rest-day-card">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center mx-auto">
+                  <Moon className="w-10 h-10 text-indigo-500" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold flex items-center justify-center gap-2">
+                    <Sparkles className="w-5 h-5 text-yellow-500" />
+                    Recovery Day
+                    <Sparkles className="w-5 h-5 text-yellow-500" />
+                  </h3>
+                  <p className="text-muted-foreground mt-2">
+                    No workout scheduled today. Rest is essential for muscle growth and recovery.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto pt-4">
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium">Stay Hydrated</p>
+                    <p className="text-xs text-muted-foreground">Drink plenty of water</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-sm font-medium">Get Rest</p>
+                    <p className="text-xs text-muted-foreground">7-9 hours of sleep</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground pt-2">
+                  Your streak is safe on rest days!
+                </p>
+              </div>
             ) : (
               <div className="space-y-6">
+                {today?.isRestDay && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20" data-testid="rest-day-banner">
+                    <Moon className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Scheduled Rest Day</p>
+                      <p className="text-xs text-muted-foreground">Feel free to take it easy, or complete the exercises below if you prefer.</p>
+                    </div>
+                  </div>
+                )}
                 {Object.entries(groupedByBodyPart).map(([bodyPart, items]: [string, any]) => (
                   <div key={bodyPart}>
                     <div className="flex items-center gap-2 mb-3">

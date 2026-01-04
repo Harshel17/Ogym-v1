@@ -119,6 +119,7 @@ export const workoutCycles = pgTable("workout_cycles", {
   name: text("name").notNull(),
   cycleLength: integer("cycle_length").notNull().default(3),
   dayLabels: text("day_labels").array(),
+  restDays: integer("rest_days").array(),
   startDate: text("start_date").notNull(),
   endDate: text("end_date").notNull(),
   isActive: boolean("is_active").default(true),

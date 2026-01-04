@@ -1,0 +1,73 @@
+You are a senior full-stack engineer.
+
+I want to IMPROVE and FINALIZE Rest/Recovery day behavior in OGym.
+Do NOT change authentication, routes, or core cycle rotation logic. Keep existing rest detection.
+
+CURRENT REST LOGIC (KEEP THIS EXACTLY):
+- A day is Rest if:
+  1) cycle day label contains "rest" (case-insensitive), OR
+  2) the day has no exercises.
+- Rest days show as "rest" status in the calendar (gray/neutral).
+- Rest days are skipped in streak calculation (neutral: don’t add, don’t break).
+
+GOAL:
+Make Rest Day a first-class, premium feature across UI + stats + missed workouts + points, without changing workflows.
+
+REQUIREMENTS:
+
+1) Trainer Cycle Builder UX: Dedicated Rest Day Toggle
+- In the trainer workout cycle editor, add a clear checkbox/toggle: "Rest Day" for each day.
+- If Rest Day is ON:
+  - auto-set label to "Rest Day" (or show Rest badge)
+  - clear exercises for that day AND disable exercise inputs
+  - show Rest badge in the cycle day list view
+- If Rest Day is OFF:
+  - normal exercise editing works
+
+2) Member Experience on Rest Day: Premium Recovery Screen
+- When today is Rest, replace the normal workout list with a "Recovery Day" card/screen:
+  - Title: "Rest / Recovery Day"
+  - Short explanation: "Recovery helps growth. Rest days won't break your streak."
+  - Suggested actions (static, no scoring):
+    - "Log Body Measurements"
+    - "View Progress"
+    - "Mobility / Stretching (5–10 min)"
+    - "Light Walk / Cardio (optional)"
+- Do NOT show normal “complete exercise” workflow on rest day by default.
+
+3) Points + Stats Consistency on Rest Day
+- Rest day must behave as:
+  - planned_points = 0
+  - earned_points = 0
+- Rest days must be excluded from:
+  - weekly/monthly points totals
+  - completion percentage
+  - tournaments scoring
+- UI should show clearly: "Rest Day — no points today"
+
+4) Missed Workouts + Calendar + History Rules
+- Rest days MUST NEVER appear in Missed Workouts (neither partial-missed nor full-missed).
+- Calendar styling should include REST as a consistent status alongside DONE / IN_PROGRESS / MISSED / REST.
+- Ensure streak logic stays unchanged (rest skipped, not breaking streak).
+
+5) OPTIONAL (only if easy / clean): “Train on Rest Day (Move Rest)” feature
+- On Rest screen, add button: "Train Today (Move Rest)"
+- If pressed:
+  - Today should show the NEXT workout day plan instead of rest (swap behavior)
+  - Rest is postponed to the next day
+  - Limit: max 3 moves per rolling 7 days per member
+  - Implement via a per-member per-date override record (do NOT change cycle start date)
+- If this becomes complex, skip this part and implement only items 1–4.
+
+DELIVERABLES:
+- List files changed
+- Explain final rest behavior in plain English
+- Test steps:
+  1) Create a cycle with a Rest day via toggle
+  2) Verify member sees Recovery Day UI on that date
+  3) Verify rest day does NOT break streak
+  4) Verify rest day does NOT appear in missed workouts
+  5) Verify points totals ignore rest days
+  6) (If implemented) Verify Train Today swaps rest to tomorrow and blocks 4th move in 7 days
+
+Start by scanning existing cycle/day UI + streak + missed workout + points + tournaments + feed, then implement above with minimal disruption.

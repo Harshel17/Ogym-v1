@@ -76,6 +76,25 @@ export function useUpdateDayLabels() {
   });
 }
 
+export function useUpdateRestDays() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { cycleId: number; restDays: number[] }) => {
+      const { cycleId, restDays } = data;
+      return apiRequest("PATCH", `/api/trainer/cycles/${cycleId}/rest-days`, { restDays });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trainer/cycles'] });
+      toast({ title: "Saved", description: "Rest days updated" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to update rest days", variant: "destructive" });
+    },
+  });
+}
+
 export function useMemberCycle() {
   return useQuery({
     queryKey: ['/api/workouts/cycles/my'],
