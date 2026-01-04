@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { 
   ArrowLeft, Star, Calendar, Dumbbell, TrendingUp, 
   Flame, Activity, Weight, ChevronRight, Loader2, Shield,
-  CheckCircle2, XCircle, AlertCircle, Clock, StickyNote, Plus, Trash2
+  CheckCircle2, XCircle, AlertCircle, Clock, StickyNote, Plus, Trash2, Edit
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -765,6 +765,9 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
   const [endDate, setEndDate] = useState("");
   const [cycleId, setCycleId] = useState<string>("");
   const [notes, setNotes] = useState("");
+  const [autoAssignCycle, setAutoAssignCycle] = useState(false);
+  const [useCustomExercises, setUseCustomExercises] = useState(false);
+  const [editingPhaseId, setEditingPhaseId] = useState<number | null>(null);
 
   const { data: phases = [], isLoading } = useQuery<TrainingPhase[]>({
     queryKey: ["/api/training-phases/member", memberId],
@@ -791,10 +794,24 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
       const res = await apiRequest("POST", "/api/training-phases", data);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: async (createdPhase: any) => {
+      // If using custom exercises and a template cycle is selected, copy exercises from the cycle
+      if (useCustomExercises && cycleId) {
+        try {
+          await apiRequest("POST", `/api/training-phases/${createdPhase.id}/copy-from-cycle`, { cycleId: parseInt(cycleId) });
+          toast({ title: "Phase created with exercises copied from template" });
+        } catch (e) {
+          toast({ title: "Phase created, but failed to copy exercises" });
+        }
+      } else {
+        toast({ title: "Training phase created" });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/training-phases/member", memberId] });
-      toast({ title: "Training phase created" });
       setShowCreateDialog(false);
+      // If using custom exercises, open the exercise editor
+      if (useCustomExercises) {
+        setEditingPhaseId(createdPhase.id);
+      }
       resetForm();
     },
     onError: (err: any) => {
@@ -819,11 +836,18 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
     setEndDate("");
     setCycleId("");
     setNotes("");
+    setAutoAssignCycle(false);
+    setUseCustomExercises(false);
   };
 
   const handleCreate = () => {
-    if (!name || !startDate || !endDate || !cycleId) {
+    if (!name || !startDate || !endDate) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+    // Cycle is required unless using custom exercises
+    if (!useCustomExercises && !cycleId) {
+      toast({ title: "Please select a workout cycle or enable custom exercises", variant: "destructive" });
       return;
     }
     createPhaseMutation.mutate({
@@ -832,7 +856,9 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
       goalType,
       startDate,
       endDate,
-      cycleId: parseInt(cycleId),
+      cycleId: cycleId ? parseInt(cycleId) : undefined,
+      autoAssignCycle,
+      useCustomExercises,
       notes: notes || undefined
     });
   };
@@ -906,6 +932,12 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
                         <Badge className={goalTypeColors[phase.goalType] || goalTypeColors.general}>
                           {goalTypeLabels[phase.goalType] || phase.goalType}
                         </Badge>
+                        {phase.useCustomExercises && (
+                          <Badge variant="outline" className="text-xs">Custom Exercises</Badge>
+                        )}
+                        {phase.autoAssignCycle && (
+                          <Badge variant="outline" className="text-xs">Auto-assign</Badge>
+                        )}
                         <span className="text-sm text-muted-foreground">
                           {format(start, "MMM d, yyyy")} - {format(end, "MMM d, yyyy")}
                         </span>
@@ -914,14 +946,26 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
                         <p className="text-sm text-muted-foreground mt-2">{phase.notes}</p>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deletePhaseMutation.mutate(phase.id)}
-                      data-testid={`button-delete-phase-${phase.id}`}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {phase.useCustomExercises && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setEditingPhaseId(phase.id)}
+                          data-testid={`button-edit-exercises-${phase.id}`}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deletePhaseMutation.mutate(phase.id)}
+                        data-testid={`button-delete-phase-${phase.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -992,27 +1036,67 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="cycle">Workout Cycle</Label>
-              <select
-                id="cycle"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
-                value={cycleId}
-                onChange={(e) => setCycleId(e.target.value)}
-                data-testid="select-cycle"
-              >
-                <option value="">Select a workout cycle</option>
-                {cycles.map((cycle) => (
-                  <option key={cycle.id} value={cycle.id.toString()}>
-                    {cycle.name}
-                  </option>
-                ))}
-              </select>
-              {cycles.length === 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  No workout cycles found for this member.
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="use-custom">Custom Exercises</Label>
+                  <p className="text-xs text-muted-foreground">Create custom exercises for this phase instead of using a template cycle</p>
+                </div>
+                <input
+                  id="use-custom"
+                  type="checkbox"
+                  checked={useCustomExercises}
+                  onChange={(e) => setUseCustomExercises(e.target.checked)}
+                  className="h-4 w-4"
+                  data-testid="checkbox-use-custom"
+                />
+              </div>
+              
+              {!useCustomExercises && (
+                <div>
+                  <Label htmlFor="cycle">Template Workout Cycle</Label>
+                  <select
+                    id="cycle"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-1"
+                    value={cycleId}
+                    onChange={(e) => setCycleId(e.target.value)}
+                    data-testid="select-cycle"
+                  >
+                    <option value="">Select a workout cycle</option>
+                    {cycles.map((cycle) => (
+                      <option key={cycle.id} value={cycle.id.toString()}>
+                        {cycle.name}
+                      </option>
+                    ))}
+                  </select>
+                  {cycles.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      No workout cycles found for this member.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {useCustomExercises && cycleId && (
+                <p className="text-xs text-muted-foreground">
+                  Exercises will be copied from the selected template and can be customized after creation.
                 </p>
               )}
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="auto-assign">Auto-assign Cycle</Label>
+                  <p className="text-xs text-muted-foreground">Automatically switch member's workout when this phase becomes active</p>
+                </div>
+                <input
+                  id="auto-assign"
+                  type="checkbox"
+                  checked={autoAssignCycle}
+                  onChange={(e) => setAutoAssignCycle(e.target.checked)}
+                  className="h-4 w-4"
+                  data-testid="checkbox-auto-assign"
+                />
+              </div>
             </div>
 
             <div>
@@ -1044,6 +1128,223 @@ function TrainingPhasesTab({ memberId, memberName }: { memberId: number; memberN
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Phase Exercise Editor Dialog */}
+      {editingPhaseId && (
+        <PhaseExerciseEditor 
+          phaseId={editingPhaseId} 
+          onClose={() => setEditingPhaseId(null)} 
+        />
+      )}
     </div>
+  );
+}
+
+type PhaseExercise = {
+  id: number;
+  phaseId: number;
+  dayIndex: number;
+  muscleType: string;
+  bodyPart: string;
+  exerciseName: string;
+  sets: number;
+  reps: number;
+  weight: string | null;
+  orderIndex: number | null;
+};
+
+function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: () => void }) {
+  const { toast } = useToast();
+  const [newExercise, setNewExercise] = useState({
+    dayIndex: 0,
+    muscleType: "Chest",
+    bodyPart: "Upper Body",
+    exerciseName: "",
+    sets: 3,
+    reps: 10,
+    weight: ""
+  });
+
+  const { data: exercises = [], isLoading } = useQuery<PhaseExercise[]>({
+    queryKey: ["/api/training-phases", phaseId, "exercises"],
+    queryFn: async () => {
+      const res = await fetch(`/api/training-phases/${phaseId}/exercises`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch exercises");
+      return res.json();
+    }
+  });
+
+  const addExerciseMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", `/api/training-phases/${phaseId}/exercises`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training-phases", phaseId, "exercises"] });
+      setNewExercise({
+        dayIndex: 0,
+        muscleType: "Chest",
+        bodyPart: "Upper Body",
+        exerciseName: "",
+        sets: 3,
+        reps: 10,
+        weight: ""
+      });
+      toast({ title: "Exercise added" });
+    }
+  });
+
+  const deleteExerciseMutation = useMutation({
+    mutationFn: async (exerciseId: number) => {
+      await apiRequest("DELETE", `/api/training-phases/exercises/${exerciseId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training-phases", phaseId, "exercises"] });
+      toast({ title: "Exercise removed" });
+    }
+  });
+
+  const exercisesByDay = exercises.reduce((acc, ex) => {
+    if (!acc[ex.dayIndex]) acc[ex.dayIndex] = [];
+    acc[ex.dayIndex].push(ex);
+    return acc;
+  }, {} as Record<number, PhaseExercise[]>);
+
+  const dayCount = Math.max(3, ...Object.keys(exercisesByDay).map(Number).map(n => n + 1));
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Phase Exercises</DialogTitle>
+        </DialogHeader>
+        
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {Array.from({ length: dayCount }).map((_, dayIdx) => (
+              <div key={dayIdx} className="border rounded-md p-3">
+                <h4 className="font-medium mb-2">Day {dayIdx + 1}</h4>
+                <div className="space-y-2">
+                  {(exercisesByDay[dayIdx] || []).map((ex) => (
+                    <div key={ex.id} className="flex items-center justify-between bg-muted/50 rounded px-3 py-2">
+                      <div>
+                        <span className="font-medium">{ex.exerciseName}</span>
+                        <span className="text-muted-foreground text-sm ml-2">
+                          {ex.sets}x{ex.reps} {ex.weight ? `@ ${ex.weight}` : ""}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteExerciseMutation.mutate(ex.id)}
+                        data-testid={`button-delete-exercise-${ex.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                  {(!exercisesByDay[dayIdx] || exercisesByDay[dayIdx].length === 0) && (
+                    <p className="text-muted-foreground text-sm">No exercises for this day</p>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Add Exercise</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Day</Label>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    value={newExercise.dayIndex}
+                    onChange={(e) => setNewExercise({ ...newExercise, dayIndex: parseInt(e.target.value) })}
+                  >
+                    {Array.from({ length: dayCount }).map((_, i) => (
+                      <option key={i} value={i}>Day {i + 1}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label>Exercise Name</Label>
+                  <input
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    placeholder="e.g., Bench Press"
+                    value={newExercise.exerciseName}
+                    onChange={(e) => setNewExercise({ ...newExercise, exerciseName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Sets</Label>
+                  <input
+                    type="number"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    value={newExercise.sets}
+                    onChange={(e) => setNewExercise({ ...newExercise, sets: parseInt(e.target.value) || 3 })}
+                  />
+                </div>
+                <div>
+                  <Label>Reps</Label>
+                  <input
+                    type="number"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    value={newExercise.reps}
+                    onChange={(e) => setNewExercise({ ...newExercise, reps: parseInt(e.target.value) || 10 })}
+                  />
+                </div>
+                <div>
+                  <Label>Muscle Type</Label>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    value={newExercise.muscleType}
+                    onChange={(e) => setNewExercise({ ...newExercise, muscleType: e.target.value })}
+                  >
+                    <option value="Chest">Chest</option>
+                    <option value="Back">Back</option>
+                    <option value="Shoulders">Shoulders</option>
+                    <option value="Biceps">Biceps</option>
+                    <option value="Triceps">Triceps</option>
+                    <option value="Legs">Legs</option>
+                    <option value="Core">Core</option>
+                    <option value="Full Body">Full Body</option>
+                  </select>
+                </div>
+                <div>
+                  <Label>Weight (optional)</Label>
+                  <input
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    placeholder="e.g., 60kg"
+                    value={newExercise.weight}
+                    onChange={(e) => setNewExercise({ ...newExercise, weight: e.target.value })}
+                  />
+                </div>
+              </div>
+              <Button 
+                className="mt-3"
+                onClick={() => {
+                  if (!newExercise.exerciseName) {
+                    toast({ title: "Please enter exercise name", variant: "destructive" });
+                    return;
+                  }
+                  addExerciseMutation.mutate(newExercise);
+                }}
+                disabled={addExerciseMutation.isPending}
+              >
+                {addExerciseMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                Add Exercise
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end mt-4">
+          <Button onClick={onClose}>Done</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
