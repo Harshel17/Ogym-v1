@@ -736,20 +736,63 @@ export async function registerRoutes(
       }
     }
     
-    // Check if user should be asked to share
-    let askToShare = false;
-    let focusLabel = "";
+    // Collect shareable achievements if auto-post is enabled
+    const shareableAchievements: { type: string; label: string; metadata: Record<string, unknown> }[] = [];
+    
     if (completions.length > 0 && req.user!.autoPostEnabled !== false) {
-      // Check if user already shared a workout today
       const todayPosts = await storage.getMemberFeedPostsForDate(req.user!.id, today);
-      const hasSharedToday = todayPosts.some((p: { type: string }) => p.type === "workout_completed");
-      if (!hasSharedToday) {
-        askToShare = true;
-        focusLabel = session?.focusLabel || "Workout";
+      
+      // 1. Workout completion
+      const hasSharedWorkout = todayPosts.some((p: { type: string }) => p.type === "workout_completed");
+      if (!hasSharedWorkout) {
+        shareableAchievements.push({
+          type: "workout_completed",
+          label: session?.focusLabel || "Workout",
+          metadata: { focusLabel: session?.focusLabel || "Workout" }
+        });
+      }
+      
+      // 2. Streak milestones (7, 14, 30, 60, 100 days)
+      const stats = await storage.getMemberStats(req.user!.id);
+      const streakMilestones = [7, 14, 30, 60, 100];
+      if (streakMilestones.includes(stats.streak)) {
+        const hasSharedStreak = todayPosts.some((p: { type: string; metadata: string | null }) => {
+          if (p.type !== "streak_milestone") return false;
+          try {
+            const meta = p.metadata ? JSON.parse(p.metadata) : {};
+            return meta.days === stats.streak;
+          } catch { return false; }
+        });
+        if (!hasSharedStreak) {
+          shareableAchievements.push({
+            type: "streak_milestone",
+            label: `${stats.streak} Day Streak`,
+            metadata: { days: stats.streak }
+          });
+        }
+      }
+      
+      // 3. Workout count milestones (10, 25, 50, 100, 200, 500)
+      const countMilestones = [10, 25, 50, 100, 200, 500];
+      if (countMilestones.includes(stats.totalWorkouts)) {
+        const hasSharedCount = todayPosts.some((p: { type: string; metadata: string | null }) => {
+          if (p.type !== "achievement") return false;
+          try {
+            const meta = p.metadata ? JSON.parse(p.metadata) : {};
+            return meta.type === "workout_count" && meta.count === stats.totalWorkouts;
+          } catch { return false; }
+        });
+        if (!hasSharedCount) {
+          shareableAchievements.push({
+            type: "achievement",
+            label: `${stats.totalWorkouts} Workouts Completed`,
+            metadata: { type: "workout_count", count: stats.totalWorkouts }
+          });
+        }
       }
     }
     
-    res.status(201).json({ completed: completions.length, askToShare, focusLabel });
+    res.status(201).json({ completed: completions.length, shareableAchievements });
   });
 
   app.get("/api/workouts/history/my", requireRole(["member"]), async (req, res) => {
@@ -2231,7 +2274,7 @@ export async function registerRoutes(
     res.json(posts);
   });
   
-  // Share workout completion on feed (triggered by user confirmation)
+  // Share workout completion on feed (triggered by user confirmation) - LEGACY
   app.post("/api/feed/share-workout", requireRole(["member"]), async (req, res) => {
     if (!req.user!.gymId) {
       return res.status(400).json({ message: "Not in a gym" });
@@ -2248,6 +2291,37 @@ export async function registerRoutes(
       type: "workout_complete",
       content: null,
       metadata: { exerciseCount: todayCompletions.length || 1, focusLabel: focusLabel || "Workout" }
+    });
+    res.status(201).json(post);
+  });
+  
+  // Share any achievement on feed (generic endpoint)
+  app.post("/api/feed/share-achievement", requireRole(["member"]), async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "Not in a gym" });
+    }
+    const { type, label, metadata } = req.body;
+    const today = new Date().toISOString().split("T")[0];
+    
+    let feedPostType = type;
+    let feedMetadata: Record<string, unknown> = { ...metadata };
+    
+    if (type === "workout_completed") {
+      feedPostType = "workout_complete";
+      const todayCompletions = await storage.getCompletions(req.user!.id, today);
+      feedMetadata = { exerciseCount: todayCompletions.length || 1, focusLabel: metadata?.focusLabel || label || "Workout" };
+    } else if (type === "streak_milestone") {
+      feedMetadata = { days: metadata?.days };
+    } else if (type === "achievement") {
+      feedMetadata = metadata || {};
+    }
+    
+    const post = await storage.createFeedPost({
+      gymId: req.user!.gymId,
+      userId: req.user!.id,
+      type: feedPostType,
+      content: null,
+      metadata: feedMetadata
     });
     res.status(201).json(post);
   });

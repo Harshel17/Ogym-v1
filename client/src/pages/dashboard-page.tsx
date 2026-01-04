@@ -559,8 +559,8 @@ function MemberDashboard() {
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [exerciseInputs, setExerciseInputs] = useState<Record<number, { sets: string; reps: string; weight: string }>>({});
   const [showMarkDoneDialog, setShowMarkDoneDialog] = useState(false);
-  const [showShareDialog, setShowShareDialog] = useState(false);
-  const [shareFocusLabel, setShareFocusLabel] = useState("");
+  const [shareableAchievements, setShareableAchievements] = useState<{ type: string; label: string; metadata: Record<string, unknown> }[]>([]);
+  const [currentAchievementIndex, setCurrentAchievementIndex] = useState(0);
   
   const { data: attendance = [] } = useMemberAttendance();
   const { data: payments = [] } = useMemberPayments();
@@ -571,14 +571,31 @@ function MemberDashboard() {
   const { data: todayWorkout, isLoading: workoutLoading } = useTodayWorkout();
   const { data: profile } = useMemberProfile();
   
-  const handleAskToShare = (focusLabel: string) => {
-    setShareFocusLabel(focusLabel);
-    setShowShareDialog(true);
+  const handleAskToShare = (achievements: { type: string; label: string; metadata: Record<string, unknown> }[]) => {
+    if (achievements.length > 0) {
+      setShareableAchievements(achievements);
+      setCurrentAchievementIndex(0);
+    }
   };
   
   const completeAllMutation = useCompleteAllWorkouts(handleAskToShare);
-  const completeWorkoutMutation = useCompleteWorkout(handleAskToShare);
+  const completeWorkoutMutation = useCompleteWorkout();
   const shareWorkoutMutation = useShareWorkout();
+  
+  const currentAchievement = shareableAchievements[currentAchievementIndex];
+  const showShareDialog = shareableAchievements.length > 0 && currentAchievementIndex < shareableAchievements.length;
+  
+  const handleShareOrSkip = (share: boolean) => {
+    if (share && currentAchievement) {
+      shareWorkoutMutation.mutate(currentAchievement);
+    }
+    if (currentAchievementIndex + 1 < shareableAchievements.length) {
+      setCurrentAchievementIndex(currentAchievementIndex + 1);
+    } else {
+      setShareableAchievements([]);
+      setCurrentAchievementIndex(0);
+    }
+  };
   
   const todayDate = format(new Date(), 'yyyy-MM-dd');
   
@@ -990,18 +1007,30 @@ function MemberDashboard() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+      <AlertDialog open={showShareDialog} onOpenChange={(open) => { if (!open) handleShareOrSkip(false); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Share Your Workout?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {currentAchievement?.type === "workout_completed" && "Share Your Workout?"}
+              {currentAchievement?.type === "streak_milestone" && "Share Your Streak?"}
+              {currentAchievement?.type === "achievement" && "Share Your Achievement?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              You completed your {shareFocusLabel} workout! Would you like to share this achievement with your gym community?
+              {currentAchievement?.type === "workout_completed" && (
+                <>You completed your <strong>{currentAchievement.label}</strong> workout! Share it with your gym community?</>
+              )}
+              {currentAchievement?.type === "streak_milestone" && (
+                <>Amazing! You hit a <strong>{currentAchievement.label}</strong>! Share this milestone with your gym?</>
+              )}
+              {currentAchievement?.type === "achievement" && (
+                <>Congrats on reaching <strong>{currentAchievement.label}</strong>! Share this achievement?</>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-skip-share">Skip</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => handleShareOrSkip(false)} data-testid="button-skip-share">Skip</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => shareWorkoutMutation.mutate(shareFocusLabel)}
+              onClick={() => handleShareOrSkip(true)}
               disabled={shareWorkoutMutation.isPending}
               data-testid="button-share-workout"
             >

@@ -127,27 +127,38 @@ export function useCompleteWorkout(onAskToShare?: (focusLabel: string) => void) 
   });
 }
 
+export type ShareableAchievement = {
+  type: string;
+  label: string;
+  metadata: Record<string, unknown>;
+};
+
 export function useShareWorkout() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (focusLabel: string) => {
-      const response = await apiRequest("POST", "/api/feed/share-workout", { focusLabel });
+    mutationFn: async (achievement: ShareableAchievement) => {
+      const response = await apiRequest("POST", "/api/feed/share-achievement", achievement);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_result, achievement) => {
       queryClient.invalidateQueries({ queryKey: ['/api/feed'] });
       queryClient.invalidateQueries({ queryKey: ['/api/me/posts'] });
-      toast({ title: "Shared!", description: "Your workout was posted to the gym feed" });
+      const messages: Record<string, string> = {
+        workout_completed: "Your workout was posted to the gym feed",
+        streak_milestone: "Your streak achievement was shared!",
+        achievement: "Your achievement was shared with your gym!"
+      };
+      toast({ title: "Shared!", description: messages[achievement.type] || "Posted to feed" });
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message || "Failed to share workout", variant: "destructive" });
+      toast({ title: "Error", description: err.message || "Failed to share", variant: "destructive" });
     },
   });
 }
 
-export function useCompleteAllWorkouts(onAskToShare?: (focusLabel: string) => void) {
+export function useCompleteAllWorkouts(onAskToShare?: (achievements: ShareableAchievement[]) => void) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -163,9 +174,9 @@ export function useCompleteAllWorkouts(onAskToShare?: (focusLabel: string) => vo
       queryClient.invalidateQueries({ queryKey: ['/api/member/daily-points'] });
       toast({ title: "All Done!", description: "All workouts completed and attendance marked" });
       
-      // Trigger share popup if user should be asked
-      if (result?.askToShare && onAskToShare) {
-        onAskToShare(result.focusLabel || "Workout");
+      // Trigger share popup if there are achievements to share
+      if (result?.shareableAchievements?.length > 0 && onAskToShare) {
+        onAskToShare(result.shareableAchievements);
       }
     },
     onError: (err: any) => {
