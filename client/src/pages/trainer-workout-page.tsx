@@ -493,11 +493,12 @@ function CreateCycleDialog({ members }: { members: any[] }) {
     cycleLength: z.coerce.number().min(1).max(7),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().min(1, "End date is required"),
+    progressionMode: z.enum(["calendar", "completion"]),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", cycleLength: 3, startDate: "", endDate: "" },
+    defaultValues: { name: "", cycleLength: 3, startDate: "", endDate: "", progressionMode: "calendar" as const },
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
@@ -605,6 +606,32 @@ function CreateCycleDialog({ members }: { members: any[] }) {
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="progressionMode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Progression Mode</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-progression-mode">
+                        <SelectValue placeholder="Select progression mode" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent position="popper" className="z-[200]">
+                      <SelectItem value="calendar">Calendar-based (auto-advance daily)</SelectItem>
+                      <SelectItem value="completion">Completion-based (advance on workout completion)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {field.value === "completion" 
+                      ? "Day advances only when member completes their workout" 
+                      : "Day advances automatically based on calendar dates"}
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

@@ -665,7 +665,14 @@ export async function registerRoutes(
     const todayStr = today.toISOString().split("T")[0];
     const startDate = new Date(cycle.startDate);
     const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    
+    // Support both progression modes
+    let currentDayIndex: number;
+    if (cycle.progressionMode === "completion") {
+      currentDayIndex = cycle.currentDayIndex ?? 0;
+    } else {
+      currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    }
     
     // Verify today is a rest day
     const todayItems = await storage.getWorkoutItemsByDay(cycle.id, currentDayIndex);

@@ -25,7 +25,7 @@ export function useCreateCycle() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { memberId: number; name: string; cycleLength: number; startDate: string; endDate: string }) => {
+    mutationFn: async (data: { memberId: number; name: string; cycleLength: number; startDate: string; endDate: string; progressionMode?: "calendar" | "completion" }) => {
       return apiRequest("POST", "/api/trainer/cycles", data);
     },
     onSuccess: () => {
