@@ -736,7 +736,20 @@ export async function registerRoutes(
       }
     }
     
-    res.status(201).json({ completed: completions.length });
+    // Check if user should be asked to share
+    let askToShare = false;
+    let focusLabel = "";
+    if (completions.length > 0 && req.user!.autoPostEnabled !== false) {
+      // Get all completions for today to check if this was the first batch
+      const todayCompletions = await storage.getCompletionsByMemberDate(req.user!.id, today);
+      // If today's completions equal what we just created, this is the first time completing today
+      if (todayCompletions.length === completions.length) {
+        askToShare = true;
+        focusLabel = session?.focusLabel || "Workout";
+      }
+    }
+    
+    res.status(201).json({ completed: completions.length, askToShare, focusLabel });
   });
 
   app.get("/api/workouts/history/my", requireRole(["member"]), async (req, res) => {

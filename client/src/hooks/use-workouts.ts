@@ -147,20 +147,26 @@ export function useShareWorkout() {
   });
 }
 
-export function useCompleteAllWorkouts() {
+export function useCompleteAllWorkouts(onAskToShare?: (focusLabel: string) => void) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (data: { workoutItemIds: number[] }) => {
-      return apiRequest("POST", "/api/workouts/complete-all", data);
+      const response = await apiRequest("POST", "/api/workouts/complete-all", data);
+      return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/stats/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/daily-points'] });
       toast({ title: "All Done!", description: "All workouts completed and attendance marked" });
+      
+      // Trigger share popup if user should be asked
+      if (result?.askToShare && onAskToShare) {
+        onAskToShare(result.focusLabel || "Workout");
+      }
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message || "Failed to complete workouts", variant: "destructive" });

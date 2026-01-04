@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
-import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout, useMemberProfile } from "@/hooks/use-workouts";
+import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout, useMemberProfile, useShareWorkout } from "@/hooks/use-workouts";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -558,6 +559,8 @@ function MemberDashboard() {
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [exerciseInputs, setExerciseInputs] = useState<Record<number, { sets: string; reps: string; weight: string }>>({});
   const [showMarkDoneDialog, setShowMarkDoneDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareFocusLabel, setShareFocusLabel] = useState("");
   
   const { data: attendance = [] } = useMemberAttendance();
   const { data: payments = [] } = useMemberPayments();
@@ -567,8 +570,15 @@ function MemberDashboard() {
   });
   const { data: todayWorkout, isLoading: workoutLoading } = useTodayWorkout();
   const { data: profile } = useMemberProfile();
-  const completeAllMutation = useCompleteAllWorkouts();
-  const completeWorkoutMutation = useCompleteWorkout();
+  
+  const handleAskToShare = (focusLabel: string) => {
+    setShareFocusLabel(focusLabel);
+    setShowShareDialog(true);
+  };
+  
+  const completeAllMutation = useCompleteAllWorkouts(handleAskToShare);
+  const completeWorkoutMutation = useCompleteWorkout(handleAskToShare);
+  const shareWorkoutMutation = useShareWorkout();
   
   const todayDate = format(new Date(), 'yyyy-MM-dd');
   
@@ -979,6 +989,27 @@ function MemberDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Share Your Workout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You completed your {shareFocusLabel} workout! Would you like to share this achievement with your gym community?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-skip-share">Skip</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => shareWorkoutMutation.mutate(shareFocusLabel)}
+              disabled={shareWorkoutMutation.isPending}
+              data-testid="button-share-workout"
+            >
+              {shareWorkoutMutation.isPending ? "Sharing..." : "Share on Feed"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
