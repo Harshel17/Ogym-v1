@@ -522,30 +522,89 @@ function MemberWorkoutDialog({
                             </span>
                           </div>
                           
-                          {phase.useCustomExercises && phaseExercises.length > 0 ? (
-                            <div className="mt-3 space-y-2">
+                          {phase.useCustomExercises && phaseDays.length > 0 ? (
+                            <div className="mt-3 space-y-3">
                               <p className="text-sm font-medium text-muted-foreground">Phase Exercises:</p>
-                              <div className="flex flex-wrap gap-1">
+                              <Tabs defaultValue="0" className="w-full">
+                                <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
+                                  {phaseDays.map((dayIndex) => {
+                                    const isRestDay = phaseRestDays.includes(dayIndex);
+                                    const dayLabel = phaseDayLabels[dayIndex] || `Day ${dayIndex + 1}`;
+                                    const exerciseCount = exercisesByDay[dayIndex]?.length || 0;
+                                    return (
+                                      <TabsTrigger 
+                                        key={dayIndex} 
+                                        value={dayIndex.toString()}
+                                        className="flex-1 min-w-[40px] text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                                      >
+                                        {isRestDay && <Moon className="w-3 h-3 mr-1" />}
+                                        <span>{dayLabel.substring(0, 6) || `D${dayIndex + 1}`}</span>
+                                        {!isRestDay && exerciseCount > 0 && (
+                                          <span className="ml-1 text-[10px] opacity-70">({exerciseCount})</span>
+                                        )}
+                                      </TabsTrigger>
+                                    );
+                                  })}
+                                </TabsList>
+                                
                                 {phaseDays.map((dayIndex) => {
+                                  const dayExercises = exercisesByDay[dayIndex] || [];
                                   const isRestDay = phaseRestDays.includes(dayIndex);
-                                  const dayLabel = phaseDayLabels[dayIndex] || `D${dayIndex + 1}`;
-                                  const exerciseCount = exercisesByDay[dayIndex]?.length || 0;
+                                  const dayLabel = phaseDayLabels[dayIndex] || `Day ${dayIndex + 1}`;
+                                  
                                   return (
-                                    <Badge 
-                                      key={dayIndex} 
-                                      variant={isRestDay ? "secondary" : "outline"}
-                                      className="text-xs"
-                                    >
-                                      {isRestDay && <Moon className="w-2 h-2 mr-1" />}
-                                      {dayLabel}: {isRestDay ? "Rest" : `${exerciseCount} ex`}
-                                    </Badge>
+                                    <TabsContent key={dayIndex} value={dayIndex.toString()} className="mt-3">
+                                      <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                          <h4 className="font-semibold text-xs">{dayLabel}</h4>
+                                          {isRestDay && <Badge variant="secondary" className="text-xs"><Moon className="w-2 h-2 mr-1" />Rest</Badge>}
+                                        </div>
+                                        
+                                        {isRestDay ? (
+                                          <div className="py-4 text-center text-muted-foreground bg-muted/30 rounded-lg text-sm">
+                                            <Moon className="w-5 h-5 mx-auto mb-1" />
+                                            <p>Rest day - No exercises</p>
+                                          </div>
+                                        ) : dayExercises.length === 0 ? (
+                                          <div className="py-4 text-center text-muted-foreground bg-muted/30 rounded-lg text-sm">
+                                            <Dumbbell className="w-5 h-5 mx-auto mb-1" />
+                                            <p>No exercises</p>
+                                          </div>
+                                        ) : (
+                                          <div className="space-y-1.5">
+                                            {dayExercises.sort((a: any, b: any) => (a.orderIndex || 0) - (b.orderIndex || 0)).map((ex: any, idx: number) => (
+                                              <div
+                                                key={ex.id}
+                                                className="flex items-center gap-2 p-2 rounded-lg border bg-card text-sm"
+                                              >
+                                                <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
+                                                  {idx + 1}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="font-medium text-sm">{ex.exerciseName}</span>
+                                                    {ex.muscleType && (
+                                                      <Badge variant="outline" className="text-[10px]">{ex.muscleType}</Badge>
+                                                    )}
+                                                  </div>
+                                                  <p className="text-xs text-muted-foreground">
+                                                    {ex.sets} sets x {ex.reps} reps
+                                                    {ex.weight && ` @ ${ex.weight}`}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </TabsContent>
                                   );
                                 })}
-                              </div>
+                              </Tabs>
                             </div>
                           ) : (
                             <p className="text-sm text-muted-foreground mt-1">
-                              Using cycle exercises
+                              {phase.useCustomExercises ? "No exercises defined" : "Using cycle exercises"}
                             </p>
                           )}
                         </div>
