@@ -95,6 +95,9 @@ export interface IStorage {
   getCycle(cycleId: number): Promise<WorkoutCycle | undefined>;
   updateCycleDayLabels(cycleId: number, dayLabels: string[]): Promise<WorkoutCycle>;
   updateCycleRestDays(cycleId: number, restDays: number[]): Promise<WorkoutCycle>;
+  updateCycleStructure(cycleId: number, cycleLength: number, dayLabels: string[], restDays: number[]): Promise<WorkoutCycle>;
+  deleteWorkoutItemsByDay(cycleId: number, dayIndex: number): Promise<void>;
+  shiftWorkoutItemsDays(cycleId: number, fromDayIndex: number, shiftAmount: number): Promise<void>;
   updateCycleDayIndex(cycleId: number, currentDayIndex: number): Promise<WorkoutCycle>;
   updateCycleDayIndexAndLastWorkout(cycleId: number, currentDayIndex: number, lastWorkoutDate: string): Promise<WorkoutCycle>;
   addWorkoutItem(data: InsertWorkoutItem): Promise<WorkoutItem>;
@@ -701,6 +704,30 @@ export class DatabaseStorage implements IStorage {
       .where(eq(workoutCycles.id, cycleId))
       .returning();
     return cycle;
+  }
+
+  async updateCycleStructure(cycleId: number, cycleLength: number, dayLabels: string[], restDays: number[]): Promise<WorkoutCycle> {
+    const [cycle] = await db.update(workoutCycles)
+      .set({ cycleLength, dayLabels, restDays })
+      .where(eq(workoutCycles.id, cycleId))
+      .returning();
+    return cycle;
+  }
+
+  async deleteWorkoutItemsByDay(cycleId: number, dayIndex: number): Promise<void> {
+    await db.delete(workoutItems)
+      .where(and(eq(workoutItems.cycleId, cycleId), eq(workoutItems.dayIndex, dayIndex)));
+  }
+
+  async shiftWorkoutItemsDays(cycleId: number, fromDayIndex: number, shiftAmount: number): Promise<void> {
+    const items = await db.select().from(workoutItems)
+      .where(and(eq(workoutItems.cycleId, cycleId), gte(workoutItems.dayIndex, fromDayIndex)));
+    
+    for (const item of items) {
+      await db.update(workoutItems)
+        .set({ dayIndex: item.dayIndex + shiftAmount })
+        .where(eq(workoutItems.id, item.id));
+    }
   }
 
   async updateCycleDayIndex(cycleId: number, currentDayIndex: number): Promise<WorkoutCycle> {
