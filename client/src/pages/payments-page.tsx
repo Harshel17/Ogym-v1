@@ -204,7 +204,7 @@ function MembersNeedSubscriptionSection() {
   const activePlans = plans.filter(p => p.isActive);
 
   const createSubscriptionMutation = useMutation({
-    mutationFn: async (data: { memberId: number; planId: number; startDate: string }) => {
+    mutationFn: async (data: { memberId: number; planId?: number; startDate: string; durationMonths: number; totalAmount: number; paymentMode: string; notes?: string }) => {
       return apiRequest("POST", "/api/owner/subscriptions", data);
     },
     onSuccess: () => {
@@ -221,28 +221,69 @@ function MembersNeedSubscriptionSection() {
   });
 
   const formSchema = z.object({
-    planId: z.coerce.number().min(1, "Please select a plan"),
-    startDate: z.string().min(1, "Start date is required")
+    planId: z.coerce.number().optional(),
+    startDate: z.string().min(1, "Start date is required"),
+    durationMonths: z.coerce.number().min(1, "Duration must be at least 1 month"),
+    totalRupees: z.coerce.number().min(0, "Amount must be positive"),
+    paymentMode: z.enum(["full", "partial", "emi"]),
+    notes: z.string().optional()
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { planId: 0, startDate: new Date().toISOString().split('T')[0] }
+    defaultValues: { 
+      planId: undefined, 
+      startDate: new Date().toISOString().split('T')[0],
+      durationMonths: 1,
+      totalRupees: 1500,
+      paymentMode: "full",
+      notes: ""
+    }
   });
+
+  const watchStartDate = form.watch("startDate");
+  const watchDuration = form.watch("durationMonths");
+
+  const computedEndDate = watchStartDate && watchDuration ? (() => {
+    const start = new Date(watchStartDate);
+    start.setMonth(start.getMonth() + Number(watchDuration));
+    return format(start, "dd MMM yyyy");
+  })() : null;
+
+  const handlePlanChange = (planIdStr: string) => {
+    const planId = parseInt(planIdStr);
+    form.setValue("planId", planId);
+    const plan = activePlans.find(p => p.id === planId);
+    if (plan) {
+      form.setValue("durationMonths", plan.durationMonths);
+      form.setValue("totalRupees", plan.priceAmount / 100);
+    }
+  };
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
     if (!selectedMemberId) return;
     createSubscriptionMutation.mutate({
       memberId: selectedMemberId,
       planId: data.planId,
-      startDate: data.startDate
+      startDate: data.startDate,
+      durationMonths: data.durationMonths,
+      totalAmount: data.totalRupees * 100,
+      paymentMode: data.paymentMode,
+      notes: data.notes
     });
   };
 
   const handleAssignClick = (memberId: number, memberName: string) => {
     setSelectedMemberId(memberId);
     setSelectedMemberName(memberName);
-    form.reset({ planId: 0, startDate: new Date().toISOString().split('T')[0] });
+    form.reset({ 
+      planId: undefined, 
+      startDate: new Date().toISOString().split('T')[0],
+      durationMonths: 1,
+      totalRupees: 1500,
+      paymentMode: "full",
+      notes: ""
+    });
     setDialogOpen(true);
   };
 
@@ -304,7 +345,7 @@ function MembersNeedSubscriptionSection() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Assign Subscription</DialogTitle>
             <DialogDescription>Create a subscription for {selectedMemberName}</DialogDescription>
@@ -316,17 +357,17 @@ function MembersNeedSubscriptionSection() {
                 name="planId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Membership Plan</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value?.toString()}>
+                    <FormLabel>Plan (optional)</FormLabel>
+                    <Select onValueChange={handlePlanChange} value={field.value?.toString()}>
                       <FormControl>
                         <SelectTrigger data-testid="select-plan-quick">
-                          <SelectValue placeholder="Select a plan" />
+                          <SelectValue placeholder="Select plan or use custom" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {activePlans.map((plan) => (
                           <SelectItem key={plan.id} value={plan.id.toString()}>
-                            {plan.name} - {formatINR(plan.priceAmount)} ({plan.durationMonths} month{plan.durationMonths > 1 ? 's' : ''})
+                            {plan.name} - {formatINR(plan.priceAmount)} / {plan.durationMonths}mo
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -348,15 +389,82 @@ function MembersNeedSubscriptionSection() {
                   </FormItem>
                 )}
               />
-              <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createSubscriptionMutation.isPending} data-testid="button-confirm-assign">
-                  {createSubscriptionMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  Assign Subscription
-                </Button>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="durationMonths"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duration (months)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} {...field} data-testid="input-duration-quick" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="totalRupees"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Total Amount</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input type="number" min={0} className="pl-9" {...field} data-testid="input-amount-quick" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
+              {computedEndDate && (
+                <div className="p-3 bg-muted/50 rounded-md">
+                  <p className="text-sm text-muted-foreground">Subscription End Date</p>
+                  <p className="font-medium">{computedEndDate}</p>
+                </div>
+              )}
+              <FormField
+                control={form.control}
+                name="paymentMode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Payment Mode</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-payment-mode-quick">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="full">Full Payment</SelectItem>
+                        <SelectItem value="partial">Partial Payment</SelectItem>
+                        <SelectItem value="emi">EMI</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes (optional)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Additional notes" data-testid="input-notes-quick" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={createSubscriptionMutation.isPending} data-testid="button-confirm-assign">
+                {createSubscriptionMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Create Subscription
+              </Button>
             </form>
           </Form>
         </DialogContent>
