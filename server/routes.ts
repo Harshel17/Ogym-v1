@@ -2079,6 +2079,12 @@ export async function registerRoutes(
       return res.status(403).json({ message: "Not authorized" });
     }
     const exercise = await storage.addPhaseExercise({ ...req.body, phaseId });
+    
+    // Auto-enable custom exercises when exercises are added
+    if (!phase.useCustomExercises) {
+      await storage.updateTrainingPhase(phaseId, { useCustomExercises: true });
+    }
+    
     res.status(201).json(exercise);
   });
 
@@ -2105,6 +2111,12 @@ export async function registerRoutes(
       return res.status(403).json({ message: "Not authorized" });
     }
     const exercises = await storage.copyExercisesFromCycle(phaseId, cycleId);
+    
+    // Auto-enable custom exercises when copying from cycle
+    if (!phase.useCustomExercises && exercises.length > 0) {
+      await storage.updateTrainingPhase(phaseId, { useCustomExercises: true });
+    }
+    
     res.json(exercises);
   });
 
