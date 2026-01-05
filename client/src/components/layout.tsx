@@ -79,7 +79,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Attendance", 
       href: "/attendance", 
       icon: CalendarCheck,
-      visible: hasGym,
+      visible: hasGym && !isTrainer,
       badge: 0
     },
     { 

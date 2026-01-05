@@ -405,7 +405,7 @@ function MemberWorkoutDialog({
                             className="flex-1 min-w-[50px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                           >
                             {isRestDay && <Moon className="w-3 h-3 mr-1" />}
-                            <span className="text-xs">{label.substring(0, 8) || `D${dayIndex + 1}`}</span>
+                            <span className="text-xs truncate max-w-[80px]">{label || `D${dayIndex + 1}`}</span>
                             {!isRestDay && exerciseCount > 0 && (
                               <span className="ml-1 text-[10px] opacity-70">({exerciseCount})</span>
                             )}
