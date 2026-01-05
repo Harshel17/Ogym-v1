@@ -423,6 +423,24 @@ export async function registerRoutes(
     res.json(assignedMembers);
   });
 
+  app.get("/api/trainer/new-members", requireRole(["trainer"]), async (req, res) => {
+    try {
+      const assignments = await storage.getTrainerMembers(req.user!.id);
+      const memberIds = assignments.map(a => a.memberId);
+      const allMembers = await storage.getGymMembers(req.user!.gymId!);
+      const assignedMembers = allMembers.filter(m => memberIds.includes(m.id));
+      
+      const cycles = await storage.getTrainerCycles(req.user!.id);
+      const membersWithCycles = new Set(cycles.map((c: any) => c.memberId));
+      
+      const newMembers = assignedMembers.filter(m => !membersWithCycles.has(m.id));
+      res.json(newMembers);
+    } catch (err) {
+      console.error("Error fetching new members:", err);
+      res.status(500).json({ message: "Failed to fetch new members" });
+    }
+  });
+
   app.get("/api/trainer/cycles", requireRole(["trainer"]), async (req, res) => {
     const cycles = await storage.getTrainerCycles(req.user!.id);
     res.json(cycles);
