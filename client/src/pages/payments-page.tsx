@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { IndianRupee, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle, Check, ChevronsUpDown, ChevronDown, ChevronUp } from "lucide-react";
+import { IndianRupee, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle, Check, ChevronsUpDown, ChevronDown, ChevronUp, UserPlus } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
@@ -54,7 +54,7 @@ function OwnerPaymentsView() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   
-  const { data: alerts } = useQuery<{ endingSoon: number; overdue: number; active: number }>({
+  const { data: alerts } = useQuery<{ endingSoon: number; overdue: number; active: number; needSubscription: number }>({
     queryKey: ["/api/owner/subscription-alerts"]
   });
 
@@ -76,7 +76,7 @@ function OwnerPaymentsView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card 
           className={`cursor-pointer transition-all hover-elevate ${statusFilter === 'active' ? 'ring-2 ring-primary' : ''}`}
           onClick={() => handleCardClick('active')}
@@ -124,6 +124,23 @@ function OwnerPaymentsView() {
               <div className="min-w-0">
                 <p className="text-sm text-muted-foreground truncate">Overdue</p>
                 <p className="text-2xl font-bold" data-testid="text-overdue">{alerts?.overdue || 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card 
+          className={`cursor-pointer transition-all hover-elevate ${statusFilter === 'needSubscription' ? 'ring-2 ring-blue-500' : ''}`}
+          onClick={() => handleCardClick('needSubscription')}
+          data-testid="card-filter-need-subscription"
+        >
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30 shrink-0">
+                <UserPlus className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground truncate">Need Subscription</p>
+                <p className="text-2xl font-bold" data-testid="text-need-subscription">{alerts?.needSubscription || 0}</p>
               </div>
             </div>
           </CardContent>

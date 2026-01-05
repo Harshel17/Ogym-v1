@@ -365,7 +365,7 @@ export interface IStorage {
   }>;
   
   // Subscription Alerts
-  getSubscriptionAlerts(gymId: number): Promise<{ active: number; endingSoon: number; overdue: number }>;
+  getSubscriptionAlerts(gymId: number): Promise<{ active: number; endingSoon: number; overdue: number; needSubscription: number }>;
   updateExpiredSubscriptions(gymId: number): Promise<void>;
   
   // Member Analytics
@@ -3420,12 +3420,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // === SUBSCRIPTION ALERTS ===
-  async getSubscriptionAlerts(gymId: number): Promise<{ active: number; endingSoon: number; overdue: number }> {
+  async getSubscriptionAlerts(gymId: number): Promise<{ active: number; endingSoon: number; overdue: number; needSubscription: number }> {
     const today = new Date().toISOString().split('T')[0];
     const sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
     const subs = await db.select().from(memberSubscriptions)
       .where(eq(memberSubscriptions.gymId, gymId));
+    
+    const allMembers = await db.select().from(users)
+      .where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+    
+    const memberIdsWithSub = new Set(subs.map(s => s.memberId));
+    const needSubscription = allMembers.filter(m => !memberIdsWithSub.has(m.id)).length;
     
     let active = 0;
     let endingSoon = 0;
@@ -3443,7 +3449,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    return { active, endingSoon, overdue };
+    return { active, endingSoon, overdue, needSubscription };
   }
 
   async updateExpiredSubscriptions(gymId: number): Promise<void> {
