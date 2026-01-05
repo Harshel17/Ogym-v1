@@ -428,6 +428,30 @@ export async function registerRoutes(
     res.json(cycles);
   });
 
+  app.get("/api/trainer/active-phases", requireRole(["trainer"]), async (req, res) => {
+    try {
+      const assignments = await storage.getTrainerMembers(req.user!.id);
+      const memberIds = assignments.map(a => a.memberId);
+      const today = new Date().toISOString().split('T')[0];
+      
+      const activePhases: any[] = [];
+      for (const memberId of memberIds) {
+        const phases = await storage.getTrainingPhasesByMember(memberId);
+        const active = phases.find((p: any) => 
+          p.startDate <= today && p.endDate >= today && p.useCustomExercises
+        );
+        if (active) {
+          activePhases.push(active);
+        }
+      }
+      
+      res.json(activePhases);
+    } catch (err) {
+      console.error("Error fetching active phases:", err);
+      res.status(500).json({ message: "Failed to fetch active phases" });
+    }
+  });
+
   app.post("/api/trainer/cycles", requireRole(["trainer"]), async (req, res) => {
     const schema = z.object({
       memberId: z.number(),

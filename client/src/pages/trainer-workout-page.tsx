@@ -43,6 +43,15 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import type { WorkoutItem } from "@shared/schema";
 
 
+type ActivePhase = {
+  id: number;
+  memberId: number;
+  name: string;
+  useCustomExercises: boolean;
+  startDate: string;
+  endDate: string;
+};
+
 export default function TrainerWorkoutPage() {
   const { user } = useAuth();
   const { data: members = [], isLoading: membersLoading } = useTrainerMembers();
@@ -51,6 +60,22 @@ export default function TrainerWorkoutPage() {
   const [selectedCycleId, setSelectedCycleId] = useState<number | null>(null);
   const [cycleSearch, setCycleSearch] = useState("");
   const detailViewRef = useRef<HTMLDivElement>(null);
+  
+  const { data: activePhases = [] } = useQuery<ActivePhase[]>({
+    queryKey: ["/api/trainer/active-phases"],
+    queryFn: async () => {
+      const res = await fetch("/api/trainer/active-phases", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+  
+  const memberActivePhaseMap = new Map<number, ActivePhase>();
+  (activePhases as ActivePhase[]).forEach(phase => {
+    if (phase.useCustomExercises) {
+      memberActivePhaseMap.set(phase.memberId, phase);
+    }
+  });
 
   useEffect(() => {
     if (selectedCycleId && detailViewRef.current) {
@@ -153,6 +178,7 @@ export default function TrainerWorkoutPage() {
                 {filteredCycles.map((cycle) => {
                   const member = (members as any[]).find(m => m.id === cycle.memberId);
                   const isSelected = selectedCycleId === cycle.id;
+                  const activePhase = memberActivePhaseMap.get(cycle.memberId);
                   return (
                   <Card 
                     key={cycle.id} 
@@ -163,9 +189,16 @@ export default function TrainerWorkoutPage() {
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold truncate" data-testid={`text-cycle-name-${cycle.id}`}>
-                            {cycle.name}
-                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold truncate" data-testid={`text-cycle-name-${cycle.id}`}>
+                              {cycle.name}
+                            </p>
+                            {activePhase && (
+                              <Badge variant="secondary" className="text-xs">
+                                Phase Active
+                              </Badge>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 mt-1">
                             <User className="w-3 h-3 text-muted-foreground" />
                             <span className="text-sm text-muted-foreground">
@@ -226,7 +259,11 @@ export default function TrainerWorkoutPage() {
 
         <div ref={detailViewRef} className="lg:col-span-2 scroll-mt-4">
           {selectedCycle ? (
-            <CycleDetailView cycle={selectedCycle} members={members as any[]} />
+            <CycleDetailView 
+              cycle={selectedCycle} 
+              members={members as any[]} 
+              activePhase={memberActivePhaseMap.get(selectedCycle.memberId)}
+            />
           ) : (
             <Card className="h-full min-h-[300px]">
               <CardContent className="flex flex-col items-center justify-center h-full py-12">
@@ -269,7 +306,7 @@ export default function TrainerWorkoutPage() {
   );
 }
 
-function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
+function CycleDetailView({ cycle, members, activePhase }: { cycle: any; members: any[]; activePhase?: ActivePhase }) {
   const member = members.find(m => m.id === cycle.memberId);
   const updateLabelsMutation = useUpdateDayLabels();
   const updateRestDaysMutation = useUpdateRestDays();
@@ -434,6 +471,16 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
         </div>
       </CardHeader>
       <CardContent>
+        {activePhase && (
+          <div className="mb-4 p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-sm">
+            <p className="font-medium text-amber-700 dark:text-amber-400">
+              Training Phase Active: {activePhase.name}
+            </p>
+            <p className="text-muted-foreground text-xs mt-1">
+              This member's daily workout is currently using phase exercises, not this cycle.
+            </p>
+          </div>
+        )}
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
