@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { 
   ArrowLeft, Star, Calendar, Dumbbell, TrendingUp, 
   Flame, Activity, Weight, ChevronRight, Loader2, Shield,
-  CheckCircle2, XCircle, AlertCircle, Clock, StickyNote, Plus, Trash2, Edit
+  CheckCircle2, XCircle, AlertCircle, Clock, StickyNote, Plus, Minus, Trash2, Edit
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { format, parseISO } from "date-fns";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type MemberInfo = {
   id: number;
@@ -752,8 +752,13 @@ type TrainingPhase = {
   goalType: string;
   startDate: string;
   endDate: string;
-  cycleId: number;
+  cycleId: number | null;
   dietPlanId: number | null;
+  autoAssignCycle: boolean | null;
+  useCustomExercises: boolean | null;
+  cycleLength: number | null;
+  dayLabels: string[] | null;
+  restDays: number[] | null;
   notes: string | null;
   createdAt: string;
 };
@@ -1399,6 +1404,7 @@ type PhaseExercise = {
 
 function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: () => void }) {
   const { toast } = useToast();
+  const [localDayCount, setLocalDayCount] = useState<number | null>(null);
   const [newExercise, setNewExercise] = useState({
     dayIndex: 0,
     muscleType: "Chest",
@@ -1409,6 +1415,16 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
     weight: ""
   });
 
+  // Fetch the phase to get its cycleLength
+  const { data: phase } = useQuery<TrainingPhase>({
+    queryKey: ["/api/training-phases", phaseId],
+    queryFn: async () => {
+      const res = await fetch(`/api/training-phases/${phaseId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch phase");
+      return res.json();
+    }
+  });
+
   const { data: exercises = [], isLoading } = useQuery<PhaseExercise[]>({
     queryKey: ["/api/training-phases", phaseId, "exercises"],
     queryFn: async () => {
@@ -1417,6 +1433,13 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
       return res.json();
     }
   });
+
+  // Initialize local day count from phase data
+  useEffect(() => {
+    if (phase && localDayCount === null) {
+      setLocalDayCount(phase.cycleLength || 3);
+    }
+  }, [phase, localDayCount]);
 
   const addExerciseMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -1448,23 +1471,68 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
     }
   });
 
+  const updatePhaseCycleLengthMutation = useMutation({
+    mutationFn: async (newLength: number) => {
+      const res = await apiRequest("PATCH", `/api/training-phases/${phaseId}`, { cycleLength: newLength });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training-phases", phaseId] });
+    }
+  });
+
   const exercisesByDay = exercises.reduce((acc, ex) => {
     if (!acc[ex.dayIndex]) acc[ex.dayIndex] = [];
     acc[ex.dayIndex].push(ex);
     return acc;
   }, {} as Record<number, PhaseExercise[]>);
 
-  const dayCount = Math.max(3, ...Object.keys(exercisesByDay).map(Number).map(n => n + 1));
+  const dayCount = localDayCount || phase?.cycleLength || 3;
+
+  const handleAddDay = () => {
+    const newCount = dayCount + 1;
+    setLocalDayCount(newCount);
+    updatePhaseCycleLengthMutation.mutate(newCount);
+  };
+
+  const handleRemoveDay = () => {
+    if (dayCount <= 1) return;
+    const newCount = dayCount - 1;
+    setLocalDayCount(newCount);
+    updatePhaseCycleLengthMutation.mutate(newCount);
+  };
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-go-back-exercises">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <DialogTitle>Edit Phase Exercises</DialogTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-go-back-exercises">
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+              <DialogTitle>Edit Phase Exercises</DialogTitle>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{dayCount} days</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRemoveDay}
+                disabled={dayCount <= 1}
+                data-testid="button-remove-phase-day"
+              >
+                <Minus className="w-4 h-4" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleAddDay}
+                data-testid="button-add-phase-day"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </DialogHeader>
         
