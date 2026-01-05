@@ -1257,135 +1257,393 @@ function TrainingPhasesTab({ memberId, memberName, currentCycleName, currentCycl
         </DialogContent>
       </Dialog>
 
-      {/* Phase Exercise Editor Dialog */}
-      {editingPhaseId && (
-        <PhaseExerciseEditor 
-          phaseId={editingPhaseId} 
-          onClose={() => setEditingPhaseId(null)} 
+      {/* Unified Edit Phase Dialog with Tabs */}
+      {(editingPhase || editingPhaseId) && (
+        <UnifiedPhaseEditor 
+          phase={editingPhase}
+          phaseId={editingPhaseId || editingPhase?.id}
+          onClose={() => { setEditingPhase(null); setEditingPhaseId(null); }}
+          onSave={(data) => {
+            if (editingPhase) {
+              updatePhaseMutation.mutate({ phaseId: editingPhase.id, data });
+            }
+          }}
+          isPending={updatePhaseMutation.isPending}
         />
-      )}
-
-      {/* Edit Phase Dialog */}
-      {editingPhase && (
-        <Dialog open={true} onOpenChange={() => setEditingPhase(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => setEditingPhase(null)} data-testid="button-go-back-edit-phase">
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-                <DialogTitle>Edit Phase</DialogTitle>
-              </div>
-            </DialogHeader>
-            <EditPhaseForm 
-              phase={editingPhase} 
-              onSave={(data) => updatePhaseMutation.mutate({ phaseId: editingPhase.id, data })}
-              onCancel={() => setEditingPhase(null)}
-              isPending={updatePhaseMutation.isPending}
-            />
-          </DialogContent>
-        </Dialog>
       )}
     </div>
   );
 }
 
-function EditPhaseForm({ 
-  phase, 
-  onSave, 
-  onCancel,
+function UnifiedPhaseEditor({ 
+  phase,
+  phaseId,
+  onClose,
+  onSave,
   isPending 
 }: { 
-  phase: TrainingPhase; 
+  phase: TrainingPhase | null;
+  phaseId: number | undefined;
+  onClose: () => void;
   onSave: (data: Partial<TrainingPhase>) => void;
-  onCancel: () => void;
   isPending: boolean;
 }) {
-  const [name, setName] = useState(phase.name);
-  const [goalType, setGoalType] = useState(phase.goalType);
-  const [startDate, setStartDate] = useState(phase.startDate);
-  const [endDate, setEndDate] = useState(phase.endDate);
-  const [notes, setNotes] = useState(phase.notes || "");
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<"details" | "exercises">("details");
+  
+  // Phase details state
+  const [name, setName] = useState(phase?.name || "");
+  const [goalType, setGoalType] = useState(phase?.goalType || "general");
+  const [startDate, setStartDate] = useState(phase?.startDate || "");
+  const [endDate, setEndDate] = useState(phase?.endDate || "");
+  const [notes, setNotes] = useState(phase?.notes || "");
+  
+  // Exercise editor state
+  const [localDayCount, setLocalDayCount] = useState<number | null>(null);
+  const [newExercise, setNewExercise] = useState({
+    dayIndex: 0,
+    muscleType: "Chest",
+    bodyPart: "Upper Body",
+    exerciseName: "",
+    sets: 3,
+    reps: 10,
+    weight: ""
+  });
 
-  const handleSubmit = () => {
-    onSave({ name, goalType, startDate, endDate, notes: notes || null });
+  const actualPhaseId = phaseId || phase?.id;
+
+  // Fetch phase data if we only have phaseId
+  const { data: fetchedPhase } = useQuery<TrainingPhase>({
+    queryKey: ["/api/training-phases", actualPhaseId],
+    queryFn: async () => {
+      const res = await fetch(`/api/training-phases/${actualPhaseId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch phase");
+      return res.json();
+    },
+    enabled: !!actualPhaseId
+  });
+
+  const currentPhase = phase || fetchedPhase;
+
+  // Sync state when phase data loads
+  useEffect(() => {
+    if (currentPhase) {
+      setName(currentPhase.name);
+      setGoalType(currentPhase.goalType);
+      setStartDate(currentPhase.startDate);
+      setEndDate(currentPhase.endDate);
+      setNotes(currentPhase.notes || "");
+      if (localDayCount === null) {
+        setLocalDayCount(currentPhase.cycleLength || 3);
+      }
+    }
+  }, [currentPhase, localDayCount]);
+
+  // Fetch exercises
+  const { data: exercises = [], isLoading: exercisesLoading } = useQuery<PhaseExercise[]>({
+    queryKey: ["/api/training-phases", actualPhaseId, "exercises"],
+    queryFn: async () => {
+      const res = await fetch(`/api/training-phases/${actualPhaseId}/exercises`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch exercises");
+      return res.json();
+    },
+    enabled: !!actualPhaseId
+  });
+
+  // Mutations
+  const updatePhaseMutation = useMutation({
+    mutationFn: async (data: Partial<TrainingPhase>) => {
+      const res = await apiRequest("PATCH", `/api/training-phases/${actualPhaseId}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training-phases", actualPhaseId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/training-phases/member"] });
+      toast({ title: "Phase updated" });
+    }
+  });
+
+  const addExerciseMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", `/api/training-phases/${actualPhaseId}/exercises`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training-phases", actualPhaseId, "exercises"] });
+      setNewExercise({
+        dayIndex: 0,
+        muscleType: "Chest",
+        bodyPart: "Upper Body",
+        exerciseName: "",
+        sets: 3,
+        reps: 10,
+        weight: ""
+      });
+      toast({ title: "Exercise added" });
+    }
+  });
+
+  const deleteExerciseMutation = useMutation({
+    mutationFn: async (exerciseId: number) => {
+      await apiRequest("DELETE", `/api/training-phases/exercises/${exerciseId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training-phases", actualPhaseId, "exercises"] });
+      toast({ title: "Exercise removed" });
+    }
+  });
+
+  const exercisesByDay = exercises.reduce((acc, ex) => {
+    if (!acc[ex.dayIndex]) acc[ex.dayIndex] = [];
+    acc[ex.dayIndex].push(ex);
+    return acc;
+  }, {} as Record<number, PhaseExercise[]>);
+
+  const dayCount = localDayCount || currentPhase?.cycleLength || 3;
+
+  const handleAddDay = () => {
+    const newCount = dayCount + 1;
+    setLocalDayCount(newCount);
+    updatePhaseMutation.mutate({ cycleLength: newCount });
+  };
+
+  const handleRemoveDay = () => {
+    if (dayCount <= 1) return;
+    const newCount = dayCount - 1;
+    setLocalDayCount(newCount);
+    updatePhaseMutation.mutate({ cycleLength: newCount });
+  };
+
+  const handleSaveDetails = () => {
+    updatePhaseMutation.mutate({ name, goalType, startDate, endDate, notes: notes || null });
+  };
+
+  const handleAddExercise = () => {
+    if (!newExercise.exerciseName.trim()) {
+      toast({ title: "Please enter an exercise name", variant: "destructive" });
+      return;
+    }
+    addExerciseMutation.mutate(newExercise);
   };
 
   return (
-    <div className="space-y-4 py-4">
-      <div>
-        <Label htmlFor="edit-phase-name">Phase Name</Label>
-        <input
-          id="edit-phase-name"
-          type="text"
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm mt-1"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          data-testid="input-edit-phase-name"
-        />
-      </div>
-      <div>
-        <Label htmlFor="edit-goal-type">Goal Type</Label>
-        <select
-          id="edit-goal-type"
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
-          value={goalType}
-          onChange={(e) => setGoalType(e.target.value)}
-          data-testid="select-edit-goal-type"
-        >
-          <option value="general">General Fitness</option>
-          <option value="cut">Cut (Fat Loss)</option>
-          <option value="bulk">Bulk (Muscle Gain)</option>
-          <option value="strength">Strength</option>
-          <option value="endurance">Endurance</option>
-          <option value="rehab">Rehabilitation</option>
-        </select>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="edit-start-date">Start Date</Label>
-          <input
-            id="edit-start-date"
-            type="date"
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            data-testid="input-edit-start-date"
-          />
-        </div>
-        <div>
-          <Label htmlFor="edit-end-date">End Date</Label>
-          <input
-            id="edit-end-date"
-            type="date"
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            data-testid="input-edit-end-date"
-          />
-        </div>
-      </div>
-      <div>
-        <Label htmlFor="edit-phase-notes">Notes (Optional)</Label>
-        <Textarea
-          id="edit-phase-notes"
-          placeholder="Any additional notes..."
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="mt-1"
-          data-testid="input-edit-phase-notes"
-        />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button onClick={handleSubmit} disabled={isPending} data-testid="button-save-phase">
-          {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-          Save Changes
-        </Button>
-      </div>
-    </div>
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-close-unified-editor">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <DialogTitle>Edit Phase: {currentPhase?.name || "Loading..."}</DialogTitle>
+          </div>
+        </DialogHeader>
+
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "details" | "exercises")}>
+          <TabsList className="w-full">
+            <TabsTrigger value="details" className="flex-1" data-testid="tab-phase-details">Details</TabsTrigger>
+            <TabsTrigger value="exercises" className="flex-1" data-testid="tab-phase-exercises">
+              Exercises ({dayCount} days)
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="details" className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="edit-phase-name">Phase Name</Label>
+              <input
+                id="edit-phase-name"
+                type="text"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm mt-1"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                data-testid="input-edit-phase-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-goal-type">Goal Type</Label>
+              <select
+                id="edit-goal-type"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                value={goalType}
+                onChange={(e) => setGoalType(e.target.value)}
+                data-testid="select-edit-goal-type"
+              >
+                <option value="general">General Fitness</option>
+                <option value="cut">Cut (Fat Loss)</option>
+                <option value="bulk">Bulk (Muscle Gain)</option>
+                <option value="strength">Strength</option>
+                <option value="endurance">Endurance</option>
+                <option value="rehab">Rehabilitation</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-start-date">Start Date</Label>
+                <input
+                  id="edit-start-date"
+                  type="date"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  data-testid="input-edit-start-date"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-end-date">End Date</Label>
+                <input
+                  id="edit-end-date"
+                  type="date"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  data-testid="input-edit-end-date"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="edit-phase-notes">Notes (Optional)</Label>
+              <Textarea
+                id="edit-phase-notes"
+                placeholder="Any additional notes..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="mt-1"
+                data-testid="input-edit-phase-notes"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSaveDetails} 
+                disabled={updatePhaseMutation.isPending}
+                data-testid="button-save-phase-details"
+              >
+                {updatePhaseMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Save Details
+              </Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="exercises" className="space-y-4 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm text-muted-foreground">{dayCount} workout days</span>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRemoveDay}
+                  disabled={dayCount <= 1}
+                  data-testid="button-remove-phase-day"
+                >
+                  <Minus className="w-4 h-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleAddDay}
+                  data-testid="button-add-phase-day"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {exercisesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {Array.from({ length: dayCount }).map((_, dayIdx) => (
+                  <div key={dayIdx} className="border rounded-md p-3">
+                    <h4 className="font-medium mb-2">Day {dayIdx + 1}</h4>
+                    <div className="space-y-2">
+                      {(exercisesByDay[dayIdx] || []).map((ex) => (
+                        <div key={ex.id} className="flex items-center justify-between bg-muted/50 rounded px-3 py-2">
+                          <div>
+                            <span className="font-medium">{ex.exerciseName}</span>
+                            <span className="text-muted-foreground text-sm ml-2">
+                              {ex.sets}x{ex.reps} {ex.weight ? `@ ${ex.weight}` : ""}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteExerciseMutation.mutate(ex.id)}
+                            data-testid={`button-delete-exercise-${ex.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                      {(!exercisesByDay[dayIdx] || exercisesByDay[dayIdx].length === 0) && (
+                        <p className="text-muted-foreground text-sm">No exercises for this day</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-3">Add Exercise</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Day</Label>
+                      <select
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                        value={newExercise.dayIndex}
+                        onChange={(e) => setNewExercise({ ...newExercise, dayIndex: parseInt(e.target.value) })}
+                      >
+                        {Array.from({ length: dayCount }).map((_, i) => (
+                          <option key={i} value={i}>Day {i + 1}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label>Exercise Name</Label>
+                      <input
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                        placeholder="e.g. Bench Press"
+                        value={newExercise.exerciseName}
+                        onChange={(e) => setNewExercise({ ...newExercise, exerciseName: e.target.value })}
+                        data-testid="input-new-exercise-name"
+                      />
+                    </div>
+                    <div>
+                      <Label>Sets</Label>
+                      <input
+                        type="number"
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                        value={newExercise.sets}
+                        onChange={(e) => setNewExercise({ ...newExercise, sets: parseInt(e.target.value) || 3 })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Reps</Label>
+                      <input
+                        type="number"
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                        value={newExercise.reps}
+                        onChange={(e) => setNewExercise({ ...newExercise, reps: parseInt(e.target.value) || 10 })}
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    className="mt-3 w-full" 
+                    onClick={handleAddExercise}
+                    disabled={addExerciseMutation.isPending}
+                    data-testid="button-add-exercise"
+                  >
+                    {addExerciseMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                    Add Exercise
+                  </Button>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 }
 
