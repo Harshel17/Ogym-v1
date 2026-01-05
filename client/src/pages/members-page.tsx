@@ -123,11 +123,9 @@ export default function MembersPage() {
 
   const isNewMemberCheck = (m: any) => {
     const hasTrainer = !!m.trainerName;
-    const subscriptionEnd = m.subscriptionEndDate ? new Date(m.subscriptionEndDate) : null;
-    const hasActiveSubscription = subscriptionEnd && subscriptionEnd > new Date();
-    const hasOverduePayment = m.subscriptionStatus === "overdue" || m.paymentStatus === "unpaid" || m.paymentStatus === "partial";
+    const hasAnySubscription = !!m.subscriptionEndDate;
     
-    return !hasTrainer || !hasActiveSubscription || hasOverduePayment;
+    return !hasTrainer || !hasAnySubscription;
   };
 
   const newMembers = (ownerMembersDetails as MemberDetail[]).filter(isNewMemberCheck);
@@ -219,7 +217,7 @@ export default function MembersPage() {
                 <div>
                   <h4 className="font-medium text-sm">Members Need Attention</h4>
                   <p className="text-sm text-muted-foreground mt-1">
-                    These members need a trainer assigned, have no active subscription, or have overdue payments. Click on a member row to view details.
+                    These members need a trainer assigned or don't have a subscription set up yet. Click on a member row to view details.
                   </p>
                 </div>
               </div>
