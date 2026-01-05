@@ -1454,7 +1454,8 @@ export async function registerRoutes(
 
   app.get("/api/me/calendar/enhanced", requireRole(["member"]), async (req, res) => {
     const month = req.query.month as string || new Date().toISOString().slice(0, 7);
-    const calendar = await storage.getMemberCalendarEnhanced(req.user!.gymId!, req.user!.id, month);
+    const clientToday = req.query.today as string | undefined;
+    const calendar = await storage.getMemberCalendarEnhanced(req.user!.gymId!, req.user!.id, month, clientToday);
     res.json(calendar);
   });
 

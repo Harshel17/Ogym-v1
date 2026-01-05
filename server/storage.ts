@@ -269,7 +269,7 @@ export interface IStorage {
     };
   }>;
   getMemberCalendar(memberId: number, month: string): Promise<{ date: string; title: string; count: number }[]>;
-  getMemberCalendarEnhanced(gymId: number, memberId: number, month: string): Promise<{
+  getMemberCalendarEnhanced(gymId: number, memberId: number, month: string, clientToday?: string): Promise<{
     date: string;
     status: "present" | "absent" | "rest" | "future";
     completed: { name: string; sets: number; reps: number; weight: string | null }[];
@@ -2342,7 +2342,7 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getMemberCalendarEnhanced(gymId: number, memberId: number, month: string): Promise<{
+  async getMemberCalendarEnhanced(gymId: number, memberId: number, month: string, clientToday?: string): Promise<{
     date: string;
     status: "present" | "absent" | "rest" | "future";
     completed: { name: string; sets: number; reps: number; weight: string | null }[];
@@ -2353,7 +2353,7 @@ export class DatabaseStorage implements IStorage {
     const nextMon = mon === 12 ? 1 : mon + 1;
     const nextYear = mon === 12 ? year + 1 : year;
     const endDate = `${nextYear}-${String(nextMon).padStart(2, "0")}-01`;
-    const today = new Date().toISOString().split("T")[0];
+    const today = clientToday || new Date().toISOString().split("T")[0];
 
     const memberAttendance = await db.select()
       .from(attendance)

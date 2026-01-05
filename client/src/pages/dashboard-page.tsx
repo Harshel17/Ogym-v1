@@ -1108,9 +1108,10 @@ function MemberCalendarWidget() {
   const [, navigate] = useLocation();
   
   const monthStr = format(currentMonth, "yyyy-MM");
+  const clientToday = format(new Date(), "yyyy-MM-dd");
   
   const { data: calendarData = [] } = useQuery<CalendarDayData[]>({
-    queryKey: [`/api/me/calendar/enhanced?month=${monthStr}`],
+    queryKey: [`/api/me/calendar/enhanced?month=${monthStr}&today=${clientToday}`],
   });
 
   const { data: dailyAnalytics, isLoading: analyticsLoading } = useQuery<DailyAnalytics>({
