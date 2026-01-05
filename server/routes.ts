@@ -1769,7 +1769,10 @@ export async function registerRoutes(
       goalType: z.enum(["cut", "bulk", "strength", "endurance", "rehab", "general"]).optional(),
       startDate: z.string().optional(),
       endDate: z.string().optional(),
-      notes: z.string().nullable().optional()
+      notes: z.string().nullable().optional(),
+      cycleLength: z.number().min(1).optional(),
+      dayLabels: z.array(z.string()).nullable().optional(),
+      restDays: z.array(z.number()).nullable().optional()
     });
     const input = schema.parse(req.body);
     const updated = await storage.updateTrainingPhase(phaseId, input);
