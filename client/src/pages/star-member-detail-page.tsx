@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { 
   ArrowLeft, Star, Calendar, Dumbbell, TrendingUp, 
   Flame, Activity, Weight, ChevronRight, Loader2, Shield,
-  CheckCircle2, XCircle, AlertCircle, Clock, StickyNote, Plus, Minus, Trash2, Edit
+  CheckCircle2, XCircle, AlertCircle, Clock, StickyNote, Plus, Minus, Trash2, Edit, Moon
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -1300,6 +1301,7 @@ function UnifiedPhaseEditor({
   
   // Exercise editor state
   const [localDayCount, setLocalDayCount] = useState<number | null>(null);
+  const [restDays, setRestDays] = useState<number[]>(phase?.restDays || []);
   const [newExercise, setNewExercise] = useState({
     dayIndex: 0,
     muscleType: "Chest",
@@ -1333,11 +1335,31 @@ function UnifiedPhaseEditor({
       setStartDate(currentPhase.startDate);
       setEndDate(currentPhase.endDate);
       setNotes(currentPhase.notes || "");
+      setRestDays(currentPhase.restDays || []);
       if (localDayCount === null) {
         setLocalDayCount(currentPhase.cycleLength || 3);
       }
     }
   }, [currentPhase, localDayCount]);
+
+  // Mutation to update rest days
+  const updateRestDaysMutation = useMutation({
+    mutationFn: async (newRestDays: number[]) => {
+      const res = await apiRequest("PATCH", `/api/training-phases/${actualPhaseId}`, { restDays: newRestDays });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training-phases", actualPhaseId] });
+    }
+  });
+
+  const toggleRestDay = (dayIndex: number) => {
+    const newRestDays = restDays.includes(dayIndex)
+      ? restDays.filter(d => d !== dayIndex)
+      : [...restDays, dayIndex];
+    setRestDays(newRestDays);
+    updateRestDaysMutation.mutate(newRestDays);
+  };
 
   // Fetch exercises
   const { data: exercises = [], isLoading: exercisesLoading } = useQuery<PhaseExercise[]>({
@@ -1555,34 +1577,52 @@ function UnifiedPhaseEditor({
               </div>
             ) : (
               <div className="space-y-4">
-                {Array.from({ length: dayCount }).map((_, dayIdx) => (
-                  <div key={dayIdx} className="border rounded-md p-3">
-                    <h4 className="font-medium mb-2">Day {dayIdx + 1}</h4>
-                    <div className="space-y-2">
-                      {(exercisesByDay[dayIdx] || []).map((ex) => (
-                        <div key={ex.id} className="flex items-center justify-between bg-muted/50 rounded px-3 py-2">
-                          <div>
-                            <span className="font-medium">{ex.exerciseName}</span>
-                            <span className="text-muted-foreground text-sm ml-2">
-                              {ex.sets}x{ex.reps} {ex.weight ? `@ ${ex.weight}` : ""}
-                            </span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteExerciseMutation.mutate(ex.id)}
-                            data-testid={`button-delete-exercise-${ex.id}`}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
+                {Array.from({ length: dayCount }).map((_, dayIdx) => {
+                  const isRestDay = restDays.includes(dayIdx);
+                  return (
+                    <div key={dayIdx} className="border rounded-md p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium">Day {dayIdx + 1}</h4>
+                          {isRestDay && <Badge variant="secondary"><Moon className="w-3 h-3 mr-1" />Rest Day</Badge>}
                         </div>
-                      ))}
-                      {(!exercisesByDay[dayIdx] || exercisesByDay[dayIdx].length === 0) && (
-                        <p className="text-muted-foreground text-sm">No exercises for this day</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Rest Day</span>
+                          <Switch
+                            checked={isRestDay}
+                            onCheckedChange={() => toggleRestDay(dayIdx)}
+                            data-testid={`switch-rest-day-${dayIdx}`}
+                          />
+                        </div>
+                      </div>
+                      {!isRestDay && (
+                        <div className="space-y-2">
+                          {(exercisesByDay[dayIdx] || []).map((ex) => (
+                            <div key={ex.id} className="flex items-center justify-between bg-muted/50 rounded px-3 py-2">
+                              <div>
+                                <span className="font-medium">{ex.exerciseName}</span>
+                                <span className="text-muted-foreground text-sm ml-2">
+                                  {ex.sets}x{ex.reps} {ex.weight ? `@ ${ex.weight}` : ""}
+                                </span>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteExerciseMutation.mutate(ex.id)}
+                                data-testid={`button-delete-exercise-${ex.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </div>
+                          ))}
+                          {(!exercisesByDay[dayIdx] || exercisesByDay[dayIdx].length === 0) && (
+                            <p className="text-muted-foreground text-sm">No exercises for this day</p>
+                          )}
+                        </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-3">Add Exercise</h4>
@@ -1689,6 +1729,7 @@ type PhaseExercise = {
 function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: () => void }) {
   const { toast } = useToast();
   const [localDayCount, setLocalDayCount] = useState<number | null>(null);
+  const [restDays, setRestDays] = useState<number[]>([]);
   const [newExercise, setNewExercise] = useState({
     dayIndex: 0,
     muscleType: "Chest",
@@ -1718,12 +1759,34 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
     }
   });
 
-  // Initialize local day count from phase data
+  // Initialize local day count and rest days from phase data
   useEffect(() => {
-    if (phase && localDayCount === null) {
-      setLocalDayCount(phase.cycleLength || 3);
+    if (phase) {
+      if (localDayCount === null) {
+        setLocalDayCount(phase.cycleLength || 3);
+      }
+      setRestDays(phase.restDays || []);
     }
   }, [phase, localDayCount]);
+
+  // Mutation to update rest days
+  const updateRestDaysMutation = useMutation({
+    mutationFn: async (newRestDays: number[]) => {
+      const res = await apiRequest("PATCH", `/api/training-phases/${phaseId}`, { restDays: newRestDays });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/training-phases", phaseId] });
+    }
+  });
+
+  const toggleRestDay = (dayIndex: number) => {
+    const newRestDays = restDays.includes(dayIndex)
+      ? restDays.filter(d => d !== dayIndex)
+      : [...restDays, dayIndex];
+    setRestDays(newRestDays);
+    updateRestDaysMutation.mutate(newRestDays);
+  };
 
   const addExerciseMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -1826,34 +1889,52 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
           </div>
         ) : (
           <div className="space-y-4">
-            {Array.from({ length: dayCount }).map((_, dayIdx) => (
-              <div key={dayIdx} className="border rounded-md p-3">
-                <h4 className="font-medium mb-2">Day {dayIdx + 1}</h4>
-                <div className="space-y-2">
-                  {(exercisesByDay[dayIdx] || []).map((ex) => (
-                    <div key={ex.id} className="flex items-center justify-between bg-muted/50 rounded px-3 py-2">
-                      <div>
-                        <span className="font-medium">{ex.exerciseName}</span>
-                        <span className="text-muted-foreground text-sm ml-2">
-                          {ex.sets}x{ex.reps} {ex.weight ? `@ ${ex.weight}` : ""}
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteExerciseMutation.mutate(ex.id)}
-                        data-testid={`button-delete-exercise-${ex.id}`}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
+            {Array.from({ length: dayCount }).map((_, dayIdx) => {
+              const isRestDay = restDays.includes(dayIdx);
+              return (
+                <div key={dayIdx} className="border rounded-md p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium">Day {dayIdx + 1}</h4>
+                      {isRestDay && <Badge variant="secondary"><Moon className="w-3 h-3 mr-1" />Rest Day</Badge>}
                     </div>
-                  ))}
-                  {(!exercisesByDay[dayIdx] || exercisesByDay[dayIdx].length === 0) && (
-                    <p className="text-muted-foreground text-sm">No exercises for this day</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Rest Day</span>
+                      <Switch
+                        checked={isRestDay}
+                        onCheckedChange={() => toggleRestDay(dayIdx)}
+                        data-testid={`switch-rest-day-${dayIdx}`}
+                      />
+                    </div>
+                  </div>
+                  {!isRestDay && (
+                    <div className="space-y-2">
+                      {(exercisesByDay[dayIdx] || []).map((ex) => (
+                        <div key={ex.id} className="flex items-center justify-between bg-muted/50 rounded px-3 py-2">
+                          <div>
+                            <span className="font-medium">{ex.exerciseName}</span>
+                            <span className="text-muted-foreground text-sm ml-2">
+                              {ex.sets}x{ex.reps} {ex.weight ? `@ ${ex.weight}` : ""}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteExerciseMutation.mutate(ex.id)}
+                            data-testid={`button-delete-exercise-${ex.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                      {(!exercisesByDay[dayIdx] || exercisesByDay[dayIdx].length === 0) && (
+                        <p className="text-muted-foreground text-sm">No exercises for this day</p>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             <div className="border-t pt-4">
               <h4 className="font-medium mb-3">Add Exercise</h4>
