@@ -474,6 +474,43 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/trainer/members/:memberId/workouts", requireRole(["trainer"]), async (req, res) => {
+    try {
+      const memberId = parseInt(req.params.memberId);
+      
+      const assignments = await storage.getTrainerMembers(req.user!.id);
+      if (!assignments.some(a => a.memberId === memberId)) {
+        return res.status(403).json({ message: "Member not assigned to you" });
+      }
+      
+      const cycle = await storage.getWorkoutCycleByMember(req.user!.gymId!, memberId);
+      let cycleItems: any[] = [];
+      if (cycle) {
+        cycleItems = await storage.getWorkoutItemsByCycle(cycle.id);
+      }
+      
+      const phases = await storage.getTrainingPhasesByMember(memberId);
+      const phasesWithExercises = await Promise.all(phases.map(async (phase) => {
+        const exercises = await storage.getPhaseExercises(phase.id);
+        return { ...phase, exercises };
+      }));
+      
+      const today = new Date().toISOString().split('T')[0];
+      const activePhase = phasesWithExercises.find(p => 
+        p.startDate <= today && p.endDate >= today && p.useCustomExercises
+      );
+      
+      res.json({
+        cycle: cycle ? { ...cycle, items: cycleItems } : null,
+        phases: phasesWithExercises,
+        activePhase: activePhase || null
+      });
+    } catch (err) {
+      console.error("Error fetching member workouts:", err);
+      res.status(500).json({ message: "Failed to fetch member workouts" });
+    }
+  });
+
   app.post("/api/trainer/cycles", requireRole(["trainer"]), async (req, res) => {
     const schema = z.object({
       memberId: z.number(),
