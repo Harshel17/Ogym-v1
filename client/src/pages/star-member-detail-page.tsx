@@ -1610,6 +1610,32 @@ function UnifiedPhaseEditor({
                       />
                     </div>
                     <div>
+                      <Label>Body Part</Label>
+                      <select
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                        value={newExercise.bodyPart}
+                        onChange={(e) => setNewExercise({ ...newExercise, bodyPart: e.target.value })}
+                        data-testid="select-body-part"
+                      >
+                        {["Upper Body", "Lower Body", "Core", "Full Body"].map(bp => (
+                          <option key={bp} value={bp}>{bp}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label>Muscle Group</Label>
+                      <select
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                        value={newExercise.muscleType}
+                        onChange={(e) => setNewExercise({ ...newExercise, muscleType: e.target.value })}
+                        data-testid="select-muscle-type"
+                      >
+                        {["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Quads", "Hamstrings", "Glutes", "Calves", "Core", "Cardio"].map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
                       <Label>Sets</Label>
                       <input
                         type="number"
@@ -1854,6 +1880,30 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
                   />
                 </div>
                 <div>
+                  <Label>Body Part</Label>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    value={newExercise.bodyPart}
+                    onChange={(e) => setNewExercise({ ...newExercise, bodyPart: e.target.value })}
+                  >
+                    {["Upper Body", "Lower Body", "Core", "Full Body"].map(bp => (
+                      <option key={bp} value={bp}>{bp}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label>Muscle Group</Label>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    value={newExercise.muscleType}
+                    onChange={(e) => setNewExercise({ ...newExercise, muscleType: e.target.value })}
+                  >
+                    {["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Quads", "Hamstrings", "Glutes", "Calves", "Core", "Cardio"].map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <Label>Sets</Label>
                   <input
                     type="number"
@@ -1870,23 +1920,6 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
                     value={newExercise.reps}
                     onChange={(e) => setNewExercise({ ...newExercise, reps: parseInt(e.target.value) || 10 })}
                   />
-                </div>
-                <div>
-                  <Label>Muscle Type</Label>
-                  <select
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
-                    value={newExercise.muscleType}
-                    onChange={(e) => setNewExercise({ ...newExercise, muscleType: e.target.value })}
-                  >
-                    <option value="Chest">Chest</option>
-                    <option value="Back">Back</option>
-                    <option value="Shoulders">Shoulders</option>
-                    <option value="Biceps">Biceps</option>
-                    <option value="Triceps">Triceps</option>
-                    <option value="Legs">Legs</option>
-                    <option value="Core">Core</option>
-                    <option value="Full Body">Full Body</option>
-                  </select>
                 </div>
                 <div>
                   <Label>Weight (optional)</Label>
