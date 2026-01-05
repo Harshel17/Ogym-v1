@@ -60,6 +60,7 @@ export default function MyBodyPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/me/body"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/body/latest"] });
       toast({ title: "Measurements saved!" });
       setIsOpen(false);
       setFormData({

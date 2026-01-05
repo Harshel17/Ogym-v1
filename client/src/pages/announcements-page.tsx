@@ -26,7 +26,7 @@ export default function AnnouncementsPage() {
 
   const markReadMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/announcements/${id}/read`, { method: "POST" });
+      return apiRequest("POST", `/api/announcements/${id}/read`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/announcements/unread-count"] });
