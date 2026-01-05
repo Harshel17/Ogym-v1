@@ -477,19 +477,20 @@ export async function registerRoutes(
   app.get("/api/trainer/members/:memberId/workouts", requireRole(["trainer"]), async (req, res) => {
     try {
       const memberId = parseInt(req.params.memberId);
+      const gymId = req.user!.gymId!;
       
       const assignments = await storage.getTrainerMembers(req.user!.id);
       if (!assignments.some(a => a.memberId === memberId)) {
         return res.status(403).json({ message: "Member not assigned to you" });
       }
       
-      const cycle = await storage.getWorkoutCycleByMember(req.user!.gymId!, memberId);
+      const cycle = await storage.getMemberCycle(memberId);
       let cycleItems: any[] = [];
       if (cycle) {
-        cycleItems = await storage.getWorkoutItemsByCycle(cycle.id);
+        cycleItems = await storage.getWorkoutItems(cycle.id);
       }
       
-      const phases = await storage.getTrainingPhasesByMember(memberId);
+      const phases = await storage.getTrainingPhases(gymId, memberId);
       const phasesWithExercises = await Promise.all(phases.map(async (phase) => {
         const exercises = await storage.getPhaseExercises(phase.id);
         return { ...phase, exercises };
