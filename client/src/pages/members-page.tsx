@@ -48,6 +48,8 @@ type MemberDetail = {
   trainerName: string | null;
   cycleEndDate: string | null;
   paymentStatus: string | null;
+  subscriptionEndDate: string | null;
+  subscriptionStatus: string | null;
 };
 
 export default function MembersPage() {
@@ -121,9 +123,9 @@ export default function MembersPage() {
 
   const isNewMemberCheck = (m: any) => {
     const hasTrainer = !!m.trainerName;
-    const subscriptionEnd = m.subscriptionEnd ? new Date(m.subscriptionEnd) : null;
+    const subscriptionEnd = m.subscriptionEndDate ? new Date(m.subscriptionEndDate) : null;
     const hasActiveSubscription = subscriptionEnd && subscriptionEnd > new Date();
-    const hasOverduePayment = m.paymentStatus === "unpaid" || m.paymentStatus === "partial";
+    const hasOverduePayment = m.subscriptionStatus === "overdue" || m.paymentStatus === "unpaid" || m.paymentStatus === "partial";
     
     return !hasTrainer || !hasActiveSubscription || hasOverduePayment;
   };
@@ -315,10 +317,10 @@ export default function MembersPage() {
                       )}
                       {isOwner && (
                         <TableCell>
-                          {member.cycleEndDate ? (
-                            <span className="text-sm">{member.cycleEndDate}</span>
+                          {member.subscriptionEndDate ? (
+                            <span className="text-sm">{member.subscriptionEndDate}</span>
                           ) : (
-                            <span className="text-sm text-muted-foreground">No cycle</span>
+                            <span className="text-sm text-muted-foreground">No subscription</span>
                           )}
                         </TableCell>
                       )}

@@ -141,6 +141,8 @@ export interface IStorage {
     trainerName: string | null;
     cycleEndDate: string | null;
     paymentStatus: string | null;
+    subscriptionEndDate: string | null;
+    subscriptionStatus: string | null;
   }[]>;
   
   // Member Profile & Progress
@@ -1047,6 +1049,8 @@ export class DatabaseStorage implements IStorage {
     trainerName: string | null;
     cycleEndDate: string | null;
     paymentStatus: string | null;
+    subscriptionEndDate: string | null;
+    subscriptionStatus: string | null;
   }[]> {
     const members = await this.getGymMembers(gymId);
     const assignments = await this.getGymAssignments(gymId);
@@ -1056,6 +1060,12 @@ export class DatabaseStorage implements IStorage {
     const memberTrainerMap = new Map(assignments.map(a => [a.memberId, a.trainerId]));
     
     const currentMonth = new Date().toISOString().slice(0, 7);
+    
+    const allSubscriptions = await db.select()
+      .from(memberSubscriptions)
+      .where(eq(memberSubscriptions.gymId, gymId));
+    
+    const subscriptionMap = new Map(allSubscriptions.map(s => [s.memberId, s]));
     
     const result = await Promise.all(members.map(async (member) => {
       const trainerId = memberTrainerMap.get(member.id);
@@ -1071,6 +1081,10 @@ export class DatabaseStorage implements IStorage {
       
       const paymentStatus = latestPayment?.status || null;
       
+      const subscription = subscriptionMap.get(member.id);
+      const subscriptionEndDate = subscription?.endDate || null;
+      const subscriptionStatus = subscription?.status || null;
+      
       return {
         id: member.id,
         username: member.username,
@@ -1078,7 +1092,9 @@ export class DatabaseStorage implements IStorage {
         createdAt: member.createdAt,
         trainerName,
         cycleEndDate,
-        paymentStatus
+        paymentStatus,
+        subscriptionEndDate,
+        subscriptionStatus
       };
     }));
     
