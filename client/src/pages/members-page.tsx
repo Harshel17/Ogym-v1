@@ -119,9 +119,16 @@ export default function MembersPage() {
     );
   }
 
-  const newMembers = (ownerMembersDetails as MemberDetail[]).filter((m: any) => 
-    !m.trainerName || m.paymentStatus === "pending" || m.paymentStatus === null
-  );
+  const isNewMemberCheck = (m: any) => {
+    const hasTrainer = !!m.trainerName;
+    const subscriptionEnd = m.subscriptionEnd ? new Date(m.subscriptionEnd) : null;
+    const hasActiveSubscription = subscriptionEnd && subscriptionEnd > new Date();
+    const hasOverduePayment = m.paymentStatus === "unpaid" || m.paymentStatus === "partial";
+    
+    return !hasTrainer || !hasActiveSubscription || hasOverduePayment;
+  };
+
+  const newMembers = (ownerMembersDetails as MemberDetail[]).filter(isNewMemberCheck);
 
   const filteredMembers = members.filter((m: any) => {
     const matchesSearch = m.username?.toLowerCase().includes(search.toLowerCase()) || 
@@ -129,8 +136,7 @@ export default function MembersPage() {
     const matchesFilter = filter === "all" || (filter === "starred" && starMemberIds.has(m.id));
     
     if (isOwner && ownerTab === "new") {
-      const isNewMember = !m.trainerName || m.paymentStatus === "pending" || m.paymentStatus === null;
-      return matchesSearch && isNewMember;
+      return matchesSearch && isNewMemberCheck(m);
     }
     
     return matchesSearch && matchesFilter;
@@ -209,9 +215,9 @@ export default function MembersPage() {
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
                 <div>
-                  <h4 className="font-medium text-sm">New Members Need Setup</h4>
+                  <h4 className="font-medium text-sm">Members Need Attention</h4>
                   <p className="text-sm text-muted-foreground mt-1">
-                    These members need a trainer assigned or have pending payments. Click on a member row to view details, or use the actions to assign a trainer.
+                    These members need a trainer assigned, have no active subscription, or have overdue payments. Click on a member row to view details.
                   </p>
                 </div>
               </div>
