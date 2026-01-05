@@ -452,6 +452,28 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/trainer/phases/:phaseId/exercises", requireRole(["trainer"]), async (req, res) => {
+    try {
+      const phaseId = parseInt(req.params.phaseId);
+      const phase = await storage.getTrainingPhase(phaseId);
+      
+      if (!phase) {
+        return res.status(404).json({ message: "Phase not found" });
+      }
+      
+      const assignments = await storage.getTrainerMembers(req.user!.id);
+      if (!assignments.some(a => a.memberId === phase.memberId)) {
+        return res.status(403).json({ message: "Not authorized to view this phase" });
+      }
+      
+      const exercises = await storage.getPhaseExercises(phaseId);
+      res.json(exercises);
+    } catch (err) {
+      console.error("Error fetching phase exercises:", err);
+      res.status(500).json({ message: "Failed to fetch phase exercises" });
+    }
+  });
+
   app.post("/api/trainer/cycles", requireRole(["trainer"]), async (req, res) => {
     const schema = z.object({
       memberId: z.number(),

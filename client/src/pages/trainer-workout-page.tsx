@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil, Trash2, Search, X, Moon, Settings2, PlusCircle, MinusCircle } from "lucide-react";
+import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil, Trash2, Search, X, Moon, Settings2, PlusCircle, MinusCircle, Layers } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -50,6 +50,8 @@ type ActivePhase = {
   useCustomExercises: boolean;
   startDate: string;
   endDate: string;
+  dayLabels?: string[];
+  restDays?: number[];
 };
 
 export default function TrainerWorkoutPage() {
@@ -306,6 +308,141 @@ export default function TrainerWorkoutPage() {
   );
 }
 
+function PhaseExerciseView({ phase, exercises, isLoading }: { phase: ActivePhase; exercises: any[]; isLoading: boolean }) {
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-12 bg-muted animate-pulse rounded" />
+        ))}
+      </div>
+    );
+  }
+  
+  const dayLabels = phase.dayLabels || [];
+  const restDays = phase.restDays || [];
+  
+  const exercisesByDay = exercises.reduce((acc: Record<number, any[]>, ex) => {
+    const dayIndex = ex.dayIndex ?? 0;
+    if (!acc[dayIndex]) acc[dayIndex] = [];
+    acc[dayIndex].push(ex);
+    return acc;
+  }, {});
+  
+  const maxDayFromExercises = exercises.length > 0 ? Math.max(...exercises.map(e => e.dayIndex ?? 0)) : -1;
+  const maxDayFromLabels = dayLabels.length - 1;
+  const maxDayFromRest = restDays.length > 0 ? Math.max(...restDays) : -1;
+  const phaseLength = Math.max(maxDayFromExercises, maxDayFromLabels, maxDayFromRest, 0) + 1;
+  
+  const allDays = Array.from({ length: Math.max(phaseLength, 1) }, (_, i) => i);
+  
+  if (exercises.length === 0 && restDays.length === 0) {
+    return (
+      <div className="text-center py-8 bg-muted/30 rounded-lg">
+        <Layers className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+        <p className="text-muted-foreground">No phase exercises defined yet.</p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-4">
+      <div className="p-3 rounded-md bg-primary/10 border border-primary/20">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Layers className="w-4 h-4" />
+          <span className="font-medium">{phase.name}</span>
+          <Badge variant="outline" className="text-xs">
+            {phase.startDate} to {phase.endDate}
+          </Badge>
+          <Badge variant="secondary" className="text-xs">
+            {exercises.length} exercises
+          </Badge>
+        </div>
+      </div>
+      
+      <Tabs defaultValue="0" className="w-full">
+        <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
+          {allDays.map((dayIndex) => {
+            const isRestDay = restDays.includes(dayIndex);
+            const label = dayLabels[dayIndex] || `Day ${dayIndex + 1}`;
+            const exerciseCount = exercisesByDay[dayIndex]?.length || 0;
+            return (
+              <TabsTrigger 
+                key={dayIndex} 
+                value={dayIndex.toString()}
+                className="flex-1 min-w-[50px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                data-testid={`tab-phase-day-${dayIndex}`}
+              >
+                {isRestDay && <Moon className="w-3 h-3 mr-1" />}
+                <span className="text-xs">{label.substring(0, 10) || `D${dayIndex + 1}`}</span>
+                {!isRestDay && exerciseCount > 0 && (
+                  <span className="ml-1 text-[10px] opacity-70">({exerciseCount})</span>
+                )}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+        
+        {allDays.map((dayIndex) => {
+          const dayExercises = exercisesByDay[dayIndex] || [];
+          const isRestDay = restDays.includes(dayIndex);
+          const label = dayLabels[dayIndex] || `Day ${dayIndex + 1}`;
+          
+          return (
+            <TabsContent key={dayIndex} value={dayIndex.toString()} className="mt-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-semibold text-sm">{label}</h4>
+                  {isRestDay && <Badge variant="secondary"><Moon className="w-3 h-3 mr-1" />Rest Day</Badge>}
+                </div>
+                
+                {isRestDay ? (
+                  <div className="py-6 text-center text-muted-foreground bg-muted/30 rounded-lg">
+                    <Moon className="w-6 h-6 mx-auto mb-2" />
+                    <p>Rest day - No exercises</p>
+                  </div>
+                ) : dayExercises.length === 0 ? (
+                  <div className="py-6 text-center text-muted-foreground bg-muted/30 rounded-lg">
+                    <Dumbbell className="w-6 h-6 mx-auto mb-2" />
+                    <p>No exercises for this day</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {dayExercises.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)).map((ex, idx) => (
+                      <div
+                        key={ex.id}
+                        className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                        data-testid={`phase-exercise-${ex.id}`}
+                      >
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">{ex.exerciseName}</span>
+                            {ex.muscleGroup && (
+                              <Badge variant="outline" className="text-xs">{ex.muscleGroup}</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {ex.sets} sets x {ex.reps} reps
+                            {ex.weight && ` @ ${ex.weight}kg`}
+                            {ex.category && ` - ${ex.category}`}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          );
+        })}
+      </Tabs>
+    </div>
+  );
+}
+
 function CycleDetailView({ cycle, members, activePhase }: { cycle: any; members: any[]; activePhase?: ActivePhase }) {
   const member = members.find(m => m.id === cycle.memberId);
   const updateLabelsMutation = useUpdateDayLabels();
@@ -319,6 +456,21 @@ function CycleDetailView({ cycle, members, activePhase }: { cycle: any; members:
   const [restDays, setRestDays] = useState<number[]>(initialRestDays);
   const [editingDay, setEditingDay] = useState<number | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [viewMode, setViewMode] = useState<"phase" | "cycle">(activePhase ? "phase" : "cycle");
+  
+  useEffect(() => {
+    setViewMode(activePhase ? "phase" : "cycle");
+  }, [activePhase?.id]);
+  
+  const { data: phaseExercises = [], isLoading: phaseLoading } = useQuery<any[]>({
+    queryKey: ["/api/trainer/phases", activePhase?.id, "exercises"],
+    queryFn: async () => {
+      const res = await fetch(`/api/trainer/phases/${activePhase?.id}/exercises`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch phase exercises");
+      return res.json();
+    },
+    enabled: !!activePhase && viewMode === "phase",
+  });
   
   // Use local state for cycleLength after mutations, fall back to prop
   const cycleLength = localCycleLength;
@@ -472,16 +624,40 @@ function CycleDetailView({ cycle, members, activePhase }: { cycle: any; members:
       </CardHeader>
       <CardContent>
         {activePhase && (
-          <div className="mb-4 p-3 rounded-md bg-amber-500/10 border border-amber-500/30 text-sm">
-            <p className="font-medium text-amber-700 dark:text-amber-400">
-              Training Phase Active: {activePhase.name}
-            </p>
-            <p className="text-muted-foreground text-xs mt-1">
-              This member's daily workout is currently using phase exercises, not this cycle.
-            </p>
+          <div className="mb-4 flex items-center gap-2 flex-wrap">
+            <Button
+              variant={viewMode === "phase" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("phase")}
+              data-testid="button-view-phase"
+            >
+              <Layers className="w-4 h-4 mr-1" />
+              Phase: {activePhase.name}
+            </Button>
+            <Button
+              variant={viewMode === "cycle" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("cycle")}
+              data-testid="button-view-cycle"
+            >
+              <Dumbbell className="w-4 h-4 mr-1" />
+              Cycle
+            </Button>
+            {viewMode === "phase" && (
+              <Badge variant="secondary" className="ml-2">
+                Member's active workout
+              </Badge>
+            )}
           </div>
         )}
-        {isLoading ? (
+        
+        {viewMode === "phase" && activePhase ? (
+          <PhaseExerciseView 
+            phase={activePhase} 
+            exercises={phaseExercises} 
+            isLoading={phaseLoading}
+          />
+        ) : isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
               <div key={i} className="h-12 bg-muted animate-pulse rounded" />
