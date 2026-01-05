@@ -500,6 +500,90 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // Add a new day to a cycle
+  app.post("/api/trainer/cycles/:cycleId/add-day", requireRole(["trainer"]), async (req, res) => {
+    const cycleId = parseInt(req.params.cycleId);
+    const schema = z.object({
+      dayLabel: z.string().optional().default(""),
+      position: z.number().min(0).optional() // Position to insert at. If not provided, adds at end
+    });
+    const input = schema.parse(req.body);
+    
+    const cycle = await storage.getCycle(cycleId);
+    if (!cycle || cycle.trainerId !== req.user!.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    
+    if (cycle.gymId !== req.user!.gymId) {
+      return res.status(403).json({ message: "Not authorized for this gym" });
+    }
+    
+    const newLength = cycle.cycleLength + 1;
+    const position = input.position !== undefined ? Math.min(input.position, cycle.cycleLength) : cycle.cycleLength;
+    
+    // If inserting in the middle, shift existing workout items
+    if (position < cycle.cycleLength) {
+      await storage.shiftWorkoutItemsDays(cycleId, position, 1);
+    }
+    
+    // Update day labels array
+    const currentLabels = cycle.dayLabels || Array.from({ length: cycle.cycleLength }, () => "");
+    const newLabels = [...currentLabels];
+    newLabels.splice(position, 0, input.dayLabel);
+    
+    // Update rest days array (shift indices >= position)
+    const currentRestDays = cycle.restDays || [];
+    const newRestDays = currentRestDays.map(d => d >= position ? d + 1 : d);
+    
+    const updated = await storage.updateCycleStructure(cycleId, newLength, newLabels, newRestDays);
+    res.json(updated);
+  });
+
+  // Remove a day from a cycle
+  app.delete("/api/trainer/cycles/:cycleId/remove-day/:dayIndex", requireRole(["trainer"]), async (req, res) => {
+    const cycleId = parseInt(req.params.cycleId);
+    const dayIndex = parseInt(req.params.dayIndex);
+    
+    const cycle = await storage.getCycle(cycleId);
+    if (!cycle || cycle.trainerId !== req.user!.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    
+    if (cycle.gymId !== req.user!.gymId) {
+      return res.status(403).json({ message: "Not authorized for this gym" });
+    }
+    
+    if (cycle.cycleLength <= 1) {
+      return res.status(400).json({ message: "Cannot remove the last day from a cycle" });
+    }
+    
+    if (dayIndex < 0 || dayIndex >= cycle.cycleLength) {
+      return res.status(400).json({ message: "Invalid day index" });
+    }
+    
+    // Delete all workout items for this day
+    await storage.deleteWorkoutItemsByDay(cycleId, dayIndex);
+    
+    // Shift remaining workout items
+    await storage.shiftWorkoutItemsDays(cycleId, dayIndex + 1, -1);
+    
+    const newLength = cycle.cycleLength - 1;
+    
+    // Update day labels array
+    const currentLabels = cycle.dayLabels || Array.from({ length: cycle.cycleLength }, () => "");
+    const newLabels = [...currentLabels];
+    newLabels.splice(dayIndex, 1);
+    
+    // Update rest days array (remove this day and shift indices > dayIndex)
+    const currentRestDays = cycle.restDays || [];
+    const newRestDays = currentRestDays
+      .filter(d => d !== dayIndex)
+      .map(d => d > dayIndex ? d - 1 : d);
+    
+    const updated = await storage.updateCycleStructure(cycleId, newLength, newLabels, newRestDays);
+    res.json(updated);
+  });
+
   app.get("/api/trainer/cycles/:cycleId/items", requireRole(["trainer"]), async (req, res) => {
     const cycleId = parseInt(req.params.cycleId);
     const cycle = await storage.getCycle(cycleId);
