@@ -106,6 +106,16 @@ export interface IStorage {
   getWorkoutItemsByDay(cycleId: number, dayIndex: number): Promise<WorkoutItem[]>;
   getWorkoutItem(id: number): Promise<WorkoutItem | undefined>;
   completeWorkout(data: InsertWorkoutCompletion): Promise<WorkoutCompletion>;
+  completePhaseExercise(data: {
+    gymId: number;
+    phaseExerciseId: number;
+    memberId: number;
+    completedDate: string;
+    exerciseName: string;
+    actualSets?: number | null;
+    actualReps?: number | null;
+    actualWeight?: string | null;
+  }): Promise<WorkoutCompletion>;
   getCompletions(memberId: number, date: string): Promise<WorkoutCompletion[]>;
   getCompletionByItemDate(workoutItemId: number, memberId: number, date: string): Promise<WorkoutCompletion | undefined>;
   getMemberWorkoutHistory(memberId: number): Promise<WorkoutCompletion[]>;
@@ -192,6 +202,7 @@ export interface IStorage {
   deleteTrainingPhase(phaseId: number): Promise<void>;
   updateTrainingPhase(phaseId: number, data: Partial<InsertTrainingPhase>): Promise<TrainingPhase>;
   getPhaseExercises(phaseId: number): Promise<PhaseExercise[]>;
+  getPhaseExercise(exerciseId: number): Promise<PhaseExercise | undefined>;
   addPhaseExercise(data: InsertPhaseExercise): Promise<PhaseExercise>;
   updatePhaseExercise(exerciseId: number, data: Partial<InsertPhaseExercise>): Promise<PhaseExercise>;
   deletePhaseExercise(exerciseId: number): Promise<void>;
@@ -778,6 +789,29 @@ export class DatabaseStorage implements IStorage {
     return record;
   }
 
+  async completePhaseExercise(data: {
+    gymId: number;
+    phaseExerciseId: number;
+    memberId: number;
+    completedDate: string;
+    exerciseName: string;
+    actualSets?: number | null;
+    actualReps?: number | null;
+    actualWeight?: string | null;
+  }): Promise<WorkoutCompletion> {
+    const [record] = await db.insert(workoutCompletions).values({
+      gymId: data.gymId,
+      phaseExerciseId: data.phaseExerciseId,
+      memberId: data.memberId,
+      completedDate: data.completedDate,
+      exerciseName: data.exerciseName,
+      actualSets: data.actualSets,
+      actualReps: data.actualReps,
+      actualWeight: data.actualWeight
+    }).returning();
+    return record;
+  }
+
   async getCompletions(memberId: number, date: string): Promise<WorkoutCompletion[]> {
     return await db.select().from(workoutCompletions).where(
       and(eq(workoutCompletions.memberId, memberId), eq(workoutCompletions.completedDate, date))
@@ -849,12 +883,15 @@ export class DatabaseStorage implements IStorage {
     exerciseCount: number;
     exercises: { name: string; muscleType: string; sets: number | null; reps: number | null; weight: string | null }[];
   }[]> {
+    // Use left join to include both cycle and phase exercise completions
     let query = db.select({
       completion: workoutCompletions,
-      workoutItem: workoutItems
+      workoutItem: workoutItems,
+      phaseExercise: phaseExercises
     })
     .from(workoutCompletions)
-    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .leftJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .leftJoin(phaseExercises, eq(workoutCompletions.phaseExerciseId, phaseExercises.id))
     .where(eq(workoutCompletions.memberId, memberId))
     .orderBy(desc(workoutCompletions.completedDate));
 
@@ -879,7 +916,7 @@ export class DatabaseStorage implements IStorage {
       byDate.get(date)!.push(c);
     }
 
-    // Transform to result format
+    // Transform to result format - handle both cycle and phase exercises
     const result: {
       date: string;
       muscleGroups: string[];
@@ -888,14 +925,16 @@ export class DatabaseStorage implements IStorage {
     }[] = [];
 
     for (const [date, items] of Array.from(byDate.entries())) {
-      const muscleGroups: string[] = Array.from(new Set(items.map((i: typeof filtered[0]) => i.workoutItem.muscleType).filter((m): m is string => Boolean(m))));
+      const muscleGroups: string[] = Array.from(new Set(items.map((i: typeof filtered[0]) => 
+        i.workoutItem?.muscleType || i.phaseExercise?.muscleType
+      ).filter((m): m is string => Boolean(m))));
       result.push({
         date,
         muscleGroups,
         exerciseCount: items.length,
         exercises: items.map((i: typeof filtered[0]) => ({
-          name: i.workoutItem.exerciseName,
-          muscleType: i.workoutItem.muscleType,
+          name: i.workoutItem?.exerciseName || i.phaseExercise?.exerciseName || i.completion.exerciseName || "Unknown",
+          muscleType: i.workoutItem?.muscleType || i.phaseExercise?.muscleType || "",
           sets: i.completion.actualSets,
           reps: i.completion.actualReps,
           weight: i.completion.actualWeight
@@ -909,14 +948,17 @@ export class DatabaseStorage implements IStorage {
   async getActivityFeed(gymId: number, memberIds: number[]): Promise<any[]> {
     if (memberIds.length === 0) return [];
     
+    // Use left join to include both cycle and phase exercise completions
     const completions = await db.select({
       completion: workoutCompletions,
       member: users,
-      workoutItem: workoutItems
+      workoutItem: workoutItems,
+      phaseExercise: phaseExercises
     })
     .from(workoutCompletions)
     .innerJoin(users, eq(workoutCompletions.memberId, users.id))
-    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .leftJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .leftJoin(phaseExercises, eq(workoutCompletions.phaseExerciseId, phaseExercises.id))
     .where(inArray(workoutCompletions.memberId, memberIds))
     .orderBy(desc(workoutCompletions.createdAt))
     .limit(50);
@@ -925,7 +967,7 @@ export class DatabaseStorage implements IStorage {
       type: "workout_completed",
       memberName: c.member.username,
       memberId: c.member.id,
-      exerciseName: c.workoutItem.exerciseName,
+      exerciseName: c.workoutItem?.exerciseName || c.phaseExercise?.exerciseName || c.completion.exerciseName || "Unknown",
       date: c.completion.completedDate,
       createdAt: c.completion.createdAt
     }));
@@ -1599,6 +1641,12 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(phaseExercises)
       .where(eq(phaseExercises.phaseId, phaseId))
       .orderBy(phaseExercises.dayIndex, phaseExercises.orderIndex);
+  }
+
+  async getPhaseExercise(exerciseId: number): Promise<PhaseExercise | undefined> {
+    const [exercise] = await db.select().from(phaseExercises)
+      .where(eq(phaseExercises.id, exerciseId));
+    return exercise;
   }
 
   async addPhaseExercise(data: InsertPhaseExercise): Promise<PhaseExercise> {

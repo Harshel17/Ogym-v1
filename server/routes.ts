@@ -650,6 +650,37 @@ export async function registerRoutes(
 
   // === MEMBER WORKOUT ROUTES ===
   app.get("/api/workouts/cycles/my", requireRole(["member"]), async (req, res) => {
+    // Check for active phase with custom exercises first
+    const activePhase = await storage.getActivePhaseForMember(req.user!.id, req.user!.gymId!);
+    if (activePhase && activePhase.useCustomExercises) {
+      const phaseExercises = await storage.getPhaseExercises(activePhase.id);
+      // Return phase data formatted like a cycle
+      return res.json({
+        id: activePhase.id,
+        name: activePhase.name,
+        cycleLength: activePhase.cycleLength || 3,
+        dayLabels: activePhase.dayLabels || [],
+        restDays: activePhase.restDays || [],
+        startDate: activePhase.startDate,
+        endDate: activePhase.endDate,
+        progressionMode: "calendar",
+        currentDayIndex: 0,
+        isPhase: true,
+        items: phaseExercises.map(ex => ({
+          id: ex.id,
+          cycleId: activePhase.id,
+          dayIndex: ex.dayIndex,
+          muscleType: ex.muscleType,
+          bodyPart: ex.bodyPart,
+          exerciseName: ex.exerciseName,
+          sets: ex.sets,
+          reps: ex.reps,
+          weight: ex.weight,
+          orderIndex: ex.orderIndex
+        }))
+      });
+    }
+    
     const cycle = await storage.getMemberCycle(req.user!.id);
     if (!cycle) return res.json(null);
     const items = await storage.getWorkoutItems(cycle.id);
@@ -657,6 +688,53 @@ export async function registerRoutes(
   });
 
   app.get("/api/workouts/today", requireRole(["member"]), async (req, res) => {
+    // Check for active phase with custom exercises first
+    const activePhase = await storage.getActivePhaseForMember(req.user!.id, req.user!.gymId!);
+    if (activePhase && activePhase.useCustomExercises) {
+      const today = new Date();
+      const todayStr = today.toISOString().split("T")[0];
+      const startDate = new Date(activePhase.startDate);
+      const cycleLength = activePhase.cycleLength || 3;
+      const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycleLength : 0;
+      
+      const phaseExercises = await storage.getPhaseExercises(activePhase.id);
+      const todayExercises = phaseExercises.filter(ex => ex.dayIndex === currentDayIndex);
+      
+      // Get completions for today (use negative IDs to distinguish phase exercises)
+      const completions = await storage.getCompletions(req.user!.id, todayStr);
+      const completedNames = new Set(completions.map(c => c.exerciseName));
+      
+      const itemsWithStatus = todayExercises.map(ex => ({
+        id: ex.id,
+        cycleId: activePhase.id,
+        dayIndex: ex.dayIndex,
+        muscleType: ex.muscleType,
+        bodyPart: ex.bodyPart,
+        exerciseName: ex.exerciseName,
+        sets: ex.sets,
+        reps: ex.reps,
+        weight: ex.weight,
+        orderIndex: ex.orderIndex,
+        completed: completedNames.has(ex.exerciseName)
+      }));
+      
+      const dayLabel = activePhase.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
+      const isRestDay = activePhase.restDays?.includes(currentDayIndex) || todayExercises.length === 0;
+      
+      return res.json({
+        items: itemsWithStatus,
+        dayIndex: currentDayIndex,
+        dayLabel,
+        isRestDay,
+        cycleLength,
+        cycleName: activePhase.name,
+        isPhase: true,
+        phaseId: activePhase.id,
+        progressionMode: "calendar"
+      });
+    }
+    
     const cycle = await storage.getMemberCycle(req.user!.id);
     if (!cycle) return res.json({ items: [], message: "No active workout cycle" });
     
@@ -942,6 +1020,204 @@ export async function registerRoutes(
     }
     
     res.status(201).json({ ...completion, askToShare, focusLabel: shareFocusLabel });
+  });
+
+  // Complete a phase exercise
+  app.post("/api/workouts/complete-phase", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({ 
+      phaseExerciseId: z.number(),
+      actualSets: z.number().optional(),
+      actualReps: z.number().optional(),
+      actualWeight: z.string().optional()
+    });
+    const input = schema.parse(req.body);
+    
+    // Get the phase exercise
+    const phaseExercise = await storage.getPhaseExercise(input.phaseExerciseId);
+    if (!phaseExercise) {
+      return res.status(404).json({ message: "Phase exercise not found" });
+    }
+    
+    // Verify the phase belongs to this member
+    const phase = await storage.getTrainingPhaseById(phaseExercise.phaseId);
+    if (!phase || phase.memberId !== req.user!.id) {
+      return res.status(403).json({ message: "Not your workout" });
+    }
+    
+    const today = new Date().toISOString().split("T")[0];
+    
+    // Check for existing completion by exercise name for today
+    const completions = await storage.getCompletions(req.user!.id, today);
+    const existingByName = completions.find(c => c.exerciseName === phaseExercise.exerciseName);
+    if (existingByName) {
+      return res.json({ message: "Already completed", id: existingByName.id });
+    }
+    
+    // Create a completion record for phase exercise
+    const completion = await storage.completePhaseExercise({
+      gymId: req.user!.gymId!,
+      phaseExerciseId: input.phaseExerciseId,
+      memberId: req.user!.id,
+      completedDate: today,
+      exerciseName: phaseExercise.exerciseName,
+      actualSets: input.actualSets || phaseExercise.sets,
+      actualReps: input.actualReps || phaseExercise.reps,
+      actualWeight: input.actualWeight || phaseExercise.weight
+    });
+    
+    // Calculate current day index for session
+    const startDate = new Date(phase.startDate);
+    const todayDate = new Date(today);
+    const cycleLength = phase.cycleLength || 3;
+    const daysSinceStart = Math.floor((todayDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycleLength : 0;
+    
+    // Get focus label from phase
+    const phaseExercises = await storage.getPhaseExercises(phase.id);
+    const todayExercises = phaseExercises.filter(ex => ex.dayIndex === currentDayIndex);
+    const muscleTypes = [...new Set(todayExercises.map(i => i.muscleType).filter(Boolean))];
+    const focusLabel = muscleTypes.join(" + ") || phase.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
+    
+    // Create/update workout session
+    const session = await storage.getOrCreateWorkoutSession({
+      gymId: req.user!.gymId!,
+      memberId: req.user!.id,
+      date: today,
+      cycleId: phase.id,
+      cycleDayIndex: currentDayIndex,
+      focusLabel
+    });
+    
+    // Add exercise to session
+    await storage.addWorkoutSessionExercise({
+      sessionId: session.id,
+      exerciseName: phaseExercise.exerciseName,
+      sets: input.actualSets || phaseExercise.sets,
+      reps: input.actualReps || phaseExercise.reps,
+      weight: input.actualWeight || phaseExercise.weight || null
+    });
+    
+    // Auto-mark attendance
+    const existingAttendance = await storage.getAttendanceByMemberDate(req.user!.id, today);
+    if (!existingAttendance) {
+      await storage.markAttendance({
+        gymId: req.user!.gymId!,
+        memberId: req.user!.id,
+        date: today,
+        status: "present",
+        verifiedMethod: "workout",
+        markedByUserId: req.user!.id
+      });
+    } else if (existingAttendance.verifiedMethod === "qr") {
+      await storage.updateAttendanceMethod(existingAttendance.id, "both");
+    }
+    
+    // Check if we should ask user to share on feed
+    let askToShare = false;
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (user?.autoPostEnabled !== false) {
+        const todayCompletions = await storage.getCompletions(req.user!.id, today);
+        if (todayCompletions.length === 1) {
+          askToShare = true;
+        }
+      }
+    } catch (feedErr) {
+      console.error("Error checking feed post status:", feedErr);
+    }
+    
+    res.status(201).json({ ...completion, askToShare, focusLabel });
+  });
+
+  // Complete all phase exercises for today
+  app.post("/api/workouts/complete-phase-all", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({ phaseExerciseIds: z.array(z.number()) });
+    const input = schema.parse(req.body);
+    
+    const today = new Date().toISOString().split("T")[0];
+    const completions = [];
+    let session: any = null;
+    let phase: any = null;
+    
+    for (const phaseExerciseId of input.phaseExerciseIds) {
+      const phaseExercise = await storage.getPhaseExercise(phaseExerciseId);
+      if (!phaseExercise) continue;
+      
+      if (!phase) {
+        phase = await storage.getTrainingPhaseById(phaseExercise.phaseId);
+        if (!phase || phase.memberId !== req.user!.id) continue;
+      }
+      
+      // Check if already completed by exercise name
+      const existingCompletions = await storage.getCompletions(req.user!.id, today);
+      const alreadyDone = existingCompletions.find(c => c.exerciseName === phaseExercise.exerciseName);
+      if (alreadyDone) continue;
+      
+      const completion = await storage.completePhaseExercise({
+        gymId: req.user!.gymId!,
+        phaseExerciseId: phaseExerciseId,
+        memberId: req.user!.id,
+        completedDate: today,
+        exerciseName: phaseExercise.exerciseName,
+        actualSets: phaseExercise.sets,
+        actualReps: phaseExercise.reps,
+        actualWeight: phaseExercise.weight
+      });
+      completions.push(completion);
+      
+      // Create workout session on first completion
+      if (!session && phase) {
+        const startDate = new Date(phase.startDate);
+        const todayDate = new Date(today);
+        const cycleLength = phase.cycleLength || 3;
+        const daysDiff = Math.floor((todayDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        const currentDayIndex = daysDiff % cycleLength;
+        
+        const phaseExercises = await storage.getPhaseExercises(phase.id);
+        const todayExercises = phaseExercises.filter(ex => ex.dayIndex === currentDayIndex);
+        const muscleTypes = [...new Set(todayExercises.map(i => i.muscleType).filter(Boolean))];
+        const focusLabel = muscleTypes.join(" + ") || phase.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
+        
+        session = await storage.getOrCreateWorkoutSession({
+          gymId: req.user!.gymId!,
+          memberId: req.user!.id,
+          date: today,
+          cycleId: phase.id,
+          cycleDayIndex: currentDayIndex,
+          focusLabel
+        });
+      }
+      
+      // Add exercise to session
+      if (session) {
+        await storage.addWorkoutSessionExercise({
+          sessionId: session.id,
+          exerciseName: phaseExercise.exerciseName,
+          sets: phaseExercise.sets,
+          reps: phaseExercise.reps,
+          weight: phaseExercise.weight || null
+        });
+      }
+    }
+    
+    // Auto-mark attendance if any completed
+    if (completions.length > 0) {
+      const existingAttendance = await storage.getAttendanceByMemberDate(req.user!.id, today);
+      if (!existingAttendance) {
+        await storage.markAttendance({
+          gymId: req.user!.gymId!,
+          memberId: req.user!.id,
+          date: today,
+          status: "present",
+          verifiedMethod: "workout",
+          markedByUserId: req.user!.id
+        });
+      } else if (existingAttendance.verifiedMethod === "qr") {
+        await storage.updateAttendanceMethod(existingAttendance.id, "both");
+      }
+    }
+    
+    res.status(201).json({ completed: completions.length, total: input.phaseExerciseIds.length });
   });
 
   app.post("/api/workouts/complete-all", requireRole(["member"]), async (req, res) => {

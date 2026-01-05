@@ -145,10 +145,12 @@ export const workoutItems = pgTable("workout_items", {
 export const workoutCompletions = pgTable("workout_completions", {
   id: serial("id").primaryKey(),
   gymId: integer("gym_id").references(() => gyms.id).notNull(),
-  cycleId: integer("cycle_id").references(() => workoutCycles.id).notNull(),
-  workoutItemId: integer("workout_item_id").references(() => workoutItems.id).notNull(),
+  cycleId: integer("cycle_id"), // Can be workout cycle or training phase ID
+  workoutItemId: integer("workout_item_id").references(() => workoutItems.id), // Null for phase exercises
+  phaseExerciseId: integer("phase_exercise_id").references(() => phaseExercises.id), // For phase exercises
   memberId: integer("member_id").references(() => users.id).notNull(),
   completedDate: text("completed_date").notNull(),
+  exerciseName: text("exercise_name"), // Stores exercise name for both cycle and phase exercises
   actualSets: integer("actual_sets"),
   actualReps: integer("actual_reps"),
   actualWeight: text("actual_weight"),
