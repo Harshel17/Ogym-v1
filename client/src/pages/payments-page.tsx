@@ -188,9 +188,63 @@ function OwnerPaymentsView() {
 }
 
 function MembersNeedSubscriptionSection() {
+  const { toast } = useToast();
+  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
+  const [selectedMemberName, setSelectedMemberName] = useState<string>("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  
   const { data: members = [], isLoading } = useQuery<{ id: number; username: string; publicId: string | null; createdAt: string | null }[]>({
     queryKey: ["/api/owner/members-need-subscription"]
   });
+
+  const { data: plans = [] } = useQuery<MembershipPlan[]>({
+    queryKey: ["/api/owner/membership-plans"]
+  });
+
+  const activePlans = plans.filter(p => p.isActive);
+
+  const createSubscriptionMutation = useMutation({
+    mutationFn: async (data: { memberId: number; planId: number; startDate: string }) => {
+      return apiRequest("POST", "/api/owner/subscriptions", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/members-need-subscription"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/subscription-alerts"] });
+      setDialogOpen(false);
+      setSelectedMemberId(null);
+      toast({ title: "Subscription assigned successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to assign subscription", variant: "destructive" });
+    }
+  });
+
+  const formSchema = z.object({
+    planId: z.coerce.number().min(1, "Please select a plan"),
+    startDate: z.string().min(1, "Start date is required")
+  });
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { planId: 0, startDate: new Date().toISOString().split('T')[0] }
+  });
+
+  const onSubmit = (data: z.infer<typeof formSchema>) => {
+    if (!selectedMemberId) return;
+    createSubscriptionMutation.mutate({
+      memberId: selectedMemberId,
+      planId: data.planId,
+      startDate: data.startDate
+    });
+  };
+
+  const handleAssignClick = (memberId: number, memberName: string) => {
+    setSelectedMemberId(memberId);
+    setSelectedMemberName(memberName);
+    form.reset({ planId: 0, startDate: new Date().toISOString().split('T')[0] });
+    setDialogOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -203,40 +257,111 @@ function MembersNeedSubscriptionSection() {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap pb-4">
-        <div>
-          <CardTitle>Members Needing Subscription</CardTitle>
-          <CardDescription>These members don't have a subscription set up yet</CardDescription>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {members.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            All members have subscriptions set up
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap pb-4">
+          <div>
+            <CardTitle>Members Needing Subscription</CardTitle>
+            <CardDescription>These members don't have a subscription set up yet</CardDescription>
           </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Member</TableHead>
-                <TableHead>Public ID</TableHead>
-                <TableHead>Joined</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.map((member) => (
-                <TableRow key={member.id} data-testid={`row-member-need-sub-${member.id}`}>
-                  <TableCell className="font-medium">{member.username}</TableCell>
-                  <TableCell>{member.publicId || '-'}</TableCell>
-                  <TableCell>{member.createdAt ? format(new Date(member.createdAt), 'MMM d, yyyy') : '-'}</TableCell>
+        </CardHeader>
+        <CardContent>
+          {members.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              All members have subscriptions set up
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Member</TableHead>
+                  <TableHead>Public ID</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {members.map((member) => (
+                  <TableRow key={member.id} data-testid={`row-member-need-sub-${member.id}`}>
+                    <TableCell className="font-medium">{member.username}</TableCell>
+                    <TableCell>{member.publicId || '-'}</TableCell>
+                    <TableCell>{member.createdAt ? format(new Date(member.createdAt), 'MMM d, yyyy') : '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <Button 
+                        size="sm" 
+                        onClick={() => handleAssignClick(member.id, member.username)}
+                        data-testid={`button-assign-sub-${member.id}`}
+                      >
+                        <Plus className="w-4 h-4 mr-1" /> Assign
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Subscription</DialogTitle>
+            <DialogDescription>Create a subscription for {selectedMemberName}</DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+              <FormField
+                control={form.control}
+                name="planId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Membership Plan</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value?.toString()}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-plan-quick">
+                          <SelectValue placeholder="Select a plan" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {activePlans.map((plan) => (
+                          <SelectItem key={plan.id} value={plan.id.toString()}>
+                            {plan.name} - {formatINR(plan.priceAmount)} ({plan.durationMonths} month{plan.durationMonths > 1 ? 's' : ''})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} data-testid="input-start-date-quick" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-end gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createSubscriptionMutation.isPending} data-testid="button-confirm-assign">
+                  {createSubscriptionMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Assign Subscription
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
