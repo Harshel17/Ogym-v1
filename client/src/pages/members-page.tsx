@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Shield, Check, X, Minus, Star, Loader2, ExternalLink, Dumbbell, Calendar, Layers, Moon } from "lucide-react";
+import { Search, Shield, Check, X, Minus, Star, Loader2, ExternalLink, Dumbbell, Calendar, Layers, Moon, UserPlus, CreditCard, Users, AlertCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -56,6 +56,7 @@ export default function MembersPage() {
   const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "starred">("all");
+  const [ownerTab, setOwnerTab] = useState<"all" | "new">("all");
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
   const [selectedMemberName, setSelectedMemberName] = useState<string>("");
   
@@ -118,10 +119,20 @@ export default function MembersPage() {
     );
   }
 
+  const newMembers = (ownerMembersDetails as MemberDetail[]).filter((m: any) => 
+    !m.trainerName || m.paymentStatus === "pending" || m.paymentStatus === null
+  );
+
   const filteredMembers = members.filter((m: any) => {
     const matchesSearch = m.username?.toLowerCase().includes(search.toLowerCase()) || 
       m.role?.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = filter === "all" || (filter === "starred" && starMemberIds.has(m.id));
+    
+    if (isOwner && ownerTab === "new") {
+      const isNewMember = !m.trainerName || m.paymentStatus === "pending" || m.paymentStatus === null;
+      return matchesSearch && isNewMember;
+    }
+    
     return matchesSearch && matchesFilter;
   });
   
@@ -149,31 +160,63 @@ export default function MembersPage() {
 
       <Card className="dashboard-card">
         <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search members..."
-                className="pl-8"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                data-testid="input-search-members"
-              />
-            </div>
-            {isTrainer && (
-              <Tabs value={filter} onValueChange={(v) => setFilter(v as "all" | "starred")} className="w-auto">
-                <TabsList>
-                  <TabsTrigger value="all" data-testid="tab-all-members">All</TabsTrigger>
-                  <TabsTrigger value="starred" data-testid="tab-starred-members">
-                    <Star className="w-3 h-3 mr-1 fill-yellow-500 text-yellow-500" />
-                    Starred
+          <div className="flex flex-col gap-4">
+            {isOwner && (
+              <Tabs value={ownerTab} onValueChange={(v) => setOwnerTab(v as "all" | "new")} className="w-full">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="all" data-testid="tab-all-members" className="gap-2">
+                    <Users className="w-4 h-4" />
+                    All Members
+                  </TabsTrigger>
+                  <TabsTrigger value="new" data-testid="tab-new-members" className="gap-2">
+                    <UserPlus className="w-4 h-4" />
+                    New Members
+                    {newMembers.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 text-xs">{newMembers.length}</Badge>
+                    )}
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
             )}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search members..."
+                  className="pl-8"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  data-testid="input-search-members"
+                />
+              </div>
+              {isTrainer && (
+                <Tabs value={filter} onValueChange={(v) => setFilter(v as "all" | "starred")} className="w-auto">
+                  <TabsList>
+                    <TabsTrigger value="all" data-testid="tab-all-members">All</TabsTrigger>
+                    <TabsTrigger value="starred" data-testid="tab-starred-members">
+                      <Star className="w-3 h-3 mr-1 fill-yellow-500 text-yellow-500" />
+                      Starred
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
+          {isOwner && ownerTab === "new" && (
+            <div className="mb-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-sm">New Members Need Setup</h4>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    These members need a trainer assigned or have pending payments. Click on a member row to view details, or use the actions to assign a trainer.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="rounded-md border border-border overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/50">
@@ -195,7 +238,11 @@ export default function MembersPage() {
                 ) : filteredMembers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={isOwner ? 6 : 2} className="h-24 text-center text-muted-foreground">
-                      {isTrainer ? "No members assigned to you yet." : "No members found."}
+                      {isTrainer 
+                        ? "No members assigned to you yet." 
+                        : isOwner && ownerTab === "new"
+                          ? "All members have trainers assigned and payments set up."
+                          : "No members found."}
                     </TableCell>
                   </TableRow>
                 ) : (
