@@ -1035,7 +1035,7 @@ function TrainingPhasesTab({ memberId, memberName, currentCycleName, currentCycl
       )}
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Training Phase</DialogTitle>
           </DialogHeader>
