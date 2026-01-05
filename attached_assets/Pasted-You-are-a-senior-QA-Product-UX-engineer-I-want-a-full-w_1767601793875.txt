@@ -1,0 +1,136 @@
+You are a senior QA + Product UX engineer.
+
+I want a full “workflow audit” of OGym from 3 perspectives:
+1) Gym Owner
+2) Trainer
+3) Member
+
+Goal:
+Go through EVERY workflow end-to-end using the existing UI (web + mobile if available), using the seeded demo data, and identify:
+- confusion points
+- broken flows / dead ends
+- inconsistent wording
+- missing validations
+- poor UX (too many clicks, unclear buttons)
+- performance bottlenecks
+- security/permission issues (role or gym isolation mistakes)
+- data mismatches (stats not matching history)
+
+IMPORTANT:
+- Do NOT change features yet.
+- First produce an AUDIT REPORT.
+- After the report, propose a prioritized fix list (P0/P1/P2) and then implement only P0 fixes if I approve.
+
+SETUP:
+- Use the DEMO database + seeded gym.
+- Use provided demo credentials (admin/owner/trainer/member).
+- If credentials are not obvious, print which demo users you are using before testing.
+
+WHAT TO TEST (MUST COVER ALL):
+OWNER WORKFLOWS:
+- Owner login + dashboard stats cards drill-down (members, check-ins, revenue, pending payments)
+- Gym settings/profile
+- Membership plans creation/edit
+- Member management: list, search/filter, view member details, payment history
+- Assign trainer to member + verify assignment history
+- Handle join requests + approvals/rejections
+- Handle transfer requests in/out (if feature exists)
+- Attendance: daily view + patterns/analytics
+- Payments:
+  - record payment
+  - record partial/EMI payment
+  - view outstanding balances
+  - monthly revenue analytics chart
+- Announcements: create, publish, read tracking
+- Export CSV/PDF where available
+
+TRAINER WORKFLOWS:
+- Trainer login + dashboard
+- Assigned members list + member profile view
+- Star members + notes
+- Create workout cycle/program
+  - add rest days properly
+  - assign cycle to members with trainer-chosen start date
+  - assign some members calendar mode, some completion mode (if supported)
+- Verify workouts tab:
+  - today workout
+  - mark exercise complete
+  - edit sets/reps only via Edit mode
+  - verify history view
+- Diet plans (if present): create/assign, member view
+- Missed workouts view: partial vs full missed
+- Phases:
+  - create Phase 1 with start/end date + cycle + optional diet plan
+  - move to Phase 2
+  - verify phase analytics page works
+- View announcements + notifications/badges
+- Export data where available
+
+MEMBER WORKFLOWS:
+- Member login + dashboard
+- Today’s workout clarity
+- Mark workouts done + partial completion behavior (earned/planned points)
+- Workouts tab: pull-down to see completed workouts; verify done/in-progress badges
+- Edit sets/reps only when Edit is enabled
+- Streak behavior:
+  - increases only on workout completion
+  - rest day is neutral (doesn’t break streak)
+- Calendar:
+  - statuses show correctly (DONE / IN PROGRESS / MISSED / REST)
+- Progress:
+  - weekly/monthly “days I hit gym” count is accurate (unique days, not exercises)
+  - phases list + open Phase 1 stats + measurement deltas
+- Body measurements: add entry + chart trend
+- Payments: view subscription, payment history, outstanding balance
+- Transfers/join requests if member can request
+- Feed:
+  - see posts, workout completions, achievements
+  - tournament updates
+- Tournaments:
+  - view leaderboard
+  - verify scoring fairness (cap points per calendar day)
+- Notifications/badges
+
+OUTPUT FORMAT (VERY IMPORTANT):
+Produce a single report in markdown with these sections:
+
+A) Executive Summary
+- Top 5 biggest UX/workflow issues
+
+B) Owner Audit
+- Flow-by-flow checklist with PASS/FAIL
+- Confusions + suggested copy/UI fixes
+- Bugs found + exact page/route/component name
+- Data integrity issues
+
+C) Trainer Audit
+(same structure)
+
+D) Member Audit
+(same structure)
+
+E) Permissions & Security Audit
+- any endpoint UI exposure problems
+- role leakage
+- gym isolation checks
+- admin access risks
+
+F) Data Consistency Audit
+- streak vs attendance vs points vs “days hit gym”
+- phase analytics correctness
+- rest day handling
+- missed workouts correctness
+
+G) Performance Audit
+- slow pages, large queries, heavy loading
+- recommended optimizations
+
+H) Fix Plan (Prioritized)
+- P0 (must fix before demo)
+- P1 (should fix)
+- P2 (nice to have)
+For each item include: location, change idea, and expected impact.
+
+AFTER generating the report, ask me:
+“Do you want me to implement P0 fixes now?”
+Do NOT implement changes until I say yes.
