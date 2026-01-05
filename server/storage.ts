@@ -366,6 +366,7 @@ export interface IStorage {
   
   // Subscription Alerts
   getSubscriptionAlerts(gymId: number): Promise<{ active: number; endingSoon: number; overdue: number; needSubscription: number }>;
+  getMembersNeedingSubscription(gymId: number): Promise<{ id: number; username: string; publicId: string | null; createdAt: Date | null }[]>;
   updateExpiredSubscriptions(gymId: number): Promise<void>;
   
   // Member Analytics
@@ -3450,6 +3451,25 @@ export class DatabaseStorage implements IStorage {
     }
     
     return { active, endingSoon, overdue, needSubscription };
+  }
+
+  async getMembersNeedingSubscription(gymId: number): Promise<{ id: number; username: string; publicId: string | null; createdAt: Date | null }[]> {
+    const allMembers = await db.select().from(users)
+      .where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+    
+    const subs = await db.select().from(memberSubscriptions)
+      .where(eq(memberSubscriptions.gymId, gymId));
+    
+    const memberIdsWithSub = new Set(subs.map(s => s.memberId));
+    
+    return allMembers
+      .filter(m => !memberIdsWithSub.has(m.id))
+      .map(m => ({
+        id: m.id,
+        username: m.username,
+        publicId: m.publicId,
+        createdAt: m.createdAt
+      }));
   }
 
   async updateExpiredSubscriptions(gymId: number): Promise<void> {

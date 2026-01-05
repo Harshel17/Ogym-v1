@@ -163,23 +163,80 @@ function OwnerPaymentsView() {
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
-          <TabsTrigger value="subscriptions" data-testid="tab-subscriptions">Subscriptions</TabsTrigger>
-          <TabsTrigger value="outstanding" data-testid="tab-outstanding">Outstanding</TabsTrigger>
-          <TabsTrigger value="plans" data-testid="tab-plans">Plans</TabsTrigger>
-        </TabsList>
-        <TabsContent value="subscriptions" className="mt-6">
-          <SubscriptionsTab statusFilter={statusFilter} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-        </TabsContent>
-        <TabsContent value="outstanding" className="mt-6">
-          <OutstandingPaymentsTab />
-        </TabsContent>
-        <TabsContent value="plans" className="mt-6">
-          <PlansTab />
-        </TabsContent>
-      </Tabs>
+      {statusFilter === 'needSubscription' ? (
+        <MembersNeedSubscriptionSection />
+      ) : (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full max-w-lg grid-cols-3">
+            <TabsTrigger value="subscriptions" data-testid="tab-subscriptions">Subscriptions</TabsTrigger>
+            <TabsTrigger value="outstanding" data-testid="tab-outstanding">Outstanding</TabsTrigger>
+            <TabsTrigger value="plans" data-testid="tab-plans">Plans</TabsTrigger>
+          </TabsList>
+          <TabsContent value="subscriptions" className="mt-6">
+            <SubscriptionsTab statusFilter={statusFilter} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+          </TabsContent>
+          <TabsContent value="outstanding" className="mt-6">
+            <OutstandingPaymentsTab />
+          </TabsContent>
+          <TabsContent value="plans" className="mt-6">
+            <PlansTab />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
+  );
+}
+
+function MembersNeedSubscriptionSection() {
+  const { data: members = [], isLoading } = useQuery<{ id: number; username: string; publicId: string | null; createdAt: string | null }[]>({
+    queryKey: ["/api/owner/members-need-subscription"]
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap pb-4">
+        <div>
+          <CardTitle>Members Needing Subscription</CardTitle>
+          <CardDescription>These members don't have a subscription set up yet</CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {members.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            All members have subscriptions set up
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Member</TableHead>
+                <TableHead>Public ID</TableHead>
+                <TableHead>Joined</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {members.map((member) => (
+                <TableRow key={member.id} data-testid={`row-member-need-sub-${member.id}`}>
+                  <TableCell className="font-medium">{member.username}</TableCell>
+                  <TableCell>{member.publicId || '-'}</TableCell>
+                  <TableCell>{member.createdAt ? format(new Date(member.createdAt), 'MMM d, yyyy') : '-'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

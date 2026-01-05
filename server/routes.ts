@@ -386,6 +386,12 @@ export async function registerRoutes(
     res.json(alerts);
   });
 
+  // Members needing subscription
+  app.get("/api/owner/members-need-subscription", requireRole(["owner"]), async (req, res) => {
+    const members = await storage.getMembersNeedingSubscription(req.user!.gymId!);
+    res.json(members);
+  });
+
   // Member subscription view (read-only for members)
   app.get("/api/member/subscription", requireRole(["member"]), async (req, res) => {
     const sub = await storage.getMemberSubscription(req.user!.id);
