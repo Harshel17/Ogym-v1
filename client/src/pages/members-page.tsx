@@ -353,7 +353,7 @@ function MemberWorkoutDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Dumbbell className="w-5 h-5" />
@@ -361,7 +361,7 @@ function MemberWorkoutDialog({
           </DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 overflow-y-auto pr-2" style={{ maxHeight: "calc(85vh - 120px)" }}>
           {isLoading ? (
             <div className="space-y-4 p-4">
               <div className="h-20 bg-muted animate-pulse rounded" />
@@ -615,7 +615,7 @@ function MemberWorkoutDialog({
               )}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
