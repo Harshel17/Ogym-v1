@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil, Trash2, Search, X, Moon } from "lucide-react";
+import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil, Trash2, Search, X, Moon, Settings2, PlusCircle, MinusCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -271,20 +271,71 @@ export default function TrainerWorkoutPage() {
 
 function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
   const member = members.find(m => m.id === cycle.memberId);
-  const cycleLength = cycle.cycleLength || 3;
   const updateLabelsMutation = useUpdateDayLabels();
   const updateRestDaysMutation = useUpdateRestDays();
   
-  const initialLabels = cycle.dayLabels || Array.from({ length: cycleLength }, () => "");
+  const initialCycleLength = cycle.cycleLength || 3;
+  const initialLabels = cycle.dayLabels || Array.from({ length: initialCycleLength }, () => "");
   const initialRestDays = cycle.restDays || [];
+  const [localCycleLength, setLocalCycleLength] = useState<number>(initialCycleLength);
   const [dayLabels, setDayLabels] = useState<string[]>(initialLabels);
   const [restDays, setRestDays] = useState<number[]>(initialRestDays);
   const [editingDay, setEditingDay] = useState<number | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  
+  // Use local state for cycleLength after mutations, fall back to prop
+  const cycleLength = localCycleLength;
   
   useEffect(() => {
-    setDayLabels(cycle.dayLabels || Array.from({ length: cycleLength }, () => ""));
+    setLocalCycleLength(cycle.cycleLength || 3);
+    setDayLabels(cycle.dayLabels || Array.from({ length: cycle.cycleLength || 3 }, () => ""));
     setRestDays(cycle.restDays || []);
-  }, [cycle.id, cycle.dayLabels, cycle.restDays, cycleLength]);
+  }, [cycle.id, cycle.cycleLength, cycle.dayLabels, cycle.restDays]);
+
+  const addDayMutation = useMutation({
+    mutationFn: async (data: { cycleId: number; dayLabel?: string; position?: number }) => {
+      const res = await apiRequest("POST", `/api/trainer/cycles/${data.cycleId}/add-day`, {
+        dayLabel: data.dayLabel || "",
+        position: data.position
+      });
+      return res.json();
+    },
+    onSuccess: (updatedCycle) => {
+      // Update local state immediately with server response
+      if (updatedCycle && updatedCycle.cycleLength) {
+        setLocalCycleLength(updatedCycle.cycleLength);
+      }
+      if (updatedCycle && updatedCycle.dayLabels) {
+        setDayLabels(updatedCycle.dayLabels);
+      }
+      if (updatedCycle && updatedCycle.restDays) {
+        setRestDays(updatedCycle.restDays);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/cycles", cycle.id, "items"] });
+    },
+  });
+
+  const removeDayMutation = useMutation({
+    mutationFn: async (data: { cycleId: number; dayIndex: number }) => {
+      const res = await apiRequest("DELETE", `/api/trainer/cycles/${data.cycleId}/remove-day/${data.dayIndex}`);
+      return res.json();
+    },
+    onSuccess: (updatedCycle) => {
+      // Update local state immediately with server response
+      if (updatedCycle && updatedCycle.cycleLength) {
+        setLocalCycleLength(updatedCycle.cycleLength);
+      }
+      if (updatedCycle && updatedCycle.dayLabels) {
+        setDayLabels(updatedCycle.dayLabels);
+      }
+      if (updatedCycle && updatedCycle.restDays) {
+        setRestDays(updatedCycle.restDays);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trainer/cycles", cycle.id, "items"] });
+    },
+  });
   
   const toggleRestDay = (dayIndex: number) => {
     const previousRestDays = [...restDays];
@@ -369,7 +420,18 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
             {cycle.startDate} to {cycle.endDate}
           </p>
         </div>
-        <AddWorkoutDialog cycleId={cycle.id} cycleLength={cycleLength} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant={isEditMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setIsEditMode(!isEditMode)}
+            data-testid="button-toggle-edit-mode"
+          >
+            <Settings2 className="w-4 h-4 mr-1" />
+            {isEditMode ? "Done" : "Edit"}
+          </Button>
+          <AddWorkoutDialog cycleId={cycle.id} cycleLength={cycleLength} />
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -378,31 +440,45 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
               <div key={i} className="h-12 bg-muted animate-pulse rounded" />
             ))}
           </div>
-        ) : totalExercises === 0 ? (
+        ) : totalExercises === 0 && !isEditMode ? (
           <div className="text-center py-8 bg-muted/30 rounded-lg">
             <Dumbbell className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-muted-foreground">No exercises added yet.</p>
-            <p className="text-sm text-muted-foreground">Click "Add Exercise" to get started.</p>
+            <p className="text-sm text-muted-foreground">Click "Add Exercise" to get started, or "Edit" to manage days.</p>
           </div>
         ) : (
           <Tabs defaultValue={daysWithExercises[0]?.dayIndex.toString() || "0"} className="w-full">
-            <TabsList className="w-full flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
-              {itemsByDay.map(({ shortLabel, dayIndex, exercises, isRestDay }) => (
-                <TabsTrigger 
-                  key={dayIndex} 
-                  value={dayIndex.toString()}
-                  disabled={exercises.length === 0 && !isRestDay}
-                  className="flex-1 min-w-[50px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                  data-testid={`tab-day-${dayIndex}`}
+            <div className="flex items-center gap-2 flex-wrap">
+              <TabsList className="flex-1 flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
+                {itemsByDay.map(({ shortLabel, dayIndex, exercises, isRestDay }) => (
+                  <TabsTrigger 
+                    key={dayIndex} 
+                    value={dayIndex.toString()}
+                    disabled={exercises.length === 0 && !isRestDay}
+                    className="flex-1 min-w-[50px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                    data-testid={`tab-day-${dayIndex}`}
+                  >
+                    {isRestDay && <Moon className="w-3 h-3 mr-1" />}
+                    <span className="text-xs">{shortLabel}</span>
+                    {exercises.length > 0 && !isRestDay && (
+                      <span className="ml-1 text-[10px] opacity-70">({exercises.length})</span>
+                    )}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {isEditMode && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => addDayMutation.mutate({ cycleId: cycle.id })}
+                  disabled={addDayMutation.isPending}
+                  data-testid="button-add-day"
                 >
-                  {isRestDay && <Moon className="w-3 h-3 mr-1" />}
-                  <span className="text-xs">{shortLabel}</span>
-                  {exercises.length > 0 && !isRestDay && (
-                    <span className="ml-1 text-[10px] opacity-70">({exercises.length})</span>
-                  )}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+                  <PlusCircle className="w-4 h-4 mr-1" />
+                  Add Day
+                </Button>
+              )}
+            </div>
             {itemsByDay.map(({ dayLabel, customLabel, dayIndex, exercises, isRestDay }) => (
               <TabsContent key={dayIndex} value={dayIndex.toString()} className="mt-4">
                 <div className="space-y-2">
@@ -443,6 +519,40 @@ function CycleDetailView({ cycle, members }: { cycle: any; members: any[] }) {
                         onCheckedChange={() => toggleRestDay(dayIndex)}
                         data-testid={`switch-rest-day-${dayIndex}`}
                       />
+                      {isEditMode && cycleLength > 1 && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="ml-2"
+                              data-testid={`button-remove-day-${dayIndex}`}
+                            >
+                              <MinusCircle className="w-4 h-4 mr-1" />
+                              Remove Day
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remove Day {dayIndex + 1}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to remove "{dayLabel}"? This will delete all exercises on this day. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => removeDayMutation.mutate({ cycleId: cycle.id, dayIndex })}
+                                disabled={removeDayMutation.isPending}
+                                className="bg-destructive text-destructive-foreground"
+                                data-testid={`button-confirm-remove-day-${dayIndex}`}
+                              >
+                                {removeDayMutation.isPending ? "Removing..." : "Remove"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   </div>
                   {exercises.length === 0 ? (

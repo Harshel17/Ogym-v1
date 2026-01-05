@@ -724,8 +724,9 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(workoutItems.cycleId, cycleId), gte(workoutItems.dayIndex, fromDayIndex)));
     
     for (const item of items) {
+      const newDayIndex = Math.max(0, item.dayIndex + shiftAmount);
       await db.update(workoutItems)
-        .set({ dayIndex: item.dayIndex + shiftAmount })
+        .set({ dayIndex: newDayIndex })
         .where(eq(workoutItems.id, item.id));
     }
   }
