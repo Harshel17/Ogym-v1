@@ -5497,13 +5497,13 @@ export class DatabaseStorage implements IStorage {
     return { attendanceStreak, workoutStreak };
   }
 
-  async getWorkoutSession(sessionId: number): Promise<typeof workoutSessions.$inferSelect | null> {
+  async getWorkoutSessionById(sessionId: number): Promise<typeof workoutSessions.$inferSelect | null> {
     const [session] = await db.select().from(workoutSessions)
       .where(eq(workoutSessions.id, sessionId));
     return session || null;
   }
 
-  async getWorkoutExercise(exerciseId: number): Promise<typeof workoutSessionExercises.$inferSelect | null> {
+  async getWorkoutExerciseById(exerciseId: number): Promise<typeof workoutSessionExercises.$inferSelect | null> {
     const [exercise] = await db.select().from(workoutSessionExercises)
       .where(eq(workoutSessionExercises.id, exerciseId));
     return exercise || null;

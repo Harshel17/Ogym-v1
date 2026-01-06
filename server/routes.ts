@@ -4622,7 +4622,7 @@ export async function registerRoutes(
       });
       const input = schema.parse(req.body);
       
-      const oldSession = await storage.getWorkoutSession(sessionId);
+      const oldSession = await storage.getWorkoutSessionById(sessionId);
       if (!oldSession) {
         return res.status(404).json({ message: "Session not found" });
       }
@@ -4666,7 +4666,7 @@ export async function registerRoutes(
       });
       const input = schema.parse(req.body);
       
-      const session = await storage.getWorkoutSession(sessionId);
+      const session = await storage.getWorkoutSessionById(sessionId);
       if (!session) {
         return res.status(404).json({ message: "Session not found" });
       }
@@ -4710,7 +4710,7 @@ export async function registerRoutes(
       });
       const input = schema.parse(req.body);
       
-      const session = await storage.getWorkoutSession(sessionId);
+      const session = await storage.getWorkoutSessionById(sessionId);
       if (!session) {
         return res.status(404).json({ message: "Session not found" });
       }
@@ -4763,7 +4763,7 @@ export async function registerRoutes(
       });
       const input = schema.parse(req.body);
       
-      const oldExercise = await storage.getWorkoutExercise(exerciseId);
+      const oldExercise = await storage.getWorkoutExerciseById(exerciseId);
       if (!oldExercise) {
         return res.status(404).json({ message: "Exercise not found" });
       }
@@ -4810,7 +4810,7 @@ export async function registerRoutes(
       });
       const input = schema.parse(req.body);
       
-      const exercise = await storage.getWorkoutExercise(exerciseId);
+      const exercise = await storage.getWorkoutExerciseById(exerciseId);
       if (!exercise) {
         return res.status(404).json({ message: "Exercise not found" });
       }
@@ -4850,7 +4850,7 @@ export async function registerRoutes(
       });
       const input = schema.parse(req.body);
       
-      const session = await storage.getWorkoutSession(sessionId);
+      const session = await storage.getWorkoutSessionById(sessionId);
       if (!session) {
         return res.status(404).json({ message: "Session not found" });
       }
