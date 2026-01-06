@@ -11,16 +11,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Dumbbell } from "lucide-react";
+import { Dumbbell, Mail, ArrowLeft, Loader2 } from "lucide-react";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
+  email: z.string().email("Please enter a valid email"),
   password: z.string().min(1, "Password is required"),
 });
 
 const registerSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Please enter a valid email"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.enum(["owner", "trainer", "member"]),
   gymCode: z.string().optional(),
 }).refine((data) => {
@@ -33,9 +34,22 @@ const registerSchema = z.object({
   path: ["gymCode"],
 });
 
+const verifySchema = z.object({
+  code: z.string().length(6, "Please enter the 6-digit code"),
+});
+
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation } = useAuth();
+  const { 
+    user, 
+    loginMutation, 
+    registerMutation, 
+    verifyEmailMutation,
+    resendCodeMutation,
+    pendingVerification,
+    setPendingVerification,
+  } = useAuth();
   const [, setLocation] = useLocation();
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -43,24 +57,160 @@ export default function AuthPage() {
     }
   }, [user, setLocation]);
 
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { username: "", password: "" },
+    defaultValues: { email: "", password: "" },
   });
 
   const registerForm = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: { 
-      username: "", 
+      email: "", 
       password: "", 
       role: "member",
       gymCode: ""
     },
   });
 
+  const verifyForm = useForm<z.infer<typeof verifySchema>>({
+    resolver: zodResolver(verifySchema),
+    defaultValues: { code: "" },
+  });
+
   const selectedRole = registerForm.watch("role");
 
+  const handleVerifySubmit = (data: z.infer<typeof verifySchema>) => {
+    if (pendingVerification) {
+      verifyEmailMutation.mutate({
+        email: pendingVerification.email,
+        code: data.code,
+      });
+    }
+  };
+
+  const handleResendCode = () => {
+    if (pendingVerification && resendCooldown === 0) {
+      resendCodeMutation.mutate({ email: pendingVerification.email });
+      setResendCooldown(60);
+    }
+  };
+
   if (user) return null;
+
+  if (pendingVerification) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+        <div className="w-full max-w-md">
+          <Card className="border shadow-lg">
+            <CardHeader className="text-center space-y-4">
+              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <Mail className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl">Verify Your Email</CardTitle>
+                <CardDescription className="mt-2">
+                  Enter the 6-digit code sent to<br />
+                  <span className="font-medium text-foreground">{pendingVerification.email}</span>
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Form {...verifyForm}>
+                <form onSubmit={verifyForm.handleSubmit(handleVerifySubmit)} className="space-y-6">
+                  <FormField
+                    control={verifyForm.control}
+                    name="code"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col items-center">
+                        <FormControl>
+                          <InputOTP
+                            maxLength={6}
+                            value={field.value}
+                            onChange={field.onChange}
+                            data-testid="input-otp-code"
+                          >
+                            <InputOTPGroup>
+                              <InputOTPSlot index={0} />
+                              <InputOTPSlot index={1} />
+                              <InputOTPSlot index={2} />
+                              <InputOTPSlot index={3} />
+                              <InputOTPSlot index={4} />
+                              <InputOTPSlot index={5} />
+                            </InputOTPGroup>
+                          </InputOTP>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11" 
+                    disabled={verifyEmailMutation.isPending}
+                    data-testid="button-verify"
+                  >
+                    {verifyEmailMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      "Verify Email"
+                    )}
+                  </Button>
+                </form>
+              </Form>
+
+              <div className="text-center space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Didn't receive the code?
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={resendCooldown > 0 || resendCodeMutation.isPending}
+                  onClick={handleResendCode}
+                  data-testid="button-resend-code"
+                >
+                  {resendCodeMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                  ) : resendCooldown > 0 ? (
+                    `Resend in ${resendCooldown}s`
+                  ) : (
+                    "Resend Code"
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setPendingVerification(null)}
+                  data-testid="button-back-to-login"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Login
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
@@ -91,7 +241,7 @@ export default function AuthPage() {
         </div>
         
         <div className="relative z-20 text-sm text-white/40">
-          © 2024 OGym Inc. All rights reserved.
+          2024 OGym Inc. All rights reserved.
         </div>
       </div>
 
@@ -117,19 +267,25 @@ export default function AuthPage() {
               <Card className="border-none shadow-none bg-transparent">
                 <CardHeader className="px-0 pt-0">
                   <CardTitle className="text-2xl">Welcome back</CardTitle>
-                  <CardDescription>Enter your credentials to access your account</CardDescription>
+                  <CardDescription>Enter your email and password to access your account</CardDescription>
                 </CardHeader>
                 <CardContent className="px-0">
                   <Form {...loginForm}>
                     <form onSubmit={loginForm.handleSubmit((d) => loginMutation.mutate(d))} className="space-y-4">
                       <FormField
                         control={loginForm.control}
-                        name="username"
+                        name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Username</FormLabel>
+                            <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter your username" {...field} className="h-11" data-testid="input-login-username" />
+                              <Input 
+                                type="email"
+                                placeholder="Enter your email" 
+                                {...field} 
+                                className="h-11" 
+                                data-testid="input-login-email" 
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -154,7 +310,14 @@ export default function AuthPage() {
                         disabled={loginMutation.isPending}
                         data-testid="button-login"
                       >
-                        {loginMutation.isPending ? "Signing in..." : "Sign In"}
+                        {loginMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Signing in...
+                          </>
+                        ) : (
+                          "Sign In"
+                        )}
                       </Button>
                     </form>
                   </Form>
@@ -166,19 +329,25 @@ export default function AuthPage() {
               <Card className="border-none shadow-none bg-transparent">
                 <CardHeader className="px-0 pt-0">
                   <CardTitle className="text-2xl">Get started</CardTitle>
-                  <CardDescription>Create a new account to join or manage a gym</CardDescription>
+                  <CardDescription>Create a new account with your email</CardDescription>
                 </CardHeader>
                 <CardContent className="px-0">
                   <Form {...registerForm}>
                     <form onSubmit={registerForm.handleSubmit((d) => registerMutation.mutate(d))} className="space-y-4">
                       <FormField
                         control={registerForm.control}
-                        name="username"
+                        name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Username</FormLabel>
+                            <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input placeholder="Choose a username" {...field} className="h-11" data-testid="input-register-username" />
+                              <Input 
+                                type="email"
+                                placeholder="Enter your email" 
+                                {...field} 
+                                className="h-11" 
+                                data-testid="input-register-email" 
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -191,7 +360,7 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="Create a password" {...field} className="h-11" data-testid="input-register-password" />
+                              <Input type="password" placeholder="Create a password (min 8 characters)" {...field} className="h-11" data-testid="input-register-password" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -249,7 +418,14 @@ export default function AuthPage() {
                         disabled={registerMutation.isPending}
                         data-testid="button-register"
                       >
-                        {registerMutation.isPending ? "Creating account..." : "Create Account"}
+                        {registerMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Creating account...
+                          </>
+                        ) : (
+                          "Create Account"
+                        )}
                       </Button>
                     </form>
                   </Form>

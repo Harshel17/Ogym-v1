@@ -1,8 +1,7 @@
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { User, Gym } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { z } from "zod";
 
 type AuthUser = User & { gym?: Gym | null };
@@ -11,26 +10,39 @@ type AuthContextType = {
   user: AuthUser | null;
   isLoading: boolean;
   error: Error | null;
+  pendingVerification: { email: string } | null;
+  setPendingVerification: (data: { email: string } | null) => void;
   loginMutation: ReturnType<typeof useLoginMutation>;
   logoutMutation: ReturnType<typeof useLogoutMutation>;
   registerMutation: ReturnType<typeof useRegisterMutation>;
+  verifyEmailMutation: ReturnType<typeof useVerifyEmailMutation>;
+  resendCodeMutation: ReturnType<typeof useResendCodeMutation>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const loginInput = z.object({
-  username: z.string(),
+  email: z.string().email(),
   password: z.string(),
 });
 
 const registerInput = z.object({
-  username: z.string(),
+  email: z.string().email(),
   password: z.string(),
   role: z.enum(["owner", "trainer", "member"]),
   gymCode: z.string().optional(),
 });
 
-function useLoginMutation() {
+const verifyEmailInput = z.object({
+  email: z.string().email(),
+  code: z.string().length(6),
+});
+
+const resendCodeInput = z.object({
+  email: z.string().email(),
+});
+
+function useLoginMutation(setPendingVerification: (data: { email: string } | null) => void) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -42,17 +54,28 @@ function useLoginMutation() {
         body: JSON.stringify(credentials),
         credentials: "include",
       });
+      const data = await res.json();
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Login failed");
+        if (res.status === 403 && data.requiresVerification) {
+          return { requiresVerification: true, email: data.email, message: data.message };
+        }
+        throw new Error(data.message || "Login failed");
       }
-      return res.json();
+      return data;
     },
-    onSuccess: (user) => {
-      queryClient.setQueryData(["/api/auth/me"], user);
+    onSuccess: (data) => {
+      if (data.requiresVerification) {
+        setPendingVerification({ email: data.email });
+        toast({
+          title: "Verification Required",
+          description: data.message,
+        });
+        return;
+      }
+      queryClient.setQueryData(["/api/auth/me"], data);
       toast({
         title: "Welcome back!",
-        description: `Logged in as ${user.username}`,
+        description: `Logged in as ${data.email || data.username}`,
       });
     },
     onError: (error: Error) => {
@@ -65,48 +88,106 @@ function useLoginMutation() {
   });
 }
 
-function useRegisterMutation() {
-  const queryClient = useQueryClient();
+function useRegisterMutation(setPendingVerification: (data: { email: string } | null) => void) {
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (data: z.infer<typeof registerInput>) => {
-      const endpoint = data.role === "owner" 
-        ? "/api/auth/register-owner" 
-        : "/api/auth/register-join";
-      
-      const payload = data.role === "owner"
-        ? { username: data.username, password: data.password }
-        : { username: data.username, password: data.password, gymCode: data.gymCode, role: data.role };
-      
-      const res = await fetch(endpoint, {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(data),
         credentials: "include",
       });
+      const result = await res.json();
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Registration failed");
+        throw new Error(result.message || "Registration failed");
       }
-      return res.json();
+      return result;
     },
-    onSuccess: (user) => {
-      queryClient.setQueryData(["/api/auth/me"], user);
-      const isPending = user.pendingJoinRequest;
-      const isOwnerWithoutGym = user.role === "owner" && !user.gymId;
-      toast({
-        title: isPending ? "Request Submitted!" : "Welcome to OGym!",
-        description: isPending 
-          ? "Your request has been submitted and is pending approval."
-          : isOwnerWithoutGym
-            ? "Account created! Please submit your gym details for approval."
-            : "Account created successfully.",
-      });
+    onSuccess: (result) => {
+      if (result.requiresVerification) {
+        setPendingVerification({ email: result.email });
+        toast({
+          title: "Check Your Email",
+          description: "A verification code has been sent to your email.",
+        });
+      }
     },
     onError: (error: Error) => {
       toast({
         title: "Registration failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+function useVerifyEmailMutation(setPendingVerification: (data: { email: string } | null) => void) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: z.infer<typeof verifyEmailInput>) => {
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.message || "Verification failed");
+      }
+      return result;
+    },
+    onSuccess: (result) => {
+      setPendingVerification(null);
+      if (result.user) {
+        queryClient.setQueryData(["/api/auth/me"], result.user);
+      }
+      toast({
+        title: "Email Verified!",
+        description: "Welcome to OGym!",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Verification failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+function useResendCodeMutation() {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: z.infer<typeof resendCodeInput>) => {
+      const res = await fetch("/api/auth/resend-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.message || "Failed to resend code");
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Code Sent",
+        description: "A new verification code has been sent to your email.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to resend code",
         description: error.message,
         variant: "destructive",
       });
@@ -145,6 +226,8 @@ function useLogoutMutation() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [pendingVerification, setPendingVerification] = useState<{ email: string } | null>(null);
+
   const {
     data: user,
     error,
@@ -160,9 +243,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     retry: false,
   });
 
-  const loginMutation = useLoginMutation();
+  const loginMutation = useLoginMutation(setPendingVerification);
   const logoutMutation = useLogoutMutation();
-  const registerMutation = useRegisterMutation();
+  const registerMutation = useRegisterMutation(setPendingVerification);
+  const verifyEmailMutation = useVerifyEmailMutation(setPendingVerification);
+  const resendCodeMutation = useResendCodeMutation();
 
   return (
     <AuthContext.Provider
@@ -170,9 +255,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: user ?? null,
         isLoading,
         error: error as Error | null,
+        pendingVerification,
+        setPendingVerification,
         loginMutation,
         logoutMutation,
         registerMutation,
+        verifyEmailMutation,
+        resendCodeMutation,
       }}
     >
       {children}
