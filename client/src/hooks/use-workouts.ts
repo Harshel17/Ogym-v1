@@ -169,6 +169,8 @@ export function useCompleteWorkout(onAskToShare?: (focusLabel: string) => void) 
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/stats/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/daily-points'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/me/calendar/enhanced'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/workout/summary'] });
       toast({ title: "Done!", description: "Workout completed and attendance marked" });
       
       // If server says to ask about sharing, trigger the callback
@@ -227,6 +229,8 @@ export function useCompleteAllWorkouts(onAskToShare?: (achievements: ShareableAc
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/stats/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/daily-points'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/me/calendar/enhanced'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/workout/summary'] });
       toast({ title: "All Done!", description: "All workouts completed and attendance marked" });
       
       // Trigger share popup if there are achievements to share
