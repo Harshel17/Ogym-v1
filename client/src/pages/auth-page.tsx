@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dumbbell, Mail, ArrowLeft, Loader2, KeyRound } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const loginSchema = z.object({
@@ -392,8 +393,8 @@ export default function AuthPage() {
                   <div className="mt-4 text-center">
                     <Button
                       type="button"
-                      variant="link"
-                      className="text-sm text-muted-foreground"
+                      variant="ghost"
+                      className="text-sm text-muted-foreground underline-offset-4 hover:underline"
                       onClick={() => setForgotPasswordOpen(true)}
                       data-testid="button-forgot-password"
                     >
@@ -639,6 +640,8 @@ export default function AuthPage() {
                             maxLength={6}
                             value={field.value}
                             onChange={field.onChange}
+                            pattern={REGEXP_ONLY_DIGITS}
+                            inputMode="numeric"
                             data-testid="input-reset-otp"
                           >
                             <InputOTPGroup>
