@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dumbbell, Mail, ArrowLeft, Loader2, KeyRound } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const loginSchema = z.object({
@@ -634,31 +633,23 @@ export default function AuthPage() {
                     control={resetPasswordForm.control}
                     name="otp"
                     render={({ field }) => (
-                      <FormItem className="flex flex-col items-center">
-                        <FormLabel className="sr-only">Verification Code</FormLabel>
+                      <FormItem>
+                        <FormLabel>6-Digit Code</FormLabel>
                         <FormControl>
-                          <InputOTP
-                            key={`otp-${forgotPasswordStep}`}
+                          <Input
+                            type="text"
+                            inputMode="numeric"
                             maxLength={6}
-                            value={field.value}
-                            onChange={(val) => {
-                              const digitsOnly = val.replace(/\D/g, '');
+                            placeholder="Enter 6-digit code"
+                            autoComplete="one-time-code"
+                            className="h-11 text-center text-lg tracking-widest"
+                            data-testid="input-reset-otp"
+                            {...field}
+                            onChange={(e) => {
+                              const digitsOnly = e.target.value.replace(/\D/g, '');
                               field.onChange(digitsOnly);
                             }}
-                            pattern={REGEXP_ONLY_DIGITS}
-                            inputMode="numeric"
-                            autoComplete="one-time-code"
-                            data-testid="input-reset-otp"
-                          >
-                            <InputOTPGroup>
-                              <InputOTPSlot index={0} />
-                              <InputOTPSlot index={1} />
-                              <InputOTPSlot index={2} />
-                              <InputOTPSlot index={3} />
-                              <InputOTPSlot index={4} />
-                              <InputOTPSlot index={5} />
-                            </InputOTPGroup>
-                          </InputOTP>
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
