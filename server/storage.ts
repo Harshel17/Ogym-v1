@@ -39,7 +39,8 @@ import {
   type TournamentParticipant, type InsertTournamentParticipant,
   type MemberRestDaySwap, type InsertMemberRestDaySwap,
   trainingPhases, phaseExercises, type TrainingPhase, type InsertTrainingPhase, type PhaseExercise, type InsertPhaseExercise,
-  userProfiles, type UserProfile
+  userProfiles, type UserProfile,
+  passwordResetCodes, type PasswordResetCode, type InsertPasswordResetCode
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, or, ilike } from "drizzle-orm";
@@ -67,6 +68,14 @@ export interface IStorage {
   updateUserAutoPost(userId: number, autoPostEnabled: boolean): Promise<void>;
   updateUserVerificationCode(userId: number, code: string, expiresAt: Date): Promise<void>;
   verifyUserEmail(userId: number): Promise<void>;
+  updateUserPassword(userId: number, hashedPassword: string): Promise<void>;
+  
+  // Password Reset
+  createPasswordResetCode(email: string, codeHash: string, expiresAt: Date): Promise<PasswordResetCode>;
+  getValidPasswordResetCode(email: string): Promise<PasswordResetCode | null>;
+  markPasswordResetCodeUsed(codeId: number): Promise<void>;
+  invalidatePasswordResetCodes(email: string): Promise<void>;
+  
   getUserPosts(userId: number): Promise<FeedPost[]>;
   getGym(id: number): Promise<Gym | undefined>;
   getGymByCode(code: string): Promise<Gym | undefined>;
@@ -566,6 +575,41 @@ export class DatabaseStorage implements IStorage {
       verificationCode: null,
       verificationExpiresAt: null,
     }).where(eq(users.id, userId));
+  }
+
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<void> {
+    await db.update(users).set({ password: hashedPassword }).where(eq(users.id, userId));
+  }
+
+  async createPasswordResetCode(email: string, codeHash: string, expiresAt: Date): Promise<PasswordResetCode> {
+    const [code] = await db.insert(passwordResetCodes).values({
+      email,
+      codeHash,
+      expiresAt,
+      used: false,
+    }).returning();
+    return code;
+  }
+
+  async getValidPasswordResetCode(email: string): Promise<PasswordResetCode | null> {
+    const [code] = await db.select().from(passwordResetCodes).where(
+      and(
+        eq(passwordResetCodes.email, email),
+        eq(passwordResetCodes.used, false),
+        gte(passwordResetCodes.expiresAt, new Date())
+      )
+    ).orderBy(desc(passwordResetCodes.createdAt)).limit(1);
+    return code || null;
+  }
+
+  async markPasswordResetCodeUsed(codeId: number): Promise<void> {
+    await db.update(passwordResetCodes).set({ used: true }).where(eq(passwordResetCodes.id, codeId));
+  }
+
+  async invalidatePasswordResetCodes(email: string): Promise<void> {
+    await db.update(passwordResetCodes).set({ used: true }).where(
+      and(eq(passwordResetCodes.email, email), eq(passwordResetCodes.used, false))
+    );
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
