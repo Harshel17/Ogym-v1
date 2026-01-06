@@ -3001,11 +3001,33 @@ export async function registerRoutes(
       }
       
       const schema = z.object({
-        gymName: z.string().min(1),
+        gymName: z.string().min(1, "Gym name is required"),
         phone: z.string().optional(),
         address: z.string().optional(),
         pointOfContactName: z.string().optional(),
-        pointOfContactEmail: z.string().email().optional().or(z.literal(""))
+        pointOfContactEmail: z.string().email().optional().or(z.literal("")),
+        city: z.string().min(1, "City is required"),
+        state: z.string().min(1, "State is required"),
+        country: z.string().min(1, "Country is required"),
+        gymSize: z.enum(["0-50", "51-150", "151-300", "300+"], { 
+          errorMap: () => ({ message: "Please select a valid gym size" }) 
+        }),
+        trainerCount: z.number().int().min(0, "Number of trainers must be 0 or greater"),
+        preferredStart: z.enum(["immediately", "next_week", "next_month"], {
+          errorMap: () => ({ message: "Please select when you want to start" })
+        }),
+        referralSource: z.enum(["friend", "instagram", "direct_visit", "other"], {
+          errorMap: () => ({ message: "Please select how you heard about us" })
+        }),
+        referralOtherText: z.string().optional(),
+      }).refine((data) => {
+        if (data.referralSource === "other") {
+          return data.referralOtherText && data.referralOtherText.trim().length > 0;
+        }
+        return true;
+      }, {
+        message: "Please specify how you heard about us",
+        path: ["referralOtherText"],
       });
       const input = schema.parse(req.body);
       
@@ -3015,7 +3037,15 @@ export async function registerRoutes(
         phone: input.phone || null,
         address: input.address || null,
         pointOfContactName: input.pointOfContactName || null,
-        pointOfContactEmail: input.pointOfContactEmail || null
+        pointOfContactEmail: input.pointOfContactEmail || null,
+        city: input.city,
+        state: input.state,
+        country: input.country,
+        gymSize: input.gymSize,
+        trainerCount: input.trainerCount,
+        preferredStart: input.preferredStart,
+        referralSource: input.referralSource,
+        referralOtherText: input.referralSource === "other" ? input.referralOtherText || null : null,
       });
       
       res.status(201).json(request);

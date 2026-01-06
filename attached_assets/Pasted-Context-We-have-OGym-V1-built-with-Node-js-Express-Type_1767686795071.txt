@@ -1,0 +1,132 @@
+Context:
+We have OGym V1 built with Node.js + Express + TypeScript, PostgreSQL on Neon via Drizzle ORM, React/Vite frontend. There is already a Register Your Gym (gym request) form and API that stores requests (for later admin approval).
+
+Task:
+Add the following V1-safe fields to the existing Register Your Gym request flow (frontend form + backend validation + database storage). Do NOT change existing login/signup/OTP/auth logic.
+
+1) FRONTEND — Update “Register Your Gym” Form UI
+
+Add these new fields to the existing form (keep same styling, layout, spacing, and components):
+
+A) Business Details (all required)
+
+City (text input, required)
+
+State (text input, required)
+
+Country (text input, required, default value "India" but editable)
+
+B) Gym Size (dropdown, required)
+
+Label: Gym Size (Approximate Members)
+Options:
+
+0–50 members
+
+51–150 members
+
+151–300 members
+
+300+ members
+
+C) Number of Trainers (required)
+
+Number of Trainers (numeric input, required)
+
+Must be integer >= 0
+
+Show validation error if invalid
+
+D) Preferred Start Date (required)
+
+Label: When do you want to start using OGym?
+Options (dropdown or radio buttons — choose whichever matches current UI best):
+
+Immediately
+
+Next week
+
+Next month
+
+E) How did you hear about OGym? (required)
+
+Label: How did you hear about OGym?
+Options:
+
+Friend
+
+Instagram
+
+Direct visit
+
+Other
+
+If user selects Other, show a conditional text input:
+
+Other (please specify) (text input, required only if “Other” is selected)
+
+Frontend behavior requirements:
+
+Validate required fields before submit
+
+Show inline field errors (don’t allow submit if invalid)
+
+Send these new fields in the request payload to the existing backend endpoint
+
+2) BACKEND — Update API + Validation
+
+Update the existing gym request endpoint to:
+
+Accept all new fields
+
+Validate server-side:
+
+City/state/country required and non-empty
+
+Gym size must match allowed options
+
+Number of trainers must be integer >= 0
+
+Preferred start date must match allowed options
+
+Referral source must match allowed options
+
+If referral source is Other, referral_other_text must be provided and non-empty
+
+Store values in the database
+
+Return clear error messages (400) for validation failures.
+
+3) DATABASE — Update Drizzle Schema + Apply Migration
+
+Update the existing gym_requests table (or the correct table used for gym registration requests) to include these columns:
+
+city (text, not null)
+
+state (text, not null)
+
+country (text, not null)
+
+gym_size (text, not null)
+
+trainer_count (integer, not null, default 0 OR required)
+
+preferred_start (text, not null) // Immediately / Next week / Next month
+
+referral_source (text, not null) // Friend / Instagram / Direct visit / Other
+
+referral_other_text (text, nullable) // required only if referral_source = Other
+
+Then run Drizzle migration/push so Neon tables update.
+
+4) IMPORTANT CONSTRAINTS (DO NOT BREAK EXISTING WORK)
+
+❌ Do not modify login/signup/email OTP logic
+
+❌ Do not modify session/auth middleware behavior
+
+❌ Do not reseed or wipe tables
+
+✅ Only extend the existing gym request flow
+
+✅ Keep current UI consistent

@@ -3,7 +3,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -11,6 +10,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, Loader2, Clock, CheckCircle2, XCircle, Send } from "lucide-react";
 
 type GymRequest = {
@@ -20,6 +20,14 @@ type GymRequest = {
   address: string | null;
   pointOfContactName: string | null;
   pointOfContactEmail: string | null;
+  city: string;
+  state: string;
+  country: string;
+  gymSize: string;
+  trainerCount: number;
+  preferredStart: string;
+  referralSource: string;
+  referralOtherText: string | null;
   status: string;
   adminNotes: string | null;
   createdAt: string;
@@ -31,7 +39,29 @@ const formSchema = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),
   pointOfContactName: z.string().optional(),
-  pointOfContactEmail: z.string().email().optional().or(z.literal(""))
+  pointOfContactEmail: z.string().email().optional().or(z.literal("")),
+  city: z.string().min(1, "City is required"),
+  state: z.string().min(1, "State is required"),
+  country: z.string().min(1, "Country is required"),
+  gymSize: z.enum(["0-50", "51-150", "151-300", "300+"], {
+    errorMap: () => ({ message: "Please select gym size" })
+  }),
+  trainerCount: z.coerce.number().int().min(0, "Must be 0 or greater"),
+  preferredStart: z.enum(["immediately", "next_week", "next_month"], {
+    errorMap: () => ({ message: "Please select when you want to start" })
+  }),
+  referralSource: z.enum(["friend", "instagram", "direct_visit", "other"], {
+    errorMap: () => ({ message: "Please select how you heard about us" })
+  }),
+  referralOtherText: z.string().optional(),
+}).refine((data) => {
+  if (data.referralSource === "other") {
+    return data.referralOtherText && data.referralOtherText.trim().length > 0;
+  }
+  return true;
+}, {
+  message: "Please specify how you heard about us",
+  path: ["referralOtherText"],
 });
 
 export default function GymRequestPage() {
@@ -49,9 +79,19 @@ export default function GymRequestPage() {
       phone: "",
       address: "",
       pointOfContactName: "",
-      pointOfContactEmail: ""
+      pointOfContactEmail: "",
+      city: "",
+      state: "",
+      country: "India",
+      gymSize: undefined,
+      trainerCount: 0,
+      preferredStart: undefined,
+      referralSource: undefined,
+      referralOtherText: ""
     }
   });
+
+  const referralSource = form.watch("referralSource");
 
   const submitMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
@@ -178,7 +218,7 @@ export default function GymRequestPage() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
                 name="gymName"
@@ -218,19 +258,177 @@ export default function GymRequestPage() {
                   </FormItem>
                 )}
               />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter city" {...field} data-testid="input-city" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter state" {...field} data-testid="input-state" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter country" {...field} data-testid="input-country" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="gymSize"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gym Size (Approximate Members) *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-gym-size">
+                            <SelectValue placeholder="Select gym size" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="0-50">0-50 members</SelectItem>
+                          <SelectItem value="51-150">51-150 members</SelectItem>
+                          <SelectItem value="151-300">151-300 members</SelectItem>
+                          <SelectItem value="300+">300+ members</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="trainerCount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of Trainers *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min={0} 
+                          placeholder="Enter number of trainers" 
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                          data-testid="input-trainer-count" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
-                name="pointOfContactName"
+                name="preferredStart"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Point of Contact Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Your name" {...field} data-testid="input-poc-name" />
-                    </FormControl>
+                    <FormLabel>When do you want to start using OGym? *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-preferred-start">
+                          <SelectValue placeholder="Select preferred start time" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="immediately">Immediately</SelectItem>
+                        <SelectItem value="next_week">Next week</SelectItem>
+                        <SelectItem value="next_month">Next month</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="referralSource"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>How did you hear about OGym? *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-referral-source">
+                          <SelectValue placeholder="Select an option" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="friend">Friend</SelectItem>
+                        <SelectItem value="instagram">Instagram</SelectItem>
+                        <SelectItem value="direct_visit">Direct visit</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {referralSource === "other" && (
+                <FormField
+                  control={form.control}
+                  name="referralOtherText"
+                  render={({ field }) => (
+                    <FormItem className="animate-in fade-in zoom-in-95 duration-200">
+                      <FormLabel>Other (please specify) *</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Please specify how you heard about us" 
+                          {...field} 
+                          data-testid="input-referral-other" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <div className="pt-2">
+                <FormField
+                  control={form.control}
+                  name="pointOfContactName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Point of Contact Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Your name" {...field} data-testid="input-poc-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name="pointOfContactEmail"
