@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import { 
   Shield, LogOut, Building2, Users, CreditCard, Check, X, Loader2, 
   Clock, CheckCircle, XCircle, Calendar, Search, ArrowLeft, UserCheck, Dumbbell,
-  HelpCircle, MessageSquare, AlertCircle, Send, FileText, History, Edit, Key, ArrowRightLeft
+  HelpCircle, MessageSquare, AlertCircle, Send, FileText, History, Edit, Key, ArrowRightLeft, Crown
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -733,8 +733,59 @@ function GymsTab() {
                     </div>
                   </DialogHeader>
                   
-                  <div className="py-4">
-                    <p className="text-sm text-muted-foreground mb-4">Click to view details</p>
+                  <div className="py-4 space-y-4">
+                    {profile.owner && (
+                      <div className="p-4 rounded-md bg-muted/50 border">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-amber-500/10 text-amber-600 font-semibold text-sm shrink-0">
+                              <Crown className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{profile.owner.username}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span className="font-mono">{profile.owner.publicId || `#${profile.owner.id}`}</span>
+                                {profile.owner.email && (
+                                  <>
+                                    <span className="opacity-50">|</span>
+                                    <span>{profile.owner.email}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button 
+                              size="icon" 
+                              variant="ghost"
+                              onClick={() => openEditDialog({ ...profile.owner!, role: "owner", status: profile.owner!.status || "active" })}
+                              data-testid="button-edit-owner"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost"
+                              onClick={() => openResetPasswordDialog({ ...profile.owner!, role: "owner", status: profile.owner!.status || "active" })}
+                              data-testid="button-reset-owner-password"
+                            >
+                              <Key className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost"
+                              onClick={() => handleToggleStatus({ ...profile.owner!, role: "owner", status: profile.owner!.status || "active" })}
+                              data-testid="button-toggle-owner-status"
+                            >
+                              {profile.owner.status === "suspended" ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2 ml-13">Gym Owner</p>
+                      </div>
+                    )}
+                    
+                    <p className="text-sm text-muted-foreground">Click to view details</p>
                     <div className="grid grid-cols-2 gap-4">
                       <Card 
                         className="cursor-pointer hover-elevate border-2 border-transparent hover:border-primary/20 transition-colors"
