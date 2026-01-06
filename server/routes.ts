@@ -254,13 +254,10 @@ export async function registerRoutes(
   const forgotPasswordRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 3,
-    keyGenerator: (req) => {
-      const email = (req.body?.email || "").toLowerCase();
-      return `${req.ip}-${email}`;
-    },
     message: { message: "Too many password reset attempts. Please try again later." },
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false, trustProxy: false },
   });
 
   app.post("/api/auth/forgot-password", forgotPasswordRateLimiter, async (req, res) => {

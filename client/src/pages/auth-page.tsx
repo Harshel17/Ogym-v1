@@ -6,13 +6,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Dumbbell, Mail, ArrowLeft, Loader2 } from "lucide-react";
+import { Dumbbell, Mail, ArrowLeft, Loader2, KeyRound } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -41,6 +42,21 @@ const verifySchema = z.object({
   code: z.string().length(6, "Please enter the 6-digit code"),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Please enter a valid email"),
+});
+
+const resetPasswordSchema = z.object({
+  otp: z.string().length(6, "Please enter the 6-digit code"),
+  newPassword: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/^(?=.*[A-Za-z])(?=.*\d)/, "Must contain at least 1 letter and 1 number"),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 export default function AuthPage() {
   const { 
     user, 
@@ -48,11 +64,16 @@ export default function AuthPage() {
     registerMutation, 
     verifyEmailMutation,
     resendCodeMutation,
+    forgotPasswordMutation,
+    resetPasswordMutation,
     pendingVerification,
     setPendingVerification,
   } = useAuth();
   const [, setLocation] = useLocation();
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [forgotPasswordStep, setForgotPasswordStep] = useState<"email" | "reset">("email");
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -88,6 +109,16 @@ export default function AuthPage() {
     defaultValues: { code: "" },
   });
 
+  const forgotPasswordForm = useForm<z.infer<typeof forgotPasswordSchema>>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: "" },
+  });
+
+  const resetPasswordForm = useForm<z.infer<typeof resetPasswordSchema>>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: { otp: "", newPassword: "", confirmPassword: "" },
+  });
+
   const selectedRole = registerForm.watch("role");
 
   const handleVerifySubmit = (data: z.infer<typeof verifySchema>) => {
@@ -104,6 +135,39 @@ export default function AuthPage() {
       resendCodeMutation.mutate({ email: pendingVerification.email });
       setResendCooldown(60);
     }
+  };
+
+  const handleForgotPasswordSubmit = (data: z.infer<typeof forgotPasswordSchema>) => {
+    setForgotPasswordEmail(data.email);
+    forgotPasswordMutation.mutate({ email: data.email }, {
+      onSuccess: () => {
+        setForgotPasswordStep("reset");
+      },
+    });
+  };
+
+  const handleResetPasswordSubmit = (data: z.infer<typeof resetPasswordSchema>) => {
+    resetPasswordMutation.mutate({
+      email: forgotPasswordEmail,
+      otp: data.otp,
+      newPassword: data.newPassword,
+    }, {
+      onSuccess: () => {
+        setForgotPasswordOpen(false);
+        setForgotPasswordStep("email");
+        setForgotPasswordEmail("");
+        forgotPasswordForm.reset();
+        resetPasswordForm.reset();
+      },
+    });
+  };
+
+  const handleCloseForgotPassword = () => {
+    setForgotPasswordOpen(false);
+    setForgotPasswordStep("email");
+    setForgotPasswordEmail("");
+    forgotPasswordForm.reset();
+    resetPasswordForm.reset();
   };
 
   if (user) return null;
@@ -325,6 +389,17 @@ export default function AuthPage() {
                       </Button>
                     </form>
                   </Form>
+                  <div className="mt-4 text-center">
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="text-sm text-muted-foreground"
+                      onClick={() => setForgotPasswordOpen(true)}
+                      data-testid="button-forgot-password"
+                    >
+                      Forgot your password?
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -468,6 +543,189 @@ export default function AuthPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={forgotPasswordOpen} onOpenChange={(open) => {
+        if (!open) handleCloseForgotPassword();
+        else setForgotPasswordOpen(true);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          {forgotPasswordStep === "email" ? (
+            <>
+              <DialogHeader className="text-center space-y-4">
+                <div className="mx-auto w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center">
+                  <Mail className="w-7 h-7 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">Forgot Password?</DialogTitle>
+                  <DialogDescription className="mt-2">
+                    Enter your email and we'll send you a code to reset your password.
+                  </DialogDescription>
+                </div>
+              </DialogHeader>
+              <Form {...forgotPasswordForm}>
+                <form onSubmit={forgotPasswordForm.handleSubmit(handleForgotPasswordSubmit)} className="space-y-4 mt-4">
+                  <FormField
+                    control={forgotPasswordForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="Enter your email"
+                            {...field}
+                            className="h-11"
+                            data-testid="input-forgot-email"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={handleCloseForgotPassword}
+                      data-testid="button-cancel-forgot"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                      disabled={forgotPasswordMutation.isPending}
+                      data-testid="button-send-reset-code"
+                    >
+                      {forgotPasswordMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        "Send Code"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </>
+          ) : (
+            <>
+              <DialogHeader className="text-center space-y-4">
+                <div className="mx-auto w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center">
+                  <KeyRound className="w-7 h-7 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">Reset Password</DialogTitle>
+                  <DialogDescription className="mt-2">
+                    Enter the 6-digit code sent to<br />
+                    <span className="font-medium text-foreground">{forgotPasswordEmail}</span>
+                  </DialogDescription>
+                </div>
+              </DialogHeader>
+              <Form {...resetPasswordForm}>
+                <form onSubmit={resetPasswordForm.handleSubmit(handleResetPasswordSubmit)} className="space-y-4 mt-4">
+                  <FormField
+                    control={resetPasswordForm.control}
+                    name="otp"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col items-center">
+                        <FormLabel className="sr-only">Verification Code</FormLabel>
+                        <FormControl>
+                          <InputOTP
+                            maxLength={6}
+                            value={field.value}
+                            onChange={field.onChange}
+                            data-testid="input-reset-otp"
+                          >
+                            <InputOTPGroup>
+                              <InputOTPSlot index={0} />
+                              <InputOTPSlot index={1} />
+                              <InputOTPSlot index={2} />
+                              <InputOTPSlot index={3} />
+                              <InputOTPSlot index={4} />
+                              <InputOTPSlot index={5} />
+                            </InputOTPGroup>
+                          </InputOTP>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={resetPasswordForm.control}
+                    name="newPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>New Password</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="password"
+                            placeholder="Minimum 8 characters, 1 letter and 1 number"
+                            {...field}
+                            className="h-11"
+                            data-testid="input-new-password"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={resetPasswordForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm Password</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="password"
+                            placeholder="Re-enter your new password"
+                            {...field}
+                            className="h-11"
+                            data-testid="input-confirm-password"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setForgotPasswordStep("email")}
+                      data-testid="button-back-to-email"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Back
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                      disabled={resetPasswordMutation.isPending}
+                      data-testid="button-reset-password"
+                    >
+                      {resetPasswordMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Resetting...
+                        </>
+                      ) : (
+                        "Reset Password"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
