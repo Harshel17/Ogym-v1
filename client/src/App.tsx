@@ -45,16 +45,18 @@ import AdminDashboardPage from "@/pages/admin-dashboard-page";
 import PendingApprovalPage from "@/pages/pending-approval-page";
 import FeedPage from "@/pages/feed-page";
 import TournamentsPage from "@/pages/tournaments-page";
+import MemberOnboardingPage from "@/pages/member-onboarding-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
 type ProtectedRouteProps = {
   component: React.ComponentType;
   allowWithoutGym?: boolean;
+  allowWithoutOnboarding?: boolean;
   requiredRole?: "owner" | "trainer" | "member";
 };
 
-function ProtectedRoute({ component: Component, allowWithoutGym = false, requiredRole }: ProtectedRouteProps) {
+function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWithoutOnboarding = false, requiredRole }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -84,6 +86,11 @@ function ProtectedRoute({ component: Component, allowWithoutGym = false, require
     return <PendingApprovalPage />;
   }
 
+  // Redirect members who haven't completed onboarding
+  if (user.role === "member" && user.gymId && !user.onboardingCompleted && !allowWithoutOnboarding) {
+    return <Redirect to="/onboarding" />;
+  }
+
   return (
     <Layout>
       <Component />
@@ -91,10 +98,47 @@ function ProtectedRoute({ component: Component, allowWithoutGym = false, require
   );
 }
 
+function OnboardingRoute() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Redirect to="/auth" />;
+  }
+
+  // Only members need onboarding
+  if (user.role !== "member") {
+    return <Redirect to="/" />;
+  }
+
+  // If already completed, redirect to dashboard
+  if (user.onboardingCompleted) {
+    return <Redirect to="/" />;
+  }
+
+  // If no gym yet, redirect to pending approval
+  if (!user.gymId) {
+    return <PendingApprovalPage />;
+  }
+
+  return <MemberOnboardingPage />;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+      
+      <Route path="/onboarding">
+        <OnboardingRoute />
+      </Route>
       
       <Route path="/">
         <ProtectedRoute component={DashboardPage} />
