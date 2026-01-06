@@ -61,8 +61,11 @@ export interface IStorage {
   // User & Gym
   getUser(id: number): Promise<(User & { gym: Gym | null }) | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserAutoPost(userId: number, autoPostEnabled: boolean): Promise<void>;
+  updateUserVerificationCode(userId: number, code: string, expiresAt: Date): Promise<void>;
+  verifyUserEmail(userId: number): Promise<void>;
   getUserPosts(userId: number): Promise<FeedPost[]>;
   getGym(id: number): Promise<Gym | undefined>;
   getGymByCode(code: string): Promise<Gym | undefined>;
@@ -530,6 +533,26 @@ export class DatabaseStorage implements IStorage {
   async getUserByUsername(username: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async updateUserVerificationCode(userId: number, code: string, expiresAt: Date): Promise<void> {
+    await db.update(users).set({
+      verificationCode: code,
+      verificationExpiresAt: expiresAt,
+    }).where(eq(users.id, userId));
+  }
+
+  async verifyUserEmail(userId: number): Promise<void> {
+    await db.update(users).set({
+      emailVerified: true,
+      verificationCode: null,
+      verificationExpiresAt: null,
+    }).where(eq(users.id, userId));
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
