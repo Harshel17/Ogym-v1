@@ -1,0 +1,80 @@
+We already have OGym Admin where we can edit member profiles.
+Now add ADMIN ability to correct Attendance AND Workouts for any member on any date.
+
+PROBLEM:
+If admin marks a member "present yesterday", we also need ability to add/edit the workout/exercises for that same day (optional), and allow swapping workouts, editing exercises, etc.
+
+UI REQUIREMENTS (ADMIN):
+In member detail panel/modal, add a button:
+"Attendance & Workouts"
+
+This opens a date-based editor:
+1) Date selector (calendar) + list of recent days
+2) For selected date show:
+
+A) Attendance Editor:
+- Toggle Present/Absent
+- Reason textarea (required for changes)
+- Save attendance change
+
+B) Workout Editor (optional):
+- Show existing workout session(s) for that date, if any
+- Buttons:
+  - Add Workout Session
+  - Edit Session
+  - Delete Session (requires reason)
+  - Swap Body Part (e.g., Chest -> Back) for that date/session
+- For a workout session, admin can manage exercises:
+  - Add exercise (name, sets, reps, weight, duration)
+  - Edit exercise fields
+  - Remove exercise
+  - Reorder exercises (drag/drop or up/down)
+- All changes require a reason and must be logged.
+
+DATA MODEL / BACKEND:
+1) attendance_records table:
+  id, gym_id, member_id, date (YYYY-MM-DD), status (present/absent),
+  source ('qr','member_manual','admin_adjustment'), created_at, updated_at
+
+2) workout_sessions table:
+  id, gym_id, member_id, date (YYYY-MM-DD),
+  body_part (string), notes (nullable), created_at, updated_at
+
+3) workout_exercises table:
+  id, session_id,
+  exercise_name, sets (int), reps (int), weight (float nullable), duration (int nullable),
+  order_index (int), created_at, updated_at
+
+4) admin_adjustments table (optional if audit_logs covers):
+  id, admin_id, member_id, gym_id, date,
+  adjustment_type ('attendance','workout'),
+  payload JSON, reason, created_at
+
+5) audit_logs table (MANDATORY):
+  id, admin_id, entity_type, entity_id, action,
+  old_value JSON, new_value JSON, reason, created_at
+
+ADMIN API ENDPOINTS (admin-only):
+- GET /api/admin/members/:id/day/:date  -> returns attendance + workout sessions + exercises
+- POST /api/admin/members/:id/attendance {date, status, reason}
+- POST /api/admin/members/:id/workout/session/create {date, body_part, notes, reason}
+- PATCH /api/admin/workout/session/:sessionId {body_part, notes, reason}
+- DELETE /api/admin/workout/session/:sessionId {reason}
+
+- POST /api/admin/workout/session/:sessionId/exercise/add {exercise_name, sets, reps, weight, duration, reason}
+- PATCH /api/admin/workout/exercise/:exerciseId {exercise fields..., reason}
+- DELETE /api/admin/workout/exercise/:exerciseId {reason}
+- POST /api/admin/workout/session/:sessionId/exercises/reorder {orderedExerciseIds, reason}
+
+STREAK LOGIC:
+- Maintain two streaks:
+  1) attendance_streak = consecutive days present
+  2) workout_streak = consecutive days with workout session
+- Add endpoint:
+  POST /api/admin/members/:id/streak/recalculate
+- Recalculate streak automatically after any attendance/workout admin change.
+
+SAFETY:
+- No hard deletes for users; use status flags.
+- For workout delete, soft-delete session if possible or keep audit log.
+- Do not break existing dashboards; only add this new editor and endpoints.

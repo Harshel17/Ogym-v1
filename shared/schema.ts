@@ -134,8 +134,11 @@ export const attendance = pgTable("attendance", {
   markedByUserId: integer("marked_by_user_id").references(() => users.id).notNull(),
   date: text("date").notNull(),
   status: text("status", { enum: ["present", "absent"] }).notNull(),
-  verifiedMethod: text("verified_method", { enum: ["qr", "workout", "both", "manual"] }).default("manual"),
+  verifiedMethod: text("verified_method", { enum: ["qr", "workout", "both", "manual", "admin_adjustment"] }).default("manual"),
+  adjustedByAdminId: integer("adjusted_by_admin_id").references(() => users.id),
+  adjustmentReason: text("adjustment_reason"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
 });
 
 export const payments = pgTable("payments", {
@@ -347,12 +350,16 @@ export const workoutSessions = pgTable("workout_sessions", {
   cycleId: integer("cycle_id").references(() => workoutCycles.id),
   cycleDayIndex: integer("cycle_day_index"),
   focusLabel: text("focus_label").notNull(), // e.g., "Chest", "Back + Shoulders"
+  notes: text("notes"),
   isManuallyCompleted: boolean("is_manually_completed").default(false), // User clicked "Mark Day Done"
   completedAt: timestamp("completed_at"), // When marked done (null if not completed)
+  isDeleted: boolean("is_deleted").default(false),
+  deletedByAdminId: integer("deleted_by_admin_id").references(() => users.id),
+  deletedReason: text("deleted_reason"),
+  adjustedByAdminId: integer("adjusted_by_admin_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
-}, (table) => ({
-  uniqueSessionPerDay: uniqueIndex("unique_session_per_member_date_gym").on(table.gymId, table.memberId, table.date),
-}));
+  updatedAt: timestamp("updated_at"),
+});
 
 export const workoutSessionExercises = pgTable("workout_session_exercises", {
   id: serial("id").primaryKey(),
@@ -361,9 +368,13 @@ export const workoutSessionExercises = pgTable("workout_session_exercises", {
   sets: integer("sets"),
   reps: integer("reps"),
   weight: text("weight"),
+  duration: integer("duration"),
   notes: text("notes"),
   orderIndex: integer("order_index").default(0),
+  isDeleted: boolean("is_deleted").default(false),
+  adjustedByAdminId: integer("adjusted_by_admin_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
 });
 
 // === MEMBERSHIP & SUBSCRIPTION TABLES (INR-based, amounts in paise) ===
