@@ -39,18 +39,23 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
-      try {
-        const user = await storage.getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.password))) {
-          return done(null, false);
-        } else {
+    new LocalStrategy(
+      { usernameField: "email", passwordField: "password" },
+      async (email, password, done) => {
+        try {
+          const user = await storage.getUserByEmail(email);
+          if (!user || !(await comparePasswords(password, user.password))) {
+            return done(null, false);
+          }
+          if (!user.emailVerified) {
+            return done(null, false, { message: "Email not verified" });
+          }
           return done(null, user);
+        } catch (err) {
+          return done(err);
         }
-      } catch (err) {
-        return done(err);
       }
-    }),
+    ),
   );
 
   passport.serializeUser((user, done) => done(null, (user as SelectUser).id));
