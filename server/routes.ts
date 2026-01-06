@@ -4150,7 +4150,7 @@ export async function registerRoutes(
       
       // Log the action
       await storage.createAuditLog({
-        adminId: adminUser.id,
+        adminId: adminUser.userId,
         entityType: "support_ticket",
         entityId: ticketId,
         action: "status_update",
@@ -4188,13 +4188,13 @@ export async function registerRoutes(
       const message = await storage.createSupportMessage({
         ticketId,
         senderType: "admin",
-        senderId: adminUser.id,
+        senderId: adminUser.userId,
         message: input.message,
       });
       
       // Log the action
       await storage.createAuditLog({
-        adminId: adminUser.id,
+        adminId: adminUser.userId,
         entityType: "support_ticket",
         entityId: ticketId,
         action: "admin_reply",
