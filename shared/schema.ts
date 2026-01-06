@@ -83,6 +83,17 @@ export const userProfiles = pgTable("user_profiles", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const passwordResetCodes = pgTable("password_reset_codes", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPasswordResetCodeSchema = createInsertSchema(passwordResetCodes).omit({ id: true, createdAt: true });
+
 export const gymSubscriptions = pgTable("gym_subscriptions", {
   id: serial("id").primaryKey(),
   gymId: integer("gym_id").references(() => gyms.id).notNull().unique(),
@@ -653,3 +664,6 @@ export type InsertFeedReaction = z.infer<typeof insertFeedReactionSchema>;
 export type InsertFeedComment = z.infer<typeof insertFeedCommentSchema>;
 export type InsertTournament = z.infer<typeof insertTournamentSchema>;
 export type InsertTournamentParticipant = z.infer<typeof insertTournamentParticipantSchema>;
+
+export type PasswordResetCode = typeof passwordResetCodes.$inferSelect;
+export type InsertPasswordResetCode = z.infer<typeof insertPasswordResetCodeSchema>;
