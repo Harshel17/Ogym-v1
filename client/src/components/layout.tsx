@@ -260,7 +260,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
               </div>
             </div>
-            {user.gym && (
+            {user.gym && isOwner && (
               <div className="mt-3 pt-3 border-t border-border/50">
                  <p className="text-xs text-muted-foreground">Gym Code:</p>
                  <p className="font-mono text-xs font-bold bg-background p-1 rounded border border-border mt-1 text-center select-all">
