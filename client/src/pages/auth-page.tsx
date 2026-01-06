@@ -141,6 +141,7 @@ export default function AuthPage() {
   const handleForgotPasswordSubmit = (data: z.infer<typeof forgotPasswordSchema>) => {
     forgotPasswordMutation.mutate({ email: data.email }, {
       onSuccess: () => {
+        resetPasswordForm.reset({ otp: "", newPassword: "", confirmPassword: "" });
         setForgotPasswordEmail(data.email);
         setForgotPasswordStep("reset");
       },
@@ -637,11 +638,16 @@ export default function AuthPage() {
                         <FormLabel className="sr-only">Verification Code</FormLabel>
                         <FormControl>
                           <InputOTP
+                            key={`otp-${forgotPasswordStep}`}
                             maxLength={6}
                             value={field.value}
-                            onChange={field.onChange}
+                            onChange={(val) => {
+                              const digitsOnly = val.replace(/\D/g, '');
+                              field.onChange(digitsOnly);
+                            }}
                             pattern={REGEXP_ONLY_DIGITS}
                             inputMode="numeric"
+                            autoComplete="one-time-code"
                             data-testid="input-reset-otp"
                           >
                             <InputOTPGroup>
