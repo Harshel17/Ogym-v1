@@ -250,6 +250,112 @@ export async function registerRoutes(
     res.json(user);
   });
 
+  // Rate limiter for forgot password (stricter: 3 per 15 minutes)
+  const forgotPasswordRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 3,
+    keyGenerator: (req) => {
+      const email = (req.body?.email || "").toLowerCase();
+      return `${req.ip}-${email}`;
+    },
+    message: { message: "Too many password reset attempts. Please try again later." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.post("/api/auth/forgot-password", forgotPasswordRateLimiter, async (req, res) => {
+    try {
+      const schema = z.object({
+        email: z.string().email("Invalid email format"),
+      });
+      const input = schema.parse(req.body);
+      const email = input.email.toLowerCase();
+
+      // Check if user exists (silently - don't reveal to client)
+      const user = await storage.getUserByEmail(email);
+      
+      if (user) {
+        // Invalidate any existing reset codes for this email
+        await storage.invalidatePasswordResetCodes(email);
+        
+        // Generate and hash OTP
+        const otp = generateOTP();
+        const { hashPassword } = await import("./auth");
+        const codeHash = await hashPassword(otp);
+        const expiresAt = getOTPExpiryTime();
+        
+        // Store the reset code
+        await storage.createPasswordResetCode(email, codeHash, expiresAt);
+        
+        // Send email with the code
+        const { sendPasswordResetEmail } = await import("./email");
+        await sendPasswordResetEmail(email, otp);
+      }
+      
+      // Always return success to prevent user enumeration
+      res.status(200).json({ 
+        message: "If an account exists with this email, you will receive a password reset code." 
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Forgot password error:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", authRateLimiter, async (req, res) => {
+    try {
+      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+      const schema = z.object({
+        email: z.string().email("Invalid email format"),
+        otp: z.string().length(6, "OTP must be 6 digits"),
+        newPassword: z.string()
+          .min(8, "Password must be at least 8 characters")
+          .regex(passwordRegex, "Password must contain at least 1 letter and 1 number"),
+      });
+      
+      const input = schema.parse(req.body);
+      const email = input.email.toLowerCase();
+
+      // Get valid reset code
+      const resetCode = await storage.getValidPasswordResetCode(email);
+      if (!resetCode) {
+        return res.status(400).json({ message: "Invalid or expired reset code" });
+      }
+
+      // Verify OTP
+      const { comparePasswords, hashPassword } = await import("./auth");
+      const isValid = await comparePasswords(input.otp, resetCode.codeHash);
+      if (!isValid) {
+        return res.status(400).json({ message: "Invalid or expired reset code" });
+      }
+
+      // Get the user
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(400).json({ message: "Invalid or expired reset code" });
+      }
+
+      // Hash new password and update
+      const hashedPassword = await hashPassword(input.newPassword);
+      await storage.updateUserPassword(user.id, hashedPassword);
+
+      // Mark reset code as used and invalidate any others
+      await storage.markPasswordResetCodeUsed(resetCode.id);
+      await storage.invalidatePasswordResetCodes(email);
+
+      res.status(200).json({ message: "Password reset successfully. You can now log in with your new password." });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Reset password error:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // === UTILITY ROUTES ===
   // Server date endpoint to get server's current date (avoids timezone mismatch with client)
   app.get("/api/server-date", (req, res) => {
