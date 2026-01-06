@@ -15,7 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { 
   Shield, LogOut, Building2, Users, CreditCard, Check, X, Loader2, 
-  Clock, CheckCircle, XCircle, Calendar, Search, ArrowLeft, UserCheck, Dumbbell
+  Clock, CheckCircle, XCircle, Calendar, Search, ArrowLeft, UserCheck, Dumbbell,
+  HelpCircle, MessageSquare, AlertCircle, Send
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -962,6 +963,307 @@ function SubscriptionsTab() {
   );
 }
 
+type SupportTicket = {
+  id: number;
+  userId: number | null;
+  userRole: string;
+  gymId: number | null;
+  contactEmailOrPhone: string | null;
+  issueType: string;
+  priority: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type SupportMessage = {
+  id: number;
+  ticketId: number;
+  senderType: string;
+  senderId: number | null;
+  message: string;
+  createdAt: string;
+};
+
+function SupportTab() {
+  const { toast } = useToast();
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [newMessage, setNewMessage] = useState("");
+
+  const { data: tickets = [], isLoading } = useQuery<SupportTicket[]>({
+    queryKey: ["/api/admin/support", statusFilter, priorityFilter],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") params.append("status", statusFilter);
+      if (priorityFilter !== "all") params.append("priority", priorityFilter);
+      return adminFetch(`/api/admin/support?${params.toString()}`);
+    },
+  });
+
+  const { data: ticketDetails, isLoading: loadingDetails } = useQuery<{
+    ticket: SupportTicket;
+    messages: SupportMessage[];
+  }>({
+    queryKey: ["/api/admin/support", selectedTicket?.id],
+    queryFn: () => adminFetch(`/api/admin/support/${selectedTicket?.id}`),
+    enabled: !!selectedTicket && showDetailDialog,
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ ticketId, status }: { ticketId: number; status: string }) =>
+      adminFetch(`/api/admin/support/${ticketId}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/support"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/support", variables.ticketId] });
+      if (selectedTicket && selectedTicket.id === variables.ticketId) {
+        setSelectedTicket({ ...selectedTicket, status: variables.status });
+      }
+      toast({ title: "Status updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update status", variant: "destructive" });
+    },
+  });
+
+  const addMessageMutation = useMutation({
+    mutationFn: ({ ticketId, message }: { ticketId: number; message: string }) =>
+      adminFetch(`/api/admin/support/${ticketId}/message`, { method: "POST", body: JSON.stringify({ message }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/support", selectedTicket?.id] });
+      setNewMessage("");
+      toast({ title: "Message sent" });
+    },
+    onError: () => {
+      toast({ title: "Failed to send message", variant: "destructive" });
+    },
+  });
+
+  const handleSendMessage = () => {
+    if (!newMessage.trim() || !selectedTicket) return;
+    addMessageMutation.mutate({ ticketId: selectedTicket.id, message: newMessage });
+  };
+
+  const handleStatusChange = (status: string) => {
+    if (selectedTicket) {
+      updateStatusMutation.mutate({ ticketId: selectedTicket.id, status });
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "open": return <AlertCircle className="w-4 h-4 text-blue-500" />;
+      case "in_progress": return <Clock className="w-4 h-4 text-yellow-500" />;
+      case "waiting_user": return <MessageSquare className="w-4 h-4 text-orange-500" />;
+      case "closed": return <CheckCircle className="w-4 h-4 text-green-500" />;
+      default: return <HelpCircle className="w-4 h-4" />;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      open: "default", in_progress: "secondary", waiting_user: "outline", closed: "secondary",
+    };
+    return <Badge variant={variants[status] || "default"}>{status.replace("_", " ").toUpperCase()}</Badge>;
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    const colors: Record<string, string> = {
+      low: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+      medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-200",
+      high: "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-200",
+    };
+    return <Badge className={colors[priority] || ""}>{priority.toUpperCase()}</Badge>;
+  };
+
+  const issueTypeLabels: Record<string, string> = {
+    login: "Login Issue", otp: "OTP Issue", password: "Password Issue", gym_code: "Gym Code Issue",
+    attendance: "Attendance Issue", payments: "Payment Issue", profile_update: "Profile Update",
+    trainer_assignment: "Trainer Assignment", bug_report: "Bug Report", other: "Other",
+  };
+
+  if (isLoading) {
+    return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle>Support Tickets</CardTitle>
+            <CardDescription>Manage user support requests</CardDescription>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="waiting_user">Waiting User</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="w-[140px]" data-testid="select-priority-filter">
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priority</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {tickets.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <HelpCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No support tickets found</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tickets.map((ticket) => (
+                <div
+                  key={ticket.id}
+                  className="p-4 border rounded-lg cursor-pointer hover-elevate"
+                  onClick={() => { setSelectedTicket(ticket); setShowDetailDialog(true); }}
+                  data-testid={`card-admin-ticket-${ticket.id}`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(ticket.status)}
+                      <span className="font-medium">#{ticket.id}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {ticket.userRole} {ticket.userId ? `(User #${ticket.userId})` : "(Guest)"}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {getStatusBadge(ticket.status)}
+                      {getPriorityBadge(ticket.priority)}
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium mb-1">
+                    {issueTypeLabels[ticket.issueType] || ticket.issueType}
+                  </p>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{ticket.description}</p>
+                  <div className="flex gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
+                    {ticket.contactEmailOrPhone && <span>Contact: {ticket.contactEmailOrPhone}</span>}
+                    <span>Created: {format(new Date(ticket.createdAt), "PPp")}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              Ticket #{selectedTicket?.id}
+              {selectedTicket && getStatusBadge(selectedTicket.status)}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedTicket && (issueTypeLabels[selectedTicket.issueType] || selectedTicket.issueType)}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingDetails ? (
+            <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+          ) : ticketDetails ? (
+            <div className="flex-1 overflow-y-auto space-y-4">
+              <div className="p-3 bg-secondary/50 rounded-lg space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {getPriorityBadge(ticketDetails.ticket.priority)}
+                  <span className="text-sm">{ticketDetails.ticket.userRole}</span>
+                  {ticketDetails.ticket.contactEmailOrPhone && (
+                    <span className="text-sm text-muted-foreground">{ticketDetails.ticket.contactEmailOrPhone}</span>
+                  )}
+                </div>
+                <p className="text-sm">{ticketDetails.ticket.description}</p>
+                <p className="text-xs text-muted-foreground">Created: {format(new Date(ticketDetails.ticket.createdAt), "PPpp")}</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Label>Update Status:</Label>
+                <Select value={ticketDetails.ticket.status} onValueChange={handleStatusChange}>
+                  <SelectTrigger className="w-[160px]" data-testid="select-ticket-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="waiting_user">Waiting User</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+                {updateStatusMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-3">Conversation</h4>
+                <ScrollArea className="h-[200px] pr-4">
+                  <div className="space-y-3">
+                    {ticketDetails.messages.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">No messages yet</p>
+                    ) : (
+                      ticketDetails.messages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`p-3 rounded-lg ${
+                            msg.senderType === "admin" ? "bg-primary/10 mr-8" : "bg-secondary ml-8"
+                          }`}
+                        >
+                          <p className="text-xs font-medium mb-1">
+                            {msg.senderType === "admin" ? "Admin" : "User"}
+                          </p>
+                          <p className="text-sm">{msg.message}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {format(new Date(msg.createdAt), "PPp")}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {ticketDetails.ticket.status !== "closed" && (
+                <div className="flex gap-2 border-t pt-4">
+                  <Textarea
+                    placeholder="Type your reply..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    className="flex-1 min-h-[80px]"
+                    data-testid="textarea-admin-reply"
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim() || addMessageMutation.isPending}
+                    data-testid="button-send-admin-reply"
+                  >
+                    {addMessageMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export default function AdminDashboardPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -1036,6 +1338,10 @@ export default function AdminDashboardPage() {
               <CreditCard className="h-4 w-4" />
               Subscriptions
             </TabsTrigger>
+            <TabsTrigger value="support" className="flex items-center gap-2" data-testid="tab-support">
+              <HelpCircle className="h-4 w-4" />
+              Support
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="requests">
@@ -1048,6 +1354,10 @@ export default function AdminDashboardPage() {
 
           <TabsContent value="subscriptions">
             <SubscriptionsTab />
+          </TabsContent>
+
+          <TabsContent value="support">
+            <SupportTab />
           </TabsContent>
         </Tabs>
       </main>

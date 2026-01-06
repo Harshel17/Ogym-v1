@@ -46,6 +46,7 @@ import PendingApprovalPage from "@/pages/pending-approval-page";
 import FeedPage from "@/pages/feed-page";
 import TournamentsPage from "@/pages/tournaments-page";
 import MemberOnboardingPage from "@/pages/member-onboarding-page";
+import SupportPage from "@/pages/support-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -262,6 +263,10 @@ function Router() {
 
       <Route path="/tournaments">
         <ProtectedRoute component={TournamentsPage} />
+      </Route>
+
+      <Route path="/support">
+        <ProtectedRoute component={SupportPage} allowWithoutGym={true} allowWithoutOnboarding={true} />
       </Route>
 
       <Route path="/gym-request">

@@ -3928,6 +3928,314 @@ export async function registerRoutes(
     res.json(leaderboard);
   });
 
+  // === SUPPORT SYSTEM ROUTES ===
+
+  // Public support ticket creation (for unauthenticated users)
+  app.post("/api/support/public", async (req, res) => {
+    try {
+      const schema = z.object({
+        userRole: z.enum(["owner", "trainer", "member"]),
+        contactEmailOrPhone: z.string().min(3, "Contact information is required"),
+        gymCode: z.string().optional(),
+        issueType: z.enum(["login", "otp", "password", "gym_code", "other"]),
+        priority: z.enum(["low", "medium", "high"]).default("medium"),
+        description: z.string().min(10, "Description must be at least 10 characters"),
+        attachmentUrl: z.string().optional(),
+      });
+
+      const input = schema.parse(req.body);
+      
+      let gymId: number | null = null;
+      if (input.gymCode) {
+        const gym = await storage.getGymByCode(input.gymCode.toUpperCase());
+        if (gym) gymId = gym.id;
+      }
+
+      const ticket = await storage.createSupportTicket({
+        userId: null,
+        userRole: input.userRole,
+        gymId,
+        contactEmailOrPhone: input.contactEmailOrPhone,
+        issueType: input.issueType,
+        priority: input.priority,
+        description: input.description,
+        attachmentUrl: input.attachmentUrl || null,
+        status: "open",
+      });
+
+      res.status(201).json({ message: "Support ticket created", ticketId: ticket.id });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Support ticket error:", err);
+      res.status(500).json({ message: "Failed to create support ticket" });
+    }
+  });
+
+  // Authenticated user support ticket creation
+  app.post("/api/support", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const user = req.user as any;
+      
+      const schema = z.object({
+        issueType: z.enum(["attendance", "payments", "profile_update", "trainer_assignment", "bug_report", "other"]),
+        priority: z.enum(["low", "medium", "high"]).default("medium"),
+        description: z.string().min(10, "Description must be at least 10 characters"),
+        attachmentUrl: z.string().optional(),
+      });
+
+      const input = schema.parse(req.body);
+
+      const ticket = await storage.createSupportTicket({
+        userId: user.id,
+        userRole: user.role,
+        gymId: user.gymId,
+        contactEmailOrPhone: user.email || user.phone || `user_${user.id}`,
+        issueType: input.issueType,
+        priority: input.priority,
+        description: input.description,
+        attachmentUrl: input.attachmentUrl || null,
+        status: "open",
+      });
+
+      res.status(201).json({ message: "Support ticket created", ticketId: ticket.id });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Support ticket error:", err);
+      res.status(500).json({ message: "Failed to create support ticket" });
+    }
+  });
+
+  // Get current user's support tickets
+  app.get("/api/support/my-tickets", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const user = req.user as any;
+      const tickets = await storage.getUserSupportTickets(user.id);
+      res.json(tickets);
+    } catch (err) {
+      console.error("Get tickets error:", err);
+      res.status(500).json({ message: "Failed to get tickets" });
+    }
+  });
+
+  // Get a specific ticket (for the ticket owner)
+  app.get("/api/support/ticket/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const user = req.user as any;
+      const ticketId = parseInt(req.params.id);
+      
+      const ticket = await storage.getSupportTicket(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      // Only allow viewing own tickets or admin
+      if (ticket.userId !== user.id && !user.isAdmin) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(ticket);
+    } catch (err) {
+      console.error("Get ticket error:", err);
+      res.status(500).json({ message: "Failed to get ticket" });
+    }
+  });
+
+  // User adds a message to their ticket
+  app.post("/api/support/ticket/:id/message", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const user = req.user as any;
+      const ticketId = parseInt(req.params.id);
+      
+      const ticket = await storage.getSupportTicket(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      if (ticket.userId !== user.id && !user.isAdmin) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const schema = z.object({
+        message: z.string().min(1, "Message is required"),
+      });
+      const input = schema.parse(req.body);
+      
+      const message = await storage.createSupportMessage({
+        ticketId,
+        senderType: "user",
+        senderId: user.id,
+        message: input.message,
+      });
+      
+      res.status(201).json(message);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Add message error:", err);
+      res.status(500).json({ message: "Failed to add message" });
+    }
+  });
+
+  // === ADMIN SUPPORT ROUTES ===
+
+  // Admin: Get all support tickets with filters
+  app.get("/api/admin/support", requireAdmin, async (req, res) => {
+    try {
+      const filters: { status?: string; priority?: string; issueType?: string; gymId?: number } = {};
+      
+      if (req.query.status && typeof req.query.status === 'string') {
+        filters.status = req.query.status;
+      }
+      if (req.query.priority && typeof req.query.priority === 'string') {
+        filters.priority = req.query.priority;
+      }
+      if (req.query.issueType && typeof req.query.issueType === 'string') {
+        filters.issueType = req.query.issueType;
+      }
+      if (req.query.gymId && typeof req.query.gymId === 'string') {
+        filters.gymId = parseInt(req.query.gymId);
+      }
+      
+      const tickets = await storage.getSupportTickets(filters);
+      res.json(tickets);
+    } catch (err) {
+      console.error("Admin get tickets error:", err);
+      res.status(500).json({ message: "Failed to get tickets" });
+    }
+  });
+
+  // Admin: Get a specific ticket
+  app.get("/api/admin/support/:id", requireAdmin, async (req, res) => {
+    try {
+      const ticketId = parseInt(req.params.id);
+      const ticket = await storage.getSupportTicket(ticketId);
+      
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      res.json(ticket);
+    } catch (err) {
+      console.error("Admin get ticket error:", err);
+      res.status(500).json({ message: "Failed to get ticket" });
+    }
+  });
+
+  // Admin: Update ticket status
+  app.patch("/api/admin/support/:id/status", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const ticketId = parseInt(req.params.id);
+      
+      const schema = z.object({
+        status: z.enum(["open", "in_progress", "waiting_user", "closed"]),
+      });
+      const input = schema.parse(req.body);
+      
+      const oldTicket = await storage.getSupportTicket(ticketId);
+      if (!oldTicket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      const ticket = await storage.updateSupportTicketStatus(ticketId, input.status);
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.id,
+        entityType: "support_ticket",
+        entityId: ticketId,
+        action: "status_update",
+        oldValue: oldTicket.status,
+        newValue: input.status,
+        reason: null,
+      });
+      
+      res.json(ticket);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin update status error:", err);
+      res.status(500).json({ message: "Failed to update ticket status" });
+    }
+  });
+
+  // Admin: Add message/reply to ticket
+  app.post("/api/admin/support/:id/message", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const ticketId = parseInt(req.params.id);
+      
+      const ticket = await storage.getSupportTicket(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      const schema = z.object({
+        message: z.string().min(1, "Message is required"),
+      });
+      const input = schema.parse(req.body);
+      
+      const message = await storage.createSupportMessage({
+        ticketId,
+        senderType: "admin",
+        senderId: adminUser.id,
+        message: input.message,
+      });
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.id,
+        entityType: "support_ticket",
+        entityId: ticketId,
+        action: "admin_reply",
+        oldValue: null,
+        newValue: input.message.substring(0, 100),
+        reason: null,
+      });
+      
+      res.status(201).json(message);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin add message error:", err);
+      res.status(500).json({ message: "Failed to add message" });
+    }
+  });
+
+  // Admin: Get audit logs
+  app.get("/api/admin/audit-logs", requireAdmin, async (req, res) => {
+    try {
+      const filters: { entityType?: string; entityId?: number; adminId?: number } = {};
+      
+      if (req.query.entityType && typeof req.query.entityType === 'string') {
+        filters.entityType = req.query.entityType;
+      }
+      if (req.query.entityId && typeof req.query.entityId === 'string') {
+        filters.entityId = parseInt(req.query.entityId);
+      }
+      if (req.query.adminId && typeof req.query.adminId === 'string') {
+        filters.adminId = parseInt(req.query.adminId);
+      }
+      
+      const logs = await storage.getAuditLogs(filters);
+      res.json(logs);
+    } catch (err) {
+      console.error("Admin get audit logs error:", err);
+      res.status(500).json({ message: "Failed to get audit logs" });
+    }
+  });
+
   await seedDemoData();
   return httpServer;
 }

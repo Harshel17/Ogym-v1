@@ -23,7 +23,8 @@ import {
   Scale,
   FileText,
   Activity,
-  Trophy
+  Trophy,
+  HelpCircle
 } from "lucide-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -193,6 +194,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       icon: UserPlus,
       visible: isOwner && !!user.gymId,
       badge: notificationCounts?.pendingJoinRequests || 0
+    },
+    { 
+      label: "Support", 
+      href: "/support", 
+      icon: HelpCircle,
+      visible: true,
+      badge: 0
     },
   ];
 

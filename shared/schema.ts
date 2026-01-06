@@ -537,6 +537,46 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   }),
 }));
 
+// === SUPPORT SYSTEM TABLES ===
+
+export const supportTickets = pgTable("support_tickets", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  userRole: text("user_role", { enum: ["owner", "trainer", "member"] }),
+  gymId: integer("gym_id").references(() => gyms.id),
+  contactEmailOrPhone: text("contact_email_or_phone").notNull(),
+  issueType: text("issue_type", { 
+    enum: ["login", "otp", "password", "gym_code", "attendance", "payments", "profile_update", "trainer_assignment", "bug_report", "other"] 
+  }).notNull(),
+  priority: text("priority", { enum: ["low", "medium", "high"] }).notNull().default("medium"),
+  description: text("description").notNull(),
+  attachmentUrl: text("attachment_url"),
+  status: text("status", { enum: ["open", "in_progress", "waiting_user", "closed"] }).notNull().default("open"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const supportMessages = pgTable("support_messages", {
+  id: serial("id").primaryKey(),
+  ticketId: integer("ticket_id").references(() => supportTickets.id).notNull(),
+  senderType: text("sender_type", { enum: ["user", "admin"] }).notNull(),
+  senderId: integer("sender_id"),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  adminId: integer("admin_id").references(() => users.id).notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: integer("entity_id").notNull(),
+  action: text("action").notNull(),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === SCHEMAS ===
 
 export const insertGymSchema = createInsertSchema(gyms).omit({ id: true, createdAt: true });
@@ -578,6 +618,9 @@ export const insertFeedReactionSchema = createInsertSchema(feedReactions).omit({
 export const insertFeedCommentSchema = createInsertSchema(feedComments).omit({ id: true, createdAt: true });
 export const insertTournamentSchema = createInsertSchema(tournaments).omit({ id: true, createdAt: true });
 export const insertTournamentParticipantSchema = createInsertSchema(tournamentParticipants).omit({ id: true, joinedAt: true });
+export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertSupportMessageSchema = createInsertSchema(supportMessages).omit({ id: true, createdAt: true });
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
 
 // === EXPLICIT TYPES ===
 
@@ -667,3 +710,10 @@ export type InsertTournamentParticipant = z.infer<typeof insertTournamentPartici
 
 export type PasswordResetCode = typeof passwordResetCodes.$inferSelect;
 export type InsertPasswordResetCode = z.infer<typeof insertPasswordResetCodeSchema>;
+
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type SupportMessage = typeof supportMessages.$inferSelect;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
+export type InsertSupportMessage = z.infer<typeof insertSupportMessageSchema>;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;

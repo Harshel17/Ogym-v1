@@ -40,7 +40,11 @@ import {
   type MemberRestDaySwap, type InsertMemberRestDaySwap,
   trainingPhases, phaseExercises, type TrainingPhase, type InsertTrainingPhase, type PhaseExercise, type InsertPhaseExercise,
   userProfiles, type UserProfile,
-  passwordResetCodes, type PasswordResetCode, type InsertPasswordResetCode
+  passwordResetCodes, type PasswordResetCode, type InsertPasswordResetCode,
+  supportTickets, supportMessages, auditLogs,
+  type SupportTicket, type InsertSupportTicket,
+  type SupportMessage, type InsertSupportMessage,
+  type AuditLog, type InsertAuditLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, or, ilike } from "drizzle-orm";
@@ -533,6 +537,19 @@ export interface IStorage {
   getActiveRestDaySwap(memberId: number, cycleId: number, date: string): Promise<MemberRestDaySwap | null>;
   createRestDaySwap(data: InsertMemberRestDaySwap): Promise<MemberRestDaySwap>;
   deleteRestDaySwap(swapId: number, memberId: number): Promise<void>;
+  
+  // Support System
+  createSupportTicket(data: InsertSupportTicket): Promise<SupportTicket>;
+  getSupportTicket(ticketId: number): Promise<(SupportTicket & { messages: SupportMessage[] }) | null>;
+  getSupportTickets(filters?: { status?: string; priority?: string; issueType?: string; gymId?: number }): Promise<SupportTicket[]>;
+  getUserSupportTickets(userId: number): Promise<SupportTicket[]>;
+  updateSupportTicketStatus(ticketId: number, status: string): Promise<SupportTicket>;
+  createSupportMessage(data: InsertSupportMessage): Promise<SupportMessage>;
+  getSupportMessages(ticketId: number): Promise<SupportMessage[]>;
+  
+  // Audit Logs
+  createAuditLog(data: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(filters?: { entityType?: string; entityId?: number; adminId?: number }): Promise<(AuditLog & { adminName: string })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4928,6 +4945,136 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { phaseApplied: true, phaseName: activePhase.name };
+  }
+
+  // Support System Implementation
+  async createSupportTicket(data: InsertSupportTicket): Promise<SupportTicket> {
+    const [ticket] = await db.insert(supportTickets).values(data).returning();
+    return ticket;
+  }
+
+  async getSupportTicket(ticketId: number): Promise<(SupportTicket & { messages: SupportMessage[] }) | null> {
+    const [ticket] = await db.select().from(supportTickets).where(eq(supportTickets.id, ticketId));
+    if (!ticket) return null;
+    
+    const messages = await db.select()
+      .from(supportMessages)
+      .where(eq(supportMessages.ticketId, ticketId))
+      .orderBy(desc(supportMessages.createdAt));
+    
+    return { ...ticket, messages };
+  }
+
+  async getSupportTickets(filters?: { status?: string; priority?: string; issueType?: string; gymId?: number }): Promise<SupportTicket[]> {
+    const conditions = [];
+    if (filters?.status) {
+      conditions.push(eq(supportTickets.status, filters.status as any));
+    }
+    if (filters?.priority) {
+      conditions.push(eq(supportTickets.priority, filters.priority as any));
+    }
+    if (filters?.issueType) {
+      conditions.push(eq(supportTickets.issueType, filters.issueType as any));
+    }
+    if (filters?.gymId) {
+      conditions.push(eq(supportTickets.gymId, filters.gymId));
+    }
+    
+    if (conditions.length > 0) {
+      return await db.select()
+        .from(supportTickets)
+        .where(and(...conditions))
+        .orderBy(desc(supportTickets.createdAt));
+    }
+    
+    return await db.select()
+      .from(supportTickets)
+      .orderBy(desc(supportTickets.createdAt));
+  }
+
+  async getUserSupportTickets(userId: number): Promise<SupportTicket[]> {
+    return await db.select()
+      .from(supportTickets)
+      .where(eq(supportTickets.userId, userId))
+      .orderBy(desc(supportTickets.createdAt));
+  }
+
+  async updateSupportTicketStatus(ticketId: number, status: string): Promise<SupportTicket> {
+    const [ticket] = await db.update(supportTickets)
+      .set({ status: status as any, updatedAt: new Date() })
+      .where(eq(supportTickets.id, ticketId))
+      .returning();
+    return ticket;
+  }
+
+  async createSupportMessage(data: InsertSupportMessage): Promise<SupportMessage> {
+    const [message] = await db.insert(supportMessages).values(data).returning();
+    return message;
+  }
+
+  async getSupportMessages(ticketId: number): Promise<SupportMessage[]> {
+    return await db.select()
+      .from(supportMessages)
+      .where(eq(supportMessages.ticketId, ticketId))
+      .orderBy(supportMessages.createdAt);
+  }
+
+  // Audit Logs Implementation
+  async createAuditLog(data: InsertAuditLog): Promise<AuditLog> {
+    const [log] = await db.insert(auditLogs).values(data).returning();
+    return log;
+  }
+
+  async getAuditLogs(filters?: { entityType?: string; entityId?: number; adminId?: number }): Promise<(AuditLog & { adminName: string })[]> {
+    const conditions = [];
+    if (filters?.entityType) {
+      conditions.push(eq(auditLogs.entityType, filters.entityType));
+    }
+    if (filters?.entityId) {
+      conditions.push(eq(auditLogs.entityId, filters.entityId));
+    }
+    if (filters?.adminId) {
+      conditions.push(eq(auditLogs.adminId, filters.adminId));
+    }
+    
+    let query;
+    if (conditions.length > 0) {
+      query = db.select({
+        id: auditLogs.id,
+        adminId: auditLogs.adminId,
+        entityType: auditLogs.entityType,
+        entityId: auditLogs.entityId,
+        action: auditLogs.action,
+        oldValue: auditLogs.oldValue,
+        newValue: auditLogs.newValue,
+        reason: auditLogs.reason,
+        createdAt: auditLogs.createdAt,
+        adminName: users.username,
+      })
+        .from(auditLogs)
+        .leftJoin(users, eq(auditLogs.adminId, users.id))
+        .where(and(...conditions))
+        .orderBy(desc(auditLogs.createdAt));
+    } else {
+      query = db.select({
+        id: auditLogs.id,
+        adminId: auditLogs.adminId,
+        entityType: auditLogs.entityType,
+        entityId: auditLogs.entityId,
+        action: auditLogs.action,
+        oldValue: auditLogs.oldValue,
+        newValue: auditLogs.newValue,
+        reason: auditLogs.reason,
+        createdAt: auditLogs.createdAt,
+        adminName: users.username,
+      })
+        .from(auditLogs)
+        .leftJoin(users, eq(auditLogs.adminId, users.id))
+        .orderBy(desc(auditLogs.createdAt));
+    }
+    
+    const results = await query;
+    return results.map(r => ({ ...r, adminName: r.adminName || 'Unknown' }));
   }
 }
 

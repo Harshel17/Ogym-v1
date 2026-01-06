@@ -1,0 +1,67 @@
+We already have Super Admin login with: gym approvals, view gyms, subscription plans.
+Now add a SUPPORT / REQUESTS system for Owners, Trainers, and Members, WITHOUT breaking existing login flows or core code.
+
+GOAL:
+1) Add a “Support” section on:
+   A) Each login page (Owner/Trainer/Member) for users who can’t login
+   B) Inside each user dashboard after login (sidebar/menu item)
+2) Users can submit an issue: select issue type + priority + description (+ optional screenshot).
+3) In Admin Panel, add a new section/tab called “Requests” (Support Tickets) where admin can view all issues and take actions.
+4) Admin actions must be logged in an Audit Log (admin changes must be tracked).
+
+FEATURE REQUIREMENTS:
+
+A) USER SUPPORT (BEFORE LOGIN)
+- Add a “Need help? Support” link/button on each login page.
+- Clicking opens a Support form that does NOT require authentication.
+- Fields:
+  - role selector (Owner/Trainer/Member)
+  - email or phone (required)
+  - gym code (optional)
+  - issue type dropdown (Login/OTP/Password/Gym code/Other)
+  - description textarea (required)
+  - priority (Low/Medium/High)
+  - optional screenshot upload
+- On submit, create a support ticket and show “Ticket created: #TICKET_ID”.
+
+B) USER SUPPORT (AFTER LOGIN)
+- Add a “Support” item in the sidebar/menu for owners/trainers/members.
+- Form fields:
+  - issue type dropdown (Attendance / Payments / Profile update / Trainer assignment / Bug report / Other)
+  - priority
+  - description
+  - optional screenshot
+- Auto-fill and store: user_id, user_role, gym_id (if available), created_at.
+- Optional: show “My Requests” list with status (Open/In Progress/Waiting/Closed).
+
+C) ADMIN PANEL: REQUESTS (SUPPORT TICKETS)
+- Add Admin Panel tab “Requests”.
+- Show table with:
+  - Ticket ID, created_at, gym (if any), user role, user contact, issue type, priority, status
+- Filters: status, priority, issue type, gym
+- Clicking a ticket opens details view with full description + attachments.
+- Admin can:
+  - update status: Open / In Progress / Waiting User / Closed
+  - add admin notes
+  - reply to user (store message in thread)
+  - perform fixes using existing admin functionality (do not hard delete records)
+
+D) DATA MODEL (ADD THESE TABLES)
+- support_tickets:
+  id, user_id (nullable), user_role, gym_id (nullable),
+  contact_email_or_phone, issue_type, priority, description,
+  attachment_url (nullable), status, created_at, updated_at
+- support_messages (optional but recommended):
+  id, ticket_id, sender_type (user/admin), sender_id (nullable), message, created_at
+- audit_logs:
+  id, admin_id, entity_type, entity_id, action, old_value, new_value, reason, created_at
+
+E) IMPORTANT SAFETY RULES
+- Do not overwrite historical attendance/payment records. If correction is needed, create an “adjustment” record or log the change clearly.
+- No breaking changes to existing pages/APIs.
+- Use soft delete / status flags (active/inactive/suspended) instead of deleting accounts.
+
+DELIVERABLES:
+- Implement backend routes for creating tickets (public + authenticated), admin listing, admin updates, messaging.
+- Implement frontend UI for Support (pre-login + post-login) and Admin “Requests” page.
+- Ensure everything is secured (admin routes admin-only) and fully functional end-to-end.

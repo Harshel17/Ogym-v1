@@ -11,9 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Dumbbell, Mail, ArrowLeft, Loader2, KeyRound } from "lucide-react";
+import { Dumbbell, Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -80,6 +84,34 @@ export default function AuthPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [resetFormError, setResetFormError] = useState("");
+  
+  // Support dialog state
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportSubmitted, setSupportSubmitted] = useState(false);
+  const [supportTicketId, setSupportTicketId] = useState<number | null>(null);
+  const [supportRole, setSupportRole] = useState<"owner" | "trainer" | "member">("member");
+  const [supportContact, setSupportContact] = useState("");
+  const [supportGymCode, setSupportGymCode] = useState("");
+  const [supportIssueType, setSupportIssueType] = useState<string>("");
+  const [supportPriority, setSupportPriority] = useState<"low" | "medium" | "high">("medium");
+  const [supportDescription, setSupportDescription] = useState("");
+  const [supportError, setSupportError] = useState("");
+  
+  const { toast } = useToast();
+  
+  const supportMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/support/public", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setSupportTicketId(data.ticketId);
+      setSupportSubmitted(true);
+    },
+    onError: (error: any) => {
+      setSupportError(error.message || "Failed to submit support request");
+    },
+  });
 
   useEffect(() => {
     if (user) {
@@ -188,6 +220,46 @@ export default function AuthPage() {
     setNewPassword("");
     setConfirmPassword("");
     setResetFormError("");
+  };
+
+  const handleSupportSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSupportError("");
+    
+    if (!supportContact) {
+      setSupportError("Please enter your email or phone");
+      return;
+    }
+    if (!supportIssueType) {
+      setSupportError("Please select an issue type");
+      return;
+    }
+    if (supportDescription.length < 10) {
+      setSupportError("Please describe your issue in at least 10 characters");
+      return;
+    }
+    
+    supportMutation.mutate({
+      userRole: supportRole,
+      contactEmailOrPhone: supportContact,
+      gymCode: supportGymCode || undefined,
+      issueType: supportIssueType,
+      priority: supportPriority,
+      description: supportDescription,
+    });
+  };
+
+  const handleCloseSupport = () => {
+    setSupportOpen(false);
+    setSupportSubmitted(false);
+    setSupportTicketId(null);
+    setSupportRole("member");
+    setSupportContact("");
+    setSupportGymCode("");
+    setSupportIssueType("");
+    setSupportPriority("medium");
+    setSupportDescription("");
+    setSupportError("");
   };
 
   if (user) return null;
@@ -552,7 +624,7 @@ export default function AuthPage() {
             </TabsContent>
           </Tabs>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center flex flex-col gap-2">
             <a 
               href="/admin" 
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -560,6 +632,15 @@ export default function AuthPage() {
             >
               Admin Login
             </a>
+            <button
+              type="button"
+              onClick={() => setSupportOpen(true)}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center justify-center gap-1"
+              data-testid="button-need-help"
+            >
+              <HelpCircle className="w-3 h-3" />
+              Need help? Contact Support
+            </button>
           </div>
         </div>
       </div>
@@ -710,6 +791,160 @@ export default function AuthPage() {
                       </>
                     ) : (
                       "Reset Password"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={supportOpen} onOpenChange={(open) => {
+        if (!open) handleCloseSupport();
+        else setSupportOpen(true);
+      }}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          {supportSubmitted ? (
+            <>
+              <DialogHeader className="text-center space-y-4">
+                <div className="mx-auto w-14 h-14 bg-green-500/10 rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-7 h-7 text-green-500" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">Ticket Created</DialogTitle>
+                  <DialogDescription className="mt-2">
+                    Your support ticket #{supportTicketId} has been submitted successfully. We'll get back to you soon.
+                  </DialogDescription>
+                </div>
+              </DialogHeader>
+              <div className="mt-4">
+                <Button className="w-full" onClick={handleCloseSupport} data-testid="button-close-support-success">
+                  Close
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <DialogHeader className="text-center space-y-4">
+                <div className="mx-auto w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center">
+                  <HelpCircle className="w-7 h-7 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">Contact Support</DialogTitle>
+                  <DialogDescription className="mt-2">
+                    Having trouble logging in? Submit a support request and we'll help you.
+                  </DialogDescription>
+                </div>
+              </DialogHeader>
+              <form onSubmit={handleSupportSubmit} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <label htmlFor="support-role" className="text-sm font-medium">Your Role</label>
+                  <Select value={supportRole} onValueChange={(val: any) => setSupportRole(val)}>
+                    <SelectTrigger className="h-11" data-testid="select-support-role">
+                      <SelectValue placeholder="Select your role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="owner">Owner</SelectItem>
+                      <SelectItem value="trainer">Trainer</SelectItem>
+                      <SelectItem value="member">Member</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="support-contact" className="text-sm font-medium">Email or Phone</label>
+                  <Input
+                    id="support-contact"
+                    placeholder="Enter your email or phone"
+                    value={supportContact}
+                    onChange={(e) => setSupportContact(e.target.value)}
+                    className="h-11"
+                    data-testid="input-support-contact"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="support-gym-code" className="text-sm font-medium">Gym Code (optional)</label>
+                  <Input
+                    id="support-gym-code"
+                    placeholder="Enter your gym code if known"
+                    value={supportGymCode}
+                    onChange={(e) => setSupportGymCode(e.target.value.toUpperCase())}
+                    className="h-11"
+                    data-testid="input-support-gym-code"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="support-issue" className="text-sm font-medium">Issue Type</label>
+                  <Select value={supportIssueType} onValueChange={setSupportIssueType}>
+                    <SelectTrigger className="h-11" data-testid="select-support-issue">
+                      <SelectValue placeholder="Select issue type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="login">Login Issue</SelectItem>
+                      <SelectItem value="otp">OTP Not Received</SelectItem>
+                      <SelectItem value="password">Password Issue</SelectItem>
+                      <SelectItem value="gym_code">Gym Code Issue</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="support-priority" className="text-sm font-medium">Priority</label>
+                  <Select value={supportPriority} onValueChange={(val: any) => setSupportPriority(val)}>
+                    <SelectTrigger className="h-11" data-testid="select-support-priority">
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="support-description" className="text-sm font-medium">Describe Your Issue</label>
+                  <Textarea
+                    id="support-description"
+                    placeholder="Please describe your issue in detail..."
+                    value={supportDescription}
+                    onChange={(e) => setSupportDescription(e.target.value)}
+                    className="min-h-[100px]"
+                    data-testid="textarea-support-description"
+                  />
+                </div>
+                
+                {supportError && (
+                  <p className="text-sm text-destructive">{supportError}</p>
+                )}
+                
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={handleCloseSupport}
+                    data-testid="button-cancel-support"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={supportMutation.isPending}
+                    data-testid="button-submit-support"
+                  >
+                    {supportMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      "Submit Request"
                     )}
                   </Button>
                 </div>
