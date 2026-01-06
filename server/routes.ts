@@ -4488,6 +4488,427 @@ export async function registerRoutes(
     }
   });
 
+  // === ADMIN ATTENDANCE & WORKOUT MANAGEMENT ===
+  
+  // Get member data for a specific date
+  app.get("/api/admin/members/:id/day/:date", requireAdmin, async (req, res) => {
+    try {
+      const memberId = parseInt(req.params.id);
+      const date = req.params.date;
+      
+      const data = await storage.getAdminMemberDayData(memberId, date);
+      if (!data.member) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+      
+      res.json(data);
+    } catch (err) {
+      console.error("Admin get member day data error:", err);
+      res.status(500).json({ message: "Failed to get member data" });
+    }
+  });
+
+  // Set/update attendance for a member on a date
+  app.post("/api/admin/members/:id/attendance", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const memberId = parseInt(req.params.id);
+      
+      const schema = z.object({
+        date: z.string().min(1, "Date is required"),
+        status: z.enum(["present", "absent"]),
+        reason: z.string().min(1, "Reason is required for attendance changes"),
+      });
+      const input = schema.parse(req.body);
+      
+      const member = await storage.getUser(memberId);
+      if (!member || !member.gymId) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+      
+      // Get old attendance for audit
+      const oldAttendance = await storage.getAttendanceByMemberDate(memberId, input.date);
+      
+      const attendance = await storage.adminSetAttendance({
+        gymId: member.gymId,
+        memberId,
+        date: input.date,
+        status: input.status,
+        adminId: adminUser.userId,
+        reason: input.reason
+      });
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "attendance",
+        entityId: attendance.id,
+        action: oldAttendance ? "admin_update_attendance" : "admin_create_attendance",
+        oldValue: oldAttendance ? JSON.stringify({ status: oldAttendance.status }) : null,
+        newValue: JSON.stringify({ status: input.status }),
+        reason: input.reason,
+      });
+      
+      res.json(attendance);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin set attendance error:", err);
+      res.status(500).json({ message: "Failed to set attendance" });
+    }
+  });
+
+  // Create workout session
+  app.post("/api/admin/members/:id/workout/session/create", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const memberId = parseInt(req.params.id);
+      
+      const schema = z.object({
+        date: z.string().min(1, "Date is required"),
+        focusLabel: z.string().min(1, "Focus label/body part is required"),
+        notes: z.string().optional(),
+        reason: z.string().min(1, "Reason is required for creating sessions"),
+      });
+      const input = schema.parse(req.body);
+      
+      const member = await storage.getUser(memberId);
+      if (!member || !member.gymId) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+      
+      const session = await storage.adminCreateWorkoutSession({
+        gymId: member.gymId,
+        memberId,
+        date: input.date,
+        focusLabel: input.focusLabel,
+        notes: input.notes,
+        adminId: adminUser.userId,
+        reason: input.reason
+      });
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "workout_session",
+        entityId: session.id,
+        action: "admin_create_session",
+        oldValue: null,
+        newValue: JSON.stringify({ date: input.date, focusLabel: input.focusLabel }),
+        reason: input.reason,
+      });
+      
+      res.json(session);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin create session error:", err);
+      res.status(500).json({ message: "Failed to create workout session" });
+    }
+  });
+
+  // Update workout session
+  app.patch("/api/admin/workout/session/:sessionId", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const sessionId = parseInt(req.params.sessionId);
+      
+      const schema = z.object({
+        focusLabel: z.string().optional(),
+        notes: z.string().optional(),
+        reason: z.string().min(1, "Reason is required for session updates"),
+      });
+      const input = schema.parse(req.body);
+      
+      const oldSession = await storage.getWorkoutSession(sessionId);
+      if (!oldSession) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      const session = await storage.adminUpdateWorkoutSession(sessionId, {
+        focusLabel: input.focusLabel,
+        notes: input.notes,
+        adminId: adminUser.userId,
+        reason: input.reason
+      });
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "workout_session",
+        entityId: sessionId,
+        action: "admin_update_session",
+        oldValue: JSON.stringify({ focusLabel: oldSession.focusLabel, notes: oldSession.notes }),
+        newValue: JSON.stringify({ focusLabel: session.focusLabel, notes: session.notes }),
+        reason: input.reason,
+      });
+      
+      res.json(session);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin update session error:", err);
+      res.status(500).json({ message: "Failed to update session" });
+    }
+  });
+
+  // Delete workout session (soft delete)
+  app.delete("/api/admin/workout/session/:sessionId", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const sessionId = parseInt(req.params.sessionId);
+      
+      const schema = z.object({
+        reason: z.string().min(1, "Reason is required for deleting sessions"),
+      });
+      const input = schema.parse(req.body);
+      
+      const session = await storage.getWorkoutSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      await storage.adminDeleteWorkoutSession(sessionId, adminUser.userId, input.reason);
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "workout_session",
+        entityId: sessionId,
+        action: "admin_delete_session",
+        oldValue: JSON.stringify({ focusLabel: session.focusLabel, date: session.date }),
+        newValue: JSON.stringify({ isDeleted: true }),
+        reason: input.reason,
+      });
+      
+      res.json({ message: "Session deleted successfully" });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin delete session error:", err);
+      res.status(500).json({ message: "Failed to delete session" });
+    }
+  });
+
+  // Add exercise to session
+  app.post("/api/admin/workout/session/:sessionId/exercise/add", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const sessionId = parseInt(req.params.sessionId);
+      
+      const schema = z.object({
+        exerciseName: z.string().min(1, "Exercise name is required"),
+        sets: z.number().optional(),
+        reps: z.number().optional(),
+        weight: z.string().optional(),
+        duration: z.number().optional(),
+        reason: z.string().min(1, "Reason is required for adding exercises"),
+      });
+      const input = schema.parse(req.body);
+      
+      const session = await storage.getWorkoutSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      const exercise = await storage.adminAddExercise({
+        sessionId,
+        exerciseName: input.exerciseName,
+        sets: input.sets,
+        reps: input.reps,
+        weight: input.weight,
+        duration: input.duration,
+        adminId: adminUser.userId,
+        reason: input.reason
+      });
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "workout_exercise",
+        entityId: exercise.id,
+        action: "admin_add_exercise",
+        oldValue: null,
+        newValue: JSON.stringify({ exerciseName: input.exerciseName, sets: input.sets, reps: input.reps }),
+        reason: input.reason,
+      });
+      
+      res.json(exercise);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin add exercise error:", err);
+      res.status(500).json({ message: "Failed to add exercise" });
+    }
+  });
+
+  // Update exercise
+  app.patch("/api/admin/workout/exercise/:exerciseId", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const exerciseId = parseInt(req.params.exerciseId);
+      
+      const schema = z.object({
+        exerciseName: z.string().optional(),
+        sets: z.number().optional(),
+        reps: z.number().optional(),
+        weight: z.string().optional(),
+        duration: z.number().optional(),
+        reason: z.string().min(1, "Reason is required for updating exercises"),
+      });
+      const input = schema.parse(req.body);
+      
+      const oldExercise = await storage.getWorkoutExercise(exerciseId);
+      if (!oldExercise) {
+        return res.status(404).json({ message: "Exercise not found" });
+      }
+      
+      const exercise = await storage.adminUpdateExercise(exerciseId, {
+        exerciseName: input.exerciseName,
+        sets: input.sets,
+        reps: input.reps,
+        weight: input.weight,
+        duration: input.duration,
+        adminId: adminUser.userId,
+        reason: input.reason
+      });
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "workout_exercise",
+        entityId: exerciseId,
+        action: "admin_update_exercise",
+        oldValue: JSON.stringify({ exerciseName: oldExercise.exerciseName, sets: oldExercise.sets, reps: oldExercise.reps }),
+        newValue: JSON.stringify({ exerciseName: exercise.exerciseName, sets: exercise.sets, reps: exercise.reps }),
+        reason: input.reason,
+      });
+      
+      res.json(exercise);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin update exercise error:", err);
+      res.status(500).json({ message: "Failed to update exercise" });
+    }
+  });
+
+  // Delete exercise (soft delete)
+  app.delete("/api/admin/workout/exercise/:exerciseId", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const exerciseId = parseInt(req.params.exerciseId);
+      
+      const schema = z.object({
+        reason: z.string().min(1, "Reason is required for deleting exercises"),
+      });
+      const input = schema.parse(req.body);
+      
+      const exercise = await storage.getWorkoutExercise(exerciseId);
+      if (!exercise) {
+        return res.status(404).json({ message: "Exercise not found" });
+      }
+      
+      await storage.adminDeleteExercise(exerciseId, adminUser.userId, input.reason);
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "workout_exercise",
+        entityId: exerciseId,
+        action: "admin_delete_exercise",
+        oldValue: JSON.stringify({ exerciseName: exercise.exerciseName }),
+        newValue: JSON.stringify({ isDeleted: true }),
+        reason: input.reason,
+      });
+      
+      res.json({ message: "Exercise deleted successfully" });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin delete exercise error:", err);
+      res.status(500).json({ message: "Failed to delete exercise" });
+    }
+  });
+
+  // Reorder exercises
+  app.post("/api/admin/workout/session/:sessionId/exercises/reorder", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const sessionId = parseInt(req.params.sessionId);
+      
+      const schema = z.object({
+        orderedExerciseIds: z.array(z.number()),
+        reason: z.string().min(1, "Reason is required for reordering exercises"),
+      });
+      const input = schema.parse(req.body);
+      
+      const session = await storage.getWorkoutSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      await storage.adminReorderExercises(sessionId, input.orderedExerciseIds, adminUser.userId, input.reason);
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "workout_session",
+        entityId: sessionId,
+        action: "admin_reorder_exercises",
+        oldValue: null,
+        newValue: JSON.stringify({ orderedExerciseIds: input.orderedExerciseIds }),
+        reason: input.reason,
+      });
+      
+      res.json({ message: "Exercises reordered successfully" });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin reorder exercises error:", err);
+      res.status(500).json({ message: "Failed to reorder exercises" });
+    }
+  });
+
+  // Recalculate member streaks
+  app.post("/api/admin/members/:id/streak/recalculate", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const memberId = parseInt(req.params.id);
+      
+      const member = await storage.getUser(memberId);
+      if (!member) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+      
+      const streaks = await storage.calculateMemberStreaks(memberId);
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "member",
+        entityId: memberId,
+        action: "admin_recalculate_streak",
+        oldValue: null,
+        newValue: JSON.stringify(streaks),
+        reason: "Manual streak recalculation",
+      });
+      
+      res.json(streaks);
+    } catch (err) {
+      console.error("Admin recalculate streak error:", err);
+      res.status(500).json({ message: "Failed to recalculate streak" });
+    }
+  });
+
   // Admin: Get audit logs
   app.get("/api/admin/audit-logs", requireAdmin, async (req, res) => {
     try {
