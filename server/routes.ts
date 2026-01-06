@@ -3470,10 +3470,33 @@ export async function registerRoutes(
       }
       const members = await storage.getGymMembers(gymId);
       const trainers = await storage.getGymTrainers(gymId);
+      const owner = gym.ownerId ? await storage.getUser(gym.ownerId) : null;
       res.json({
         gym,
-        members: members.map(m => ({ id: m.id, username: m.username, email: m.email, phone: m.phone, publicId: m.publicId })),
-        trainers: trainers.map(t => ({ id: t.id, username: t.username, email: t.email, phone: t.phone, publicId: t.publicId })),
+        owner: owner ? { 
+          id: owner.id, 
+          username: owner.username, 
+          email: owner.email, 
+          phone: owner.phone, 
+          publicId: owner.publicId,
+          status: owner.status || "active"
+        } : null,
+        members: members.map(m => ({ 
+          id: m.id, 
+          username: m.username, 
+          email: m.email, 
+          phone: m.phone, 
+          publicId: m.publicId,
+          status: (m as any).status || "active"
+        })),
+        trainers: trainers.map(t => ({ 
+          id: t.id, 
+          username: t.username, 
+          email: t.email, 
+          phone: t.phone, 
+          publicId: t.publicId,
+          status: (t as any).status || "active"
+        })),
         memberCount: members.length,
         trainerCount: trainers.length,
       });
@@ -4087,7 +4110,7 @@ export async function registerRoutes(
 
   // === ADMIN SUPPORT ROUTES ===
 
-  // Admin: Get all support tickets with filters
+  // Admin: Get all support tickets with filters (enriched with gym/user info)
   app.get("/api/admin/support", requireAdmin, async (req, res) => {
     try {
       const filters: { status?: string; priority?: string; issueType?: string; gymId?: number } = {};
@@ -4105,7 +4128,7 @@ export async function registerRoutes(
         filters.gymId = parseInt(req.query.gymId);
       }
       
-      const tickets = await storage.getSupportTickets(filters);
+      const tickets = await storage.getAdminSupportTickets(filters);
       res.json(tickets);
     } catch (err) {
       console.error("Admin get tickets error:", err);
@@ -4113,11 +4136,11 @@ export async function registerRoutes(
     }
   });
 
-  // Admin: Get a specific ticket
+  // Admin: Get a specific ticket (enriched with gym/user info)
   app.get("/api/admin/support/:id", requireAdmin, async (req, res) => {
     try {
       const ticketId = parseInt(req.params.id);
-      const ticket = await storage.getSupportTicket(ticketId);
+      const ticket = await storage.getAdminSupportTicket(ticketId);
       
       if (!ticket) {
         return res.status(404).json({ message: "Ticket not found" });
@@ -4210,6 +4233,258 @@ export async function registerRoutes(
       }
       console.error("Admin add message error:", err);
       res.status(500).json({ message: "Failed to add message" });
+    }
+  });
+
+  // === ADMIN USER MANAGEMENT ROUTES ===
+
+  // Admin: Get all gyms with owners
+  app.get("/api/admin/gyms-with-owners", requireAdmin, async (req, res) => {
+    try {
+      const gymsWithOwners = await storage.getAllGymsWithOwners();
+      res.json(gymsWithOwners);
+    } catch (err) {
+      console.error("Admin get gyms error:", err);
+      res.status(500).json({ message: "Failed to get gyms" });
+    }
+  });
+
+  // Admin: Get gym roster (owner, trainers, members)
+  app.get("/api/admin/gyms/:gymId/roster", requireAdmin, async (req, res) => {
+    try {
+      const gymId = parseInt(req.params.gymId);
+      const roster = await storage.getGymWithRoster(gymId);
+      
+      if (!roster) {
+        return res.status(404).json({ message: "Gym not found" });
+      }
+      
+      res.json(roster);
+    } catch (err) {
+      console.error("Admin get gym roster error:", err);
+      res.status(500).json({ message: "Failed to get gym roster" });
+    }
+  });
+
+  // Admin: Get user details
+  app.get("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(user);
+    } catch (err) {
+      console.error("Admin get user error:", err);
+      res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+
+  // Admin: Update user details
+  app.patch("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const userId = parseInt(req.params.userId);
+      
+      const schema = z.object({
+        username: z.string().min(1).optional(),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+        status: z.enum(["active", "suspended", "banned"]).optional(),
+        reason: z.string().min(1, "Reason is required for admin edits"),
+      });
+      const input = schema.parse(req.body);
+      
+      const oldUser = await storage.getUser(userId);
+      if (!oldUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const { reason, ...updateData } = input;
+      const updatedUser = await storage.adminUpdateUser(userId, updateData);
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "user",
+        entityId: userId,
+        action: "admin_user_update",
+        oldValue: JSON.stringify({ username: oldUser.username, email: oldUser.email, phone: oldUser.phone, status: oldUser.status }),
+        newValue: JSON.stringify(updateData),
+        reason: reason,
+      });
+      
+      res.json(updatedUser);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin update user error:", err);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Admin: Reset user password
+  app.post("/api/admin/users/:userId/reset-password", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const userId = parseInt(req.params.userId);
+      
+      const schema = z.object({
+        newPassword: z.string().min(6, "Password must be at least 6 characters"),
+        reason: z.string().min(1, "Reason is required"),
+      });
+      const input = schema.parse(req.body);
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const hashedPassword = await hashPassword(input.newPassword);
+      await storage.adminResetPassword(userId, hashedPassword);
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "user",
+        entityId: userId,
+        action: "admin_password_reset",
+        oldValue: null,
+        newValue: "Password reset by admin",
+        reason: input.reason,
+      });
+      
+      res.json({ message: "Password reset successfully" });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin reset password error:", err);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  // Admin: Update user status (suspend/activate/ban)
+  app.post("/api/admin/users/:userId/status", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const userId = parseInt(req.params.userId);
+      
+      const schema = z.object({
+        status: z.enum(["active", "suspended", "banned"]),
+        reason: z.string().min(1, "Reason is required for status change"),
+      });
+      const input = schema.parse(req.body);
+      
+      const oldUser = await storage.getUser(userId);
+      if (!oldUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const updatedUser = await storage.adminUpdateUser(userId, { status: input.status });
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "user",
+        entityId: userId,
+        action: "admin_status_change",
+        oldValue: oldUser.status || "active",
+        newValue: input.status,
+        reason: input.reason,
+      });
+      
+      res.json(updatedUser);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin status change error:", err);
+      res.status(500).json({ message: "Failed to change status" });
+    }
+  });
+
+  // Admin: Move user to different gym
+  app.post("/api/admin/users/:userId/move-gym", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const userId = parseInt(req.params.userId);
+      
+      const schema = z.object({
+        newGymId: z.number().nullable(),
+        reason: z.string().min(1, "Reason is required for gym transfer"),
+      });
+      const input = schema.parse(req.body);
+      
+      const oldUser = await storage.getUser(userId);
+      if (!oldUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const updatedUser = await storage.adminMoveUserToGym(userId, input.newGymId);
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "user",
+        entityId: userId,
+        action: "admin_gym_transfer",
+        oldValue: oldUser.gymId?.toString() || "none",
+        newValue: input.newGymId?.toString() || "none",
+        reason: input.reason,
+      });
+      
+      res.json(updatedUser);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin move gym error:", err);
+      res.status(500).json({ message: "Failed to move user" });
+    }
+  });
+
+  // Admin: Reassign member to different trainer
+  app.post("/api/admin/users/:userId/reassign-trainer", requireAdmin, async (req, res) => {
+    try {
+      const adminUser = (req as any).adminUser;
+      const userId = parseInt(req.params.userId);
+      
+      const schema = z.object({
+        newTrainerId: z.number().nullable(),
+        reason: z.string().min(1, "Reason is required for trainer reassignment"),
+      });
+      const input = schema.parse(req.body);
+      
+      const oldUser = await storage.getUser(userId);
+      if (!oldUser || oldUser.role !== "member") {
+        return res.status(404).json({ message: "Member not found" });
+      }
+      
+      await storage.adminReassignTrainer(userId, input.newTrainerId);
+      
+      // Log the action
+      await storage.createAuditLog({
+        adminId: adminUser.userId,
+        entityType: "user",
+        entityId: userId,
+        action: "admin_trainer_reassign",
+        oldValue: oldUser.trainerId?.toString() || "none",
+        newValue: input.newTrainerId?.toString() || "none",
+        reason: input.reason,
+      });
+      
+      res.json({ message: "Trainer reassigned successfully" });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Admin reassign trainer error:", err);
+      res.status(500).json({ message: "Failed to reassign trainer" });
     }
   });
 

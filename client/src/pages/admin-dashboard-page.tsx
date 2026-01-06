@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import { 
   Shield, LogOut, Building2, Users, CreditCard, Check, X, Loader2, 
   Clock, CheckCircle, XCircle, Calendar, Search, ArrowLeft, UserCheck, Dumbbell,
-  HelpCircle, MessageSquare, AlertCircle, Send
+  HelpCircle, MessageSquare, AlertCircle, Send, FileText, History, Edit, Key, ArrowRightLeft
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -382,17 +382,39 @@ function GymRequestsTab() {
 
 type GymProfile = {
   gym: { id: number; name: string; code: string };
-  members: { id: number; username: string; email: string | null; phone: string | null; publicId: string | null }[];
-  trainers: { id: number; username: string; email: string | null; phone: string | null; publicId: string | null }[];
+  owner: { id: number; username: string; email: string | null; phone: string | null; publicId: string | null; status: string } | null;
+  members: { id: number; username: string; email: string | null; phone: string | null; publicId: string | null; status: string }[];
+  trainers: { id: number; username: string; email: string | null; phone: string | null; publicId: string | null; status: string }[];
   memberCount: number;
   trainerCount: number;
 };
 
+type SelectedUser = {
+  id: number;
+  username: string;
+  email: string | null;
+  phone: string | null;
+  publicId: string | null;
+  status: string;
+  role: "owner" | "trainer" | "member";
+};
+
 function GymsTab() {
+  const { toast } = useToast();
   const [selectedGymId, setSelectedGymId] = useState<number | null>(null);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [showList, setShowList] = useState<"members" | "trainers" | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  const [selectedUser, setSelectedUser] = useState<SelectedUser | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
+  const [showMoveGymDialog, setShowMoveGymDialog] = useState(false);
+  
+  const [editForm, setEditForm] = useState({ username: "", email: "", phone: "" });
+  const [resetPasswordForm, setResetPasswordForm] = useState({ newPassword: "", reason: "" });
+  const [moveGymForm, setMoveGymForm] = useState({ targetGymId: "", reason: "" });
+  const [editReason, setEditReason] = useState("");
   
   const [nameFilter, setNameFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
@@ -411,11 +433,125 @@ function GymsTab() {
     },
   });
 
-  const { data: profile, isLoading: profileLoading } = useQuery<GymProfile>({
+  const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = useQuery<GymProfile>({
     queryKey: ["/api/admin/gyms", selectedGymId, "profile"],
     queryFn: () => adminFetch(`/api/admin/gyms/${selectedGymId}/profile`),
     enabled: !!selectedGymId && showProfileDialog,
   });
+
+  const editUserMutation = useMutation({
+    mutationFn: (data: { userId: number; updates: { username?: string; email?: string; phone?: string }; reason: string }) =>
+      adminFetch(`/api/admin/users/${data.userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data.updates, reason: data.reason }),
+      }),
+    onSuccess: () => {
+      toast({ title: "User updated successfully" });
+      setShowEditDialog(false);
+      refetchProfile();
+    },
+    onError: (error: Error) => toast({ title: "Update failed", description: error.message, variant: "destructive" }),
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: (data: { userId: number; newPassword: string; reason: string }) =>
+      adminFetch(`/api/admin/users/${data.userId}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword: data.newPassword, reason: data.reason }),
+      }),
+    onSuccess: () => {
+      toast({ title: "Password reset successfully" });
+      setShowResetPasswordDialog(false);
+      setResetPasswordForm({ newPassword: "", reason: "" });
+    },
+    onError: (error: Error) => toast({ title: "Reset failed", description: error.message, variant: "destructive" }),
+  });
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: (data: { userId: number; status: string; reason: string }) =>
+      adminFetch(`/api/admin/users/${data.userId}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: data.status, reason: data.reason }),
+      }),
+    onSuccess: () => {
+      toast({ title: "Status updated successfully" });
+      refetchProfile();
+    },
+    onError: (error: Error) => toast({ title: "Status update failed", description: error.message, variant: "destructive" }),
+  });
+
+  const moveGymMutation = useMutation({
+    mutationFn: (data: { userId: number; targetGymId: number; reason: string }) =>
+      adminFetch(`/api/admin/users/${data.userId}/move-gym`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetGymId: data.targetGymId, reason: data.reason }),
+      }),
+    onSuccess: () => {
+      toast({ title: "User moved successfully" });
+      setShowMoveGymDialog(false);
+      setMoveGymForm({ targetGymId: "", reason: "" });
+      refetchProfile();
+    },
+    onError: (error: Error) => toast({ title: "Move failed", description: error.message, variant: "destructive" }),
+  });
+
+  const openEditDialog = (user: SelectedUser) => {
+    setSelectedUser(user);
+    setEditForm({ username: user.username, email: user.email || "", phone: user.phone || "" });
+    setEditReason("");
+    setShowEditDialog(true);
+  };
+
+  const openResetPasswordDialog = (user: SelectedUser) => {
+    setSelectedUser(user);
+    setResetPasswordForm({ newPassword: "", reason: "" });
+    setShowResetPasswordDialog(true);
+  };
+
+  const openMoveGymDialog = (user: SelectedUser) => {
+    setSelectedUser(user);
+    setMoveGymForm({ targetGymId: "", reason: "" });
+    setShowMoveGymDialog(true);
+  };
+
+  const handleEditSubmit = () => {
+    if (!selectedUser || !editReason.trim()) return;
+    editUserMutation.mutate({
+      userId: selectedUser.id,
+      updates: { username: editForm.username, email: editForm.email || undefined, phone: editForm.phone || undefined },
+      reason: editReason,
+    });
+  };
+
+  const handleResetPassword = () => {
+    if (!selectedUser || !resetPasswordForm.newPassword || !resetPasswordForm.reason.trim()) return;
+    resetPasswordMutation.mutate({
+      userId: selectedUser.id,
+      newPassword: resetPasswordForm.newPassword,
+      reason: resetPasswordForm.reason,
+    });
+  };
+
+  const handleMoveGym = () => {
+    if (!selectedUser || !moveGymForm.targetGymId || !moveGymForm.reason.trim()) return;
+    moveGymMutation.mutate({
+      userId: selectedUser.id,
+      targetGymId: parseInt(moveGymForm.targetGymId),
+      reason: moveGymForm.reason,
+    });
+  };
+
+  const handleToggleStatus = (user: SelectedUser) => {
+    const newStatus = user.status === "active" ? "suspended" : "active";
+    const reason = prompt(`Reason for ${newStatus === "suspended" ? "suspending" : "activating"} user ${user.username}:`);
+    if (reason) {
+      toggleStatusMutation.mutate({ userId: user.id, status: newStatus, reason });
+    }
+  };
 
   const handleGymClick = (gymId: number) => {
     setSelectedGymId(gymId);
@@ -674,14 +810,19 @@ function GymsTab() {
                       {filteredUsers.map((user, index) => (
                         <div 
                           key={user.id} 
-                          className="flex items-center gap-3 p-3 rounded-md bg-muted/50 hover-elevate"
+                          className="flex items-center gap-3 p-3 rounded-md bg-muted/50"
                           data-testid={`user-item-${user.id}`}
                         >
                           <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary font-semibold text-sm shrink-0">
                             {user.username.substring(0, 2).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{user.username}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium truncate">{user.username}</p>
+                              {user.status === "suspended" && (
+                                <Badge variant="destructive" className="text-xs">Suspended</Badge>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <span className="font-mono">{user.publicId || `#${user.id}`}</span>
                               {user.email && (
@@ -692,9 +833,40 @@ function GymsTab() {
                               )}
                             </div>
                           </div>
-                          <Badge variant="outline" className="shrink-0 text-xs">
-                            #{index + 1}
-                          </Badge>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button 
+                              size="icon" 
+                              variant="ghost"
+                              onClick={() => openEditDialog({ ...user, role: showList === "members" ? "member" : "trainer", status: user.status || "active" })}
+                              data-testid={`button-edit-user-${user.id}`}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost"
+                              onClick={() => openResetPasswordDialog({ ...user, role: showList === "members" ? "member" : "trainer", status: user.status || "active" })}
+                              data-testid={`button-reset-password-${user.id}`}
+                            >
+                              <Key className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost"
+                              onClick={() => handleToggleStatus({ ...user, role: showList === "members" ? "member" : "trainer", status: user.status || "active" })}
+                              data-testid={`button-toggle-status-${user.id}`}
+                            >
+                              {user.status === "suspended" ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost"
+                              onClick={() => openMoveGymDialog({ ...user, role: showList === "members" ? "member" : "trainer", status: user.status || "active" })}
+                              data-testid={`button-move-gym-${user.id}`}
+                            >
+                              <ArrowRightLeft className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                       {filteredUsers.length === 0 && (
@@ -717,6 +889,174 @@ function GymsTab() {
               )}
             </>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Edit User
+            </DialogTitle>
+            <DialogDescription>
+              Edit {selectedUser?.username}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-username">Username</Label>
+              <Input
+                id="edit-username"
+                value={editForm.username}
+                onChange={(e) => setEditForm(f => ({ ...f, username: e.target.value }))}
+                data-testid="input-edit-username"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm(f => ({ ...f, email: e.target.value }))}
+                data-testid="input-edit-email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                value={editForm.phone}
+                onChange={(e) => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                data-testid="input-edit-phone"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-reason">Reason for change (required)</Label>
+              <Textarea
+                id="edit-reason"
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                placeholder="Why are you making this change?"
+                data-testid="textarea-edit-reason"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+            <Button
+              onClick={handleEditSubmit}
+              disabled={!editReason.trim() || editUserMutation.isPending}
+              data-testid="button-save-user-edit"
+            >
+              {editUserMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showResetPasswordDialog} onOpenChange={setShowResetPasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Reset Password
+            </DialogTitle>
+            <DialogDescription>
+              Reset password for {selectedUser?.username}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={resetPasswordForm.newPassword}
+                onChange={(e) => setResetPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+                placeholder="Enter new password"
+                data-testid="input-new-password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reset-reason">Reason (required)</Label>
+              <Textarea
+                id="reset-reason"
+                value={resetPasswordForm.reason}
+                onChange={(e) => setResetPasswordForm(f => ({ ...f, reason: e.target.value }))}
+                placeholder="Why are you resetting this password?"
+                data-testid="textarea-reset-reason"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowResetPasswordDialog(false)}>Cancel</Button>
+            <Button
+              onClick={handleResetPassword}
+              disabled={!resetPasswordForm.newPassword || !resetPasswordForm.reason.trim() || resetPasswordMutation.isPending}
+              data-testid="button-confirm-reset-password"
+            >
+              {resetPasswordMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Reset Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showMoveGymDialog} onOpenChange={setShowMoveGymDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-5 w-5" />
+              Move to Another Gym
+            </DialogTitle>
+            <DialogDescription>
+              Transfer {selectedUser?.username} to a different gym
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Target Gym</Label>
+              <Select 
+                value={moveGymForm.targetGymId} 
+                onValueChange={(v) => setMoveGymForm(f => ({ ...f, targetGymId: v }))}
+              >
+                <SelectTrigger data-testid="select-target-gym">
+                  <SelectValue placeholder="Select a gym" />
+                </SelectTrigger>
+                <SelectContent>
+                  {gyms.filter(g => g.id !== selectedGymId).map(gym => (
+                    <SelectItem key={gym.id} value={String(gym.id)}>
+                      {gym.name} ({gym.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="move-reason">Reason (required)</Label>
+              <Textarea
+                id="move-reason"
+                value={moveGymForm.reason}
+                onChange={(e) => setMoveGymForm(f => ({ ...f, reason: e.target.value }))}
+                placeholder="Why are you moving this user?"
+                data-testid="textarea-move-reason"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowMoveGymDialog(false)}>Cancel</Button>
+            <Button
+              onClick={handleMoveGym}
+              disabled={!moveGymForm.targetGymId || !moveGymForm.reason.trim() || moveGymMutation.isPending}
+              data-testid="button-confirm-move-gym"
+            >
+              {moveGymMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Move User
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -975,6 +1315,12 @@ type SupportTicket = {
   status: string;
   createdAt: string;
   updatedAt: string;
+  gymName: string | null;
+  gymCode: string | null;
+  gymCity: string | null;
+  gymState: string | null;
+  userName: string | null;
+  userEmail: string | null;
 };
 
 type SupportMessage = {
@@ -1135,12 +1481,30 @@ function SupportTab() {
                   onClick={() => { setSelectedTicket(ticket); setShowDetailDialog(true); }}
                   data-testid={`card-admin-ticket-${ticket.id}`}
                 >
+                  {ticket.gymName && (
+                    <div className="flex items-center gap-2 mb-2 text-xs">
+                      <Building2 className="w-3 h-3 text-muted-foreground" />
+                      <span className="font-medium text-primary">{ticket.gymName}</span>
+                      <Badge variant="outline" className="text-xs">{ticket.gymCode}</Badge>
+                      {(ticket.gymCity || ticket.gymState) && (
+                        <span className="text-muted-foreground">
+                          {[ticket.gymCity, ticket.gymState].filter(Boolean).join(", ")}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {!ticket.gymName && ticket.gymId === null && (
+                    <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+                      <Building2 className="w-3 h-3" />
+                      <span>Unknown Gym</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                     <div className="flex items-center gap-2">
                       {getStatusIcon(ticket.status)}
                       <span className="font-medium">#{ticket.id}</span>
                       <span className="text-sm text-muted-foreground">
-                        {ticket.userRole} {ticket.userId ? `(User #${ticket.userId})` : "(Guest)"}
+                        {ticket.userName || ticket.userRole} {ticket.userId ? `(ID: ${ticket.userId})` : "(Guest)"}
                       </span>
                     </div>
                     <div className="flex gap-2 flex-wrap">
@@ -1154,6 +1518,7 @@ function SupportTab() {
                   <p className="text-sm text-muted-foreground line-clamp-2">{ticket.description}</p>
                   <div className="flex gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
                     {ticket.contactEmailOrPhone && <span>Contact: {ticket.contactEmailOrPhone}</span>}
+                    {ticket.userEmail && <span>Email: {ticket.userEmail}</span>}
                     <span>Created: {format(new Date(ticket.createdAt), "PPp")}</span>
                   </div>
                 </div>
@@ -1179,13 +1544,46 @@ function SupportTab() {
             <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
           ) : ticketDetails ? (
             <div className="flex-1 overflow-y-auto space-y-4">
+              {ticketDetails.gymName && (
+                <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-primary" />
+                      <span className="font-medium">{ticketDetails.gymName}</span>
+                      <Badge variant="outline">{ticketDetails.gymCode}</Badge>
+                    </div>
+                    {ticketDetails.gymId && (
+                      <Button variant="outline" size="sm" onClick={() => { setShowDetailDialog(false); }} data-testid="button-open-gym">
+                        <Building2 className="w-3 h-3 mr-1" />
+                        View Gym
+                      </Button>
+                    )}
+                  </div>
+                  {(ticketDetails.gymCity || ticketDetails.gymState) && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {[ticketDetails.gymCity, ticketDetails.gymState].filter(Boolean).join(", ")}
+                    </p>
+                  )}
+                </div>
+              )}
+              {!ticketDetails.gymName && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Building2 className="w-4 h-4" />
+                    <span className="text-sm">Unknown Gym (ticket raised before login or gym not specified)</span>
+                  </div>
+                </div>
+              )}
               <div className="p-3 bg-secondary/50 rounded-lg space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   {getPriorityBadge(ticketDetails.priority)}
-                  <span className="text-sm">{ticketDetails.userRole}</span>
-                  {ticketDetails.contactEmailOrPhone && (
-                    <span className="text-sm text-muted-foreground">{ticketDetails.contactEmailOrPhone}</span>
-                  )}
+                  <Badge variant="secondary">{ticketDetails.userRole}</Badge>
+                  {ticketDetails.userName && <span className="text-sm font-medium">{ticketDetails.userName}</span>}
+                  {ticketDetails.userId && <span className="text-xs text-muted-foreground">(ID: {ticketDetails.userId})</span>}
+                </div>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+                  {ticketDetails.contactEmailOrPhone && <span>Contact: {ticketDetails.contactEmailOrPhone}</span>}
+                  {ticketDetails.userEmail && <span>Email: {ticketDetails.userEmail}</span>}
                 </div>
                 <p className="text-sm">{ticketDetails.description}</p>
                 <p className="text-xs text-muted-foreground">Created: {format(new Date(ticketDetails.createdAt), "PPpp")}</p>
@@ -1257,6 +1655,131 @@ function SupportTab() {
           ) : null}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+type AuditLog = {
+  id: number;
+  adminId: number;
+  adminName: string;
+  entityType: string;
+  entityId: number;
+  action: string;
+  oldValue: string | null;
+  newValue: string | null;
+  reason: string | null;
+  createdAt: string;
+};
+
+function AuditLogsTab() {
+  const [entityTypeFilter, setEntityTypeFilter] = useState<string>("all");
+  
+  const { data: logs = [], isLoading } = useQuery<AuditLog[]>({
+    queryKey: ["/api/admin/audit-logs", entityTypeFilter],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (entityTypeFilter !== "all") params.append("entityType", entityTypeFilter);
+      return adminFetch(`/api/admin/audit-logs?${params.toString()}`);
+    },
+  });
+
+  const getActionIcon = (action: string) => {
+    if (action.includes("update") || action.includes("edit")) return <Edit className="w-4 h-4 text-blue-500" />;
+    if (action.includes("password")) return <Key className="w-4 h-4 text-yellow-500" />;
+    if (action.includes("status")) return <CheckCircle className="w-4 h-4 text-green-500" />;
+    if (action.includes("transfer") || action.includes("move")) return <ArrowRightLeft className="w-4 h-4 text-purple-500" />;
+    return <History className="w-4 h-4 text-muted-foreground" />;
+  };
+
+  const getActionLabel = (action: string) => {
+    const labels: Record<string, string> = {
+      status_update: "Status Update",
+      admin_reply: "Admin Reply",
+      admin_user_update: "User Edited",
+      admin_password_reset: "Password Reset",
+      admin_status_change: "Status Changed",
+      admin_gym_transfer: "Gym Transfer",
+      admin_trainer_reassign: "Trainer Reassigned",
+    };
+    return labels[action] || action.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  if (isLoading) {
+    return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Audit Logs
+            </CardTitle>
+            <CardDescription>Track all admin actions and changes</CardDescription>
+          </div>
+          <Select value={entityTypeFilter} onValueChange={setEntityTypeFilter}>
+            <SelectTrigger className="w-[180px]" data-testid="select-audit-entity-filter">
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="user">User Changes</SelectItem>
+              <SelectItem value="gym">Gym Changes</SelectItem>
+              <SelectItem value="support_ticket">Support Tickets</SelectItem>
+              <SelectItem value="subscription">Subscriptions</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent>
+          {logs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No audit logs found</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {logs.map((log) => (
+                <div key={log.id} className="p-4 border rounded-lg" data-testid={`audit-log-${log.id}`}>
+                  <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      {getActionIcon(log.action)}
+                      <span className="font-medium">{getActionLabel(log.action)}</span>
+                      <Badge variant="outline">{log.entityType}</Badge>
+                      <span className="text-sm text-muted-foreground">#{log.entityId}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{format(new Date(log.createdAt), "PPpp")}</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground mb-1">
+                    By: <span className="font-medium">{log.adminName}</span>
+                  </div>
+                  {log.reason && (
+                    <div className="text-sm bg-secondary/50 p-2 rounded mt-2">
+                      <span className="font-medium">Reason:</span> {log.reason}
+                    </div>
+                  )}
+                  {(log.oldValue || log.newValue) && (
+                    <div className="flex gap-4 mt-2 text-xs flex-wrap">
+                      {log.oldValue && (
+                        <div className="bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded">
+                          <span className="text-red-600 dark:text-red-400">Old:</span> {log.oldValue.length > 50 ? log.oldValue.substring(0, 50) + "..." : log.oldValue}
+                        </div>
+                      )}
+                      {log.newValue && (
+                        <div className="bg-green-50 dark:bg-green-950/30 px-2 py-1 rounded">
+                          <span className="text-green-600 dark:text-green-400">New:</span> {log.newValue.length > 50 ? log.newValue.substring(0, 50) + "..." : log.newValue}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -1339,6 +1862,10 @@ export default function AdminDashboardPage() {
               <HelpCircle className="h-4 w-4" />
               Support
             </TabsTrigger>
+            <TabsTrigger value="audit" className="flex items-center gap-2" data-testid="tab-audit">
+              <History className="h-4 w-4" />
+              Audit Logs
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="requests">
@@ -1355,6 +1882,10 @@ export default function AdminDashboardPage() {
 
           <TabsContent value="support">
             <SupportTab />
+          </TabsContent>
+
+          <TabsContent value="audit">
+            <AuditLogsTab />
           </TabsContent>
         </Tabs>
       </main>

@@ -547,10 +547,49 @@ export interface IStorage {
   createSupportMessage(data: InsertSupportMessage): Promise<SupportMessage>;
   getSupportMessages(ticketId: number): Promise<SupportMessage[]>;
   
+  // Admin Support (enriched with gym/user info)
+  getAdminSupportTickets(filters?: { status?: string; priority?: string; issueType?: string; gymId?: number }): Promise<AdminSupportTicket[]>;
+  getAdminSupportTicket(ticketId: number): Promise<AdminSupportTicketDetail | null>;
+  
+  // Admin User Management
+  getGymWithRoster(gymId: number): Promise<GymRoster | null>;
+  getAllGymsWithOwners(): Promise<GymWithOwner[]>;
+  adminUpdateUser(userId: number, data: Partial<{ username: string; email: string; phone: string; status: string }>): Promise<User>;
+  adminResetPassword(userId: number, hashedPassword: string): Promise<void>;
+  adminMoveUserToGym(userId: number, newGymId: number | null): Promise<User>;
+  adminReassignTrainer(memberId: number, newTrainerId: number | null): Promise<void>;
+  
   // Audit Logs
   createAuditLog(data: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(filters?: { entityType?: string; entityId?: number; adminId?: number }): Promise<(AuditLog & { adminName: string })[]>;
 }
+
+// Admin Types
+export type AdminSupportTicket = SupportTicket & {
+  gymName: string | null;
+  gymCode: string | null;
+  gymCity: string | null;
+  gymState: string | null;
+  userName: string | null;
+  userEmail: string | null;
+};
+
+export type AdminSupportTicketDetail = AdminSupportTicket & {
+  messages: SupportMessage[];
+};
+
+export type GymWithOwner = Gym & {
+  ownerName: string | null;
+  ownerEmail: string | null;
+  ownerId: number | null;
+};
+
+export type GymRoster = {
+  gym: Gym;
+  owner: User | null;
+  trainers: User[];
+  members: User[];
+};
 
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
@@ -5075,6 +5114,149 @@ export class DatabaseStorage implements IStorage {
     
     const results = await query;
     return results.map(r => ({ ...r, adminName: r.adminName || 'Unknown' }));
+  }
+
+  // Admin Support (enriched with gym/user info)
+  async getAdminSupportTickets(filters?: { status?: string; priority?: string; issueType?: string; gymId?: number }): Promise<AdminSupportTicket[]> {
+    const conditions = [];
+    if (filters?.status) {
+      conditions.push(eq(supportTickets.status, filters.status as any));
+    }
+    if (filters?.priority) {
+      conditions.push(eq(supportTickets.priority, filters.priority as any));
+    }
+    if (filters?.issueType) {
+      conditions.push(eq(supportTickets.issueType, filters.issueType as any));
+    }
+    if (filters?.gymId) {
+      conditions.push(eq(supportTickets.gymId, filters.gymId));
+    }
+    
+    const baseQuery = db.select({
+      id: supportTickets.id,
+      userId: supportTickets.userId,
+      userRole: supportTickets.userRole,
+      gymId: supportTickets.gymId,
+      contactEmailOrPhone: supportTickets.contactEmailOrPhone,
+      issueType: supportTickets.issueType,
+      priority: supportTickets.priority,
+      description: supportTickets.description,
+      attachmentUrl: supportTickets.attachmentUrl,
+      status: supportTickets.status,
+      createdAt: supportTickets.createdAt,
+      updatedAt: supportTickets.updatedAt,
+      gymName: gyms.name,
+      gymCode: gyms.gymCode,
+      gymCity: gyms.city,
+      gymState: gyms.state,
+      userName: users.username,
+      userEmail: users.email,
+    })
+      .from(supportTickets)
+      .leftJoin(gyms, eq(supportTickets.gymId, gyms.id))
+      .leftJoin(users, eq(supportTickets.userId, users.id));
+    
+    if (conditions.length > 0) {
+      return await baseQuery.where(and(...conditions)).orderBy(desc(supportTickets.createdAt));
+    }
+    return await baseQuery.orderBy(desc(supportTickets.createdAt));
+  }
+
+  async getAdminSupportTicket(ticketId: number): Promise<AdminSupportTicketDetail | null> {
+    const [result] = await db.select({
+      id: supportTickets.id,
+      userId: supportTickets.userId,
+      userRole: supportTickets.userRole,
+      gymId: supportTickets.gymId,
+      contactEmailOrPhone: supportTickets.contactEmailOrPhone,
+      issueType: supportTickets.issueType,
+      priority: supportTickets.priority,
+      description: supportTickets.description,
+      attachmentUrl: supportTickets.attachmentUrl,
+      status: supportTickets.status,
+      createdAt: supportTickets.createdAt,
+      updatedAt: supportTickets.updatedAt,
+      gymName: gyms.name,
+      gymCode: gyms.gymCode,
+      gymCity: gyms.city,
+      gymState: gyms.state,
+      userName: users.username,
+      userEmail: users.email,
+    })
+      .from(supportTickets)
+      .leftJoin(gyms, eq(supportTickets.gymId, gyms.id))
+      .leftJoin(users, eq(supportTickets.userId, users.id))
+      .where(eq(supportTickets.id, ticketId));
+    
+    if (!result) return null;
+    
+    const messages = await db.select()
+      .from(supportMessages)
+      .where(eq(supportMessages.ticketId, ticketId))
+      .orderBy(supportMessages.createdAt);
+    
+    return { ...result, messages };
+  }
+
+  // Admin User Management
+  async getGymWithRoster(gymId: number): Promise<GymRoster | null> {
+    const [gym] = await db.select().from(gyms).where(eq(gyms.id, gymId));
+    if (!gym) return null;
+    
+    const allUsers = await db.select().from(users).where(eq(users.gymId, gymId));
+    
+    const owner = allUsers.find(u => u.role === 'owner') || null;
+    const trainers = allUsers.filter(u => u.role === 'trainer');
+    const members = allUsers.filter(u => u.role === 'member');
+    
+    return { gym, owner, trainers, members };
+  }
+
+  async getAllGymsWithOwners(): Promise<GymWithOwner[]> {
+    const gymsList = await db.select().from(gyms).orderBy(desc(gyms.createdAt));
+    
+    const result: GymWithOwner[] = [];
+    for (const gym of gymsList) {
+      const [owner] = await db.select()
+        .from(users)
+        .where(and(eq(users.gymId, gym.id), eq(users.role, 'owner')));
+      
+      result.push({
+        ...gym,
+        ownerName: owner?.username || null,
+        ownerEmail: owner?.email || null,
+        ownerId: owner?.id || null,
+      });
+    }
+    return result;
+  }
+
+  async adminUpdateUser(userId: number, data: Partial<{ username: string; email: string; phone: string; status: string }>): Promise<User> {
+    const [user] = await db.update(users)
+      .set(data)
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async adminResetPassword(userId: number, hashedPassword: string): Promise<void> {
+    await db.update(users)
+      .set({ password: hashedPassword })
+      .where(eq(users.id, userId));
+  }
+
+  async adminMoveUserToGym(userId: number, newGymId: number | null): Promise<User> {
+    const [user] = await db.update(users)
+      .set({ gymId: newGymId })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async adminReassignTrainer(memberId: number, newTrainerId: number | null): Promise<void> {
+    await db.update(users)
+      .set({ trainerId: newTrainerId })
+      .where(eq(users.id, memberId));
   }
 }
 

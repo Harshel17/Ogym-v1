@@ -1,0 +1,109 @@
+We already have OGym Admin with tabs: Gym Requests, Gyms, Subscriptions, Support.
+Now upgrade Admin to provide FULL CONTROL and FULL VISIBILITY of gym/user details.
+
+PART 1 — SUPPORT TICKETS MUST SHOW GYM INFO
+Currently support tickets do not show which gym they belong to. Fix this so every ticket displays:
+- Gym Name + Gym Code + City/State (if available)
+- Raised by: role (owner/trainer/member) + user name + user id
+- Contact info
+- Created at, Status, Priority
+
+DATA RULES (IMPORTANT):
+1) If the user is logged in and raises a ticket, ticket MUST store gym_id automatically from their account.
+2) If the ticket is raised BEFORE login (public support form), ask for gym code (optional). 
+   - If gym code is provided and valid, link ticket to that gym_id.
+   - If gym code not provided, ticket gym_id can be null and show “Unknown Gym”.
+
+BACKEND CHANGES:
+- Update support_tickets table to include:
+  gym_id (nullable), gym_name_cached (optional), gym_code_cached(optional)
+- Ensure member/trainer/owner models have gym_id
+- When creating ticket, resolve and store gym_id.
+
+ADMIN UI CHANGES (SUPPORT):
+- In Support tickets list, show: Gym Name + Gym Code above the ticket title.
+- Add filters: Gym, Status, Priority, Issue Type.
+- Clicking a ticket opens details view showing:
+  - Gym details + link button “Open Gym”
+  - Link button “Open User Profile”
+  - Ticket status control + reply thread
+
+PART 2 — GYMS SECTION MUST GIVE FULL ACCESS TO ALL PROFILES
+In Admin -> Gyms tab:
+- Show gyms list.
+- When admin clicks a gym, open a Gym Details page with 3 sub-tabs:
+  1) Owner Profile
+  2) Trainers
+  3) Members
+
+GYM DETAILS REQUIREMENTS:
+A) Owner Profile tab:
+- Show full owner data (name, email, phone, status, created_at)
+- Admin can edit any field (name/email/phone/status) and save
+- Admin actions: Reset owner password, Suspend/Activate owner
+
+B) Trainers tab:
+- Table list of trainers under this gym (name/email/phone/status)
+- Click any trainer -> open Trainer Details panel/page
+- Admin can edit any trainer field and save
+- Admin actions: Reset password, Suspend/Activate, Move trainer to different gym
+
+C) Members tab:
+- Table list of members under this gym (name/email/phone/status)
+- Click any member -> open Member Details panel/page
+- Admin can edit any member field and save
+- Admin actions: Reset password, Suspend/Activate/Ban, Move member to different gym, Reassign trainer
+
+PART 3 — FULL EDIT CONTROL + AUDIT LOGS (MANDATORY)
+Admin must be able to edit everything, but EVERY change must be tracked.
+
+Create/ensure audit_logs table:
+- id
+- admin_id
+- entity_type (gym/owner/trainer/member/subscription/support_ticket)
+- entity_id
+- action (edit/status_change/reset_password/move/reassign/etc.)
+- old_value JSON
+- new_value JSON
+- reason (required for edits)
+- created_at
+
+UI: Add an “Audit Logs” section OR show audit logs inside each Gym/User details page.
+
+PART 4 — API ENDPOINTS (ADMIN ONLY)
+Add these admin routes (use existing admin JWT auth; admin-only guard):
+- GET /api/admin/gyms
+- GET /api/admin/gyms/:gymId (returns gym + owner + trainers + members)
+- PATCH /api/admin/gyms/:gymId (edit gym details, requires reason)
+
+- GET /api/admin/owners/:ownerId
+- PATCH /api/admin/owners/:ownerId (edit, requires reason)
+- POST /api/admin/owners/:ownerId/reset-password
+- POST /api/admin/owners/:ownerId/status
+
+- GET /api/admin/trainers/:trainerId
+- PATCH /api/admin/trainers/:trainerId (edit, requires reason)
+- POST /api/admin/trainers/:trainerId/reset-password
+- POST /api/admin/trainers/:trainerId/status
+- POST /api/admin/trainers/:trainerId/move-gym
+
+- GET /api/admin/members/:memberId
+- PATCH /api/admin/members/:memberId (edit, requires reason)
+- POST /api/admin/members/:memberId/reset-password
+- POST /api/admin/members/:memberId/status
+- POST /api/admin/members/:memberId/move-gym
+- POST /api/admin/members/:memberId/reassign-trainer
+
+Support routes:
+- GET /api/admin/support/tickets (include gym info by join)
+- GET /api/admin/support/tickets/:ticketId (include gym + user)
+- PATCH /api/admin/support/tickets/:ticketId (status/priority, requires reason if changing linked data)
+- POST /api/admin/support/tickets/:ticketId/reply
+
+PART 5 — SAFETY / DATA INTEGRITY
+- Do not hard delete any record. Use status flags.
+- For attendance/payments history: do not overwrite history. Create adjustment records if needed.
+- Fix token mismatch bug: JWT contains userId; use decoded userId for admin_id in audit logs.
+
+DO NOT BREAK existing admin approvals/gyms/subscriptions. Extend with these features.
+Deliver working end-to-end UI + backend.
