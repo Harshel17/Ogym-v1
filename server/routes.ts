@@ -3470,7 +3470,7 @@ export async function registerRoutes(
       }
       const members = await storage.getGymMembers(gymId);
       const trainers = await storage.getGymTrainers(gymId);
-      const owner = gym.ownerId ? await storage.getUser(gym.ownerId) : null;
+      const owner = gym.ownerUserId ? await storage.getUser(gym.ownerUserId) : null;
       res.json({
         gym,
         owner: owner ? { 
