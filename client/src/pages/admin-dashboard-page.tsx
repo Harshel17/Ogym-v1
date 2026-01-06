@@ -1659,6 +1659,635 @@ function SupportTab() {
   );
 }
 
+// Types for Attendance & Workouts Tab
+type MemberDayData = {
+  attendance: {
+    id: number;
+    status: string;
+    verifiedMethod: string;
+    adjustedByAdminId: number | null;
+    adjustmentReason: string | null;
+  } | null;
+  workoutSessions: {
+    id: number;
+    date: string;
+    focusLabel: string;
+    notes: string | null;
+    exercises: {
+      id: number;
+      exerciseName: string;
+      sets: number | null;
+      reps: number | null;
+      weight: string | null;
+      duration: number | null;
+      orderIndex: number | null;
+    }[];
+  }[];
+  member: {
+    id: number;
+    username: string;
+    gymId: number | null;
+  } | null;
+};
+
+type GymMember = {
+  id: number;
+  username: string;
+  email: string | null;
+  role: string;
+};
+
+function AttendanceWorkoutsTab() {
+  const { toast } = useToast();
+  const [selectedGymId, setSelectedGymId] = useState<string>("");
+  const [selectedMemberId, setSelectedMemberId] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [reasonInput, setReasonInput] = useState("");
+  
+  // Dialog states
+  const [showSessionDialog, setShowSessionDialog] = useState(false);
+  const [showExerciseDialog, setShowExerciseDialog] = useState(false);
+  const [editingSession, setEditingSession] = useState<any>(null);
+  const [editingExercise, setEditingExercise] = useState<any>(null);
+  
+  // Form states
+  const [sessionForm, setSessionForm] = useState({ focusLabel: "", notes: "", reason: "" });
+  const [exerciseForm, setExerciseForm] = useState({ exerciseName: "", sets: "", reps: "", weight: "", reason: "" });
+  
+  // Fetch all gyms
+  const { data: gyms = [] } = useQuery<{ id: number; name: string; code: string }[]>({
+    queryKey: ["/api/admin/all-gyms"],
+    queryFn: () => adminFetch("/api/admin/all-gyms"),
+  });
+
+  // Fetch gym roster when gym is selected
+  const { data: gymRoster } = useQuery<{ gym: any; owner: any; trainers: GymMember[]; members: GymMember[] }>({
+    queryKey: ["/api/admin/gyms", selectedGymId, "roster"],
+    queryFn: () => adminFetch(`/api/admin/gyms/${selectedGymId}/roster`),
+    enabled: !!selectedGymId,
+  });
+
+  // Fetch member day data
+  const { data: memberDayData, isLoading: isLoadingDay, refetch: refetchDayData } = useQuery<MemberDayData>({
+    queryKey: ["/api/admin/members", selectedMemberId, "day", selectedDate],
+    queryFn: () => adminFetch(`/api/admin/members/${selectedMemberId}/day/${selectedDate}`),
+    enabled: !!selectedMemberId && !!selectedDate,
+  });
+
+  // Set attendance mutation
+  const setAttendanceMutation = useMutation({
+    mutationFn: (data: { status: "present" | "absent"; reason: string }) =>
+      adminFetch(`/api/admin/members/${selectedMemberId}/attendance`, {
+        method: "POST",
+        body: JSON.stringify({ date: selectedDate, ...data }),
+      }),
+    onSuccess: () => {
+      refetchDayData();
+      setReasonInput("");
+      toast({ title: "Attendance updated" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  // Create session mutation
+  const createSessionMutation = useMutation({
+    mutationFn: (data: { focusLabel: string; notes?: string; reason: string }) =>
+      adminFetch(`/api/admin/members/${selectedMemberId}/workout/session/create`, {
+        method: "POST",
+        body: JSON.stringify({ date: selectedDate, ...data }),
+      }),
+    onSuccess: () => {
+      refetchDayData();
+      setShowSessionDialog(false);
+      setSessionForm({ focusLabel: "", notes: "", reason: "" });
+      toast({ title: "Workout session created" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  // Update session mutation
+  const updateSessionMutation = useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: number; data: { focusLabel?: string; notes?: string; reason: string } }) =>
+      adminFetch(`/api/admin/workout/session/${sessionId}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      refetchDayData();
+      setShowSessionDialog(false);
+      setEditingSession(null);
+      toast({ title: "Session updated" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  // Delete session mutation
+  const deleteSessionMutation = useMutation({
+    mutationFn: ({ sessionId, reason }: { sessionId: number; reason: string }) =>
+      adminFetch(`/api/admin/workout/session/${sessionId}`, {
+        method: "DELETE",
+        body: JSON.stringify({ reason }),
+      }),
+    onSuccess: () => {
+      refetchDayData();
+      toast({ title: "Session deleted" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  // Add exercise mutation
+  const addExerciseMutation = useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: number; data: any }) =>
+      adminFetch(`/api/admin/workout/session/${sessionId}/exercise/add`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      refetchDayData();
+      setShowExerciseDialog(false);
+      setExerciseForm({ exerciseName: "", sets: "", reps: "", weight: "", reason: "" });
+      toast({ title: "Exercise added" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  // Update exercise mutation
+  const updateExerciseMutation = useMutation({
+    mutationFn: ({ exerciseId, data }: { exerciseId: number; data: any }) =>
+      adminFetch(`/api/admin/workout/exercise/${exerciseId}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      refetchDayData();
+      setShowExerciseDialog(false);
+      setEditingExercise(null);
+      toast({ title: "Exercise updated" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  // Delete exercise mutation
+  const deleteExerciseMutation = useMutation({
+    mutationFn: ({ exerciseId, reason }: { exerciseId: number; reason: string }) =>
+      adminFetch(`/api/admin/workout/exercise/${exerciseId}`, {
+        method: "DELETE",
+        body: JSON.stringify({ reason }),
+      }),
+    onSuccess: () => {
+      refetchDayData();
+      toast({ title: "Exercise deleted" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  // Recalculate streaks mutation
+  const recalculateStreaksMutation = useMutation({
+    mutationFn: () =>
+      adminFetch(`/api/admin/members/${selectedMemberId}/streak/recalculate`, { method: "POST" }),
+    onSuccess: (data) => {
+      toast({ title: "Streaks recalculated", description: `Attendance: ${data.attendanceStreak}, Workouts: ${data.workoutStreak}` });
+    },
+    onError: (e: Error) => {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const handleSetAttendance = (status: "present" | "absent") => {
+    if (!reasonInput.trim()) {
+      toast({ title: "Error", description: "Reason is required for attendance changes", variant: "destructive" });
+      return;
+    }
+    setAttendanceMutation.mutate({ status, reason: reasonInput });
+  };
+
+  const handleSessionSubmit = () => {
+    if (!sessionForm.reason.trim()) {
+      toast({ title: "Error", description: "Reason is required", variant: "destructive" });
+      return;
+    }
+    if (editingSession) {
+      updateSessionMutation.mutate({
+        sessionId: editingSession.id,
+        data: { focusLabel: sessionForm.focusLabel, notes: sessionForm.notes, reason: sessionForm.reason },
+      });
+    } else {
+      createSessionMutation.mutate(sessionForm);
+    }
+  };
+
+  const handleExerciseSubmit = (sessionId: number) => {
+    if (!exerciseForm.reason.trim()) {
+      toast({ title: "Error", description: "Reason is required", variant: "destructive" });
+      return;
+    }
+    const data: any = {
+      exerciseName: exerciseForm.exerciseName,
+      sets: exerciseForm.sets ? parseInt(exerciseForm.sets) : undefined,
+      reps: exerciseForm.reps ? parseInt(exerciseForm.reps) : undefined,
+      weight: exerciseForm.weight || undefined,
+      reason: exerciseForm.reason,
+    };
+    if (editingExercise) {
+      updateExerciseMutation.mutate({ exerciseId: editingExercise.id, data });
+    } else {
+      addExerciseMutation.mutate({ sessionId, data });
+    }
+  };
+
+  const members = gymRoster?.members || [];
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Attendance & Workouts Editor
+            </CardTitle>
+            <CardDescription>View and modify member attendance and workout records</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Label>Select Gym</Label>
+              <Select value={selectedGymId} onValueChange={(v) => { setSelectedGymId(v); setSelectedMemberId(""); }}>
+                <SelectTrigger data-testid="select-gym-attendance">
+                  <SelectValue placeholder="Choose a gym" />
+                </SelectTrigger>
+                <SelectContent>
+                  {gyms.map((gym) => (
+                    <SelectItem key={gym.id} value={gym.id.toString()}>{gym.name} ({gym.code})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Select Member</Label>
+              <Select value={selectedMemberId} onValueChange={setSelectedMemberId} disabled={!selectedGymId}>
+                <SelectTrigger data-testid="select-member-attendance">
+                  <SelectValue placeholder="Choose a member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {members.map((member) => (
+                    <SelectItem key={member.id} value={member.id.toString()}>{member.username}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Select Date</Label>
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                data-testid="input-date-attendance"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                onClick={() => recalculateStreaksMutation.mutate()}
+                disabled={!selectedMemberId || recalculateStreaksMutation.isPending}
+                data-testid="button-recalculate-streaks"
+              >
+                {recalculateStreaksMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Recalculate Streaks
+              </Button>
+            </div>
+          </div>
+
+          {selectedMemberId && selectedDate && (
+            <>
+              {isLoadingDay ? (
+                <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+              ) : (
+                <div className="space-y-6 pt-4 border-t">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <UserCheck className="w-4 h-4" />
+                        Attendance for {format(new Date(selectedDate), "PPP")}
+                      </h3>
+                      {memberDayData?.attendance && (
+                        <Badge className={memberDayData.attendance.status === "present" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"}>
+                          {memberDayData.attendance.status === "present" ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                          {memberDayData.attendance.status}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-2 items-end flex-wrap">
+                      <div className="flex-1 min-w-[200px]">
+                        <Label>Reason for change</Label>
+                        <Input
+                          placeholder="Enter reason for attendance change"
+                          value={reasonInput}
+                          onChange={(e) => setReasonInput(e.target.value)}
+                          data-testid="input-attendance-reason"
+                        />
+                      </div>
+                      <Button
+                        onClick={() => handleSetAttendance("present")}
+                        disabled={setAttendanceMutation.isPending}
+                        className="bg-green-600 hover:bg-green-700"
+                        data-testid="button-mark-present"
+                      >
+                        <Check className="w-4 h-4 mr-1" /> Present
+                      </Button>
+                      <Button
+                        onClick={() => handleSetAttendance("absent")}
+                        disabled={setAttendanceMutation.isPending}
+                        variant="destructive"
+                        data-testid="button-mark-absent"
+                      >
+                        <X className="w-4 h-4 mr-1" /> Absent
+                      </Button>
+                    </div>
+                    {memberDayData?.attendance?.adjustedByAdminId && (
+                      <p className="text-sm text-muted-foreground">
+                        <AlertCircle className="w-3 h-3 inline mr-1" />
+                        Last admin adjustment: {memberDayData.attendance.adjustmentReason}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <Dumbbell className="w-4 h-4" />
+                        Workout Sessions
+                      </h3>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setEditingSession(null);
+                          setSessionForm({ focusLabel: "", notes: "", reason: "" });
+                          setShowSessionDialog(true);
+                        }}
+                        data-testid="button-add-session"
+                      >
+                        Add Session
+                      </Button>
+                    </div>
+
+                    {memberDayData?.workoutSessions?.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">No workout sessions for this date</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {memberDayData?.workoutSessions?.map((session) => (
+                          <Card key={session.id} className="border" data-testid={`session-card-${session.id}`}>
+                            <CardHeader className="py-3 flex flex-row items-center justify-between gap-4">
+                              <div>
+                                <CardTitle className="text-base">{session.focusLabel}</CardTitle>
+                                {session.notes && <CardDescription>{session.notes}</CardDescription>}
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingSession(session);
+                                    setSessionForm({ focusLabel: session.focusLabel, notes: session.notes || "", reason: "" });
+                                    setShowSessionDialog(true);
+                                  }}
+                                  data-testid={`button-edit-session-${session.id}`}
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => {
+                                    const reason = prompt("Enter reason for deletion:");
+                                    if (reason) deleteSessionMutation.mutate({ sessionId: session.id, reason });
+                                  }}
+                                  data-testid={`button-delete-session-${session.id}`}
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="py-2">
+                              <div className="flex items-center justify-between mb-2 gap-4 flex-wrap">
+                                <span className="text-sm font-medium">Exercises</span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingExercise({ sessionId: session.id });
+                                    setExerciseForm({ exerciseName: "", sets: "", reps: "", weight: "", reason: "" });
+                                    setShowExerciseDialog(true);
+                                  }}
+                                  data-testid={`button-add-exercise-${session.id}`}
+                                >
+                                  Add Exercise
+                                </Button>
+                              </div>
+                              {session.exercises.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No exercises</p>
+                              ) : (
+                                <div className="space-y-2">
+                                  {session.exercises.map((ex, idx) => (
+                                    <div key={ex.id} className="flex items-center justify-between gap-2 p-2 bg-secondary/30 rounded" data-testid={`exercise-row-${ex.id}`}>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">{idx + 1}.</span>
+                                        <span className="font-medium">{ex.exerciseName}</span>
+                                        <span className="text-sm text-muted-foreground">
+                                          {ex.sets && ex.reps ? `${ex.sets}x${ex.reps}` : ""}
+                                          {ex.weight ? ` @ ${ex.weight}` : ""}
+                                        </span>
+                                      </div>
+                                      <div className="flex gap-1">
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => {
+                                            setEditingExercise({ ...ex, sessionId: session.id });
+                                            setExerciseForm({
+                                              exerciseName: ex.exerciseName,
+                                              sets: ex.sets?.toString() || "",
+                                              reps: ex.reps?.toString() || "",
+                                              weight: ex.weight || "",
+                                              reason: "",
+                                            });
+                                            setShowExerciseDialog(true);
+                                          }}
+                                          data-testid={`button-edit-exercise-${ex.id}`}
+                                        >
+                                          <Edit className="w-3 h-3" />
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => {
+                                            const reason = prompt("Enter reason for deletion:");
+                                            if (reason) deleteExerciseMutation.mutate({ exerciseId: ex.id, reason });
+                                          }}
+                                          data-testid={`button-delete-exercise-${ex.id}`}
+                                        >
+                                          <X className="w-3 h-3 text-destructive" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showSessionDialog} onOpenChange={setShowSessionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingSession ? "Edit Session" : "Add Workout Session"}</DialogTitle>
+            <DialogDescription>
+              {editingSession ? "Update the workout session details" : "Create a new workout session for this date"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Focus / Body Part</Label>
+              <Input
+                value={sessionForm.focusLabel}
+                onChange={(e) => setSessionForm({ ...sessionForm, focusLabel: e.target.value })}
+                placeholder="e.g., Upper Body, Leg Day, Push"
+                data-testid="input-session-focus"
+              />
+            </div>
+            <div>
+              <Label>Notes (optional)</Label>
+              <Textarea
+                value={sessionForm.notes}
+                onChange={(e) => setSessionForm({ ...sessionForm, notes: e.target.value })}
+                placeholder="Any additional notes"
+                data-testid="input-session-notes"
+              />
+            </div>
+            <div>
+              <Label>Reason for change</Label>
+              <Input
+                value={sessionForm.reason}
+                onChange={(e) => setSessionForm({ ...sessionForm, reason: e.target.value })}
+                placeholder="Required for audit trail"
+                data-testid="input-session-reason"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSessionDialog(false)}>Cancel</Button>
+            <Button
+              onClick={handleSessionSubmit}
+              disabled={createSessionMutation.isPending || updateSessionMutation.isPending}
+              data-testid="button-save-session"
+            >
+              {(createSessionMutation.isPending || updateSessionMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {editingSession ? "Update" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showExerciseDialog} onOpenChange={setShowExerciseDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingExercise?.id ? "Edit Exercise" : "Add Exercise"}</DialogTitle>
+            <DialogDescription>
+              {editingExercise?.id ? "Update the exercise details" : "Add a new exercise to this session"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Exercise Name</Label>
+              <Input
+                value={exerciseForm.exerciseName}
+                onChange={(e) => setExerciseForm({ ...exerciseForm, exerciseName: e.target.value })}
+                placeholder="e.g., Bench Press"
+                data-testid="input-exercise-name"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Sets</Label>
+                <Input
+                  type="number"
+                  value={exerciseForm.sets}
+                  onChange={(e) => setExerciseForm({ ...exerciseForm, sets: e.target.value })}
+                  placeholder="3"
+                  data-testid="input-exercise-sets"
+                />
+              </div>
+              <div>
+                <Label>Reps</Label>
+                <Input
+                  type="number"
+                  value={exerciseForm.reps}
+                  onChange={(e) => setExerciseForm({ ...exerciseForm, reps: e.target.value })}
+                  placeholder="10"
+                  data-testid="input-exercise-reps"
+                />
+              </div>
+              <div>
+                <Label>Weight</Label>
+                <Input
+                  value={exerciseForm.weight}
+                  onChange={(e) => setExerciseForm({ ...exerciseForm, weight: e.target.value })}
+                  placeholder="60kg"
+                  data-testid="input-exercise-weight"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Reason for change</Label>
+              <Input
+                value={exerciseForm.reason}
+                onChange={(e) => setExerciseForm({ ...exerciseForm, reason: e.target.value })}
+                placeholder="Required for audit trail"
+                data-testid="input-exercise-reason"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExerciseDialog(false)}>Cancel</Button>
+            <Button
+              onClick={() => handleExerciseSubmit(editingExercise?.sessionId)}
+              disabled={addExerciseMutation.isPending || updateExerciseMutation.isPending}
+              data-testid="button-save-exercise"
+            >
+              {(addExerciseMutation.isPending || updateExerciseMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {editingExercise?.id ? "Update" : "Add"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 type AuditLog = {
   id: number;
   adminId: number;
@@ -1866,6 +2495,10 @@ export default function AdminDashboardPage() {
               <History className="h-4 w-4" />
               Audit Logs
             </TabsTrigger>
+            <TabsTrigger value="attendance" className="flex items-center gap-2" data-testid="tab-attendance-workouts">
+              <Calendar className="h-4 w-4" />
+              Attendance & Workouts
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="requests">
@@ -1886,6 +2519,10 @@ export default function AdminDashboardPage() {
 
           <TabsContent value="audit">
             <AuditLogsTab />
+          </TabsContent>
+
+          <TabsContent value="attendance">
+            <AttendanceWorkoutsTab />
           </TabsContent>
         </Tabs>
       </main>
