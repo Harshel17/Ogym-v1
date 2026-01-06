@@ -1004,10 +1004,7 @@ function SupportTab() {
     },
   });
 
-  const { data: ticketDetails, isLoading: loadingDetails } = useQuery<{
-    ticket: SupportTicket;
-    messages: SupportMessage[];
-  }>({
+  const { data: ticketDetails, isLoading: loadingDetails } = useQuery<SupportTicket & { messages: SupportMessage[] }>({
     queryKey: ["/api/admin/support", selectedTicket?.id],
     queryFn: () => adminFetch(`/api/admin/support/${selectedTicket?.id}`),
     enabled: !!selectedTicket && showDetailDialog,
@@ -1184,19 +1181,19 @@ function SupportTab() {
             <div className="flex-1 overflow-y-auto space-y-4">
               <div className="p-3 bg-secondary/50 rounded-lg space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
-                  {getPriorityBadge(ticketDetails.ticket.priority)}
-                  <span className="text-sm">{ticketDetails.ticket.userRole}</span>
-                  {ticketDetails.ticket.contactEmailOrPhone && (
-                    <span className="text-sm text-muted-foreground">{ticketDetails.ticket.contactEmailOrPhone}</span>
+                  {getPriorityBadge(ticketDetails.priority)}
+                  <span className="text-sm">{ticketDetails.userRole}</span>
+                  {ticketDetails.contactEmailOrPhone && (
+                    <span className="text-sm text-muted-foreground">{ticketDetails.contactEmailOrPhone}</span>
                   )}
                 </div>
-                <p className="text-sm">{ticketDetails.ticket.description}</p>
-                <p className="text-xs text-muted-foreground">Created: {format(new Date(ticketDetails.ticket.createdAt), "PPpp")}</p>
+                <p className="text-sm">{ticketDetails.description}</p>
+                <p className="text-xs text-muted-foreground">Created: {format(new Date(ticketDetails.createdAt), "PPpp")}</p>
               </div>
 
               <div className="flex items-center gap-2">
                 <Label>Update Status:</Label>
-                <Select value={ticketDetails.ticket.status} onValueChange={handleStatusChange}>
+                <Select value={ticketDetails.status} onValueChange={handleStatusChange}>
                   <SelectTrigger className="w-[160px]" data-testid="select-ticket-status">
                     <SelectValue />
                   </SelectTrigger>
@@ -1238,7 +1235,7 @@ function SupportTab() {
                 </ScrollArea>
               </div>
 
-              {ticketDetails.ticket.status !== "closed" && (
+              {ticketDetails.status !== "closed" && (
                 <div className="flex gap-2 border-t pt-4">
                   <Textarea
                     placeholder="Type your reply..."
