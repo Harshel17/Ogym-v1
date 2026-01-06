@@ -138,9 +138,9 @@ export default function AuthPage() {
   };
 
   const handleForgotPasswordSubmit = (data: z.infer<typeof forgotPasswordSchema>) => {
-    setForgotPasswordEmail(data.email);
     forgotPasswordMutation.mutate({ email: data.email }, {
       onSuccess: () => {
+        setForgotPasswordEmail(data.email);
         setForgotPasswordStep("reset");
       },
     });

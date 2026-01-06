@@ -250,14 +250,13 @@ export async function registerRoutes(
     res.json(user);
   });
 
-  // Rate limiter for forgot password (stricter: 3 per 15 minutes)
+  // Rate limiter for forgot password (stricter: 3 per 15 minutes per IP)
   const forgotPasswordRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 3,
     message: { message: "Too many password reset attempts. Please try again later." },
     standardHeaders: true,
     legacyHeaders: false,
-    validate: { xForwardedForHeader: false, trustProxy: false },
   });
 
   app.post("/api/auth/forgot-password", forgotPasswordRateLimiter, async (req, res) => {
