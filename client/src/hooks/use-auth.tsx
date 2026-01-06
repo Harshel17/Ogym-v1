@@ -17,6 +17,8 @@ type AuthContextType = {
   registerMutation: ReturnType<typeof useRegisterMutation>;
   verifyEmailMutation: ReturnType<typeof useVerifyEmailMutation>;
   resendCodeMutation: ReturnType<typeof useResendCodeMutation>;
+  forgotPasswordMutation: ReturnType<typeof useForgotPasswordMutation>;
+  resetPasswordMutation: ReturnType<typeof useResetPasswordMutation>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -41,6 +43,16 @@ const verifyEmailInput = z.object({
 
 const resendCodeInput = z.object({
   email: z.string().email(),
+});
+
+const forgotPasswordInput = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordInput = z.object({
+  email: z.string().email(),
+  otp: z.string().length(6),
+  newPassword: z.string().min(8).regex(/^(?=.*[A-Za-z])(?=.*\d).{8,}$/, "Must contain at least 1 letter and 1 number"),
 });
 
 function useLoginMutation(setPendingVerification: (data: { email: string } | null) => void) {
@@ -196,6 +208,73 @@ function useResendCodeMutation() {
   });
 }
 
+function useForgotPasswordMutation() {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: z.infer<typeof forgotPasswordInput>) => {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.message || "Failed to send reset code");
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Code Sent",
+        description: "If an account exists, a reset code has been sent to your email.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Request failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+function useResetPasswordMutation(onSuccess?: () => void) {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: z.infer<typeof resetPasswordInput>) => {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.message || "Password reset failed");
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Password Reset",
+        description: "Your password has been reset. You can now log in.",
+      });
+      onSuccess?.();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Reset failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 function useLogoutMutation() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -249,6 +328,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const registerMutation = useRegisterMutation(setPendingVerification);
   const verifyEmailMutation = useVerifyEmailMutation(setPendingVerification);
   const resendCodeMutation = useResendCodeMutation();
+  const forgotPasswordMutation = useForgotPasswordMutation();
+  const resetPasswordMutation = useResetPasswordMutation();
 
   return (
     <AuthContext.Provider
@@ -263,6 +344,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         registerMutation,
         verifyEmailMutation,
         resendCodeMutation,
+        forgotPasswordMutation,
+        resetPasswordMutation,
       }}
     >
       {children}
