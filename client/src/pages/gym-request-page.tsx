@@ -46,7 +46,10 @@ const formSchema = z.object({
   gymSize: z.enum(["0-50", "51-150", "151-300", "300+"], {
     errorMap: () => ({ message: "Please select gym size" })
   }),
-  trainerCount: z.coerce.number().int().min(0, "Must be 0 or greater"),
+  trainerCount: z.preprocess(
+    (val) => (val === "" ? 0 : Number(val)),
+    z.number().int().min(0, "Must be 0 or greater")
+  ),
   preferredStart: z.enum(["immediately", "next_week", "next_month"], {
     errorMap: () => ({ message: "Please select when you want to start" })
   }),
@@ -84,7 +87,7 @@ export default function GymRequestPage() {
       state: "",
       country: "India",
       gymSize: undefined,
-      trainerCount: 0,
+      trainerCount: "" as unknown as number,
       preferredStart: undefined,
       referralSource: undefined,
       referralOtherText: ""
@@ -336,8 +339,14 @@ export default function GymRequestPage() {
                           type="number" 
                           min={0} 
                           placeholder="Enter number of trainers" 
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                          value={field.value === 0 || field.value ? field.value : ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            field.onChange(val === "" ? "" : parseInt(val, 10) || 0);
+                          }}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
                           data-testid="input-trainer-count" 
                         />
                       </FormControl>
