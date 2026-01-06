@@ -1,0 +1,128 @@
+Here’s a **copy-paste prompt** you can give to Replit to upgrade your signup/login to **email-based auth with verification (OTP/code)**, **without breaking your current app**.
+
+---
+
+## Replit Prompt (copy/paste)
+
+Build a production-style authentication flow for OGym V1 using our existing stack (React + Vite frontend, Express + TypeScript backend, Postgres on Neon via Drizzle, Passport sessions). Do NOT rewrite the whole app. Keep current roles (Owner / Trainer / Member) and existing routes as much as possible. Make changes minimal, safe, and backward-compatible.
+
+### Goal
+
+Replace username-only signup with **email + password** signup and login:
+
+* Signup fields:
+
+  1. Email (must be valid email format)
+  2. Password (min 8 chars; show rules in UI)
+  3. Role selector: Owner / Trainer / Member
+  4. Gym code input required ONLY for Trainer/Member (Owner should not need gym code)
+* After signup:
+
+  * User must verify email with a **6-digit code (OTP)** sent to email (or in dev mode, log the code in server console).
+  * Until verified, user cannot access the app dashboard (redirect to /verify).
+
+### Backend Requirements (Express + TS)
+
+1. Database changes (Drizzle migrations):
+
+   * Ensure `users` table has:
+
+     * `email` (unique, not null)
+     * `email_verified` boolean default false
+     * `verification_code` (string) nullable
+     * `verification_expires_at` timestamp nullable
+   * Keep existing `username` field if used elsewhere, but email is primary login.
+2. New endpoints:
+
+   * `POST /api/auth/register`
+
+     * Validate email format, password rules, role logic, gym code requirement
+     * Create user with hashed password (bcrypt)
+     * Generate 6-digit OTP, store hashed OTP or store OTP + expiry (10 mins)
+     * Send OTP email (use Nodemailer + SMTP OR Resend). For development: if SMTP not configured, console.log the OTP.
+     * Return: success + “verification required”
+   * `POST /api/auth/verify-email`
+
+     * Inputs: email + code
+     * Validate code + expiry
+     * Mark `email_verified=true`, clear code fields
+     * Auto-login user (create session) OR return success and require login
+   * `POST /api/auth/resend-code`
+
+     * Rate limit (e.g., 1 per 60 seconds)
+     * Generate new OTP + expiry, send/log again
+   * `POST /api/auth/login`
+
+     * Login with email + password
+     * Block login if `email_verified=false` (return 403 + message “Verify your email”)
+3. Security:
+
+   * Add rate limiting on login + verify endpoints (express-rate-limit)
+   * Session cookie settings for production:
+
+     * `httpOnly: true`
+     * `sameSite: 'lax'` (or 'strict' if it works)
+     * `secure: true` only when behind HTTPS (Render/Vercel)
+   * Keep `SESSION_SECRET` required; no fallback.
+4. Role & gym code rules:
+
+   * Owner registering: creates a gym and generates a gym code (if your system already does this, keep it)
+   * Member/Trainer registering: must provide gym code; verify it exists; attach user to that gym
+
+### Frontend Requirements (React)
+
+1. Update /auth page UI:
+
+   * Replace Username with Email
+   * Add password confirmation (optional)
+   * Role dropdown: Owner/Trainer/Member
+   * Gym code field shows only when role != Owner
+   * Show clean error messages from API
+2. Add a new page: `/verify`
+
+   * Inputs: email + 6-digit code
+   * Button: Verify
+   * Button: Resend code (with cooldown timer)
+   * After success: redirect to correct dashboard by role
+3. Routing protection:
+
+   * If user is logged in but not verified, redirect to `/verify`
+   * If not logged in, redirect to `/auth`
+
+### Dev vs Prod Email Sending
+
+* Add env vars:
+
+  * `EMAIL_PROVIDER` = `dev` or `smtp` (default dev)
+  * If dev: do NOT send email; log code to server console
+  * If smtp: use `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+* Do not break local/Replit testing if SMTP not configured.
+
+### Deliverables
+
+* Implement code changes and run migrations.
+* Provide a short checklist to test:
+
+  1. Register Owner → receive/log OTP → verify → access owner dashboard
+  2. Register Member with gym code → OTP → verify → member dashboard
+  3. Attempt login without verify → blocked with message
+  4. Resend code works with rate limit
+
+Do not remove any existing gym features. Keep everything working, just upgrade authentication to email + verification.
+
+---
+
+## Quick tip before you send it
+
+After Replit finishes, you’ll need to add these secrets in Replit:
+
+* `DATABASE_URL` (already done)
+* `SESSION_SECRET` (already done)
+* OPTIONAL for real emails later:
+
+  * `EMAIL_PROVIDER=dev` (for now)
+  * later switch to `smtp` + SMTP creds
+
+---
+
+If you want, I can also rewrite this prompt to be **even stricter** (like “do not change Passport sessions; do not create JWT; do not touch existing tables except users”) depending on how your Replit agent behaves.
