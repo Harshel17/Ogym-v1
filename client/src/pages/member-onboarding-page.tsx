@@ -85,7 +85,7 @@ export default function MemberOnboardingPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       toast({ title: "Welcome to OGym!", description: "Your profile is complete." });
       setLocation("/");
     },
