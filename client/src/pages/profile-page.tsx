@@ -190,10 +190,12 @@ export default function ProfilePage() {
                 <span className="text-muted-foreground">Gym Name</span>
                 <span className="font-medium">{profile.gym.name}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Gym Code</span>
-                <Badge variant="outline" className="font-mono">{profile.gym.code}</Badge>
-              </div>
+              {user?.role === "owner" && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Gym Code</span>
+                  <Badge variant="outline" className="font-mono">{profile.gym.code}</Badge>
+                </div>
+              )}
               {profile.trainer && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Trainer</span>
