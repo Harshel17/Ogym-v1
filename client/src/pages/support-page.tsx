@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Layout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -160,8 +159,7 @@ export default function SupportPage() {
   };
 
   return (
-    <Layout>
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold" data-testid="text-support-title">Support</h1>
@@ -310,7 +308,6 @@ export default function SupportPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
 
       <Dialog open={createDialogOpen} onOpenChange={(open) => {
         if (!open) handleCloseCreateDialog();
@@ -395,6 +392,6 @@ export default function SupportPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </Layout>
+    </div>
   );
 }
