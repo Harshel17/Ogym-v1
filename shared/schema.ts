@@ -11,6 +11,9 @@ export const gyms = pgTable("gyms", {
   code: text("code").notNull().unique(),
   phone: text("phone"),
   address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  country: text("country").default("India"),
   ownerUserId: integer("owner_user_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });

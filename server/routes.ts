@@ -3217,9 +3217,24 @@ export async function registerRoutes(
     res.json(requests);
   });
   
-  // Get all gyms with owner and subscription info
+  // Get single gym request details
+  app.get("/api/admin/gym-requests/:id", requireAdmin, async (req, res) => {
+    try {
+      const requestId = parseInt(req.params.id);
+      const request = await storage.getGymRequestById(requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Gym request not found" });
+      }
+      res.json(request);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch request details" });
+    }
+  });
+  
+  // Get all gyms with owner and subscription info (with optional filters)
   app.get("/api/admin/all-gyms", requireAdmin, async (req, res) => {
-    const gyms = await storage.getAllGymsWithDetails();
+    const { name, city, state } = req.query as { name?: string; city?: string; state?: string };
+    const gyms = await storage.getAllGymsWithDetails({ name, city, state });
     res.json(gyms);
   });
   

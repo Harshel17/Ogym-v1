@@ -1,0 +1,149 @@
+We have OGym Admin UI at /admin/dashboard with tabs: Gym Requests, Gyms, Subscriptions.
+
+GOAL 1 — Gym Requests: Click to View Full Request Details
+
+Right now the Gym Requests list only shows gym name + owner email. I want the admin to be able to click a request card (or a “View Details” button) and see all fields the gym owner submitted before approving or rejecting.
+
+✅ Requirements
+
+In Gym Requests tab, each request row/card should have:
+
+A View Details button (or clicking the row opens details)
+
+Clicking it opens a Modal / Drawer / Full Page (your choice) showing:
+
+Gym Name
+
+Phone
+
+Address
+
+Point of Contact Name
+
+Point of Contact Email
+
+City
+
+State
+
+Country
+
+Gym Size (0–50, 51–150, 151–300, 300+)
+
+Number of Trainers
+
+Preferred Start Date (Immediately / Next week / Next month)
+
+How did you hear about OGym (Friend / Instagram / Direct visit / Other)
+
+Submitted date/time
+
+Status (Pending / Approved / Rejected)
+
+The modal should include Approve and Reject buttons inside it.
+
+When admin approves:
+
+Mark request as Approved
+
+Create a record in gyms table (if not already created)
+
+Link owner user to that gym (if applicable in existing schema)
+
+Generate/store a gym code if OGym uses gym codes
+
+When admin rejects:
+
+Mark request as Rejected
+
+Store rejection_reason (optional text input in modal)
+
+All request details must come from DB (Neon), not hardcoded.
+
+✅ Backend/API
+
+Add endpoint to fetch request details:
+
+GET /api/admin/gym-requests/:id
+
+Ensure approve/reject endpoints exist or create them:
+
+POST /api/admin/gym-requests/:id/approve
+
+POST /api/admin/gym-requests/:id/reject (accept optional reason)
+
+✅ Database
+
+If missing, update schema (Drizzle) so gym_requests includes:
+
+city, state, country
+
+gym_size
+
+trainer_count
+
+preferred_start
+
+referral_source
+
+status (pending/approved/rejected)
+
+rejection_reason (nullable)
+
+Run migrations via drizzle push.
+
+GOAL 2 — Gyms Tab: Add Filters + Search (Name, City, State)
+
+In the Gyms tab, I want:
+
+A filter section at the top:
+
+Search input: “Search by gym name”
+
+Dropdown: City (optional free text input is ok too)
+
+Dropdown: State (or text input)
+
+Button: Apply Filters
+
+Button: Clear Filters
+
+Results table/list should update based on filters:
+
+If name search is typed → filter by name (case-insensitive)
+
+If city selected → filter gyms in that city
+
+If state selected → filter gyms in that state
+
+Filters can be combined (name + city + state together)
+
+✅ Backend/API
+
+Add endpoint:
+
+GET /api/admin/gyms?name=&city=&state=
+
+Must support partial matches for name and city (case-insensitive).
+
+Return gyms with key fields:
+
+gym name, city, state, country, gym code, created date, owner email (if available), member count (optional)
+
+UI/UX Notes (Important)
+
+Keep current admin layout and styling consistent (dark theme).
+
+Do not break login or role-based access.
+
+The Gym Requests list should still show quick summary, but details should be available on click.
+
+After approve/reject, update UI immediately (optimistic update or refetch list).
+
+Show toast notifications: “Approved successfully”, “Rejected successfully”, errors, etc.
+
+Deliverable
+
+Implement these features end-to-end (DB + backend + frontend)
+
+Tell me exactly what files you changed and what endpoints were added.

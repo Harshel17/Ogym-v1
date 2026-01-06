@@ -47,6 +47,18 @@ type GymRequest = {
   id: number;
   gymName: string;
   ownerUserId: number;
+  phone: string | null;
+  address: string | null;
+  pointOfContactName: string | null;
+  pointOfContactEmail: string | null;
+  city: string;
+  state: string;
+  country: string;
+  gymSize: string;
+  trainerCount: number;
+  preferredStart: string;
+  referralSource: string;
+  referralOtherText: string | null;
   status: string;
   adminNotes: string | null;
   createdAt: string;
@@ -59,6 +71,9 @@ type GymDetails = {
   id: number;
   name: string;
   code: string;
+  city: string | null;
+  state: string | null;
+  country: string | null;
   createdAt: string | null;
   ownerName: string | null;
   ownerEmail: string | null;
@@ -83,6 +98,7 @@ function GymRequestsTab() {
   const { toast } = useToast();
   const [selectedRequest, setSelectedRequest] = useState<GymRequest | null>(null);
   const [rejectNotes, setRejectNotes] = useState("");
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
 
   const { data: requests = [], isLoading } = useQuery<GymRequest[]>({
@@ -95,7 +111,8 @@ function GymRequestsTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/all-gym-requests"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/all-gyms"] });
-      toast({ title: "Request approved", description: "Gym has been created successfully" });
+      setShowDetailsDialog(false);
+      toast({ title: "Approved successfully", description: "Gym has been created" });
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to approve request", variant: "destructive" });
@@ -108,8 +125,9 @@ function GymRequestsTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/all-gym-requests"] });
       setShowRejectDialog(false);
+      setShowDetailsDialog(false);
       setRejectNotes("");
-      toast({ title: "Request rejected" });
+      toast({ title: "Rejected successfully" });
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to reject request", variant: "destructive" });
@@ -133,6 +151,21 @@ function GymRequestsTab() {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+  
+  const formatGymSize = (size: string) => {
+    const sizes: Record<string, string> = { "0-50": "0-50 members", "51-150": "51-150 members", "151-300": "151-300 members", "300+": "300+ members" };
+    return sizes[size] || size;
+  };
+  
+  const formatPreferredStart = (start: string) => {
+    const starts: Record<string, string> = { immediately: "Immediately", next_week: "Next week", next_month: "Next month" };
+    return starts[start] || start;
+  };
+  
+  const formatReferralSource = (source: string, otherText: string | null) => {
+    const sources: Record<string, string> = { friend: "Friend", instagram: "Instagram", direct_visit: "Direct visit", other: "Other" };
+    return source === "other" && otherText ? `Other: ${otherText}` : sources[source] || source;
   };
 
   if (isLoading) {
@@ -167,43 +200,149 @@ function GymRequestsTab() {
                       Owner: {request.ownerName} {request.ownerEmail && `(${request.ownerEmail})`}
                     </p>
                     <p className="text-xs text-muted-foreground">
+                      {request.city}, {request.state}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
                       Submitted: {format(new Date(request.createdAt), "PPp")}
                     </p>
-                    {request.adminNotes && (
-                      <p className="text-sm mt-2 p-2 bg-muted rounded-md">{request.adminNotes}</p>
-                    )}
                   </div>
-                  {request.status === "pending" && (
-                    <div className="flex gap-2 flex-shrink-0">
-                      <Button
-                        size="sm"
-                        data-testid={`button-approve-${request.id}`}
-                        onClick={() => approveMutation.mutate(request.id)}
-                        disabled={approveMutation.isPending}
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        data-testid={`button-reject-${request.id}`}
-                        onClick={() => {
-                          setSelectedRequest(request);
-                          setShowRejectDialog(true);
-                        }}
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Reject
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-testid={`button-view-details-${request.id}`}
+                      onClick={() => {
+                        setSelectedRequest(request);
+                        setShowDetailsDialog(true);
+                      }}
+                    >
+                      View Details
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      <Dialog open={showDetailsDialog} onOpenChange={(open) => {
+        setShowDetailsDialog(open);
+        if (!open) setSelectedRequest(null);
+      }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          {selectedRequest && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DialogTitle>{selectedRequest.gymName}</DialogTitle>
+                  {getStatusBadge(selectedRequest.status)}
+                </div>
+                <DialogDescription>Full request details</DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Owner</p>
+                    <p className="font-medium">{selectedRequest.ownerName}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Owner Email</p>
+                    <p className="font-medium">{selectedRequest.ownerEmail || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Phone</p>
+                    <p className="font-medium">{selectedRequest.phone || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Address</p>
+                    <p className="font-medium">{selectedRequest.address || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Point of Contact</p>
+                    <p className="font-medium">{selectedRequest.pointOfContactName || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">POC Email</p>
+                    <p className="font-medium">{selectedRequest.pointOfContactEmail || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">City</p>
+                    <p className="font-medium">{selectedRequest.city}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">State</p>
+                    <p className="font-medium">{selectedRequest.state}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Country</p>
+                    <p className="font-medium">{selectedRequest.country}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Gym Size</p>
+                    <p className="font-medium">{formatGymSize(selectedRequest.gymSize)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Number of Trainers</p>
+                    <p className="font-medium">{selectedRequest.trainerCount}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Preferred Start</p>
+                    <p className="font-medium">{formatPreferredStart(selectedRequest.preferredStart)}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-muted-foreground">How did you hear about OGym?</p>
+                    <p className="font-medium">{formatReferralSource(selectedRequest.referralSource, selectedRequest.referralOtherText)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Submitted</p>
+                    <p className="font-medium">{format(new Date(selectedRequest.createdAt), "PPp")}</p>
+                  </div>
+                  {selectedRequest.reviewedAt && (
+                    <div>
+                      <p className="text-muted-foreground">Reviewed</p>
+                      <p className="font-medium">{format(new Date(selectedRequest.reviewedAt), "PPp")}</p>
+                    </div>
+                  )}
+                </div>
+                
+                {selectedRequest.adminNotes && (
+                  <div className="p-3 bg-muted rounded-md">
+                    <p className="text-sm text-muted-foreground">Admin Notes</p>
+                    <p className="text-sm">{selectedRequest.adminNotes}</p>
+                  </div>
+                )}
+              </div>
+              
+              {selectedRequest.status === "pending" && (
+                <DialogFooter className="gap-2">
+                  <Button
+                    variant="outline"
+                    data-testid="button-reject-from-details"
+                    onClick={() => {
+                      setShowRejectDialog(true);
+                    }}
+                    disabled={rejectMutation.isPending}
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    Reject
+                  </Button>
+                  <Button
+                    data-testid="button-approve-from-details"
+                    onClick={() => approveMutation.mutate(selectedRequest.id)}
+                    disabled={approveMutation.isPending}
+                  >
+                    {approveMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                    <Check className="w-4 h-4 mr-1" />
+                    Approve
+                  </Button>
+                </DialogFooter>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
         <DialogContent>
@@ -253,10 +392,22 @@ function GymsTab() {
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [showList, setShowList] = useState<"members" | "trainers" | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  const [nameFilter, setNameFilter] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [stateFilter, setStateFilter] = useState("");
+  const [appliedFilters, setAppliedFilters] = useState<{ name?: string; city?: string; state?: string }>({});
 
-  const { data: gyms = [], isLoading } = useQuery<GymDetails[]>({
-    queryKey: ["/api/admin/all-gyms"],
-    queryFn: () => adminFetch("/api/admin/all-gyms"),
+  const { data: gyms = [], isLoading, refetch } = useQuery<GymDetails[]>({
+    queryKey: ["/api/admin/all-gyms", appliedFilters],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (appliedFilters.name) params.append("name", appliedFilters.name);
+      if (appliedFilters.city) params.append("city", appliedFilters.city);
+      if (appliedFilters.state) params.append("state", appliedFilters.state);
+      const query = params.toString();
+      return adminFetch(`/api/admin/all-gyms${query ? `?${query}` : ""}`);
+    },
   });
 
   const { data: profile, isLoading: profileLoading } = useQuery<GymProfile>({
@@ -270,6 +421,17 @@ function GymsTab() {
     setShowList(null);
     setSearchQuery("");
     setShowProfileDialog(true);
+  };
+  
+  const handleApplyFilters = () => {
+    setAppliedFilters({ name: nameFilter, city: cityFilter, state: stateFilter });
+  };
+  
+  const handleClearFilters = () => {
+    setNameFilter("");
+    setCityFilter("");
+    setStateFilter("");
+    setAppliedFilters({});
   };
 
   const filteredUsers = showList && profile 
@@ -290,11 +452,62 @@ function GymsTab() {
         <h2 className="text-xl font-semibold">All Gyms</h2>
         <Badge variant="outline">{gyms.length} gyms</Badge>
       </div>
+      
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <Label htmlFor="name-filter" className="text-sm">Search by gym name</Label>
+              <div className="relative mt-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="name-filter"
+                  data-testid="input-filter-name"
+                  placeholder="Search gym name..."
+                  value={nameFilter}
+                  onChange={(e) => setNameFilter(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <div className="min-w-[150px]">
+              <Label htmlFor="city-filter" className="text-sm">City</Label>
+              <Input
+                id="city-filter"
+                data-testid="input-filter-city"
+                placeholder="City"
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div className="min-w-[150px]">
+              <Label htmlFor="state-filter" className="text-sm">State</Label>
+              <Input
+                id="state-filter"
+                data-testid="input-filter-state"
+                placeholder="State"
+                value={stateFilter}
+                onChange={(e) => setStateFilter(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button data-testid="button-apply-filters" onClick={handleApplyFilters}>
+                Apply Filters
+              </Button>
+              <Button variant="outline" data-testid="button-clear-filters" onClick={handleClearFilters}>
+                Clear
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {gyms.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            No gyms registered yet
+            {Object.values(appliedFilters).some(Boolean) ? "No gyms match your filters" : "No gyms registered yet"}
           </CardContent>
         </Card>
       ) : (
@@ -311,6 +524,12 @@ function GymsTab() {
                 <CardDescription>Code: {gym.code}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
+                {(gym.city || gym.state) && (
+                  <p>
+                    <span className="text-muted-foreground">Location:</span>{" "}
+                    {[gym.city, gym.state].filter(Boolean).join(", ")}
+                  </p>
+                )}
                 <p>
                   <span className="text-muted-foreground">Owner:</span>{" "}
                   {gym.ownerName || "N/A"}

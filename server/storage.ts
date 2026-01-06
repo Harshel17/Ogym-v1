@@ -41,7 +41,7 @@ import {
   trainingPhases, phaseExercises, type TrainingPhase, type InsertTrainingPhase, type PhaseExercise, type InsertPhaseExercise
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, or } from "drizzle-orm";
+import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, or, ilike } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -437,6 +437,7 @@ export interface IStorage {
   // Gym Requests (Owner onboarding)
   createGymRequest(data: InsertGymRequest): Promise<GymRequest>;
   getGymRequestByOwner(ownerUserId: number): Promise<GymRequest | undefined>;
+  getGymRequestById(requestId: number): Promise<(GymRequest & { ownerName: string; ownerEmail: string | null }) | undefined>;
   getPendingGymRequests(): Promise<(GymRequest & { ownerName: string })[]>;
   approveGymRequest(requestId: number): Promise<{ gymRequest: GymRequest; gym: Gym }>;
   rejectGymRequest(requestId: number, adminNotes: string): Promise<GymRequest>;
@@ -450,10 +451,13 @@ export interface IStorage {
   
   // Admin functions
   getAllGymRequestsWithOwner(): Promise<(GymRequest & { ownerName: string; ownerEmail: string | null })[]>;
-  getAllGymsWithDetails(): Promise<{
+  getAllGymsWithDetails(filters?: { name?: string; city?: string; state?: string }): Promise<{
     id: number;
     name: string;
     code: string;
+    city: string | null;
+    state: string | null;
+    country: string | null;
     createdAt: Date | null;
     ownerName: string | null;
     ownerEmail: string | null;
@@ -4042,6 +4046,23 @@ export class DatabaseStorage implements IStorage {
     return request;
   }
   
+  async getGymRequestById(requestId: number): Promise<(GymRequest & { ownerName: string; ownerEmail: string | null }) | undefined> {
+    const [result] = await db.select({
+      request: gymRequests,
+      owner: users
+    })
+    .from(gymRequests)
+    .innerJoin(users, eq(gymRequests.ownerUserId, users.id))
+    .where(eq(gymRequests.id, requestId));
+    
+    if (!result) return undefined;
+    return {
+      ...result.request,
+      ownerName: result.owner.username,
+      ownerEmail: result.owner.email
+    };
+  }
+  
   async getPendingGymRequests(): Promise<(GymRequest & { ownerName: string })[]> {
     const requests = await db.select({
       request: gymRequests,
@@ -4069,6 +4090,9 @@ export class DatabaseStorage implements IStorage {
       code,
       phone: request.phone,
       address: request.address,
+      city: request.city,
+      state: request.state,
+      country: request.country,
       ownerUserId: request.ownerUserId
     }).returning();
     
@@ -4175,10 +4199,13 @@ export class DatabaseStorage implements IStorage {
     }));
   }
   
-  async getAllGymsWithDetails(): Promise<{
+  async getAllGymsWithDetails(filters?: { name?: string; city?: string; state?: string }): Promise<{
     id: number;
     name: string;
     code: string;
+    city: string | null;
+    state: string | null;
+    country: string | null;
     createdAt: Date | null;
     ownerName: string | null;
     ownerEmail: string | null;
@@ -4186,20 +4213,42 @@ export class DatabaseStorage implements IStorage {
     planType: string | null;
     validUntil: Date | null;
   }[]> {
-    const results = await db.select({
+    const conditions: ReturnType<typeof ilike>[] = [];
+    if (filters?.name) {
+      conditions.push(ilike(gyms.name, `%${filters.name}%`));
+    }
+    if (filters?.city) {
+      conditions.push(ilike(gyms.city, `%${filters.city}%`));
+    }
+    if (filters?.state) {
+      conditions.push(ilike(gyms.state, `%${filters.state}%`));
+    }
+    
+    let query = db.select({
       gym: gyms,
       owner: users,
       subscription: gymSubscriptions
     })
     .from(gyms)
-    .leftJoin(users, and(eq(gyms.ownerUserId, users.id)))
-    .leftJoin(gymSubscriptions, eq(gyms.id, gymSubscriptions.gymId))
-    .orderBy(desc(gyms.createdAt));
+    .leftJoin(users, eq(gyms.ownerUserId, users.id))
+    .leftJoin(gymSubscriptions, eq(gyms.id, gymSubscriptions.gymId));
+    
+    let results;
+    if (conditions.length === 0) {
+      results = await query.orderBy(desc(gyms.createdAt));
+    } else if (conditions.length === 1) {
+      results = await query.where(conditions[0]).orderBy(desc(gyms.createdAt));
+    } else {
+      results = await query.where(and(...conditions)).orderBy(desc(gyms.createdAt));
+    }
     
     return results.map(r => ({
       id: r.gym.id,
       name: r.gym.name,
       code: r.gym.code,
+      city: r.gym.city,
+      state: r.gym.state,
+      country: r.gym.country,
       createdAt: r.gym.createdAt,
       ownerName: r.owner?.username || null,
       ownerEmail: r.owner?.email || null,
