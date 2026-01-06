@@ -1,0 +1,183 @@
+Goal: After a gym owner approves a member, when that member logs in for the first time, they must complete a profile form + initial body measurements before accessing the dashboard.
+
+Prompt:
+
+You are working inside my existing OGym V1 codebase (do NOT rebuild the app).
+Keep the current authentication + roles (Owner / Trainer / Member) exactly as-is.
+I need a “First-time member onboarding flow” that forces members to complete profile + body setup before they can access the app.
+
+1) NEW DATABASE STORAGE (Neon Postgres)
+
+Add or ensure these tables/columns exist (use Drizzle or current ORM pattern in the project):
+
+A) user_profiles table (NEW)
+
+Create a new table user_profiles with:
+
+id (pk)
+
+user_id (fk -> users.id, unique)
+
+full_name (text, required)
+
+phone (text, required)
+
+gender (enum: 'male','female','prefer_not_to_say', required)
+
+dob (date, required)
+
+age (int, derived from dob OR stored after calculation)
+
+address (text, optional)
+
+onboarding_completed (boolean default false)
+
+created_at, updated_at timestamps
+
+B) body_measurements table (ALREADY EXISTS but confirm fields)
+
+Ensure body_measurements has:
+
+id (pk)
+
+user_id (fk)
+
+height_cm (numeric, required for initial)
+
+weight_kg (numeric, required for initial)
+
+body_fat_percent (numeric, optional)
+
+chest_cm (numeric, optional)
+
+waist_cm (numeric, optional)
+
+hips_cm (numeric, optional)
+
+recorded_at (timestamp default now)
+
+is_initial (boolean default false)
+
+IMPORTANT:
+
+Only height_cm and weight_kg must be required during onboarding.
+
+Others optional.
+
+2) BACKEND API ENDPOINTS (DO NOT BREAK EXISTING)
+
+Create new API routes:
+
+GET /api/profile/me
+
+Returns current user profile + onboarding_completed flag (if no profile, return null + onboarding_completed false)
+
+POST /api/profile
+
+Creates or updates profile for logged-in user (member only)
+Validate required fields.
+Calculate age from dob if needed.
+
+POST /api/body-measurements/initial
+
+Creates first measurement row with is_initial=true for logged-in user (member only).
+
+GET /api/body-measurements/me
+
+Returns measurement history for logged-in user.
+
+Security:
+
+Only logged-in user can edit their own profile/body data.
+
+Admin/Owner/Trainer should not break.
+
+3) FRONTEND ONBOARDING SCREENS (MEMBER ONLY)
+
+Create onboarding pages (Next.js routes consistent with this codebase):
+
+/onboarding/profile
+
+“Complete Your Profile”
+Fields:
+
+Full Name (required)
+
+Phone Number (required)
+
+Email (read-only from account, already verified)
+
+Address (optional)
+
+Gender dropdown (required)
+
+Date of Birth (required)
+Show age automatically after DOB selected.
+Button: “Save & Continue”
+
+/onboarding/body
+
+“My Body (Initial Setup)”
+Fields:
+
+Height (cm) required
+
+Weight (kg) required
+
+Body fat % optional
+
+Chest optional
+
+Waist optional
+
+Hips optional
+Button: “Finish Setup”
+
+After finishing:
+
+set onboarding_completed = true
+
+redirect to Member Dashboard
+
+4) FORCE REDIRECT (LOCK APP UNTIL DONE)
+
+Add a guard so that:
+
+If logged-in user role is MEMBER
+
+AND onboarding_completed is false
+Then they cannot access dashboard/attendance/payments/my workout/etc
+They must be redirected to /onboarding/profile first.
+
+After profile is saved → allow /onboarding/body.
+After body is saved → unlock app.
+
+5) UI RULES
+
+Keep OGym dark theme styling consistent with existing UI
+
+Add a small step indicator “Step 1 of 2” and “Step 2 of 2”
+
+Do not remove any existing menu items, but hide/disable them until onboarding_complete for members
+
+6) TESTING NOTES
+
+Add a simple dev log to show:
+
+When onboarding redirect triggers
+
+When profile is saved
+
+When initial body measurement is saved
+
+Final check:
+
+Owner login unaffected
+
+Trainer login unaffected
+
+Existing members with onboarding_completed=true go directly to dashboard
+
+New approved members are forced through onboarding
+
+Implement this cleanly with minimal file changes and show me exactly which files were modified.

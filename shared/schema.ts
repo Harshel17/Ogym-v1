@@ -65,7 +65,22 @@ export const users = pgTable("users", {
   verificationExpiresAt: timestamp("verification_expires_at"),
   phone: text("phone"),
   autoPostEnabled: boolean("auto_post_enabled").default(true),
+  onboardingCompleted: boolean("onboarding_completed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User Profiles (extended profile data for members)
+export const userProfiles = pgTable("user_profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull().unique(),
+  fullName: text("full_name").notNull(),
+  phone: text("phone").notNull(),
+  gender: text("gender", { enum: ["male", "female", "prefer_not_to_say"] }).notNull(),
+  dob: text("dob").notNull(),
+  age: integer("age"),
+  address: text("address"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const gymSubscriptions = pgTable("gym_subscriptions", {
@@ -395,6 +410,7 @@ export const bodyMeasurements = pgTable("body_measurements", {
   biceps: integer("biceps"),
   thighs: integer("thighs"),
   notes: text("notes"),
+  isInitial: boolean("is_initial").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -513,7 +529,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 // === SCHEMAS ===
 
 export const insertGymSchema = createInsertSchema(gyms).omit({ id: true, createdAt: true });
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, onboardingCompleted: true });
+export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertGymRequestSchema = createInsertSchema(gymRequests).omit({ id: true, createdAt: true, reviewedAt: true, status: true, adminNotes: true });
 export const insertJoinRequestSchema = createInsertSchema(joinRequests).omit({ id: true, createdAt: true, reviewedAt: true, status: true });
 export const insertTrainerMemberSchema = createInsertSchema(trainerMembers).omit({ id: true });
@@ -557,6 +574,8 @@ export type Gym = typeof gyms.$inferSelect;
 export type GymRequest = typeof gymRequests.$inferSelect;
 export type JoinRequest = typeof joinRequests.$inferSelect;
 export type User = typeof users.$inferSelect;
+export type UserProfile = typeof userProfiles.$inferSelect;
+export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
 export type TrainerMember = typeof trainerMembers.$inferSelect;
 export type TrainerMemberAssignment = typeof trainerMemberAssignments.$inferSelect;
 export type Attendance = typeof attendance.$inferSelect;
