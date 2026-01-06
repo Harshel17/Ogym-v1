@@ -20,6 +20,9 @@ const loginSchema = z.object({
 });
 
 const registerSchema = z.object({
+  username: z.string()
+    .min(4, "Username must be at least 4 characters")
+    .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
   email: z.string().email("Please enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.enum(["owner", "trainer", "member"]),
@@ -72,6 +75,7 @@ export default function AuthPage() {
   const registerForm = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: { 
+      username: "",
       email: "", 
       password: "", 
       role: "member",
@@ -334,6 +338,25 @@ export default function AuthPage() {
                 <CardContent className="px-0">
                   <Form {...registerForm}>
                     <form onSubmit={registerForm.handleSubmit((d) => registerMutation.mutate(d))} className="space-y-4">
+                      <FormField
+                        control={registerForm.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Username</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Choose a username" 
+                                {...field} 
+                                className="h-11" 
+                                data-testid="input-register-username" 
+                              />
+                            </FormControl>
+                            <p className="text-xs text-muted-foreground">This will be your public OGym ID</p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                       <FormField
                         control={registerForm.control}
                         name="email"

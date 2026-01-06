@@ -27,6 +27,7 @@ const loginInput = z.object({
 });
 
 const registerInput = z.object({
+  username: z.string().min(4).regex(/^[a-zA-Z0-9_]+$/),
   email: z.string().email(),
   password: z.string(),
   role: z.enum(["owner", "trainer", "member"]),

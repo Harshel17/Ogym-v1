@@ -38,6 +38,9 @@ export async function registerRoutes(
   app.post("/api/auth/register", authRateLimiter, async (req, res) => {
     try {
       const schema = z.object({
+        username: z.string()
+          .min(4, "Username must be at least 4 characters")
+          .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
         email: z.string().email("Invalid email format"),
         password: z.string().min(8, "Password must be at least 8 characters"),
         role: z.enum(["owner", "trainer", "member"]),
@@ -54,14 +57,15 @@ export async function registerRoutes(
       
       const input = schema.parse(req.body);
       
+      const existingUserByUsername = await storage.getUserByUsername(input.username);
+      if (existingUserByUsername) {
+        return res.status(400).json({ message: "Username already taken. Please choose another." });
+      }
+      
       const existingUserByEmail = await storage.getUserByEmail(input.email);
       if (existingUserByEmail) {
         return res.status(400).json({ message: "Email already registered" });
       }
-
-      const emailPrefix = input.email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "").substring(0, 15);
-      const uniqueSuffix = nanoid(5);
-      const username = `${emailPrefix}_${uniqueSuffix}`.toLowerCase();
 
       let gym = null;
       if (input.role !== "owner" && input.gymCode) {
@@ -76,7 +80,7 @@ export async function registerRoutes(
       const verificationExpiresAt = getOTPExpiryTime();
 
       const user = await storage.createUser({
-        username,
+        username: input.username.toLowerCase(),
         email: input.email,
         password: hashedPassword,
         role: input.role,
