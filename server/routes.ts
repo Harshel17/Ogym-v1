@@ -6,8 +6,26 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import passport from "passport";
 import jwt from "jsonwebtoken";
+import rateLimit from "express-rate-limit";
+import { generateOTP, getOTPExpiryTime, sendVerificationEmail } from "./email";
 
 const ADMIN_JWT_SECRET = process.env.SESSION_SECRET || "admin-jwt-fallback-secret";
+
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { message: "Too many attempts. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const resendRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 1,
+  message: { message: "Please wait 60 seconds before requesting another code." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -16,93 +34,203 @@ export async function registerRoutes(
   setupAuth(app);
 
   // === AUTH ROUTES ===
-  app.post("/api/auth/register-owner", async (req, res) => {
+  
+  app.post("/api/auth/register", authRateLimiter, async (req, res) => {
     try {
       const schema = z.object({
-        username: z.string().min(1),
-        password: z.string().min(6),
+        email: z.string().email("Invalid email format"),
+        password: z.string().min(8, "Password must be at least 8 characters"),
+        role: z.enum(["owner", "trainer", "member"]),
+        gymCode: z.string().optional(),
+      }).refine((data) => {
+        if (data.role !== "owner") {
+          return data.gymCode && data.gymCode.length > 0;
+        }
+        return true;
+      }, {
+        message: "Gym code is required for trainers and members",
+        path: ["gymCode"],
       });
+      
       const input = schema.parse(req.body);
       
-      const existingUser = await storage.getUserByUsername(input.username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
+      const existingUserByEmail = await storage.getUserByEmail(input.email);
+      if (existingUserByEmail) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+
+      const emailPrefix = input.email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "").substring(0, 15);
+      const uniqueSuffix = nanoid(5);
+      const username = `${emailPrefix}_${uniqueSuffix}`.toLowerCase();
+
+      let gym = null;
+      if (input.role !== "owner" && input.gymCode) {
+        gym = await storage.getGymByCode(input.gymCode.toUpperCase());
+        if (!gym) {
+          return res.status(400).json({ message: "Invalid gym code" });
+        }
       }
 
       const hashedPassword = await hashPassword(input.password);
+      const verificationCode = generateOTP();
+      const verificationExpiresAt = getOTPExpiryTime();
+
       const user = await storage.createUser({
-        username: input.username,
-        password: hashedPassword,
-        role: "owner",
-        gymId: null
-      });
-
-      req.login(user, (err) => {
-        if (err) return res.status(500).json({ message: "Login failed" });
-        res.status(201).json({ ...user, gym: null });
-      });
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.post("/api/auth/register-join", async (req, res) => {
-    try {
-      const schema = z.object({
-        username: z.string().min(1),
-        password: z.string().min(6),
-        gymCode: z.string().min(1),
-        role: z.enum(["trainer", "member"]),
-      });
-      const input = schema.parse(req.body);
-      
-      const existingUser = await storage.getUserByUsername(input.username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
-      }
-
-      const gym = await storage.getGymByCode(input.gymCode.toUpperCase());
-      if (!gym) {
-        return res.status(400).json({ message: "Invalid gym code" });
-      }
-
-      const hashedPassword = await hashPassword(input.password);
-      const user = await storage.createUser({
-        username: input.username,
+        username,
+        email: input.email,
         password: hashedPassword,
         role: input.role,
-        gymId: null
+        gymId: null,
+        emailVerified: false,
       });
 
-      await storage.createJoinRequest({
-        userId: user.id,
-        gymId: gym.id,
-      });
+      await storage.updateUserVerificationCode(user.id, verificationCode, verificationExpiresAt);
 
-      req.login(user, (err) => {
-        if (err) return res.status(500).json({ message: "Login failed" });
-        res.status(201).json({ ...user, gym: null, pendingJoinRequest: true, requestedGymName: gym.name });
+      if (input.role !== "owner" && gym) {
+        await storage.createJoinRequest({
+          userId: user.id,
+          gymId: gym.id,
+        });
+      }
+
+      await sendVerificationEmail(input.email, verificationCode);
+
+      res.status(201).json({ 
+        message: "Registration successful. Please verify your email.",
+        email: input.email,
+        requiresVerification: true,
       });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
+      console.error("Registration error:", err);
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  app.post("/api/auth/login", (req, res, next) => {
-    passport.authenticate("local", (err: any, user: any, info: any) => {
-      if (err) return next(err);
-      if (!user) return res.status(401).json({ message: "Invalid credentials" });
-      req.login(user, (err) => {
-        if (err) return next(err);
-        return res.status(200).json(user);
+  app.post("/api/auth/verify-email", authRateLimiter, async (req, res) => {
+    try {
+      const schema = z.object({
+        email: z.string().email(),
+        code: z.string().length(6, "Verification code must be 6 digits"),
       });
-    })(req, res, next);
+      const input = schema.parse(req.body);
+
+      const user = await storage.getUserByEmail(input.email);
+      if (!user) {
+        return res.status(400).json({ message: "User not found" });
+      }
+
+      if (user.emailVerified) {
+        return res.status(400).json({ message: "Email already verified" });
+      }
+
+      if (!user.verificationCode || !user.verificationExpiresAt) {
+        return res.status(400).json({ message: "No verification code found. Please request a new one." });
+      }
+
+      if (new Date() > new Date(user.verificationExpiresAt)) {
+        return res.status(400).json({ message: "Verification code has expired. Please request a new one." });
+      }
+
+      if (user.verificationCode !== input.code) {
+        return res.status(400).json({ message: "Invalid verification code" });
+      }
+
+      await storage.verifyUserEmail(user.id);
+
+      req.login(user, async (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Login failed after verification" });
+        }
+        const fullUser = await storage.getUser(user.id);
+        return res.status(200).json({ 
+          message: "Email verified successfully",
+          user: fullUser,
+        });
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Verification error:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/auth/resend-code", resendRateLimiter, async (req, res) => {
+    try {
+      const schema = z.object({
+        email: z.string().email(),
+      });
+      const input = schema.parse(req.body);
+
+      const user = await storage.getUserByEmail(input.email);
+      if (!user) {
+        return res.status(200).json({ message: "If this email exists, a new code has been sent." });
+      }
+
+      if (user.emailVerified) {
+        return res.status(400).json({ message: "Email already verified" });
+      }
+
+      const verificationCode = generateOTP();
+      const verificationExpiresAt = getOTPExpiryTime();
+
+      await storage.updateUserVerificationCode(user.id, verificationCode, verificationExpiresAt);
+      await sendVerificationEmail(input.email, verificationCode);
+
+      res.status(200).json({ message: "Verification code sent successfully" });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Resend code error:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/auth/login", authRateLimiter, async (req, res) => {
+    try {
+      const schema = z.object({
+        email: z.string().email("Invalid email format"),
+        password: z.string().min(1, "Password is required"),
+      });
+      const input = schema.parse(req.body);
+
+      const user = await storage.getUserByEmail(input.email);
+      if (!user || !(await comparePasswords(input.password, user.password))) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      if (!user.emailVerified) {
+        const verificationCode = generateOTP();
+        const verificationExpiresAt = getOTPExpiryTime();
+        await storage.updateUserVerificationCode(user.id, verificationCode, verificationExpiresAt);
+        await sendVerificationEmail(input.email, verificationCode);
+        
+        return res.status(403).json({ 
+          message: "Please verify your email first. A new verification code has been sent.",
+          requiresVerification: true,
+          email: input.email,
+        });
+      }
+
+      req.login(user, async (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Login failed" });
+        }
+        const fullUser = await storage.getUser(user.id);
+        return res.status(200).json(fullUser);
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Login error:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
 
   app.post("/api/auth/logout", (req, res, next) => {
