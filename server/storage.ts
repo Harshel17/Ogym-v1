@@ -5255,8 +5255,258 @@ export class DatabaseStorage implements IStorage {
 
   async adminReassignTrainer(memberId: number, newTrainerId: number | null): Promise<void> {
     await db.update(users)
-      .set({ trainerId: newTrainerId })
+      .set({ trainerId: newTrainerId } as any)
       .where(eq(users.id, memberId));
+  }
+
+  // === ADMIN ATTENDANCE & WORKOUT MANAGEMENT ===
+  
+  async getAdminMemberDayData(memberId: number, date: string): Promise<{
+    attendance: Attendance | null;
+    workoutSessions: (typeof workoutSessions.$inferSelect & { exercises: (typeof workoutSessionExercises.$inferSelect)[] })[];
+    member: User | null;
+  }> {
+    const [member] = await db.select().from(users).where(eq(users.id, memberId));
+    
+    const [attendanceRecord] = await db.select().from(attendance)
+      .where(and(eq(attendance.memberId, memberId), eq(attendance.date, date)));
+    
+    const sessions = await db.select().from(workoutSessions)
+      .where(and(
+        eq(workoutSessions.memberId, memberId), 
+        eq(workoutSessions.date, date),
+        eq(workoutSessions.isDeleted, false)
+      ));
+    
+    const sessionsWithExercises = await Promise.all(sessions.map(async (session) => {
+      const exercises = await db.select().from(workoutSessionExercises)
+        .where(and(
+          eq(workoutSessionExercises.sessionId, session.id),
+          eq(workoutSessionExercises.isDeleted, false)
+        ))
+        .orderBy(workoutSessionExercises.orderIndex);
+      return { ...session, exercises };
+    }));
+    
+    return {
+      attendance: attendanceRecord || null,
+      workoutSessions: sessionsWithExercises,
+      member: member || null
+    };
+  }
+
+  async adminSetAttendance(data: {
+    gymId: number;
+    memberId: number;
+    date: string;
+    status: "present" | "absent";
+    adminId: number;
+    reason: string;
+  }): Promise<Attendance> {
+    const existing = await db.select().from(attendance)
+      .where(and(eq(attendance.memberId, data.memberId), eq(attendance.date, data.date)));
+    
+    if (existing.length > 0) {
+      const [updated] = await db.update(attendance)
+        .set({
+          status: data.status,
+          verifiedMethod: "admin_adjustment",
+          adjustedByAdminId: data.adminId,
+          adjustmentReason: data.reason,
+          updatedAt: new Date()
+        })
+        .where(eq(attendance.id, existing[0].id))
+        .returning();
+      return updated;
+    }
+    
+    const [created] = await db.insert(attendance).values({
+      gymId: data.gymId,
+      memberId: data.memberId,
+      markedByUserId: data.adminId,
+      date: data.date,
+      status: data.status,
+      verifiedMethod: "admin_adjustment",
+      adjustedByAdminId: data.adminId,
+      adjustmentReason: data.reason
+    }).returning();
+    
+    return created;
+  }
+
+  async adminCreateWorkoutSession(data: {
+    gymId: number;
+    memberId: number;
+    date: string;
+    focusLabel: string;
+    notes?: string;
+    adminId: number;
+    reason: string;
+  }): Promise<typeof workoutSessions.$inferSelect> {
+    const [session] = await db.insert(workoutSessions).values({
+      gymId: data.gymId,
+      memberId: data.memberId,
+      date: data.date,
+      focusLabel: data.focusLabel,
+      notes: data.notes || null,
+      isManuallyCompleted: true,
+      completedAt: new Date(),
+      adjustedByAdminId: data.adminId
+    }).returning();
+    
+    return session;
+  }
+
+  async adminUpdateWorkoutSession(sessionId: number, data: {
+    focusLabel?: string;
+    notes?: string;
+    adminId: number;
+    reason: string;
+  }): Promise<typeof workoutSessions.$inferSelect> {
+    const updates: Record<string, any> = { updatedAt: new Date(), adjustedByAdminId: data.adminId };
+    if (data.focusLabel !== undefined) updates.focusLabel = data.focusLabel;
+    if (data.notes !== undefined) updates.notes = data.notes;
+    
+    const [session] = await db.update(workoutSessions)
+      .set(updates)
+      .where(eq(workoutSessions.id, sessionId))
+      .returning();
+    
+    return session;
+  }
+
+  async adminDeleteWorkoutSession(sessionId: number, adminId: number, reason: string): Promise<void> {
+    await db.update(workoutSessions)
+      .set({
+        isDeleted: true,
+        deletedByAdminId: adminId,
+        deletedReason: reason,
+        updatedAt: new Date()
+      })
+      .where(eq(workoutSessions.id, sessionId));
+  }
+
+  async adminAddExercise(data: {
+    sessionId: number;
+    exerciseName: string;
+    sets?: number;
+    reps?: number;
+    weight?: string;
+    duration?: number;
+    adminId: number;
+    reason: string;
+  }): Promise<typeof workoutSessionExercises.$inferSelect> {
+    const existingExercises = await db.select().from(workoutSessionExercises)
+      .where(eq(workoutSessionExercises.sessionId, data.sessionId));
+    const maxOrder = existingExercises.reduce((max, e) => Math.max(max, e.orderIndex || 0), 0);
+    
+    const [exercise] = await db.insert(workoutSessionExercises).values({
+      sessionId: data.sessionId,
+      exerciseName: data.exerciseName,
+      sets: data.sets,
+      reps: data.reps,
+      weight: data.weight,
+      duration: data.duration,
+      orderIndex: maxOrder + 1,
+      adjustedByAdminId: data.adminId
+    }).returning();
+    
+    return exercise;
+  }
+
+  async adminUpdateExercise(exerciseId: number, data: {
+    exerciseName?: string;
+    sets?: number;
+    reps?: number;
+    weight?: string;
+    duration?: number;
+    adminId: number;
+    reason: string;
+  }): Promise<typeof workoutSessionExercises.$inferSelect> {
+    const updates: Record<string, any> = { updatedAt: new Date(), adjustedByAdminId: data.adminId };
+    if (data.exerciseName !== undefined) updates.exerciseName = data.exerciseName;
+    if (data.sets !== undefined) updates.sets = data.sets;
+    if (data.reps !== undefined) updates.reps = data.reps;
+    if (data.weight !== undefined) updates.weight = data.weight;
+    if (data.duration !== undefined) updates.duration = data.duration;
+    
+    const [exercise] = await db.update(workoutSessionExercises)
+      .set(updates)
+      .where(eq(workoutSessionExercises.id, exerciseId))
+      .returning();
+    
+    return exercise;
+  }
+
+  async adminDeleteExercise(exerciseId: number, adminId: number, reason: string): Promise<void> {
+    await db.update(workoutSessionExercises)
+      .set({
+        isDeleted: true,
+        adjustedByAdminId: adminId,
+        updatedAt: new Date()
+      })
+      .where(eq(workoutSessionExercises.id, exerciseId));
+  }
+
+  async adminReorderExercises(sessionId: number, orderedExerciseIds: number[], adminId: number, reason: string): Promise<void> {
+    for (let i = 0; i < orderedExerciseIds.length; i++) {
+      await db.update(workoutSessionExercises)
+        .set({ orderIndex: i, updatedAt: new Date(), adjustedByAdminId: adminId })
+        .where(eq(workoutSessionExercises.id, orderedExerciseIds[i]));
+    }
+  }
+
+  async calculateMemberStreaks(memberId: number): Promise<{ attendanceStreak: number; workoutStreak: number }> {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    const attendanceRecords = await db.select().from(attendance)
+      .where(and(eq(attendance.memberId, memberId), eq(attendance.status, "present")))
+      .orderBy(desc(attendance.date));
+    
+    let attendanceStreak = 0;
+    let currentDate = new Date(todayStr);
+    for (const record of attendanceRecords) {
+      const recordDate = new Date(record.date);
+      const diff = Math.floor((currentDate.getTime() - recordDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diff <= 1) {
+        attendanceStreak++;
+        currentDate = recordDate;
+      } else {
+        break;
+      }
+    }
+    
+    const sessions = await db.select().from(workoutSessions)
+      .where(and(eq(workoutSessions.memberId, memberId), eq(workoutSessions.isDeleted, false)))
+      .orderBy(desc(workoutSessions.date));
+    
+    let workoutStreak = 0;
+    currentDate = new Date(todayStr);
+    for (const session of sessions) {
+      const sessionDate = new Date(session.date);
+      const diff = Math.floor((currentDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diff <= 1) {
+        workoutStreak++;
+        currentDate = sessionDate;
+      } else {
+        break;
+      }
+    }
+    
+    return { attendanceStreak, workoutStreak };
+  }
+
+  async getWorkoutSession(sessionId: number): Promise<typeof workoutSessions.$inferSelect | null> {
+    const [session] = await db.select().from(workoutSessions)
+      .where(eq(workoutSessions.id, sessionId));
+    return session || null;
+  }
+
+  async getWorkoutExercise(exerciseId: number): Promise<typeof workoutSessionExercises.$inferSelect | null> {
+    const [exercise] = await db.select().from(workoutSessionExercises)
+      .where(eq(workoutSessionExercises.id, exerciseId));
+    return exercise || null;
   }
 }
 
