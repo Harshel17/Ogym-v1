@@ -641,14 +641,14 @@ export default function AuthPage() {
                             inputMode="numeric"
                             maxLength={6}
                             placeholder="Enter 6-digit code"
-                            autoComplete="one-time-code"
+                            autoComplete="off"
                             className="h-11 text-center text-lg tracking-widest"
                             data-testid="input-reset-otp"
-                            {...field}
-                            onChange={(e) => {
-                              const digitsOnly = e.target.value.replace(/\D/g, '');
-                              field.onChange(digitsOnly);
-                            }}
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            name={field.name}
+                            ref={field.ref}
                           />
                         </FormControl>
                         <FormMessage />
