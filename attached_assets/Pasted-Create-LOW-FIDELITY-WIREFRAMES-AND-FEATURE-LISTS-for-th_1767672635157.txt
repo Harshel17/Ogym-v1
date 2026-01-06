@@ -1,0 +1,106 @@
+Create LOW-FIDELITY WIREFRAMES AND FEATURE LISTS for the OGym app that is ALREADY BUILT.
+
+IMPORTANT RULES:
+- This is ONLY for documentation and validation.
+- Do NOT redesign UI.
+- Do NOT add new features.
+- Do NOT change backend logic, database, or authentication.
+- Use simple black & white wireframe descriptions (boxes, labels, arrows).
+- OGym is already implemented; this task is to ALIGN V1 for demo.
+
+OGym is a ROLE-BASED APP.
+You MUST separate outputs for:
+1) Owner
+2) Trainer
+3) Member
+
+==================================================
+PART 1: WIREFRAMES (LOW-FIDELITY ONLY)
+==================================================
+
+COMMON (Before role split)
+1) Login / Register Screen
+   - Email/Phone
+   - Password
+   - Login button
+   - Register link
+   - Role is decided AFTER login by backend
+
+OWNER WIREFRAMES
+2) Owner Dashboard
+3) Members Management
+4) Attendance Screen
+5) Payments Screen
+6) Trainers Screen
+
+TRAINER WIREFRAMES
+7) Trainer Dashboard
+8) Workout Management
+9) Member Progress
+
+MEMBER WIREFRAMES
+10) Member Dashboard
+11) Workout Detail Screen
+12) History / Progress
+13) Community / Feed (simple)
+
+For EACH wireframe screen, include:
+- Screen title
+- Main sections (boxes)
+- Primary actions (buttons)
+
+==================================================
+PART 2: FEATURE LIST (VERY IMPORTANT)
+==================================================
+
+Create a CLEAR FEATURE LIST for EACH ROLE based ONLY on what already exists in OGym V1.
+
+A) OWNER FEATURES
+- Gym registration & setup
+- Member management
+- Trainer management
+- Attendance tracking
+- Payment tracking
+- Dashboard analytics (basic)
+- Approvals / requests
+- Any other existing owner feature
+
+B) TRAINER FEATURES
+- Assigned members view
+- Workout plan creation/editing
+- Workout completion tracking
+- Member progress view
+- Attendance visibility (if applicable)
+- Any other existing trainer feature
+
+C) MEMBER FEATURES
+- Login & profile
+- Attendance marking (QR/manual)
+- Workout viewing & completion
+- Streaks & points
+- History / progress tracking
+- Community feed interaction
+- Any other existing member feature
+
+RULES FOR FEATURE LIST:
+- ONLY list features that already exist.
+- Do NOT suggest future features.
+- Do NOT rename features for marketing.
+- Keep wording simple and factual.
+
+==================================================
+OUTPUT FORMAT
+==================================================
+1) Wireframes section (numbered, structured)
+2) Feature lists section:
+   - Owner features
+   - Trainer features
+   - Member features
+
+DO NOT:
+- Propose new ideas
+- Suggest architecture changes
+- Add business strategy
+- Discuss roles or co-founder topics
+
+Goal: Lock OGym V1 structure + capabilities for demo readiness.
