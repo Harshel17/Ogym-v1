@@ -2988,6 +2988,127 @@ export async function registerRoutes(
     res.json(posts);
   });
 
+  // === MEMBER ONBOARDING ROUTES ===
+  
+  // Get current user profile and onboarding status
+  app.get("/api/profile/me", requireAuth, async (req, res) => {
+    try {
+      const profile = await storage.getUserProfile(req.user!.id);
+      const user = await storage.getUser(req.user!.id);
+      res.json({
+        profile,
+        onboardingCompleted: user?.onboardingCompleted ?? false,
+        email: user?.email,
+        phone: user?.phone
+      });
+    } catch (err) {
+      console.error("[Onboarding] Failed to get profile:", err);
+      res.status(500).json({ message: "Failed to get profile" });
+    }
+  });
+  
+  // Create or update user profile (member only)
+  app.post("/api/profile", requireRole(["member"]), async (req, res) => {
+    try {
+      const schema = z.object({
+        fullName: z.string().min(1, "Full name is required"),
+        phone: z.string().min(1, "Phone number is required"),
+        gender: z.enum(["male", "female", "prefer_not_to_say"]),
+        dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
+        address: z.string().optional()
+      });
+      
+      const input = schema.parse(req.body);
+      
+      // Calculate age from DOB
+      const dobDate = new Date(input.dob);
+      const today = new Date();
+      let age = today.getFullYear() - dobDate.getFullYear();
+      const monthDiff = today.getMonth() - dobDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) {
+        age--;
+      }
+      
+      const profile = await storage.createOrUpdateUserProfile(req.user!.id, {
+        fullName: input.fullName,
+        phone: input.phone,
+        gender: input.gender,
+        dob: input.dob,
+        age,
+        address: input.address
+      });
+      
+      console.log(`[Onboarding] Profile saved for user ${req.user!.id}`);
+      res.json(profile);
+    } catch (err: any) {
+      if (err.name === "ZodError") {
+        return res.status(400).json({ message: err.errors[0]?.message || "Validation error" });
+      }
+      console.error("[Onboarding] Failed to save profile:", err);
+      res.status(500).json({ message: "Failed to save profile" });
+    }
+  });
+  
+  // Create initial body measurement (member only)
+  app.post("/api/body-measurements/initial", requireRole(["member"]), async (req, res) => {
+    try {
+      if (!req.user!.gymId) {
+        return res.status(400).json({ message: "User must be assigned to a gym" });
+      }
+      
+      const schema = z.object({
+        height: z.number().min(50, "Height must be at least 50 cm").max(300, "Height must be less than 300 cm"),
+        weight: z.number().min(20, "Weight must be at least 20 kg").max(500, "Weight must be less than 500 kg"),
+        bodyFat: z.number().min(1).max(70).optional(),
+        chest: z.number().min(30).max(300).optional(),
+        waist: z.number().min(30).max(300).optional(),
+        hips: z.number().min(30).max(300).optional()
+      });
+      
+      const input = schema.parse(req.body);
+      
+      // Check if initial measurement already exists
+      const existing = await storage.getInitialBodyMeasurement(req.user!.id);
+      if (existing) {
+        return res.status(400).json({ message: "Initial body measurement already exists" });
+      }
+      
+      const measurement = await storage.createInitialBodyMeasurement({
+        gymId: req.user!.gymId,
+        memberId: req.user!.id,
+        height: input.height,
+        weight: input.weight,
+        bodyFat: input.bodyFat,
+        chest: input.chest,
+        waist: input.waist,
+        hips: input.hips
+      });
+      
+      // Mark onboarding as complete
+      await storage.setOnboardingCompleted(req.user!.id);
+      
+      console.log(`[Onboarding] Initial body measurement saved and onboarding completed for user ${req.user!.id}`);
+      res.json({ measurement, onboardingCompleted: true });
+    } catch (err: any) {
+      if (err.name === "ZodError") {
+        return res.status(400).json({ message: err.errors[0]?.message || "Validation error" });
+      }
+      console.error("[Onboarding] Failed to save initial body measurement:", err);
+      res.status(500).json({ message: "Failed to save body measurement" });
+    }
+  });
+  
+  // Get body measurement history for current user
+  app.get("/api/body-measurements/me", requireAuth, async (req, res) => {
+    try {
+      const measurements = await storage.getMemberBodyMeasurements(req.user!.id);
+      res.json(measurements);
+    } catch (err) {
+      console.error("[Onboarding] Failed to get body measurements:", err);
+      res.status(500).json({ message: "Failed to get body measurements" });
+    }
+  });
+
   // === GYM REQUESTS (Owner Onboarding) ===
   // Owner creates a gym request
   app.post("/api/gym-requests", requireAuth, async (req, res) => {

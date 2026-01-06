@@ -38,7 +38,8 @@ import {
   type Tournament, type InsertTournament,
   type TournamentParticipant, type InsertTournamentParticipant,
   type MemberRestDaySwap, type InsertMemberRestDaySwap,
-  trainingPhases, phaseExercises, type TrainingPhase, type InsertTrainingPhase, type PhaseExercise, type InsertPhaseExercise
+  trainingPhases, phaseExercises, type TrainingPhase, type InsertTrainingPhase, type PhaseExercise, type InsertPhaseExercise,
+  userProfiles, type UserProfile
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, or, ilike } from "drizzle-orm";
@@ -182,6 +183,14 @@ export interface IStorage {
   updateUserProfile(userId: number, data: { email?: string; phone?: string }): Promise<User>;
   getFullMemberProfile(memberId: number): Promise<any>;
   getTrainerProfile(trainerId: number): Promise<any>;
+  
+  // User Profiles (Onboarding)
+  getUserProfile(userId: number): Promise<UserProfile | null>;
+  createOrUpdateUserProfile(userId: number, data: { fullName: string; phone: string; gender: string; dob: string; age?: number; address?: string }): Promise<UserProfile>;
+  setOnboardingCompleted(userId: number): Promise<void>;
+  getInitialBodyMeasurement(memberId: number): Promise<BodyMeasurement | null>;
+  createInitialBodyMeasurement(data: { gymId: number; memberId: number; height: number; weight: number; bodyFat?: number; chest?: number; waist?: number; hips?: number }): Promise<BodyMeasurement>;
+  getMemberBodyMeasurements(memberId: number): Promise<BodyMeasurement[]>;
   
   // Gym History
   getGymHistory(memberId: number): Promise<GymHistory[]>;
@@ -4399,6 +4408,68 @@ export class DatabaseStorage implements IStorage {
   async createBodyMeasurement(data: InsertBodyMeasurement): Promise<BodyMeasurement> {
     const [measurement] = await db.insert(bodyMeasurements).values(data).returning();
     return measurement;
+  }
+  
+  // User Profiles (Onboarding)
+  async getUserProfile(userId: number): Promise<UserProfile | null> {
+    const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId));
+    return profile || null;
+  }
+  
+  async createOrUpdateUserProfile(userId: number, data: { fullName: string; phone: string; gender: string; dob: string; age?: number; address?: string }): Promise<UserProfile> {
+    const existing = await this.getUserProfile(userId);
+    if (existing) {
+      const [updated] = await db.update(userProfiles)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(userProfiles.userId, userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(userProfiles)
+        .values({ userId, ...data })
+        .returning();
+      return created;
+    }
+  }
+  
+  async setOnboardingCompleted(userId: number): Promise<void> {
+    await db.update(users)
+      .set({ onboardingCompleted: true })
+      .where(eq(users.id, userId));
+  }
+  
+  async getInitialBodyMeasurement(memberId: number): Promise<BodyMeasurement | null> {
+    const [measurement] = await db.select()
+      .from(bodyMeasurements)
+      .where(and(eq(bodyMeasurements.memberId, memberId), eq(bodyMeasurements.isInitial, true)))
+      .limit(1);
+    return measurement || null;
+  }
+  
+  async createInitialBodyMeasurement(data: { gymId: number; memberId: number; height: number; weight: number; bodyFat?: number; chest?: number; waist?: number; hips?: number }): Promise<BodyMeasurement> {
+    const today = new Date().toISOString().split("T")[0];
+    const [measurement] = await db.insert(bodyMeasurements)
+      .values({
+        gymId: data.gymId,
+        memberId: data.memberId,
+        recordedDate: today,
+        height: data.height,
+        weight: data.weight,
+        bodyFat: data.bodyFat || null,
+        chest: data.chest || null,
+        waist: data.waist || null,
+        hips: data.hips || null,
+        isInitial: true,
+      })
+      .returning();
+    return measurement;
+  }
+  
+  async getMemberBodyMeasurements(memberId: number): Promise<BodyMeasurement[]> {
+    return await db.select()
+      .from(bodyMeasurements)
+      .where(eq(bodyMeasurements.memberId, memberId))
+      .orderBy(desc(bodyMeasurements.recordedDate));
   }
   
   // Member Notes
