@@ -983,6 +983,82 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // Per-set targets for workout items
+  app.get("/api/trainer/cycles/:cycleId/items/:itemId/sets", requireRole(["trainer"]), async (req, res) => {
+    const cycleId = parseInt(req.params.cycleId);
+    const itemId = parseInt(req.params.itemId);
+    
+    const cycle = await storage.getCycle(cycleId);
+    if (!cycle || cycle.trainerId !== req.user!.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    
+    const item = await storage.getWorkoutItem(itemId);
+    if (!item || item.cycleId !== cycleId) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+    
+    const sets = await storage.getWorkoutPlanSets(itemId);
+    res.json(sets);
+  });
+
+  app.post("/api/trainer/cycles/:cycleId/items/:itemId/sets", requireRole(["trainer"]), async (req, res) => {
+    const cycleId = parseInt(req.params.cycleId);
+    const itemId = parseInt(req.params.itemId);
+    
+    const schema = z.object({
+      sets: z.array(z.object({
+        setNumber: z.number().min(1),
+        targetReps: z.number().min(1),
+        targetWeight: z.string().optional().nullable()
+      }))
+    });
+    const input = schema.parse(req.body);
+    
+    const cycle = await storage.getCycle(cycleId);
+    if (!cycle || cycle.trainerId !== req.user!.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    
+    const item = await storage.getWorkoutItem(itemId);
+    if (!item || item.cycleId !== cycleId) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+    
+    // Delete existing sets for this item and create new ones
+    await storage.deleteWorkoutPlanSetsByItem(itemId);
+    
+    const newSets = await storage.createWorkoutPlanSets(
+      input.sets.map(s => ({
+        workoutItemId: itemId,
+        setNumber: s.setNumber,
+        targetReps: s.targetReps,
+        targetWeight: s.targetWeight ?? null
+      }))
+    );
+    
+    res.status(201).json(newSets);
+  });
+
+  app.patch("/api/trainer/plan-sets/:setId", requireRole(["trainer"]), async (req, res) => {
+    const setId = parseInt(req.params.setId);
+    
+    const schema = z.object({
+      targetReps: z.number().min(1).optional(),
+      targetWeight: z.string().optional().nullable()
+    });
+    const input = schema.parse(req.body);
+    
+    const updated = await storage.updateWorkoutPlanSet(setId, input);
+    res.json(updated);
+  });
+
+  app.delete("/api/trainer/plan-sets/:setId", requireRole(["trainer"]), async (req, res) => {
+    const setId = parseInt(req.params.setId);
+    await storage.deleteWorkoutPlanSet(setId);
+    res.status(204).send();
+  });
+
   app.get("/api/trainer/activity", requireRole(["trainer"]), async (req, res) => {
     const assignments = await storage.getTrainerMembers(req.user!.id);
     const memberIds = assignments.map(a => a.memberId);
@@ -1706,6 +1782,146 @@ export async function registerRoutes(
   app.get("/api/workouts/stats/my", requireRole(["member"]), async (req, res) => {
     const stats = await storage.getMemberStats(req.user!.id);
     res.json(stats);
+  });
+
+  // === PER-SET WORKOUT LOGGING ===
+  // Get plan sets for a workout item (member view)
+  app.get("/api/workouts/items/:itemId/plan-sets", requireRole(["member"]), async (req, res) => {
+    const itemId = parseInt(req.params.itemId);
+    const item = await storage.getWorkoutItem(itemId);
+    if (!item) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+    
+    const cycle = await storage.getCycle(item.cycleId);
+    if (!cycle || cycle.memberId !== req.user!.id) {
+      return res.status(403).json({ message: "Not your workout" });
+    }
+    
+    const planSets = await storage.getWorkoutPlanSets(itemId);
+    res.json(planSets);
+  });
+
+  // Get detailed workout log for a date
+  app.get("/api/workouts/log/:date", requireRole(["member"]), async (req, res) => {
+    const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format");
+    const result = dateSchema.safeParse(req.params.date);
+    if (!result.success) {
+      return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD" });
+    }
+    
+    const log = await storage.getDetailedWorkoutLog(req.user!.gymId!, req.user!.id, req.params.date);
+    res.json(log);
+  });
+
+  // Log per-set workout completion
+  app.post("/api/workouts/log-sets", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      workoutItemId: z.number(),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      sets: z.array(z.object({
+        setNumber: z.number().min(1),
+        targetReps: z.number().optional(),
+        targetWeight: z.string().optional().nullable(),
+        actualReps: z.number().optional(),
+        actualWeight: z.string().optional().nullable(),
+        completed: z.boolean().default(false)
+      }))
+    });
+    const input = schema.parse(req.body);
+    
+    const item = await storage.getWorkoutItem(input.workoutItemId);
+    if (!item) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+    
+    const cycle = await storage.getCycle(item.cycleId);
+    if (!cycle || cycle.memberId !== req.user!.id) {
+      return res.status(403).json({ message: "Not your workout" });
+    }
+    
+    // Get or create workout log for this date
+    let workoutLog = await storage.getWorkoutLog(req.user!.gymId!, req.user!.id, input.date);
+    if (!workoutLog) {
+      // Calculate day index
+      const startDate = new Date(cycle.startDate);
+      const logDate = new Date(input.date);
+      const daysSinceStart = Math.floor((logDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const dayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+      
+      workoutLog = await storage.createWorkoutLog({
+        gymId: req.user!.gymId!,
+        memberId: req.user!.id,
+        cycleId: cycle.id,
+        dayIndex,
+        completedDate: input.date,
+        completedAt: new Date()
+      });
+    }
+    
+    // Create log exercise entry
+    const logExercise = await storage.createWorkoutLogExercise({
+      workoutLogId: workoutLog.id,
+      workoutItemId: item.id,
+      exerciseName: item.exerciseName,
+      muscleType: item.muscleType,
+      bodyPart: item.bodyPart,
+      orderIndex: item.orderIndex
+    });
+    
+    // Create log sets
+    for (const set of input.sets) {
+      await storage.createWorkoutLogSet({
+        logExerciseId: logExercise.id,
+        setNumber: set.setNumber,
+        targetReps: set.targetReps,
+        targetWeight: set.targetWeight ?? null,
+        actualReps: set.actualReps,
+        actualWeight: set.actualWeight ?? null,
+        completed: set.completed
+      });
+    }
+    
+    // Also create legacy workout completion for backward compatibility
+    const existingCompletion = await storage.getCompletionByItemDate(item.id, req.user!.id, input.date);
+    if (!existingCompletion) {
+      const completedSets = input.sets.filter(s => s.completed);
+      const avgReps = completedSets.length > 0 
+        ? Math.round(completedSets.reduce((sum, s) => sum + (s.actualReps || 0), 0) / completedSets.length)
+        : null;
+      const lastWeight = completedSets.length > 0 ? completedSets[completedSets.length - 1].actualWeight : null;
+      
+      await storage.completeWorkout({
+        gymId: req.user!.gymId!,
+        cycleId: cycle.id,
+        workoutItemId: item.id,
+        memberId: req.user!.id,
+        completedDate: input.date,
+        actualSets: completedSets.length,
+        actualReps: avgReps,
+        actualWeight: lastWeight
+      });
+    }
+    
+    res.status(201).json({ 
+      workoutLogId: workoutLog.id, 
+      logExerciseId: logExercise.id,
+      message: "Sets logged successfully" 
+    });
+  });
+
+  // Update a logged set
+  app.patch("/api/workouts/log-sets/:setId", requireRole(["member"]), async (req, res) => {
+    const setId = parseInt(req.params.setId);
+    const schema = z.object({
+      actualReps: z.number().optional(),
+      actualWeight: z.string().optional().nullable(),
+      completed: z.boolean().optional()
+    });
+    const input = schema.parse(req.body);
+    
+    const updated = await storage.updateWorkoutLogSet(setId, input);
+    res.json(updated);
   });
 
   // === MEMBER PROGRESS - GROUPED SESSIONS ===
