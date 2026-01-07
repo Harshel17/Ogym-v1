@@ -17,6 +17,15 @@ apiClient.interceptors.request.use(async (config) => {
   if (sessionCookie) {
     config.headers.Cookie = sessionCookie;
   }
+  
+  // Add timezone headers for backend date consistency
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  config.headers['X-Local-Date'] = `${year}-${month}-${day}`;
+  config.headers['X-Local-Timezone'] = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
   return config;
 });
 
