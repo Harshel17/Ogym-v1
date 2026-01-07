@@ -903,6 +903,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteWorkoutItem(itemId: number): Promise<void> {
+    // First delete associated workout completions to avoid FK constraint violation
+    await db.delete(workoutCompletions).where(eq(workoutCompletions.workoutItemId, itemId));
     await db.delete(workoutItems).where(eq(workoutItems.id, itemId));
   }
 
