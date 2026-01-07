@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useTodayWorkout, useCompleteWorkout, useMemberCycle, useDailyPoints, useShareWorkout, useSwapRestDay, useUndoRestDaySwap, useMemberPlanSets, useLogWorkoutSets, type WorkoutPlanSet } from "@/hooks/use-workouts";
+import { useTodayWorkout, useCompleteWorkout, useMemberCycle, useDailyPoints, useShareWorkout, useSwapRestDay, useUndoRestDaySwap, useLogWorkoutSets } from "@/hooks/use-workouts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -152,17 +152,21 @@ export default function MemberWorkoutPage() {
     itemId: number, 
     planSets: { reps: number; weight: string | null; setNumber: number }[],
     defaultReps: number, 
-    defaultWeight: string
+    defaultWeight: string,
+    numSets: number
   ) => {
     if (!perSetInputs[itemId]) {
-      const setInputs = planSets.length > 0
-        ? planSets.map(ps => ({
+      // Sort plan sets by setNumber to ensure correct order
+      const sortedPlanSets = [...planSets].sort((a, b) => a.setNumber - b.setNumber);
+      
+      const setInputs = sortedPlanSets.length > 0
+        ? sortedPlanSets.map(ps => ({
             reps: String(ps.reps),
             weight: ps.weight || '',
             targetReps: ps.reps,
             targetWeight: ps.weight || ''
           }))
-        : Array.from({ length: 3 }, () => ({
+        : Array.from({ length: numSets }, () => ({
             reps: String(defaultReps),
             weight: defaultWeight || '',
             targetReps: defaultReps,
@@ -255,10 +259,10 @@ export default function MemberWorkoutPage() {
       });
       
       setPlanSetCache(prev => ({ ...prev, [item.id]: planSets }));
-      initializePerSetInputs(item.id, planSets, item.reps, item.weight || '');
+      initializePerSetInputs(item.id, planSets, item.reps, item.weight || '', item.sets);
     } catch {
       // Fallback to item defaults if fetch fails
-      initializePerSetInputs(item.id, [], item.reps, item.weight || '');
+      initializePerSetInputs(item.id, [], item.reps, item.weight || '', item.sets);
     } finally {
       setLoadingPlanSets(null);
     }
