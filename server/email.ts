@@ -38,7 +38,7 @@ async function getResendCredentials() {
     }
     return {
       apiKey: connectionSettings.settings.api_key, 
-      fromEmail: connectionSettings.settings.from_email || 'noreply@ogym.app'
+      fromEmail: connectionSettings.settings.from_email || 'no-reply@ogym.fitness'
     };
   } catch (error) {
     console.error('Failed to get Resend credentials:', error);
