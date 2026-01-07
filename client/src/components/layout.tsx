@@ -24,8 +24,16 @@ import {
   FileText,
   Activity,
   Trophy,
-  HelpCircle
+  HelpCircle,
+  type LucideIcon
 } from "lucide-react";
+
+type MobileTabItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  badge?: number;
+};
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logoutMutation } = useAuth();
@@ -204,6 +212,56 @@ export function Layout({ children }: { children: React.ReactNode }) {
     },
   ];
 
+  const getMobileTabItems = (): MobileTabItem[] => {
+    if (isOwner && hasGym) {
+      return [
+        { label: "Dashboard", href: "/", icon: LayoutDashboard },
+        { label: "Members", href: "/members", icon: Users },
+        { label: "Attendance", href: "/owner/attendance", icon: CalendarCheck },
+        { label: "Payments", href: "/payments", icon: CreditCard },
+        { label: "Profile", href: "/profile", icon: UserCircle },
+      ];
+    }
+    if (isOwner && !hasGym) {
+      return [
+        { label: "Register", href: "/gym-request", icon: Building2 },
+        { label: "Support", href: "/support", icon: HelpCircle },
+        { label: "Profile", href: "/profile", icon: UserCircle },
+      ];
+    }
+    if (isTrainer) {
+      return [
+        { label: "Dashboard", href: "/", icon: LayoutDashboard },
+        { label: "Workouts", href: "/workouts", icon: Dumbbell },
+        { label: "Members", href: "/members", icon: Users },
+        { label: "Requests", href: "/requests", icon: MessageSquare, badge: notificationCounts?.pendingRequests || 0 },
+        { label: "Profile", href: "/profile", icon: UserCircle },
+      ];
+    }
+    if (isMember && hasGym) {
+      return [
+        { label: "Dashboard", href: "/", icon: LayoutDashboard },
+        { label: "Workout", href: "/my-workout", icon: Dumbbell },
+        { label: "Attendance", href: "/attendance", icon: CalendarCheck },
+        { label: "Progress", href: "/progress", icon: TrendingUp },
+        { label: "Profile", href: "/profile", icon: UserCircle },
+      ];
+    }
+    if (isMember && !hasGym) {
+      return [
+        { label: "Join Gym", href: "/join-gym", icon: Building2 },
+        { label: "Support", href: "/support", icon: HelpCircle },
+        { label: "Profile", href: "/profile", icon: UserCircle },
+      ];
+    }
+    return [
+      { label: "Dashboard", href: "/", icon: LayoutDashboard },
+      { label: "Profile", href: "/profile", icon: UserCircle },
+    ];
+  };
+
+  const mobileTabItems = getMobileTabItems();
+
   return (
     <div className="min-h-screen bg-secondary/30 flex">
       {/* Sidebar */}
@@ -306,28 +364,40 @@ export function Layout({ children }: { children: React.ReactNode }) {
            </div>
         </header>
         
-        <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-8">
           {children}
         </div>
       </main>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 pb-safe">
-        <div className="flex justify-around items-center h-16">
-          {navItems.filter(item => item.visible).map((item) => {
-            const isActive = location === item.href;
+      {/* Mobile Bottom Tab Bar */}
+      <nav 
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30"
+        style={{ 
+          height: 'calc(72px + env(safe-area-inset-bottom))',
+          paddingBottom: 'env(safe-area-inset-bottom)'
+        }}
+      >
+        <div className="flex justify-around items-center h-[72px]">
+          {mobileTabItems.map((item) => {
+            const isActive = location === item.href || 
+              (item.href !== "/" && location.startsWith(item.href));
             return (
               <Link key={item.href} href={item.href}>
-                <div className={`relative flex flex-col items-center justify-center w-full h-full cursor-pointer ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                <div 
+                  className={`relative flex flex-col items-center justify-center px-3 py-2 cursor-pointer transition-colors ${
+                    isActive ? "text-primary" : "text-muted-foreground"
+                  }`}
+                  data-testid={`tab-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                >
                   <div className="relative">
-                    <item.icon className="w-5 h-5 mb-1" />
-                    {item.badge > 0 && (
-                      <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
-                        {item.badge > 99 ? '99+' : item.badge}
+                    <item.icon className={`w-6 h-6 mb-1 ${isActive ? "stroke-[2.5]" : ""}`} />
+                    {(item.badge ?? 0) > 0 && (
+                      <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+                        {(item.badge ?? 0) > 99 ? '99+' : item.badge}
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] font-medium">{item.label}</span>
+                  <span className={`text-[11px] font-medium ${isActive ? "font-semibold" : ""}`}>{item.label}</span>
                 </div>
               </Link>
             );
