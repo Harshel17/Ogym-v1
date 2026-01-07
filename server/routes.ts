@@ -2241,10 +2241,7 @@ export async function registerRoutes(
   });
 
   // === MEMBER PROFILE & PROGRESS ROUTES ===
-  app.get("/api/member/profile", requireRole(["member"]), async (req, res) => {
-    const profile = await storage.getMemberProfile(req.user!.id);
-    res.json(profile);
-  });
+  // Note: /api/member/profile is defined below in ENHANCED MEMBER PROFILE ROUTES section
 
   app.get("/api/member/progress", requireRole(["member"]), async (req, res) => {
     const progress = await storage.getMemberProgress(req.user!.id);
