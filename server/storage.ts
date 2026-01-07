@@ -2391,6 +2391,8 @@ export class DatabaseStorage implements IStorage {
     const cycle = await this.getMemberCycle(memberId);
     const history = await this.getGymHistory(memberId);
     const stats = await this.getMemberStats(memberId);
+    
+    const [userProfile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, memberId));
 
     return {
       id: member.id,
@@ -2404,7 +2406,15 @@ export class DatabaseStorage implements IStorage {
       trainer,
       cycle: cycle ? { id: cycle.id, name: cycle.name, endDate: cycle.endDate } : null,
       gymHistory: history,
-      stats
+      stats,
+      profile: userProfile ? {
+        fullName: userProfile.fullName,
+        gender: userProfile.gender,
+        dob: userProfile.dob,
+        age: userProfile.age,
+        address: userProfile.address,
+        emergencyContact: userProfile.emergencyContact
+      } : null
     };
   }
 

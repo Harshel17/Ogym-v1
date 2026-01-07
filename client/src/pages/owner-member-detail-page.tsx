@@ -20,9 +20,16 @@ type MemberProfile = {
   email: string | null;
   phone: string | null;
   createdAt: string;
-  trainerName: string | null;
-  cycleName: string | null;
-  cycleEndDate: string | null;
+  trainer: { id: number; publicId: string; username: string } | null;
+  cycle: { id: number; name: string; endDate: string } | null;
+  profile: {
+    fullName: string;
+    gender: string;
+    dob: string;
+    age: number | null;
+    address: string | null;
+    emergencyContact: string | null;
+  } | null;
 };
 
 type WorkoutSession = {
@@ -216,15 +223,54 @@ export default function OwnerMemberDetailPage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Trainer</p>
-                  <p className="font-medium">{profile?.trainerName || "Not assigned"}</p>
+                  <p className="font-medium">{profile?.trainer?.username || "Not assigned"}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Current Cycle</p>
-                  <p className="font-medium">{profile?.cycleName || "None"}</p>
+                  <p className="font-medium">{profile?.cycle?.name || "None"}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {profile?.profile && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Onboarding Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Full Name</p>
+                    <p className="font-medium">{profile.profile.fullName}</p>
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Gender</p>
+                    <p className="font-medium capitalize">{profile.profile.gender?.replace(/_/g, ' ')}</p>
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Date of Birth</p>
+                    <p className="font-medium">
+                      {profile.profile.dob ? format(new Date(profile.profile.dob), "dd MMM yyyy") : "-"}
+                      {profile.profile.age && ` (${profile.profile.age} years)`}
+                    </p>
+                  </div>
+                  {profile.profile.address && (
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Address</p>
+                      <p className="font-medium">{profile.profile.address}</p>
+                    </div>
+                  )}
+                  {profile.profile.emergencyContact && (
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Emergency Contact</p>
+                      <p className="font-medium">{profile.profile.emergencyContact}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="payments" className="mt-4 space-y-4">
