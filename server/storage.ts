@@ -3639,7 +3639,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Owner Dashboard & Attendance Analytics
-  async getOwnerDashboardMetrics(gymId: number): Promise<{
+  async getOwnerDashboardMetrics(gymId: number, clientToday?: string): Promise<{
     totalMembers: number;
     checkedInToday: number;
     checkedInYesterday: number;
@@ -3647,8 +3647,11 @@ export class DatabaseStorage implements IStorage {
     pendingPayments: number;
     totalRevenue: number;
   }> {
-    const today = new Date().toISOString().split("T")[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    // Use client's local date if provided, otherwise fall back to server UTC
+    const today = clientToday || new Date().toISOString().split("T")[0];
+    // Calculate yesterday based on the provided today date
+    const todayDate = new Date(today + 'T00:00:00');
+    const yesterday = new Date(todayDate.getTime() - 86400000).toISOString().split("T")[0];
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
 
     const members = await db.select().from(users).where(and(eq(users.gymId, gymId), eq(users.role, "member")));

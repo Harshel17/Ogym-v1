@@ -3111,7 +3111,9 @@ export async function registerRoutes(
 
   // === OWNER DASHBOARD & ATTENDANCE ANALYTICS ===
   app.get("/api/owner/dashboard-metrics", requireRole(["owner"]), async (req, res) => {
-    const metrics = await storage.getOwnerDashboardMetrics(req.user!.gymId!);
+    // Accept client's local date to handle timezone differences
+    const clientToday = (req.query.clientToday as string) || new Date().toISOString().split("T")[0];
+    const metrics = await storage.getOwnerDashboardMetrics(req.user!.gymId!, clientToday);
     res.json(metrics);
   });
 

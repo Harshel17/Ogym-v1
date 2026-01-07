@@ -90,6 +90,15 @@ function OwnerDashboard() {
   const { data: attendance = [] } = useAttendance();
   const { data: payments = [] } = usePayments();
 
+  // Get client's local date to handle timezone differences
+  const getClientLocalDate = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const { data: dashboardMetrics } = useQuery<{
     totalMembers: number;
     checkedInToday: number;
@@ -98,7 +107,13 @@ function OwnerDashboard() {
     pendingPayments: number;
     totalRevenue: number;
   }>({
-    queryKey: ["/api/owner/dashboard-metrics"]
+    queryKey: ["/api/owner/dashboard-metrics", getClientLocalDate()],
+    queryFn: async () => {
+      const clientToday = getClientLocalDate();
+      const res = await fetch(`/api/owner/dashboard-metrics?clientToday=${clientToday}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch dashboard metrics');
+      return res.json();
+    }
   });
 
   const { data: gymSubscription } = useQuery<GymSubscription | null>({
