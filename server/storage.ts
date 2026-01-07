@@ -4622,7 +4622,7 @@ export class DatabaseStorage implements IStorage {
       memberSubMap.set(sub.memberId, list);
     }
     
-    // Determine member status
+    // Determine member status based on subscription endDate vs today
     const memberStatusMap = new Map<number, 'active' | 'ended' | 'transferred'>();
     for (const member of allMembers) {
       if (transferredOutIds.has(member.id)) {
@@ -4630,7 +4630,8 @@ export class DatabaseStorage implements IStorage {
         continue;
       }
       const subs = memberSubMap.get(member.id) || [];
-      const hasActive = subs.some(s => s.status === 'active' || s.status === 'endingSoon');
+      // Check if any subscription's endDate is >= today (not expired)
+      const hasActive = subs.some(s => s.endDate >= today);
       memberStatusMap.set(member.id, hasActive ? 'active' : 'ended');
     }
     
