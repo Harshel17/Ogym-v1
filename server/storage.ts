@@ -454,6 +454,23 @@ export interface IStorage {
     monthlyTrend: { month: string; active: number; ended: number }[];
   }>;
   
+  // Inactive Members
+  getInactiveMembers(gymId: number, options: {
+    days: number;
+    includeEnded: boolean;
+    mode: 'attendance' | 'workouts';
+    clientDate: string;
+    search?: string;
+  }): Promise<{
+    memberId: number;
+    name: string;
+    email: string | null;
+    publicId: string | null;
+    status: 'active' | 'ended' | 'transferred';
+    lastAttendedDate: string | null;
+    daysAbsent: number;
+  }[]>;
+  
   // Workout Sessions
   getOrCreateWorkoutSession(data: InsertWorkoutSession): Promise<WorkoutSession>;
   getWorkoutSession(gymId: number, sessionId: number): Promise<(WorkoutSession & { exercises: WorkoutSessionExercise[] }) | null>;
@@ -4317,6 +4334,170 @@ export class DatabaseStorage implements IStorage {
       transferredIn,
       monthlyTrend
     };
+  }
+
+  // === INACTIVE MEMBERS ===
+  async getInactiveMembers(gymId: number, options: {
+    days: number;
+    includeEnded: boolean;
+    mode: 'attendance' | 'workouts';
+    clientDate: string;
+    search?: string;
+  }): Promise<{
+    memberId: number;
+    name: string;
+    email: string | null;
+    publicId: string | null;
+    status: 'active' | 'ended' | 'transferred';
+    lastAttendedDate: string | null;
+    daysAbsent: number;
+  }[]> {
+    const { days, includeEnded, mode, clientDate, search } = options;
+    const today = clientDate; // Use client's local date
+    
+    // Get all gym members
+    const allMembers = await db.select().from(users)
+      .where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+    
+    if (allMembers.length === 0) return [];
+    
+    // Get subscription status for each member
+    const allSubs = await db.select()
+      .from(memberSubscriptions)
+      .where(eq(memberSubscriptions.gymId, gymId));
+    
+    // Get approved transfer requests (members who left)
+    const transferredOutIds = new Set(
+      (await db.select({ memberId: transferRequests.memberId })
+        .from(transferRequests)
+        .where(and(
+          eq(transferRequests.fromGymId, gymId),
+          eq(transferRequests.status, 'approved')
+        ))
+      ).map(t => t.memberId)
+    );
+    
+    // Group subscriptions by member
+    const memberSubMap = new Map<number, typeof allSubs>();
+    for (const sub of allSubs) {
+      const list = memberSubMap.get(sub.memberId) || [];
+      list.push(sub);
+      memberSubMap.set(sub.memberId, list);
+    }
+    
+    // Determine member status
+    const memberStatusMap = new Map<number, 'active' | 'ended' | 'transferred'>();
+    for (const member of allMembers) {
+      if (transferredOutIds.has(member.id)) {
+        memberStatusMap.set(member.id, 'transferred');
+        continue;
+      }
+      const subs = memberSubMap.get(member.id) || [];
+      const hasActive = subs.some(s => s.status === 'active' || s.status === 'endingSoon');
+      memberStatusMap.set(member.id, hasActive ? 'active' : 'ended');
+    }
+    
+    // Filter members based on includeEnded
+    let filteredMembers = allMembers;
+    if (!includeEnded) {
+      filteredMembers = allMembers.filter(m => memberStatusMap.get(m.id) === 'active');
+    }
+    
+    // Apply search filter if provided
+    if (search && search.trim()) {
+      const searchLower = search.toLowerCase().trim();
+      filteredMembers = filteredMembers.filter(m => 
+        m.username.toLowerCase().includes(searchLower) ||
+        (m.email && m.email.toLowerCase().includes(searchLower)) ||
+        (m.publicId && m.publicId.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    if (filteredMembers.length === 0) return [];
+    
+    const memberIds = filteredMembers.map(m => m.id);
+    
+    // Get last attendance/workout date based on mode
+    let lastDateMap = new Map<number, string | null>();
+    
+    if (mode === 'attendance') {
+      // Get MAX(date) from attendance where status='present' for each member
+      const attendanceData = await db.select({
+        memberId: attendance.memberId,
+        lastDate: sql<string>`MAX(${attendance.date})`.as('lastDate')
+      })
+        .from(attendance)
+        .where(and(
+          eq(attendance.gymId, gymId),
+          eq(attendance.status, 'present'),
+          inArray(attendance.memberId, memberIds)
+        ))
+        .groupBy(attendance.memberId);
+      
+      for (const row of attendanceData) {
+        lastDateMap.set(row.memberId, row.lastDate);
+      }
+    } else {
+      // Get MAX(date) from workout_logs for each member
+      const workoutData = await db.select({
+        memberId: workoutLogs.memberId,
+        lastDate: sql<string>`MAX(${workoutLogs.date})`.as('lastDate')
+      })
+        .from(workoutLogs)
+        .where(and(
+          eq(workoutLogs.gymId, gymId),
+          inArray(workoutLogs.memberId, memberIds)
+        ))
+        .groupBy(workoutLogs.memberId);
+      
+      for (const row of workoutData) {
+        lastDateMap.set(row.memberId, row.lastDate);
+      }
+    }
+    
+    // Calculate days absent and filter
+    const results: {
+      memberId: number;
+      name: string;
+      email: string | null;
+      publicId: string | null;
+      status: 'active' | 'ended' | 'transferred';
+      lastAttendedDate: string | null;
+      daysAbsent: number;
+    }[] = [];
+    
+    const todayDate = new Date(today);
+    
+    for (const member of filteredMembers) {
+      const lastDate = lastDateMap.get(member.id) || null;
+      let daysAbsent: number;
+      
+      if (!lastDate) {
+        // Never attended - set very high value
+        daysAbsent = 9999;
+      } else {
+        const lastDateObj = new Date(lastDate);
+        daysAbsent = Math.floor((todayDate.getTime() - lastDateObj.getTime()) / (1000 * 60 * 60 * 24));
+      }
+      
+      // Only include if days absent >= threshold
+      if (daysAbsent >= days) {
+        results.push({
+          memberId: member.id,
+          name: member.username,
+          email: member.email,
+          publicId: member.publicId,
+          status: memberStatusMap.get(member.id) || 'active',
+          lastAttendedDate: lastDate,
+          daysAbsent
+        });
+      }
+    }
+    
+    // Sort by days absent descending (most inactive first)
+    results.sort((a, b) => b.daysAbsent - a.daysAbsent);
+    
+    return results;
   }
 
   // === SUBSCRIPTION ALERTS ===

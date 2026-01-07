@@ -3130,6 +3130,24 @@ export async function registerRoutes(
     res.json(analytics);
   });
 
+  // Inactive Members
+  app.get("/api/owner/members/inactive", requireRole(["owner"]), async (req, res) => {
+    const days = parseInt(req.query.days as string) || 3;
+    const includeEnded = req.query.includeEnded === 'true';
+    const mode = (req.query.mode as 'attendance' | 'workouts') || 'attendance';
+    const clientDate = (req.query.clientDate as string) || new Date().toISOString().split('T')[0];
+    const search = req.query.search as string | undefined;
+    
+    const inactiveMembers = await storage.getInactiveMembers(req.user!.gymId!, {
+      days,
+      includeEnded,
+      mode,
+      clientDate,
+      search
+    });
+    res.json(inactiveMembers);
+  });
+
   app.get("/api/owner/attendance/summary", requireRole(["owner"]), async (req, res) => {
     const date = (req.query.date as string) || new Date().toISOString().split("T")[0];
     const summary = await storage.getOwnerAttendanceSummary(req.user!.gymId!, date);
