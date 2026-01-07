@@ -1,0 +1,71 @@
+You are working inside my OGym codebase. Implement REAL email OTP verification for account creation.
+
+GOAL FLOW:
+- User registers with email + password
+- Backend sends a 6-digit OTP to the user's email
+- User must enter OTP to verify email
+- Only verified users can log in
+- Provide resend OTP with rate-limit
+
+REQUIREMENTS:
+1) Database / User Model
+- Add fields to User table:
+  - is_verified (boolean, default false)
+  - otp_hash (string, nullable)
+  - otp_expires_at (datetime, nullable)
+  - otp_attempts (int, default 0)
+  - otp_last_sent_at (datetime, nullable)
+- Create migration or update schema safely (depending on our DB setup). If SQLite and no migrations exist, update in a safe way.
+
+2) Backend API (FastAPI or whatever backend exists in this project)
+Create these endpoints:
+- POST /auth/register
+  - create user with is_verified=false
+  - generate 6-digit OTP
+  - store hashed OTP (never plaintext)
+  - set otp_expires_at = now + 10 minutes
+  - send OTP email
+  - return success message "OTP sent"
+- POST /auth/verify-otp
+  - body: {email, otp}
+  - validate OTP matches hash AND not expired
+  - if valid: set is_verified=true, clear otp_hash and otp_expires_at, reset attempts
+- POST /auth/resend-otp
+  - body: {email}
+  - rate limit: allow only once per 60 seconds using otp_last_sent_at
+  - generate a new OTP, overwrite previous hash, extend expiry, send again
+- POST /auth/login
+  - block login if is_verified=false with clear error message
+
+Security rules:
+- OTP expires in 10 mins
+- max attempts 5 -> after 5 attempts require resend
+- hash OTP using a safe hash (bcrypt/sha256+salt) and compare securely
+
+3) Email Sending (REAL email)
+Use Resend (preferred) or SendGrid.
+- Add env vars:
+  - RESEND_API_KEY
+  - FROM_EMAIL (ex: no-reply@mydomain.com or the approved sender)
+- Create a mail utility file (mail.py) and keep secrets out of code.
+- Email content: “Your OGym verification code is: 123456. Expires in 10 minutes.”
+
+4) Frontend changes (Next.js/React or current frontend)
+- After successful register, redirect to /verify?email=...
+- Create a Verify page:
+  - 6-digit OTP input (single input is fine; if possible do 6 boxes)
+  - Verify button -> calls /auth/verify-otp
+  - Resend button -> calls /auth/resend-otp and shows timer
+- Update login page:
+  - If backend returns "Email not verified", show message + Resend OTP button
+
+5) Testing
+- Add a test mode fallback:
+  - If RESEND_API_KEY missing, log OTP to console ONLY in development (so I can test quickly)
+- Ensure all routes work without breaking existing owner/trainer/member flows.
+
+DELIVERABLES:
+- Show me exactly which files you changed/added
+- Provide the code changes ready to run
+- Provide any new env vars I must add in Replit Secrets
+- Ensure the UI works and OTP input accepts digits properly
