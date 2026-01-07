@@ -82,9 +82,25 @@ npx tsx server/run-seed.ts --reset  # Reset and reseed demo data
 
 **All demo accounts use password:** `demo123`
 
+## Email Integration
+
+**Resend Integration** (connection:conn_resend_01KED8ZB2Z1KAHGC4G9C3WC6PE)
+- Real email OTP verification for account creation and password reset
+- Uses Replit Connectors for secure API key management
+- Falls back to console logging if Resend is not configured
+- Email templates in `server/email.ts`
+
+**OTP Flow:**
+1. User registers → 6-digit OTP sent to email
+2. User enters OTP on verification page
+3. OTP expires in 10 minutes
+4. Rate-limited resend available
+5. Unverified users cannot log in
+
 ## External Dependencies
 
 - **PostgreSQL:** Primary database.
+- **Resend:** Transactional email service for OTP verification.
 - **Drizzle ORM:** For database interaction and schema management.
 - **Passport.js:** Authentication middleware.
 - **express-session & connect-pg-simple:** Session management and PostgreSQL session store.

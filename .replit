@@ -47,3 +47,6 @@ waitForPort = 5000
 
 [userenv.development]
 RESET_DEMO = "false"
+
+[agent]
+integrations = ["resend:1.0.0"]

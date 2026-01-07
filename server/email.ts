@@ -1,4 +1,5 @@
-import nodemailer from "nodemailer";
+// Email service using Resend integration (connection:conn_resend_01KED8ZB2Z1KAHGC4G9C3WC6PE)
+import { Resend } from 'resend';
 
 interface EmailOptions {
   to: string;
@@ -7,26 +8,51 @@ interface EmailOptions {
   html?: string;
 }
 
-const emailProvider = process.env.EMAIL_PROVIDER || "dev";
+let connectionSettings: any;
 
-let transporter: nodemailer.Transporter | null = null;
+async function getResendCredentials() {
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const xReplitToken = process.env.REPL_IDENTITY 
+    ? 'repl ' + process.env.REPL_IDENTITY 
+    : process.env.WEB_REPL_RENEWAL 
+    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
+    : null;
 
-if (emailProvider === "smtp") {
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || "587"),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
+  if (!xReplitToken || !hostname) {
+    return null;
+  }
+
+  try {
+    connectionSettings = await fetch(
+      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
+      {
+        headers: {
+          'Accept': 'application/json',
+          'X_REPLIT_TOKEN': xReplitToken
+        }
+      }
+    ).then(res => res.json()).then(data => data.items?.[0]);
+
+    if (!connectionSettings || !connectionSettings.settings?.api_key) {
+      return null;
+    }
+    return {
+      apiKey: connectionSettings.settings.api_key, 
+      fromEmail: connectionSettings.settings.from_email || 'noreply@ogym.app'
+    };
+  } catch (error) {
+    console.error('Failed to get Resend credentials:', error);
+    return null;
+  }
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
-  if (emailProvider === "dev" || !transporter) {
+  const credentials = await getResendCredentials();
+  
+  // Fall back to dev mode if Resend not configured
+  if (!credentials) {
     console.log("\n========================================");
-    console.log("📧 DEV MODE EMAIL (not actually sent)");
+    console.log("📧 DEV MODE EMAIL (Resend not configured)");
     console.log("----------------------------------------");
     console.log(`To: ${options.to}`);
     console.log(`Subject: ${options.subject}`);
@@ -36,16 +62,24 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   }
 
   try {
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || "noreply@ogym.app",
+    const resend = new Resend(credentials.apiKey);
+    const result = await resend.emails.send({
+      from: credentials.fromEmail,
       to: options.to,
       subject: options.subject,
       text: options.text,
       html: options.html,
     });
+    
+    if (result.error) {
+      console.error("Resend error:", result.error);
+      return false;
+    }
+    
+    console.log(`📧 Email sent successfully to ${options.to} via Resend`);
     return true;
   } catch (error) {
-    console.error("Failed to send email:", error);
+    console.error("Failed to send email via Resend:", error);
     return false;
   }
 }
