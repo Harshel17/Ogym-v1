@@ -2,6 +2,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+// Helper to get client's local date in YYYY-MM-DD format
+function getClientLocalDate(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function useTrainerCycles() {
   return useQuery({
     queryKey: ['/api/trainer/cycles'],
@@ -162,7 +171,11 @@ export function useCompleteWorkout(onAskToShare?: (focusLabel: string) => void) 
 
   return useMutation({
     mutationFn: async (data: { workoutItemId: number; actualSets?: number; actualReps?: number; actualWeight?: string }) => {
-      const response = await apiRequest("POST", "/api/workouts/complete", data);
+      // Include client's local date to ensure correct timezone handling
+      const response = await apiRequest("POST", "/api/workouts/complete", {
+        ...data,
+        clientDate: getClientLocalDate()
+      });
       return response.json();
     },
     onSuccess: (result: any) => {
@@ -222,7 +235,11 @@ export function useCompleteAllWorkouts(onAskToShare?: (achievements: ShareableAc
 
   return useMutation({
     mutationFn: async (data: { workoutItemIds: number[] }) => {
-      const response = await apiRequest("POST", "/api/workouts/complete-all", data);
+      // Include client's local date to ensure correct timezone handling
+      const response = await apiRequest("POST", "/api/workouts/complete-all", {
+        ...data,
+        clientDate: getClientLocalDate()
+      });
       return response.json();
     },
     onSuccess: (result) => {

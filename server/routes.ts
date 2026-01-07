@@ -1386,7 +1386,8 @@ export async function registerRoutes(
       workoutItemId: z.number(),
       actualSets: z.number().optional(),
       actualReps: z.number().optional(),
-      actualWeight: z.string().optional()
+      actualWeight: z.string().optional(),
+      clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
     });
     const input = schema.parse(req.body);
     
@@ -1398,7 +1399,8 @@ export async function registerRoutes(
       return res.status(403).json({ message: "Not your workout" });
     }
     
-    const today = new Date().toISOString().split("T")[0];
+    // Use client's local date if provided, otherwise fall back to server UTC
+    const today = input.clientDate || new Date().toISOString().split("T")[0];
     
     const existing = await storage.getCompletionByItemDate(input.workoutItemId, req.user!.id, today);
     if (existing) {
@@ -1486,7 +1488,8 @@ export async function registerRoutes(
       phaseExerciseId: z.number(),
       actualSets: z.number().optional(),
       actualReps: z.number().optional(),
-      actualWeight: z.string().optional()
+      actualWeight: z.string().optional(),
+      clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
     });
     const input = schema.parse(req.body);
     
@@ -1502,7 +1505,8 @@ export async function registerRoutes(
       return res.status(403).json({ message: "Not your workout" });
     }
     
-    const today = new Date().toISOString().split("T")[0];
+    // Use client's local date if provided, otherwise fall back to server UTC
+    const today = input.clientDate || new Date().toISOString().split("T")[0];
     
     // Check for existing completion by exercise name for today
     const completions = await storage.getCompletions(req.user!.id, today);
@@ -1589,10 +1593,14 @@ export async function registerRoutes(
 
   // Complete all phase exercises for today
   app.post("/api/workouts/complete-phase-all", requireRole(["member"]), async (req, res) => {
-    const schema = z.object({ phaseExerciseIds: z.array(z.number()) });
+    const schema = z.object({ 
+      phaseExerciseIds: z.array(z.number()),
+      clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+    });
     const input = schema.parse(req.body);
     
-    const today = new Date().toISOString().split("T")[0];
+    // Use client's local date if provided, otherwise fall back to server UTC
+    const today = input.clientDate || new Date().toISOString().split("T")[0];
     const completions = [];
     let session: any = null;
     let phase: any = null;
@@ -1679,10 +1687,14 @@ export async function registerRoutes(
   });
 
   app.post("/api/workouts/complete-all", requireRole(["member"]), async (req, res) => {
-    const schema = z.object({ workoutItemIds: z.array(z.number()) });
+    const schema = z.object({ 
+      workoutItemIds: z.array(z.number()),
+      clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+    });
     const input = schema.parse(req.body);
     
-    const today = new Date().toISOString().split("T")[0];
+    // Use client's local date if provided, otherwise fall back to server UTC
+    const today = input.clientDate || new Date().toISOString().split("T")[0];
     const completions = [];
     let session: any = null;
     
