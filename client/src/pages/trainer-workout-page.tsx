@@ -1054,7 +1054,10 @@ const bodyParts = ["Upper Body", "Lower Body", "Full Body", "Cardio", "Recovery"
 
 function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLength: number }) {
   const [open, setOpen] = useState(false);
+  const [sameForAll, setSameForAll] = useState(true);
+  const [perSetData, setPerSetData] = useState<{ reps: number; weight: string }[]>([]);
   const addWorkoutMutation = useAddWorkoutItem();
+  const updatePlanSetsMutation = useUpdateWorkoutPlanSets();
   const queryClient = useQueryClient();
 
   const formSchema = z.object({
@@ -1062,7 +1065,7 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
     muscleType: z.string().min(1, "Select a muscle type"),
     bodyPart: z.string().min(1, "Select a body part"),
     exerciseName: z.string().min(1, "Exercise name is required"),
-    sets: z.coerce.number().min(1, "At least 1 set"),
+    sets: z.coerce.number().min(1, "At least 1 set").max(10, "Max 10 sets"),
     reps: z.coerce.number().min(1, "At least 1 rep"),
     weight: z.string().optional(),
   });
@@ -1080,11 +1083,74 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
     },
   });
 
-  const onSubmit = (data: z.infer<typeof formSchema>) => {
+  const watchedSets = form.watch("sets");
+  const watchedReps = form.watch("reps");
+  const watchedWeight = form.watch("weight");
+
+  useEffect(() => {
+    const numSets = Number(watchedSets) || 1;
+    const currentReps = Number(watchedReps) || 10;
+    const currentWeight = watchedWeight || "";
+    
+    setPerSetData(prev => {
+      const newData = [];
+      for (let i = 0; i < numSets; i++) {
+        newData.push({
+          reps: prev[i]?.reps ?? currentReps,
+          weight: prev[i]?.weight ?? currentWeight
+        });
+      }
+      return newData;
+    });
+  }, [watchedSets]);
+
+  useEffect(() => {
+    if (sameForAll) {
+      const currentReps = Number(watchedReps) || 10;
+      const currentWeight = watchedWeight || "";
+      setPerSetData(prev => prev.map(() => ({ reps: currentReps, weight: currentWeight })));
+    }
+  }, [sameForAll, watchedReps, watchedWeight]);
+
+  const updatePerSetReps = (index: number, value: number) => {
+    setPerSetData(prev => {
+      const newData = [...prev];
+      newData[index] = { ...newData[index], reps: value };
+      return newData;
+    });
+  };
+
+  const updatePerSetWeight = (index: number, value: string) => {
+    setPerSetData(prev => {
+      const newData = [...prev];
+      newData[index] = { ...newData[index], weight: value };
+      return newData;
+    });
+  };
+
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
     addWorkoutMutation.mutate({ ...data, cycleId }, {
-      onSuccess: () => {
+      onSuccess: async (response: any) => {
+        const newItemId = response?.id;
+        
+        if (newItemId && !sameForAll && perSetData.length > 0) {
+          const setsToSave = perSetData.map((set, idx) => ({
+            setNumber: idx + 1,
+            targetReps: set.reps,
+            targetWeight: set.weight || null
+          }));
+          
+          updatePlanSetsMutation.mutate({ 
+            cycleId, 
+            itemId: newItemId, 
+            sets: setsToSave 
+          });
+        }
+        
         queryClient.invalidateQueries({ queryKey: ["/api/trainer/cycles", cycleId, "items"] });
         setOpen(false);
+        setSameForAll(true);
+        setPerSetData([]);
         form.reset({ 
           exerciseName: "", 
           sets: 3, 
@@ -1197,47 +1263,91 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-3 gap-3">
-              <FormField
-                control={form.control}
-                name="sets"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sets</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={1} {...field} data-testid="input-sets" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="reps"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Reps</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={1} {...field} data-testid="input-reps" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="weight"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Weight (optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., 50kg" {...field} data-testid="input-weight" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            <FormField
+              control={form.control}
+              name="sets"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Number of Sets</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={1} max={10} {...field} data-testid="input-sets" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex items-center justify-between py-2">
+              <span className="text-sm font-medium">Same reps/weight for all sets</span>
+              <Switch 
+                checked={sameForAll} 
+                onCheckedChange={setSameForAll}
+                data-testid="switch-same-for-all"
               />
             </div>
+
+            {sameForAll ? (
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="reps"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Reps (all sets)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} {...field} data-testid="input-reps" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="weight"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Weight (optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., 50kg" {...field} data-testid="input-weight" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground font-medium">
+                  <div className="col-span-2">Set</div>
+                  <div className="col-span-5">Reps</div>
+                  <div className="col-span-5">Weight</div>
+                </div>
+                {Array.from({ length: Number(watchedSets) || 1 }, (_, idx) => (
+                  <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-2 text-sm font-medium text-center">
+                      {idx + 1}
+                    </div>
+                    <div className="col-span-5">
+                      <Input 
+                        type="number" 
+                        min={1} 
+                        value={perSetData[idx]?.reps || 10}
+                        onChange={(e) => updatePerSetReps(idx, parseInt(e.target.value) || 1)}
+                        data-testid={`input-set-${idx + 1}-reps`}
+                      />
+                    </div>
+                    <div className="col-span-5">
+                      <Input 
+                        placeholder="e.g., 50kg"
+                        value={perSetData[idx]?.weight || ""}
+                        onChange={(e) => updatePerSetWeight(idx, e.target.value)}
+                        data-testid={`input-set-${idx + 1}-weight`}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={addWorkoutMutation.isPending} data-testid="button-submit-workout">

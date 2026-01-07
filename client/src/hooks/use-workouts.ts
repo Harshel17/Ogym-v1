@@ -45,7 +45,8 @@ export function useAddWorkoutItem() {
   return useMutation({
     mutationFn: async (data: { cycleId: number; dayIndex: number; muscleType?: string; bodyPart?: string; exerciseName: string; sets: number; reps: number; weight?: string; orderIndex?: number }) => {
       const { cycleId, ...rest } = data;
-      return apiRequest("POST", `/api/trainer/cycles/${cycleId}/items`, rest);
+      const response = await apiRequest("POST", `/api/trainer/cycles/${cycleId}/items`, rest);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/trainer/cycles'] });
