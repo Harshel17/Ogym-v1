@@ -6,7 +6,7 @@ import {
   bodyMeasurements, starMembers, gymHistory, dietPlans, dietPlanMeals, announcements, announcementReads,
   memberNotes, workoutTemplates, workoutTemplateItems, memberRequests, transferRequests, joinRequests,
   feedPosts, feedReactions, feedComments, tournaments, tournamentParticipants, memberRestDaySwaps,
-  trainingPhases
+  trainingPhases, userProfiles
 } from "@shared/schema";
 import { eq, or, inArray } from "drizzle-orm";
 import { scrypt, randomBytes } from "crypto";
@@ -425,6 +425,7 @@ export async function resetDemoData(): Promise<void> {
   const userIds = demoUsers.map(u => u.id);
   
   if (userIds.length > 0) {
+    await db.delete(userProfiles).where(inArray(userProfiles.userId, userIds));
     await db.delete(transferRequests).where(inArray(transferRequests.memberId, userIds));
     await db.delete(joinRequests).where(inArray(joinRequests.userId, userIds));
   }

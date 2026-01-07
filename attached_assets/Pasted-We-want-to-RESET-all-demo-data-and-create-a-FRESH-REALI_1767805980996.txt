@@ -1,0 +1,98 @@
+We want to RESET all demo data and create a FRESH, REALISTIC demo dataset
+representing a gym that has been actively using OGym for the past 6 months.
+
+GOAL:
+- Clean demo state
+- Email + password login only
+- Data should look like a real gym in production
+- All features must appear used and meaningful
+
+--------------------------------
+STEP 1: CLEAR DEMO DATA
+--------------------------------
+- Delete all existing demo gyms, users, members, trainers, attendance,
+  workouts, streaks, analytics, payments.
+- Keep schema unchanged.
+- This is a DATA RESET only, not a code change.
+
+--------------------------------
+STEP 2: CREATE A REALISTIC DEMO GYM
+--------------------------------
+
+Gym:
+- Name: "IronForge Fitness" (or similar)
+- Created_at: ~6 months ago
+- Active subscription
+
+Owner:
+- Email + password login
+- Profile fully filled
+- Subscription active
+
+Trainers:
+- 2–3 trainers
+- Email + password login
+- Assigned to members realistically
+
+Members:
+- 60–80 members
+- Email + password login
+- Profiles filled (name, gender, age, etc.)
+
+--------------------------------
+STEP 3: REALISTIC USAGE DATA (6 MONTHS)
+--------------------------------
+
+Attendance:
+- Each member attends 3–6 days/week on average
+- Some members:
+  - highly consistent (streaks)
+  - some irregular
+  - some inactive for last 7–30 days
+
+Workouts:
+- Each member assigned workout cycles
+- Members log per-set actuals (different reps/weights)
+- Some skipped days
+- Some incomplete workouts
+
+Streaks:
+- Correctly reflect attendance + workout completion
+- Some members with long streaks
+- Some broken streaks
+
+Membership Status:
+- Most Active
+- A few Expired
+- Some Inactive
+
+Analytics:
+- Dashboard numbers must look believable:
+  - daily attendance
+  - weekly trends
+  - inactive members list works
+
+--------------------------------
+STEP 4: AUTH CONSISTENCY
+--------------------------------
+- All users authenticate using email + password
+- No phone-based login
+- No legacy username-only accounts
+
+--------------------------------
+STEP 5: SEED SCRIPT
+--------------------------------
+- Implement as a repeatable seed script:
+  npm run seed:demo
+- Script should:
+  - clear existing demo data
+  - reinsert fresh demo data
+- Should be safe to run multiple times
+
+--------------------------------
+DELIVERABLE:
+--------------------------------
+- Fresh demo dataset
+- Updated seed script
+- Confirm all features work correctly with seeded data
+- Document demo credentials clearly
