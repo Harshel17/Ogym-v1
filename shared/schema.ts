@@ -183,6 +183,7 @@ export const workoutItems = pgTable("workout_items", {
   reps: integer("reps").notNull(),
   weight: text("weight"),
   orderIndex: integer("order_index").default(0),
+  isDeleted: boolean("is_deleted").default(false),
 });
 
 export const workoutCompletions = pgTable("workout_completions", {
