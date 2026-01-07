@@ -1,0 +1,111 @@
+We are freezing OGym V1 and want to completely eliminate ALL timezone-related inconsistencies.
+
+GLOBAL RULE (NO EXCEPTIONS):
+Anywhere in the application where date or time is:
+- displayed
+- compared
+- grouped
+- calculated
+- filtered
+- labeled as "today / yesterday / this week / expired / inactive / streak"
+
+it MUST use the USER’S LOCAL MACHINE TIMEZONE (browser/device timezone).
+
+This rule applies to ALL roles: Admin, Owner, Trainer, Member.
+
+--------------------------------
+IMPLEMENTATION REQUIREMENTS
+--------------------------------
+
+1) FRONTEND — SOURCE OF TRUTH
+- Always determine timezone from the user's device:
+  const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const localNow = new Date();
+
+- All API requests that involve date/time logic MUST include:
+  - localDate (YYYY-MM-DD based on localNow)
+  - localTime (ISO string, optional)
+  - timezone (IANA string, e.g., Asia/Kolkata)
+
+Example payload/header:
+{
+  localDate: "2026-01-08",
+  timezone: "Asia/Kolkata"
+}
+
+OR include as headers:
+X-Local-Date
+X-Local-Timezone
+
+2) BACKEND — DO NOT USE SERVER TIME
+- NEVER compute:
+  - today
+  - yesterday
+  - date differences
+  - expiry
+  - inactivity
+  - streaks
+  - weekly/monthly ranges
+  using server Date.now() or server timezone.
+
+- Always use:
+  - localDate sent by frontend
+  - timezone sent by frontend
+
+- Store timestamps normally (UTC / ISO), but ALL comparisons must be done
+  relative to the provided localDate.
+
+3) FEATURES THAT MUST FOLLOW THIS RULE
+This rule applies explicitly to:
+
+- Attendance marking and display
+- Inactive members filter ("absent for X days")
+- Membership status (Active / Inactive / Expired)
+- Subscription expiry dates
+- Streak calculation (attendance + workout)
+- Workout "today" logic
+- Analytics grouping (daily / weekly / monthly)
+- Charts and stats ranges
+- Support tickets timestamps (displayed in local time)
+- Audit logs timestamps (displayed in local time)
+- Created_at / updated_at shown in UI
+- Backdated admin edits (use local date picker logic)
+
+4) DISPLAY RULE (UI)
+- All dates/times shown in UI must be converted to local timezone
+  before rendering.
+- Never show raw UTC timestamps to users.
+
+5) FALLBACK SAFETY
+- If localDate or timezone is missing from a request:
+  - fallback to server date
+  - log a warning
+  - DO NOT crash or mislabel data
+
+6) TESTING REQUIREMENT
+- Add a simple debug log (temporary) showing:
+  - received timezone
+  - resolved localDate
+- Verify by changing system timezone manually and confirming:
+  - expiry
+  - inactivity
+  - streak
+  - analytics
+  still behave correctly.
+
+7) DOCUMENTATION
+- Update DEMO_READINESS.md with a clear statement:
+  "OGym V1 uses the user's local device timezone everywhere to avoid
+   date/time conflicts during demo and pilot."
+
+--------------------------------
+CONSTRAINTS (IMPORTANT)
+--------------------------------
+- Do NOT add gym-level timezone fields.
+- Do NOT refactor database schema.
+- Do NOT introduce new features.
+- This is a consistency + correctness fix only.
+
+DELIVERABLE:
+Confirm that ALL date/time logic in OGym now respects local machine timezone
+and list the areas verified.

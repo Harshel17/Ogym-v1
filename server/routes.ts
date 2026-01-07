@@ -11,6 +11,7 @@ import { generateOTP, getOTPExpiryTime, sendVerificationEmail } from "./email";
 import { db } from "./db";
 import { workoutLogs, workoutLogExercises } from "@shared/schema";
 import { eq, and, isNotNull, inArray } from "drizzle-orm";
+import { getLocalDate } from "./timezone";
 
 const ADMIN_JWT_SECRET = process.env.SESSION_SECRET || "admin-jwt-fallback-secret";
 
@@ -438,7 +439,7 @@ export async function registerRoutes(
       return res.status(403).json({ message: "Invalid gym code" });
     }
     
-    const today = new Date().toISOString().split("T")[0];
+    const today = getLocalDate(req);
     const existing = await storage.getAttendanceByMemberDate(req.user!.id, today);
     
     if (existing) {
@@ -466,7 +467,7 @@ export async function registerRoutes(
     });
     const input = schema.parse(req.body);
     
-    const today = new Date().toISOString().split("T")[0];
+    const today = getLocalDate(req);
     // Only allow marking past dates (not future, not more than 7 days ago)
     if (input.date >= today) {
       return res.status(400).json({ message: "Can only mark past dates as attended" });
@@ -730,7 +731,7 @@ export async function registerRoutes(
     try {
       const assignments = await storage.getTrainerMembers(req.user!.id);
       const memberIds = assignments.map(a => a.memberId);
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDate(req);
       
       const activePhases: any[] = [];
       for (const memberId of memberIds) {
@@ -794,7 +795,7 @@ export async function registerRoutes(
         return { ...phase, exercises };
       }));
       
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDate(req);
       const activePhase = phasesWithExercises.find(p => 
         p.startDate <= today && p.endDate >= today && p.useCustomExercises
       );
@@ -1304,7 +1305,7 @@ export async function registerRoutes(
     }
     
     const newDayIndex = ((cycle.currentDayIndex ?? 0) + 1) % cycle.cycleLength;
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getLocalDate(req);
     await storage.updateCycleDayIndexAndLastWorkout(cycle.id, newDayIndex, todayStr);
     
     res.json({ message: "Day advanced", newDayIndex });
@@ -1314,8 +1315,8 @@ export async function registerRoutes(
     const cycle = await storage.getMemberCycle(req.user!.id);
     if (!cycle) return res.status(400).json({ message: "No active workout cycle" });
     
-    const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
+    const todayStr = getLocalDate(req);
+    const today = new Date(todayStr + 'T00:00:00');
     const startDate = new Date(cycle.startDate);
     const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     
@@ -1399,8 +1400,8 @@ export async function registerRoutes(
       return res.status(403).json({ message: "Not your workout" });
     }
     
-    // Use client's local date if provided, otherwise fall back to server UTC
-    const today = input.clientDate || new Date().toISOString().split("T")[0];
+    // Use client's local date from header (preferred) or body, with server fallback
+    const today = input.clientDate || getLocalDate(req);
     
     const existing = await storage.getCompletionByItemDate(input.workoutItemId, req.user!.id, today);
     if (existing) {
@@ -1505,8 +1506,8 @@ export async function registerRoutes(
       return res.status(403).json({ message: "Not your workout" });
     }
     
-    // Use client's local date if provided, otherwise fall back to server UTC
-    const today = input.clientDate || new Date().toISOString().split("T")[0];
+    // Use client's local date from header (preferred) or body, with server fallback
+    const today = input.clientDate || getLocalDate(req);
     
     // Check for existing completion by exercise name for today
     const completions = await storage.getCompletions(req.user!.id, today);
@@ -1599,8 +1600,8 @@ export async function registerRoutes(
     });
     const input = schema.parse(req.body);
     
-    // Use client's local date if provided, otherwise fall back to server UTC
-    const today = input.clientDate || new Date().toISOString().split("T")[0];
+    // Use client's local date from header (preferred) or body, with server fallback
+    const today = input.clientDate || getLocalDate(req);
     const completions = [];
     let session: any = null;
     let phase: any = null;
@@ -1693,8 +1694,8 @@ export async function registerRoutes(
     });
     const input = schema.parse(req.body);
     
-    // Use client's local date if provided, otherwise fall back to server UTC
-    const today = input.clientDate || new Date().toISOString().split("T")[0];
+    // Use client's local date from header (preferred) or body, with server fallback
+    const today = input.clientDate || getLocalDate(req);
     const completions = [];
     let session: any = null;
     
@@ -2318,7 +2319,7 @@ export async function registerRoutes(
   // === PROFILE ROUTES ===
   app.get("/api/profile/my", requireAuth, async (req, res) => {
     if (req.user!.role === "member") {
-      const profile = await storage.getFullMemberProfile(req.user!.id);
+      const profile = await storage.getFullMemberProfile(req.user!.id, getLocalDate(req));
       res.json(profile);
     } else if (req.user!.role === "trainer") {
       const profile = await storage.getTrainerProfile(req.user!.id);
@@ -3199,7 +3200,7 @@ export async function registerRoutes(
   // === OWNER DASHBOARD & ATTENDANCE ANALYTICS ===
   app.get("/api/owner/dashboard-metrics", requireRole(["owner"]), async (req, res) => {
     // Accept client's local date to handle timezone differences
-    const clientToday = (req.query.clientToday as string) || new Date().toISOString().split("T")[0];
+    const clientToday = (req.query.clientToday as string) || getLocalDate(req);
     const metrics = await storage.getOwnerDashboardMetrics(req.user!.gymId!, clientToday);
     res.json(metrics);
   });
@@ -3222,7 +3223,7 @@ export async function registerRoutes(
     const days = parseInt(req.query.days as string) || 3;
     const includeEnded = req.query.includeEnded === 'true';
     const mode = (req.query.mode as 'attendance' | 'workouts') || 'attendance';
-    const clientDate = (req.query.clientDate as string) || new Date().toISOString().split('T')[0];
+    const clientDate = (req.query.clientDate as string) || getLocalDate(req);
     const search = req.query.search as string | undefined;
     
     const inactiveMembers = await storage.getInactiveMembers(req.user!.gymId!, {
@@ -3236,13 +3237,13 @@ export async function registerRoutes(
   });
 
   app.get("/api/owner/attendance/summary", requireRole(["owner"]), async (req, res) => {
-    const date = (req.query.date as string) || new Date().toISOString().split("T")[0];
+    const date = (req.query.date as string) || getLocalDate(req);
     const summary = await storage.getOwnerAttendanceSummary(req.user!.gymId!, date);
     res.json(summary);
   });
 
   app.get("/api/owner/attendance/day", requireRole(["owner"]), async (req, res) => {
-    const date = (req.query.date as string) || new Date().toISOString().split("T")[0];
+    const date = (req.query.date as string) || getLocalDate(req);
     const data = await storage.getOwnerAttendanceDay(req.user!.gymId!, date);
     res.json(data);
   });
@@ -3261,7 +3262,7 @@ export async function registerRoutes(
     if (!member) {
       return res.status(404).json({ message: "Member not found" });
     }
-    const profile = await storage.getFullMemberProfile(memberId);
+    const profile = await storage.getFullMemberProfile(memberId, getLocalDate(req));
     res.json(profile);
   });
 
@@ -3364,7 +3365,7 @@ export async function registerRoutes(
       }
       
       res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", `attachment; filename=payments_export_${new Date().toISOString().split('T')[0]}.csv`);
+      res.setHeader("Content-Disposition", `attachment; filename=payments_export_${getLocalDate(req)}.csv`);
       res.send(csv);
     } catch (err) {
       res.status(500).json({ message: "Failed to export payments" });
@@ -3375,8 +3376,10 @@ export async function registerRoutes(
     try {
       const gymId = req.user!.gymId!;
       const { startDate, endDate } = req.query;
-      const start = startDate as string || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const end = endDate as string || new Date().toISOString().split('T')[0];
+      const localToday = getLocalDate(req);
+      const localTodayDate = new Date(localToday + 'T00:00:00');
+      const start = startDate as string || new Date(localTodayDate.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const end = endDate as string || localToday;
       
       const attendanceRecords = await storage.getAttendance(gymId);
       const filteredRecords = attendanceRecords.filter(a => a.date >= start && a.date <= end);
@@ -3408,7 +3411,7 @@ export async function registerRoutes(
       }
       
       res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", `attachment; filename=members_export_${new Date().toISOString().split('T')[0]}.csv`);
+      res.setHeader("Content-Disposition", `attachment; filename=members_export_${getLocalDate(req)}.csv`);
       res.send(csv);
     } catch (err) {
       res.status(500).json({ message: "Failed to export members" });
@@ -4028,7 +4031,7 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Not in a gym" });
     }
     const { focusLabel } = req.body;
-    const today = new Date().toISOString().split("T")[0];
+    const today = getLocalDate(req);
     
     // Get today's completions to include count
     const todayCompletions = await storage.getCompletions(req.user!.id, today);
@@ -4049,7 +4052,7 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Not in a gym" });
     }
     const { type, label, metadata } = req.body;
-    const today = new Date().toISOString().split("T")[0];
+    const today = getLocalDate(req);
     
     let feedPostType = type;
     let feedMetadata: Record<string, unknown> = { ...metadata };

@@ -2375,7 +2375,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getFullMemberProfile(memberId: number): Promise<any> {
+  async getFullMemberProfile(memberId: number, localDate?: string): Promise<any> {
     const [member] = await db.select().from(users).where(eq(users.id, memberId));
     if (!member) return null;
 
@@ -2404,7 +2404,7 @@ export class DatabaseStorage implements IStorage {
     
     if (subscription) {
       subscriptionEndDate = subscription.endDate;
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDate || new Date().toISOString().split('T')[0];
       if (subscription.endDate < today) {
         membershipStatus = 'expired';
       } else {

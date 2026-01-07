@@ -1,5 +1,16 @@
 # OGym V1 Demo Readiness Checklist & Release Notes
 
+## Timezone Handling
+
+**OGym V1 uses the user's local device timezone everywhere to avoid date/time conflicts during demo and pilot.**
+
+All date-dependent features (attendance, workout "today", streak calculation, membership expiry, inactive filters, analytics) now respect the client's local timezone by:
+1. Frontend sends `X-Local-Date` and `X-Local-Timezone` headers with all API requests
+2. Backend uses these headers instead of server time for all date comparisons
+3. UI displays all dates/times in the user's local timezone
+
+---
+
 ## Demo Smoke Test Script
 
 ### Admin Role Tests
