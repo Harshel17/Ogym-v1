@@ -335,7 +335,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.filter(item => item.visible).map((item) => {
             const isActive = location === item.href;
             return (
