@@ -3,6 +3,7 @@ import {
   gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests, announcements, userNotificationPreferences, announcementReads,
   membershipPlans, memberSubscriptions, paymentTransactions, workoutSessions, workoutSessionExercises,
   gymRequests, joinRequests, gymSubscriptions, workoutTemplates, workoutTemplateItems, bodyMeasurements, memberNotes,
+  workoutPlanSets, workoutLogs, workoutLogExercises, workoutLogSets,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
@@ -10,6 +11,10 @@ import {
   type WorkoutCycle, type InsertWorkoutCycle,
   type WorkoutItem, type InsertWorkoutItem,
   type WorkoutCompletion, type InsertWorkoutCompletion,
+  type WorkoutPlanSet, type InsertWorkoutPlanSet,
+  type WorkoutLog, type InsertWorkoutLog,
+  type WorkoutLogExercise, type InsertWorkoutLogExercise,
+  type WorkoutLogSet, type InsertWorkoutLogSet,
   type MemberRequest, type InsertMemberRequest,
   type GymHistory, type InsertGymHistory,
   type StarMember, type InsertStarMember,
@@ -136,6 +141,27 @@ export interface IStorage {
   getCompletions(memberId: number, date: string): Promise<WorkoutCompletion[]>;
   getCompletionByItemDate(workoutItemId: number, memberId: number, date: string): Promise<WorkoutCompletion | undefined>;
   getMemberWorkoutHistory(memberId: number): Promise<WorkoutCompletion[]>;
+  
+  // Per-set workout plan targets
+  getWorkoutPlanSets(workoutItemId: number): Promise<WorkoutPlanSet[]>;
+  createWorkoutPlanSets(sets: InsertWorkoutPlanSet[]): Promise<WorkoutPlanSet[]>;
+  updateWorkoutPlanSet(id: number, data: Partial<InsertWorkoutPlanSet>): Promise<WorkoutPlanSet>;
+  deleteWorkoutPlanSet(id: number): Promise<void>;
+  deleteWorkoutPlanSetsByItem(workoutItemId: number): Promise<void>;
+  
+  // Per-set workout logging
+  createWorkoutLog(data: InsertWorkoutLog): Promise<WorkoutLog>;
+  getWorkoutLog(gymId: number, memberId: number, date: string): Promise<WorkoutLog | undefined>;
+  createWorkoutLogExercise(data: InsertWorkoutLogExercise): Promise<WorkoutLogExercise>;
+  getWorkoutLogExercises(workoutLogId: number): Promise<WorkoutLogExercise[]>;
+  createWorkoutLogSet(data: InsertWorkoutLogSet): Promise<WorkoutLogSet>;
+  updateWorkoutLogSet(id: number, data: Partial<InsertWorkoutLogSet>): Promise<WorkoutLogSet>;
+  getWorkoutLogSets(logExerciseId: number): Promise<WorkoutLogSet[]>;
+  getDetailedWorkoutLog(gymId: number, memberId: number, date: string): Promise<{
+    log: WorkoutLog;
+    exercises: (WorkoutLogExercise & { sets: WorkoutLogSet[] })[];
+  } | null>;
+  
   getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }>;
   getMemberDailyWorkouts(memberId: number, startDate?: string, endDate?: string): Promise<{
     date: string;
@@ -988,6 +1014,105 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(workoutCompletions)
       .where(eq(workoutCompletions.memberId, memberId))
       .orderBy(desc(workoutCompletions.completedDate));
+  }
+
+  // Per-set workout plan targets
+  async getWorkoutPlanSets(workoutItemId: number): Promise<WorkoutPlanSet[]> {
+    return await db.select().from(workoutPlanSets)
+      .where(and(
+        eq(workoutPlanSets.workoutItemId, workoutItemId),
+        eq(workoutPlanSets.isDeleted, false)
+      ))
+      .orderBy(workoutPlanSets.setNumber);
+  }
+
+  async createWorkoutPlanSets(sets: InsertWorkoutPlanSet[]): Promise<WorkoutPlanSet[]> {
+    if (sets.length === 0) return [];
+    return await db.insert(workoutPlanSets).values(sets).returning();
+  }
+
+  async updateWorkoutPlanSet(id: number, data: Partial<InsertWorkoutPlanSet>): Promise<WorkoutPlanSet> {
+    const [updated] = await db.update(workoutPlanSets)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(workoutPlanSets.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteWorkoutPlanSet(id: number): Promise<void> {
+    await db.update(workoutPlanSets)
+      .set({ isDeleted: true, updatedAt: new Date() })
+      .where(eq(workoutPlanSets.id, id));
+  }
+
+  async deleteWorkoutPlanSetsByItem(workoutItemId: number): Promise<void> {
+    await db.update(workoutPlanSets)
+      .set({ isDeleted: true, updatedAt: new Date() })
+      .where(eq(workoutPlanSets.workoutItemId, workoutItemId));
+  }
+
+  // Per-set workout logging
+  async createWorkoutLog(data: InsertWorkoutLog): Promise<WorkoutLog> {
+    const [log] = await db.insert(workoutLogs).values(data).returning();
+    return log;
+  }
+
+  async getWorkoutLog(gymId: number, memberId: number, date: string): Promise<WorkoutLog | undefined> {
+    const [log] = await db.select().from(workoutLogs)
+      .where(and(
+        eq(workoutLogs.gymId, gymId),
+        eq(workoutLogs.memberId, memberId),
+        eq(workoutLogs.completedDate, date)
+      ));
+    return log;
+  }
+
+  async createWorkoutLogExercise(data: InsertWorkoutLogExercise): Promise<WorkoutLogExercise> {
+    const [exercise] = await db.insert(workoutLogExercises).values(data).returning();
+    return exercise;
+  }
+
+  async getWorkoutLogExercises(workoutLogId: number): Promise<WorkoutLogExercise[]> {
+    return await db.select().from(workoutLogExercises)
+      .where(eq(workoutLogExercises.workoutLogId, workoutLogId))
+      .orderBy(workoutLogExercises.orderIndex);
+  }
+
+  async createWorkoutLogSet(data: InsertWorkoutLogSet): Promise<WorkoutLogSet> {
+    const [set] = await db.insert(workoutLogSets).values(data).returning();
+    return set;
+  }
+
+  async updateWorkoutLogSet(id: number, data: Partial<InsertWorkoutLogSet>): Promise<WorkoutLogSet> {
+    const [updated] = await db.update(workoutLogSets)
+      .set(data)
+      .where(eq(workoutLogSets.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getWorkoutLogSets(logExerciseId: number): Promise<WorkoutLogSet[]> {
+    return await db.select().from(workoutLogSets)
+      .where(eq(workoutLogSets.logExerciseId, logExerciseId))
+      .orderBy(workoutLogSets.setNumber);
+  }
+
+  async getDetailedWorkoutLog(gymId: number, memberId: number, date: string): Promise<{
+    log: WorkoutLog;
+    exercises: (WorkoutLogExercise & { sets: WorkoutLogSet[] })[];
+  } | null> {
+    const log = await this.getWorkoutLog(gymId, memberId, date);
+    if (!log) return null;
+
+    const exercises = await this.getWorkoutLogExercises(log.id);
+    const exercisesWithSets = await Promise.all(
+      exercises.map(async (ex) => ({
+        ...ex,
+        sets: await this.getWorkoutLogSets(ex.id),
+      }))
+    );
+
+    return { log, exercises: exercisesWithSets };
   }
 
   async getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }> {
