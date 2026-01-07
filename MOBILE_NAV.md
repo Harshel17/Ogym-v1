@@ -33,43 +33,87 @@ padding-bottom: env(safe-area-inset-bottom);
 padding-bottom: calc(72px + env(safe-area-inset-bottom));
 ```
 
-### Role-Based Tabs (3-5 tabs per role)
+### Role-Based Tabs (4 primary + More menu)
 
-#### Owner (with gym) - 5 tabs
+The mobile navigation uses a "4 + More" pattern:
+- 4 primary tabs for most frequent actions (always visible)
+- "More" tab opens a drawer with all secondary navigation items
+
+#### Owner (with gym)
+
+**Primary Tabs (4):**
 | Tab | Icon | Route |
 |-----|------|-------|
 | Dashboard | LayoutDashboard | `/` |
 | Members | Users | `/members` |
 | Attendance | CalendarCheck | `/owner/attendance` |
 | Payments | CreditCard | `/payments` |
-| Profile | UserCircle | `/profile` |
 
-#### Owner (without gym) - 3 tabs
+**More Menu (8 items):**
+| Item | Icon | Route | Badge |
+|------|------|-------|-------|
+| Trainers | Users | `/trainers` | - |
+| Transfers | ArrowRightLeft | `/transfers` | Pending count |
+| Announcements | Megaphone | `/owner/announcements` | - |
+| Feed | Activity | `/feed` | - |
+| Tournaments | Trophy | `/tournaments` | - |
+| Join Requests | UserPlus | `/owner/join-requests` | Pending count |
+| Profile | UserCircle | `/profile` | - |
+| Support | HelpCircle | `/support` | - |
+
+#### Owner (without gym) - 3 tabs (no More menu)
 | Tab | Icon | Route |
 |-----|------|-------|
 | Register | Building2 | `/gym-request` |
 | Support | HelpCircle | `/support` |
 | Profile | UserCircle | `/profile` |
 
-#### Trainer - 5 tabs
+#### Trainer
+
+**Primary Tabs (4):**
 | Tab | Icon | Route | Badge |
 |-----|------|-------|-------|
 | Dashboard | LayoutDashboard | `/` | - |
 | Workouts | Dumbbell | `/workouts` | - |
 | Members | Users | `/members` | - |
 | Requests | MessageSquare | `/requests` | Pending count |
-| Profile | UserCircle | `/profile` | - |
 
-#### Member (with gym) - 5 tabs
+**More Menu (8 items):**
+| Item | Icon | Route | Badge |
+|------|------|-------|-------|
+| Star Members | Star | `/star-members` | - |
+| Diet Plans | Utensils | `/diet-plans` | - |
+| Templates | FileText | `/templates` | - |
+| Announcements | Megaphone | `/announcements` | Unread count |
+| Feed | Activity | `/feed` | - |
+| Tournaments | Trophy | `/tournaments` | - |
+| Profile | UserCircle | `/profile` | - |
+| Support | HelpCircle | `/support` | - |
+
+#### Member (with gym)
+
+**Primary Tabs (4):**
 | Tab | Icon | Route |
 |-----|------|-------|
 | Dashboard | LayoutDashboard | `/` |
 | Workout | Dumbbell | `/my-workout` |
 | Attendance | CalendarCheck | `/attendance` |
 | Progress | TrendingUp | `/progress` |
-| Profile | UserCircle | `/profile` |
 
-#### Member (without gym) - 3 tabs
+**More Menu (9 items):**
+| Item | Icon | Route | Badge |
+|------|------|-------|-------|
+| My Body | Scale | `/my-body` | - |
+| My Diet | Utensils | `/my-diet-plan` | - |
+| Payments | CreditCard | `/payments` | - |
+| Requests | MessageSquare | `/requests` | Pending count |
+| Announcements | Megaphone | `/announcements` | Unread count |
+| Feed | Activity | `/feed` | - |
+| Tournaments | Trophy | `/tournaments` | - |
+| Profile | UserCircle | `/profile` | - |
+| Support | HelpCircle | `/support` | - |
+
+#### Member (without gym) - 3 tabs (no More menu)
 | Tab | Icon | Route |
 |-----|------|-------|
 | Join Gym | Building2 | `/join-gym` |
@@ -183,12 +227,17 @@ Full-width buttons on mobile achieved via:
 - [ ] Grids use multi-column layouts
 
 ### Cross-Role Testing
-- [ ] Owner (with gym) sees correct 5 tabs (Dashboard, Members, Attendance, Payments, Profile)
-- [ ] Owner (without gym) sees correct 3 tabs (Register, Support, Profile)
-- [ ] Trainer sees correct 5 tabs (Dashboard, Workouts, Members, Requests, Profile)
-- [ ] Member (with gym) sees correct 5 tabs (Dashboard, Workout, Attendance, Progress, Profile)
-- [ ] Member (without gym) sees correct 3 tabs (Join Gym, Support, Profile)
-- [ ] Badge on Trainer's Requests tab shows pending count
+- [ ] Owner (with gym) sees 4 primary tabs + More (Dashboard, Members, Attendance, Payments, More)
+- [ ] Owner More menu shows all 8 secondary items (Trainers, Transfers, Announcements, Feed, Tournaments, Join Requests, Profile, Support)
+- [ ] Owner (without gym) sees 3 tabs only (Register, Support, Profile)
+- [ ] Trainer sees 4 primary tabs + More (Dashboard, Workouts, Members, Requests, More)
+- [ ] Trainer More menu shows all 8 secondary items
+- [ ] Member (with gym) sees 4 primary tabs + More (Dashboard, Workout, Attendance, Progress, More)
+- [ ] Member More menu shows all 9 secondary items
+- [ ] Member (without gym) sees 3 tabs only (Join Gym, Support, Profile)
+- [ ] Badge on More tab shows sum of all secondary item badges
+- [ ] Tapping More opens bottom drawer with navigation items
+- [ ] Tapping item in More menu navigates and closes drawer
 
 ---
 

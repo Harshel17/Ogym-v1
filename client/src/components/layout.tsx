@@ -1,9 +1,16 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotificationCounts } from "@/hooks/use-notifications";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { 
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { 
   LayoutDashboard, 
   Users, 
@@ -25,6 +32,7 @@ import {
   Activity,
   Trophy,
   HelpCircle,
+  Menu,
   type LucideIcon
 } from "lucide-react";
 
@@ -37,7 +45,8 @@ type MobileTabItem = {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logoutMutation } = useAuth();
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const { data: notificationCounts } = useNotificationCounts();
 
   if (!user) return null;
@@ -212,55 +221,100 @@ export function Layout({ children }: { children: React.ReactNode }) {
     },
   ];
 
-  const getMobileTabItems = (): MobileTabItem[] => {
+  const getMobileNavigation = (): { primary: MobileTabItem[], secondary: MobileTabItem[] } => {
     if (isOwner && hasGym) {
-      return [
-        { label: "Dashboard", href: "/", icon: LayoutDashboard },
-        { label: "Members", href: "/members", icon: Users },
-        { label: "Attendance", href: "/owner/attendance", icon: CalendarCheck },
-        { label: "Payments", href: "/payments", icon: CreditCard },
-        { label: "Profile", href: "/profile", icon: UserCircle },
-      ];
+      return {
+        primary: [
+          { label: "Dashboard", href: "/", icon: LayoutDashboard },
+          { label: "Members", href: "/members", icon: Users },
+          { label: "Attendance", href: "/owner/attendance", icon: CalendarCheck },
+          { label: "Payments", href: "/payments", icon: CreditCard },
+        ],
+        secondary: [
+          { label: "Trainers", href: "/trainers", icon: Users },
+          { label: "Transfers", href: "/transfers", icon: ArrowRightLeft, badge: notificationCounts?.pendingTransfers || 0 },
+          { label: "Announcements", href: "/owner/announcements", icon: Megaphone },
+          { label: "Feed", href: "/feed", icon: Activity },
+          { label: "Tournaments", href: "/tournaments", icon: Trophy },
+          { label: "Join Requests", href: "/owner/join-requests", icon: UserPlus, badge: notificationCounts?.pendingJoinRequests || 0 },
+          { label: "Profile", href: "/profile", icon: UserCircle },
+          { label: "Support", href: "/support", icon: HelpCircle },
+        ]
+      };
     }
     if (isOwner && !hasGym) {
-      return [
-        { label: "Register", href: "/gym-request", icon: Building2 },
-        { label: "Support", href: "/support", icon: HelpCircle },
-        { label: "Profile", href: "/profile", icon: UserCircle },
-      ];
+      return {
+        primary: [
+          { label: "Register", href: "/gym-request", icon: Building2 },
+          { label: "Support", href: "/support", icon: HelpCircle },
+          { label: "Profile", href: "/profile", icon: UserCircle },
+        ],
+        secondary: []
+      };
     }
     if (isTrainer) {
-      return [
-        { label: "Dashboard", href: "/", icon: LayoutDashboard },
-        { label: "Workouts", href: "/workouts", icon: Dumbbell },
-        { label: "Members", href: "/members", icon: Users },
-        { label: "Requests", href: "/requests", icon: MessageSquare, badge: notificationCounts?.pendingRequests || 0 },
-        { label: "Profile", href: "/profile", icon: UserCircle },
-      ];
+      return {
+        primary: [
+          { label: "Dashboard", href: "/", icon: LayoutDashboard },
+          { label: "Workouts", href: "/workouts", icon: Dumbbell },
+          { label: "Members", href: "/members", icon: Users },
+          { label: "Requests", href: "/requests", icon: MessageSquare, badge: notificationCounts?.pendingRequests || 0 },
+        ],
+        secondary: [
+          { label: "Star Members", href: "/star-members", icon: Star },
+          { label: "Diet Plans", href: "/diet-plans", icon: Utensils },
+          { label: "Templates", href: "/templates", icon: FileText },
+          { label: "Announcements", href: "/announcements", icon: Megaphone, badge: notificationCounts?.unreadAnnouncements || 0 },
+          { label: "Feed", href: "/feed", icon: Activity },
+          { label: "Tournaments", href: "/tournaments", icon: Trophy },
+          { label: "Profile", href: "/profile", icon: UserCircle },
+          { label: "Support", href: "/support", icon: HelpCircle },
+        ]
+      };
     }
     if (isMember && hasGym) {
-      return [
-        { label: "Dashboard", href: "/", icon: LayoutDashboard },
-        { label: "Workout", href: "/my-workout", icon: Dumbbell },
-        { label: "Attendance", href: "/attendance", icon: CalendarCheck },
-        { label: "Progress", href: "/progress", icon: TrendingUp },
-        { label: "Profile", href: "/profile", icon: UserCircle },
-      ];
+      return {
+        primary: [
+          { label: "Dashboard", href: "/", icon: LayoutDashboard },
+          { label: "Workout", href: "/my-workout", icon: Dumbbell },
+          { label: "Attendance", href: "/attendance", icon: CalendarCheck },
+          { label: "Progress", href: "/progress", icon: TrendingUp },
+        ],
+        secondary: [
+          { label: "My Body", href: "/my-body", icon: Scale },
+          { label: "My Diet", href: "/my-diet-plan", icon: Utensils },
+          { label: "Payments", href: "/payments", icon: CreditCard },
+          { label: "Requests", href: "/requests", icon: MessageSquare, badge: notificationCounts?.pendingRequests || 0 },
+          { label: "Announcements", href: "/announcements", icon: Megaphone, badge: notificationCounts?.unreadAnnouncements || 0 },
+          { label: "Feed", href: "/feed", icon: Activity },
+          { label: "Tournaments", href: "/tournaments", icon: Trophy },
+          { label: "Profile", href: "/profile", icon: UserCircle },
+          { label: "Support", href: "/support", icon: HelpCircle },
+        ]
+      };
     }
     if (isMember && !hasGym) {
-      return [
-        { label: "Join Gym", href: "/join-gym", icon: Building2 },
-        { label: "Support", href: "/support", icon: HelpCircle },
-        { label: "Profile", href: "/profile", icon: UserCircle },
-      ];
+      return {
+        primary: [
+          { label: "Join Gym", href: "/join-gym", icon: Building2 },
+          { label: "Support", href: "/support", icon: HelpCircle },
+          { label: "Profile", href: "/profile", icon: UserCircle },
+        ],
+        secondary: []
+      };
     }
-    return [
-      { label: "Dashboard", href: "/", icon: LayoutDashboard },
-      { label: "Profile", href: "/profile", icon: UserCircle },
-    ];
+    return {
+      primary: [
+        { label: "Dashboard", href: "/", icon: LayoutDashboard },
+        { label: "Profile", href: "/profile", icon: UserCircle },
+      ],
+      secondary: []
+    };
   };
 
-  const mobileTabItems = getMobileTabItems();
+  const { primary: primaryTabs, secondary: secondaryTabs } = getMobileNavigation();
+  const hasMoreMenu = secondaryTabs.length > 0;
+  const secondaryBadgeCount = secondaryTabs.reduce((sum, item) => sum + (item.badge || 0), 0);
 
   return (
     <div className="min-h-screen bg-secondary/30 flex">
@@ -372,7 +426,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Mobile Bottom Tab Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 pb-safe">
         <div className="flex justify-around items-center h-16">
-          {mobileTabItems.map((item) => {
+          {primaryTabs.map((item) => {
             const isActive = location === item.href || 
               (item.href !== "/" && location.startsWith(item.href));
             return (
@@ -396,8 +450,68 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          {hasMoreMenu && (
+            <div 
+              className={`relative flex flex-col items-center justify-center min-w-[56px] py-2 cursor-pointer transition-colors text-muted-foreground`}
+              onClick={() => setMoreMenuOpen(true)}
+              data-testid="tab-more"
+            >
+              <div className="relative">
+                <Menu className="w-5 h-5" />
+                {secondaryBadgeCount > 0 && (
+                  <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                    {secondaryBadgeCount > 99 ? '99+' : secondaryBadgeCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] mt-1 font-medium">More</span>
+            </div>
+          )}
         </div>
       </nav>
+
+      {/* More Menu Drawer */}
+      <Drawer open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
+        <DrawerContent className="pb-safe">
+          <DrawerHeader>
+            <DrawerTitle>More Options</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-6 space-y-1 max-h-[60vh] overflow-y-auto">
+            {secondaryTabs.map((item) => {
+              const isActive = location === item.href || 
+                (item.href !== "/" && location.startsWith(item.href));
+              return (
+                <div 
+                  key={item.href}
+                  className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg cursor-pointer transition-colors ${
+                    isActive 
+                      ? "bg-primary text-primary-foreground" 
+                      : "text-foreground hover:bg-secondary"
+                  }`}
+                  onClick={() => {
+                    navigate(item.href);
+                    setMoreMenuOpen(false);
+                  }}
+                  data-testid={`more-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <item.icon className="w-5 h-5" />
+                    <span className="font-medium">{item.label}</span>
+                  </div>
+                  {(item.badge ?? 0) > 0 && (
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-xs ${isActive ? "bg-white/20 text-primary-foreground" : "bg-primary text-primary-foreground"}`}
+                    >
+                      {item.badge}
+                    </Badge>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }
