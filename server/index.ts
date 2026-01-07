@@ -6,6 +6,7 @@ import { seedAdminUser } from "./seed-admin";
 import { seedDemoData, resetDemoData } from "./seed-demo";
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (for rate limiting to work correctly)
 const httpServer = createServer(app);
 
 declare module "http" {
