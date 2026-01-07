@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, CalendarCheck, UserX, UserPlus, ArrowLeft, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from 'recharts';
-import { Link } from "wouter";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 
 type AttendanceSummary = {
   date: string;
@@ -73,14 +73,14 @@ export default function OwnerAttendancePage() {
     count: t.count
   })) || [];
 
+  const { goBack } = useBackNavigation();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/">
-          <Button variant="ghost" size="icon" data-testid="button-back">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
+        <Button variant="ghost" size="icon" data-testid="button-back" onClick={goBack}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
         <div>
           <h2 className="text-3xl font-bold font-display text-foreground">Attendance Analytics</h2>
           <p className="text-muted-foreground mt-1">View and analyze member attendance patterns</p>

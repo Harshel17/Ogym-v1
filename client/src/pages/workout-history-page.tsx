@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { ArrowLeft, Calendar, Dumbbell, Shield, ChevronRight, ChevronDown, ChevronUp, Save, Loader2, CheckCircle2, XCircle, Target } from "lucide-react";
-import { Link } from "wouter";
 import { format } from "date-fns";
 
 type WorkoutSession = {
@@ -60,6 +60,7 @@ type DetailedWorkoutLog = {
 export default function WorkoutHistoryPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { goBack } = useBackNavigation();
   const queryClient = useQueryClient();
   const [selectedSession, setSelectedSession] = useState<WorkoutSession | null>(null);
   const [editInputs, setEditInputs] = useState<Record<number, { sets: string; reps: string; weight: string; notes: string }>>({});
@@ -151,11 +152,9 @@ export default function WorkoutHistoryPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/progress">
-          <Button variant="ghost" size="icon" data-testid="button-back">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </Link>
+        <Button variant="ghost" size="icon" data-testid="button-back" onClick={goBack}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
         <div>
           <h2 className="text-2xl font-bold font-display text-foreground">My Workouts</h2>
           <p className="text-muted-foreground text-sm">Your workout history by date</p>

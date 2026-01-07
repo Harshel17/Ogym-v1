@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays, Moon, Search, X, AlertCircle, CheckCircle2, XCircle, Trophy, Weight, Activity, Zap, Info, BookOpen, Calculator } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Link } from "wouter";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, Legend } from 'recharts';
 import { format, parseISO } from "date-fns";
 
@@ -126,6 +126,7 @@ const getColor = (name: string, index: number) => COLORS[name] || DEFAULT_COLORS
 
 export default function StatsPage() {
   const { user } = useAuth();
+  const { goBack } = useBackNavigation();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [showAllWorkouts, setShowAllWorkouts] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -235,11 +236,9 @@ export default function StatsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
-          <Link href="/progress">
-            <Button variant="ghost" size="icon" data-testid="button-back">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" data-testid="button-back" onClick={goBack}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
           <div>
             <h2 className="text-2xl font-bold font-display text-foreground">My Stats</h2>
             <p className="text-muted-foreground text-sm">Your workout analytics and progress</p>

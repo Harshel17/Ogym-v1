@@ -16,6 +16,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar
 } from "recharts";
 import { useState } from "react";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 
 type TrainingPhase = {
   id: number;
@@ -200,6 +201,7 @@ function PointsDayItem({ workout }: { workout: DailyWorkout }) {
 export default function PhaseDetailPage() {
   const { user } = useAuth();
   const { phaseId } = useParams();
+  const { goBack } = useBackNavigation();
   const [workoutDialogOpen, setWorkoutDialogOpen] = useState(false);
   const [durationDialogOpen, setDurationDialogOpen] = useState(false);
   const [pointsDialogOpen, setPointsDialogOpen] = useState(false);
@@ -257,8 +259,6 @@ export default function PhaseDetailPage() {
   );
   const progressPercent = Math.round((daysPassed / durationDays) * 100);
 
-  const backUrl = user?.role === "member" ? "/progress/phases" : `/star-members/${phase.memberId}`;
-
   const dailyWorkouts = analytics?.dailyWorkouts || [];
   const groupedExercises = cycle?.items?.reduce((acc, item) => {
     if (!acc[item.dayIndex]) acc[item.dayIndex] = [];
@@ -269,11 +269,9 @@ export default function PhaseDetailPage() {
   return (
     <div className="space-y-6 p-1">
       <div className="flex items-center gap-4">
-        <Link href={backUrl}>
-          <Button variant="ghost" size="icon" data-testid="button-back">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </Link>
+        <Button variant="ghost" size="icon" data-testid="button-back" onClick={goBack}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
         <div className="flex-1 min-w-0">
           <h2 className="text-xl sm:text-2xl font-bold font-display text-foreground truncate">{phase.name}</h2>
           <div className="flex flex-wrap items-center gap-2 mt-1">

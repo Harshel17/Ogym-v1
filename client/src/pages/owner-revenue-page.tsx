@@ -6,10 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { TrendingUp, IndianRupee, Users, Calendar, Loader2, ChevronLeft, ChevronRight, Wallet } from "lucide-react";
+import { TrendingUp, IndianRupee, Users, Calendar, Loader2, ChevronLeft, ChevronRight, Wallet, ArrowLeft } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { Link } from "wouter";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 import type { PaymentTransaction, User } from "@shared/schema";
 
 type RevenueData = {
@@ -59,6 +59,8 @@ export default function OwnerRevenuePage() {
     );
   }
 
+  const { goBack } = useBackNavigation();
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -66,11 +68,10 @@ export default function OwnerRevenuePage() {
           <h1 className="text-3xl font-bold font-display">Revenue Analytics</h1>
           <p className="text-muted-foreground">Track your gym's payment collections</p>
         </div>
-        <Link href="/">
-          <Button variant="outline" data-testid="button-back-dashboard">
-            Back to Dashboard
-          </Button>
-        </Link>
+        <Button variant="outline" data-testid="button-back-dashboard" onClick={goBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
       </div>
 
       <div className="flex items-center justify-center gap-4">

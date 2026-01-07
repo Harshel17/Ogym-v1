@@ -10,7 +10,7 @@ import { ArrowLeft, Loader2, Dumbbell, Calendar, TrendingUp, Flame, Target, BarC
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { format, parseISO } from "date-fns";
-import { Link } from "wouter";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 
 type MemberProfile = {
@@ -150,13 +150,13 @@ export default function OwnerMemberDetailPage() {
     enabled: !!memberId
   });
 
+  const { goBack } = useBackNavigation();
+
   if (profileError) {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] text-center">
         <p className="text-lg text-muted-foreground">Member not found or access denied</p>
-        <Link href="/members">
-          <Button variant="outline" className="mt-4">Back to Members</Button>
-        </Link>
+        <Button variant="outline" className="mt-4" onClick={goBack}>Back</Button>
       </div>
     );
   }
@@ -174,11 +174,9 @@ export default function OwnerMemberDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/members">
-          <Button variant="ghost" size="icon" data-testid="button-back">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
+        <Button variant="ghost" size="icon" data-testid="button-back" onClick={goBack}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
         <div>
           <h2 className="text-2xl font-bold text-foreground">{profile?.username}</h2>
           <p className="text-sm text-muted-foreground">{profile?.publicId || "No ID"}</p>

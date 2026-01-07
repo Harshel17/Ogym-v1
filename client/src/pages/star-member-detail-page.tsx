@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { format, parseISO } from "date-fns";
 import { useState, useEffect } from "react";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 
 type MemberInfo = {
   id: number;
@@ -195,15 +196,15 @@ export default function StarMemberDetailPage() {
     );
   }
 
+  const { goBack } = useBackNavigation();
+
   if (memberError || !memberInfo) {
     return (
       <div className="space-y-6">
-        <Link href="/star-members">
-          <Button variant="ghost" size="sm" data-testid="button-back">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Star Members
-          </Button>
-        </Link>
+        <Button variant="ghost" size="sm" data-testid="button-back" onClick={goBack}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
         <Card>
           <CardContent className="py-12 text-center">
             <Shield className="w-12 h-12 text-destructive mx-auto mb-4" />
@@ -223,11 +224,9 @@ export default function StarMemberDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/star-members">
-          <Button variant="ghost" size="icon" data-testid="button-back">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-        </Link>
+        <Button variant="ghost" size="icon" data-testid="button-back" onClick={goBack}>
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold text-lg">
             {memberInfo.username.slice(0, 2).toUpperCase()}

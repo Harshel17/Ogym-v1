@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, AlertCircle, Calendar, Dumbbell, Clock, Trophy } from "lucide-react";
 import { Link } from "wouter";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { format, parseISO } from "date-fns";
 
 type MissedWorkout = {
@@ -16,6 +17,7 @@ type MissedWorkout = {
 };
 
 export default function MissedWorkoutsPage() {
+  const { goBack } = useBackNavigation();
   const { data: missedWorkouts = [], isLoading } = useQuery<MissedWorkout[]>({
     queryKey: ["/api/member/workout/missed"],
   });
@@ -31,11 +33,9 @@ export default function MissedWorkoutsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/progress">
-          <Button variant="ghost" size="icon" data-testid="button-back">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </Link>
+        <Button variant="ghost" size="icon" data-testid="button-back" onClick={goBack}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
         <div>
           <h2 className="text-2xl font-bold font-display text-foreground">Missed Workouts</h2>
           <p className="text-muted-foreground text-sm">

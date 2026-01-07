@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, UserCheck, UserMinus, ArrowRightLeft, Loader2, TrendingUp, UserX, Search, Eye, Bell, Flag } from "lucide-react";
+import { Users, UserCheck, UserMinus, ArrowRightLeft, Loader2, TrendingUp, UserX, Search, Eye, Bell, Flag, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import { Link } from "wouter";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 
 // Helper to get client's local date in YYYY-MM-DD format
 function getClientLocalDate(): string {
@@ -107,6 +108,8 @@ export default function OwnerMemberAnalyticsPage() {
     return `${days} days`;
   };
 
+  const { goBack } = useBackNavigation();
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -114,11 +117,10 @@ export default function OwnerMemberAnalyticsPage() {
           <h1 className="text-3xl font-bold font-display">Member Analytics</h1>
           <p className="text-muted-foreground">Overview of all gym members by status</p>
         </div>
-        <Link href="/">
-          <Button variant="outline" data-testid="button-back-dashboard">
-            Back to Dashboard
-          </Button>
-        </Link>
+        <Button variant="outline" data-testid="button-back-dashboard" onClick={goBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
       </div>
 
       <Tabs value={mainTab} onValueChange={setMainTab}>
@@ -282,7 +284,7 @@ export default function OwnerMemberAnalyticsPage() {
                           {analytics.activeMembers.map((member) => (
                             <TableRow key={member.id} data-testid={`row-active-${member.id}`}>
                               <TableCell className="font-medium">
-                                <Link href={`/owner/members/${member.id}`} className="text-primary hover:underline">
+                                <Link href={`/owner/members/${member.id}?returnTo=/member-analytics`} className="text-primary hover:underline">
                                   {member.username}
                                 </Link>
                                 {member.publicId && (
@@ -551,7 +553,7 @@ export default function OwnerMemberAnalyticsPage() {
                           <TableCell>
                             <div className="flex flex-col">
                               <Link 
-                                href={`/owner/members/${member.memberId}`} 
+                                href={`/owner/members/${member.memberId}?returnTo=/member-analytics`} 
                                 className="font-medium text-primary hover:underline"
                               >
                                 {member.name}
@@ -589,7 +591,7 @@ export default function OwnerMemberAnalyticsPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              <Link href={`/owner/members/${member.memberId}`}>
+                              <Link href={`/owner/members/${member.memberId}?returnTo=/member-analytics`}>
                                 <Button 
                                   size="icon" 
                                   variant="ghost" 

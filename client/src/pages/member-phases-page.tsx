@@ -8,6 +8,7 @@ import {
   Loader2, Shield, ChevronRight 
 } from "lucide-react";
 import { Link } from "wouter";
+import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { format, parseISO, isWithinInterval, isPast, isFuture } from "date-fns";
 
 type TrainingPhase = {
@@ -56,6 +57,7 @@ function getPhaseStatus(startDate: string, endDate: string): { label: string; co
 
 export default function MemberPhasesPage() {
   const { user } = useAuth();
+  const { goBack } = useBackNavigation();
 
   const { data: phases = [], isLoading } = useQuery<TrainingPhase[]>({
     queryKey: ["/api/training-phases/me"],
@@ -90,11 +92,9 @@ export default function MemberPhasesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/progress">
-          <Button variant="ghost" size="icon" data-testid="button-back">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </Link>
+        <Button variant="ghost" size="icon" data-testid="button-back" onClick={goBack}>
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
         <div>
           <h2 className="text-2xl font-bold font-display text-foreground">Training Phases</h2>
           <p className="text-muted-foreground">Your training phases set by your trainer</p>
