@@ -6,12 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useState } from "react";
-import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { formatDistanceToNow } from "date-fns";
+import { useState, useEffect } from "react";
+import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus, MapPin, AlertCircle, Clock, User, FileEdit, Send, Edit2, Lock } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { formatDistanceToNow, format } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 type ProfileData = {
   id: number;
@@ -30,7 +33,642 @@ type ProfileData = {
   totalStarMembers?: number;
 };
 
+type MemberProfileData = {
+  id: number;
+  publicId: string | null;
+  username: string;
+  email: string | null;
+  phone: string | null;
+  role: string;
+  createdAt: string | null;
+  gym: { id: number; name: string } | null;
+  trainer: { id: number; username: string } | null;
+  cycle: { id: number; name: string } | null;
+  subscription: { status: 'active' | 'expired' | 'none'; endDate: string | null; planName: string | null } | null;
+  profile: { fullName: string; gender: string; dob: string; address: string | null; emergencyContact: string | null } | null;
+};
+
+type OwnerProfileData = {
+  id: number;
+  publicId: string | null;
+  username: string;
+  email: string | null;
+  phone: string | null;
+  role: string;
+  createdAt: string | null;
+  gym: {
+    id: number;
+    name: string;
+    code: string;
+    phone: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    country: string | null;
+    timings: string | null;
+    gymType: string | null;
+    facilities: string | null;
+    createdAt: string | null;
+    onboardingData: any;
+  } | null;
+};
+
 export default function ProfilePage() {
+  const { user } = useAuth();
+
+  if (user?.role === "member") {
+    return <MemberProfileView />;
+  }
+
+  if (user?.role === "owner") {
+    return <OwnerProfileView />;
+  }
+
+  return <TrainerProfileView />;
+}
+
+function MemberProfileView() {
+  const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [emergencyContact, setEmergencyContact] = useState("");
+  const [changeRequestOpen, setChangeRequestOpen] = useState(false);
+  const [changeField, setChangeField] = useState<"email" | "gender" | "dob">("email");
+  const [requestedValue, setRequestedValue] = useState("");
+
+  const { data: profile, isLoading } = useQuery<MemberProfileData>({
+    queryKey: ["/api/member/profile"]
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setPhone(profile.phone || "");
+      setAddress(profile.profile?.address || "");
+      setEmergencyContact(profile.profile?.emergencyContact || "");
+    }
+  }, [profile]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: { phone?: string; address?: string; emergencyContact?: string }) => {
+      const res = await apiRequest("PATCH", "/api/member/profile", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/member/profile"] });
+      toast({ title: "Profile updated successfully" });
+      setIsEditing(false);
+    },
+    onError: () => {
+      toast({ title: "Failed to update profile", variant: "destructive" });
+    }
+  });
+
+  const changeRequestMutation = useMutation({
+    mutationFn: async (data: { field: string; currentValue?: string; requestedValue: string }) => {
+      const res = await apiRequest("POST", "/api/member/profile/change-request", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Change request submitted", description: "Your gym owner will review your request." });
+      setChangeRequestOpen(false);
+      setRequestedValue("");
+    },
+    onError: () => {
+      toast({ title: "Failed to submit request", variant: "destructive" });
+    }
+  });
+
+  const handleSave = () => {
+    updateMutation.mutate({ phone, address, emergencyContact });
+  };
+
+  const handleChangeRequest = () => {
+    const currentValue = changeField === "email" ? profile?.email || "" 
+      : changeField === "gender" ? profile?.profile?.gender || ""
+      : profile?.profile?.dob || "";
+    changeRequestMutation.mutate({ field: changeField, currentValue, requestedValue });
+  };
+
+  if (isLoading || !profile) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const subscriptionStatus = profile.subscription?.status || 'none';
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-bold font-display text-foreground">My Profile</h2>
+        <p className="text-muted-foreground mt-1">View and manage your account details.</p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCircle className="w-5 h-5" />
+              Account Information
+            </CardTitle>
+            <CardDescription>Read-only account details</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Member ID</span>
+              <Badge variant="outline" className="font-mono">{profile.publicId}</Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Username</span>
+              <span className="font-medium">{profile.username}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Role</span>
+              <Badge variant="secondary" className="capitalize">{profile.role}</Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Joined</span>
+              <span className="text-sm">{profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "N/A"}</span>
+            </div>
+            {profile.profile?.fullName && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Full Name</span>
+                <span className="font-medium">{profile.profile.fullName}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              Gym Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Gym Name</span>
+              <span className="font-medium">{profile.gym?.name || "Not assigned"}</span>
+            </div>
+            {profile.trainer && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Assigned Trainer</span>
+                <span className="font-medium">{profile.trainer.username}</span>
+              </div>
+            )}
+            {profile.cycle && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Current Cycle</span>
+                <span className="font-medium">{profile.cycle.name}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Subscription</span>
+              <Badge 
+                variant={subscriptionStatus === 'active' ? 'default' : subscriptionStatus === 'expired' ? 'destructive' : 'secondary'}
+                className="capitalize"
+              >
+                {subscriptionStatus}
+              </Badge>
+            </div>
+            {profile.subscription?.planName && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Plan</span>
+                <span className="text-sm">{profile.subscription.planName}</span>
+              </div>
+            )}
+            {profile.subscription?.endDate && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Valid Until</span>
+                <span className="text-sm">{new Date(profile.subscription.endDate).toLocaleDateString()}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Edit2 className="w-5 h-5" />
+                Contact Information
+              </CardTitle>
+              <CardDescription>You can edit these fields</CardDescription>
+            </div>
+            {!isEditing && (
+              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} data-testid="button-edit-contact">
+                <Edit2 className="w-4 h-4 mr-2" />
+                Edit
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isEditing ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+91 98765 43210"
+                      data-testid="input-phone"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address (Optional)</Label>
+                    <Input
+                      id="address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="Your address"
+                      data-testid="input-address"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="emergency">Emergency Contact (Optional)</Label>
+                    <Input
+                      id="emergency"
+                      value={emergencyContact}
+                      onChange={(e) => setEmergencyContact(e.target.value)}
+                      placeholder="Emergency contact"
+                      data-testid="input-emergency"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleSave} disabled={updateMutation.isPending} data-testid="button-save-contact">
+                    {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                    Save Changes
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsEditing(false)} data-testid="button-cancel-edit">
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Phone:</span>
+                  <span className="font-medium">{profile.phone || "Not set"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Address:</span>
+                  <span className="font-medium">{profile.profile?.address || "Not set"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Emergency:</span>
+                  <span className="font-medium">{profile.profile?.emergencyContact || "Not set"}</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="w-5 h-5" />
+              Restricted Fields
+            </CardTitle>
+            <CardDescription>These require a change request to modify</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Email</span>
+                </div>
+                <span className="font-medium">{profile.email || "Not set"}</span>
+              </div>
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Gender</span>
+                </div>
+                <span className="font-medium capitalize">{profile.profile?.gender?.replace(/_/g, ' ') || "Not set"}</span>
+              </div>
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Date of Birth</span>
+                </div>
+                <span className="font-medium">{profile.profile?.dob ? new Date(profile.profile.dob).toLocaleDateString() : "Not set"}</span>
+              </div>
+            </div>
+            <Dialog open={changeRequestOpen} onOpenChange={setChangeRequestOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" data-testid="button-request-change">
+                  <FileEdit className="w-4 h-4 mr-2" />
+                  Request Change
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Request Profile Change</DialogTitle>
+                  <DialogDescription>
+                    Select the field you want to change. Your gym owner will review and approve the request.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Field to Change</Label>
+                    <Select value={changeField} onValueChange={(v) => setChangeField(v as any)}>
+                      <SelectTrigger data-testid="select-change-field">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="gender">Gender</SelectItem>
+                        <SelectItem value="dob">Date of Birth</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>New Value</Label>
+                    <Input
+                      value={requestedValue}
+                      onChange={(e) => setRequestedValue(e.target.value)}
+                      placeholder={changeField === "email" ? "new@email.com" : changeField === "gender" ? "male/female" : "YYYY-MM-DD"}
+                      data-testid="input-requested-value"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setChangeRequestOpen(false)}>Cancel</Button>
+                  <Button 
+                    onClick={handleChangeRequest} 
+                    disabled={!requestedValue.trim() || changeRequestMutation.isPending}
+                    data-testid="button-submit-change-request"
+                  >
+                    {changeRequestMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                    Submit Request
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+
+        <TransferGymCard />
+        <AutoPostSettingsCard />
+        <MyPostsCard />
+      </div>
+    </div>
+  );
+}
+
+function OwnerProfileView() {
+  const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [timings, setTimings] = useState("");
+
+  const { data: profile, isLoading } = useQuery<OwnerProfileData>({
+    queryKey: ["/api/owner/profile"]
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setPhone(profile.phone || "");
+      setAddress(profile.gym?.address || "");
+      setTimings(profile.gym?.timings || "");
+    }
+  }, [profile]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: { phone?: string; address?: string; timings?: string }) => {
+      const res = await apiRequest("PATCH", "/api/owner/profile", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/profile"] });
+      toast({ title: "Profile updated successfully" });
+      setIsEditing(false);
+    },
+    onError: () => {
+      toast({ title: "Failed to update profile", variant: "destructive" });
+    }
+  });
+
+  const handleSave = () => {
+    updateMutation.mutate({ phone, address, timings });
+  };
+
+  if (isLoading || !profile) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-bold font-display text-foreground">Owner Profile</h2>
+        <p className="text-muted-foreground mt-1">Manage your account and gym details.</p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCircle className="w-5 h-5" />
+              Account Information
+            </CardTitle>
+            <CardDescription>Read-only account details</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Owner ID</span>
+              <Badge variant="outline" className="font-mono">{profile.publicId}</Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Username</span>
+              <span className="font-medium">{profile.username}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Email</span>
+              <span className="font-medium">{profile.email || "Not set"}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Role</span>
+              <Badge variant="secondary" className="capitalize">{profile.role}</Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Account Created</span>
+              <span className="text-sm">{profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "N/A"}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Edit2 className="w-5 h-5" />
+                Editable Details
+              </CardTitle>
+              <CardDescription>You can modify these fields</CardDescription>
+            </div>
+            {!isEditing && (
+              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} data-testid="button-edit-owner">
+                <Edit2 className="w-4 h-4 mr-2" />
+                Edit
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isEditing ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    data-testid="input-owner-phone"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Gym Address</Label>
+                  <Textarea
+                    id="address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Full gym address"
+                    rows={2}
+                    data-testid="input-owner-address"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="timings">Gym Timings</Label>
+                  <Input
+                    id="timings"
+                    value={timings}
+                    onChange={(e) => setTimings(e.target.value)}
+                    placeholder="e.g., 6 AM - 10 PM"
+                    data-testid="input-owner-timings"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleSave} disabled={updateMutation.isPending} data-testid="button-save-owner">
+                    {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                    Save Changes
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    Phone
+                  </span>
+                  <span className="font-medium">{profile.phone || "Not set"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Address
+                  </span>
+                  <span className="font-medium text-right max-w-[200px]">{profile.gym?.address || "Not set"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Timings
+                  </span>
+                  <span className="font-medium">{profile.gym?.timings || "Not set"}</span>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {profile.gym && (
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="w-5 h-5" />
+                Gym Details
+              </CardTitle>
+              <CardDescription>Read-only gym information from onboarding</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <span className="text-sm text-muted-foreground">Gym Name</span>
+                  <p className="font-medium">{profile.gym.name}</p>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <span className="text-sm text-muted-foreground">Gym Code</span>
+                  <p className="font-mono font-medium">{profile.gym.code}</p>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <span className="text-sm text-muted-foreground">Location</span>
+                  <p className="font-medium">{[profile.gym.city, profile.gym.state, profile.gym.country].filter(Boolean).join(", ") || "Not set"}</p>
+                </div>
+                {profile.gym.gymType && (
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <span className="text-sm text-muted-foreground">Gym Type</span>
+                    <p className="font-medium capitalize">{profile.gym.gymType}</p>
+                  </div>
+                )}
+                {profile.gym.facilities && (
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <span className="text-sm text-muted-foreground">Facilities</span>
+                    <p className="font-medium">{profile.gym.facilities}</p>
+                  </div>
+                )}
+                {profile.gym.createdAt && (
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <span className="text-sm text-muted-foreground">Gym Created</span>
+                    <p className="font-medium">{new Date(profile.gym.createdAt).toLocaleDateString()}</p>
+                  </div>
+                )}
+              </div>
+
+              {profile.gym.onboardingData && (
+                <>
+                  <Separator className="my-6" />
+                  <div>
+                    <h4 className="font-medium mb-4">Onboarding Data</h4>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {Object.entries(profile.gym.onboardingData).map(([key, value]) => (
+                        <div key={key} className="p-4 bg-muted/50 rounded-lg">
+                          <span className="text-sm text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
+                          <p className="font-medium">{String(value)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TrainerProfileView() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
@@ -38,12 +676,15 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState("");
 
   const { data: profile, isLoading } = useQuery<ProfileData>({
-    queryKey: ["/api/profile/my"],
-    onSuccess: (data: ProfileData) => {
-      setEmail(data.email || "");
-      setPhone(data.phone || "");
+    queryKey: ["/api/profile/my"]
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setEmail(profile.email || "");
+      setPhone(profile.phone || "");
     }
-  } as any);
+  }, [profile]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: { email?: string; phone?: string }) => {
@@ -59,8 +700,6 @@ export default function ProfilePage() {
       toast({ title: "Failed to update profile", variant: "destructive" });
     }
   });
-
-  const canTransfer = user?.role === "member" || user?.role === "trainer";
 
   if (isLoading || !profile) {
     return (
@@ -87,7 +726,7 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Member ID</span>
+              <span className="text-muted-foreground">Trainer ID</span>
               <Badge variant="outline" className="font-mono">{profile.publicId}</Badge>
             </div>
             <div className="flex items-center justify-between">
@@ -190,116 +829,30 @@ export default function ProfilePage() {
                 <span className="text-muted-foreground">Gym Name</span>
                 <span className="font-medium">{profile.gym.name}</span>
               </div>
-              {user?.role === "owner" && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Gym Code</span>
-                  <Badge variant="outline" className="font-mono">{profile.gym.code}</Badge>
-                </div>
-              )}
-              {profile.trainer && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Trainer</span>
-                  <span className="font-medium">{profile.trainer.username}</span>
-                </div>
-              )}
-              {profile.cycle && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Current Cycle</span>
-                  <span className="font-medium">{profile.cycle.name}</span>
-                </div>
-              )}
             </CardContent>
           </Card>
         )}
 
-        {profile.stats && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Workout Stats
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4 text-center">
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <p className="text-2xl font-bold">{profile.stats.totalWorkouts}</p>
-                <p className="text-xs text-muted-foreground">Total Workouts</p>
-              </div>
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <p className="text-2xl font-bold">{profile.stats.streak}</p>
-                <p className="text-xs text-muted-foreground">Day Streak</p>
-              </div>
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <p className="text-2xl font-bold">{profile.stats.last7Days}</p>
-                <p className="text-xs text-muted-foreground">Last 7 Days</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Trainer Stats
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4 text-center">
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <p className="text-2xl font-bold">{profile.totalMembers || 0}</p>
+              <p className="text-sm text-muted-foreground">Total Members</p>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <p className="text-2xl font-bold">{profile.totalStarMembers || 0}</p>
+              <p className="text-sm text-muted-foreground">Star Members</p>
+            </div>
+          </CardContent>
+        </Card>
 
-        {user?.role === "trainer" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Trainer Stats
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 text-center">
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-2xl font-bold">{profile.totalMembers || 0}</p>
-                <p className="text-sm text-muted-foreground">Total Members</p>
-              </div>
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-2xl font-bold">{profile.totalStarMembers || 0}</p>
-                <p className="text-sm text-muted-foreground">Star Members</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {profile.gymHistory && profile.gymHistory.length > 0 && (
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="w-5 h-5" />
-                Gym History
-              </CardTitle>
-              <CardDescription>Your membership history across gyms</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {profile.gymHistory.map((record: any) => (
-                  <div key={record.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div>
-                      <p className="font-medium">{record.gymName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Joined {new Date(record.joinedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    {record.leftAt ? (
-                      <Badge variant="outline">Left {new Date(record.leftAt).toLocaleDateString()}</Badge>
-                    ) : (
-                      <Badge variant="default">Current</Badge>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {canTransfer && (
-          <TransferGymCard />
-        )}
-
-        {user?.role === "member" && (
-          <AutoPostSettingsCard />
-        )}
-
-        {user?.role === "member" && (
-          <MyPostsCard />
-        )}
+        <TransferGymCard />
       </div>
     </div>
   );

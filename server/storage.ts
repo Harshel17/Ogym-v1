@@ -2483,7 +2483,7 @@ export class DatabaseStorage implements IStorage {
       if (sub) {
         const today = new Date().toISOString().split('T')[0];
         const isActive = sub.endDate && sub.endDate >= today;
-        const [plan] = sub.membershipPlanId ? await db.select().from(membershipPlans).where(eq(membershipPlans.id, sub.membershipPlanId)) : [null];
+        const [plan] = sub.planId ? await db.select().from(membershipPlans).where(eq(membershipPlans.id, sub.planId)) : [null];
         subscription = {
           status: isActive ? 'active' : 'expired',
           endDate: sub.endDate,
@@ -2590,6 +2590,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateOwnerProfile(ownerId: number, gymId: number, data: { phone?: string; address?: string; timings?: string }): Promise<void> {
+    const [gym] = await db.select().from(gyms).where(eq(gyms.id, gymId));
+    if (!gym || gym.ownerUserId !== ownerId) {
+      throw new Error("Unauthorized: You do not own this gym");
+    }
+    
     if (data.phone !== undefined) {
       await db.update(users).set({ phone: data.phone }).where(eq(users.id, ownerId));
     }

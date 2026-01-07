@@ -2339,6 +2339,93 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // === ENHANCED MEMBER PROFILE ROUTES ===
+  app.get("/api/member/profile", requireRole(["member"]), async (req, res) => {
+    try {
+      const profile = await storage.getEnhancedMemberProfile(req.user!.id);
+      res.json(profile);
+    } catch (error) {
+      console.error("[Member Profile] Error:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.patch("/api/member/profile", requireRole(["member"]), async (req, res) => {
+    try {
+      const schema = z.object({
+        phone: z.string().optional(),
+        address: z.string().optional(),
+        emergencyContact: z.string().optional()
+      });
+      const input = schema.parse(req.body);
+      await storage.updateMemberProfileDetails(req.user!.id, input);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Member Profile Update] Error:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.post("/api/member/profile/change-request", requireRole(["member"]), async (req, res) => {
+    try {
+      const schema = z.object({
+        field: z.enum(["email", "gender", "dob"]),
+        currentValue: z.string().optional(),
+        requestedValue: z.string()
+      });
+      const input = schema.parse(req.body);
+      
+      const user = await storage.getUser(req.user!.id);
+      const requestContent = `Profile Change Request\n\nField: ${input.field}\nCurrent Value: ${input.currentValue || 'Not set'}\nRequested Value: ${input.requestedValue}\n\nPlease review and update my profile.`;
+      
+      await storage.createSupportTicket({
+        gymId: user!.gymId!,
+        userId: req.user!.id,
+        subject: `Profile Change Request - ${input.field}`,
+        description: requestContent,
+        priority: "medium"
+      });
+      
+      res.json({ success: true, message: "Change request submitted. Gym owner will review it." });
+    } catch (error) {
+      console.error("[Profile Change Request] Error:", error);
+      res.status(500).json({ message: "Failed to submit change request" });
+    }
+  });
+
+  // === ENHANCED OWNER PROFILE ROUTES ===
+  app.get("/api/owner/profile", requireRole(["owner"]), async (req, res) => {
+    try {
+      const profile = await storage.getEnhancedOwnerProfile(req.user!.id);
+      res.json(profile);
+    } catch (error) {
+      console.error("[Owner Profile] Error:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.patch("/api/owner/profile", requireRole(["owner"]), async (req, res) => {
+    try {
+      if (!req.user!.gymId) {
+        return res.status(400).json({ message: "No gym assigned to this owner account" });
+      }
+      const schema = z.object({
+        phone: z.string().optional(),
+        address: z.string().optional(),
+        timings: z.string().optional()
+      });
+      const input = schema.parse(req.body);
+      await storage.updateOwnerProfile(req.user!.id, req.user!.gymId, input);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[Owner Profile Update] Error:", error);
+      if (error.message === "Unauthorized: You do not own this gym") {
+        return res.status(403).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
   // === STAR MEMBERS ROUTES ===
   app.get("/api/trainer/star-members", requireRole(["trainer"]), async (req, res) => {
     const stars = await storage.getStarMembers(req.user!.id);
