@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays, Moon, Search, X, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays, Moon, Search, X, AlertCircle, CheckCircle2, XCircle, Trophy, Weight, Activity, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
-import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, Legend } from 'recharts';
 import { format, parseISO } from "date-fns";
 
 type MemberStats = {
@@ -53,6 +55,31 @@ type ConsistencyStats = {
   recentPartialDays: { date: string; completed: number; missed: number }[];
 };
 
+type PerSetProgressSummary = {
+  totalVolume: number;
+  totalSets: number;
+  totalReps: number;
+  sessionsCount: number;
+  streak: number;
+  topExercises: { name: string; volume: number; sessions: number }[];
+  weeklyVolume: { week: string; volume: number; sessions: number }[];
+};
+
+type PersonalRecord = {
+  exerciseName: string;
+  maxWeight: number | null;
+  maxReps: number | null;
+  bestEst1rm: number | null;
+  bestVolumeDate: string | null;
+  bestVolume: number;
+};
+
+type ExerciseAnalytics = {
+  dates: { date: string; volume: number; maxWeight: number | null; maxReps: number | null; est1rm: number | null }[];
+  recentSets: { date: string; setNumber: number; reps: number | null; weight: string | null }[];
+  pr: { maxWeight: number | null; maxReps: number | null; bestEst1rm: number | null; bestVolumeDate: string | null };
+};
+
 const COLORS: Record<string, string> = {
   'Chest': '#6366f1',
   'Back': '#22c55e', 
@@ -73,6 +100,9 @@ export default function StatsPage() {
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [showAllWorkouts, setShowAllWorkouts] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [progressRange, setProgressRange] = useState<'week' | 'month' | 'year' | 'all'>('month');
+  const [selectedExercise, setSelectedExercise] = useState<string>("");
+  const [exerciseRange, setExerciseRange] = useState<'90d' | 'year' | 'all'>('90d');
   const WORKOUT_LIMIT = 7;
 
   const { data: stats, isLoading } = useQuery<MemberStats>({
@@ -85,6 +115,23 @@ export default function StatsPage() {
 
   const { data: consistencyStats } = useQuery<ConsistencyStats>({
     queryKey: ["/api/me/stats/consistency"],
+  });
+
+  const { data: progressSummary } = useQuery<PerSetProgressSummary>({
+    queryKey: ["/api/progress/summary", progressRange],
+  });
+
+  const { data: personalRecords = [] } = useQuery<PersonalRecord[]>({
+    queryKey: ["/api/progress/prs"],
+  });
+
+  const { data: exerciseList = [] } = useQuery<string[]>({
+    queryKey: ["/api/progress/exercises"],
+  });
+
+  const { data: exerciseAnalytics } = useQuery<ExerciseAnalytics>({
+    queryKey: ["/api/progress/exercise", selectedExercise, exerciseRange],
+    enabled: !!selectedExercise,
   });
 
   if (user?.role !== "member") {
@@ -184,6 +231,297 @@ export default function StatsPage() {
                     <p className="text-sm text-muted-foreground">Total Volume</p>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {progressSummary && (
+            <Card data-testid="card-per-set-progress">
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="w-5 h-5" />
+                  Per-Set Progress
+                </CardTitle>
+                <Select value={progressRange} onValueChange={(v) => setProgressRange(v as any)}>
+                  <SelectTrigger className="w-32" data-testid="select-progress-range">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="week">This Week</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                    <SelectItem value="year">This Year</SelectItem>
+                    <SelectItem value="all">All Time</SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 bg-primary/10 rounded-lg text-center">
+                    <Weight className="w-6 h-6 mx-auto mb-2 text-primary" />
+                    <p className="text-xl font-bold">{progressSummary.totalVolume.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Total Volume (kg)</p>
+                  </div>
+                  <div className="p-4 bg-green-500/10 rounded-lg text-center">
+                    <Activity className="w-6 h-6 mx-auto mb-2 text-green-500" />
+                    <p className="text-xl font-bold">{progressSummary.totalSets}</p>
+                    <p className="text-xs text-muted-foreground">Total Sets</p>
+                  </div>
+                  <div className="p-4 bg-blue-500/10 rounded-lg text-center">
+                    <Zap className="w-6 h-6 mx-auto mb-2 text-blue-500" />
+                    <p className="text-xl font-bold">{progressSummary.totalReps}</p>
+                    <p className="text-xs text-muted-foreground">Total Reps</p>
+                  </div>
+                  <div className="p-4 bg-purple-500/10 rounded-lg text-center">
+                    <Dumbbell className="w-6 h-6 mx-auto mb-2 text-purple-500" />
+                    <p className="text-xl font-bold">{progressSummary.sessionsCount}</p>
+                    <p className="text-xs text-muted-foreground">Sessions</p>
+                  </div>
+                </div>
+
+                {progressSummary.weeklyVolume.length > 1 && (
+                  <div>
+                    <p className="text-sm font-medium mb-3">Weekly Volume Trend</p>
+                    <div className="h-[200px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={progressSummary.weeklyVolume}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis 
+                            dataKey="week" 
+                            tickFormatter={(v) => format(parseISO(v), 'MMM d')}
+                            fontSize={11}
+                          />
+                          <YAxis fontSize={11} />
+                          <Tooltip 
+                            labelFormatter={(v) => `Week of ${format(parseISO(v as string), 'MMM d')}`}
+                            formatter={(value: number) => [value.toLocaleString() + ' kg', 'Volume']}
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))', 
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                          />
+                          <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {progressSummary.topExercises.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium mb-3">Top Exercises by Volume</p>
+                    <div className="space-y-2">
+                      {progressSummary.topExercises.slice(0, 5).map((ex, idx) => (
+                        <div key={ex.name} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="w-6 h-6 flex items-center justify-center p-0">
+                              {idx + 1}
+                            </Badge>
+                            <span className="text-sm font-medium">{ex.name}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm text-muted-foreground">{ex.sessions} sessions</span>
+                            <Badge variant="secondary">{ex.volume.toLocaleString()} kg</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {personalRecords.length > 0 && (
+            <Card data-testid="card-personal-records">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-500" />
+                  Personal Records
+                </CardTitle>
+                <CardDescription>Your best performances across all exercises</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {personalRecords.slice(0, 10).map((pr) => (
+                    <div key={pr.exerciseName} className="p-3 border rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">{pr.exerciseName}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedExercise(pr.exerciseName)}
+                          data-testid={`button-view-exercise-${pr.exerciseName}`}
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                        {pr.maxWeight && (
+                          <div className="p-2 bg-muted/50 rounded text-center">
+                            <p className="font-bold text-primary">{pr.maxWeight} kg</p>
+                            <p className="text-xs text-muted-foreground">Max Weight</p>
+                          </div>
+                        )}
+                        {pr.maxReps && (
+                          <div className="p-2 bg-muted/50 rounded text-center">
+                            <p className="font-bold text-green-600">{pr.maxReps}</p>
+                            <p className="text-xs text-muted-foreground">Max Reps</p>
+                          </div>
+                        )}
+                        {pr.bestEst1rm && (
+                          <div className="p-2 bg-muted/50 rounded text-center">
+                            <p className="font-bold text-blue-600">{pr.bestEst1rm} kg</p>
+                            <p className="text-xs text-muted-foreground">Est. 1RM</p>
+                          </div>
+                        )}
+                        {pr.bestVolume > 0 && (
+                          <div className="p-2 bg-muted/50 rounded text-center">
+                            <p className="font-bold text-purple-600">{pr.bestVolume.toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">Best Volume</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {exerciseList.length > 0 && (
+            <Card data-testid="card-exercise-analytics">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Exercise Analytics
+                </CardTitle>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select value={selectedExercise} onValueChange={setSelectedExercise}>
+                    <SelectTrigger className="w-48" data-testid="select-exercise">
+                      <SelectValue placeholder="Select exercise" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {exerciseList.map((ex) => (
+                        <SelectItem key={ex} value={ex}>{ex}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={exerciseRange} onValueChange={(v) => setExerciseRange(v as any)}>
+                    <SelectTrigger className="w-28" data-testid="select-exercise-range">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="90d">Last 90 Days</SelectItem>
+                      <SelectItem value="year">This Year</SelectItem>
+                      <SelectItem value="all">All Time</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {!selectedExercise ? (
+                  <div className="text-center py-8">
+                    <Dumbbell className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+                    <p className="text-muted-foreground">Select an exercise to view detailed analytics</p>
+                  </div>
+                ) : exerciseAnalytics ? (
+                  <Tabs defaultValue="trend" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="trend">Trend</TabsTrigger>
+                      <TabsTrigger value="history">History</TabsTrigger>
+                      <TabsTrigger value="pr">PRs</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="trend" className="mt-4">
+                      {exerciseAnalytics.dates.length > 0 ? (
+                        <div className="h-[250px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={exerciseAnalytics.dates}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis 
+                                dataKey="date" 
+                                tickFormatter={(v) => format(parseISO(v), 'MMM d')}
+                                fontSize={11}
+                              />
+                              <YAxis fontSize={11} />
+                              <Tooltip 
+                                labelFormatter={(v) => format(parseISO(v as string), 'MMM d, yyyy')}
+                                contentStyle={{ 
+                                  backgroundColor: 'hsl(var(--card))', 
+                                  border: '1px solid hsl(var(--border))',
+                                  borderRadius: '8px'
+                                }}
+                              />
+                              <Legend />
+                              <Line type="monotone" dataKey="maxWeight" name="Max Weight (kg)" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
+                              <Line type="monotone" dataKey="volume" name="Volume (kg)" stroke="#22c55e" strokeWidth={2} dot={{ r: 3 }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <p className="text-center text-muted-foreground py-8">No data for this exercise</p>
+                      )}
+                    </TabsContent>
+                    <TabsContent value="history" className="mt-4">
+                      {exerciseAnalytics.recentSets.length > 0 ? (
+                        <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                          <div className="grid grid-cols-4 gap-2 text-xs font-medium text-muted-foreground px-2 py-1 sticky top-0 bg-background">
+                            <span>Date</span>
+                            <span>Set</span>
+                            <span>Reps</span>
+                            <span>Weight</span>
+                          </div>
+                          {exerciseAnalytics.recentSets.map((set, idx) => (
+                            <div key={idx} className="grid grid-cols-4 gap-2 text-sm p-2 bg-muted/50 rounded">
+                              <span>{format(parseISO(set.date), 'MMM d')}</span>
+                              <span>Set {set.setNumber}</span>
+                              <span className="font-medium">{set.reps ?? '-'}</span>
+                              <span className="font-medium">{set.weight ? `${set.weight} kg` : '-'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-center text-muted-foreground py-8">No set history found</p>
+                      )}
+                    </TabsContent>
+                    <TabsContent value="pr" className="mt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        {exerciseAnalytics.pr.maxWeight && (
+                          <div className="p-4 bg-primary/10 rounded-lg text-center">
+                            <Weight className="w-8 h-8 mx-auto mb-2 text-primary" />
+                            <p className="text-2xl font-bold">{exerciseAnalytics.pr.maxWeight} kg</p>
+                            <p className="text-sm text-muted-foreground">Max Weight</p>
+                          </div>
+                        )}
+                        {exerciseAnalytics.pr.maxReps && (
+                          <div className="p-4 bg-green-500/10 rounded-lg text-center">
+                            <Zap className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                            <p className="text-2xl font-bold">{exerciseAnalytics.pr.maxReps}</p>
+                            <p className="text-sm text-muted-foreground">Max Reps</p>
+                          </div>
+                        )}
+                        {exerciseAnalytics.pr.bestEst1rm && (
+                          <div className="p-4 bg-blue-500/10 rounded-lg text-center">
+                            <Trophy className="w-8 h-8 mx-auto mb-2 text-blue-500" />
+                            <p className="text-2xl font-bold">{exerciseAnalytics.pr.bestEst1rm} kg</p>
+                            <p className="text-sm text-muted-foreground">Est. 1RM (Epley)</p>
+                          </div>
+                        )}
+                        {exerciseAnalytics.pr.bestVolumeDate && (
+                          <div className="p-4 bg-purple-500/10 rounded-lg text-center">
+                            <CalendarDays className="w-8 h-8 mx-auto mb-2 text-purple-500" />
+                            <p className="text-lg font-bold">{format(parseISO(exerciseAnalytics.pr.bestVolumeDate), 'MMM d, yyyy')}</p>
+                            <p className="text-sm text-muted-foreground">Best Volume Day</p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                ) : (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
