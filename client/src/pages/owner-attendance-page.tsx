@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,27 +29,20 @@ type AttendanceTrend = {
   trend: { date: string; count: number }[];
 };
 
-type ServerDate = {
-  serverDate: string;
-};
+// Helper to get client's local date in YYYY-MM-DD format
+function getClientLocalDate(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export default function OwnerAttendancePage() {
-  // Get server's today date to avoid timezone mismatch
-  const { data: serverDateData } = useQuery<ServerDate>({
-    queryKey: ["/api/server-date"]
-  });
+  // Use client's local date to avoid timezone mismatch with server UTC
+  const [selectedDate, setSelectedDate] = useState<string>(getClientLocalDate());
   
-  const [selectedDate, setSelectedDate] = useState<string>("");
-  
-  // Initialize date from server once available
-  useEffect(() => {
-    if (serverDateData?.serverDate && !selectedDate) {
-      setSelectedDate(serverDateData.serverDate);
-    }
-  }, [serverDateData, selectedDate]);
-  
-  // Fallback to local date if server date not available
-  const effectiveDate = selectedDate || format(new Date(), "yyyy-MM-dd");
+  const effectiveDate = selectedDate;
 
   const { data: summary, isLoading: summaryLoading } = useQuery<AttendanceSummary>({
     queryKey: ["/api/owner/attendance/summary", effectiveDate],
@@ -107,7 +100,7 @@ export default function OwnerAttendancePage() {
         </div>
         <Button 
           variant="outline" 
-          onClick={() => setSelectedDate(serverDateData?.serverDate || format(new Date(), "yyyy-MM-dd"))}
+          onClick={() => setSelectedDate(getClientLocalDate())}
           data-testid="button-today"
         >
           Today
