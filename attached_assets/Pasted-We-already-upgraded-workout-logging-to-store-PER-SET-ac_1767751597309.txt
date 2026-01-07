@@ -1,0 +1,68 @@
+We already upgraded workout logging to store PER-SET actual reps/weight (workout_log_sets).
+Now update the Progress/Stats page to track these per-set logs and show analytics.
+
+GOAL:
+Progress page must use actual per-set logs to calculate:
+- Total volume (sum of reps * weight) per workout/day/week/month
+- Total sets and reps completed
+- Best set (max weight) per exercise
+- Estimated 1RM (optional) per exercise trend
+- Personal records (PRs): max weight, max reps at a given weight, best volume day
+- Consistency: workouts per week, streaks based on workout_logs
+- Exercise history: show progress charts/tables for each exercise across time
+
+DATA:
+Use these tables:
+- workout_logs (member_id, date, completed_at)
+- workout_log_exercises (workout_log_id, exercise_name)
+- workout_log_sets (workout_log_exercise_id, set_number, actual_reps, actual_weight)
+
+ANALYTICS DEFINITIONS:
+- Set volume = actual_reps * actual_weight (ignore if weight null)
+- Exercise volume per day = sum(set volume)
+- Day volume = sum(all exercise volumes)
+- Weekly volume = sum(day volume within week)
+- Total sets = count(workout_log_sets where completed or actual_reps not null)
+- PR max weight = maximum actual_weight for each exercise across history
+- PR max reps = maximum actual_reps for each exercise across history
+
+EST 1RM (optional):
+Use Epley formula: 1RM = weight * (1 + reps/30) for reps between 1 and 12
+Store/display best estimated 1RM per exercise over time.
+
+BACKEND:
+Add endpoints:
+- GET /api/progress/summary?memberId=&range=week|month|year
+  returns totals: volume, sets, reps, sessions_count, streak, top_exercises
+- GET /api/progress/exercise/:exerciseName?memberId=&range=90d|year|all
+  returns time series per date: volume, max_weight, max_reps, est_1rm_best
+- GET /api/progress/prs?memberId=
+  returns PRs per exercise: max_weight, best_volume_day, best_est_1rm
+
+FRONTEND UI (Progress/Stats page):
+1) Summary Cards:
+- This Week Volume
+- Total Sets
+- Total Reps
+- Sessions Completed
+- Current Workout Streak
+
+2) Trends Section:
+- Weekly volume trend (line chart or simple table if chart lib not available)
+- Sessions per week
+
+3) Exercise Analytics:
+- Search/select an exercise name
+- Show:
+  - max weight trend
+  - volume trend
+  - best estimated 1RM (optional)
+  - recent workout sets table (date, set#, reps, weight)
+
+4) PR Section:
+- List PRs by exercise (max weight, best volume day, best 1RM)
+
+IMPORTANT:
+- Use only COMPLETED workout_logs (completed_at not null) for analytics.
+- Do not break existing Progress page; enhance it.
+- If some sets have weight null, still count reps/sets but exclude from volume.

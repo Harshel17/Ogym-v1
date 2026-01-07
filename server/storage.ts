@@ -162,6 +162,30 @@ export interface IStorage {
     exercises: (WorkoutLogExercise & { sets: WorkoutLogSet[] })[];
   } | null>;
   
+  // Per-set progress analytics
+  getPerSetProgressSummary(memberId: number, range: 'week' | 'month' | 'year' | 'all'): Promise<{
+    totalVolume: number;
+    totalSets: number;
+    totalReps: number;
+    sessionsCount: number;
+    streak: number;
+    topExercises: { name: string; volume: number; sessions: number }[];
+    weeklyVolume: { week: string; volume: number; sessions: number }[];
+  }>;
+  getExerciseAnalytics(memberId: number, exerciseName: string, range: '90d' | 'year' | 'all'): Promise<{
+    dates: { date: string; volume: number; maxWeight: number | null; maxReps: number | null; est1rm: number | null }[];
+    recentSets: { date: string; setNumber: number; reps: number | null; weight: string | null }[];
+    pr: { maxWeight: number | null; maxReps: number | null; bestEst1rm: number | null; bestVolumeDate: string | null };
+  }>;
+  getPersonalRecords(memberId: number): Promise<{
+    exerciseName: string;
+    maxWeight: number | null;
+    maxReps: number | null;
+    bestEst1rm: number | null;
+    bestVolumeDate: string | null;
+    bestVolume: number;
+  }[]>;
+  
   getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }>;
   getMemberDailyWorkouts(memberId: number, startDate?: string, endDate?: string): Promise<{
     date: string;
@@ -1113,6 +1137,411 @@ export class DatabaseStorage implements IStorage {
     );
 
     return { log, exercises: exercisesWithSets };
+  }
+
+  // Per-set progress analytics implementation
+  async getPerSetProgressSummary(memberId: number, range: 'week' | 'month' | 'year' | 'all'): Promise<{
+    totalVolume: number;
+    totalSets: number;
+    totalReps: number;
+    sessionsCount: number;
+    streak: number;
+    topExercises: { name: string; volume: number; sessions: number }[];
+    weeklyVolume: { week: string; volume: number; sessions: number }[];
+  }> {
+    const today = new Date();
+    let startDate: string | null = null;
+    
+    if (range === 'week') {
+      startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    } else if (range === 'month') {
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+    } else if (range === 'year') {
+      startDate = new Date(today.getFullYear(), 0, 1).toISOString().split("T")[0];
+    }
+    
+    // Get all completed workout logs for this member
+    let logsQuery = db.select().from(workoutLogs)
+      .where(and(
+        eq(workoutLogs.memberId, memberId),
+        isNotNull(workoutLogs.completedAt)
+      ));
+    
+    const allLogs = await logsQuery;
+    const filteredLogs = startDate 
+      ? allLogs.filter(l => l.completedDate >= startDate!)
+      : allLogs;
+    
+    const logIds = filteredLogs.map(l => l.id);
+    if (logIds.length === 0) {
+      const basicStats = await this.getMemberStats(memberId);
+      return {
+        totalVolume: 0,
+        totalSets: 0,
+        totalReps: 0,
+        sessionsCount: 0,
+        streak: basicStats.streak,
+        topExercises: [],
+        weeklyVolume: []
+      };
+    }
+    
+    // Get all exercises for these logs
+    const allExercises = await db.select().from(workoutLogExercises)
+      .where(inArray(workoutLogExercises.workoutLogId, logIds));
+    
+    const exerciseIds = allExercises.map(e => e.id);
+    
+    // Get all sets for these exercises
+    const allSets = exerciseIds.length > 0 
+      ? await db.select().from(workoutLogSets)
+          .where(inArray(workoutLogSets.logExerciseId, exerciseIds))
+      : [];
+    
+    // Calculate totals
+    let totalVolume = 0;
+    let totalSets = 0;
+    let totalReps = 0;
+    
+    for (const set of allSets) {
+      if (set.actualReps) {
+        totalReps += set.actualReps;
+        totalSets++;
+        if (set.actualWeight) {
+          const weight = parseFloat(set.actualWeight);
+          if (!isNaN(weight)) {
+            totalVolume += set.actualReps * weight;
+          }
+        }
+      }
+    }
+    
+    // Calculate top exercises
+    const exerciseMap = new Map<string, { volume: number; sessions: Set<number> }>();
+    for (const ex of allExercises) {
+      const exSets = allSets.filter(s => s.logExerciseId === ex.id);
+      let exVolume = 0;
+      for (const set of exSets) {
+        if (set.actualReps && set.actualWeight) {
+          const weight = parseFloat(set.actualWeight);
+          if (!isNaN(weight)) {
+            exVolume += set.actualReps * weight;
+          }
+        }
+      }
+      if (!exerciseMap.has(ex.exerciseName)) {
+        exerciseMap.set(ex.exerciseName, { volume: 0, sessions: new Set() });
+      }
+      const data = exerciseMap.get(ex.exerciseName)!;
+      data.volume += exVolume;
+      data.sessions.add(ex.workoutLogId);
+    }
+    
+    const topExercises = Array.from(exerciseMap.entries())
+      .map(([name, data]) => ({ name, volume: data.volume, sessions: data.sessions.size }))
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, 10);
+    
+    // Calculate weekly volume
+    const weekMap = new Map<string, { volume: number; sessions: Set<number> }>();
+    for (const log of filteredLogs) {
+      const logDate = new Date(log.completedDate);
+      const weekStart = new Date(logDate);
+      weekStart.setDate(logDate.getDate() - logDate.getDay());
+      const weekKey = weekStart.toISOString().split("T")[0];
+      
+      if (!weekMap.has(weekKey)) {
+        weekMap.set(weekKey, { volume: 0, sessions: new Set() });
+      }
+      const weekData = weekMap.get(weekKey)!;
+      weekData.sessions.add(log.id);
+      
+      const logExercises = allExercises.filter(e => e.workoutLogId === log.id);
+      for (const ex of logExercises) {
+        const exSets = allSets.filter(s => s.logExerciseId === ex.id);
+        for (const set of exSets) {
+          if (set.actualReps && set.actualWeight) {
+            const weight = parseFloat(set.actualWeight);
+            if (!isNaN(weight)) {
+              weekData.volume += set.actualReps * weight;
+            }
+          }
+        }
+      }
+    }
+    
+    const weeklyVolume = Array.from(weekMap.entries())
+      .map(([week, data]) => ({ week, volume: data.volume, sessions: data.sessions.size }))
+      .sort((a, b) => a.week.localeCompare(b.week));
+    
+    const basicStats = await this.getMemberStats(memberId);
+    
+    return {
+      totalVolume: Math.round(totalVolume),
+      totalSets,
+      totalReps,
+      sessionsCount: filteredLogs.length,
+      streak: basicStats.streak,
+      topExercises,
+      weeklyVolume
+    };
+  }
+
+  async getExerciseAnalytics(memberId: number, exerciseName: string, range: '90d' | 'year' | 'all'): Promise<{
+    dates: { date: string; volume: number; maxWeight: number | null; maxReps: number | null; est1rm: number | null }[];
+    recentSets: { date: string; setNumber: number; reps: number | null; weight: string | null }[];
+    pr: { maxWeight: number | null; maxReps: number | null; bestEst1rm: number | null; bestVolumeDate: string | null };
+  }> {
+    const today = new Date();
+    let startDate: string | null = null;
+    
+    if (range === '90d') {
+      startDate = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    } else if (range === 'year') {
+      startDate = new Date(today.getFullYear(), 0, 1).toISOString().split("T")[0];
+    }
+    
+    // Get all workout logs for this member
+    const allLogs = await db.select().from(workoutLogs)
+      .where(and(
+        eq(workoutLogs.memberId, memberId),
+        isNotNull(workoutLogs.completedAt)
+      ));
+    
+    const filteredLogs = startDate 
+      ? allLogs.filter(l => l.completedDate >= startDate!)
+      : allLogs;
+    
+    if (filteredLogs.length === 0) {
+      return {
+        dates: [],
+        recentSets: [],
+        pr: { maxWeight: null, maxReps: null, bestEst1rm: null, bestVolumeDate: null }
+      };
+    }
+    
+    const logIds = filteredLogs.map(l => l.id);
+    
+    // Get exercises matching the name
+    const exercises = await db.select().from(workoutLogExercises)
+      .where(and(
+        inArray(workoutLogExercises.workoutLogId, logIds),
+        sql`LOWER(${workoutLogExercises.exerciseName}) = LOWER(${exerciseName})`
+      ));
+    
+    if (exercises.length === 0) {
+      return {
+        dates: [],
+        recentSets: [],
+        pr: { maxWeight: null, maxReps: null, bestEst1rm: null, bestVolumeDate: null }
+      };
+    }
+    
+    const exerciseIds = exercises.map(e => e.id);
+    const allSets = await db.select().from(workoutLogSets)
+      .where(inArray(workoutLogSets.logExerciseId, exerciseIds));
+    
+    // Calculate per-date analytics
+    const dateMap = new Map<string, { volume: number; maxWeight: number; maxReps: number; best1rm: number }>();
+    let globalMaxWeight: number | null = null;
+    let globalMaxReps: number | null = null;
+    let globalBest1rm: number | null = null;
+    let bestVolumeDate: string | null = null;
+    let bestVolume = 0;
+    
+    for (const ex of exercises) {
+      const log = filteredLogs.find(l => l.id === ex.workoutLogId);
+      if (!log) continue;
+      
+      const exSets = allSets.filter(s => s.logExerciseId === ex.id);
+      let dayVolume = 0;
+      let dayMaxWeight = 0;
+      let dayMaxReps = 0;
+      let dayBest1rm = 0;
+      
+      for (const set of exSets) {
+        const reps = set.actualReps || 0;
+        const weight = set.actualWeight ? parseFloat(set.actualWeight) : 0;
+        
+        if (reps > 0) {
+          if (reps > dayMaxReps) dayMaxReps = reps;
+          if (globalMaxReps === null || reps > globalMaxReps) globalMaxReps = reps;
+        }
+        
+        if (weight > 0) {
+          if (weight > dayMaxWeight) dayMaxWeight = weight;
+          if (globalMaxWeight === null || weight > globalMaxWeight) globalMaxWeight = weight;
+          dayVolume += reps * weight;
+          
+          // Epley 1RM formula for reps 1-12
+          if (reps >= 1 && reps <= 12) {
+            const est1rm = weight * (1 + reps / 30);
+            if (est1rm > dayBest1rm) dayBest1rm = est1rm;
+            if (globalBest1rm === null || est1rm > globalBest1rm) globalBest1rm = est1rm;
+          }
+        }
+      }
+      
+      if (!dateMap.has(log.completedDate)) {
+        dateMap.set(log.completedDate, { volume: 0, maxWeight: 0, maxReps: 0, best1rm: 0 });
+      }
+      const dateData = dateMap.get(log.completedDate)!;
+      dateData.volume += dayVolume;
+      if (dayMaxWeight > dateData.maxWeight) dateData.maxWeight = dayMaxWeight;
+      if (dayMaxReps > dateData.maxReps) dateData.maxReps = dayMaxReps;
+      if (dayBest1rm > dateData.best1rm) dateData.best1rm = dayBest1rm;
+      
+      if (dayVolume > bestVolume) {
+        bestVolume = dayVolume;
+        bestVolumeDate = log.completedDate;
+      }
+    }
+    
+    const dates = Array.from(dateMap.entries())
+      .map(([date, data]) => ({
+        date,
+        volume: Math.round(data.volume),
+        maxWeight: data.maxWeight > 0 ? data.maxWeight : null,
+        maxReps: data.maxReps > 0 ? data.maxReps : null,
+        est1rm: data.best1rm > 0 ? Math.round(data.best1rm * 10) / 10 : null
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    
+    // Recent sets (last 20)
+    const recentSets: { date: string; setNumber: number; reps: number | null; weight: string | null }[] = [];
+    const sortedExercises = exercises
+      .map(e => ({ ...e, log: filteredLogs.find(l => l.id === e.workoutLogId) }))
+      .filter(e => e.log)
+      .sort((a, b) => b.log!.completedDate.localeCompare(a.log!.completedDate));
+    
+    for (const ex of sortedExercises.slice(0, 5)) {
+      const exSets = allSets.filter(s => s.logExerciseId === ex.id).sort((a, b) => a.setNumber - b.setNumber);
+      for (const set of exSets) {
+        recentSets.push({
+          date: ex.log!.completedDate,
+          setNumber: set.setNumber,
+          reps: set.actualReps,
+          weight: set.actualWeight
+        });
+      }
+    }
+    
+    return {
+      dates,
+      recentSets: recentSets.slice(0, 20),
+      pr: {
+        maxWeight: globalMaxWeight,
+        maxReps: globalMaxReps,
+        bestEst1rm: globalBest1rm ? Math.round(globalBest1rm * 10) / 10 : null,
+        bestVolumeDate
+      }
+    };
+  }
+
+  async getPersonalRecords(memberId: number): Promise<{
+    exerciseName: string;
+    maxWeight: number | null;
+    maxReps: number | null;
+    bestEst1rm: number | null;
+    bestVolumeDate: string | null;
+    bestVolume: number;
+  }[]> {
+    // Get all completed workout logs for this member
+    const allLogs = await db.select().from(workoutLogs)
+      .where(and(
+        eq(workoutLogs.memberId, memberId),
+        isNotNull(workoutLogs.completedAt)
+      ));
+    
+    if (allLogs.length === 0) return [];
+    
+    const logIds = allLogs.map(l => l.id);
+    
+    // Get all exercises
+    const allExercises = await db.select().from(workoutLogExercises)
+      .where(inArray(workoutLogExercises.workoutLogId, logIds));
+    
+    if (allExercises.length === 0) return [];
+    
+    const exerciseIds = allExercises.map(e => e.id);
+    const allSets = await db.select().from(workoutLogSets)
+      .where(inArray(workoutLogSets.logExerciseId, exerciseIds));
+    
+    // Group by exercise name
+    const exerciseMap = new Map<string, {
+      maxWeight: number;
+      maxReps: number;
+      bestEst1rm: number;
+      volumeByDate: Map<string, number>;
+    }>();
+    
+    for (const ex of allExercises) {
+      const log = allLogs.find(l => l.id === ex.workoutLogId);
+      if (!log) continue;
+      
+      const name = ex.exerciseName.toLowerCase();
+      if (!exerciseMap.has(name)) {
+        exerciseMap.set(name, { maxWeight: 0, maxReps: 0, bestEst1rm: 0, volumeByDate: new Map() });
+      }
+      const data = exerciseMap.get(name)!;
+      
+      const exSets = allSets.filter(s => s.logExerciseId === ex.id);
+      let dayVolume = 0;
+      
+      for (const set of exSets) {
+        const reps = set.actualReps || 0;
+        const weight = set.actualWeight ? parseFloat(set.actualWeight) : 0;
+        
+        if (reps > data.maxReps) data.maxReps = reps;
+        if (weight > data.maxWeight) data.maxWeight = weight;
+        
+        if (weight > 0 && reps > 0) {
+          dayVolume += reps * weight;
+          if (reps >= 1 && reps <= 12) {
+            const est1rm = weight * (1 + reps / 30);
+            if (est1rm > data.bestEst1rm) data.bestEst1rm = est1rm;
+          }
+        }
+      }
+      
+      const currentVolume = data.volumeByDate.get(log.completedDate) || 0;
+      data.volumeByDate.set(log.completedDate, currentVolume + dayVolume);
+    }
+    
+    // Build result
+    const result: {
+      exerciseName: string;
+      maxWeight: number | null;
+      maxReps: number | null;
+      bestEst1rm: number | null;
+      bestVolumeDate: string | null;
+      bestVolume: number;
+    }[] = [];
+    
+    for (const [name, data] of exerciseMap.entries()) {
+      let bestVolumeDate: string | null = null;
+      let bestVolume = 0;
+      for (const [date, volume] of data.volumeByDate.entries()) {
+        if (volume > bestVolume) {
+          bestVolume = volume;
+          bestVolumeDate = date;
+        }
+      }
+      
+      // Capitalize exercise name
+      const displayName = name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      
+      result.push({
+        exerciseName: displayName,
+        maxWeight: data.maxWeight > 0 ? data.maxWeight : null,
+        maxReps: data.maxReps > 0 ? data.maxReps : null,
+        bestEst1rm: data.bestEst1rm > 0 ? Math.round(data.bestEst1rm * 10) / 10 : null,
+        bestVolumeDate,
+        bestVolume: Math.round(bestVolume)
+      });
+    }
+    
+    return result.sort((a, b) => b.bestVolume - a.bestVolume);
   }
 
   async getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }> {
