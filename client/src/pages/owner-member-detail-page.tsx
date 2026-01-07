@@ -235,10 +235,9 @@ export default function OwnerMemberDetailPage() {
                   <p className="text-sm text-muted-foreground">Status</p>
                   <Badge 
                     variant={profile?.membershipStatus === 'active' ? 'default' : profile?.membershipStatus === 'expired' ? 'destructive' : 'secondary'}
-                    className="capitalize"
                     data-testid="badge-membership-status"
                   >
-                    {profile?.membershipStatus || 'Inactive'}
+                    {profile?.membershipStatus === 'active' ? 'Active' : profile?.membershipStatus === 'expired' ? 'Expired' : 'Inactive'}
                   </Badge>
                 </div>
                 {profile?.subscriptionEndDate && (

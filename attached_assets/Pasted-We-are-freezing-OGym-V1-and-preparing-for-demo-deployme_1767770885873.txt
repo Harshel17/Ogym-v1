@@ -1,0 +1,66 @@
+We are freezing OGym V1 and preparing for demo + deployment:
+- Backend -> Render
+- Frontend -> Vercel
+- PWA enabled
+Before pushing to GitHub, I want a DEMO-READINESS CHECKLIST and fixes ONLY for reliability, not new features.
+
+Please do the following:
+
+1) DEMO SMOKE TEST SCRIPT (must be written as a checklist)
+Create a step-by-step manual test list for all roles:
+- Admin: approve gym, view gyms, support tickets
+- Owner: register gym, add/approve members, assign trainer, view member profile, attendance analytics + inactive filter
+- Trainer: create/edit workout cycle, assign to member, future-only edits verified
+- Member: login, view today's workout, log per-set actuals, mark day done, profile page
+
+2) DATA INTEGRITY CHECKS
+Verify and confirm:
+- Soft-delete "future only" works for workout plan edits (past completed logs unchanged)
+- Attendance vs workout logs don’t conflict
+- Status/expiry display logic is correct and uses local date safely
+
+3) AUTH + PERMISSIONS (critical)
+Confirm each role cannot access other role routes:
+- member cannot open /owner/* or /admin/*
+- owner cannot open /admin/*
+- trainer cannot edit owner-only data
+If any route is unprotected, fix it now.
+
+4) BACK BUTTON / RETURNTO
+Verify all Back buttons return to correct previous page.
+If any page still routes incorrectly, fix using:
+- returnTo query param OR router.back() with fallback.
+
+5) ENV + DEPLOY READINESS
+Create production-ready env templates and confirm:
+Backend (Render):
+- DATABASE_URL
+- JWT_SECRET
+- CORS allowed origins (include Vercel domain)
+- PORT binding
+Frontend (Vercel):
+- NEXT_PUBLIC_API_URL (points to Render backend)
+- PWA settings safe for iOS
+
+Output a clean .env.example for both backend and frontend (no secrets included).
+
+6) ERROR HANDLING
+Ensure all API calls show user-friendly error messages (not blank).
+Add toasts or inline errors for login/register and key actions.
+
+7) PERFORMANCE / DEMO SPEED
+Ensure default pages load fast:
+- Avoid loading huge lists by default (use pagination or limit)
+- Any slow query: add indexes or limit results
+
+8) SEED / DEMO ACCOUNTS
+Provide:
+- demo admin, owner, trainer, member accounts
+- seed script or instructions so I can reset DB quickly
+
+DELIVERABLE:
+Give me a final "Release Notes" style summary:
+- What was checked
+- What was fixed
+- What remains known limitations (if any)
+No new features beyond stability/security/deploy readiness.

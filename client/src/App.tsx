@@ -39,7 +39,6 @@ import AnnouncementsPage from "@/pages/announcements-page";
 import GymRequestPage from "@/pages/gym-request-page";
 import JoinGymPage from "@/pages/join-gym-page";
 import OwnerJoinRequestsPage from "@/pages/owner-join-requests-page";
-import AdminGymRequestsPage from "@/pages/admin-gym-requests-page";
 import AdminLoginPage from "@/pages/admin-login-page";
 import AdminDashboardPage from "@/pages/admin-dashboard-page";
 import PendingApprovalPage from "@/pages/pending-approval-page";
@@ -234,11 +233,11 @@ function Router() {
       </Route>
 
       <Route path="/owner/attendance">
-        <ProtectedRoute component={OwnerAttendancePage} />
+        <ProtectedRoute component={OwnerAttendancePage} requiredRole="owner" />
       </Route>
 
       <Route path="/owner/members/:memberId">
-        <ProtectedRoute component={OwnerMemberDetailPage} />
+        <ProtectedRoute component={OwnerMemberDetailPage} requiredRole="owner" />
       </Route>
 
       <Route path="/owner/revenue">
@@ -250,7 +249,7 @@ function Router() {
       </Route>
 
       <Route path="/owner/announcements">
-        <ProtectedRoute component={OwnerAnnouncementsPage} />
+        <ProtectedRoute component={OwnerAnnouncementsPage} requiredRole="owner" />
       </Route>
 
       <Route path="/announcements">
@@ -278,11 +277,7 @@ function Router() {
       </Route>
 
       <Route path="/owner/join-requests">
-        <ProtectedRoute component={OwnerJoinRequestsPage} />
-      </Route>
-
-      <Route path="/admin/gym-requests">
-        <ProtectedRoute component={AdminGymRequestsPage} requiredRole="owner" />
+        <ProtectedRoute component={OwnerJoinRequestsPage} requiredRole="owner" />
       </Route>
 
       <Route path="/admin" component={AdminLoginPage} />

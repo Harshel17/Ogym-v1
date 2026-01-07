@@ -1,5 +1,7 @@
 # OGym V1 - Multi-Gym Management Platform
 
+**Status: V1 FROZEN - Ready for Demo & Deployment**
+
 ## Overview
 
 OGym is a multi-tenant B2B web application designed for gym management. It provides role-based access for gym owners, trainers, and members to manage attendance, track payments, and organize workout cycles. The platform ensures data isolation by `gym_id` for multi-tenant safety.
