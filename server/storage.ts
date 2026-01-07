@@ -865,13 +865,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteWorkoutItemsByDay(cycleId: number, dayIndex: number): Promise<void> {
-    await db.delete(workoutItems)
+    // Soft-delete to preserve historical workout completions
+    await db.update(workoutItems)
+      .set({ isDeleted: true })
       .where(and(eq(workoutItems.cycleId, cycleId), eq(workoutItems.dayIndex, dayIndex)));
   }
 
   async shiftWorkoutItemsDays(cycleId: number, fromDayIndex: number, shiftAmount: number): Promise<void> {
     const items = await db.select().from(workoutItems)
-      .where(and(eq(workoutItems.cycleId, cycleId), gte(workoutItems.dayIndex, fromDayIndex)));
+      .where(and(
+        eq(workoutItems.cycleId, cycleId),
+        gte(workoutItems.dayIndex, fromDayIndex),
+        eq(workoutItems.isDeleted, false)
+      ));
     
     for (const item of items) {
       const newDayIndex = Math.max(0, item.dayIndex + shiftAmount);
@@ -903,20 +909,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteWorkoutItem(itemId: number): Promise<void> {
-    // First delete associated workout completions to avoid FK constraint violation
-    await db.delete(workoutCompletions).where(eq(workoutCompletions.workoutItemId, itemId));
-    await db.delete(workoutItems).where(eq(workoutItems.id, itemId));
+    // Soft-delete to preserve historical workout completions
+    await db.update(workoutItems)
+      .set({ isDeleted: true })
+      .where(eq(workoutItems.id, itemId));
   }
 
   async getWorkoutItems(cycleId: number): Promise<WorkoutItem[]> {
     return await db.select().from(workoutItems)
-      .where(eq(workoutItems.cycleId, cycleId))
+      .where(and(
+        eq(workoutItems.cycleId, cycleId),
+        eq(workoutItems.isDeleted, false)
+      ))
       .orderBy(workoutItems.dayIndex, workoutItems.orderIndex);
   }
 
   async getWorkoutItemsByDay(cycleId: number, dayIndex: number): Promise<WorkoutItem[]> {
     return await db.select().from(workoutItems)
-      .where(and(eq(workoutItems.cycleId, cycleId), eq(workoutItems.dayIndex, dayIndex)))
+      .where(and(
+        eq(workoutItems.cycleId, cycleId),
+        eq(workoutItems.dayIndex, dayIndex),
+        eq(workoutItems.isDeleted, false)
+      ))
       .orderBy(workoutItems.orderIndex);
   }
 
