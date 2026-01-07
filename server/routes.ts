@@ -8,6 +8,9 @@ import passport from "passport";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail } from "./email";
+import { db } from "./db";
+import { workoutLogs, workoutLogExercises } from "@shared/schema";
+import { eq, and, isNotNull, inArray } from "drizzle-orm";
 
 const ADMIN_JWT_SECRET = process.env.SESSION_SECRET || "admin-jwt-fallback-secret";
 
@@ -1956,6 +1959,51 @@ export async function registerRoutes(
     const days = parseInt(req.query.days as string) || 30;
     const consistencyStats = await storage.getMemberConsistencyStats(req.user!.gymId!, req.user!.id, days);
     res.json(consistencyStats);
+  });
+
+  // Per-set progress analytics endpoints
+  app.get("/api/progress/summary", requireRole(["member"]), async (req, res) => {
+    const rangeParam = req.query.range as string || 'month';
+    const validRanges = ['week', 'month', 'year', 'all'] as const;
+    const range = validRanges.includes(rangeParam as any) ? rangeParam as 'week' | 'month' | 'year' | 'all' : 'month';
+    
+    const summary = await storage.getPerSetProgressSummary(req.user!.id, range);
+    res.json(summary);
+  });
+
+  app.get("/api/progress/exercise/:exerciseName", requireRole(["member"]), async (req, res) => {
+    const exerciseName = decodeURIComponent(req.params.exerciseName);
+    const rangeParam = req.query.range as string || '90d';
+    const validRanges = ['90d', 'year', 'all'] as const;
+    const range = validRanges.includes(rangeParam as any) ? rangeParam as '90d' | 'year' | 'all' : '90d';
+    
+    const analytics = await storage.getExerciseAnalytics(req.user!.id, exerciseName, range);
+    res.json(analytics);
+  });
+
+  app.get("/api/progress/prs", requireRole(["member"]), async (req, res) => {
+    const prs = await storage.getPersonalRecords(req.user!.id);
+    res.json(prs);
+  });
+
+  // Get list of unique exercise names for autocomplete
+  app.get("/api/progress/exercises", requireRole(["member"]), async (req, res) => {
+    const allLogs = await db.select().from(workoutLogs)
+      .where(and(
+        eq(workoutLogs.memberId, req.user!.id),
+        isNotNull(workoutLogs.completedAt)
+      ));
+    
+    if (allLogs.length === 0) {
+      return res.json([]);
+    }
+    
+    const logIds = allLogs.map(l => l.id);
+    const exercises = await db.selectDistinct({ exerciseName: workoutLogExercises.exerciseName })
+      .from(workoutLogExercises)
+      .where(inArray(workoutLogExercises.workoutLogId, logIds));
+    
+    res.json(exercises.map(e => e.exerciseName).sort());
   });
 
   app.get("/api/me/calendar", requireRole(["member"]), async (req, res) => {
