@@ -241,3 +241,39 @@
 html {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
+
+/* Date Input Calendar Icon Fix for Dark Mode */
+input[type="date"] {
+  color-scheme: light dark;
+}
+
+/* Ensure calendar picker indicator is visible in dark mode */
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.8) brightness(1.2);
+  cursor: pointer;
+}
+
+/* Light mode - ensure icon is visible */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Fix for iOS Safari and Firefox */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Ensure consistent styling across browsers */
+input[type="date"]::-webkit-datetime-edit {
+  padding: 0;
+}
+
+input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
