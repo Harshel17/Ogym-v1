@@ -3765,19 +3765,13 @@ export async function registerRoutes(
   });
   
   // Owner gets pending join requests for their gym
-  app.get("/api/owner/join-requests", requireAuth, async (req, res) => {
-    if (req.user!.role !== "owner" || !req.user!.gymId) {
-      return res.status(403).json({ message: "Owner access required" });
-    }
-    const requests = await storage.getPendingJoinRequestsForGym(req.user!.gymId);
+  app.get("/api/owner/join-requests", requireRole(["owner"]), async (req, res) => {
+    const requests = await storage.getPendingJoinRequestsForGym(req.user!.gymId!);
     res.json(requests);
   });
   
   // Owner approves a join request
-  app.post("/api/owner/join-requests/:id/approve", requireAuth, async (req, res) => {
-    if (req.user!.role !== "owner" || !req.user!.gymId) {
-      return res.status(403).json({ message: "Owner access required" });
-    }
+  app.post("/api/owner/join-requests/:id/approve", requireRole(["owner"]), async (req, res) => {
     try {
       const requestId = parseInt(req.params.id);
       const result = await storage.approveJoinRequest(requestId);
@@ -3788,10 +3782,7 @@ export async function registerRoutes(
   });
   
   // Owner rejects a join request
-  app.post("/api/owner/join-requests/:id/reject", requireAuth, async (req, res) => {
-    if (req.user!.role !== "owner" || !req.user!.gymId) {
-      return res.status(403).json({ message: "Owner access required" });
-    }
+  app.post("/api/owner/join-requests/:id/reject", requireRole(["owner"]), async (req, res) => {
     try {
       const requestId = parseInt(req.params.id);
       const result = await storage.rejectJoinRequest(requestId);
@@ -4006,14 +3997,7 @@ export async function registerRoutes(
     }
   });
   
-  // Owner: Get their gym's subscription status (read-only)
-  app.get("/api/owner/gym-subscription", requireAuth, async (req, res) => {
-    if (req.user!.role !== "owner" || !req.user!.gymId) {
-      return res.status(403).json({ message: "Owner access required" });
-    }
-    const subscription = await storage.getGymSubscription(req.user!.gymId);
-    res.json(subscription || null);
-  });
+  // Owner: Get their gym's subscription status (read-only) - duplicate removed, see line ~3197
 
   // ==================== SOCIAL FEED ====================
   
