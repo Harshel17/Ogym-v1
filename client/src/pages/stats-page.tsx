@@ -9,10 +9,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays, Moon, Search, X, AlertCircle, CheckCircle2, XCircle, Trophy, Weight, Activity, Zap, Info, HelpCircle, BookOpen, Calculator } from "lucide-react";
+import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays, Moon, Search, X, AlertCircle, CheckCircle2, XCircle, Trophy, Weight, Activity, Zap, Info, BookOpen, Calculator } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, Legend } from 'recharts';
@@ -185,25 +185,30 @@ export default function StatsPage() {
     return analyticsExplanations?.explanations.find(e => e.metric === metricName);
   };
 
-  // Info button component for metrics
+  // Info button component for metrics using Popover
   const MetricInfo = ({ metric }: { metric: string }) => {
     const explanation = getExplanation(metric);
     if (!explanation) return null;
     return (
-      <UITooltip>
-        <TooltipTrigger asChild>
+      <Popover>
+        <PopoverTrigger asChild>
           <Button variant="ghost" size="icon" className="h-5 w-5 ml-1" data-testid={`info-${metric.toLowerCase().replace(/\s+/g, '-')}`}>
             <Info className="h-3 w-3 text-muted-foreground" />
           </Button>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs">
-          <div className="space-y-1">
-            <p className="font-medium text-sm">{explanation.metric}</p>
+        </PopoverTrigger>
+        <PopoverContent className="w-72" side="top">
+          <div className="space-y-2">
+            <h4 className="font-medium text-sm">{explanation.metric}</h4>
             <p className="text-xs text-muted-foreground">{explanation.definition}</p>
-            <p className="text-xs font-mono bg-muted px-1 rounded">{explanation.formula}</p>
+            <div className="bg-muted p-2 rounded font-mono text-xs">
+              {explanation.formula}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium">Data source:</span> {explanation.tablesUsed}
+            </p>
           </div>
-        </TooltipContent>
-      </UITooltip>
+        </PopoverContent>
+      </Popover>
     );
   };
 
