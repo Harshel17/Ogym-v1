@@ -1544,6 +1544,196 @@ export class DatabaseStorage implements IStorage {
     return result.sort((a, b) => b.bestVolume - a.bestVolume);
   }
 
+  async getAnalyticsExplanationWithExample(memberId: number): Promise<{
+    explanations: {
+      metric: string;
+      definition: string;
+      formula: string;
+      tablesUsed: string;
+    }[];
+    exampleCalculation: {
+      workoutDate: string;
+      exercises: {
+        name: string;
+        sets: { setNumber: number; reps: number | null; weight: number | null; setVolume: number }[];
+        exerciseVolume: number;
+      }[];
+      dayVolume: number;
+      totalSets: number;
+      totalReps: number;
+    } | null;
+    streakExplanation: {
+      currentStreak: number;
+      lastCompletedDate: string | null;
+      explanation: string;
+    };
+  }> {
+    const explanations = [
+      {
+        metric: "Set Volume",
+        definition: "The volume for a single set, calculated as reps multiplied by weight.",
+        formula: "set_volume = actual_reps × actual_weight",
+        tablesUsed: "workout_log_sets (actual_reps, actual_weight)"
+      },
+      {
+        metric: "Exercise Volume",
+        definition: "Total volume for one exercise on a given day, summing all set volumes.",
+        formula: "exercise_volume = Σ(set_volume) for all sets of that exercise",
+        tablesUsed: "workout_log_exercises, workout_log_sets"
+      },
+      {
+        metric: "Day/Workout Volume",
+        definition: "Total volume for all exercises completed in a single workout session.",
+        formula: "day_volume = Σ(exercise_volume) for all exercises that day",
+        tablesUsed: "workout_logs, workout_log_exercises, workout_log_sets"
+      },
+      {
+        metric: "Weekly/Monthly Volume",
+        definition: "Sum of all day volumes within the selected time range.",
+        formula: "weekly_volume = Σ(day_volume) within week range",
+        tablesUsed: "workout_logs (completed_date), workout_log_sets"
+      },
+      {
+        metric: "Total Sets",
+        definition: "Count of all logged sets where actual_reps is recorded.",
+        formula: "total_sets = COUNT(sets) WHERE actual_reps IS NOT NULL",
+        tablesUsed: "workout_log_sets (actual_reps)"
+      },
+      {
+        metric: "Total Reps",
+        definition: "Sum of all reps across all completed sets.",
+        formula: "total_reps = Σ(actual_reps) across all sets",
+        tablesUsed: "workout_log_sets (actual_reps)"
+      },
+      {
+        metric: "Sessions Completed",
+        definition: "Number of workout logs marked as completed in the time range.",
+        formula: "sessions_count = COUNT(workout_logs) WHERE completed_at IS NOT NULL",
+        tablesUsed: "workout_logs (completed_at)"
+      },
+      {
+        metric: "Streak",
+        definition: "Consecutive days with at least one completed workout, counting backwards from today or the last completed day.",
+        formula: "streak = count of consecutive days ending at last_completed_date",
+        tablesUsed: "workout_completions (completed_date)"
+      },
+      {
+        metric: "Max Weight PR",
+        definition: "The heaviest weight lifted for an exercise across all time.",
+        formula: "max_weight_PR = MAX(actual_weight) for that exercise",
+        tablesUsed: "workout_log_sets (actual_weight)"
+      },
+      {
+        metric: "Max Reps PR",
+        definition: "The highest rep count achieved for an exercise in a single set.",
+        formula: "max_reps_PR = MAX(actual_reps) for that exercise",
+        tablesUsed: "workout_log_sets (actual_reps)"
+      },
+      {
+        metric: "Estimated 1RM",
+        definition: "Estimated one-rep max using the Epley formula. Only valid for sets with 1-12 reps.",
+        formula: "est_1rm = weight × (1 + reps/30) [for reps between 1 and 12]",
+        tablesUsed: "workout_log_sets (actual_reps, actual_weight)"
+      },
+      {
+        metric: "Best Volume Day",
+        definition: "The date when the highest total volume was achieved for an exercise.",
+        formula: "best_volume_day = MAX(exercise_volume per day)",
+        tablesUsed: "workout_logs, workout_log_exercises, workout_log_sets"
+      }
+    ];
+
+    // Get last completed workout for example calculation
+    const lastLog = await db.select().from(workoutLogs)
+      .where(and(
+        eq(workoutLogs.memberId, memberId),
+        isNotNull(workoutLogs.completedAt)
+      ))
+      .orderBy(desc(workoutLogs.completedAt))
+      .limit(1);
+
+    let exampleCalculation: {
+      workoutDate: string;
+      exercises: {
+        name: string;
+        sets: { setNumber: number; reps: number | null; weight: number | null; setVolume: number }[];
+        exerciseVolume: number;
+      }[];
+      dayVolume: number;
+      totalSets: number;
+      totalReps: number;
+    } | null = null;
+
+    if (lastLog.length > 0) {
+      const log = lastLog[0];
+      const exercises = await db.select().from(workoutLogExercises)
+        .where(eq(workoutLogExercises.workoutLogId, log.id));
+
+      const exerciseData: typeof exampleCalculation extends null ? never : NonNullable<typeof exampleCalculation>['exercises'] = [];
+      let dayVolume = 0;
+      let totalSets = 0;
+      let totalReps = 0;
+
+      for (const ex of exercises) {
+        const sets = await db.select().from(workoutLogSets)
+          .where(eq(workoutLogSets.logExerciseId, ex.id))
+          .orderBy(workoutLogSets.setNumber);
+
+        const setData: { setNumber: number; reps: number | null; weight: number | null; setVolume: number }[] = [];
+        let exerciseVolume = 0;
+
+        for (const set of sets) {
+          const reps = set.actualReps || 0;
+          const weight = set.actualWeight ? parseFloat(set.actualWeight) : 0;
+          const setVolume = reps * weight;
+
+          setData.push({
+            setNumber: set.setNumber,
+            reps: set.actualReps,
+            weight: weight > 0 ? weight : null,
+            setVolume
+          });
+
+          exerciseVolume += setVolume;
+          if (set.actualReps) {
+            totalSets++;
+            totalReps += set.actualReps;
+          }
+        }
+
+        exerciseData.push({
+          name: ex.exerciseName,
+          sets: setData,
+          exerciseVolume
+        });
+        dayVolume += exerciseVolume;
+      }
+
+      exampleCalculation = {
+        workoutDate: log.completedDate,
+        exercises: exerciseData,
+        dayVolume: Math.round(dayVolume),
+        totalSets,
+        totalReps
+      };
+    }
+
+    // Get streak info
+    const stats = await this.getMemberStats(memberId);
+    const lastCompleted = await db.select().from(workoutCompletions)
+      .where(eq(workoutCompletions.memberId, memberId))
+      .orderBy(desc(workoutCompletions.completedDate))
+      .limit(1);
+
+    const streakExplanation = {
+      currentStreak: stats.streak,
+      lastCompletedDate: lastCompleted.length > 0 ? lastCompleted[0].completedDate : null,
+      explanation: `Your streak counts consecutive days with completed workouts, starting from ${lastCompleted.length > 0 ? lastCompleted[0].completedDate : 'N/A'} and counting backwards. You currently have ${stats.streak} consecutive day(s).`
+    };
+
+    return { explanations, exampleCalculation, streakExplanation };
+  }
+
   async getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }> {
     const allCompletions = await db.select().from(workoutCompletions)
       .where(eq(workoutCompletions.memberId, memberId))

@@ -1,0 +1,71 @@
+In OGym, we added per-set workout logs (actual_reps, actual_weight).
+Now we are building the Progress/Analytics page, BUT I (admin) want full transparency on how every metric is calculated.
+
+TASK:
+1) Build the analytics page using completed workout_logs.
+2) Add a new section (or a modal) called "How Analytics Works" / "Analytics Explained"
+   that explains each metric with:
+   - definition
+   - formula
+   - which tables/fields are used
+   - a small real example computed from the user's most recent workout (show the numbers)
+
+ANALYTICS TO INCLUDE + MUST EXPLAIN:
+
+A) Set Volume
+- Definition: reps * weight for a single set
+- Formula: set_volume = actual_reps * actual_weight
+- If weight is null or 0: set_volume = 0 (still count reps/sets)
+
+B) Exercise Volume (per workout/day)
+- Sum of set volumes for the same exercise_name on that date
+- exercise_volume = Σ(set_volume for that exercise on that date)
+
+C) Day / Workout Volume
+- Sum of all exercise volumes for that date
+- day_volume = Σ(exercise_volume across all exercises for that day)
+
+D) Weekly Volume / Monthly Volume
+- weekly_volume = Σ(day_volume) within the selected week range
+- monthly_volume = Σ(day_volume) within the selected month range
+(Use member local timezone for date grouping)
+
+E) Total Sets / Total Reps
+- total_sets = count of logged sets where actual_reps is not null
+- total_reps = Σ(actual_reps) across all sets
+
+F) Sessions Completed
+- sessions_count = number of workout_logs where completed_at is not null in range
+
+G) Streak
+Explain clearly what streak means (choose ONE and show it in UI):
+Option 1: Workout streak = consecutive days with completed workout_logs
+Option 2: Attendance streak = consecutive days marked present
+Implement workout streak for now and explain it:
+- streak counts consecutive days ending today (or ending at last completed day)
+- show last_completed_date
+
+H) PRs (Personal Records)
+- max_weight_PR per exercise = max(actual_weight) across history
+- best_volume_day per exercise = max(exercise_volume per day) across history
+- max_reps_PR per exercise = max(actual_reps) across history
+
+I) Estimated 1RM (optional)
+If implemented, must explain formula and constraints:
+- Use Epley: est_1rm = weight * (1 + reps/30) for reps 1–12 only
+- best_est_1rm per exercise = max(est_1rm) across history
+
+UI REQUIREMENTS:
+- Analytics page should show summary cards and trends.
+- Add an "ℹ️ How this is calculated" button next to each metric that opens a tooltip/modal.
+- Add one "Example Calculation" panel using last completed workout:
+  show a table: exercise -> sets -> reps/weight -> set_volume -> totals.
+
+BACKEND:
+- Expose a debug endpoint OR include in response:
+  analytics_explanations object with formulas and sample calculation breakdown.
+
+IMPORTANT:
+- Only use completed workouts (completed_at not null) for analytics.
+- Handle missing weights safely.
+- Do not break existing pages; enhance current Progress page.

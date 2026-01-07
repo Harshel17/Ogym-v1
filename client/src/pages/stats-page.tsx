@@ -8,7 +8,11 @@ import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays, Moon, Search, X, AlertCircle, CheckCircle2, XCircle, Trophy, Weight, Activity, Zap } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ArrowLeft, Shield, Flame, Target, Calendar, Dumbbell, TrendingUp, BarChart3, Loader2, ChevronDown, ChevronUp, CalendarDays, Moon, Search, X, AlertCircle, CheckCircle2, XCircle, Trophy, Weight, Activity, Zap, Info, HelpCircle, BookOpen, Calculator } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, Legend } from 'recharts';
@@ -80,6 +84,31 @@ type ExerciseAnalytics = {
   pr: { maxWeight: number | null; maxReps: number | null; bestEst1rm: number | null; bestVolumeDate: string | null };
 };
 
+type AnalyticsExplanation = {
+  explanations: {
+    metric: string;
+    definition: string;
+    formula: string;
+    tablesUsed: string;
+  }[];
+  exampleCalculation: {
+    workoutDate: string;
+    exercises: {
+      name: string;
+      sets: { setNumber: number; reps: number | null; weight: number | null; setVolume: number }[];
+      exerciseVolume: number;
+    }[];
+    dayVolume: number;
+    totalSets: number;
+    totalReps: number;
+  } | null;
+  streakExplanation: {
+    currentStreak: number;
+    lastCompletedDate: string | null;
+    explanation: string;
+  };
+};
+
 const COLORS: Record<string, string> = {
   'Chest': '#6366f1',
   'Back': '#22c55e', 
@@ -144,6 +173,40 @@ export default function StatsPage() {
     enabled: !!selectedExercise,
   });
 
+  const { data: analyticsExplanations } = useQuery<AnalyticsExplanation>({
+    queryKey: ["/api/progress/explanations"],
+  });
+
+  const [showExplanationsModal, setShowExplanationsModal] = useState(false);
+  const [showExampleModal, setShowExampleModal] = useState(false);
+
+  // Helper to get explanation for a specific metric
+  const getExplanation = (metricName: string) => {
+    return analyticsExplanations?.explanations.find(e => e.metric === metricName);
+  };
+
+  // Info button component for metrics
+  const MetricInfo = ({ metric }: { metric: string }) => {
+    const explanation = getExplanation(metric);
+    if (!explanation) return null;
+    return (
+      <UITooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-5 w-5 ml-1" data-testid={`info-${metric.toLowerCase().replace(/\s+/g, '-')}`}>
+            <Info className="h-3 w-3 text-muted-foreground" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs">
+          <div className="space-y-1">
+            <p className="font-medium text-sm">{explanation.metric}</p>
+            <p className="text-xs text-muted-foreground">{explanation.definition}</p>
+            <p className="text-xs font-mono bg-muted px-1 rounded">{explanation.formula}</p>
+          </div>
+        </TooltipContent>
+      </UITooltip>
+    );
+  };
+
   if (user?.role !== "member") {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] text-center">
@@ -165,15 +228,171 @@ export default function StatsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/progress">
-          <Button variant="ghost" size="icon" data-testid="button-back">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </Link>
-        <div>
-          <h2 className="text-2xl font-bold font-display text-foreground">My Stats</h2>
-          <p className="text-muted-foreground text-sm">Your workout analytics and progress</p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4">
+          <Link href="/progress">
+            <Button variant="ghost" size="icon" data-testid="button-back">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          </Link>
+          <div>
+            <h2 className="text-2xl font-bold font-display text-foreground">My Stats</h2>
+            <p className="text-muted-foreground text-sm">Your workout analytics and progress</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Dialog open={showExplanationsModal} onOpenChange={setShowExplanationsModal}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-how-analytics-works">
+                <BookOpen className="w-4 h-4 mr-2" />
+                How Analytics Works
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <BookOpen className="w-5 h-5" />
+                  How Analytics Works
+                </DialogTitle>
+                <DialogDescription>
+                  Detailed explanations of every metric and how they are calculated
+                </DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="h-[60vh] pr-4">
+                <div className="space-y-4">
+                  {analyticsExplanations?.explanations.map((exp) => (
+                    <div key={exp.metric} className="p-4 border rounded-lg">
+                      <h4 className="font-semibold text-primary mb-2">{exp.metric}</h4>
+                      <p className="text-sm text-muted-foreground mb-2">{exp.definition}</p>
+                      <div className="bg-muted p-2 rounded font-mono text-sm mb-2">
+                        {exp.formula}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-medium">Data source:</span> {exp.tablesUsed}
+                      </p>
+                    </div>
+                  ))}
+                  {analyticsExplanations?.streakExplanation && (
+                    <div className="p-4 border border-orange-200 dark:border-orange-800 rounded-lg bg-orange-50 dark:bg-orange-950/30">
+                      <h4 className="font-semibold text-orange-600 dark:text-orange-400 mb-2 flex items-center gap-2">
+                        <Flame className="w-4 h-4" />
+                        Your Current Streak
+                      </h4>
+                      <p className="text-sm">{analyticsExplanations.streakExplanation.explanation}</p>
+                      {analyticsExplanations.streakExplanation.lastCompletedDate && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Last completed: {format(parseISO(analyticsExplanations.streakExplanation.lastCompletedDate), 'MMM d, yyyy')}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showExampleModal} onOpenChange={setShowExampleModal}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-example-calculation">
+                <Calculator className="w-4 h-4 mr-2" />
+                Example Calculation
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[85vh]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Calculator className="w-5 h-5" />
+                  Example Calculation
+                </DialogTitle>
+                <DialogDescription>
+                  Real calculation breakdown from your most recent completed workout
+                </DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="h-[65vh] pr-4">
+                {analyticsExplanations?.exampleCalculation ? (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-muted rounded-lg">
+                      <p className="text-sm font-medium">
+                        Workout Date: {format(parseISO(analyticsExplanations.exampleCalculation.workoutDate), 'EEEE, MMMM d, yyyy')}
+                      </p>
+                    </div>
+
+                    {analyticsExplanations.exampleCalculation.exercises.map((exercise) => (
+                      <div key={exercise.name} className="border rounded-lg overflow-hidden">
+                        <div className="p-3 bg-primary/10 font-medium flex items-center justify-between gap-2">
+                          <span>{exercise.name}</span>
+                          <Badge variant="secondary">
+                            Exercise Volume: {exercise.exerciseVolume.toLocaleString()} kg
+                          </Badge>
+                        </div>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-20">Set</TableHead>
+                              <TableHead>Reps</TableHead>
+                              <TableHead>Weight (kg)</TableHead>
+                              <TableHead className="text-right">Set Volume</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {exercise.sets.map((set) => (
+                              <TableRow key={set.setNumber}>
+                                <TableCell className="font-medium">Set {set.setNumber}</TableCell>
+                                <TableCell>{set.reps ?? '-'}</TableCell>
+                                <TableCell>{set.weight ?? '-'}</TableCell>
+                                <TableCell className="text-right font-mono">
+                                  {set.reps && set.weight ? (
+                                    <span>
+                                      {set.reps} x {set.weight} = <span className="font-bold">{set.setVolume}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground">{set.setVolume}</span>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ))}
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Day Summary</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-3 gap-4 text-center">
+                          <div className="p-3 bg-primary/10 rounded-lg">
+                            <p className="text-2xl font-bold">{analyticsExplanations.exampleCalculation.dayVolume.toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">Total Day Volume (kg)</p>
+                          </div>
+                          <div className="p-3 bg-green-500/10 rounded-lg">
+                            <p className="text-2xl font-bold">{analyticsExplanations.exampleCalculation.totalSets}</p>
+                            <p className="text-xs text-muted-foreground">Total Sets</p>
+                          </div>
+                          <div className="p-3 bg-blue-500/10 rounded-lg">
+                            <p className="text-2xl font-bold">{analyticsExplanations.exampleCalculation.totalReps}</p>
+                            <p className="text-xs text-muted-foreground">Total Reps</p>
+                          </div>
+                        </div>
+                        <div className="mt-4 p-3 bg-muted rounded-lg">
+                          <p className="text-sm font-medium mb-1">Formula Applied:</p>
+                          <p className="text-xs font-mono">
+                            Day Volume = Sum of all (reps x weight) = {analyticsExplanations.exampleCalculation.dayVolume.toLocaleString()} kg
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Calculator className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+                    <p className="text-muted-foreground">No completed workouts with per-set data found</p>
+                  </div>
+                )}
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -224,21 +443,31 @@ export default function StatsPage() {
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="w-5 h-5" />
                   Volume Metrics
+                  <MetricInfo metric="Day/Workout Volume" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div className="p-4 bg-muted/50 rounded-lg">
                     <p className="text-2xl font-bold text-primary">{stats.volumeStats.totalSets}</p>
-                    <p className="text-sm text-muted-foreground">Total Sets</p>
+                    <div className="flex items-center justify-center">
+                      <p className="text-sm text-muted-foreground">Total Sets</p>
+                      <MetricInfo metric="Total Sets" />
+                    </div>
                   </div>
                   <div className="p-4 bg-muted/50 rounded-lg">
                     <p className="text-2xl font-bold text-green-600">{stats.volumeStats.totalReps}</p>
-                    <p className="text-sm text-muted-foreground">Total Reps</p>
+                    <div className="flex items-center justify-center">
+                      <p className="text-sm text-muted-foreground">Total Reps</p>
+                      <MetricInfo metric="Total Reps" />
+                    </div>
                   </div>
                   <div className="p-4 bg-muted/50 rounded-lg">
                     <p className="text-2xl font-bold text-blue-600">{stats.volumeStats.totalVolume.toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">Total Volume</p>
+                    <div className="flex items-center justify-center">
+                      <p className="text-sm text-muted-foreground">Total Volume</p>
+                      <MetricInfo metric="Set Volume" />
+                    </div>
                   </div>
                 </div>
               </CardContent>

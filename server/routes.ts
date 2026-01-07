@@ -2006,6 +2006,12 @@ export async function registerRoutes(
     res.json(exercises.map(e => e.exerciseName).sort());
   });
 
+  // Analytics explanations with example calculation
+  app.get("/api/progress/explanations", requireRole(["member"]), async (req, res) => {
+    const explanations = await storage.getAnalyticsExplanationWithExample(req.user!.id);
+    res.json(explanations);
+  });
+
   app.get("/api/me/calendar", requireRole(["member"]), async (req, res) => {
     const month = req.query.month as string || new Date().toISOString().slice(0, 7);
     const calendar = await storage.getMemberCalendar(req.user!.id, month);
