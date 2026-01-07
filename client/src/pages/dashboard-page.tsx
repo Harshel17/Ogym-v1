@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
 import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout, useMemberProfile, useShareWorkout, useSwapRestDay, useUndoRestDaySwap, useLogWorkoutSets } from "@/hooks/use-workouts";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -13,7 +14,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { Link, useLocation } from "wouter";
 
@@ -1307,6 +1308,59 @@ function MemberDashboard() {
   );
 }
 
+// Component to mark past attendance for missed days
+function MarkPastAttendanceButton({ date, onSuccess }: { date: string; onSuccess: () => void }) {
+  const { toast } = useToast();
+  const markPastMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/attendance/mark-past', { date });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/me/calendar/enhanced'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
+      toast({
+        title: "Attendance Marked",
+        description: `Marked as present for ${format(parseISO(date), "MMMM d, yyyy")}`
+      });
+      onSuccess();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to mark attendance",
+        variant: "destructive"
+      });
+    }
+  });
+
+  return (
+    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+      <p className="text-sm text-muted-foreground mb-2">
+        Did you go to the gym but forgot to log your workout? You can mark this day as attended.
+      </p>
+      <Button 
+        onClick={() => markPastMutation.mutate()}
+        disabled={markPastMutation.isPending}
+        className="w-full"
+        data-testid="button-mark-past-attendance"
+      >
+        {markPastMutation.isPending ? (
+          <>
+            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+            Marking...
+          </>
+        ) : (
+          <>
+            <CheckCircle2 className="w-4 h-4 mr-2" />
+            Mark as Present
+          </>
+        )}
+      </Button>
+    </div>
+  );
+}
+
 type CalendarDayData = {
   date: string;
   status: "present" | "absent" | "rest" | "future";
@@ -1612,6 +1666,14 @@ function MemberCalendarWidget() {
                     </div>
                   ))}
                 </div>
+              )}
+              {selectedDate && selectedDate < clientToday && (
+                <MarkPastAttendanceButton 
+                  date={selectedDate} 
+                  onSuccess={() => {
+                    setSelectedDate(null);
+                  }} 
+                />
               )}
             </div>
           ) : (

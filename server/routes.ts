@@ -459,6 +459,43 @@ export async function registerRoutes(
     res.status(201).json(record);
   });
 
+  // Allow members to mark past attendance (for missed days where they actually went to gym)
+  app.post("/api/attendance/mark-past", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD format"),
+    });
+    const input = schema.parse(req.body);
+    
+    const today = new Date().toISOString().split("T")[0];
+    // Only allow marking past dates (not future, not more than 7 days ago)
+    if (input.date >= today) {
+      return res.status(400).json({ message: "Can only mark past dates as attended" });
+    }
+    
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const minDate = sevenDaysAgo.toISOString().split("T")[0];
+    if (input.date < minDate) {
+      return res.status(400).json({ message: "Can only mark attendance for the last 7 days" });
+    }
+    
+    // Check if already marked
+    const existing = await storage.getAttendanceByMemberDate(req.user!.id, input.date);
+    if (existing && existing.status === "present") {
+      return res.json(existing);
+    }
+    
+    const record = await storage.markAttendance({
+      gymId: req.user!.gymId!,
+      memberId: req.user!.id,
+      date: input.date,
+      status: "present",
+      verifiedMethod: "manual",
+      markedByUserId: req.user!.id
+    });
+    res.status(201).json(record);
+  });
+
   app.get("/api/attendance/my", requireRole(["member"]), async (req, res) => {
     const records = await storage.getMemberAttendance(req.user!.id);
     res.json(records);
