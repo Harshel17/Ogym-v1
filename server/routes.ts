@@ -61,7 +61,7 @@ export async function registerRoutes(
       
       const input = schema.parse(req.body);
       
-      const existingUserByUsername = await storage.getUserByUsername(input.username);
+      const existingUserByUsername = await storage.getUserByUsername(input.username.toLowerCase());
       if (existingUserByUsername) {
         return res.status(400).json({ message: "Username already taken. Please choose another." });
       }
