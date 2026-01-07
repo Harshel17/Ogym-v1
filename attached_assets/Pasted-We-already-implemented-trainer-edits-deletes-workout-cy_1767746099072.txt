@@ -1,0 +1,59 @@
+We already implemented: trainer edits/deletes workout cycle exercises only affect FUTURE workouts; past completed workouts are preserved (soft-delete logic).
+Now extend this to support PER-SET targets (trainer) and PER-SET actual logs (member), while keeping the same “future-only edits” rule.
+
+REQUIREMENTS:
+1) Trainer can define different reps/weight per set for each exercise in a workout cycle day.
+   Example for Bench:
+   - Set 1: 10 reps @ 10kg
+   - Set 2: 8 reps @ 12.5kg
+   - Set 3: 6 reps @ 15kg
+
+2) Member can log actual reps/weight per set, which may differ from target.
+   Member UI must show multiple set rows (not a single sets/reps/weight input).
+
+3) Past completed workouts MUST remain unchanged even if trainer edits the plan later.
+   This must reuse our existing “soft-delete future only” approach:
+   - Plans/templates change future sessions only
+   - Completed workout logs remain preserved
+
+DATA MODEL:
+A) Plan side (editable by trainer):
+- workout_plan_exercises: id, cycle_id/day_id, exercise_name, order_index, is_deleted, created_at, updated_at
+- workout_plan_sets: id, plan_exercise_id, set_number, target_reps, target_weight, is_deleted, created_at, updated_at
+
+B) Completed side (immutable history):
+- workout_logs: id, member_id, gym_id, date, cycle_id/day_id, completed_at
+- workout_log_exercises: id, workout_log_id, exercise_name, order_index
+- workout_log_sets: id, workout_log_exercise_id, set_number, actual_reps, actual_weight, completed
+
+MIGRATION:
+- For existing plan exercises that store sets/reps/weight as one row:
+  auto-create workout_plan_sets repeating same target values per set.
+
+API:
+Trainer:
+- CRUD plan sets per exercise (add/edit/remove/reorder sets) -> affects plan only, future only
+
+Member:
+- GET today’s workout -> returns plan exercises + plan sets + any existing workout_log_sets for that date
+- POST/PATCH actual set values for the selected date (writes to workout_logs tables)
+- "Mark Day as Done" finalizes workout_logs entry
+
+UI CHANGES:
+Trainer Workout Editor:
+- For each exercise, add “Edit Sets” mode:
+  show table rows Set # / Target reps / Target weight
+  add/remove set buttons
+  quick fill: 3x10x10 -> generates 3 rows
+
+Member Dashboard workout card:
+- Replace single input fields with per-set rows:
+  each set row shows target and input boxes for actual reps + actual weight
+- Add buttons:
+  “Copy target to actual”
+  “Same as previous set”
+  “Add extra set”
+
+IMPORTANT:
+- Do not break current workout cycle pages.
+- Maintain soft-delete behavior: plan edits affect future only; completed workouts remain preserved.

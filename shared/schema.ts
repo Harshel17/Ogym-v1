@@ -202,6 +202,53 @@ export const workoutCompletions = pgTable("workout_completions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Per-set targets for workout items (trainer defines different reps/weight per set)
+export const workoutPlanSets = pgTable("workout_plan_sets", {
+  id: serial("id").primaryKey(),
+  workoutItemId: integer("workout_item_id").references(() => workoutItems.id).notNull(),
+  setNumber: integer("set_number").notNull(), // 1, 2, 3, etc.
+  targetReps: integer("target_reps").notNull(),
+  targetWeight: text("target_weight"), // e.g., "10kg", "bodyweight"
+  isDeleted: boolean("is_deleted").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Workout session log (one per member per date)
+export const workoutLogs = pgTable("workout_logs", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  cycleId: integer("cycle_id").references(() => workoutCycles.id),
+  dayIndex: integer("day_index").notNull(),
+  completedDate: text("completed_date").notNull(), // YYYY-MM-DD
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Exercises within a workout log (immutable history)
+export const workoutLogExercises = pgTable("workout_log_exercises", {
+  id: serial("id").primaryKey(),
+  workoutLogId: integer("workout_log_id").references(() => workoutLogs.id).notNull(),
+  workoutItemId: integer("workout_item_id").references(() => workoutItems.id), // Reference to plan exercise
+  exerciseName: text("exercise_name").notNull(),
+  muscleType: text("muscle_type"),
+  bodyPart: text("body_part"),
+  orderIndex: integer("order_index").default(0),
+});
+
+// Per-set actuals logged by member (immutable history)
+export const workoutLogSets = pgTable("workout_log_sets", {
+  id: serial("id").primaryKey(),
+  logExerciseId: integer("log_exercise_id").references(() => workoutLogExercises.id).notNull(),
+  setNumber: integer("set_number").notNull(),
+  targetReps: integer("target_reps"), // Snapshot of plan target at time of logging
+  targetWeight: text("target_weight"), // Snapshot of plan target at time of logging
+  actualReps: integer("actual_reps"),
+  actualWeight: text("actual_weight"),
+  completed: boolean("completed").default(false),
+});
+
 export const memberRestDaySwaps = pgTable("member_rest_day_swaps", {
   id: serial("id").primaryKey(),
   gymId: integer("gym_id").references(() => gyms.id).notNull(),
@@ -603,6 +650,10 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true,
 export const insertWorkoutCycleSchema = createInsertSchema(workoutCycles).omit({ id: true, createdAt: true });
 export const insertWorkoutItemSchema = createInsertSchema(workoutItems).omit({ id: true });
 export const insertWorkoutCompletionSchema = createInsertSchema(workoutCompletions).omit({ id: true, createdAt: true });
+export const insertWorkoutPlanSetSchema = createInsertSchema(workoutPlanSets).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertWorkoutLogSchema = createInsertSchema(workoutLogs).omit({ id: true, createdAt: true });
+export const insertWorkoutLogExerciseSchema = createInsertSchema(workoutLogExercises).omit({ id: true });
+export const insertWorkoutLogSetSchema = createInsertSchema(workoutLogSets).omit({ id: true });
 export const insertMemberRestDaySwapSchema = createInsertSchema(memberRestDaySwaps).omit({ id: true, createdAt: true });
 export const insertMemberRequestSchema = createInsertSchema(memberRequests).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertGymHistorySchema = createInsertSchema(gymHistory).omit({ id: true });
@@ -649,6 +700,10 @@ export type Payment = typeof payments.$inferSelect;
 export type WorkoutCycle = typeof workoutCycles.$inferSelect;
 export type WorkoutItem = typeof workoutItems.$inferSelect;
 export type WorkoutCompletion = typeof workoutCompletions.$inferSelect;
+export type WorkoutPlanSet = typeof workoutPlanSets.$inferSelect;
+export type WorkoutLog = typeof workoutLogs.$inferSelect;
+export type WorkoutLogExercise = typeof workoutLogExercises.$inferSelect;
+export type WorkoutLogSet = typeof workoutLogSets.$inferSelect;
 export type MemberRestDaySwap = typeof memberRestDaySwaps.$inferSelect;
 export type MemberRequest = typeof memberRequests.$inferSelect;
 export type GymHistory = typeof gymHistory.$inferSelect;
@@ -669,6 +724,10 @@ export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type InsertWorkoutCycle = z.infer<typeof insertWorkoutCycleSchema>;
 export type InsertWorkoutItem = z.infer<typeof insertWorkoutItemSchema>;
 export type InsertWorkoutCompletion = z.infer<typeof insertWorkoutCompletionSchema>;
+export type InsertWorkoutPlanSet = z.infer<typeof insertWorkoutPlanSetSchema>;
+export type InsertWorkoutLog = z.infer<typeof insertWorkoutLogSchema>;
+export type InsertWorkoutLogExercise = z.infer<typeof insertWorkoutLogExerciseSchema>;
+export type InsertWorkoutLogSet = z.infer<typeof insertWorkoutLogSetSchema>;
 export type InsertMemberRestDaySwap = z.infer<typeof insertMemberRestDaySwapSchema>;
 export type InsertMemberRequest = z.infer<typeof insertMemberRequestSchema>;
 export type InsertGymHistory = z.infer<typeof insertGymHistorySchema>;
