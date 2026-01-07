@@ -4431,16 +4431,16 @@ export class DatabaseStorage implements IStorage {
       memberSubMap.set(item.memberId, list);
     }
     
-    // Classify members: if ANY subscription is active, member is active; otherwise ended
+    // Classify members based on subscription endDate vs today (not stored status)
     const activeMembers: { id: number; username: string; publicId: string | null; planName: string | null; startDate: string | null; endDate: string | null; trainerName: string | null }[] = [];
     const endedMembers: { id: number; username: string; publicId: string | null; planName: string | null; startDate: string | null; endDate: string | null; reason: string }[] = [];
     
     for (const [memberId, subs] of memberSubMap) {
-      // Sort subscriptions by startDate descending to get most recent first
-      const sortedSubs = [...subs].sort((a, b) => (b.subStartDate || '').localeCompare(a.subStartDate || ''));
+      // Sort subscriptions by endDate descending to get most recent first
+      const sortedSubs = [...subs].sort((a, b) => (b.subEndDate || '').localeCompare(a.subEndDate || ''));
       
-      // Check ALL subscriptions for active status (not just first)
-      const activeSub = sortedSubs.find(s => s.subStatus === 'active' || s.subStatus === 'endingSoon');
+      // Check if ANY subscription's endDate is >= today (not expired)
+      const activeSub = sortedSubs.find(s => s.subEndDate && s.subEndDate >= today);
       
       if (activeSub) {
         activeMembers.push({
@@ -4455,17 +4455,16 @@ export class DatabaseStorage implements IStorage {
       } else if (sortedSubs.length > 0) {
         // No active subscription - use most recent subscription (already sorted)
         const latestSub = sortedSubs[0];
-        if (latestSub.subStatus === 'ended' || latestSub.subStatus === 'cancelled' || latestSub.subStatus === 'overdue') {
-          endedMembers.push({
-            id: latestSub.memberId!,
-            username: latestSub.memberUsername || '',
-            publicId: latestSub.memberPublicId,
-            planName: latestSub.planName,
-            startDate: latestSub.subStartDate,
-            endDate: latestSub.subEndDate,
-            reason: latestSub.subStatus === 'cancelled' ? 'Cancelled' : latestSub.subStatus === 'overdue' ? 'Overdue' : 'Expired'
-          });
-        }
+        // All subscriptions have expired
+        endedMembers.push({
+          id: latestSub.memberId!,
+          username: latestSub.memberUsername || '',
+          publicId: latestSub.memberPublicId,
+          planName: latestSub.planName,
+          startDate: latestSub.subStartDate,
+          endDate: latestSub.subEndDate,
+          reason: latestSub.subStatus === 'cancelled' ? 'Cancelled' : 'Expired'
+        });
       }
     }
     
@@ -4530,11 +4529,10 @@ export class DatabaseStorage implements IStorage {
       const endedMembersSet = new Set<number>();
       
       for (const [memberId, subs] of memberSubMap) {
-        // Check if member had an active subscription at month end
+        // Check if member had an active subscription at month end (endDate >= monthEnd)
         const hadActive = subs.some(s => 
           (s.subStartDate || '') <= monthEnd && 
-          (s.subEndDate === null || s.subEndDate >= monthEnd) &&
-          (s.subStatus === 'active' || s.subStatus === 'endingSoon')
+          (s.subEndDate === null || s.subEndDate >= monthEnd)
         );
         
         if (hadActive) {
