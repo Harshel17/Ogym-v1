@@ -22,6 +22,8 @@ type MemberProfile = {
   createdAt: string;
   trainer: { id: number; publicId: string; username: string } | null;
   cycle: { id: number; name: string; endDate: string } | null;
+  membershipStatus: 'active' | 'inactive' | 'expired';
+  subscriptionEndDate: string | null;
   profile: {
     fullName: string;
     gender: string;
@@ -229,6 +231,24 @@ export default function OwnerMemberDetailPage() {
                   <p className="text-sm text-muted-foreground">Current Cycle</p>
                   <p className="font-medium">{profile?.cycle?.name || "None"}</p>
                 </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <Badge 
+                    variant={profile?.membershipStatus === 'active' ? 'default' : profile?.membershipStatus === 'expired' ? 'destructive' : 'secondary'}
+                    className="capitalize"
+                    data-testid="badge-membership-status"
+                  >
+                    {profile?.membershipStatus || 'Inactive'}
+                  </Badge>
+                </div>
+                {profile?.subscriptionEndDate && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Expires On</p>
+                    <p className="font-medium" data-testid="text-expires-on">
+                      {format(new Date(profile.subscriptionEndDate), "dd MMM yyyy")}
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

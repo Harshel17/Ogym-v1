@@ -2393,6 +2393,24 @@ export class DatabaseStorage implements IStorage {
     const stats = await this.getMemberStats(memberId);
     
     const [userProfile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, memberId));
+    
+    const [subscription] = await db.select().from(memberSubscriptions)
+      .where(eq(memberSubscriptions.memberId, memberId))
+      .orderBy(desc(memberSubscriptions.endDate))
+      .limit(1);
+    
+    let membershipStatus: 'active' | 'inactive' | 'expired' = 'inactive';
+    let subscriptionEndDate: string | null = null;
+    
+    if (subscription) {
+      subscriptionEndDate = subscription.endDate;
+      const today = new Date().toISOString().split('T')[0];
+      if (subscription.endDate < today) {
+        membershipStatus = 'expired';
+      } else {
+        membershipStatus = 'active';
+      }
+    }
 
     return {
       id: member.id,
@@ -2407,6 +2425,8 @@ export class DatabaseStorage implements IStorage {
       cycle: cycle ? { id: cycle.id, name: cycle.name, endDate: cycle.endDate } : null,
       gymHistory: history,
       stats,
+      membershipStatus,
+      subscriptionEndDate,
       profile: userProfile ? {
         fullName: userProfile.fullName,
         gender: userProfile.gender,
