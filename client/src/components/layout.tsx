@@ -364,40 +364,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
            </div>
         </header>
         
-        <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-8">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 md:pb-8">
           {children}
         </div>
       </main>
 
       {/* Mobile Bottom Tab Bar */}
-      <nav 
-        className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30"
-        style={{ 
-          height: 'calc(72px + env(safe-area-inset-bottom))',
-          paddingBottom: 'env(safe-area-inset-bottom)'
-        }}
-      >
-        <div className="flex justify-around items-center h-[72px]">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 pb-safe">
+        <div className="flex justify-around items-center h-16">
           {mobileTabItems.map((item) => {
             const isActive = location === item.href || 
               (item.href !== "/" && location.startsWith(item.href));
             return (
               <Link key={item.href} href={item.href}>
                 <div 
-                  className={`relative flex flex-col items-center justify-center px-3 py-2 cursor-pointer transition-colors ${
+                  className={`relative flex flex-col items-center justify-center min-w-[56px] py-2 cursor-pointer transition-colors ${
                     isActive ? "text-primary" : "text-muted-foreground"
                   }`}
                   data-testid={`tab-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <div className="relative">
-                    <item.icon className={`w-6 h-6 mb-1 ${isActive ? "stroke-[2.5]" : ""}`} />
+                    <item.icon className={`w-5 h-5 ${isActive ? "stroke-[2.5]" : ""}`} />
                     {(item.badge ?? 0) > 0 && (
-                      <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+                      <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
                         {(item.badge ?? 0) > 99 ? '99+' : item.badge}
                       </span>
                     )}
                   </div>
-                  <span className={`text-[11px] font-medium ${isActive ? "font-semibold" : ""}`}>{item.label}</span>
+                  <span className={`text-[10px] mt-1 ${isActive ? "font-semibold" : "font-medium"}`}>{item.label}</span>
                 </div>
               </Link>
             );
