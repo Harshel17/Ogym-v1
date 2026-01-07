@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -14,6 +14,10 @@ export const gyms = pgTable("gyms", {
   city: text("city"),
   state: text("state"),
   country: text("country").default("India"),
+  timings: text("timings"),
+  gymType: text("gym_type", { enum: ["men", "women", "unisex"] }),
+  facilities: text("facilities"),
+  onboardingData: jsonb("onboarding_data"),
   ownerUserId: integer("owner_user_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -79,6 +83,7 @@ export const userProfiles = pgTable("user_profiles", {
   dob: text("dob").notNull(),
   age: integer("age"),
   address: text("address"),
+  emergencyContact: text("emergency_contact"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

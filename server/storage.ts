@@ -247,6 +247,50 @@ export interface IStorage {
   getFullMemberProfile(memberId: number): Promise<any>;
   getTrainerProfile(trainerId: number): Promise<any>;
   
+  // Enhanced Member Profile
+  getEnhancedMemberProfile(memberId: number): Promise<{
+    id: number;
+    publicId: string | null;
+    username: string;
+    email: string | null;
+    phone: string | null;
+    role: string;
+    createdAt: Date | null;
+    gym: { id: number; name: string } | null;
+    trainer: { id: number; username: string } | null;
+    cycle: { id: number; name: string } | null;
+    subscription: { status: 'active' | 'expired' | 'none'; endDate: string | null; planName: string | null } | null;
+    profile: { fullName: string; gender: string; dob: string; address: string | null; emergencyContact: string | null } | null;
+  }>;
+  updateMemberProfileDetails(memberId: number, data: { phone?: string; address?: string; emergencyContact?: string }): Promise<void>;
+  
+  // Enhanced Owner Profile
+  getEnhancedOwnerProfile(ownerId: number): Promise<{
+    id: number;
+    publicId: string | null;
+    username: string;
+    email: string | null;
+    phone: string | null;
+    role: string;
+    createdAt: Date | null;
+    gym: {
+      id: number;
+      name: string;
+      code: string;
+      phone: string | null;
+      address: string | null;
+      city: string | null;
+      state: string | null;
+      country: string | null;
+      timings: string | null;
+      gymType: string | null;
+      facilities: string | null;
+      createdAt: Date | null;
+      onboardingData: any;
+    } | null;
+  }>;
+  updateOwnerProfile(ownerId: number, gymId: number, data: { phone?: string; address?: string; timings?: string }): Promise<void>;
+  
   // User Profiles (Onboarding)
   getUserProfile(userId: number): Promise<UserProfile | null>;
   createOrUpdateUserProfile(userId: number, data: { fullName: string; phone: string; gender: string; dob: string; age?: number; address?: string }): Promise<UserProfile>;
@@ -2398,6 +2442,164 @@ export class DatabaseStorage implements IStorage {
         isStar: starMemberIds.has(m.id)
       }))
     };
+  }
+
+  // === Enhanced Profile Methods ===
+  async getEnhancedMemberProfile(memberId: number): Promise<{
+    id: number;
+    publicId: string | null;
+    username: string;
+    email: string | null;
+    phone: string | null;
+    role: string;
+    createdAt: Date | null;
+    gym: { id: number; name: string } | null;
+    trainer: { id: number; username: string } | null;
+    cycle: { id: number; name: string } | null;
+    subscription: { status: 'active' | 'expired' | 'none'; endDate: string | null; planName: string | null } | null;
+    profile: { fullName: string; gender: string; dob: string; address: string | null; emergencyContact: string | null } | null;
+  }> {
+    const [member] = await db.select().from(users).where(eq(users.id, memberId));
+    if (!member) throw new Error("Member not found");
+
+    let gym = null;
+    if (member.gymId) {
+      const [g] = await db.select().from(gyms).where(eq(gyms.id, member.gymId));
+      gym = g ? { id: g.id, name: g.name } : null;
+    }
+
+    const [assignment] = await db.select().from(trainerMembers).where(eq(trainerMembers.memberId, memberId));
+    let trainer = null;
+    if (assignment) {
+      const [t] = await db.select().from(users).where(eq(users.id, assignment.trainerId));
+      trainer = t ? { id: t.id, username: t.username } : null;
+    }
+
+    const cycle = await this.getMemberCycle(memberId);
+    
+    let subscription: { status: 'active' | 'expired' | 'none'; endDate: string | null; planName: string | null } = { status: 'none', endDate: null, planName: null };
+    if (member.gymId) {
+      const [sub] = await db.select().from(memberSubscriptions).where(eq(memberSubscriptions.memberId, memberId));
+      if (sub) {
+        const today = new Date().toISOString().split('T')[0];
+        const isActive = sub.endDate && sub.endDate >= today;
+        const [plan] = sub.membershipPlanId ? await db.select().from(membershipPlans).where(eq(membershipPlans.id, sub.membershipPlanId)) : [null];
+        subscription = {
+          status: isActive ? 'active' : 'expired',
+          endDate: sub.endDate,
+          planName: plan?.name || null
+        };
+      }
+    }
+
+    const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, memberId));
+
+    return {
+      id: member.id,
+      publicId: member.publicId,
+      username: member.username,
+      email: member.email,
+      phone: member.phone,
+      role: member.role,
+      createdAt: member.createdAt,
+      gym,
+      trainer,
+      cycle: cycle ? { id: cycle.id, name: cycle.name } : null,
+      subscription,
+      profile: profile ? {
+        fullName: profile.fullName,
+        gender: profile.gender,
+        dob: profile.dob,
+        address: profile.address,
+        emergencyContact: profile.emergencyContact
+      } : null
+    };
+  }
+
+  async updateMemberProfileDetails(memberId: number, data: { phone?: string; address?: string; emergencyContact?: string }): Promise<void> {
+    if (data.phone !== undefined) {
+      await db.update(users).set({ phone: data.phone }).where(eq(users.id, memberId));
+    }
+    const [existingProfile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, memberId));
+    if (existingProfile) {
+      await db.update(userProfiles).set({
+        address: data.address !== undefined ? data.address : existingProfile.address,
+        emergencyContact: data.emergencyContact !== undefined ? data.emergencyContact : existingProfile.emergencyContact,
+        updatedAt: new Date()
+      }).where(eq(userProfiles.userId, memberId));
+    }
+  }
+
+  async getEnhancedOwnerProfile(ownerId: number): Promise<{
+    id: number;
+    publicId: string | null;
+    username: string;
+    email: string | null;
+    phone: string | null;
+    role: string;
+    createdAt: Date | null;
+    gym: {
+      id: number;
+      name: string;
+      code: string;
+      phone: string | null;
+      address: string | null;
+      city: string | null;
+      state: string | null;
+      country: string | null;
+      timings: string | null;
+      gymType: string | null;
+      facilities: string | null;
+      createdAt: Date | null;
+      onboardingData: any;
+    } | null;
+  }> {
+    const [owner] = await db.select().from(users).where(eq(users.id, ownerId));
+    if (!owner) throw new Error("Owner not found");
+
+    let gym = null;
+    if (owner.gymId) {
+      const [g] = await db.select().from(gyms).where(eq(gyms.id, owner.gymId));
+      gym = g ? {
+        id: g.id,
+        name: g.name,
+        code: g.code,
+        phone: g.phone,
+        address: g.address,
+        city: g.city,
+        state: g.state,
+        country: g.country,
+        timings: g.timings,
+        gymType: g.gymType,
+        facilities: g.facilities,
+        createdAt: g.createdAt,
+        onboardingData: g.onboardingData
+      } : null;
+    }
+
+    return {
+      id: owner.id,
+      publicId: owner.publicId,
+      username: owner.username,
+      email: owner.email,
+      phone: owner.phone,
+      role: owner.role,
+      createdAt: owner.createdAt,
+      gym
+    };
+  }
+
+  async updateOwnerProfile(ownerId: number, gymId: number, data: { phone?: string; address?: string; timings?: string }): Promise<void> {
+    if (data.phone !== undefined) {
+      await db.update(users).set({ phone: data.phone }).where(eq(users.id, ownerId));
+    }
+    const gymUpdate: Record<string, any> = {};
+    if (data.address !== undefined) gymUpdate.address = data.address;
+    if (data.timings !== undefined) gymUpdate.timings = data.timings;
+    
+    if (Object.keys(gymUpdate).length > 0) {
+      await db.update(gyms).set(gymUpdate).where(eq(gyms.id, gymId));
+    }
   }
 
   // === Gym History Methods ===
