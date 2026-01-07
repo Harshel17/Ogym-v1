@@ -1,10 +1,33 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getTimezoneHeaders } from "./timezone";
 
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
+function getNetworkErrorMessage(error: unknown): string {
+  if (error instanceof TypeError && error.message === "Failed to fetch") {
+    if (!navigator.onLine) {
+      return "You appear to be offline. Please check your internet connection.";
+    }
+    return "Unable to connect to the server. Please try again.";
+  }
+  return (error as Error).message || "An unexpected error occurred.";
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const friendlyMessages: Record<number, string> = {
+      400: "Invalid request. Please check your input.",
+      401: "Please log in to continue.",
+      403: "You don't have permission to do this.",
+      404: "The requested resource was not found.",
+      429: "Too many requests. Please wait and try again.",
+      500: "Server error. Please try again later.",
+      502: "Server is temporarily unavailable. Please try again.",
+      503: "Service unavailable. Please try again later.",
+    };
+    const message = friendlyMessages[res.status] || text;
+    throw new Error(message);
   }
 }
 
@@ -18,15 +41,19 @@ export async function apiRequest(
     ...(data ? { "Content-Type": "application/json" } : {})
   };
   
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
+  try {
+    const res = await fetch(`${API_BASE_URL}${url}`, {
+      method,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+    });
 
-  await throwIfResNotOk(res);
-  return res;
+    await throwIfResNotOk(res);
+    return res;
+  } catch (error) {
+    throw new Error(getNetworkErrorMessage(error));
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -35,17 +62,22 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
-      credentials: "include",
-      headers: getTimezoneHeaders()
-    });
+    try {
+      const url = `${API_BASE_URL}${queryKey.join("/")}`;
+      const res = await fetch(url, {
+        credentials: "include",
+        headers: getTimezoneHeaders()
+      });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+        return null;
+      }
+
+      await throwIfResNotOk(res);
+      return await res.json();
+    } catch (error) {
+      throw new Error(getNetworkErrorMessage(error));
     }
-
-    await throwIfResNotOk(res);
-    return await res.json();
   };
 
 export const queryClient = new QueryClient({
