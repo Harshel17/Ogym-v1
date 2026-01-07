@@ -80,6 +80,8 @@ export default function OwnerMemberAnalyticsPage() {
     enabled: mainTab === 'inactive'
   });
 
+  const { goBack } = useBackNavigation();
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -107,8 +109,6 @@ export default function OwnerMemberAnalyticsPage() {
     if (days === 1) return "1 day";
     return `${days} days`;
   };
-
-  const { goBack } = useBackNavigation();
 
   return (
     <div className="space-y-6">

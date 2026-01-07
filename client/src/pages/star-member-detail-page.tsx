@@ -178,6 +178,8 @@ export default function StarMemberDetailPage() {
     }
   });
 
+  const { goBack } = useBackNavigation();
+
   if (user?.role !== "trainer") {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] text-center">
@@ -195,8 +197,6 @@ export default function StarMemberDetailPage() {
       </div>
     );
   }
-
-  const { goBack } = useBackNavigation();
 
   if (memberError || !memberInfo) {
     return (

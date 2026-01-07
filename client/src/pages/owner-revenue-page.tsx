@@ -51,6 +51,8 @@ export default function OwnerRevenuePage() {
   const goToNextMonth = () => setSelectedDate(addMonths(selectedDate, 1));
   const isCurrentMonth = format(selectedDate, 'yyyy-MM') === format(new Date(), 'yyyy-MM');
 
+  const { goBack } = useBackNavigation();
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -58,8 +60,6 @@ export default function OwnerRevenuePage() {
       </div>
     );
   }
-
-  const { goBack } = useBackNavigation();
 
   return (
     <div className="space-y-6">
