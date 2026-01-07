@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
-import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout, useMemberProfile, useShareWorkout, useSwapRestDay, useUndoRestDaySwap } from "@/hooks/use-workouts";
+import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout, useMemberProfile, useShareWorkout, useSwapRestDay, useUndoRestDaySwap, useLogWorkoutSets } from "@/hooks/use-workouts";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { Link, useLocation } from "wouter";
@@ -603,10 +604,14 @@ type WorkoutSummary = {
   calendarDays: { date: string; focusLabel: string }[];
 };
 
+type PerSetInput = { reps: string; weight: string; targetReps: number; targetWeight: string };
+
 function MemberDashboard() {
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [exerciseInputs, setExerciseInputs] = useState<Record<number, { sets: string; reps: string; weight: string }>>({});
+  const [perSetInputs, setPerSetInputs] = useState<Record<number, { sameForAll: boolean; setInputs: PerSetInput[] }>>({});
+  const [loadingPlanSets, setLoadingPlanSets] = useState<number | null>(null);
   const [showMarkDoneDialog, setShowMarkDoneDialog] = useState(false);
   const [shareableAchievements, setShareableAchievements] = useState<{ type: string; label: string; metadata: Record<string, unknown> }[]>([]);
   const [currentAchievementIndex, setCurrentAchievementIndex] = useState(0);
@@ -629,6 +634,7 @@ function MemberDashboard() {
   
   const completeAllMutation = useCompleteAllWorkouts(handleAskToShare);
   const completeWorkoutMutation = useCompleteWorkout();
+  const logWorkoutSetsMutation = useLogWorkoutSets();
   const shareWorkoutMutation = useShareWorkout();
   const swapRestDayMutation = useSwapRestDay();
   const undoSwapMutation = useUndoRestDaySwap();
@@ -703,15 +709,131 @@ function MemberDashboard() {
     }));
   };
 
-  const handleCompleteExercise = (item: any) => {
-    const inputs = exerciseInputs[item.id] || {};
-    completeWorkoutMutation.mutate({
-      workoutItemId: item.id,
-      actualSets: inputs.sets ? parseInt(inputs.sets) : item.sets,
-      actualReps: inputs.reps ? parseInt(inputs.reps) : item.reps,
-      actualWeight: inputs.weight || item.weight || undefined
+  const initializePerSetInputs = async (itemId: number, numSets: number, defaultReps: number, defaultWeight: string) => {
+    if (perSetInputs[itemId]) return;
+    
+    setLoadingPlanSets(itemId);
+    try {
+      const res = await fetch(`/api/workouts/items/${itemId}/plan-sets`, { credentials: 'include' });
+      const planSets = res.ok ? await res.json() : [];
+      const sortedPlanSets = [...planSets].sort((a: any, b: any) => a.setNumber - b.setNumber);
+      
+      const setInputs = sortedPlanSets.length > 0
+        ? sortedPlanSets.map((ps: any) => ({
+            reps: String(ps.reps),
+            weight: ps.weight || '',
+            targetReps: ps.reps,
+            targetWeight: ps.weight || ''
+          }))
+        : Array.from({ length: numSets }, () => ({
+            reps: String(defaultReps),
+            weight: defaultWeight || '',
+            targetReps: defaultReps,
+            targetWeight: defaultWeight || ''
+          }));
+      
+      setPerSetInputs(prev => ({
+        ...prev,
+        [itemId]: { sameForAll: true, setInputs }
+      }));
+    } catch {
+      setPerSetInputs(prev => ({
+        ...prev,
+        [itemId]: {
+          sameForAll: true,
+          setInputs: Array.from({ length: numSets }, () => ({
+            reps: String(defaultReps),
+            weight: defaultWeight || '',
+            targetReps: defaultReps,
+            targetWeight: defaultWeight || ''
+          }))
+        }
+      }));
+    } finally {
+      setLoadingPlanSets(null);
+    }
+  };
+
+  const handleExpandItem = (item: any) => {
+    if (expandedItem === item.id) {
+      setExpandedItem(null);
+    } else {
+      setExpandedItem(item.id);
+      initializePerSetInputs(item.id, item.sets, item.reps, item.weight || '');
+    }
+  };
+
+  const toggleSameForAll = (itemId: number, value: boolean, item: any) => {
+    setPerSetInputs(prev => {
+      const current = prev[itemId] || { sameForAll: true, setInputs: [] };
+      const inputs = exerciseInputs[itemId] || { sets: String(item.sets), reps: String(item.reps), weight: item.weight || '' };
+      
+      if (value) {
+        // Switching to same-for-all: sync all set inputs with the uniform values
+        return {
+          ...prev,
+          [itemId]: {
+            sameForAll: true,
+            setInputs: current.setInputs.map(si => ({
+              ...si,
+              reps: inputs.reps || String(si.targetReps),
+              weight: inputs.weight || si.targetWeight
+            }))
+          }
+        };
+      }
+      // Switching to per-set mode: populate per-set entries with latest uniform values
+      return {
+        ...prev,
+        [itemId]: {
+          sameForAll: false,
+          setInputs: current.setInputs.map(si => ({
+            ...si,
+            reps: inputs.reps || String(si.targetReps),
+            weight: inputs.weight || si.targetWeight
+          }))
+        }
+      };
     });
-    setExpandedItem(null);
+  };
+
+  const updatePerSetInput = (itemId: number, setIndex: number, field: 'reps' | 'weight', value: string) => {
+    setPerSetInputs(prev => {
+      const current = prev[itemId];
+      if (!current) return prev;
+      const newSetInputs = [...current.setInputs];
+      newSetInputs[setIndex] = { ...newSetInputs[setIndex], [field]: value };
+      return { ...prev, [itemId]: { ...current, setInputs: newSetInputs } };
+    });
+  };
+
+  const handleCompleteExercise = (item: any) => {
+    const perSet = perSetInputs[item.id];
+    
+    if (perSet && !perSet.sameForAll && perSet.setInputs.length > 0) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const sets = perSet.setInputs.map((setInput, idx) => ({
+        setNumber: idx + 1,
+        targetReps: setInput.targetReps,
+        targetWeight: setInput.targetWeight || null,
+        actualReps: parseInt(setInput.reps) || setInput.targetReps || item.reps,
+        actualWeight: setInput.weight || setInput.targetWeight || item.weight || null,
+        completed: true
+      }));
+      
+      logWorkoutSetsMutation.mutate({ workoutItemId: item.id, date: todayStr, sets }, {
+        onSuccess: () => setExpandedItem(null)
+      });
+    } else {
+      const inputs = exerciseInputs[item.id] || {};
+      completeWorkoutMutation.mutate({
+        workoutItemId: item.id,
+        actualSets: inputs.sets ? parseInt(inputs.sets) : item.sets,
+        actualReps: inputs.reps ? parseInt(inputs.reps) : item.reps,
+        actualWeight: inputs.weight || item.weight || undefined
+      });
+      setExpandedItem(null);
+    }
   };
 
   const handleQuickComplete = (item: any) => {
@@ -856,7 +978,7 @@ function MemberDashboard() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => setExpandedItem(isExpanded ? null : item.id)}
+                              onClick={() => handleExpandItem(item)}
                               data-testid={`button-expand-${item.id}`}
                             >
                               {isExpanded ? (
@@ -870,52 +992,116 @@ function MemberDashboard() {
                         
                         {isExpanded && !item.completed && (
                           <div className="px-3 pb-3 pt-0 space-y-3 border-t border-border/50 mt-1">
-                            <p className="text-xs text-muted-foreground pt-2">Log your actual performance:</p>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div>
-                                <label className="text-xs text-muted-foreground mb-1 block">Sets</label>
-                                <Input
-                                  type="number"
-                                  placeholder={String(item.sets)}
-                                  value={inputs.sets || ''}
-                                  onChange={(e) => handleInputChange(item.id, 'sets', e.target.value)}
-                                  className="h-9"
-                                  data-testid={`input-sets-${item.id}`}
-                                />
+                            {(loadingPlanSets === item.id || !perSetInputs[item.id]) ? (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                                <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
                               </div>
-                              <div>
-                                <label className="text-xs text-muted-foreground mb-1 block">Reps</label>
-                                <Input
-                                  type="number"
-                                  placeholder={String(item.reps)}
-                                  value={inputs.reps || ''}
-                                  onChange={(e) => handleInputChange(item.id, 'reps', e.target.value)}
-                                  className="h-9"
-                                  data-testid={`input-reps-${item.id}`}
-                                />
-                              </div>
-                              <div>
-                                <label className="text-xs text-muted-foreground mb-1 block">Weight</label>
-                                <Input
-                                  type="text"
-                                  placeholder={item.weight || '-'}
-                                  value={inputs.weight || ''}
-                                  onChange={(e) => handleInputChange(item.id, 'weight', e.target.value)}
-                                  className="h-9"
-                                  data-testid={`input-weight-${item.id}`}
-                                />
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              className="w-full"
-                              onClick={() => handleCompleteExercise(item)}
-                              disabled={completeWorkoutMutation.isPending}
-                              data-testid={`button-complete-${item.id}`}
-                            >
-                              <CheckCircle2 className="w-4 h-4 mr-2" />
-                              Complete with Custom Values
-                            </Button>
+                            ) : (
+                              <>
+                                <p className="text-xs text-muted-foreground pt-2">Log your actual performance:</p>
+                                
+                                <div className="flex items-center justify-between py-2">
+                                  <span className="text-sm font-medium">Same for all sets</span>
+                                  <Switch 
+                                    checked={perSetInputs[item.id]?.sameForAll ?? true}
+                                    onCheckedChange={(value) => toggleSameForAll(item.id, value, item)}
+                                    data-testid={`switch-same-for-all-${item.id}`}
+                                  />
+                                </div>
+
+                                {(perSetInputs[item.id]?.sameForAll ?? true) ? (
+                                  <div className="grid grid-cols-3 gap-2">
+                                    <div>
+                                      <label className="text-xs text-muted-foreground mb-1 block">Sets</label>
+                                      <Input
+                                        type="number"
+                                        placeholder={String(item.sets)}
+                                        value={inputs.sets || ''}
+                                        onChange={(e) => handleInputChange(item.id, 'sets', e.target.value)}
+                                        className="h-9"
+                                        data-testid={`input-sets-${item.id}`}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs text-muted-foreground mb-1 block">Reps</label>
+                                      <Input
+                                        type="number"
+                                        placeholder={String(item.reps)}
+                                        value={inputs.reps || ''}
+                                        onChange={(e) => handleInputChange(item.id, 'reps', e.target.value)}
+                                        className="h-9"
+                                        data-testid={`input-reps-${item.id}`}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs text-muted-foreground mb-1 block">Weight</label>
+                                      <Input
+                                        type="text"
+                                        placeholder={item.weight || '-'}
+                                        value={inputs.weight || ''}
+                                        onChange={(e) => handleInputChange(item.id, 'weight', e.target.value)}
+                                        className="h-9"
+                                        data-testid={`input-weight-${item.id}`}
+                                      />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2">
+                                    <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground font-medium">
+                                      <div className="col-span-2">Set</div>
+                                      <div className="col-span-3">Target</div>
+                                      <div className="col-span-3">Reps</div>
+                                      <div className="col-span-4">Weight</div>
+                                    </div>
+                                    {(perSetInputs[item.id]?.setInputs || []).map((setInput, idx) => (
+                                      <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                                        <div className="col-span-2 text-sm font-medium text-center">
+                                          {idx + 1}
+                                        </div>
+                                        <div className="col-span-3 text-xs text-muted-foreground">
+                                          {setInput.targetReps}r {setInput.targetWeight && `@ ${setInput.targetWeight}`}
+                                        </div>
+                                        <div className="col-span-3">
+                                          <Input 
+                                            type="number" 
+                                            min={1} 
+                                            value={setInput.reps}
+                                            onChange={(e) => updatePerSetInput(item.id, idx, 'reps', e.target.value)}
+                                            className="h-9"
+                                            data-testid={`input-set-${idx + 1}-reps-${item.id}`}
+                                          />
+                                        </div>
+                                        <div className="col-span-4">
+                                          <Input 
+                                            placeholder="e.g., 50kg"
+                                            value={setInput.weight}
+                                            onChange={(e) => updatePerSetInput(item.id, idx, 'weight', e.target.value)}
+                                            className="h-9"
+                                            data-testid={`input-set-${idx + 1}-weight-${item.id}`}
+                                          />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                <Button
+                                  size="sm"
+                                  className="w-full"
+                                  onClick={() => handleCompleteExercise(item)}
+                                  disabled={completeWorkoutMutation.isPending || logWorkoutSetsMutation.isPending}
+                                  data-testid={`button-complete-${item.id}`}
+                                >
+                                  {(completeWorkoutMutation.isPending || logWorkoutSetsMutation.isPending) ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                                  )}
+                                  Complete with Custom Values
+                                </Button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>

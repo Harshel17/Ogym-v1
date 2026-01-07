@@ -196,19 +196,23 @@ export default function MemberWorkoutPage() {
             sameForAll: true,
             setInputs: current.setInputs.map(si => ({
               ...si,
-              reps: inputs.reps,
-              weight: inputs.weight
+              reps: inputs.reps || String(si.targetReps),
+              weight: inputs.weight || si.targetWeight
             }))
           }
         };
       }
       
-      // Toggling to per-set mode - keep targets from plan sets
+      // Toggling to per-set mode - populate with latest uniform values
       return {
         ...prev,
         [itemId]: {
           sameForAll: false,
-          setInputs: current.setInputs
+          setInputs: current.setInputs.map(si => ({
+            ...si,
+            reps: inputs.reps || String(si.targetReps),
+            weight: inputs.weight || si.targetWeight
+          }))
         }
       };
     });
