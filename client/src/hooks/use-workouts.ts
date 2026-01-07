@@ -332,3 +332,152 @@ export function useDailyPoints(from?: string, to?: string) {
     },
   });
 }
+
+// Per-set workout plan hooks (trainer)
+export type WorkoutPlanSet = {
+  id: number;
+  workoutItemId: number;
+  setNumber: number;
+  targetReps: number;
+  targetWeight: string | null;
+};
+
+export function useWorkoutPlanSets(cycleId: number, itemId: number) {
+  return useQuery<WorkoutPlanSet[]>({
+    queryKey: ['/api/trainer/cycles', cycleId, 'items', itemId, 'sets'],
+    queryFn: async () => {
+      const res = await fetch(`/api/trainer/cycles/${cycleId}/items/${itemId}/sets`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch plan sets');
+      return res.json();
+    },
+    enabled: !!cycleId && !!itemId,
+  });
+}
+
+export function useUpdateWorkoutPlanSets() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { cycleId: number; itemId: number; sets: { setNumber: number; targetReps: number; targetWeight?: string | null }[] }) => {
+      return apiRequest("POST", `/api/trainer/cycles/${data.cycleId}/items/${data.itemId}/sets`, { sets: data.sets });
+    },
+    onSuccess: (_result, data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trainer/cycles'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trainer/cycles', data.cycleId, 'items', data.itemId, 'sets'] });
+      toast({ title: "Saved", description: "Per-set targets updated" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to update per-set targets", variant: "destructive" });
+    },
+  });
+}
+
+// Per-set workout logging hooks (member)
+export type WorkoutLogSet = {
+  id: number;
+  logExerciseId: number;
+  setNumber: number;
+  targetReps: number | null;
+  targetWeight: string | null;
+  actualReps: number | null;
+  actualWeight: string | null;
+  completed: boolean;
+};
+
+export type WorkoutLogExercise = {
+  id: number;
+  workoutLogId: number;
+  workoutItemId: number | null;
+  exerciseName: string;
+  muscleType: string | null;
+  bodyPart: string | null;
+  orderIndex: number | null;
+  sets: WorkoutLogSet[];
+};
+
+export type WorkoutLog = {
+  log: {
+    id: number;
+    gymId: number;
+    memberId: number;
+    cycleId: number | null;
+    dayIndex: number;
+    completedDate: string;
+    completedAt: string | null;
+  };
+  exercises: WorkoutLogExercise[];
+};
+
+export function useMemberPlanSets(itemId: number) {
+  return useQuery<WorkoutPlanSet[]>({
+    queryKey: ['/api/workouts/items', itemId, 'plan-sets'],
+    queryFn: async () => {
+      const res = await fetch(`/api/workouts/items/${itemId}/plan-sets`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch plan sets');
+      return res.json();
+    },
+    enabled: !!itemId,
+  });
+}
+
+export function useWorkoutLog(date: string) {
+  return useQuery<WorkoutLog | null>({
+    queryKey: ['/api/workouts/log', date],
+    queryFn: async () => {
+      const res = await fetch(`/api/workouts/log/${date}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch workout log');
+      return res.json();
+    },
+    enabled: !!date,
+  });
+}
+
+export function useLogWorkoutSets() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { 
+      workoutItemId: number; 
+      date: string;
+      sets: { 
+        setNumber: number; 
+        targetReps?: number; 
+        targetWeight?: string | null; 
+        actualReps?: number; 
+        actualWeight?: string | null;
+        completed: boolean;
+      }[] 
+    }) => {
+      const response = await apiRequest("POST", "/api/workouts/log-sets", data);
+      return response.json();
+    },
+    onSuccess: (_result, data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/log', data.date] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/stats/my'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/daily-points'] });
+      toast({ title: "Logged!", description: "Sets recorded successfully" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to log sets", variant: "destructive" });
+    },
+  });
+}
+
+export function useUpdateLoggedSet() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { setId: number; actualReps?: number; actualWeight?: string | null; completed?: boolean }) => {
+      const { setId, ...updateData } = data;
+      const response = await apiRequest("PATCH", `/api/workouts/log-sets/${setId}`, updateData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/log'] });
+    },
+  });
+}

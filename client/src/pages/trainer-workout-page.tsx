@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useTrainerCycles, useTrainerMembers, useCreateCycle, useAddWorkoutItem, useTrainerActivity, useUpdateDayLabels, useUpdateRestDays } from "@/hooks/use-workouts";
+import { useTrainerCycles, useTrainerMembers, useCreateCycle, useAddWorkoutItem, useTrainerActivity, useUpdateDayLabels, useUpdateRestDays, useWorkoutPlanSets, useUpdateWorkoutPlanSets, type WorkoutPlanSet } from "@/hooks/use-workouts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
