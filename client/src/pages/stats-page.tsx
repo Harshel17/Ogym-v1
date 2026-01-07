@@ -119,6 +119,11 @@ export default function StatsPage() {
 
   const { data: progressSummary } = useQuery<PerSetProgressSummary>({
     queryKey: ["/api/progress/summary", progressRange],
+    queryFn: async () => {
+      const res = await fetch(`/api/progress/summary?range=${progressRange}`);
+      if (!res.ok) throw new Error('Failed to fetch progress summary');
+      return res.json();
+    },
   });
 
   const { data: personalRecords = [] } = useQuery<PersonalRecord[]>({
@@ -131,6 +136,11 @@ export default function StatsPage() {
 
   const { data: exerciseAnalytics } = useQuery<ExerciseAnalytics>({
     queryKey: ["/api/progress/exercise", selectedExercise, exerciseRange],
+    queryFn: async () => {
+      const res = await fetch(`/api/progress/exercise/${encodeURIComponent(selectedExercise)}?range=${exerciseRange}`);
+      if (!res.ok) throw new Error('Failed to fetch exercise analytics');
+      return res.json();
+    },
     enabled: !!selectedExercise,
   });
 
