@@ -53,6 +53,9 @@ export default function OwnerMemberAnalyticsPage() {
   const [includeEnded, setIncludeEnded] = useState(false);
   const [trackingMode, setTrackingMode] = useState<'attendance' | 'workouts'>('attendance');
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Member list search
+  const [memberListSearch, setMemberListSearch] = useState("");
 
   const { data: analytics, isLoading } = useQuery<MemberAnalyticsData>({
     queryKey: ["/api/owner/member-analytics"]
@@ -91,6 +94,30 @@ export default function OwnerMemberAnalyticsPage() {
   }
 
   const counts = analytics?.counts || { active: 0, ended: 0, transferredOut: 0, transferredIn: 0 };
+
+  const filteredActiveMembers = analytics?.activeMembers?.filter(m => 
+    !memberListSearch || 
+    m.username.toLowerCase().includes(memberListSearch.toLowerCase()) ||
+    (m.publicId && m.publicId.toLowerCase().includes(memberListSearch.toLowerCase()))
+  ) || [];
+
+  const filteredEndedMembers = analytics?.endedMembers?.filter(m => 
+    !memberListSearch || 
+    m.username.toLowerCase().includes(memberListSearch.toLowerCase()) ||
+    (m.publicId && m.publicId.toLowerCase().includes(memberListSearch.toLowerCase()))
+  ) || [];
+
+  const filteredTransferredOut = analytics?.transferredOut?.filter(m => 
+    !memberListSearch || 
+    m.username.toLowerCase().includes(memberListSearch.toLowerCase()) ||
+    (m.publicId && m.publicId.toLowerCase().includes(memberListSearch.toLowerCase()))
+  ) || [];
+
+  const filteredTransferredIn = analytics?.transferredIn?.filter(m => 
+    !memberListSearch || 
+    m.username.toLowerCase().includes(memberListSearch.toLowerCase()) ||
+    (m.publicId && m.publicId.toLowerCase().includes(memberListSearch.toLowerCase()))
+  ) || [];
 
   const getStatusBadge = (status: 'active' | 'ended' | 'transferred') => {
     switch (status) {
@@ -251,6 +278,18 @@ export default function OwnerMemberAnalyticsPage() {
               <CardDescription>View members by their current status</CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or member code..."
+                    value={memberListSearch}
+                    onChange={(e) => setMemberListSearch(e.target.value)}
+                    className="pl-9"
+                    data-testid="input-member-list-search"
+                  />
+                </div>
+              </div>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="active" data-testid="tab-active">
@@ -268,7 +307,7 @@ export default function OwnerMemberAnalyticsPage() {
                 </TabsList>
 
                 <TabsContent value="active" className="mt-4">
-                  {analytics?.activeMembers && analytics.activeMembers.length > 0 ? (
+                  {filteredActiveMembers.length > 0 ? (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
@@ -281,7 +320,7 @@ export default function OwnerMemberAnalyticsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {analytics.activeMembers.map((member) => (
+                          {filteredActiveMembers.map((member) => (
                             <TableRow key={member.id} data-testid={`row-active-${member.id}`}>
                               <TableCell className="font-medium">
                                 <Link href={`/owner/members/${member.id}?returnTo=/owner/member-analytics`} className="text-primary hover:underline">
@@ -311,13 +350,13 @@ export default function OwnerMemberAnalyticsPage() {
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       <UserCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No active members</p>
+                      <p>No active members{memberListSearch ? ' matching your search' : ''}</p>
                     </div>
                   )}
                 </TabsContent>
 
                 <TabsContent value="ended" className="mt-4">
-                  {analytics?.endedMembers && analytics.endedMembers.length > 0 ? (
+                  {filteredEndedMembers.length > 0 ? (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
@@ -330,7 +369,7 @@ export default function OwnerMemberAnalyticsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {analytics.endedMembers.map((member) => (
+                          {filteredEndedMembers.map((member) => (
                             <TableRow key={member.id} data-testid={`row-ended-${member.id}`}>
                               <TableCell className="font-medium">
                                 {member.username}
@@ -360,13 +399,13 @@ export default function OwnerMemberAnalyticsPage() {
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       <UserMinus className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No ended subscriptions</p>
+                      <p>No ended subscriptions{memberListSearch ? ' matching your search' : ''}</p>
                     </div>
                   )}
                 </TabsContent>
 
                 <TabsContent value="transferred-out" className="mt-4">
-                  {analytics?.transferredOut && analytics.transferredOut.length > 0 ? (
+                  {filteredTransferredOut.length > 0 ? (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
@@ -377,7 +416,7 @@ export default function OwnerMemberAnalyticsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {analytics.transferredOut.map((member, index) => (
+                          {filteredTransferredOut.map((member, index) => (
                             <TableRow key={`${member.id}-${index}`} data-testid={`row-out-${member.id}`}>
                               <TableCell className="font-medium">
                                 {member.username}
@@ -397,13 +436,13 @@ export default function OwnerMemberAnalyticsPage() {
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       <ArrowRightLeft className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No members transferred out</p>
+                      <p>No members transferred out{memberListSearch ? ' matching your search' : ''}</p>
                     </div>
                   )}
                 </TabsContent>
 
                 <TabsContent value="transferred-in" className="mt-4">
-                  {analytics?.transferredIn && analytics.transferredIn.length > 0 ? (
+                  {filteredTransferredIn.length > 0 ? (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
@@ -414,7 +453,7 @@ export default function OwnerMemberAnalyticsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {analytics.transferredIn.map((member, index) => (
+                          {filteredTransferredIn.map((member, index) => (
                             <TableRow key={`${member.id}-${index}`} data-testid={`row-in-${member.id}`}>
                               <TableCell className="font-medium">
                                 <Link href={`/owner/members/${member.id}`} className="text-primary hover:underline">
@@ -436,7 +475,7 @@ export default function OwnerMemberAnalyticsPage() {
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       <ArrowRightLeft className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No members transferred in</p>
+                      <p>No members transferred in{memberListSearch ? ' matching your search' : ''}</p>
                     </div>
                   )}
                 </TabsContent>
