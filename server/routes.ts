@@ -473,9 +473,10 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Can only mark past dates as attended" });
     }
     
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const minDate = sevenDaysAgo.toISOString().split("T")[0];
+    // Calculate 7 days ago from client's local date
+    const todayDate = new Date(today + 'T00:00:00');
+    todayDate.setDate(todayDate.getDate() - 7);
+    const minDate = todayDate.toISOString().split("T")[0];
     if (input.date < minDate) {
       return res.status(400).json({ message: "Can only mark attendance for the last 7 days" });
     }
@@ -1150,8 +1151,8 @@ export async function registerRoutes(
     // Check for active phase with custom exercises first
     const activePhase = await storage.getActivePhaseForMember(req.user!.id, req.user!.gymId!);
     if (activePhase && activePhase.useCustomExercises) {
-      const today = new Date();
-      const todayStr = today.toISOString().split("T")[0];
+      const todayStr = getLocalDate(req);
+      const today = new Date(todayStr + 'T00:00:00');
       const startDate = new Date(activePhase.startDate);
       const cycleLength = activePhase.cycleLength || 3;
       const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -1197,8 +1198,8 @@ export async function registerRoutes(
     const cycle = await storage.getMemberCycle(req.user!.id);
     if (!cycle) return res.json({ items: [], message: "No active workout cycle" });
     
-    const today = new Date();
-    const todayStr = today.toISOString().split("T")[0];
+    const todayStr = getLocalDate(req);
+    const today = new Date(todayStr + 'T00:00:00');
     const startDate = new Date(cycle.startDate);
     const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     
@@ -2063,13 +2064,13 @@ export async function registerRoutes(
   });
 
   app.get("/api/me/calendar", requireRole(["member"]), async (req, res) => {
-    const month = req.query.month as string || new Date().toISOString().slice(0, 7);
+    const month = req.query.month as string || getLocalDate(req).slice(0, 7);
     const calendar = await storage.getMemberCalendar(req.user!.id, month);
     res.json(calendar);
   });
 
   app.get("/api/me/calendar/enhanced", requireRole(["member"]), async (req, res) => {
-    const month = req.query.month as string || new Date().toISOString().slice(0, 7);
+    const month = req.query.month as string || getLocalDate(req).slice(0, 7);
     const clientToday = req.query.today as string | undefined;
     const calendar = await storage.getMemberCalendarEnhanced(req.user!.gymId!, req.user!.id, month, clientToday);
     res.json(calendar);
@@ -2258,13 +2259,14 @@ export async function registerRoutes(
     const fromStr = req.query.from as string;
     const toStr = req.query.to as string;
     
-    // Default to last 7 days if not provided
-    const today = new Date();
+    // Default to last 7 days if not provided (using client's local date)
+    const todayStr = getLocalDate(req);
+    const today = new Date(todayStr + 'T00:00:00');
     const defaultFrom = new Date(today);
     defaultFrom.setDate(defaultFrom.getDate() - 6);
     
     const from = fromStr || defaultFrom.toISOString().split("T")[0];
-    const to = toStr || today.toISOString().split("T")[0];
+    const to = toStr || todayStr;
     
     const dailyPoints = await storage.getDailyWorkoutPoints(
       req.user!.gymId!,
@@ -3207,7 +3209,7 @@ export async function registerRoutes(
 
   // Revenue Analytics
   app.get("/api/owner/revenue", requireRole(["owner"]), async (req, res) => {
-    const month = (req.query.month as string) || new Date().toISOString().slice(0, 7);
+    const month = (req.query.month as string) || getLocalDate(req).slice(0, 7);
     const revenueData = await storage.getRevenueAnalytics(req.user!.gymId!, month);
     res.json(revenueData);
   });
