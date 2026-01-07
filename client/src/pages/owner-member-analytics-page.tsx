@@ -284,7 +284,7 @@ export default function OwnerMemberAnalyticsPage() {
                           {analytics.activeMembers.map((member) => (
                             <TableRow key={member.id} data-testid={`row-active-${member.id}`}>
                               <TableCell className="font-medium">
-                                <Link href={`/owner/members/${member.id}?returnTo=/member-analytics`} className="text-primary hover:underline">
+                                <Link href={`/owner/members/${member.id}?returnTo=/owner/member-analytics`} className="text-primary hover:underline">
                                   {member.username}
                                 </Link>
                                 {member.publicId && (
@@ -553,7 +553,7 @@ export default function OwnerMemberAnalyticsPage() {
                           <TableCell>
                             <div className="flex flex-col">
                               <Link 
-                                href={`/owner/members/${member.memberId}?returnTo=/member-analytics`} 
+                                href={`/owner/members/${member.memberId}?returnTo=/owner/member-analytics`} 
                                 className="font-medium text-primary hover:underline"
                               >
                                 {member.name}
@@ -591,7 +591,7 @@ export default function OwnerMemberAnalyticsPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              <Link href={`/owner/members/${member.memberId}?returnTo=/member-analytics`}>
+                              <Link href={`/owner/members/${member.memberId}?returnTo=/owner/member-analytics`}>
                                 <Button 
                                   size="icon" 
                                   variant="ghost" 
