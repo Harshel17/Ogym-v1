@@ -1,0 +1,102 @@
+🔍 OGym Final Production Readiness Verification (Single Response Required)
+
+Please answer ALL questions below in ONE response, with exact file paths, line numbers, and code snippets where applicable. This is for final production sign-off before onboarding real gyms.
+
+1️⃣ Database Indexes & Migrations (CRITICAL)
+
+Show the exact migration file(s) that created the following indexes:
+
+attendance_gym_date_idx
+
+attendance_member_date_idx
+
+workout_completions_member_date_idx
+
+workout_completions_gym_date_idx
+
+payments_gym_updated_at_idx
+
+feed_posts_gym_created_at_idx
+Include file names and full contents.
+
+Confirm:
+
+Which command was used (drizzle-kit generate, drizzle-kit migrate, etc.).
+
+Where migrations are tracked (e.g., __drizzle_migrations table).
+
+Show a SQL query proving migrations were applied.
+
+If deployed to a fresh Railway database, explain exactly how these indexes will be created automatically (commands + order).
+
+2️⃣ Session & Cookie Security (VERY IMPORTANT)
+
+Paste the exact session configuration block from the codebase (file + line numbers), including:
+
+secure
+
+httpOnly
+
+sameSite
+
+maxAge
+
+proxy
+
+domain (if set)
+
+Confirm:
+
+Frontend + backend are same-origin in production.
+
+sameSite is NOT "none" unless cross-origin is required.
+
+HTTPS cookies work correctly behind Railway proxy.
+
+Show where app.set("trust proxy", 1) is set (file + line).
+
+3️⃣ Session Cleanup / Pruning
+
+Explain how expired sessions are cleaned up:
+
+Are we using connect-pg-simple pruning options?
+
+Is there a cron/interval job?
+
+Paste the exact config/code and cleanup frequency.
+
+4️⃣ Security Hardening
+
+Show where Helmet.js is enabled (file + configuration).
+
+Confirm there are NO fallback secrets anywhere in the codebase:
+
+No hardcoded JWT secrets
+
+No default session secrets
+Show search/grep results proving this.
+
+5️⃣ Multi-Gym Data Isolation
+
+List all endpoints that accept gymId via URL/body.
+
+Confirm each is protected by admin-only middleware.
+
+Pick 3 sensitive endpoints (members, attendance, payments) and show the exact queries proving:
+
+WHERE gym_id = req.user.gymId
+
+6️⃣ Production Verdict
+
+Based on all the above, confirm:
+
+Safe for 5–10 gyms
+
+Safe for 1k–5k users
+
+Known remaining risks (if any)
+
+What would still block a 9/10 production score
+
+Respond in one structured answer.
+This is a production readiness audit, not a summary.
