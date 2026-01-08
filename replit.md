@@ -105,21 +105,48 @@ Set `DISABLE_EMAIL_VERIFICATION=true` in development environment to:
 
 **WARNING:** This must be disabled (`false` or removed) for production!
 
-## Production Deployment (Railway/Render)
+## Production Deployment (Render + Neon)
 
 **Production Readiness: ~8/10**
 
-### Required Environment Variables
+### Render Configuration
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | **Yes** | PostgreSQL connection string |
-| `SESSION_SECRET` | **Yes (prod)** | 32+ char random string for session encryption. Server will NOT start without this in production. |
-| `NODE_ENV` | **Yes** | Set to `production` |
-| `PORT` | Optional | Defaults to 5000 |
-| `ADMIN_USERNAME` | Recommended | Admin panel username |
-| `ADMIN_PASSWORD` | Recommended | Admin panel password |
-| `RESEND_API_KEY` | Recommended | For email OTP verification |
+**Build Command:**
+```bash
+npm install && npm run build
+```
+
+**Start Command:**
+```bash
+npm run start
+```
+
+This runs `node dist/index.cjs` which serves both the API and static frontend.
+
+### Required Environment Variables (Render Dashboard)
+
+| Variable | Required | Value |
+|----------|----------|-------|
+| `DATABASE_URL` | **Yes** | Neon PostgreSQL connection string (provided by Neon) |
+| `NODE_ENV` | **Yes** | `production` |
+| `SESSION_SECRET` | **Yes** | 32+ char random string (generate with `openssl rand -hex 32`) |
+| `ADMIN_USERNAME` | **Yes** | Admin panel username |
+| `ADMIN_PASSWORD` | **Yes** | Admin panel password |
+| `DISABLE_EMAIL_VERIFICATION` | Recommended | `true` (until domain verified with Resend) |
+| `FROM_EMAIL` | Optional | `onboarding@resend.dev` (until domain verified) |
+| `RESEND_API_KEY` | Optional | Only needed if email OTP is enabled |
+| `PORT` | Optional | Render sets this automatically |
+
+### First-Time Database Setup
+
+After first successful deploy, run via Render Shell:
+```bash
+# Push schema to Neon database (creates all tables + indexes)
+npm run db:push
+
+# Create admin-only seed (no demo data)
+npx tsx server/run-seed.ts --admin-only
+```
 
 ### Security Features (Production)
 - **Helmet.js:** All security headers enabled (CSP without unsafe-eval, HSTS, X-Frame-Options, etc.)
@@ -130,7 +157,7 @@ Set `DISABLE_EMAIL_VERIFICATION=true` in development environment to:
 - **No demo seeding:** Production startup does NOT seed demo data
 
 ### Database Indexes (Performance)
-The following indexes are configured for optimal query performance at scale:
+Indexes are defined in `shared/schema.ts` and created automatically by `npm run db:push`:
 - `attendance(gym_id, date)` - Daily attendance lookups
 - `attendance(member_id, date)` - Member attendance history
 - `workout_completions(member_id, completed_date)` - Member workout history
@@ -138,33 +165,11 @@ The following indexes are configured for optimal query performance at scale:
 - `payments(gym_id, updated_at)` - Payment history
 - `feed_posts(gym_id, created_at)` - Social feed queries
 
-### Railway Deployment Commands
-
-```bash
-# 1. Railway Build Command (set in Railway dashboard):
-npm run build
-
-# 2. Railway Start Command:
-npm run start
-
-# 3. After first deploy, run ONE-TIME via Railway shell:
-npx tsx server/run-seed.ts --admin-only
-```
-
-**Index Creation:** Indexes are defined in `shared/schema.ts` and created automatically by Drizzle ORM when using `npm run db:push`. For fresh databases on Railway:
-
-```bash
-# Option A: Use Drizzle push (recommended for Railway)
-npm run db:push
-
-# Option B: Apply migration SQL directly
-psql $DATABASE_URL -f migrations/0001_add_performance_indexes.sql
-```
-
 ### Architecture Notes
-- **Same-origin deployment:** Express serves both API and Vite-built frontend
+- **Same-origin deployment:** Express serves both API and Vite-built frontend from `dist/`
 - **No CORS needed:** Frontend and backend share the same origin
 - **WebView compatible:** Works correctly inside Capacitor/iOS/Android WebViews
+- **Output:** `npm run build` creates `dist/index.cjs` (server) and `dist/public/` (frontend)
 
 ## External Dependencies
 
