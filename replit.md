@@ -105,9 +105,60 @@ Set `DISABLE_EMAIL_VERIFICATION=true` in development environment to:
 
 **WARNING:** This must be disabled (`false` or removed) for production!
 
+## Production Deployment (Railway/Render)
+
+**Production Readiness: ~8/10**
+
+### Required Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | **Yes** | PostgreSQL connection string |
+| `SESSION_SECRET` | **Yes (prod)** | 32+ char random string for session encryption. Server will NOT start without this in production. |
+| `NODE_ENV` | **Yes** | Set to `production` |
+| `PORT` | Optional | Defaults to 5000 |
+| `ADMIN_USERNAME` | Recommended | Admin panel username |
+| `ADMIN_PASSWORD` | Recommended | Admin panel password |
+| `RESEND_API_KEY` | Recommended | For email OTP verification |
+
+### Security Features (Production)
+- **Helmet.js:** All security headers enabled (CSP, HSTS, X-Frame-Options, etc.)
+- **Session cookies:** `sameSite: "lax"`, `secure: true`, `httpOnly: true`
+- **Rate limiting:** Auth endpoints limited to 10 requests/15 minutes
+- **Session cleanup:** Expired sessions automatically pruned every 15 minutes
+- **No demo seeding:** Production startup does NOT seed demo data
+
+### Database Indexes (Performance)
+The following indexes are configured for optimal query performance at scale:
+- `attendance(gym_id, date)` - Daily attendance lookups
+- `attendance(member_id, date)` - Member attendance history
+- `workout_completions(member_id, completed_date)` - Member workout history
+- `workout_completions(gym_id, completed_date)` - Gym workout analytics
+- `payments(gym_id, updated_at)` - Payment history
+- `feed_posts(gym_id, created_at)` - Social feed queries
+
+### Initial Setup Commands
+
+```bash
+# Production first-time setup (admin only, no demo data)
+npx tsx server/run-seed.ts --admin-only
+
+# Build for production
+npm run build
+
+# Start production server
+npm run start
+```
+
+### Architecture Notes
+- **Same-origin deployment:** Express serves both API and Vite-built frontend
+- **No CORS needed:** Frontend and backend share the same origin
+- **WebView compatible:** Works correctly inside Capacitor/iOS/Android WebViews
+
 ## External Dependencies
 
 - **PostgreSQL:** Primary database.
+- **Helmet.js:** Security headers middleware.
 - **Resend:** Transactional email service for OTP verification.
 - **Drizzle ORM:** For database interaction and schema management.
 - **Passport.js:** Authentication middleware.

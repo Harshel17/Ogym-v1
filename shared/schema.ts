@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, uniqueIndex, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -144,7 +144,10 @@ export const attendance = pgTable("attendance", {
   adjustmentReason: text("adjustment_reason"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at"),
-});
+}, (table) => ({
+  gymDateIdx: index("attendance_gym_date_idx").on(table.gymId, table.date),
+  memberDateIdx: index("attendance_member_date_idx").on(table.memberId, table.date),
+}));
 
 export const payments = pgTable("payments", {
   id: serial("id").primaryKey(),
@@ -157,7 +160,9 @@ export const payments = pgTable("payments", {
   note: text("note"),
   updatedByUserId: integer("updated_by_user_id").references(() => users.id),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  gymUpdatedAtIdx: index("payments_gym_updated_at_idx").on(table.gymId, table.updatedAt),
+}));
 
 export const workoutCycles = pgTable("workout_cycles", {
   id: serial("id").primaryKey(),
@@ -205,7 +210,10 @@ export const workoutCompletions = pgTable("workout_completions", {
   actualWeight: text("actual_weight"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  memberDateIdx: index("workout_completions_member_date_idx").on(table.memberId, table.completedDate),
+  gymDateIdx: index("workout_completions_gym_date_idx").on(table.gymId, table.completedDate),
+}));
 
 // Per-set targets for workout items (trainer defines different reps/weight per set)
 export const workoutPlanSets = pgTable("workout_plan_sets", {
@@ -527,7 +535,9 @@ export const feedPosts = pgTable("feed_posts", {
   metadata: text("metadata"), // JSON string for additional data (exercise count, streak days, etc.)
   isVisible: boolean("is_visible").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  gymCreatedAtIdx: index("feed_posts_gym_created_at_idx").on(table.gymId, table.createdAt),
+}));
 
 export const feedReactions = pgTable("feed_reactions", {
   id: serial("id").primaryKey(),

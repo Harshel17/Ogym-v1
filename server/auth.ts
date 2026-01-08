@@ -25,15 +25,22 @@ export async function comparePasswords(supplied: string, stored: string) {
 export function setupAuth(app: Express) {
   const isProduction = app.get("env") === "production";
   
+  if (isProduction && !process.env.SESSION_SECRET) {
+    console.error("FATAL: SESSION_SECRET environment variable is required in production");
+    process.exit(1);
+  }
+  
+  const sessionSecret = process.env.SESSION_SECRET || "dev-only-secret-do-not-use-in-prod";
+  
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "r3pl1t_s3cr3t_k3y",
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
       secure: isProduction,
       httpOnly: true,
-      sameSite: isProduction ? "none" : "lax",
+      sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
   };

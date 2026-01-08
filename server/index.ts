@@ -1,9 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { seedAdminUser } from "./seed-admin";
-import { seedDemoData, resetDemoData } from "./seed-demo";
 
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy (for rate limiting to work correctly)
@@ -14,6 +13,24 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      fontSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "same-origin" },
+}));
 
 app.use(
   express.json({
@@ -63,13 +80,6 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await seedAdminUser();
-  
-  if (process.env.RESET_DEMO === "true") {
-    await resetDemoData();
-  }
-  await seedDemoData();
-  
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

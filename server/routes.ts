@@ -13,7 +13,14 @@ import { workoutLogs, workoutLogExercises } from "@shared/schema";
 import { eq, and, isNotNull, inArray } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 
-const ADMIN_JWT_SECRET = process.env.SESSION_SECRET || "admin-jwt-fallback-secret";
+function getAdminJwtSecret(): string {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error("FATAL: SESSION_SECRET environment variable is required for admin JWT in production");
+  }
+  return secret || "dev-only-admin-jwt-secret";
+}
+const ADMIN_JWT_SECRET = getAdminJwtSecret();
 
 /**
  * TEMPORARY DEV MODE: Email Verification Bypass
