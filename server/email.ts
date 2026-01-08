@@ -1,4 +1,4 @@
-// Email service using Resend integration (connection:conn_resend_01KED8ZB2Z1KAHGC4G9C3WC6PE)
+// Email service using Resend - prioritizes RESEND_API_KEY env var, falls back to Replit connector
 import { Resend } from 'resend';
 
 interface EmailOptions {
@@ -8,9 +8,18 @@ interface EmailOptions {
   html?: string;
 }
 
-let connectionSettings: any;
+const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@ogym.fitness';
 
 async function getResendCredentials() {
+  // Priority 1: Direct RESEND_API_KEY environment variable
+  if (process.env.RESEND_API_KEY) {
+    return {
+      apiKey: process.env.RESEND_API_KEY,
+      fromEmail: FROM_EMAIL
+    };
+  }
+
+  // Priority 2: Replit Resend connector
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY 
     ? 'repl ' + process.env.REPL_IDENTITY 
@@ -23,7 +32,7 @@ async function getResendCredentials() {
   }
 
   try {
-    connectionSettings = await fetch(
+    const connectionSettings = await fetch(
       'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
       {
         headers: {
@@ -38,7 +47,7 @@ async function getResendCredentials() {
     }
     return {
       apiKey: connectionSettings.settings.api_key, 
-      fromEmail: connectionSettings.settings.from_email || 'no-reply@ogym.fitness'
+      fromEmail: connectionSettings.settings.from_email || FROM_EMAIL
     };
   } catch (error) {
     console.error('Failed to get Resend credentials:', error);
