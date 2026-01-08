@@ -49,5 +49,8 @@ waitForPort = 5000
 RESET_DEMO = "false"
 DISABLE_EMAIL_VERIFICATION = "false"
 
+[userenv.shared]
+FROM_EMAIL = "noreply@ogym.fitness"
+
 [agent]
 integrations = ["resend:1.0.0"]
