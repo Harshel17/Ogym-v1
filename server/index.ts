@@ -1,10 +1,12 @@
 import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
+const isProduction = process.env.NODE_ENV === "production";
 app.set('trust proxy', 1); // Trust first proxy (for rate limiting to work correctly)
 const httpServer = createServer(app);
 
@@ -15,14 +17,26 @@ declare module "http" {
 }
 
 app.use(helmet({
-  contentSecurityPolicy: {
+  contentSecurityPolicy: isProduction ? {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // No unsafe-eval in production
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "blob:"],
       fontSrc: ["'self'", "data:"],
       connectSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+    },
+  } : {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Vite HMR needs eval in dev
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      fontSrc: ["'self'", "data:"],
+      connectSrc: ["'self'", "ws:", "wss:"], // WebSocket for Vite HMR
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
@@ -32,15 +46,34 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "same-origin" },
 }));
 
+const mutationRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // 60 mutations per minute
+  message: { message: "Too many requests, please slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip GET and OPTIONS
+    if (req.method === "GET" || req.method === "OPTIONS") return true;
+    // Skip auth endpoints (they have their own stricter limiter)
+    // Use originalUrl since req.path excludes mount path when using app.use("/api", ...)
+    if (req.originalUrl.startsWith("/api/auth/")) return true;
+    return false;
+  },
+});
+
+app.use("/api", mutationRateLimiter);
+
 app.use(
   express.json({
+    limit: "1mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

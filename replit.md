@@ -122,9 +122,10 @@ Set `DISABLE_EMAIL_VERIFICATION=true` in development environment to:
 | `RESEND_API_KEY` | Recommended | For email OTP verification |
 
 ### Security Features (Production)
-- **Helmet.js:** All security headers enabled (CSP, HSTS, X-Frame-Options, etc.)
+- **Helmet.js:** All security headers enabled (CSP without unsafe-eval, HSTS, X-Frame-Options, etc.)
 - **Session cookies:** `sameSite: "lax"`, `secure: true`, `httpOnly: true`
-- **Rate limiting:** Auth endpoints limited to 10 requests/15 minutes
+- **Rate limiting:** Auth endpoints (10 req/15min), All mutations (60 req/min)
+- **Request body limits:** 1MB max for JSON and form data
 - **Session cleanup:** Expired sessions automatically pruned every 15 minutes
 - **No demo seeding:** Production startup does NOT seed demo data
 
@@ -137,17 +138,27 @@ The following indexes are configured for optimal query performance at scale:
 - `payments(gym_id, updated_at)` - Payment history
 - `feed_posts(gym_id, created_at)` - Social feed queries
 
-### Initial Setup Commands
+### Railway Deployment Commands
 
 ```bash
-# Production first-time setup (admin only, no demo data)
-npx tsx server/run-seed.ts --admin-only
-
-# Build for production
+# 1. Railway Build Command (set in Railway dashboard):
 npm run build
 
-# Start production server
+# 2. Railway Start Command:
 npm run start
+
+# 3. After first deploy, run ONE-TIME via Railway shell:
+npx tsx server/run-seed.ts --admin-only
+```
+
+**Index Creation:** Indexes are defined in `shared/schema.ts` and created automatically by Drizzle ORM when using `npm run db:push`. For fresh databases on Railway:
+
+```bash
+# Option A: Use Drizzle push (recommended for Railway)
+npm run db:push
+
+# Option B: Apply migration SQL directly
+psql $DATABASE_URL -f migrations/0001_add_performance_indexes.sql
 ```
 
 ### Architecture Notes
