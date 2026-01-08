@@ -118,7 +118,9 @@ export async function registerRoutes(
         const verificationCode = generateOTP();
         const verificationExpiresAt = getOTPExpiryTime();
         await storage.updateUserVerificationCode(user.id, verificationCode, verificationExpiresAt);
-        await sendVerificationEmail(input.email, verificationCode);
+        console.log(`[EMAIL] Attempting to send verification email to ${input.email}`);
+        const emailSent = await sendVerificationEmail(input.email, verificationCode);
+        console.log(`[EMAIL] Verification email to ${input.email}: ${emailSent ? 'SUCCESS' : 'FAILED'}`);
       }
 
       if (input.role !== "owner" && gym) {

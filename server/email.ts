@@ -13,6 +13,7 @@ const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@ogym.fitness';
 async function getResendCredentials() {
   // Priority 1: Direct RESEND_API_KEY environment variable
   if (process.env.RESEND_API_KEY) {
+    console.log(`[EMAIL] Using RESEND_API_KEY env var, FROM_EMAIL: ${FROM_EMAIL}`);
     return {
       apiKey: process.env.RESEND_API_KEY,
       fromEmail: FROM_EMAIL
@@ -71,6 +72,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   }
 
   try {
+    console.log(`[EMAIL] Sending email from: ${credentials.fromEmail} to: ${options.to}`);
     const resend = new Resend(credentials.apiKey);
     const result = await resend.emails.send({
       from: credentials.fromEmail,
@@ -81,14 +83,14 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     });
     
     if (result.error) {
-      console.error("Resend error:", result.error);
+      console.error("[EMAIL] Resend API error:", JSON.stringify(result.error));
       return false;
     }
     
-    console.log(`📧 Email sent successfully to ${options.to} via Resend`);
+    console.log(`[EMAIL] Email sent successfully to ${options.to}, ID: ${result.data?.id}`);
     return true;
   } catch (error) {
-    console.error("Failed to send email via Resend:", error);
+    console.error("[EMAIL] Failed to send email:", error);
     return false;
   }
 }
