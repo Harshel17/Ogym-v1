@@ -15,6 +15,19 @@ import { getLocalDate } from "./timezone";
 
 const ADMIN_JWT_SECRET = process.env.SESSION_SECRET || "admin-jwt-fallback-secret";
 
+/**
+ * TEMPORARY DEV MODE: Email Verification Bypass
+ * 
+ * When DISABLE_EMAIL_VERIFICATION=true:
+ * - New users are automatically marked as email_verified = true
+ * - No OTP emails are sent during registration
+ * - Login does not require email verification
+ * 
+ * WARNING: This MUST be disabled (set to false or removed) for production!
+ * Set DISABLE_EMAIL_VERIFICATION=false or remove the env var entirely for production.
+ */
+const DISABLE_EMAIL_VERIFICATION = process.env.DISABLE_EMAIL_VERIFICATION === "true";
+
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -80,8 +93,9 @@ export async function registerRoutes(
       }
 
       const hashedPassword = await hashPassword(input.password);
-      const verificationCode = generateOTP();
-      const verificationExpiresAt = getOTPExpiryTime();
+
+      // TEMPORARY DEV MODE: If email verification is disabled, auto-verify the user
+      const shouldBypassVerification = DISABLE_EMAIL_VERIFICATION;
 
       const user = await storage.createUser({
         username: input.username.toLowerCase(),
@@ -89,10 +103,16 @@ export async function registerRoutes(
         password: hashedPassword,
         role: input.role,
         gymId: null,
-        emailVerified: false,
+        emailVerified: shouldBypassVerification, // Auto-verify if bypass enabled
       });
 
-      await storage.updateUserVerificationCode(user.id, verificationCode, verificationExpiresAt);
+      // Only generate and send OTP if email verification is NOT bypassed
+      if (!shouldBypassVerification) {
+        const verificationCode = generateOTP();
+        const verificationExpiresAt = getOTPExpiryTime();
+        await storage.updateUserVerificationCode(user.id, verificationCode, verificationExpiresAt);
+        await sendVerificationEmail(input.email, verificationCode);
+      }
 
       if (input.role !== "owner" && gym) {
         await storage.createJoinRequest({
@@ -101,13 +121,20 @@ export async function registerRoutes(
         });
       }
 
-      await sendVerificationEmail(input.email, verificationCode);
-
-      res.status(201).json({ 
-        message: "Registration successful. Please verify your email.",
-        email: input.email,
-        requiresVerification: true,
-      });
+      // TEMPORARY DEV MODE: Different response based on bypass status
+      if (shouldBypassVerification) {
+        res.status(201).json({ 
+          message: "Registration successful. You can now log in.",
+          email: input.email,
+          requiresVerification: false,
+        });
+      } else {
+        res.status(201).json({ 
+          message: "Registration successful. Please verify your email.",
+          email: input.email,
+          requiresVerification: true,
+        });
+      }
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
@@ -212,7 +239,8 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
-      if (!user.emailVerified) {
+      // TEMPORARY DEV MODE: Skip email verification check if bypass is enabled
+      if (!user.emailVerified && !DISABLE_EMAIL_VERIFICATION) {
         const verificationCode = generateOTP();
         const verificationExpiresAt = getOTPExpiryTime();
         await storage.updateUserVerificationCode(user.id, verificationCode, verificationExpiresAt);

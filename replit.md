@@ -97,6 +97,14 @@ npx tsx server/run-seed.ts --reset  # Reset and reseed demo data
 4. Rate-limited resend available
 5. Unverified users cannot log in
 
+**Development Mode - Email Bypass:**
+Set `DISABLE_EMAIL_VERIFICATION=true` in development environment to:
+- Auto-verify new users on registration (no OTP required)
+- Skip OTP email sending
+- Allow login without email verification
+
+**WARNING:** This must be disabled (`false` or removed) for production!
+
 ## External Dependencies
 
 - **PostgreSQL:** Primary database.
