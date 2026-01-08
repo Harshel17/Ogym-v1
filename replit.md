@@ -113,13 +113,15 @@ Set `DISABLE_EMAIL_VERIFICATION=true` in development environment to:
 
 **Build Command:**
 ```bash
-npm install && npm run build
+npm install --include=dev && npm run build
 ```
 
 **Start Command:**
 ```bash
 npm run start
 ```
+
+> **Note:** `--include=dev` is required because build tools (tsx, vite, esbuild) are devDependencies.
 
 This runs `node dist/index.cjs` which serves both the API and static frontend.
 
