@@ -47,7 +47,7 @@ waitForPort = 5000
 
 [userenv.development]
 RESET_DEMO = "false"
-DISABLE_EMAIL_VERIFICATION = "true"
+DISABLE_EMAIL_VERIFICATION = "false"
 
 [agent]
 integrations = ["resend:1.0.0"]
