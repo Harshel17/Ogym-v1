@@ -770,10 +770,11 @@ export async function registerRoutes(
       const assignments = await storage.getTrainerMembers(req.user!.id);
       const memberIds = assignments.map(a => a.memberId);
       const today = getLocalDate(req);
+      const gymId = req.user!.gymId!;
       
       const activePhases: any[] = [];
       for (const memberId of memberIds) {
-        const phases = await storage.getTrainingPhasesByMember(memberId);
+        const phases = await storage.getTrainingPhases(gymId, memberId);
         const active = phases.find((p: any) => 
           p.startDate <= today && p.endDate >= today && p.useCustomExercises
         );
