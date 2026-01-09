@@ -12,6 +12,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, Loader2, Clock, CheckCircle2, XCircle, Send } from "lucide-react";
+import { getRegionConfig, type Country } from "@shared/currency";
 
 type GymRequest = {
   id: number;
@@ -42,7 +43,11 @@ const formSchema = z.object({
   pointOfContactEmail: z.string().email().optional().or(z.literal("")),
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
-  country: z.string().min(1, "Country is required"),
+  country: z.enum(["India", "USA"], {
+    errorMap: () => ({ message: "Please select a country" })
+  }),
+  currency: z.enum(["INR", "USD"]).default("INR"),
+  timezone: z.string().default("Asia/Kolkata"),
   gymSize: z.enum(["0-50", "51-150", "151-300", "300+"], {
     errorMap: () => ({ message: "Please select gym size" })
   }),
@@ -86,6 +91,8 @@ export default function GymRequestPage() {
       city: "",
       state: "",
       country: "India",
+      currency: "INR",
+      timezone: "Asia/Kolkata",
       gymSize: undefined,
       trainerCount: "" as unknown as number,
       preferredStart: undefined,
@@ -95,6 +102,13 @@ export default function GymRequestPage() {
   });
 
   const referralSource = form.watch("referralSource");
+  
+  const handleCountryChange = (country: Country) => {
+    const config = getRegionConfig(country);
+    form.setValue("country", country);
+    form.setValue("currency", config.currency);
+    form.setValue("timezone", config.defaultTimezone);
+  };
 
   const submitMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
@@ -295,9 +309,17 @@ export default function GymRequestPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Country *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter country" {...field} data-testid="input-country" />
-                      </FormControl>
+                      <Select onValueChange={(value) => handleCountryChange(value as Country)} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-country">
+                            <SelectValue placeholder="Select country" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="India">India (INR)</SelectItem>
+                          <SelectItem value="USA">USA (USD)</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
