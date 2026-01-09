@@ -6,10 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { TrendingUp, IndianRupee, Users, Calendar, Loader2, ChevronLeft, ChevronRight, Wallet, ArrowLeft } from "lucide-react";
+import { TrendingUp, Banknote, Users, Calendar, Loader2, ChevronLeft, ChevronRight, Wallet, ArrowLeft } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { useBackNavigation } from "@/hooks/use-back-navigation";
+import { useGymCurrency } from "@/hooks/use-gym-currency";
 import type { PaymentTransaction, User } from "@shared/schema";
 
 type RevenueData = {
@@ -20,20 +21,11 @@ type RevenueData = {
   monthlyBreakdown: { month: string; revenue: number }[];
 };
 
-function formatINR(paise: number): string {
-  const rupees = paise / 100;
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(rupees);
-}
-
 export default function OwnerRevenuePage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showTotalModal, setShowTotalModal] = useState(false);
   const monthStr = format(selectedDate, 'yyyy-MM');
+  const { format: formatMoney, symbol } = useGymCurrency();
 
   const { data: revenueData, isLoading } = useQuery<RevenueData>({
     queryKey: ["/api/owner/revenue", monthStr],
@@ -99,12 +91,12 @@ export default function OwnerRevenuePage() {
               Monthly Revenue
             </CardTitle>
             <div className="p-2 bg-green-200 dark:bg-green-800 rounded-full text-green-700 dark:text-green-300">
-              <IndianRupee className="h-4 w-4" />
+              <Banknote className="h-4 w-4" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-800 dark:text-green-200" data-testid="text-monthly-revenue">
-              {formatINR(revenueData?.monthlyRevenue || 0)}
+              {formatMoney(revenueData?.monthlyRevenue || 0)}
             </div>
             <p className="text-xs text-green-600 dark:text-green-400 mt-1">
               Total collected in {format(selectedDate, 'MMMM')}
@@ -127,7 +119,7 @@ export default function OwnerRevenuePage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-indigo-800 dark:text-indigo-200" data-testid="text-total-revenue">
-              {formatINR(totalAllTime)}
+              {formatMoney(totalAllTime)}
             </div>
             <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
               Click to view breakdown
@@ -194,14 +186,14 @@ export default function OwnerRevenuePage() {
               >
                 <span className="font-medium">{item.month}</span>
                 <span className="font-bold text-green-600 dark:text-green-400">
-                  {formatINR(item.revenue)}
+                  {formatMoney(item.revenue)}
                 </span>
               </div>
             ))}
             <div className="flex items-center justify-between p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg border-2 border-indigo-300 dark:border-indigo-700">
               <span className="font-bold">Total</span>
               <span className="font-bold text-indigo-700 dark:text-indigo-300 text-lg">
-                {formatINR(totalAllTime)}
+                {formatMoney(totalAllTime)}
               </span>
             </div>
           </div>
@@ -220,11 +212,11 @@ export default function OwnerRevenuePage() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="month" className="text-xs" />
                 <YAxis 
-                  tickFormatter={(value) => `₹${(value / 100).toLocaleString('en-IN')}`}
+                  tickFormatter={(value) => formatMoney(value)}
                   className="text-xs"
                 />
                 <Tooltip 
-                  formatter={(value: number) => [formatINR(value), 'Revenue']}
+                  formatter={(value: number) => [formatMoney(value), 'Revenue']}
                   contentStyle={{ 
                     backgroundColor: 'hsl(var(--card))', 
                     border: '1px solid hsl(var(--border))',
@@ -251,7 +243,7 @@ export default function OwnerRevenuePage() {
         <CardContent>
           {!revenueData?.transactions || revenueData.transactions.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <IndianRupee className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <Banknote className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No payments recorded for {format(selectedDate, 'MMMM yyyy')}</p>
             </div>
           ) : (
@@ -274,7 +266,7 @@ export default function OwnerRevenuePage() {
                       </TableCell>
                       <TableCell>{txn.member?.username || 'Unknown'}</TableCell>
                       <TableCell className="font-semibold text-green-600 dark:text-green-400">
-                        {formatINR(txn.amountPaid)}
+                        {formatMoney(txn.amountPaid)}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">

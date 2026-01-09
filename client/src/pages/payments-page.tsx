@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { IndianRupee, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle, Check, ChevronsUpDown, ChevronDown, ChevronUp, UserPlus } from "lucide-react";
+import { Banknote, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle, Check, ChevronsUpDown, ChevronDown, ChevronUp, UserPlus } from "lucide-react";
+import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
@@ -28,15 +29,6 @@ type SubscriptionWithDetails = MemberSubscription & {
   totalPaid: number 
 };
 
-function formatINR(paise: number): string {
-  const rupees = paise / 100;
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(rupees);
-}
 
 export default function PaymentsPage() {
   const { user } = useAuth();
@@ -53,6 +45,7 @@ function OwnerPaymentsView() {
   const [activeTab, setActiveTab] = useState("subscriptions");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const { format: formatMoney } = useGymCurrency();
   
   const { data: alerts } = useQuery<{ endingSoon: number; overdue: number; active: number; needSubscription: number }>({
     queryKey: ["/api/owner/subscription-alerts"]
@@ -189,6 +182,7 @@ function OwnerPaymentsView() {
 
 function MembersNeedSubscriptionSection() {
   const { toast } = useToast();
+  const { format: formatMoney } = useGymCurrency();
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
   const [selectedMemberName, setSelectedMemberName] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -224,7 +218,7 @@ function MembersNeedSubscriptionSection() {
     planId: z.coerce.number().optional(),
     startDate: z.string().min(1, "Start date is required"),
     durationMonths: z.coerce.number().min(1, "Duration must be at least 1 month"),
-    totalRupees: z.coerce.number().min(0, "Amount must be positive"),
+    totalAmountInput: z.coerce.number().min(0, "Amount must be positive"),
     paymentMode: z.enum(["full", "partial", "emi"]),
     notes: z.string().optional()
   });
@@ -235,7 +229,7 @@ function MembersNeedSubscriptionSection() {
       planId: undefined, 
       startDate: new Date().toISOString().split('T')[0],
       durationMonths: 1,
-      totalRupees: 1500,
+      totalAmountInput: 1500,
       paymentMode: "full",
       notes: ""
     }
@@ -256,7 +250,7 @@ function MembersNeedSubscriptionSection() {
     const plan = activePlans.find(p => p.id === planId);
     if (plan) {
       form.setValue("durationMonths", plan.durationMonths);
-      form.setValue("totalRupees", plan.priceAmount / 100);
+      form.setValue("totalAmountInput", plan.priceAmount / 100);
     }
   };
 
@@ -267,7 +261,7 @@ function MembersNeedSubscriptionSection() {
       planId: data.planId,
       startDate: data.startDate,
       durationMonths: data.durationMonths,
-      totalAmount: data.totalRupees * 100,
+      totalAmount: data.totalAmountInput * 100,
       paymentMode: data.paymentMode,
       notes: data.notes
     });
@@ -280,7 +274,7 @@ function MembersNeedSubscriptionSection() {
       planId: undefined, 
       startDate: new Date().toISOString().split('T')[0],
       durationMonths: 1,
-      totalRupees: 1500,
+      totalAmountInput: 1500,
       paymentMode: "full",
       notes: ""
     });
@@ -367,7 +361,7 @@ function MembersNeedSubscriptionSection() {
                       <SelectContent>
                         {activePlans.map((plan) => (
                           <SelectItem key={plan.id} value={plan.id.toString()}>
-                            {plan.name} - {formatINR(plan.priceAmount)} / {plan.durationMonths}mo
+                            {plan.name} - {formatMoney(plan.priceAmount)} / {plan.durationMonths}mo
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -405,13 +399,13 @@ function MembersNeedSubscriptionSection() {
                 />
                 <FormField
                   control={form.control}
-                  name="totalRupees"
+                  name="totalAmountInput"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Total Amount</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <Input type="number" min={0} className="pl-9" {...field} data-testid="input-amount-quick" />
                         </div>
                       </FormControl>
@@ -475,6 +469,7 @@ function MembersNeedSubscriptionSection() {
 
 function PlansTab() {
   const [open, setOpen] = useState(false);
+  const { format: formatMoney } = useGymCurrency();
   
   const { data: plans = [], isLoading } = useQuery<MembershipPlan[]>({
     queryKey: ["/api/owner/membership-plans"]
@@ -502,19 +497,19 @@ function PlansTab() {
   const formSchema = z.object({
     name: z.string().min(1, "Plan name is required"),
     durationMonths: z.coerce.number().min(1, "Duration must be at least 1 month"),
-    priceRupees: z.coerce.number().min(0, "Price must be positive")
+    priceInput: z.coerce.number().min(0, "Price must be positive")
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", durationMonths: 1, priceRupees: 1500 }
+    defaultValues: { name: "", durationMonths: 1, priceInput: 1500 }
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
     createPlanMutation.mutate({
       name: data.name,
       durationMonths: data.durationMonths,
-      priceAmount: data.priceRupees * 100 // Convert to paise
+      priceAmount: data.priceInput * 100
     });
   };
 
@@ -574,13 +569,13 @@ function PlansTab() {
                 />
                 <FormField
                   control={form.control}
-                  name="priceRupees"
+                  name="priceInput"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price (in Rupees)</FormLabel>
+                      <FormLabel>Price</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <Input type="number" min={0} className="pl-9" {...field} data-testid="input-price" />
                         </div>
                       </FormControl>
@@ -614,7 +609,7 @@ function PlansTab() {
                 <CardContent className="pt-6">
                   <h3 className="font-semibold text-lg" data-testid={`text-plan-name-${plan.id}`}>{plan.name}</h3>
                   <p className="text-3xl font-bold mt-2" data-testid={`text-plan-price-${plan.id}`}>
-                    {formatINR(plan.priceAmount)}
+                    {formatMoney(plan.priceAmount)}
                   </p>
                   <p className="text-sm text-muted-foreground">{plan.durationMonths} month{plan.durationMonths > 1 ? 's' : ''}</p>
                   <Button 
@@ -639,6 +634,7 @@ function PlansTab() {
 
 function OutstandingPaymentCard({ sub }: { sub: SubscriptionWithDetails }) {
   const [expanded, setExpanded] = useState(false);
+  const { format: formatMoney } = useGymCurrency();
   
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery<PaymentTransaction[]>({
     queryKey: ["/api/owner/subscriptions", sub.id, "transactions"],
@@ -689,15 +685,15 @@ function OutstandingPaymentCard({ sub }: { sub: SubscriptionWithDetails }) {
               />
             </div>
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{formatINR(sub.totalPaid)} paid</span>
-              <span>{formatINR(sub.totalAmount)} total</span>
+              <span>{formatMoney(sub.totalPaid)} paid</span>
+              <span>{formatMoney(sub.totalAmount)} total</span>
             </div>
           </div>
           <div className="text-right flex items-center gap-3">
             <div>
               <p className="text-sm text-muted-foreground">Remaining</p>
               <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400" data-testid={`text-remaining-${sub.id}`}>
-                {formatINR(remaining)}
+                {formatMoney(remaining)}
               </p>
             </div>
             {expanded ? (
@@ -724,7 +720,7 @@ function OutstandingPaymentCard({ sub }: { sub: SubscriptionWithDetails }) {
                     <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-green-500" />
                       <div>
-                        <p className="text-sm font-medium">{formatINR(txn.amountPaid)}</p>
+                        <p className="text-sm font-medium">{formatMoney(txn.amountPaid)}</p>
                         <p className="text-xs text-muted-foreground capitalize">{txn.method}</p>
                       </div>
                     </div>
@@ -839,6 +835,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
   const [selectedSub, setSelectedSub] = useState<SubscriptionWithDetails | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const { toast } = useToast();
+  const { format: formatMoney } = useGymCurrency();
   
   const { data: subscriptions = [], isLoading } = useQuery<SubscriptionWithDetails[]>({
     queryKey: ["/api/owner/subscriptions"]
@@ -905,7 +902,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
     planId: z.coerce.number().optional(),
     startDate: z.string().min(1, "Start date is required"),
     durationMonths: z.coerce.number().min(1),
-    totalRupees: z.coerce.number().min(0),
+    totalAmountInput: z.coerce.number().min(0),
     paymentMode: z.enum(["full", "partial", "emi"]),
     notes: z.string().optional()
   });
@@ -915,7 +912,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
     defaultValues: {
       startDate: format(new Date(), "yyyy-MM-dd"),
       durationMonths: 1,
-      totalRupees: 1500,
+      totalAmountInput: 1500,
       paymentMode: "full",
       notes: ""
     }
@@ -941,7 +938,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
     const plan = activePlans.find(p => p.id === parseInt(planId));
     if (plan) {
       form.setValue("durationMonths", plan.durationMonths);
-      form.setValue("totalRupees", plan.priceAmount / 100);
+      form.setValue("totalAmountInput", plan.priceAmount / 100);
     }
   };
 
@@ -951,7 +948,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
       planId: data.planId,
       startDate: data.startDate,
       durationMonths: data.durationMonths,
-      totalAmount: data.totalRupees * 100,
+      totalAmount: data.totalAmountInput * 100,
       paymentMode: data.paymentMode,
       notes: data.notes
     });
@@ -959,7 +956,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
 
   const paymentFormSchema = z.object({
     paidOn: z.string().min(1),
-    amountRupees: z.coerce.number().min(1, "Amount must be at least 1"),
+    amountInput: z.coerce.number().min(1, "Amount must be at least 1"),
     method: z.enum(["cash", "upi", "card", "bank", "other"]),
     referenceNote: z.string().optional()
   });
@@ -968,7 +965,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
       paidOn: format(new Date(), "yyyy-MM-dd"),
-      amountRupees: 0,
+      amountInput: 0,
       method: "cash",
       referenceNote: ""
     }
@@ -980,7 +977,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
       subscriptionId: selectedSub.id,
       data: {
         paidOn: data.paidOn,
-        amountPaid: data.amountRupees * 100,
+        amountPaid: data.amountInput * 100,
         method: data.method,
         referenceNote: data.referenceNote
       }
@@ -1085,7 +1082,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
                         <SelectContent>
                           {activePlans.map((p) => (
                             <SelectItem key={p.id} value={p.id.toString()}>
-                              {p.name} - {formatINR(p.priceAmount)} / {p.durationMonths}mo
+                              {p.name} - {formatMoney(p.priceAmount)} / {p.durationMonths}mo
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1123,13 +1120,13 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
                   />
                   <FormField
                     control={form.control}
-                    name="totalRupees"
+                    name="totalAmountInput"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Total Amount</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input type="number" min={0} className="pl-9" {...field} data-testid="input-total-amount" />
                           </div>
                         </FormControl>
@@ -1248,9 +1245,9 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
                         <div>{sub.startDate}</div>
                         <div className="text-muted-foreground">to {sub.endDate}</div>
                       </TableCell>
-                      <TableCell className="font-mono">{formatINR(sub.totalAmount)}</TableCell>
-                      <TableCell className="font-mono text-green-600 dark:text-green-400">{formatINR(sub.totalPaid)}</TableCell>
-                      <TableCell className="font-mono text-red-600 dark:text-red-400">{formatINR(remaining)}</TableCell>
+                      <TableCell className="font-mono">{formatMoney(sub.totalAmount)}</TableCell>
+                      <TableCell className="font-mono text-green-600 dark:text-green-400">{formatMoney(sub.totalPaid)}</TableCell>
+                      <TableCell className="font-mono text-red-600 dark:text-red-400">{formatMoney(remaining)}</TableCell>
                       <TableCell>
                         <SubscriptionStatusBadge status={sub.status} />
                       </TableCell>
@@ -1263,7 +1260,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
                               setSelectedSub(sub);
                               paymentForm.reset({
                                 paidOn: format(new Date(), "yyyy-MM-dd"),
-                                amountRupees: remaining / 100,
+                                amountInput: remaining / 100,
                                 method: "cash",
                                 referenceNote: ""
                               });
@@ -1310,13 +1307,13 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
               />
               <FormField
                 control={paymentForm.control}
-                name="amountRupees"
+                name="amountInput"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Amount</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input type="number" min={1} className="pl-9" {...field} data-testid="input-payment-amount" />
                       </div>
                     </FormControl>
@@ -1375,6 +1372,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
 
 function TransactionsDialog({ subscriptionId, memberName }: { subscriptionId: number; memberName: string }) {
   const [open, setOpen] = useState(false);
+  const { format: formatMoney } = useGymCurrency();
   
   const { data: transactions = [], isLoading } = useQuery<PaymentTransaction[]>({
     queryKey: ["/api/owner/subscriptions", subscriptionId, "transactions"],
@@ -1421,7 +1419,7 @@ function TransactionsDialog({ subscriptionId, memberName }: { subscriptionId: nu
                 {transactions.map((txn) => (
                   <TableRow key={txn.id}>
                     <TableCell>{txn.paidOn}</TableCell>
-                    <TableCell className="font-mono">{formatINR(txn.amountPaid)}</TableCell>
+                    <TableCell className="font-mono">{formatMoney(txn.amountPaid)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">{txn.method}</Badge>
                     </TableCell>
@@ -1455,6 +1453,7 @@ function SubscriptionStatusBadge({ status }: { status: string }) {
 }
 
 function MemberPaymentsView() {
+  const { format: formatMoney } = useGymCurrency();
   const { data: subscription, isLoading } = useQuery<{
     id: number;
     startDate: string;
@@ -1533,15 +1532,15 @@ function MemberPaymentsView() {
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
                 <p className="text-sm text-muted-foreground">Total Amount</p>
-                <p className="text-xl font-bold" data-testid="text-total">{formatINR(subscription.totalAmount)}</p>
+                <p className="text-xl font-bold" data-testid="text-total">{formatMoney(subscription.totalAmount)}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Paid</p>
-                <p className="text-xl font-bold text-green-600 dark:text-green-400" data-testid="text-paid">{formatINR(subscription.totalPaid)}</p>
+                <p className="text-xl font-bold text-green-600 dark:text-green-400" data-testid="text-paid">{formatMoney(subscription.totalPaid)}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Balance</p>
-                <p className="text-xl font-bold text-red-600 dark:text-red-400" data-testid="text-balance">{formatINR(remaining)}</p>
+                <p className="text-xl font-bold text-red-600 dark:text-red-400" data-testid="text-balance">{formatMoney(remaining)}</p>
               </div>
             </div>
           </div>

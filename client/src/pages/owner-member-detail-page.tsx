@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2, Dumbbell, Calendar, TrendingUp, Flame, Target, BarChart3, IndianRupee, CreditCard, Receipt } from "lucide-react";
+import { ArrowLeft, Loader2, Dumbbell, Calendar, TrendingUp, Flame, Target, BarChart3, Banknote, CreditCard, Receipt } from "lucide-react";
+import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { format, parseISO } from "date-fns";
@@ -92,22 +93,13 @@ type PaymentDetails = {
   }[];
 };
 
-function formatINR(paise: number): string {
-  const rupees = paise / 100;
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(rupees);
-}
-
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#8884d8', '#82ca9d', '#ffc658', '#ff7300'];
 
 export default function OwnerMemberDetailPage() {
   const params = useParams<{ memberId: string }>();
   const memberId = parseInt(params.memberId || "0");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const { format: formatMoney } = useGymCurrency();
 
   const { data: profile, isLoading: profileLoading, error: profileError } = useQuery<MemberProfile>({
     queryKey: ["/api/owner/members", memberId, "profile"],
@@ -309,7 +301,7 @@ export default function OwnerMemberDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <IndianRupee className="h-5 w-5" />
+                    <Banknote className="h-5 w-5" />
                     Subscription Summary
                   </CardTitle>
                 </CardHeader>
@@ -359,7 +351,7 @@ export default function OwnerMemberDetailPage() {
                 <CardContent className="space-y-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Total Amount</span>
-                    <span className="font-semibold">{formatINR(paymentDetails.subscription.totalAmount)}</span>
+                    <span className="font-semibold">{formatMoney(paymentDetails.subscription.totalAmount)}</span>
                   </div>
                   <Progress 
                     value={paymentDetails.subscription.totalAmount > 0 
@@ -371,13 +363,13 @@ export default function OwnerMemberDetailPage() {
                     <div>
                       <p className="text-sm text-muted-foreground">Paid</p>
                       <p className="text-lg font-bold text-green-600 dark:text-green-400" data-testid="text-total-paid">
-                        {formatINR(paymentDetails.totalPaid)}
+                        {formatMoney(paymentDetails.totalPaid)}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Remaining</p>
                       <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400" data-testid="text-remaining-balance">
-                        {formatINR(paymentDetails.remainingBalance)}
+                        {formatMoney(paymentDetails.remainingBalance)}
                       </p>
                     </div>
                   </div>
@@ -411,7 +403,7 @@ export default function OwnerMemberDetailPage() {
                           {paymentDetails.transactions.map((txn) => (
                             <TableRow key={txn.id} data-testid={`row-payment-${txn.id}`}>
                               <TableCell>{format(new Date(txn.paidOn), "dd MMM yyyy")}</TableCell>
-                              <TableCell className="font-medium">{formatINR(txn.amountPaid)}</TableCell>
+                              <TableCell className="font-medium">{formatMoney(txn.amountPaid)}</TableCell>
                               <TableCell>
                                 <Badge variant="outline" className="capitalize">{txn.method}</Badge>
                               </TableCell>

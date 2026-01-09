@@ -9,7 +9,7 @@ OGym is a multi-tenant B2B web application designed for gym management. It provi
 **Key Capabilities:**
 - Role-based access: Owner, Trainer, Member.
 - QR code-based and auto-attendance tracking.
-- Payment tracking (not processing) with INR-based subscription management.
+- Multi-currency payment tracking (INR for India, USD for USA) with subscription management.
 - Comprehensive workout cycle management with exercise ordering.
 - Member statistics (streak, total workouts, etc.) and trainer activity feeds.
 - Gym code-based membership joining system.
@@ -44,7 +44,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Feature Specifications
 - **Attendance:** QR-based check-in, auto-attendance on workout completion, and detailed attendance analytics for owners.
-- **Payment & Subscriptions:** INR-based membership plans, member subscriptions, and payment transaction tracking. Amounts stored in paise for precision.
+- **Payment & Subscriptions:** Multi-currency (INR/USD) membership plans, member subscriptions, and payment transaction tracking. Amounts stored in smallest unit (paise for INR, cents for USD) for precision. Currency is set per gym based on country selection.
 - **Workout Management:** Creation and assignment of workout cycles, tracking of completed exercises, and member progress monitoring.
 - **User Management:** User profiles, gym membership joining, and role-based access control.
 - **Admin System:** Separate authenticated admin interface for managing gym requests, gyms, and platform subscriptions.

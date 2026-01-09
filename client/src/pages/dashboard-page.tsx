@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2 } from "lucide-react";
+import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
@@ -89,6 +90,7 @@ function OwnerDashboard() {
   const [, navigate] = useLocation();
   const { data: attendance = [] } = useAttendance();
   const { data: payments = [] } = usePayments();
+  const { format: formatMoney } = useGymCurrency();
 
   // Get client's local date to handle timezone differences
   const getClientLocalDate = () => {
@@ -296,7 +298,7 @@ function OwnerDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-display text-foreground">{`₹${(revenue / 100).toLocaleString('en-IN')}`}</div>
+            <div className="text-3xl font-bold font-display text-foreground">{formatMoney(revenue)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Revenue collected this month
             </p>
