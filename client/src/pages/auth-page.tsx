@@ -401,7 +401,7 @@ export default function AuthPage() {
         </div>
         
         <div className="relative z-20 text-sm text-white/40">
-          2024 OGym Inc. All rights reserved.
+          2026 OGym. All rights reserved.
         </div>
       </div>
 
