@@ -4173,7 +4173,16 @@ export class DatabaseStorage implements IStorage {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
 
     const members = await db.select().from(users).where(and(eq(users.gymId, gymId), eq(users.role, "member")));
-    const totalMembers = members.length;
+    
+    // Count only members with active subscriptions (paying members)
+    const activeSubscriptions = await db.select({ memberId: memberSubscriptions.memberId })
+      .from(memberSubscriptions)
+      .where(and(
+        eq(memberSubscriptions.gymId, gymId),
+        eq(memberSubscriptions.status, 'active')
+      ));
+    const activeMemberIds = new Set(activeSubscriptions.map(s => s.memberId));
+    const totalMembers = activeMemberIds.size;
 
     const todayAttendance = await db.select({ memberId: attendance.memberId })
       .from(attendance)
