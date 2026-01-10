@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Phone, Mail, LogOut } from "lucide-react";
+import { AlertTriangle, Mail, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function SubscriptionExpiredPage() {
@@ -37,22 +37,20 @@ export default function SubscriptionExpiredPage() {
               <p className="text-sm font-medium text-center">Contact OGym to renew:</p>
               <div className="flex flex-col gap-2">
                 <a 
+                  href="mailto:billing@ogym.fitness?subject=Subscription Renewal Request"
+                  className="flex items-center justify-center gap-2 p-3 bg-primary/10 rounded-lg text-sm font-medium text-primary hover:bg-primary/20 transition-colors"
+                  data-testid="link-email-billing"
+                >
+                  <Mail className="w-4 h-4" />
+                  billing@ogym.fitness
+                </a>
+                <a 
                   href="mailto:support@ogym.fitness"
-                  className="flex items-center justify-center gap-2 text-sm text-primary hover:underline"
+                  className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
                   data-testid="link-email-support"
                 >
                   <Mail className="w-4 h-4" />
-                  support@ogym.fitness
-                </a>
-                <a 
-                  href="https://wa.me/919876543210"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 text-sm text-primary hover:underline"
-                  data-testid="link-whatsapp-support"
-                >
-                  <Phone className="w-4 h-4" />
-                  WhatsApp Support
+                  General support: support@ogym.fitness
                 </a>
               </div>
             </div>
