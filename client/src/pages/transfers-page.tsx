@@ -236,76 +236,144 @@ export default function TransfersPage() {
                   No transfer history yet.
                 </div>
               ) : (
-                <div className="rounded-md border border-border overflow-x-auto">
-                  <Table>
-                    <TableHeader className="bg-muted/50">
-                      <TableRow>
-                        <TableHead>Member</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Joined</TableHead>
-                        <TableHead>Left</TableHead>
-                        <TableHead>Transferred To</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {gymHistory.map((record) => (
-                        <TableRow key={record.id} data-testid={`row-history-${record.id}`}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                                {record.memberName?.slice(0, 2).toUpperCase() || '??'}
-                              </div>
-                              {record.memberName}
+                <>
+                  {/* Mobile Card View */}
+                  <div className="md:hidden space-y-3">
+                    {gymHistory.map((record) => (
+                      <div
+                        key={record.id}
+                        className="p-4 rounded-xl border bg-card"
+                        data-testid={`card-history-${record.id}`}
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                              {record.memberName?.slice(0, 2).toUpperCase() || '??'}
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">
-                              {record.memberRole}
+                            <div>
+                              <p className="font-semibold">{record.memberName}</p>
+                              <Badge variant="outline" className="capitalize text-xs">
+                                {record.memberRole}
+                              </Badge>
+                            </div>
+                          </div>
+                          {record.leftAt ? (
+                            <Badge variant="outline" className="text-red-500 border-red-500/30 shrink-0">
+                              Left
                             </Badge>
-                          </TableCell>
-                          <TableCell>
+                          ) : (
+                            <Badge className="bg-green-500/10 text-green-600 border-green-500/30 shrink-0">
+                              Active
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 pt-3 border-t text-sm">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Joined</p>
                             <div className="flex items-center gap-1.5 text-green-600">
                               <LogIn className="w-3.5 h-3.5" />
-                              {format(new Date(record.joinedAt), "dd MMM yyyy")}
+                              {format(new Date(record.joinedAt), "dd MMM yy")}
                             </div>
-                          </TableCell>
-                          <TableCell>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Left</p>
                             {record.leftAt ? (
                               <div className="flex items-center gap-1.5 text-red-500">
                                 <LogOut className="w-3.5 h-3.5" />
-                                {format(new Date(record.leftAt), "dd MMM yyyy")}
+                                {format(new Date(record.leftAt), "dd MMM yy")}
                               </div>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
-                          </TableCell>
-                          <TableCell>
-                            {record.destinationGymName ? (
-                              <div className="flex items-center gap-1.5">
-                                <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
-                                {record.destinationGymName}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {record.leftAt ? (
-                              <Badge variant="outline" className="text-red-500 border-red-500/30">
-                                Left
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
-                                Active
-                              </Badge>
-                            )}
-                          </TableCell>
+                          </div>
+                        </div>
+                        
+                        {record.destinationGymName && (
+                          <div className="mt-3 pt-3 border-t">
+                            <p className="text-xs text-muted-foreground mb-1">Transferred To</p>
+                            <div className="flex items-center gap-1.5 text-sm">
+                              <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                              {record.destinationGymName}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block rounded-md border border-border overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow>
+                          <TableHead>Member</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Joined</TableHead>
+                          <TableHead>Left</TableHead>
+                          <TableHead>Transferred To</TableHead>
+                          <TableHead>Status</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {gymHistory.map((record) => (
+                          <TableRow key={record.id} data-testid={`row-history-${record.id}`}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                                  {record.memberName?.slice(0, 2).toUpperCase() || '??'}
+                                </div>
+                                {record.memberName}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {record.memberRole}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1.5 text-green-600">
+                                <LogIn className="w-3.5 h-3.5" />
+                                {format(new Date(record.joinedAt), "dd MMM yyyy")}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {record.leftAt ? (
+                                <div className="flex items-center gap-1.5 text-red-500">
+                                  <LogOut className="w-3.5 h-3.5" />
+                                  {format(new Date(record.leftAt), "dd MMM yyyy")}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {record.destinationGymName ? (
+                                <div className="flex items-center gap-1.5">
+                                  <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                                  {record.destinationGymName}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {record.leftAt ? (
+                                <Badge variant="outline" className="text-red-500 border-red-500/30">
+                                  Left
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
+                                  Active
+                                </Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

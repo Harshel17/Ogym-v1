@@ -306,34 +306,71 @@ function MembersNeedSubscriptionSection() {
               All members have subscriptions set up
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Public ID</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
                 {members.map((member) => (
-                  <TableRow key={member.id} data-testid={`row-member-need-sub-${member.id}`}>
-                    <TableCell className="font-medium">{member.username}</TableCell>
-                    <TableCell>{member.publicId || '-'}</TableCell>
-                    <TableCell>{member.createdAt ? format(new Date(member.createdAt), 'MMM d, yyyy') : '-'}</TableCell>
-                    <TableCell className="text-right">
+                  <div
+                    key={member.id}
+                    className="p-4 rounded-xl border bg-card border-blue-500/30 bg-blue-500/5"
+                    data-testid={`card-member-need-sub-${member.id}`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-sm font-bold text-blue-600 shrink-0">
+                          {member.username?.slice(0, 2).toUpperCase() || '??'}
+                        </div>
+                        <div>
+                          <p className="font-semibold">{member.username}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Joined {member.createdAt ? format(new Date(member.createdAt), 'MMM d, yyyy') : '-'}
+                          </p>
+                        </div>
+                      </div>
                       <Button 
                         size="sm" 
                         onClick={() => handleAssignClick(member.id, member.username)}
-                        data-testid={`button-assign-sub-${member.id}`}
+                        data-testid={`button-assign-sub-mobile-${member.id}`}
                       >
                         <Plus className="w-4 h-4 mr-1" /> Assign
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Member</TableHead>
+                      <TableHead>Public ID</TableHead>
+                      <TableHead>Joined</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {members.map((member) => (
+                      <TableRow key={member.id} data-testid={`row-member-need-sub-${member.id}`}>
+                        <TableCell className="font-medium">{member.username}</TableCell>
+                        <TableCell>{member.publicId || '-'}</TableCell>
+                        <TableCell>{member.createdAt ? format(new Date(member.createdAt), 'MMM d, yyyy') : '-'}</TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleAssignClick(member.id, member.username)}
+                            data-testid={`button-assign-sub-${member.id}`}
+                          >
+                            <Plus className="w-4 h-4 mr-1" /> Assign
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
