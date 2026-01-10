@@ -1220,65 +1220,136 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
             <p>{subscriptions.length === 0 ? "No subscriptions yet. Assign a subscription to get started." : "No matching subscriptions found."}</p>
           </div>
         ) : (
-          <div className="rounded-md border border-border overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Paid</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSubscriptions.map((sub) => {
-                  const remaining = sub.totalAmount - sub.totalPaid;
-                  return (
-                    <TableRow key={sub.id} data-testid={`row-subscription-${sub.id}`}>
-                      <TableCell className="font-medium">{sub.member?.username || 'Unknown'}</TableCell>
-                      <TableCell>{sub.plan?.name || 'Custom'}</TableCell>
-                      <TableCell className="text-sm">
-                        <div>{sub.startDate}</div>
-                        <div className="text-muted-foreground">to {sub.endDate}</div>
-                      </TableCell>
-                      <TableCell className="font-mono">{formatMoney(sub.totalAmount)}</TableCell>
-                      <TableCell className="font-mono text-green-600 dark:text-green-400">{formatMoney(sub.totalPaid)}</TableCell>
-                      <TableCell className="font-mono text-red-600 dark:text-red-400">{formatMoney(remaining)}</TableCell>
-                      <TableCell>
-                        <SubscriptionStatusBadge status={sub.status} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedSub(sub);
-                              paymentForm.reset({
-                                paidOn: format(new Date(), "yyyy-MM-dd"),
-                                amountInput: remaining / 100,
-                                method: "cash",
-                                referenceNote: ""
-                              });
-                              setPaymentOpen(true);
-                            }}
-                            data-testid={`button-add-payment-${sub.id}`}
-                          >
-                            <Receipt className="w-4 h-4 mr-1" /> Add Payment
-                          </Button>
-                          <TransactionsDialog subscriptionId={sub.id} memberName={sub.member?.username || 'Member'} />
+          <>
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+              {filteredSubscriptions.map((sub) => {
+                const remaining = sub.totalAmount - sub.totalPaid;
+                return (
+                  <div
+                    key={sub.id}
+                    className="p-4 rounded-xl border bg-card"
+                    data-testid={`card-subscription-${sub.id}`}
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                          {sub.member?.username?.slice(0, 2).toUpperCase() || '??'}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                        <div>
+                          <p className="font-semibold">{sub.member?.username || 'Unknown'}</p>
+                          <p className="text-sm text-muted-foreground">{sub.plan?.name || 'Custom Plan'}</p>
+                        </div>
+                      </div>
+                      <SubscriptionStatusBadge status={sub.status} />
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2 py-3 border-y text-center">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Total</p>
+                        <p className="font-mono text-sm font-medium">{formatMoney(sub.totalAmount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Paid</p>
+                        <p className="font-mono text-sm font-medium text-green-600 dark:text-green-400">{formatMoney(sub.totalPaid)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Balance</p>
+                        <p className="font-mono text-sm font-medium text-red-600 dark:text-red-400">{formatMoney(remaining)}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
+                      <span>{sub.startDate} → {sub.endDate}</span>
+                    </div>
+                    
+                    <div className="flex gap-2 mt-3">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          setSelectedSub(sub);
+                          paymentForm.reset({
+                            paidOn: format(new Date(), "yyyy-MM-dd"),
+                            amountInput: remaining / 100,
+                            method: "cash",
+                            referenceNote: ""
+                          });
+                          setPaymentOpen(true);
+                        }}
+                        data-testid={`button-add-payment-mobile-${sub.id}`}
+                      >
+                        <Receipt className="w-4 h-4 mr-1" /> Add Payment
+                      </Button>
+                      <TransactionsDialog subscriptionId={sub.id} memberName={sub.member?.username || 'Member'} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-md border border-border overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Period</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Paid</TableHead>
+                    <TableHead>Balance</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredSubscriptions.map((sub) => {
+                    const remaining = sub.totalAmount - sub.totalPaid;
+                    return (
+                      <TableRow key={sub.id} data-testid={`row-subscription-${sub.id}`}>
+                        <TableCell className="font-medium">{sub.member?.username || 'Unknown'}</TableCell>
+                        <TableCell>{sub.plan?.name || 'Custom'}</TableCell>
+                        <TableCell className="text-sm">
+                          <div>{sub.startDate}</div>
+                          <div className="text-muted-foreground">to {sub.endDate}</div>
+                        </TableCell>
+                        <TableCell className="font-mono">{formatMoney(sub.totalAmount)}</TableCell>
+                        <TableCell className="font-mono text-green-600 dark:text-green-400">{formatMoney(sub.totalPaid)}</TableCell>
+                        <TableCell className="font-mono text-red-600 dark:text-red-400">{formatMoney(remaining)}</TableCell>
+                        <TableCell>
+                          <SubscriptionStatusBadge status={sub.status} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedSub(sub);
+                                paymentForm.reset({
+                                  paidOn: format(new Date(), "yyyy-MM-dd"),
+                                  amountInput: remaining / 100,
+                                  method: "cash",
+                                  referenceNote: ""
+                                });
+                                setPaymentOpen(true);
+                              }}
+                              data-testid={`button-add-payment-${sub.id}`}
+                            >
+                              <Receipt className="w-4 h-4 mr-1" /> Add Payment
+                            </Button>
+                            <TransactionsDialog subscriptionId={sub.id} memberName={sub.member?.username || 'Member'} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </CardContent>
 
