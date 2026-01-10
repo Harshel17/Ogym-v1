@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, Plus, MessageSquare, Clock, CheckCircle, AlertCircle, HelpCircle, Mail, CreditCard, Users, Bug } from "lucide-react";
+import { Loader2, Plus, MessageSquare, Clock, CheckCircle, AlertCircle, HelpCircle, Mail, CreditCard, Users, Bug, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -44,6 +45,7 @@ export default function SupportPage() {
   const [issueType, setIssueType] = useState("other");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [description, setDescription] = useState("");
+  const [contactOpen, setContactOpen] = useState(false);
 
   const { data: tickets, isLoading } = useQuery<SupportTicket[]>({
     queryKey: ["/api/support/my-tickets"],
@@ -170,89 +172,6 @@ export default function SupportPage() {
             New Request
           </Button>
         </div>
-
-        <Card className="mb-6">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl">Contact Us</CardTitle>
-            <CardDescription>
-              Need immediate assistance? Reach out directly via email and our team will respond within 24 hours.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Primary Support</h3>
-                <a
-                  href="mailto:support@ogym.fitness"
-                  className="group flex items-start gap-4 p-5 bg-secondary/30 rounded-lg transition-all hover:bg-secondary/50"
-                  data-testid="link-email-support"
-                >
-                  <div className="p-3 bg-primary/10 rounded-full shrink-0">
-                    <Mail className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-semibold text-base group-hover:text-primary transition-colors">General Support</p>
-                    <p className="text-sm text-muted-foreground">For questions about features, accounts, and gym management</p>
-                    <p className="text-sm font-medium text-primary">support@ogym.fitness</p>
-                  </div>
-                </a>
-                
-                <a
-                  href="mailto:billing@ogym.fitness"
-                  className="group flex items-start gap-4 p-5 bg-secondary/30 rounded-lg transition-all hover:bg-secondary/50"
-                  data-testid="link-email-billing"
-                >
-                  <div className="p-3 bg-primary/10 rounded-full shrink-0">
-                    <CreditCard className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-semibold text-base group-hover:text-primary transition-colors">Billing & Payments</p>
-                    <p className="text-sm text-muted-foreground">Subscription issues, invoices, and payment questions</p>
-                    <p className="text-sm font-medium text-primary">billing@ogym.fitness</p>
-                  </div>
-                </a>
-              </div>
-              
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Other Inquiries</h3>
-                <a
-                  href="mailto:sales@ogym.fitness"
-                  className="group flex items-start gap-4 p-5 bg-secondary/30 rounded-lg transition-all hover:bg-secondary/50"
-                  data-testid="link-email-sales"
-                >
-                  <div className="p-3 bg-primary/10 rounded-full shrink-0">
-                    <Users className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-semibold text-base group-hover:text-primary transition-colors">New Gym Partnerships</p>
-                    <p className="text-sm text-muted-foreground">Interested in OGym for your gym? Let's talk</p>
-                    <p className="text-sm font-medium text-primary">sales@ogym.fitness</p>
-                  </div>
-                </a>
-                
-                <a
-                  href="mailto:support@ogym.fitness?subject=Bug Report"
-                  className="group flex items-start gap-4 p-5 bg-secondary/30 rounded-lg transition-all hover:bg-secondary/50"
-                  data-testid="link-email-bugs"
-                >
-                  <div className="p-3 bg-primary/10 rounded-full shrink-0">
-                    <Bug className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-semibold text-base group-hover:text-primary transition-colors">Report a Bug</p>
-                    <p className="text-sm text-muted-foreground">Found an issue? Help us improve by reporting it</p>
-                    <p className="text-sm font-medium text-primary">support@ogym.fitness</p>
-                  </div>
-                </a>
-              </div>
-            </div>
-            
-            <div className="mt-6 pt-4 border-t flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <Clock className="w-4 h-4" />
-              <span>Average response time: within 24 hours</span>
-            </div>
-          </CardContent>
-        </Card>
 
         <div className="grid md:grid-cols-2 gap-6">
           <Card>
@@ -391,6 +310,97 @@ export default function SupportPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Collapsible open={contactOpen} onOpenChange={setContactOpen} className="mt-6">
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-secondary/30 transition-colors rounded-t-lg" data-testid="button-contact-toggle">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-full">
+                      <Mail className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Contact Us Directly</CardTitle>
+                      <CardDescription>Email us for quick assistance</CardDescription>
+                    </div>
+                  </div>
+                  <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${contactOpen ? "rotate-180" : ""}`} />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                <div className="grid md:grid-cols-2 gap-4 pt-4 border-t">
+                  <a
+                    href="mailto:support@ogym.fitness"
+                    className="group flex items-start gap-4 p-4 bg-secondary/30 rounded-lg transition-all hover:bg-secondary/50"
+                    data-testid="link-email-support"
+                  >
+                    <div className="p-2 bg-primary/10 rounded-full shrink-0">
+                      <HelpCircle className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="font-semibold text-sm group-hover:text-primary transition-colors">General Support</p>
+                      <p className="text-xs text-muted-foreground">Questions about features & accounts</p>
+                      <p className="text-xs font-medium text-primary">support@ogym.fitness</p>
+                    </div>
+                  </a>
+                  
+                  <a
+                    href="mailto:billing@ogym.fitness"
+                    className="group flex items-start gap-4 p-4 bg-secondary/30 rounded-lg transition-all hover:bg-secondary/50"
+                    data-testid="link-email-billing"
+                  >
+                    <div className="p-2 bg-primary/10 rounded-full shrink-0">
+                      <CreditCard className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="font-semibold text-sm group-hover:text-primary transition-colors">Billing & Payments</p>
+                      <p className="text-xs text-muted-foreground">Subscriptions & invoices</p>
+                      <p className="text-xs font-medium text-primary">billing@ogym.fitness</p>
+                    </div>
+                  </a>
+                  
+                  <a
+                    href="mailto:sales@ogym.fitness"
+                    className="group flex items-start gap-4 p-4 bg-secondary/30 rounded-lg transition-all hover:bg-secondary/50"
+                    data-testid="link-email-sales"
+                  >
+                    <div className="p-2 bg-primary/10 rounded-full shrink-0">
+                      <Users className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="font-semibold text-sm group-hover:text-primary transition-colors">New Gym Partnerships</p>
+                      <p className="text-xs text-muted-foreground">Interested in OGym for your gym?</p>
+                      <p className="text-xs font-medium text-primary">sales@ogym.fitness</p>
+                    </div>
+                  </a>
+                  
+                  <a
+                    href="mailto:support@ogym.fitness?subject=Bug Report"
+                    className="group flex items-start gap-4 p-4 bg-secondary/30 rounded-lg transition-all hover:bg-secondary/50"
+                    data-testid="link-email-bugs"
+                  >
+                    <div className="p-2 bg-primary/10 rounded-full shrink-0">
+                      <Bug className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="font-semibold text-sm group-hover:text-primary transition-colors">Report a Bug</p>
+                      <p className="text-xs text-muted-foreground">Help us improve OGym</p>
+                      <p className="text-xs font-medium text-primary">support@ogym.fitness</p>
+                    </div>
+                  </a>
+                </div>
+                
+                <div className="mt-4 pt-3 border-t flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  <span>Average response time: within 24 hours</span>
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
       <Dialog open={createDialogOpen} onOpenChange={(open) => {
         if (!open) handleCloseCreateDialog();
