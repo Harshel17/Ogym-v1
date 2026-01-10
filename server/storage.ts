@@ -1805,6 +1805,8 @@ export class DatabaseStorage implements IStorage {
     phases: (typeof trainingPhases.$inferSelect)[];
     phaseExerciseDays: Map<number, Set<number>>; // phaseId -> set of dayIndices with exercises
     cycleExerciseDays: Map<number, Set<number>>; // cycleId -> set of dayIndices with exercises
+    cycleRestDays: Map<number, Set<number>>; // cycleId -> set of rest day indices
+    cycleLengths: Map<number, number>; // cycleId -> cycle length
     swaps: Map<string, number>; // "phaseId-date" -> targetDayIndex
   }> {
     // Get all phases for this member
@@ -1827,11 +1829,24 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // Get cycle exercises for phases that use cycles
-    const cycleIds = phases.filter(p => p.cycleId && !p.useCustomExercises).map(p => p.cycleId!);
+    // Get cycles for phases that use them
+    const cycleIds = phases.filter(p => p.cycleId).map(p => p.cycleId!);
     const cycleExerciseDays = new Map<number, Set<number>>();
+    const cycleRestDays = new Map<number, Set<number>>();
+    const cycleLengths = new Map<number, number>();
     
     if (cycleIds.length > 0) {
+      // Get cycle metadata (restDays and cycleLength)
+      const cycles = await db.select().from(workoutCycles)
+        .where(inArray(workoutCycles.id, cycleIds));
+      
+      for (const cycle of cycles) {
+        cycleLengths.set(cycle.id, cycle.cycleLength);
+        const restDaysArr = cycle.restDays || [];
+        cycleRestDays.set(cycle.id, new Set(restDaysArr));
+      }
+      
+      // Get cycle exercises
       const cycleItems = await db.select().from(workoutItems)
         .where(inArray(workoutItems.cycleId, cycleIds));
       
@@ -1852,7 +1867,7 @@ export class DatabaseStorage implements IStorage {
       swaps.set(`${swap.phaseId}-${swap.swapDate}`, swap.targetDayIndex);
     }
     
-    return { phases, phaseExerciseDays, cycleExerciseDays, swaps };
+    return { phases, phaseExerciseDays, cycleExerciseDays, cycleRestDays, cycleLengths, swaps };
   }
 
   /**
@@ -1865,6 +1880,8 @@ export class DatabaseStorage implements IStorage {
       phases: (typeof trainingPhases.$inferSelect)[];
       phaseExerciseDays: Map<number, Set<number>>;
       cycleExerciseDays: Map<number, Set<number>>;
+      cycleRestDays: Map<number, Set<number>>;
+      cycleLengths: Map<number, number>;
       swaps: Map<string, number>;
     }
   ): "workout" | "rest" | "unplanned" {
@@ -1877,27 +1894,63 @@ export class DatabaseStorage implements IStorage {
       return "unplanned";
     }
     
-    const cycleLength = phase.cycleLength || 7;
+    // Use phase cycleLength, or fall back to linked cycle's length, or default to 7
+    const cycleLength = phase.cycleLength || 
+      (phase.cycleId ? cache.cycleLengths.get(phase.cycleId) : null) || 7;
+    
     const startDate = new Date(phase.startDate + 'T00:00:00');
     const daysDiff = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
     const dayIndex = daysDiff % cycleLength;
     
-    // Check for swap
+    // Check for swap - note: swaps use targetDayIndex which is the day being swapped TO
     const swapKey = `${phase.id}-${dateStr}`;
     const effectiveDayIndex = cache.swaps.has(swapKey) ? cache.swaps.get(swapKey)! : dayIndex;
     
-    // Check if exercises exist for this day
-    let hasExercises = false;
+    // Determine if this day is a workout or rest day
+    // Priority: 1) Custom phase exercises, 2) Cycle exercises, 3) Cycle restDays metadata
     
-    if (phase.useCustomExercises || !phase.cycleId) {
-      // Use phase exercises
-      hasExercises = cache.phaseExerciseDays.get(phase.id)?.has(effectiveDayIndex) || false;
-    } else {
-      // Use cycle exercises
-      hasExercises = cache.cycleExerciseDays.get(phase.cycleId)?.has(effectiveDayIndex) || false;
+    if (phase.useCustomExercises) {
+      // Phase has custom exercises defined
+      const hasExercises = cache.phaseExerciseDays.get(phase.id)?.has(effectiveDayIndex) || false;
+      return hasExercises ? "workout" : "rest";
     }
     
-    return hasExercises ? "workout" : "rest";
+    if (phase.cycleId) {
+      // Phase is linked to a cycle
+      const cycleHasExercises = cache.cycleExerciseDays.get(phase.cycleId)?.has(effectiveDayIndex) || false;
+      
+      if (cycleHasExercises) {
+        return "workout";
+      }
+      
+      // Check if this day is explicitly marked as a rest day in the cycle
+      const cycleRestDaysSet = cache.cycleRestDays.get(phase.cycleId);
+      if (cycleRestDaysSet && cycleRestDaysSet.has(effectiveDayIndex)) {
+        return "rest";
+      }
+      
+      // If autoAssignCycle is true, non-rest days are workout days even without exercises
+      if (phase.autoAssignCycle) {
+        // Day is NOT in restDays = it's a workout day
+        return "workout";
+      }
+      
+      // No explicit exercises and not autoAssignCycle - treat as rest
+      return "rest";
+    }
+    
+    // No cycle linked - check phase restDays array
+    if (phase.restDays && phase.restDays.includes(effectiveDayIndex)) {
+      return "rest";
+    }
+    
+    // Default: if phase has explicit restDays defined, non-rest days are workouts
+    if (phase.restDays && phase.restDays.length > 0) {
+      return "workout";
+    }
+    
+    // No schedule info - treat as unplanned
+    return "unplanned";
   }
 
   /**
