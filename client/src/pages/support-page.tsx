@@ -172,70 +172,84 @@ export default function SupportPage() {
         </div>
 
         <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="w-5 h-5" />
-              Contact Us Directly
-            </CardTitle>
-            <CardDescription>Reach out to us via email for quick assistance</CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl">Contact Us</CardTitle>
+            <CardDescription>
+              Need immediate assistance? Reach out directly via email and our team will respond within 24 hours.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <a
-                href="mailto:support@ogym.fitness"
-                className="flex items-center gap-3 p-4 border rounded-lg hover-elevate transition-colors"
-                data-testid="link-email-support"
-              >
-                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                  <HelpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">General Support</p>
-                  <p className="text-xs text-muted-foreground">support@ogym.fitness</p>
-                </div>
-              </a>
+          <CardContent className="pt-4">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Primary Support</h3>
+                <a
+                  href="mailto:support@ogym.fitness"
+                  className="group flex items-start gap-4 p-5 bg-secondary/30 rounded-lg transition-all hover:bg-secondary/50"
+                  data-testid="link-email-support"
+                >
+                  <div className="p-3 bg-primary/10 rounded-full shrink-0">
+                    <Mail className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-base group-hover:text-primary transition-colors">General Support</p>
+                    <p className="text-sm text-muted-foreground">For questions about features, accounts, and gym management</p>
+                    <p className="text-sm font-medium text-primary">support@ogym.fitness</p>
+                  </div>
+                </a>
+                
+                <a
+                  href="mailto:billing@ogym.fitness"
+                  className="group flex items-start gap-4 p-5 bg-secondary/30 rounded-lg transition-all hover:bg-secondary/50"
+                  data-testid="link-email-billing"
+                >
+                  <div className="p-3 bg-primary/10 rounded-full shrink-0">
+                    <CreditCard className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-base group-hover:text-primary transition-colors">Billing & Payments</p>
+                    <p className="text-sm text-muted-foreground">Subscription issues, invoices, and payment questions</p>
+                    <p className="text-sm font-medium text-primary">billing@ogym.fitness</p>
+                  </div>
+                </a>
+              </div>
               
-              <a
-                href="mailto:billing@ogym.fitness"
-                className="flex items-center gap-3 p-4 border rounded-lg hover-elevate transition-colors"
-                data-testid="link-email-billing"
-              >
-                <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                  <CreditCard className="w-5 h-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Billing Issues</p>
-                  <p className="text-xs text-muted-foreground">billing@ogym.fitness</p>
-                </div>
-              </a>
-              
-              <a
-                href="mailto:sales@ogym.fitness"
-                className="flex items-center gap-3 p-4 border rounded-lg hover-elevate transition-colors"
-                data-testid="link-email-sales"
-              >
-                <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                  <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">New Gym Inquiry</p>
-                  <p className="text-xs text-muted-foreground">sales@ogym.fitness</p>
-                </div>
-              </a>
-              
-              <a
-                href="mailto:support@ogym.fitness?subject=Bug Report"
-                className="flex items-center gap-3 p-4 border rounded-lg hover-elevate transition-colors"
-                data-testid="link-email-bugs"
-              >
-                <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
-                  <Bug className="w-5 h-5 text-red-600 dark:text-red-400" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Report a Bug</p>
-                  <p className="text-xs text-muted-foreground">support@ogym.fitness</p>
-                </div>
-              </a>
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Other Inquiries</h3>
+                <a
+                  href="mailto:sales@ogym.fitness"
+                  className="group flex items-start gap-4 p-5 bg-secondary/30 rounded-lg transition-all hover:bg-secondary/50"
+                  data-testid="link-email-sales"
+                >
+                  <div className="p-3 bg-primary/10 rounded-full shrink-0">
+                    <Users className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-base group-hover:text-primary transition-colors">New Gym Partnerships</p>
+                    <p className="text-sm text-muted-foreground">Interested in OGym for your gym? Let's talk</p>
+                    <p className="text-sm font-medium text-primary">sales@ogym.fitness</p>
+                  </div>
+                </a>
+                
+                <a
+                  href="mailto:support@ogym.fitness?subject=Bug Report"
+                  className="group flex items-start gap-4 p-5 bg-secondary/30 rounded-lg transition-all hover:bg-secondary/50"
+                  data-testid="link-email-bugs"
+                >
+                  <div className="p-3 bg-primary/10 rounded-full shrink-0">
+                    <Bug className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-base group-hover:text-primary transition-colors">Report a Bug</p>
+                    <p className="text-sm text-muted-foreground">Found an issue? Help us improve by reporting it</p>
+                    <p className="text-sm font-medium text-primary">support@ogym.fitness</p>
+                  </div>
+                </a>
+              </div>
+            </div>
+            
+            <div className="mt-6 pt-4 border-t flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Clock className="w-4 h-4" />
+              <span>Average response time: within 24 hours</span>
             </div>
           </CardContent>
         </Card>
