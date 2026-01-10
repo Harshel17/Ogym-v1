@@ -223,7 +223,126 @@ export default function MembersPage() {
               </div>
             </div>
           )}
-          <div className="rounded-md border border-border overflow-x-auto">
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="p-4 rounded-lg border bg-card animate-pulse">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-muted" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-muted rounded w-1/3" />
+                        <div className="h-3 bg-muted rounded w-1/2" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredMembers.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground">
+                <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>
+                  {isTrainer 
+                    ? "No members assigned to you yet." 
+                    : isOwner && ownerTab === "new"
+                      ? "All members have trainers assigned and payments set up."
+                      : "No members found."}
+                </p>
+              </div>
+            ) : (
+              filteredMembers.map((member: any) => {
+                const isStar = starMemberIds.has(member.id);
+                const isPendingThis = pendingStarId === member.id;
+                const needsAttention = isOwner && (!member.trainerName || !member.subscriptionEndDate);
+                
+                return (
+                  <div
+                    key={member.id}
+                    className={`p-4 rounded-xl border bg-card transition-all active:scale-[0.98] ${needsAttention ? "border-orange-500/30 bg-orange-500/5" : ""}`}
+                    onClick={() => {
+                      if (isOwner) {
+                        navigate(`/owner/members/${member.id}`);
+                      } else if (isTrainer) {
+                        setSelectedMemberId(member.id);
+                        setSelectedMemberName(member.username || "Member");
+                      }
+                    }}
+                    data-testid={`card-member-${member.id}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${isStar && isTrainer ? "bg-yellow-500/20 text-yellow-600" : "bg-primary/10 text-primary"}`}>
+                        {member.username?.slice(0, 2).toUpperCase() || '??'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold truncate">{member.username}</span>
+                          {isStar && isTrainer && (
+                            <Star className="w-4 h-4 fill-yellow-500 text-yellow-500 shrink-0" />
+                          )}
+                        </div>
+                        
+                        {isOwner && (
+                          <div className="mt-2 space-y-2">
+                            <div className="flex items-center gap-4 text-sm">
+                              <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <Users className="w-3.5 h-3.5" />
+                                <span className={!member.trainerName ? "text-orange-500" : ""}>
+                                  {member.trainerName || "No trainer"}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 text-sm">
+                                <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span className={!member.subscriptionEndDate ? "text-orange-500 text-xs" : "text-muted-foreground"}>
+                                  {member.subscriptionEndDate || "No subscription"}
+                                </span>
+                              </div>
+                              <PaymentBadge status={member.paymentStatus} />
+                            </div>
+                          </div>
+                        )}
+                        
+                        {isTrainer && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Joined {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : '-'}
+                          </p>
+                        )}
+                      </div>
+                      
+                      {isTrainer && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={(e) => { e.stopPropagation(); toggleStar(member.id); }}
+                          disabled={isPendingThis}
+                          className={`shrink-0 ${isStar ? "text-yellow-500" : "text-muted-foreground"}`}
+                          data-testid={`button-star-mobile-${member.id}`}
+                        >
+                          {isPendingThis ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <Star className={`w-5 h-5 ${isStar ? "fill-yellow-500" : ""}`} />
+                          )}
+                        </Button>
+                      )}
+                      
+                      {isOwner && (
+                        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <AssignTrainerDialog memberId={member.id} memberName={member.username} currentTrainer={member.trainerName} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block rounded-md border border-border overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
