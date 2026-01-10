@@ -1821,14 +1821,10 @@ export class DatabaseStorage implements IStorage {
     let streak = 0;
     if (uniqueDates.length > 0) {
       const uniqueDatesSet = new Set(uniqueDates);
-      let checkDate = new Date(todayStr + 'T00:00:00');
+      // Start from the most recent workout date and count consecutive days backwards
+      let checkDate = new Date(uniqueDates[0] + 'T00:00:00');
       
-      // If no workout today, start from yesterday
-      if (!uniqueDatesSet.has(todayStr)) {
-        checkDate.setDate(checkDate.getDate() - 1);
-      }
-      
-      // Count consecutive days backwards
+      // Count consecutive days backwards from last workout
       while (uniqueDatesSet.has(checkDate.toISOString().split('T')[0])) {
         streak++;
         checkDate.setDate(checkDate.getDate() - 1);
