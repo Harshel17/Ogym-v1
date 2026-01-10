@@ -617,6 +617,12 @@ export default function AuthPage() {
                           "Create Account"
                         )}
                       </Button>
+                      <p className="text-xs text-muted-foreground text-center mt-3">
+                        By creating an account, you agree to our{" "}
+                        <a href="/terms" className="text-primary hover:underline" data-testid="link-terms">Terms of Service</a>
+                        {" "}and{" "}
+                        <a href="/privacy" className="text-primary hover:underline" data-testid="link-privacy">Privacy Policy</a>
+                      </p>
                     </form>
                   </Form>
                 </CardContent>
@@ -625,6 +631,11 @@ export default function AuthPage() {
           </Tabs>
 
           <div className="mt-6 text-center flex flex-col gap-2">
+            <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+              <a href="/terms" className="hover:text-foreground transition-colors" data-testid="link-terms-footer">Terms</a>
+              <span>|</span>
+              <a href="/privacy" className="hover:text-foreground transition-colors" data-testid="link-privacy-footer">Privacy</a>
+            </div>
             <a 
               href="/admin" 
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"

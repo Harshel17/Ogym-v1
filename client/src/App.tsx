@@ -46,6 +46,8 @@ import FeedPage from "@/pages/feed-page";
 import TournamentsPage from "@/pages/tournaments-page";
 import MemberOnboardingPage from "@/pages/member-onboarding-page";
 import SupportPage from "@/pages/support-page";
+import TermsPage from "@/pages/terms-page";
+import PrivacyPage from "@/pages/privacy-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -282,6 +284,9 @@ function Router() {
 
       <Route path="/admin" component={AdminLoginPage} />
       <Route path="/admin/dashboard" component={AdminDashboardPage} />
+
+      <Route path="/terms" component={TermsPage} />
+      <Route path="/privacy" component={PrivacyPage} />
 
       <Route component={NotFound} />
     </Switch>

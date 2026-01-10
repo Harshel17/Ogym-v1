@@ -23,17 +23,18 @@ function getAdminJwtSecret(): string {
 const ADMIN_JWT_SECRET = getAdminJwtSecret();
 
 /**
- * TEMPORARY DEV MODE: Email Verification Bypass
+ * Email Verification Control
  * 
- * When DISABLE_EMAIL_VERIFICATION=true:
- * - New users are automatically marked as email_verified = true
- * - No OTP emails are sent during registration
- * - Login does not require email verification
- * 
- * WARNING: This MUST be disabled (set to false or removed) for production!
- * Set DISABLE_EMAIL_VERIFICATION=false or remove the env var entirely for production.
+ * In development: Can be disabled for testing with DISABLE_EMAIL_VERIFICATION=true
+ * In production: MUST always be enabled (throws error if bypass attempted)
  */
-const DISABLE_EMAIL_VERIFICATION = process.env.DISABLE_EMAIL_VERIFICATION === "true";
+const DISABLE_EMAIL_VERIFICATION = (() => {
+  const isDisabled = process.env.DISABLE_EMAIL_VERIFICATION === "true";
+  if (isDisabled && process.env.NODE_ENV === "production") {
+    throw new Error("FATAL: Email verification cannot be disabled in production. Remove DISABLE_EMAIL_VERIFICATION env var.");
+  }
+  return isDisabled;
+})();
 
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
