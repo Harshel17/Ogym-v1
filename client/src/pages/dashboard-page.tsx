@@ -35,15 +35,24 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 page-enter">
-      <div className="animate-slide-in-up">
-        <h2 className="text-3xl font-bold font-display text-foreground">
-          {greeting}, <span className="text-primary font-bold">{user.username}</span>
-        </h2>
-        <p className="text-muted-foreground mt-1">
-          {user.role === "owner" && "Here's your gym overview for today."}
-          {user.role === "trainer" && "Track your members' progress and workouts."}
-          {user.role === "member" && "Ready to crush your workout today?"}
-        </p>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-background to-purple-500/10 dark:from-primary/20 dark:via-background dark:to-purple-500/20 p-6 md:p-8 animate-slide-in-up border border-primary/10">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <Calendar className="w-4 h-4" />
+            <span>{format(new Date(), 'EEEE, MMMM d, yyyy')}</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold font-display text-foreground">
+            {greeting}, <span className="text-primary">{user.username}</span>
+          </h2>
+          <p className="text-muted-foreground mt-2 text-lg">
+            {user.role === "owner" && "Here's your gym overview for today."}
+            {user.role === "trainer" && "Track your members' progress and workouts."}
+            {user.role === "member" && "Ready to crush your workout today?"}
+          </p>
+        </div>
       </div>
 
       {user.role === "owner" && <OwnerDashboard />}
@@ -53,20 +62,33 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ title, value, icon: Icon, description, delay = 0 }: any) {
+function StatCard({ title, value, icon: Icon, description, delay = 0, onClick, color = "primary" }: any) {
+  const colorClasses: Record<string, string> = {
+    primary: "from-primary/20 to-primary/5 text-primary",
+    green: "from-green-500/20 to-green-500/5 text-green-600 dark:text-green-400",
+    amber: "from-amber-500/20 to-amber-500/5 text-amber-600 dark:text-amber-400",
+    red: "from-red-500/20 to-red-500/5 text-red-600 dark:text-red-400",
+    purple: "from-purple-500/20 to-purple-500/5 text-purple-600 dark:text-purple-400",
+  };
+  
   return (
-    <Card className="stat-card-magic shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 animate-slide-in-up" style={{ animationDelay: `${delay}ms` }}>
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+    <Card 
+      className={`group relative overflow-hidden border-0 shadow-lg shadow-black/5 bg-card transition-all duration-300 hover:shadow-xl hover:-translate-y-1 animate-slide-in-up ${onClick ? 'cursor-pointer' : ''}`} 
+      style={{ animationDelay: `${delay}ms` }}
+      onClick={onClick}
+    >
+      <div className={`absolute inset-0 bg-gradient-to-br ${colorClasses[color] || colorClasses.primary} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2 relative z-10">
+        <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           {title}
         </CardTitle>
-        <div className="p-2.5 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl text-primary">
+        <div className={`p-2.5 rounded-xl bg-gradient-to-br ${colorClasses[color] || colorClasses.primary}`}>
           <Icon className="h-5 w-5" />
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold font-display text-foreground animate-count-up">{value}</div>
-        <p className="text-xs text-muted-foreground mt-1">
+      <CardContent className="relative z-10">
+        <div className="text-3xl font-bold font-display text-foreground">{value}</div>
+        <p className="text-xs text-muted-foreground mt-1.5">
           {description}
         </p>
       </CardContent>
@@ -151,28 +173,29 @@ function OwnerDashboard() {
   return (
     <div className="space-y-6">
       {user?.gym && (
-        <Card className="magic-card border-2 border-primary/20 bg-gradient-to-r from-primary/5 via-background to-accent/5 animate-slide-in-up">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div>
-                <h3 className="text-xl font-bold text-foreground">{user.gym.name}</h3>
-                <p className="text-sm text-muted-foreground mt-1">Share this code with trainers and members</p>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <div className="bg-background border-2 border-primary rounded-xl px-5 py-3 font-mono font-bold text-xl text-primary animate-border-glow">
-                  {user.gym.code}
-                </div>
-                <button 
-                  onClick={handleCopyCode}
-                  className="text-xs px-4 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25"
-                  data-testid="button-copy-code"
-                >
-                  Copy Code
-                </button>
-              </div>
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-indigo-600 to-purple-600 p-6 md:p-8 animate-slide-in-up shadow-xl shadow-primary/20" style={{ animationDelay: '100ms' }}>
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjIiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4xKSIvPjwvZz48L3N2Zz4=')] opacity-50" />
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          
+          <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
+            <div className="text-white">
+              <h3 className="text-2xl font-bold">{user.gym.name}</h3>
+              <p className="text-white/70 mt-1">Share this code with trainers and members</p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex flex-col items-end gap-3">
+              <div className="bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl px-6 py-3 font-mono font-bold text-2xl text-white tracking-wider">
+                {user.gym.code}
+              </div>
+              <button 
+                onClick={handleCopyCode}
+                className="text-sm px-5 py-2 bg-white text-primary font-semibold rounded-lg hover:bg-white/90 transition-all hover:shadow-lg"
+                data-testid="button-copy-code"
+              >
+                Copy Code
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {gymSubscription && (
@@ -217,109 +240,70 @@ function OwnerDashboard() {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card 
-          className="dashboard-card border-none shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 cursor-pointer hover-elevate"
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+        <StatCard 
+          title="Total Members" 
+          value={totalMembers} 
+          icon={Users} 
+          description="Click to view analytics"
+          color="primary"
+          delay={0}
           onClick={() => navigate("/owner/member-analytics")}
-          data-testid="card-total-members"
-        >
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Total Members
-            </CardTitle>
-            <div className="p-2 bg-primary/10 rounded-full text-primary">
-              <Users className="h-4 w-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-display text-foreground">{totalMembers}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Click to view analytics
-            </p>
-          </CardContent>
-        </Card>
-        <Card 
-          className="dashboard-card border-none shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 cursor-pointer hover-elevate"
+        />
+        <StatCard 
+          title="Checked-in Today" 
+          value={checkedInToday} 
+          icon={CalendarCheck} 
+          description="Active today"
+          color="green"
+          delay={50}
           onClick={() => navigate("/owner/attendance")}
-          data-testid="card-checked-in-today"
-        >
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Checked-in Today
-            </CardTitle>
-            <div className="p-2 bg-primary/10 rounded-full text-primary">
-              <CalendarCheck className="h-4 w-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-display text-foreground">{checkedInToday}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Click to view analytics
-            </p>
-          </CardContent>
-        </Card>
+        />
         <StatCard 
           title="Yesterday" 
           value={checkedInYesterday} 
           icon={Calendar} 
-          description="Members checked in yesterday"
+          description="Members checked in"
+          color="purple"
+          delay={100}
         />
-        <Card 
-          className="dashboard-card border-none shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 cursor-pointer hover-elevate"
+        <StatCard 
+          title="Pending Payments" 
+          value={pendingPayments} 
+          icon={AlertCircle} 
+          description="Unpaid invoices"
+          color={pendingPayments > 0 ? "amber" : "green"}
+          delay={150}
           onClick={() => navigate("/payments")}
-          data-testid="card-pending-payments"
-        >
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Pending Payments
-            </CardTitle>
-            <div className="p-2 bg-primary/10 rounded-full text-primary">
-              <AlertCircle className="h-4 w-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-display text-foreground">{pendingPayments}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Unpaid invoices
-            </p>
-          </CardContent>
-        </Card>
-        <Card 
-          className="dashboard-card border-none shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 cursor-pointer hover-elevate"
+        />
+        <StatCard 
+          title="This Month" 
+          value={formatMoney(revenue)} 
+          icon={TrendingUp} 
+          description="Revenue collected"
+          color="green"
+          delay={200}
           onClick={() => navigate("/owner/revenue")}
-          data-testid="card-revenue"
-        >
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              This Month
-            </CardTitle>
-            <div className="p-2 bg-primary/10 rounded-full text-primary">
-              <TrendingUp className="h-4 w-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-display text-foreground">{formatMoney(revenue)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Revenue collected this month
-            </p>
-          </CardContent>
-        </Card>
+        />
       </div>
 
-      <Card>
+      <Card className="border-0 shadow-lg animate-slide-in-up" style={{ animationDelay: '250ms' }}>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle>Export Reports</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="w-5 h-5 text-primary" />
+            Export Reports
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
             <a href="/api/owner/export/members" download>
-              <Button variant="outline" data-testid="button-export-members">
+              <Button variant="outline" className="hover:border-primary/50" data-testid="button-export-members">
                 <Download className="w-4 h-4 mr-2" />
                 Export Members
               </Button>
             </a>
             <a href="/api/owner/export/payments" download>
-              <Button variant="outline" data-testid="button-export-payments">
+              <Button variant="outline" className="hover:border-primary/50" data-testid="button-export-payments">
                 <Download className="w-4 h-4 mr-2" />
                 Export Payments
               </Button>
