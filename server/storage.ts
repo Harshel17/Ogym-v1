@@ -1797,8 +1797,119 @@ export class DatabaseStorage implements IStorage {
     return { explanations, exampleCalculation, streakExplanation };
   }
 
+  /**
+   * Pre-load all schedule data for a member to enable fast streak calculation.
+   * Returns cached data structure for use with getScheduledDayStatusFromCache.
+   */
+  async loadMemberScheduleData(memberId: number): Promise<{
+    phases: (typeof trainingPhases.$inferSelect)[];
+    phaseExerciseDays: Map<number, Set<number>>; // phaseId -> set of dayIndices with exercises
+    cycleExerciseDays: Map<number, Set<number>>; // cycleId -> set of dayIndices with exercises
+    swaps: Map<string, number>; // "phaseId-date" -> targetDayIndex
+  }> {
+    // Get all phases for this member
+    const phases = await db.select().from(trainingPhases)
+      .where(eq(trainingPhases.memberId, memberId));
+    
+    // Get all phase exercises and group by phaseId
+    const phaseIds = phases.map(p => p.id);
+    const phaseExerciseDays = new Map<number, Set<number>>();
+    
+    if (phaseIds.length > 0) {
+      const exercises = await db.select().from(phaseExercises)
+        .where(inArray(phaseExercises.phaseId, phaseIds));
+      
+      for (const ex of exercises) {
+        if (!phaseExerciseDays.has(ex.phaseId)) {
+          phaseExerciseDays.set(ex.phaseId, new Set());
+        }
+        phaseExerciseDays.get(ex.phaseId)!.add(ex.dayIndex);
+      }
+    }
+    
+    // Get cycle exercises for phases that use cycles
+    const cycleIds = phases.filter(p => p.cycleId && !p.useCustomExercises).map(p => p.cycleId!);
+    const cycleExerciseDays = new Map<number, Set<number>>();
+    
+    if (cycleIds.length > 0) {
+      const cycleItems = await db.select().from(workoutItems)
+        .where(inArray(workoutItems.cycleId, cycleIds));
+      
+      for (const item of cycleItems) {
+        if (!cycleExerciseDays.has(item.cycleId)) {
+          cycleExerciseDays.set(item.cycleId, new Set());
+        }
+        cycleExerciseDays.get(item.cycleId)!.add(item.dayIndex);
+      }
+    }
+    
+    // Get all swaps for this member
+    const swapsData = await db.select().from(memberRestDaySwaps)
+      .where(eq(memberRestDaySwaps.memberId, memberId));
+    
+    const swaps = new Map<string, number>();
+    for (const swap of swapsData) {
+      swaps.set(`${swap.phaseId}-${swap.swapDate}`, swap.targetDayIndex);
+    }
+    
+    return { phases, phaseExerciseDays, cycleExerciseDays, swaps };
+  }
+
+  /**
+   * Determine if a specific date is a scheduled workout day, rest day, or unplanned.
+   * Uses pre-loaded cache for performance.
+   */
+  getScheduledDayStatusFromCache(
+    dateStr: string,
+    cache: {
+      phases: (typeof trainingPhases.$inferSelect)[];
+      phaseExerciseDays: Map<number, Set<number>>;
+      cycleExerciseDays: Map<number, Set<number>>;
+      swaps: Map<string, number>;
+    }
+  ): "workout" | "rest" | "unplanned" {
+    const date = new Date(dateStr + 'T00:00:00');
+    
+    // Find active phase for this date
+    const phase = cache.phases.find(p => p.startDate <= dateStr && p.endDate >= dateStr);
+    
+    if (!phase) {
+      return "unplanned";
+    }
+    
+    const cycleLength = phase.cycleLength || 7;
+    const startDate = new Date(phase.startDate + 'T00:00:00');
+    const daysDiff = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+    const dayIndex = daysDiff % cycleLength;
+    
+    // Check for swap
+    const swapKey = `${phase.id}-${dateStr}`;
+    const effectiveDayIndex = cache.swaps.has(swapKey) ? cache.swaps.get(swapKey)! : dayIndex;
+    
+    // Check if exercises exist for this day
+    let hasExercises = false;
+    
+    if (phase.useCustomExercises || !phase.cycleId) {
+      // Use phase exercises
+      hasExercises = cache.phaseExerciseDays.get(phase.id)?.has(effectiveDayIndex) || false;
+    } else {
+      // Use cycle exercises
+      hasExercises = cache.cycleExerciseDays.get(phase.cycleId)?.has(effectiveDayIndex) || false;
+    }
+    
+    return hasExercises ? "workout" : "rest";
+  }
+
+  /**
+   * Legacy method for single date lookup (still used for non-performance-critical paths)
+   */
+  async getScheduledDayStatus(memberId: number, dateStr: string): Promise<"workout" | "rest" | "unplanned"> {
+    const cache = await this.loadMemberScheduleData(memberId);
+    return this.getScheduledDayStatusFromCache(dateStr, cache);
+  }
+
   async getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }> {
-    // Get data from BOTH workout systems (same as getMemberWorkoutSummary):
+    // Get data from BOTH workout systems:
     // 1. workoutSessions - standalone sessions members create
     // 2. workoutCompletions - completions from trainer-assigned cycles
     
@@ -1815,7 +1926,7 @@ export class DatabaseStorage implements IStorage {
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
     
-    // Combine unique dates from both sources (same logic as getMemberWorkoutSummary)
+    // Combine unique dates from both sources
     const completionDatesSet = new Set(allCompletions.map(c => c.completedDate));
     const sessionDatesSet = new Set(allSessions.map(s => s.date));
     const allDates = new Set([...Array.from(completionDatesSet), ...Array.from(sessionDatesSet)]);
@@ -1825,15 +1936,32 @@ export class DatabaseStorage implements IStorage {
     const last7DaysDates = uniqueDates.filter(d => d >= sevenDaysAgoStr);
     const last7Days = last7DaysDates.length;
     
-    // Calculate streak - start from most recent workout date
+    // Pre-load schedule data for fast streak calculation
+    const scheduleCache = await this.loadMemberScheduleData(memberId);
+    
+    // Smart rest day streak calculation:
+    // - Start from today and go backwards
+    // - If day has workout completion → streak++
+    // - If day is rest/unplanned (no assigned workout) → continue (streak doesn't break)
+    // - If day has workout assigned but no completion → streak breaks
     let streak = 0;
-    if (uniqueDates.length > 0) {
-      let checkDate = new Date(uniqueDates[0] + 'T00:00:00');
+    let checkDate = new Date(todayStr + 'T00:00:00');
+    const maxDaysToCheck = 365; // Safety limit
+    
+    for (let i = 0; i < maxDaysToCheck; i++) {
+      const dateStr = checkDate.toISOString().split('T')[0];
+      const hasWorkout = allDates.has(dateStr);
       
-      while (allDates.has(checkDate.toISOString().split('T')[0])) {
+      if (hasWorkout) {
         streak++;
-        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        const dayStatus = this.getScheduledDayStatusFromCache(dateStr, scheduleCache);
+        if (dayStatus === "workout") {
+          break;
+        }
       }
+      
+      checkDate.setDate(checkDate.getDate() - 1);
     }
     
     return { streak, totalWorkouts, last7Days };
@@ -4934,15 +5062,32 @@ export class DatabaseStorage implements IStorage {
     const allDates = new Set([...Array.from(sessionDatesSet), ...Array.from(completionDatesSet)]);
     const uniqueDates = Array.from(allDates).sort().reverse();
     
-    // Calculate streak - start from most recent workout date (consistent with getMemberStats)
+    // Pre-load schedule data for fast streak calculation
+    const scheduleCache = await this.loadMemberScheduleData(memberId);
+    
+    // Smart rest day streak calculation (consistent with getMemberStats):
+    // - Start from today and go backwards
+    // - If day has workout completion → streak++
+    // - If day is rest/unplanned (no assigned workout) → continue (streak doesn't break)
+    // - If day has workout assigned but no completion → streak breaks
     let streak = 0;
-    if (uniqueDates.length > 0) {
-      let checkDate = new Date(uniqueDates[0] + 'T00:00:00');
+    let checkDate = new Date(today + 'T00:00:00');
+    const maxDaysToCheck = 365;
+    
+    for (let i = 0; i < maxDaysToCheck; i++) {
+      const dateStr = checkDate.toISOString().split('T')[0];
+      const hasWorkout = allDates.has(dateStr);
       
-      while (allDates.has(checkDate.toISOString().split('T')[0])) {
+      if (hasWorkout) {
         streak++;
-        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        const dayStatus = this.getScheduledDayStatusFromCache(dateStr, scheduleCache);
+        if (dayStatus === "workout") {
+          break;
+        }
       }
+      
+      checkDate.setDate(checkDate.getDate() - 1);
     }
     
     // Calculate counts using unique dates
