@@ -142,91 +142,145 @@ export default function AttendancePage() {
               )}
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border border-border overflow-hidden">
-                <Table>
-                  <TableHeader className="bg-muted/50">
-                    <TableRow>
-                      {isOwner && <TableHead>Member</TableHead>}
-                      <TableHead>Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Method</TableHead>
-                      {isOwner && <TableHead>Transfer</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={isOwner ? 5 : 4} className="h-24 text-center">Loading...</TableCell>
-                      </TableRow>
-                    ) : filteredList.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={isOwner ? 5 : 4} className="h-24 text-center text-muted-foreground">
-                          No records found.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredList.map((record: any) => (
-                        <TableRow key={record.id} className="hover:bg-muted/50 transition-colors">
-                          {isOwner && (
-                            <TableCell className="font-medium">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
+              {isLoading ? (
+                <div className="h-24 flex items-center justify-center">Loading...</div>
+              ) : filteredList.length === 0 ? (
+                <div className="h-24 flex items-center justify-center text-muted-foreground">
+                  No records found.
+                </div>
+              ) : (
+                <>
+                  {/* Mobile Card View */}
+                  <div className="md:hidden space-y-3">
+                    {filteredList.map((record: any) => {
+                      const transfer = isOwner ? getTransferStatus(record.member?.id, record.date) : null;
+                      return (
+                        <div
+                          key={record.id}
+                          className="p-4 rounded-xl border bg-card"
+                          data-testid={`card-attendance-${record.id}`}
+                        >
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            <div className="flex items-center gap-3">
+                              {isOwner && (
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
                                   {record.member?.username?.slice(0, 2).toUpperCase() || '??'}
                                 </div>
-                                {record.member?.username || 'Unknown'}
+                              )}
+                              <div>
+                                {isOwner && <p className="font-semibold">{record.member?.username || 'Unknown'}</p>}
+                                <p className="text-sm text-muted-foreground">{record.date}</p>
                               </div>
-                            </TableCell>
-                          )}
-                          <TableCell className="text-muted-foreground">
-                            {record.date}
-                          </TableCell>
-                          <TableCell>
+                            </div>
                             {record.status === 'present' ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 shrink-0">
                                 <CheckCircle2 className="w-3.5 h-3.5" /> Present
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 shrink-0">
                                 <XCircle className="w-3.5 h-3.5" /> Absent
                               </span>
                             )}
-                          </TableCell>
-                          <TableCell>
+                          </div>
+                          <div className="flex items-center justify-between pt-3 border-t">
                             <Badge variant="outline" className="text-xs">
                               {record.verifiedMethod || 'manual'}
                             </Badge>
-                          </TableCell>
-                          {isOwner && (
-                            <TableCell>
-                              {(() => {
-                                const transfer = getTransferStatus(record.member?.id, record.date);
-                                if (!transfer) return <span className="text-muted-foreground">-</span>;
-                                if (transfer.left) {
-                                  return (
-                                    <Badge variant="outline" className="text-red-500 border-red-500/30">
-                                      <LogOut className="w-3 h-3 mr-1" />
-                                      Left
-                                    </Badge>
-                                  );
-                                }
-                                if (transfer.joined) {
-                                  return (
-                                    <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
-                                      <LogIn className="w-3 h-3 mr-1" />
-                                      Joined
-                                    </Badge>
-                                  );
-                                }
-                                return <span className="text-muted-foreground">-</span>;
-                              })()}
-                            </TableCell>
-                          )}
+                            {isOwner && transfer && (
+                              transfer.left ? (
+                                <Badge variant="outline" className="text-red-500 border-red-500/30">
+                                  <LogOut className="w-3 h-3 mr-1" />
+                                  Left
+                                </Badge>
+                              ) : transfer.joined ? (
+                                <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
+                                  <LogIn className="w-3 h-3 mr-1" />
+                                  Joined
+                                </Badge>
+                              ) : null
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block rounded-md border border-border overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow>
+                          {isOwner && <TableHead>Member</TableHead>}
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Method</TableHead>
+                          {isOwner && <TableHead>Transfer</TableHead>}
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredList.map((record: any) => (
+                          <TableRow key={record.id} className="hover:bg-muted/50 transition-colors">
+                            {isOwner && (
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold">
+                                    {record.member?.username?.slice(0, 2).toUpperCase() || '??'}
+                                  </div>
+                                  {record.member?.username || 'Unknown'}
+                                </div>
+                              </TableCell>
+                            )}
+                            <TableCell className="text-muted-foreground">
+                              {record.date}
+                            </TableCell>
+                            <TableCell>
+                              {record.status === 'present' ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Present
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                                  <XCircle className="w-3.5 h-3.5" /> Absent
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">
+                                {record.verifiedMethod || 'manual'}
+                              </Badge>
+                            </TableCell>
+                            {isOwner && (
+                              <TableCell>
+                                {(() => {
+                                  const transfer = getTransferStatus(record.member?.id, record.date);
+                                  if (!transfer) return <span className="text-muted-foreground">-</span>;
+                                  if (transfer.left) {
+                                    return (
+                                      <Badge variant="outline" className="text-red-500 border-red-500/30">
+                                        <LogOut className="w-3 h-3 mr-1" />
+                                        Left
+                                      </Badge>
+                                    );
+                                  }
+                                  if (transfer.joined) {
+                                    return (
+                                      <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
+                                        <LogIn className="w-3 h-3 mr-1" />
+                                        Joined
+                                      </Badge>
+                                    );
+                                  }
+                                  return <span className="text-muted-foreground">-</span>;
+                                })()}
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

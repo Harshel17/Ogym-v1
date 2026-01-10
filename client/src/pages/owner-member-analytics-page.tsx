@@ -308,45 +308,69 @@ export default function OwnerMemberAnalyticsPage() {
 
                 <TabsContent value="active" className="mt-4">
                   {filteredActiveMembers.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Member</TableHead>
-                            <TableHead>Plan</TableHead>
-                            <TableHead>Start Date</TableHead>
-                            <TableHead>End Date</TableHead>
-                            <TableHead>Trainer</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredActiveMembers.map((member) => (
-                            <TableRow key={member.id} data-testid={`row-active-${member.id}`}>
-                              <TableCell className="font-medium">
-                                <Link href={`/owner/members/${member.id}?returnTo=/owner/member-analytics`} className="text-primary hover:underline">
-                                  {member.username}
-                                </Link>
-                                {member.publicId && (
-                                  <span className="text-xs text-muted-foreground ml-2">#{member.publicId}</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {member.planName ? (
-                                  <Badge variant="outline">{member.planName}</Badge>
-                                ) : '-'}
-                              </TableCell>
-                              <TableCell>
-                                {member.startDate ? format(new Date(member.startDate), "dd MMM yyyy") : '-'}
-                              </TableCell>
-                              <TableCell>
-                                {member.endDate ? format(new Date(member.endDate), "dd MMM yyyy") : '-'}
-                              </TableCell>
-                              <TableCell>{member.trainerName || '-'}</TableCell>
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="md:hidden space-y-3">
+                        {filteredActiveMembers.map((member) => (
+                          <Link key={member.id} href={`/owner/members/${member.id}?returnTo=/owner/member-analytics`}>
+                            <div className="p-4 rounded-xl border bg-card hover:border-primary/30" data-testid={`card-active-${member.id}`}>
+                              <div className="flex items-center justify-between gap-3 mb-2">
+                                <div>
+                                  <p className="font-semibold text-primary">{member.username}</p>
+                                  {member.publicId && <p className="text-xs text-muted-foreground">#{member.publicId}</p>}
+                                </div>
+                                {member.planName && <Badge variant="outline" className="text-xs">{member.planName}</Badge>}
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-sm pt-2 border-t">
+                                <div><span className="text-muted-foreground">Start:</span> {member.startDate ? format(new Date(member.startDate), "dd MMM yy") : '-'}</div>
+                                <div><span className="text-muted-foreground">End:</span> {member.endDate ? format(new Date(member.endDate), "dd MMM yy") : '-'}</div>
+                                <div className="col-span-2"><span className="text-muted-foreground">Trainer:</span> {member.trainerName || '-'}</div>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Member</TableHead>
+                              <TableHead>Plan</TableHead>
+                              <TableHead>Start Date</TableHead>
+                              <TableHead>End Date</TableHead>
+                              <TableHead>Trainer</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredActiveMembers.map((member) => (
+                              <TableRow key={member.id} data-testid={`row-active-${member.id}`}>
+                                <TableCell className="font-medium">
+                                  <Link href={`/owner/members/${member.id}?returnTo=/owner/member-analytics`} className="text-primary hover:underline">
+                                    {member.username}
+                                  </Link>
+                                  {member.publicId && (
+                                    <span className="text-xs text-muted-foreground ml-2">#{member.publicId}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {member.planName ? (
+                                    <Badge variant="outline">{member.planName}</Badge>
+                                  ) : '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {member.startDate ? format(new Date(member.startDate), "dd MMM yyyy") : '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {member.endDate ? format(new Date(member.endDate), "dd MMM yyyy") : '-'}
+                                </TableCell>
+                                <TableCell>{member.trainerName || '-'}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       <UserCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -357,45 +381,67 @@ export default function OwnerMemberAnalyticsPage() {
 
                 <TabsContent value="ended" className="mt-4">
                   {filteredEndedMembers.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Member</TableHead>
-                            <TableHead>Plan</TableHead>
-                            <TableHead>Start Date</TableHead>
-                            <TableHead>End Date</TableHead>
-                            <TableHead>Reason</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredEndedMembers.map((member) => (
-                            <TableRow key={member.id} data-testid={`row-ended-${member.id}`}>
-                              <TableCell className="font-medium">
-                                {member.username}
-                                {member.publicId && (
-                                  <span className="text-xs text-muted-foreground ml-2">#{member.publicId}</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {member.planName ? (
-                                  <Badge variant="outline">{member.planName}</Badge>
-                                ) : '-'}
-                              </TableCell>
-                              <TableCell>
-                                {member.startDate ? format(new Date(member.startDate), "dd MMM yyyy") : '-'}
-                              </TableCell>
-                              <TableCell>
-                                {member.endDate ? format(new Date(member.endDate), "dd MMM yyyy") : '-'}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="secondary">{member.reason}</Badge>
-                              </TableCell>
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="md:hidden space-y-3">
+                        {filteredEndedMembers.map((member) => (
+                          <div key={member.id} className="p-4 rounded-xl border bg-card border-amber-500/30 bg-amber-500/5" data-testid={`card-ended-${member.id}`}>
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                              <div>
+                                <p className="font-semibold">{member.username}</p>
+                                {member.publicId && <p className="text-xs text-muted-foreground">#{member.publicId}</p>}
+                              </div>
+                              <Badge variant="secondary" className="text-xs">{member.reason}</Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm pt-2 border-t">
+                              <div><span className="text-muted-foreground">Plan:</span> {member.planName || '-'}</div>
+                              <div><span className="text-muted-foreground">Start:</span> {member.startDate ? format(new Date(member.startDate), "dd MMM yy") : '-'}</div>
+                              <div className="col-span-2"><span className="text-muted-foreground">End:</span> {member.endDate ? format(new Date(member.endDate), "dd MMM yy") : '-'}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Member</TableHead>
+                              <TableHead>Plan</TableHead>
+                              <TableHead>Start Date</TableHead>
+                              <TableHead>End Date</TableHead>
+                              <TableHead>Reason</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredEndedMembers.map((member) => (
+                              <TableRow key={member.id} data-testid={`row-ended-${member.id}`}>
+                                <TableCell className="font-medium">
+                                  {member.username}
+                                  {member.publicId && (
+                                    <span className="text-xs text-muted-foreground ml-2">#{member.publicId}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {member.planName ? (
+                                    <Badge variant="outline">{member.planName}</Badge>
+                                  ) : '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {member.startDate ? format(new Date(member.startDate), "dd MMM yyyy") : '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {member.endDate ? format(new Date(member.endDate), "dd MMM yyyy") : '-'}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="secondary">{member.reason}</Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       <UserMinus className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -406,33 +452,56 @@ export default function OwnerMemberAnalyticsPage() {
 
                 <TabsContent value="transferred-out" className="mt-4">
                   {filteredTransferredOut.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Member</TableHead>
-                            <TableHead>Transferred To</TableHead>
-                            <TableHead>Transfer Date</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredTransferredOut.map((member, index) => (
-                            <TableRow key={`${member.id}-${index}`} data-testid={`row-out-${member.id}`}>
-                              <TableCell className="font-medium">
-                                {member.username}
-                                {member.publicId && (
-                                  <span className="text-xs text-muted-foreground ml-2">#{member.publicId}</span>
-                                )}
-                              </TableCell>
-                              <TableCell>{member.toGymName}</TableCell>
-                              <TableCell>
-                                {member.transferDate ? format(new Date(member.transferDate), "dd MMM yyyy") : '-'}
-                              </TableCell>
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="md:hidden space-y-3">
+                        {filteredTransferredOut.map((member, index) => (
+                          <div key={`${member.id}-${index}`} className="p-4 rounded-xl border bg-card border-red-500/30 bg-red-500/5" data-testid={`card-out-${member.id}`}>
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-sm font-bold text-red-600 shrink-0">
+                                {member.username?.slice(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-semibold">{member.username}</p>
+                                {member.publicId && <p className="text-xs text-muted-foreground">#{member.publicId}</p>}
+                              </div>
+                            </div>
+                            <div className="text-sm pt-2 border-t space-y-1">
+                              <div><span className="text-muted-foreground">To:</span> {member.toGymName}</div>
+                              <div><span className="text-muted-foreground">Date:</span> {member.transferDate ? format(new Date(member.transferDate), "dd MMM yyyy") : '-'}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Member</TableHead>
+                              <TableHead>Transferred To</TableHead>
+                              <TableHead>Transfer Date</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredTransferredOut.map((member, index) => (
+                              <TableRow key={`${member.id}-${index}`} data-testid={`row-out-${member.id}`}>
+                                <TableCell className="font-medium">
+                                  {member.username}
+                                  {member.publicId && (
+                                    <span className="text-xs text-muted-foreground ml-2">#{member.publicId}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>{member.toGymName}</TableCell>
+                                <TableCell>
+                                  {member.transferDate ? format(new Date(member.transferDate), "dd MMM yyyy") : '-'}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       <ArrowRightLeft className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -443,35 +512,60 @@ export default function OwnerMemberAnalyticsPage() {
 
                 <TabsContent value="transferred-in" className="mt-4">
                   {filteredTransferredIn.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Member</TableHead>
-                            <TableHead>Transferred From</TableHead>
-                            <TableHead>Transfer Date</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredTransferredIn.map((member, index) => (
-                            <TableRow key={`${member.id}-${index}`} data-testid={`row-in-${member.id}`}>
-                              <TableCell className="font-medium">
-                                <Link href={`/owner/members/${member.id}`} className="text-primary hover:underline">
-                                  {member.username}
-                                </Link>
-                                {member.publicId && (
-                                  <span className="text-xs text-muted-foreground ml-2">#{member.publicId}</span>
-                                )}
-                              </TableCell>
-                              <TableCell>{member.fromGymName}</TableCell>
-                              <TableCell>
-                                {member.transferDate ? format(new Date(member.transferDate), "dd MMM yyyy") : '-'}
-                              </TableCell>
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="md:hidden space-y-3">
+                        {filteredTransferredIn.map((member, index) => (
+                          <Link key={`${member.id}-${index}`} href={`/owner/members/${member.id}`}>
+                            <div className="p-4 rounded-xl border bg-card border-green-500/30 bg-green-500/5 hover:border-green-500/50" data-testid={`card-in-${member.id}`}>
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-sm font-bold text-green-600 shrink-0">
+                                  {member.username?.slice(0, 2).toUpperCase()}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-primary">{member.username}</p>
+                                  {member.publicId && <p className="text-xs text-muted-foreground">#{member.publicId}</p>}
+                                </div>
+                              </div>
+                              <div className="text-sm pt-2 border-t space-y-1">
+                                <div><span className="text-muted-foreground">From:</span> {member.fromGymName}</div>
+                                <div><span className="text-muted-foreground">Date:</span> {member.transferDate ? format(new Date(member.transferDate), "dd MMM yyyy") : '-'}</div>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Member</TableHead>
+                              <TableHead>Transferred From</TableHead>
+                              <TableHead>Transfer Date</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredTransferredIn.map((member, index) => (
+                              <TableRow key={`${member.id}-${index}`} data-testid={`row-in-${member.id}`}>
+                                <TableCell className="font-medium">
+                                  <Link href={`/owner/members/${member.id}`} className="text-primary hover:underline">
+                                    {member.username}
+                                  </Link>
+                                  {member.publicId && (
+                                    <span className="text-xs text-muted-foreground ml-2">#{member.publicId}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>{member.fromGymName}</TableCell>
+                                <TableCell>
+                                  {member.transferDate ? format(new Date(member.transferDate), "dd MMM yyyy") : '-'}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       <ArrowRightLeft className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -575,46 +669,36 @@ export default function OwnerMemberAnalyticsPage() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : inactiveMembers && inactiveMembers.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Member</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Last Attended</TableHead>
-                        <TableHead>Days Absent</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {inactiveMembers.map((member) => (
-                        <TableRow key={member.memberId} data-testid={`row-inactive-${member.memberId}`}>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <Link 
-                                href={`/owner/members/${member.memberId}?returnTo=/owner/member-analytics`} 
-                                className="font-medium text-primary hover:underline"
-                              >
-                                {member.name}
-                              </Link>
-                              {member.publicId && (
-                                <span className="text-xs text-muted-foreground">#{member.publicId}</span>
-                              )}
-                              {member.email && (
-                                <span className="text-xs text-muted-foreground">{member.email}</span>
-                              )}
+                <>
+                  {/* Mobile Card View */}
+                  <div className="md:hidden space-y-3">
+                    {inactiveMembers.map((member) => (
+                      <div key={member.memberId} className="p-4 rounded-xl border bg-card" data-testid={`card-inactive-${member.memberId}`}>
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <Link href={`/owner/members/${member.memberId}?returnTo=/owner/member-analytics`} className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                              {member.name?.slice(0, 2).toUpperCase()}
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            {getStatusBadge(member.status)}
-                          </TableCell>
-                          <TableCell>
-                            {member.lastAttendedDate 
-                              ? format(new Date(member.lastAttendedDate), "dd MMM yyyy")
-                              : <span className="text-muted-foreground italic">Never checked in</span>
-                            }
-                          </TableCell>
-                          <TableCell>
+                            <div>
+                              <p className="font-semibold text-primary">{member.name}</p>
+                              {member.publicId && <p className="text-xs text-muted-foreground">#{member.publicId}</p>}
+                              {member.email && <p className="text-xs text-muted-foreground">{member.email}</p>}
+                            </div>
+                          </Link>
+                          {getStatusBadge(member.status)}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm pt-3 border-t">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Last Attended</p>
+                            <p className="font-medium">
+                              {member.lastAttendedDate 
+                                ? format(new Date(member.lastAttendedDate), "dd MMM yy")
+                                : <span className="italic text-muted-foreground">Never</span>
+                              }
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Days Absent</p>
                             <Badge 
                               variant={member.daysAbsent >= 30 ? "destructive" : member.daysAbsent >= 14 ? "secondary" : "outline"}
                               className={
@@ -627,42 +711,114 @@ export default function OwnerMemberAnalyticsPage() {
                             >
                               {formatDaysAbsent(member.daysAbsent)}
                             </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Link href={`/owner/members/${member.memberId}?returnTo=/owner/member-analytics`}>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-1 pt-3 border-t mt-3">
+                          <Link href={`/owner/members/${member.memberId}?returnTo=/owner/member-analytics`}>
+                            <Button size="icon" variant="ghost" title="View Profile" data-testid={`button-view-mobile-${member.memberId}`}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Button size="icon" variant="ghost" title="Send Reminder" data-testid={`button-remind-mobile-${member.memberId}`}>
+                            <Bell className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" title="Mark Follow-up" data-testid={`button-followup-mobile-${member.memberId}`}>
+                            <Flag className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Member</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Last Attended</TableHead>
+                          <TableHead>Days Absent</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {inactiveMembers.map((member) => (
+                          <TableRow key={member.memberId} data-testid={`row-inactive-${member.memberId}`}>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <Link 
+                                  href={`/owner/members/${member.memberId}?returnTo=/owner/member-analytics`} 
+                                  className="font-medium text-primary hover:underline"
+                                >
+                                  {member.name}
+                                </Link>
+                                {member.publicId && (
+                                  <span className="text-xs text-muted-foreground">#{member.publicId}</span>
+                                )}
+                                {member.email && (
+                                  <span className="text-xs text-muted-foreground">{member.email}</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {getStatusBadge(member.status)}
+                            </TableCell>
+                            <TableCell>
+                              {member.lastAttendedDate 
+                                ? format(new Date(member.lastAttendedDate), "dd MMM yyyy")
+                                : <span className="text-muted-foreground italic">Never checked in</span>
+                              }
+                            </TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={member.daysAbsent >= 30 ? "destructive" : member.daysAbsent >= 14 ? "secondary" : "outline"}
+                                className={
+                                  member.daysAbsent >= 30 
+                                    ? "" 
+                                    : member.daysAbsent >= 14 
+                                      ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" 
+                                      : ""
+                                }
+                              >
+                                {formatDaysAbsent(member.daysAbsent)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Link href={`/owner/members/${member.memberId}?returnTo=/owner/member-analytics`}>
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    title="View Profile"
+                                    data-testid={`button-view-${member.memberId}`}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </Link>
                                 <Button 
                                   size="icon" 
                                   variant="ghost" 
-                                  title="View Profile"
-                                  data-testid={`button-view-${member.memberId}`}
+                                  title="Send Reminder"
+                                  data-testid={`button-remind-${member.memberId}`}
                                 >
-                                  <Eye className="h-4 w-4" />
+                                  <Bell className="h-4 w-4" />
                                 </Button>
-                              </Link>
-                              <Button 
-                                size="icon" 
-                                variant="ghost" 
-                                title="Send Reminder"
-                                data-testid={`button-remind-${member.memberId}`}
-                              >
-                                <Bell className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                size="icon" 
-                                variant="ghost" 
-                                title="Mark Follow-up"
-                                data-testid={`button-followup-${member.memberId}`}
-                              >
-                                <Flag className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  title="Mark Follow-up"
+                                  data-testid={`button-followup-${member.memberId}`}
+                                >
+                                  <Flag className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <UserCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />

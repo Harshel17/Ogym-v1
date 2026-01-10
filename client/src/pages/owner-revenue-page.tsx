@@ -247,40 +247,81 @@ export default function OwnerRevenuePage() {
               <p>No payments recorded for {format(selectedDate, 'MMMM yyyy')}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Member</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead>Reference</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {revenueData.transactions.map((txn) => (
-                    <TableRow key={txn.id} data-testid={`row-transaction-${txn.id}`}>
-                      <TableCell className="font-medium">
-                        {format(new Date(txn.paidOn), "dd MMM yyyy")}
-                      </TableCell>
-                      <TableCell>{txn.member?.username || 'Unknown'}</TableCell>
-                      <TableCell className="font-semibold text-green-600 dark:text-green-400">
+            <>
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {revenueData.transactions.map((txn) => (
+                  <div
+                    key={txn.id}
+                    className="p-4 rounded-xl border bg-card"
+                    data-testid={`card-transaction-${txn.id}`}
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-sm font-bold text-green-600 shrink-0">
+                          {txn.member?.username?.slice(0, 2).toUpperCase() || '??'}
+                        </div>
+                        <div>
+                          <p className="font-semibold">{txn.member?.username || 'Unknown'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(txn.paidOn), "dd MMM yyyy")}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-lg font-bold text-green-600 dark:text-green-400 shrink-0">
                         {formatMoney(txn.amountPaid)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">
-                          {txn.method}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {txn.referenceNote || '-'}
-                      </TableCell>
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between pt-3 border-t">
+                      <Badge variant="outline" className="capitalize text-xs">
+                        {txn.method}
+                      </Badge>
+                      {txn.referenceNote && (
+                        <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+                          {txn.referenceNote}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Member</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Reference</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {revenueData.transactions.map((txn) => (
+                      <TableRow key={txn.id} data-testid={`row-transaction-${txn.id}`}>
+                        <TableCell className="font-medium">
+                          {format(new Date(txn.paidOn), "dd MMM yyyy")}
+                        </TableCell>
+                        <TableCell>{txn.member?.username || 'Unknown'}</TableCell>
+                        <TableCell className="font-semibold text-green-600 dark:text-green-400">
+                          {formatMoney(txn.amountPaid)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {txn.method}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {txn.referenceNote || '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
