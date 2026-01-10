@@ -1328,6 +1328,13 @@ function MemberDashboard() {
 // Component to mark past attendance for missed days
 function MarkPastAttendanceButton({ date, onSuccess }: { date: string; onSuccess: () => void }) {
   const { toast } = useToast();
+  
+  // Check if date is within the last 7 days
+  const dateObj = parseISO(date);
+  const today = new Date();
+  const daysDiff = Math.floor((today.getTime() - dateObj.getTime()) / (1000 * 60 * 60 * 24));
+  const isWithin7Days = daysDiff <= 7 && daysDiff >= 0;
+  
   const markPastMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest('POST', '/api/attendance/mark-past', { date });
@@ -1350,6 +1357,17 @@ function MarkPastAttendanceButton({ date, onSuccess }: { date: string; onSuccess
       });
     }
   });
+
+  // Show different message for dates older than 7 days
+  if (!isWithin7Days) {
+    return (
+      <div className="p-3 bg-muted/50 rounded-lg">
+        <p className="text-sm text-muted-foreground">
+          Attendance can only be marked for the last 7 days. Contact your trainer or gym owner if you need to update older records.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
