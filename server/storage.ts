@@ -1924,8 +1924,14 @@ export class DatabaseStorage implements IStorage {
         return "rest";
       }
       
-      // Not a rest day = workout day (direct cycles always have schedule)
-      return "workout";
+      // Check if there are actually exercises scheduled for this day
+      const cycleExerciseDaysSet = cache.cycleExerciseDays.get(directCycle.id);
+      if (cycleExerciseDaysSet && cycleExerciseDaysSet.has(dayIndex)) {
+        return "workout";
+      }
+      
+      // No exercises scheduled and not explicitly a rest day = treat as rest
+      return "rest";
     }
     
     // Second check: Training phases
