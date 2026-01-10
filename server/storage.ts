@@ -2034,14 +2034,27 @@ export class DatabaseStorage implements IStorage {
     const scheduleCache = await this.loadMemberScheduleData(memberId);
     
     // Smart rest day streak calculation:
-    // - Start from today and go backwards
-    // - If day has workout completion → streak++
-    // - If day is rest/unplanned (no assigned workout) → continue (streak doesn't break)
-    // - If day has workout assigned but no completion → streak breaks
+    // - If today has a workout → count it, then check yesterday onwards
+    // - If today is incomplete → don't penalize (day not over), start from yesterday
+    // - Going backwards: workout completion → streak++, rest/unplanned → continue, missed workout → break
     let streak = 0;
     let checkDate = new Date(todayStr + 'T00:00:00');
-    const maxDaysToCheck = 365; // Safety limit
+    const maxDaysToCheck = 365;
     
+    // Check if today already has a workout completed
+    const todayHasWorkout = allDates.has(todayStr);
+    
+    if (todayHasWorkout) {
+      // Today counts toward streak
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      // Today not completed yet - don't penalize, just skip to yesterday
+      // (The day isn't over, so we can't call it "missed" yet)
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    
+    // Now check from yesterday backwards
     for (let i = 0; i < maxDaysToCheck; i++) {
       const dateStr = checkDate.toISOString().split('T')[0];
       const hasWorkout = allDates.has(dateStr);
@@ -2051,8 +2064,10 @@ export class DatabaseStorage implements IStorage {
       } else {
         const dayStatus = this.getScheduledDayStatusFromCache(dateStr, scheduleCache);
         if (dayStatus === "workout") {
+          // Scheduled workout was missed - streak breaks
           break;
         }
+        // Rest day or unplanned - streak continues (no increment)
       }
       
       checkDate.setDate(checkDate.getDate() - 1);
@@ -5160,14 +5175,25 @@ export class DatabaseStorage implements IStorage {
     const scheduleCache = await this.loadMemberScheduleData(memberId);
     
     // Smart rest day streak calculation (consistent with getMemberStats):
-    // - Start from today and go backwards
-    // - If day has workout completion → streak++
-    // - If day is rest/unplanned (no assigned workout) → continue (streak doesn't break)
-    // - If day has workout assigned but no completion → streak breaks
+    // - If today has workout → count it, then check from yesterday
+    // - If today incomplete → skip today (day not over), start from yesterday
+    // - Going backwards: workout → streak++, rest/unplanned → continue, missed → break
     let streak = 0;
     let checkDate = new Date(today + 'T00:00:00');
     const maxDaysToCheck = 365;
     
+    // Check if today already has a workout completed
+    const todayHasWorkout = allDates.has(today);
+    
+    if (todayHasWorkout) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      // Today not completed yet - skip to yesterday
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    
+    // Check from yesterday backwards
     for (let i = 0; i < maxDaysToCheck; i++) {
       const dateStr = checkDate.toISOString().split('T')[0];
       const hasWorkout = allDates.has(dateStr);
