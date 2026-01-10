@@ -34,10 +34,10 @@ export default function DashboardPage() {
   const greeting = getGreeting();
 
   return (
-    <div className="space-y-8">
-      <div>
+    <div className="space-y-8 page-enter">
+      <div className="animate-slide-in-up">
         <h2 className="text-3xl font-bold font-display text-foreground">
-          {greeting}, {user.username}
+          {greeting}, <span className="text-primary font-bold">{user.username}</span>
         </h2>
         <p className="text-muted-foreground mt-1">
           {user.role === "owner" && "Here's your gym overview for today."}
@@ -53,19 +53,19 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ title, value, icon: Icon, description }: any) {
+function StatCard({ title, value, icon: Icon, description, delay = 0 }: any) {
   return (
-    <Card className="dashboard-card border-none shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800">
+    <Card className="stat-card-magic shadow-lg shadow-black/5 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 animate-slide-in-up" style={{ animationDelay: `${delay}ms` }}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
           {title}
         </CardTitle>
-        <div className="p-2 bg-primary/10 rounded-full text-primary">
-          <Icon className="h-4 w-4" />
+        <div className="p-2.5 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl text-primary">
+          <Icon className="h-5 w-5" />
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold font-display text-foreground">{value}</div>
+        <div className="text-3xl font-bold font-display text-foreground animate-count-up">{value}</div>
         <p className="text-xs text-muted-foreground mt-1">
           {description}
         </p>
@@ -151,20 +151,20 @@ function OwnerDashboard() {
   return (
     <div className="space-y-6">
       {user?.gym && (
-        <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
+        <Card className="magic-card border-2 border-primary/20 bg-gradient-to-r from-primary/5 via-background to-accent/5 animate-slide-in-up">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <h3 className="text-lg font-semibold text-foreground">{user.gym.name}</h3>
+                <h3 className="text-xl font-bold text-foreground">{user.gym.name}</h3>
                 <p className="text-sm text-muted-foreground mt-1">Share this code with trainers and members</p>
               </div>
               <div className="flex flex-col items-end gap-2">
-                <div className="bg-background border-2 border-primary rounded-lg px-4 py-2 font-mono font-bold text-lg text-primary">
+                <div className="bg-background border-2 border-primary rounded-xl px-5 py-3 font-mono font-bold text-xl text-primary animate-border-glow">
                   {user.gym.code}
                 </div>
                 <button 
                   onClick={handleCopyCode}
-                  className="text-xs px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition"
+                  className="text-xs px-4 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25"
                   data-testid="button-copy-code"
                 >
                   Copy Code

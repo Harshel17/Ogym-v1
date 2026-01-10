@@ -375,52 +375,63 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
       <div className="relative hidden lg:flex flex-col justify-between p-12 bg-zinc-900 text-white overflow-hidden">
+        <div className="absolute inset-0 magic-gradient-bg" />
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/90 to-purple-800/90 z-10" />
           <img 
             src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=2070&auto=format&fit=crop" 
             alt="Gym Background" 
-            className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-50"
+            className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-40"
           />
         </div>
-
-        <div className="relative z-20 flex items-center gap-3">
-          <div className="bg-white/20 backdrop-blur p-2 rounded-lg">
-            <Dumbbell className="w-8 h-8" />
-          </div>
-          <span className="text-2xl font-bold font-display tracking-wide">OGym</span>
+        
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-white/5 rounded-full blur-3xl animate-float" />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-indigo-400/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
         </div>
 
-        <div className="relative z-20 max-w-lg">
-          <h2 className="text-4xl font-bold font-display mb-6 leading-tight">
-            Manage your fitness business with precision and style.
+        <div className="relative z-20 flex items-center gap-3 animate-slide-in-up">
+          <div className="bg-white/20 backdrop-blur-lg p-3 rounded-xl animate-glow">
+            <Dumbbell className="w-8 h-8" />
+          </div>
+          <span className="text-3xl font-bold font-display tracking-wide">OGym</span>
+        </div>
+
+        <div className="relative z-20 max-w-lg animate-slide-in-up" style={{ animationDelay: '0.2s' }}>
+          <h2 className="text-5xl font-bold font-display mb-6 leading-tight">
+            Manage your fitness business with <span className="text-white/90">precision</span> and <span className="bg-gradient-to-r from-amber-200 to-yellow-100 bg-clip-text text-transparent">style</span>.
           </h2>
-          <p className="text-lg text-white/80 font-light">
+          <p className="text-xl text-white/70 font-light leading-relaxed">
             Whether you're an owner, trainer, or dedicated member, OGym connects your community and tracks your progress effortlessly.
           </p>
         </div>
         
-        <div className="relative z-20 text-sm text-white/40">
+        <div className="relative z-20 text-sm text-white/40 animate-slide-in-up" style={{ animationDelay: '0.4s' }}>
           2026 OGym. All rights reserved.
         </div>
       </div>
 
-      <div className="flex items-center justify-center p-6 bg-background relative">
-        <div className="absolute top-4 right-4">
+      <div className="flex items-center justify-center p-6 bg-background relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-50 dark:opacity-30">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl" />
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl" />
+        </div>
+        
+        <div className="absolute top-4 right-4 z-10">
           <ThemeToggle />
         </div>
-        <div className="w-full max-w-md space-y-8">
-          <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
-            <div className="premium-gradient p-2.5 rounded-xl shadow-lg shadow-primary/25">
+        <div className="w-full max-w-md space-y-8 relative z-10">
+          <div className="lg:hidden flex items-center justify-center gap-2 mb-8 animate-slide-in-up">
+            <div className="premium-gradient p-2.5 rounded-xl shadow-lg shadow-primary/25 animate-breathe">
               <Dumbbell className="w-7 h-7 text-white" />
             </div>
-            <span className="text-2xl font-bold font-display text-foreground">OGym</span>
+            <span className="text-2xl font-bold font-display magic-text">OGym</span>
           </div>
 
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8">
-              <TabsTrigger value="login" data-testid="tab-login">Sign In</TabsTrigger>
-              <TabsTrigger value="register" data-testid="tab-register">Create Account</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-8 h-12">
+              <TabsTrigger value="login" className="text-base" data-testid="tab-login">Sign In</TabsTrigger>
+              <TabsTrigger value="register" className="text-base" data-testid="tab-register">Create Account</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login" className="animate-in fade-in slide-in-from-right-4 duration-300">
@@ -466,7 +477,7 @@ export default function AuthPage() {
                       />
                       <Button 
                         type="submit" 
-                        className="w-full h-11 text-base" 
+                        className="w-full h-12 text-base font-semibold magic-button" 
                         disabled={loginMutation.isPending}
                         data-testid="button-login"
                       >
