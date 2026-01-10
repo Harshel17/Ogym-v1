@@ -1803,6 +1803,7 @@ export class DatabaseStorage implements IStorage {
    */
   async loadMemberScheduleData(memberId: number): Promise<{
     phases: (typeof trainingPhases.$inferSelect)[];
+    directCycles: (typeof workoutCycles.$inferSelect)[]; // Cycles directly assigned to member
     phaseExerciseDays: Map<number, Set<number>>; // phaseId -> set of dayIndices with exercises
     cycleExerciseDays: Map<number, Set<number>>; // cycleId -> set of dayIndices with exercises
     cycleRestDays: Map<number, Set<number>>; // cycleId -> set of rest day indices
@@ -1812,6 +1813,13 @@ export class DatabaseStorage implements IStorage {
     // Get all phases for this member
     const phases = await db.select().from(trainingPhases)
       .where(eq(trainingPhases.memberId, memberId));
+    
+    // Get all workout cycles directly assigned to this member (not via trainingPhases)
+    const directCycles = await db.select().from(workoutCycles)
+      .where(and(
+        eq(workoutCycles.memberId, memberId),
+        eq(workoutCycles.isActive, true)
+      ));
     
     // Get all phase exercises and group by phaseId
     const phaseIds = phases.map(p => p.id);
@@ -1829,26 +1837,39 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // Get cycles for phases that use them
-    const cycleIds = phases.filter(p => p.cycleId).map(p => p.cycleId!);
+    // Collect all cycle IDs (from phases and direct assignments)
+    const phaseCycleIds = phases.filter(p => p.cycleId).map(p => p.cycleId!);
+    const directCycleIds = directCycles.map(c => c.id);
+    const allCycleIds = [...new Set([...phaseCycleIds, ...directCycleIds])];
+    
     const cycleExerciseDays = new Map<number, Set<number>>();
     const cycleRestDays = new Map<number, Set<number>>();
     const cycleLengths = new Map<number, number>();
     
-    if (cycleIds.length > 0) {
-      // Get cycle metadata (restDays and cycleLength)
-      const cycles = await db.select().from(workoutCycles)
-        .where(inArray(workoutCycles.id, cycleIds));
-      
-      for (const cycle of cycles) {
-        cycleLengths.set(cycle.id, cycle.cycleLength);
-        const restDaysArr = cycle.restDays || [];
-        cycleRestDays.set(cycle.id, new Set(restDaysArr));
+    // Store direct cycle metadata
+    for (const cycle of directCycles) {
+      cycleLengths.set(cycle.id, cycle.cycleLength);
+      const restDaysArr = cycle.restDays || [];
+      cycleRestDays.set(cycle.id, new Set(restDaysArr));
+    }
+    
+    if (allCycleIds.length > 0) {
+      // Get cycle metadata for phase-linked cycles (if not already from directCycles)
+      const phaseCyclesOnly = phaseCycleIds.filter(id => !directCycleIds.includes(id));
+      if (phaseCyclesOnly.length > 0) {
+        const phaseCycles = await db.select().from(workoutCycles)
+          .where(inArray(workoutCycles.id, phaseCyclesOnly));
+        
+        for (const cycle of phaseCycles) {
+          cycleLengths.set(cycle.id, cycle.cycleLength);
+          const restDaysArr = cycle.restDays || [];
+          cycleRestDays.set(cycle.id, new Set(restDaysArr));
+        }
       }
       
       // Get cycle exercises
       const cycleItems = await db.select().from(workoutItems)
-        .where(inArray(workoutItems.cycleId, cycleIds));
+        .where(inArray(workoutItems.cycleId, allCycleIds));
       
       for (const item of cycleItems) {
         if (!cycleExerciseDays.has(item.cycleId)) {
@@ -1867,7 +1888,7 @@ export class DatabaseStorage implements IStorage {
       swaps.set(`${swap.phaseId}-${swap.swapDate}`, swap.targetDayIndex);
     }
     
-    return { phases, phaseExerciseDays, cycleExerciseDays, cycleRestDays, cycleLengths, swaps };
+    return { phases, directCycles, phaseExerciseDays, cycleExerciseDays, cycleRestDays, cycleLengths, swaps };
   }
 
   /**
@@ -1878,6 +1899,7 @@ export class DatabaseStorage implements IStorage {
     dateStr: string,
     cache: {
       phases: (typeof trainingPhases.$inferSelect)[];
+      directCycles: (typeof workoutCycles.$inferSelect)[];
       phaseExerciseDays: Map<number, Set<number>>;
       cycleExerciseDays: Map<number, Set<number>>;
       cycleRestDays: Map<number, Set<number>>;
@@ -1887,7 +1909,26 @@ export class DatabaseStorage implements IStorage {
   ): "workout" | "rest" | "unplanned" {
     const date = new Date(dateStr + 'T00:00:00');
     
-    // Find active phase for this date
+    // First check: Direct workout cycles assigned to member
+    const directCycle = cache.directCycles.find(c => c.startDate <= dateStr && c.endDate >= dateStr);
+    
+    if (directCycle) {
+      const cycleLength = directCycle.cycleLength;
+      const startDate = new Date(directCycle.startDate + 'T00:00:00');
+      const daysDiff = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+      const dayIndex = daysDiff % cycleLength;
+      
+      // Check if this day is a rest day in the cycle
+      const cycleRestDaysSet = cache.cycleRestDays.get(directCycle.id);
+      if (cycleRestDaysSet && cycleRestDaysSet.has(dayIndex)) {
+        return "rest";
+      }
+      
+      // Not a rest day = workout day (direct cycles always have schedule)
+      return "workout";
+    }
+    
+    // Second check: Training phases
     const phase = cache.phases.find(p => p.startDate <= dateStr && p.endDate >= dateStr);
     
     if (!phase) {
