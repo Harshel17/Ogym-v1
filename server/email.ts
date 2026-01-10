@@ -8,7 +8,7 @@ interface EmailOptions {
   html?: string;
 }
 
-const FROM_EMAIL = process.env.FROM_EMAIL || 'admin@ogym.fitness';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@ogym.fitness';
 
 async function getResendCredentials() {
   // Priority 1: Direct RESEND_API_KEY environment variable
