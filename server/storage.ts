@@ -1820,19 +1820,18 @@ export class DatabaseStorage implements IStorage {
     
     let streak = 0;
     if (uniqueDates.length > 0) {
-      const yesterdayStr = new Date(today.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const uniqueDatesSet = new Set(uniqueDates);
+      let checkDate = new Date(todayStr + 'T00:00:00');
       
-      if (uniqueDates[0] === todayStr || uniqueDates[0] === yesterdayStr) {
-        let currentDate = new Date(uniqueDates[0]);
-        for (const dateStr of uniqueDates) {
-          const checkDate = currentDate.toISOString().split("T")[0];
-          if (dateStr === checkDate) {
-            streak++;
-            currentDate = new Date(currentDate.getTime() - 24 * 60 * 60 * 1000);
-          } else {
-            break;
-          }
-        }
+      // If no workout today, start from yesterday
+      if (!uniqueDatesSet.has(todayStr)) {
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+      
+      // Count consecutive days backwards
+      while (uniqueDatesSet.has(checkDate.toISOString().split('T')[0])) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
       }
     }
     
