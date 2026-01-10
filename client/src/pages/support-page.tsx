@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, Plus, MessageSquare, Clock, CheckCircle, AlertCircle, HelpCircle } from "lucide-react";
+import { Loader2, Plus, MessageSquare, Clock, CheckCircle, AlertCircle, HelpCircle, Mail, CreditCard, Users, Bug } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -170,6 +170,75 @@ export default function SupportPage() {
             New Request
           </Button>
         </div>
+
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5" />
+              Contact Us Directly
+            </CardTitle>
+            <CardDescription>Reach out to us via email for quick assistance</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <a
+                href="mailto:support@ogym.fitness"
+                className="flex items-center gap-3 p-4 border rounded-lg hover-elevate transition-colors"
+                data-testid="link-email-support"
+              >
+                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                  <HelpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">General Support</p>
+                  <p className="text-xs text-muted-foreground">support@ogym.fitness</p>
+                </div>
+              </a>
+              
+              <a
+                href="mailto:billing@ogym.fitness"
+                className="flex items-center gap-3 p-4 border rounded-lg hover-elevate transition-colors"
+                data-testid="link-email-billing"
+              >
+                <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                  <CreditCard className="w-5 h-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Billing Issues</p>
+                  <p className="text-xs text-muted-foreground">billing@ogym.fitness</p>
+                </div>
+              </a>
+              
+              <a
+                href="mailto:sales@ogym.fitness"
+                className="flex items-center gap-3 p-4 border rounded-lg hover-elevate transition-colors"
+                data-testid="link-email-sales"
+              >
+                <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                  <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">New Gym Inquiry</p>
+                  <p className="text-xs text-muted-foreground">sales@ogym.fitness</p>
+                </div>
+              </a>
+              
+              <a
+                href="mailto:support@ogym.fitness?subject=Bug Report"
+                className="flex items-center gap-3 p-4 border rounded-lg hover-elevate transition-colors"
+                data-testid="link-email-bugs"
+              >
+                <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
+                  <Bug className="w-5 h-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Report a Bug</p>
+                  <p className="text-xs text-muted-foreground">support@ogym.fitness</p>
+                </div>
+              </a>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid md:grid-cols-2 gap-6">
           <Card>
