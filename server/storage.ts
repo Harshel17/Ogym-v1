@@ -1867,9 +1867,12 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
-      // Get cycle exercises
+      // Get cycle exercises (only non-deleted ones)
       const cycleItems = await db.select().from(workoutItems)
-        .where(inArray(workoutItems.cycleId, allCycleIds));
+        .where(and(
+          inArray(workoutItems.cycleId, allCycleIds),
+          eq(workoutItems.isDeleted, false)
+        ));
       
       for (const item of cycleItems) {
         if (!cycleExerciseDays.has(item.cycleId)) {
@@ -3798,7 +3801,10 @@ export class DatabaseStorage implements IStorage {
     if (memberCycle.length > 0) {
       scheduledItems = await db.select()
         .from(workoutItems)
-        .where(eq(workoutItems.cycleId, memberCycle[0].id))
+        .where(and(
+          eq(workoutItems.cycleId, memberCycle[0].id),
+          eq(workoutItems.isDeleted, false)
+        ))
         .orderBy(workoutItems.dayIndex, workoutItems.orderIndex);
     }
 
@@ -3925,10 +3931,13 @@ export class DatabaseStorage implements IStorage {
       };
     }
 
-    // Get scheduled items for the cycle
+    // Get scheduled items for the cycle (only non-deleted)
     const scheduledItems = await db.select()
       .from(workoutItems)
-      .where(eq(workoutItems.cycleId, cycle.id));
+      .where(and(
+        eq(workoutItems.cycleId, cycle.id),
+        eq(workoutItems.isDeleted, false)
+      ));
 
     // Get completions for the period
     const startStr = startDate.toISOString().split('T')[0];
@@ -4065,7 +4074,11 @@ export class DatabaseStorage implements IStorage {
           dayIndex = daysDiff % cycle.cycleLength;
           scheduledItems = await db.select()
             .from(workoutItems)
-            .where(and(eq(workoutItems.cycleId, cycle.id), eq(workoutItems.dayIndex, dayIndex)))
+            .where(and(
+              eq(workoutItems.cycleId, cycle.id),
+              eq(workoutItems.dayIndex, dayIndex),
+              eq(workoutItems.isDeleted, false)
+            ))
             .orderBy(workoutItems.orderIndex);
         }
       }
