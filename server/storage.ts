@@ -1798,34 +1798,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }> {
+    // Get data from BOTH workout systems (same as getMemberWorkoutSummary):
+    // 1. workoutSessions - standalone sessions members create
+    // 2. workoutCompletions - completions from trainer-assigned cycles
+    
     const allCompletions = await db.select().from(workoutCompletions)
       .where(eq(workoutCompletions.memberId, memberId))
       .orderBy(desc(workoutCompletions.completedDate));
+    
+    const allSessions = await db.select().from(workoutSessions)
+      .where(eq(workoutSessions.memberId, memberId))
+      .orderBy(desc(workoutSessions.date));
     
     const today = new Date();
     const todayStr = today.toISOString().split("T")[0];
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
     
-    // FIX: Count UNIQUE DATES, not individual exercise completions
-    const uniqueDates = Array.from(new Set(allCompletions.map(c => c.completedDate))).sort().reverse();
-    const totalWorkouts = uniqueDates.length; // Count unique days, not exercises
+    // Combine unique dates from both sources (same logic as getMemberWorkoutSummary)
+    const completionDatesSet = new Set(allCompletions.map(c => c.completedDate));
+    const sessionDatesSet = new Set(allSessions.map(s => s.date));
+    const allDates = new Set([...Array.from(completionDatesSet), ...Array.from(sessionDatesSet)]);
+    const uniqueDates = Array.from(allDates).sort().reverse();
     
-    // FIX: Count unique dates in last 7 days
+    const totalWorkouts = uniqueDates.length;
     const last7DaysDates = uniqueDates.filter(d => d >= sevenDaysAgoStr);
-    const last7Days = last7DaysDates.length; // Count unique days
+    const last7Days = last7DaysDates.length;
     
-    // Debug logging (temporary - can be removed after verification)
-    console.log(`[getMemberStats] memberId=${memberId}, uniqueDates=${JSON.stringify(uniqueDates.slice(0, 10))}, last7DaysDates=${JSON.stringify(last7DaysDates)}`);
-    
+    // Calculate streak - start from most recent workout date
     let streak = 0;
     if (uniqueDates.length > 0) {
-      const uniqueDatesSet = new Set(uniqueDates);
-      // Start from the most recent workout date and count consecutive days backwards
       let checkDate = new Date(uniqueDates[0] + 'T00:00:00');
       
-      // Count consecutive days backwards from last workout
-      while (uniqueDatesSet.has(checkDate.toISOString().split('T')[0])) {
+      while (allDates.has(checkDate.toISOString().split('T')[0])) {
         streak++;
         checkDate.setDate(checkDate.getDate() - 1);
       }
@@ -4929,18 +4934,15 @@ export class DatabaseStorage implements IStorage {
     const allDates = new Set([...Array.from(sessionDatesSet), ...Array.from(completionDatesSet)]);
     const uniqueDates = Array.from(allDates).sort().reverse();
     
-    // Calculate streak
+    // Calculate streak - start from most recent workout date (consistent with getMemberStats)
     let streak = 0;
-    let checkDate = new Date(today);
-    
-    // If no workout today, start from yesterday
-    if (!allDates.has(today)) {
-      checkDate.setDate(checkDate.getDate() - 1);
-    }
-    
-    while (allDates.has(checkDate.toISOString().split('T')[0])) {
-      streak++;
-      checkDate.setDate(checkDate.getDate() - 1);
+    if (uniqueDates.length > 0) {
+      let checkDate = new Date(uniqueDates[0] + 'T00:00:00');
+      
+      while (allDates.has(checkDate.toISOString().split('T')[0])) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
     }
     
     // Calculate counts using unique dates
