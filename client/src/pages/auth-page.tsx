@@ -630,28 +630,40 @@ export default function AuthPage() {
             </TabsContent>
           </Tabs>
 
-          <div className="mt-6 text-center flex flex-col gap-2">
+          <div className="mt-6 text-center flex flex-col gap-3">
             <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
               <a href="/terms" className="hover:text-foreground transition-colors" data-testid="link-terms-footer">Terms</a>
               <span>|</span>
               <a href="/privacy" className="hover:text-foreground transition-colors" data-testid="link-privacy-footer">Privacy</a>
+              <span>|</span>
+              <a 
+                href="/admin" 
+                className="hover:text-foreground transition-colors"
+                data-testid="link-admin-login"
+              >
+                Admin
+              </a>
             </div>
-            <a 
-              href="/admin" 
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              data-testid="link-admin-login"
-            >
-              Admin Login
-            </a>
-            <button
-              type="button"
-              onClick={() => setSupportOpen(true)}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center justify-center gap-1"
-              data-testid="button-need-help"
-            >
-              <HelpCircle className="w-3 h-3" />
-              Need help? Contact Support
-            </button>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setSupportOpen(true)}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+                data-testid="button-need-help"
+              >
+                <HelpCircle className="w-3 h-3" />
+                Need help?
+              </button>
+              <span className="text-muted-foreground">|</span>
+              <a
+                href="mailto:support@ogym.fitness"
+                className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+                data-testid="link-email-support-login"
+              >
+                <Mail className="w-3 h-3" />
+                support@ogym.fitness
+              </a>
+            </div>
           </div>
         </div>
       </div>
