@@ -137,7 +137,7 @@ export default function PrivacyPage() {
                 For privacy-related questions or requests, contact us at:
               </p>
               <p className="text-muted-foreground">
-                Email: privacy@ogym.fitness
+                Email: support@ogym.fitness
               </p>
             </section>
           </CardContent>
