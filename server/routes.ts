@@ -268,7 +268,17 @@ export async function registerRoutes(
           return res.status(500).json({ message: "Login failed" });
         }
         const fullUser = await storage.getUser(user.id);
-        return res.status(200).json(fullUser);
+        
+        // Include subscription status in login response
+        let subscriptionStatus = null;
+        if (fullUser?.gymId) {
+          subscriptionStatus = await storage.checkGymSubscriptionStatus(fullUser.gymId);
+        }
+        
+        return res.status(200).json({
+          ...fullUser,
+          subscriptionStatus
+        });
       });
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -289,7 +299,17 @@ export async function registerRoutes(
   app.get("/api/auth/me", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const user = await storage.getUser(req.user!.id);
-    res.json(user);
+    
+    // If user has a gym, check subscription status
+    let subscriptionStatus = null;
+    if (user?.gymId) {
+      subscriptionStatus = await storage.checkGymSubscriptionStatus(user.gymId);
+    }
+    
+    res.json({
+      ...user,
+      subscriptionStatus
+    });
   });
 
   // Rate limiter for forgot password (stricter: 3 per 15 minutes per IP)

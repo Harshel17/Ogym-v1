@@ -4,7 +4,17 @@ import { User, Gym } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
-type AuthUser = User & { gym?: Gym | null };
+type SubscriptionStatus = {
+  isActive: boolean;
+  status: "active" | "expired" | "pending" | "no_subscription";
+  validUntil: string | null;
+  daysRemaining: number | null;
+};
+
+type AuthUser = User & { 
+  gym?: Gym | null;
+  subscriptionStatus?: SubscriptionStatus | null;
+};
 
 type AuthContextType = {
   user: AuthUser | null;

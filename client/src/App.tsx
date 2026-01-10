@@ -48,6 +48,7 @@ import MemberOnboardingPage from "@/pages/member-onboarding-page";
 import SupportPage from "@/pages/support-page";
 import TermsPage from "@/pages/terms-page";
 import PrivacyPage from "@/pages/privacy-page";
+import SubscriptionExpiredPage from "@/pages/subscription-expired-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -55,10 +56,11 @@ type ProtectedRouteProps = {
   component: React.ComponentType;
   allowWithoutGym?: boolean;
   allowWithoutOnboarding?: boolean;
+  allowWithExpiredSubscription?: boolean;
   requiredRole?: "owner" | "trainer" | "member";
 };
 
-function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWithoutOnboarding = false, requiredRole }: ProtectedRouteProps) {
+function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWithoutOnboarding = false, allowWithExpiredSubscription = false, requiredRole }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -86,6 +88,14 @@ function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWi
     }
     // Trainers/members without gym go to pending approval
     return <PendingApprovalPage />;
+  }
+
+  // Check subscription status - block access if expired (unless explicitly allowed)
+  if (user.gymId && !allowWithExpiredSubscription && user.subscriptionStatus) {
+    const { isActive, status } = user.subscriptionStatus;
+    if (!isActive && (status === "expired" || status === "no_subscription")) {
+      return <SubscriptionExpiredPage />;
+    }
   }
 
   // Redirect members who haven't completed onboarding
@@ -267,7 +277,11 @@ function Router() {
       </Route>
 
       <Route path="/support">
-        <ProtectedRoute component={SupportPage} allowWithoutGym={true} allowWithoutOnboarding={true} />
+        <ProtectedRoute component={SupportPage} allowWithoutGym={true} allowWithoutOnboarding={true} allowWithExpiredSubscription={true} />
+      </Route>
+
+      <Route path="/subscription-expired">
+        <ProtectedRoute component={SubscriptionExpiredPage} allowWithExpiredSubscription={true} />
       </Route>
 
       <Route path="/gym-request">

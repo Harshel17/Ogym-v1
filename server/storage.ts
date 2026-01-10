@@ -599,6 +599,12 @@ export interface IStorage {
     validUntil: Date | null;
   }[]>;
   getGymSubscription(gymId: number): Promise<GymSubscription | null>;
+  checkGymSubscriptionStatus(gymId: number): Promise<{
+    isActive: boolean;
+    status: "active" | "expired" | "pending" | "no_subscription";
+    validUntil: Date | null;
+    daysRemaining: number | null;
+  }>;
   getAllGymSubscriptions(): Promise<(GymSubscription & { gymName: string })[]>;
   upsertGymSubscription(gymId: number, data: Partial<InsertGymSubscription>): Promise<GymSubscription>;
   
@@ -5833,6 +5839,46 @@ export class DatabaseStorage implements IStorage {
   async getGymSubscription(gymId: number): Promise<GymSubscription | null> {
     const [subscription] = await db.select().from(gymSubscriptions).where(eq(gymSubscriptions.gymId, gymId));
     return subscription || null;
+  }
+  
+  async checkGymSubscriptionStatus(gymId: number): Promise<{
+    isActive: boolean;
+    status: "active" | "expired" | "pending" | "no_subscription";
+    validUntil: Date | null;
+    daysRemaining: number | null;
+  }> {
+    const subscription = await this.getGymSubscription(gymId);
+    
+    if (!subscription) {
+      return { isActive: false, status: "no_subscription", validUntil: null, daysRemaining: null };
+    }
+    
+    const now = new Date();
+    
+    // Check if subscription is paid
+    if (subscription.paymentStatus === "paid") {
+      // Paid but no validUntil date is invalid
+      if (!subscription.validUntil) {
+        return { isActive: false, status: "expired", validUntil: null, daysRemaining: 0 };
+      }
+      
+      const validUntil = new Date(subscription.validUntil);
+      const isExpired = now > validUntil;
+      
+      if (isExpired) {
+        return { isActive: false, status: "expired", validUntil: subscription.validUntil, daysRemaining: 0 };
+      }
+      
+      const daysRemaining = Math.ceil((validUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return { isActive: true, status: "active", validUntil: subscription.validUntil, daysRemaining };
+    }
+    
+    if (subscription.paymentStatus === "overdue") {
+      return { isActive: false, status: "expired", validUntil: subscription.validUntil, daysRemaining: 0 };
+    }
+    
+    // Pending status - allow access (trial period for new gyms)
+    return { isActive: true, status: "pending", validUntil: subscription.validUntil, daysRemaining: null };
   }
   
   async getAllGymSubscriptions(): Promise<(GymSubscription & { gymName: string })[]> {
