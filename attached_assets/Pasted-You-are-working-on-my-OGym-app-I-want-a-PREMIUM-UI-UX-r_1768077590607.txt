@@ -1,0 +1,65 @@
+You are working on my OGym app. I want a PREMIUM UI/UX renovation ONLY.
+
+CRITICAL RULES (DO NOT BREAK):
+- Do NOT change any business logic, workflows, API routes, database schema, auth, permissions, calculations, or existing user actions.
+- Do NOT remove or rename existing components/pages/routes unless absolutely necessary for styling.
+- Do NOT change button meanings, form fields, navigation behavior, or what any action does.
+- Your changes must be UI-only: styling, layout, spacing, typography, icons, micro-interactions, animations.
+- Keep the app fully working exactly the same after the UI upgrade.
+
+GOAL:
+Make the app look modern, premium, and “sticky” — the user should feel impressed when they open it. Smooth, fancy animations, great colors, clean typography, excellent spacing, pro-level design.
+
+WHAT TO DELIVER:
+1) A unified design system across the entire app:
+   - Define a consistent theme: colors, typography, spacing, border radius, shadows, and component styles.
+   - Use a professional palette (premium fitness vibe): strong primary, soft backgrounds, high contrast text, consistent accents.
+   - Provide light mode as default. If dark mode exists, ensure it also looks premium.
+
+2) Improve these areas without changing functionality:
+   - Login / Register screens: premium card UI, branding, subtle background pattern/gradient, strong CTA buttons.
+   - All dashboards (Owner / Trainer / Member): modern header, clean cards, aligned tables, better empty/loading states.
+   - Forms: consistent inputs, focus states, validation states (visual only), spacing improvements.
+   - Tables: zebra rows, sticky header if needed, better padding, clear typography, responsive behavior.
+   - Buttons: primary/secondary/ghost styles, hover/press animations.
+   - Navigation: more premium sidebar/topbar (whichever exists), active state highlight, icons, better spacing.
+   - Mobile responsiveness: ensure every page looks great on phone widths and tablets.
+
+3) Premium animations (subtle, not childish):
+   - Page transitions (fade/slide) if possible without changing routing logic.
+   - Card hover lift, button press feedback, smooth dropdowns/modals.
+   - Loading skeletons for dashboards/tables (UI only).
+   - Use tasteful animation timing (150–250ms) and easing.
+
+4) Accessibility + UX polish:
+   - Ensure text contrast is readable.
+   - Consistent font sizes and hierarchy (H1/H2/body/caption).
+   - Click targets large enough.
+   - Improve spacing/padding to reduce clutter.
+   - Keep icons consistent.
+
+TECH REQUIREMENTS (choose best based on current stack):
+- If the app already uses Tailwind: keep Tailwind and build a clean theme using Tailwind config + reusable UI components.
+- If the app uses CSS Modules / plain CSS: keep the same approach and create a global theme file + reusable classes/components.
+- Do NOT introduce a new UI framework that risks breaking the app. Prefer minimal and safe additions.
+
+STRUCTURE & REUSE:
+- Create reusable UI components (Button, Input, Card, Badge, Table wrapper, Modal styles) and replace styling across pages using these components — but do not change logic.
+- Add a design tokens file (colors, spacing, radii) and use it everywhere.
+
+IMPORTANT EDGE CASE:
+- In dark mode, date picker/calendar icons must be visible. Fix icon color/contrast so calendars are visible on all pages. (Styling only.)
+
+OUTPUT FORMAT I WANT FROM YOU:
+A) Quick summary of the new design system (colors/fonts/components).
+B) A checklist of all pages updated.
+C) The actual code changes applied (files edited) with minimal risk.
+
+FINAL VERIFICATION:
+After changes, run the app and confirm:
+- All logins work (Owner/Trainer/Member).
+- All existing actions behave exactly the same.
+- No console errors.
+- Mobile view looks premium.
+
+Do the renovation now, safely, and keep all functionality identical.
