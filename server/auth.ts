@@ -77,6 +77,11 @@ export function setupAuth(app: Express) {
   passport.deserializeUser(async (id, done) => {
     try {
       const user = await storage.getUser(id as number);
+      // If user no longer exists (deleted), return false to indicate "no user"
+      // This gracefully handles cases where users were deleted but sessions remain
+      if (!user) {
+        return done(null, false);
+      }
       done(null, user);
     } catch (err) {
       done(err);
