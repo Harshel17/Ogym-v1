@@ -6,7 +6,7 @@ import {
   bodyMeasurements, starMembers, gymHistory, dietPlans, dietPlanMeals, announcements, announcementReads,
   memberNotes, workoutTemplates, workoutTemplateItems, memberRequests, transferRequests, joinRequests,
   feedPosts, feedReactions, feedComments, tournaments, tournamentParticipants, memberRestDaySwaps,
-  trainingPhases, userProfiles
+  trainingPhases, userProfiles, supportTickets, supportMessages
 } from "@shared/schema";
 import { eq, or, inArray } from "drizzle-orm";
 import { scrypt, randomBytes } from "crypto";
@@ -359,11 +359,13 @@ export async function resetDemoData(): Promise<void> {
     await db.delete(workoutSessions).where(inArray(workoutSessions.id, sessionIds));
   }
   
+  // Delete workout completions by gymId first (before items)
+  await db.delete(workoutCompletions).where(inArray(workoutCompletions.gymId, gymIds));
+  
   const demoCycles = await db.select().from(workoutCycles).where(inArray(workoutCycles.gymId, gymIds));
   const cycleIds = demoCycles.map(c => c.id);
   if (cycleIds.length > 0) {
     await db.delete(memberRestDaySwaps).where(inArray(memberRestDaySwaps.cycleId, cycleIds));
-    await db.delete(workoutCompletions).where(inArray(workoutCompletions.cycleId, cycleIds));
     await db.delete(workoutItems).where(inArray(workoutItems.cycleId, cycleIds));
     await db.delete(workoutCycles).where(inArray(workoutCycles.id, cycleIds));
   }
@@ -428,6 +430,14 @@ export async function resetDemoData(): Promise<void> {
     await db.delete(userProfiles).where(inArray(userProfiles.userId, userIds));
     await db.delete(transferRequests).where(inArray(transferRequests.memberId, userIds));
     await db.delete(joinRequests).where(inArray(joinRequests.userId, userIds));
+    
+    // Delete support tickets and messages for demo users
+    const demoTickets = await db.select().from(supportTickets).where(inArray(supportTickets.userId, userIds));
+    const ticketIds = demoTickets.map(t => t.id);
+    if (ticketIds.length > 0) {
+      await db.delete(supportMessages).where(inArray(supportMessages.ticketId, ticketIds));
+      await db.delete(supportTickets).where(inArray(supportTickets.id, ticketIds));
+    }
   }
   
   await db.delete(gymSubscriptions).where(inArray(gymSubscriptions.gymId, gymIds));
