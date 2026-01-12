@@ -55,6 +55,7 @@ Preferred communication style: Simple, everyday language.
 - **Tournaments:** Monthly gym challenges with leaderboards and participant tracking.
 - **Daily Points:** Computed dynamically from workout completions (planned vs completed exercises).
 - **Walk-in Visitors:** Track day pass visitors, trial members, and enquiries with name, phone, amount paid, and visit type. Shows daily/weekly stats and conversion rate.
+- **Self Check-in Kiosk:** Allows visitors to register themselves via QR code when gym staff is unavailable. Owners can generate time-limited QR codes (4h to 1 week expiry), visitors scan and enter phone → details → OTP verification → check-in complete. Kiosk entries are marked with "Self Check-in" badge and tracked separately via `source` field.
 
 ## Demo Seeding
 
