@@ -71,6 +71,7 @@ export default function KioskCheckinPage() {
   const [phone, setPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [demoOtp, setDemoOtp] = useState<string | null>(null);
 
   const phoneForm = useForm<PhoneForm>({
     resolver: zodResolver(phoneSchema),
@@ -195,6 +196,11 @@ export default function KioskCheckinPage() {
         toast({ title: "Error", description: result.message, variant: "destructive" });
         setIsSubmitting(false);
         return;
+      }
+      
+      // Demo mode: capture OTP if returned (remove when SMS is configured)
+      if (result.demoOtp) {
+        setDemoOtp(result.demoOtp);
       }
       
       setStep("otp");
@@ -404,6 +410,13 @@ export default function KioskCheckinPage() {
                   </p>
                   <p className="font-medium">{phone}</p>
                 </div>
+                
+                {demoOtp && (
+                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-center">
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Demo Mode - Your OTP:</p>
+                    <p className="text-2xl font-bold tracking-widest text-amber-700 dark:text-amber-300" data-testid="text-demo-otp">{demoOtp}</p>
+                  </div>
+                )}
                 
                 <FormField
                   control={otpForm.control}

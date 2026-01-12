@@ -3592,10 +3592,16 @@ export async function registerRoutes(
         verified: false
       });
       
-      // TODO: Send SMS OTP (for now, log it in development)
+      // TODO: Send SMS OTP via Twilio when configured
+      // For demo purposes, return OTP in response (remove in production with real SMS)
       console.log(`[KIOSK OTP] Phone: ${phone}, OTP: ${otp}`);
       
-      res.json({ message: "OTP sent to your phone", expiresIn: 600 });
+      res.json({ 
+        message: "OTP sent to your phone", 
+        expiresIn: 600,
+        // Demo mode: include OTP in response (remove when SMS is configured)
+        demoOtp: otp 
+      });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to send OTP" });
     }
