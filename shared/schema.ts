@@ -655,6 +655,23 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const walkInVisitors = pgTable("walk_in_visitors", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  name: text("name").notNull(),
+  phone: text("phone").notNull(),
+  email: text("email"),
+  visitDate: text("visit_date").notNull(),
+  visitType: text("visit_type", { enum: ["day_pass", "trial", "enquiry"] }).notNull().default("day_pass"),
+  daysCount: integer("days_count").default(1),
+  amountPaid: integer("amount_paid").default(0),
+  notes: text("notes"),
+  convertedToMember: boolean("converted_to_member").default(false),
+  convertedUserId: integer("converted_user_id").references(() => users.id),
+  createdByUserId: integer("created_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === SCHEMAS ===
 
 export const insertGymSchema = createInsertSchema(gyms).omit({ id: true, createdAt: true });
@@ -703,6 +720,7 @@ export const insertTournamentParticipantSchema = createInsertSchema(tournamentPa
 export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSupportMessageSchema = createInsertSchema(supportMessages).omit({ id: true, createdAt: true });
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
+export const insertWalkInVisitorSchema = createInsertSchema(walkInVisitors).omit({ id: true, createdAt: true, convertedToMember: true, convertedUserId: true });
 
 // === EXPLICIT TYPES ===
 
@@ -807,3 +825,6 @@ export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
 export type InsertSupportMessage = z.infer<typeof insertSupportMessageSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+
+export type WalkInVisitor = typeof walkInVisitors.$inferSelect;
+export type InsertWalkInVisitor = z.infer<typeof insertWalkInVisitorSchema>;
