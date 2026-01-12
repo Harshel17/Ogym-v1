@@ -46,10 +46,11 @@ import {
   trainingPhases, phaseExercises, type TrainingPhase, type InsertTrainingPhase, type PhaseExercise, type InsertPhaseExercise,
   userProfiles, type UserProfile,
   passwordResetCodes, type PasswordResetCode, type InsertPasswordResetCode,
-  supportTickets, supportMessages, auditLogs,
+  supportTickets, supportMessages, auditLogs, walkInVisitors,
   type SupportTicket, type InsertSupportTicket,
   type SupportMessage, type InsertSupportMessage,
-  type AuditLog, type InsertAuditLog
+  type AuditLog, type InsertAuditLog,
+  type WalkInVisitor, type InsertWalkInVisitor
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -7025,6 +7026,77 @@ export class DatabaseStorage implements IStorage {
     const [exercise] = await db.select().from(workoutSessionExercises)
       .where(eq(workoutSessionExercises.id, exerciseId));
     return exercise || null;
+  }
+
+  // Walk-in Visitors
+  async createWalkInVisitor(data: InsertWalkInVisitor): Promise<WalkInVisitor> {
+    const [visitor] = await db.insert(walkInVisitors).values(data).returning();
+    return visitor;
+  }
+
+  async getWalkInVisitors(gymId: number, filters?: { date?: string; visitType?: string }): Promise<WalkInVisitor[]> {
+    const conditions = [eq(walkInVisitors.gymId, gymId)];
+    if (filters?.date) {
+      conditions.push(eq(walkInVisitors.visitDate, filters.date));
+    }
+    if (filters?.visitType) {
+      conditions.push(eq(walkInVisitors.visitType, filters.visitType as any));
+    }
+    return await db.select().from(walkInVisitors)
+      .where(and(...conditions))
+      .orderBy(desc(walkInVisitors.createdAt));
+  }
+
+  async getWalkInVisitorById(id: number): Promise<WalkInVisitor | null> {
+    const [visitor] = await db.select().from(walkInVisitors).where(eq(walkInVisitors.id, id));
+    return visitor || null;
+  }
+
+  async updateWalkInVisitor(id: number, data: Partial<InsertWalkInVisitor>): Promise<WalkInVisitor> {
+    const [visitor] = await db.update(walkInVisitors)
+      .set(data)
+      .where(eq(walkInVisitors.id, id))
+      .returning();
+    return visitor;
+  }
+
+  async markWalkInVisitorConverted(id: number, userId: number): Promise<WalkInVisitor> {
+    const [visitor] = await db.update(walkInVisitors)
+      .set({ convertedToMember: true, convertedUserId: userId })
+      .where(eq(walkInVisitors.id, id))
+      .returning();
+    return visitor;
+  }
+
+  async getWalkInVisitorStats(gymId: number): Promise<{
+    todayCount: number;
+    weekCount: number;
+    monthCount: number;
+    todayRevenue: number;
+    conversionRate: number;
+  }> {
+    const today = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    const allVisitors = await db.select().from(walkInVisitors)
+      .where(eq(walkInVisitors.gymId, gymId));
+    
+    const todayVisitors = allVisitors.filter(v => v.visitDate === today);
+    const weekVisitors = allVisitors.filter(v => v.visitDate >= weekAgo);
+    const monthVisitors = allVisitors.filter(v => v.visitDate >= monthAgo);
+    
+    const todayRevenue = todayVisitors.reduce((sum, v) => sum + (v.amountPaid || 0), 0);
+    const converted = allVisitors.filter(v => v.convertedToMember);
+    const conversionRate = allVisitors.length > 0 ? (converted.length / allVisitors.length) * 100 : 0;
+    
+    return {
+      todayCount: todayVisitors.length,
+      weekCount: weekVisitors.length,
+      monthCount: monthVisitors.length,
+      todayRevenue,
+      conversionRate: Math.round(conversionRate * 10) / 10
+    };
   }
 }
 
