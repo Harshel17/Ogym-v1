@@ -39,8 +39,8 @@ interface KioskInfo {
   sessionId: number;
 }
 
-const phoneSchema = z.object({
-  phone: z.string().min(10, "Enter a valid phone number"),
+const emailSchema = z.object({
+  email: z.string().email("Enter a valid email address"),
 });
 
 const otpSchema = z.object({
@@ -49,18 +49,18 @@ const otpSchema = z.object({
 
 const detailsSchema = z.object({
   name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email").optional().or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
   visitType: z.enum(["day_pass", "trial", "enquiry"]),
   daysCount: z.string().optional(),
   amountPaid: z.string().optional(),
   notes: z.string().optional(),
 });
 
-type PhoneForm = z.infer<typeof phoneSchema>;
+type EmailForm = z.infer<typeof emailSchema>;
 type OTPForm = z.infer<typeof otpSchema>;
 type DetailsForm = z.infer<typeof detailsSchema>;
 
-type Step = "loading" | "invalid" | "phone" | "otp" | "details" | "success";
+type Step = "loading" | "invalid" | "email" | "otp" | "details" | "success";
 
 export default function KioskCheckinPage() {
   const { token } = useParams<{ token: string }>();
@@ -68,14 +68,13 @@ export default function KioskCheckinPage() {
   
   const [step, setStep] = useState<Step>("loading");
   const [kioskInfo, setKioskInfo] = useState<KioskInfo | null>(null);
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [demoOtp, setDemoOtp] = useState<string | null>(null);
 
-  const phoneForm = useForm<PhoneForm>({
-    resolver: zodResolver(phoneSchema),
-    defaultValues: { phone: "" },
+  const emailForm = useForm<EmailForm>({
+    resolver: zodResolver(emailSchema),
+    defaultValues: { email: "" },
   });
 
   const otpForm = useForm<OTPForm>({
@@ -87,7 +86,7 @@ export default function KioskCheckinPage() {
     resolver: zodResolver(detailsSchema),
     defaultValues: {
       name: "",
-      email: "",
+      phone: "",
       visitType: "enquiry",
       daysCount: "1",
       amountPaid: "",
@@ -111,20 +110,20 @@ export default function KioskCheckinPage() {
       }
       
       setKioskInfo(data);
-      setStep("phone");
+      setStep("email");
     } catch (error) {
       setErrorMessage("Failed to validate link");
       setStep("invalid");
     }
   };
 
-  const requestOTP = async (data: PhoneForm) => {
+  const requestOTP = async (data: EmailForm) => {
     setIsSubmitting(true);
     try {
       const res = await fetch(`/api/kiosk/${token}/request-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: data.phone }),
+        body: JSON.stringify({ email: data.email }),
       });
       const result = await res.json();
       
@@ -134,9 +133,9 @@ export default function KioskCheckinPage() {
         return;
       }
       
-      setPhone(data.phone);
-      setStep("otp");
-      toast({ title: "OTP Sent", description: "Check your phone for the verification code" });
+      setEmail(data.email);
+      setStep("details");
+      toast({ title: "OTP Sent", description: "Check your email for the verification code" });
     } catch (error) {
       toast({ title: "Error", description: "Failed to send OTP", variant: "destructive" });
     }
@@ -152,10 +151,10 @@ export default function KioskCheckinPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone,
+          email,
           otp: data.otp,
           name: detailsData.name,
-          email: detailsData.email || undefined,
+          phone: detailsData.phone || undefined,
           visitType: detailsData.visitType,
           daysCount: parseInt(detailsData.daysCount || "1"),
           amountPaid: detailsData.amountPaid ? parseInt(detailsData.amountPaid) * 100 : 0,
@@ -177,38 +176,8 @@ export default function KioskCheckinPage() {
     setIsSubmitting(false);
   };
 
-  const proceedToDetails = async (data: PhoneForm) => {
-    setPhone(data.phone);
-    setStep("details");
-  };
-
   const submitDetails = async (data: DetailsForm) => {
-    setIsSubmitting(true);
-    try {
-      const res = await fetch(`/api/kiosk/${token}/request-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
-      });
-      const result = await res.json();
-      
-      if (!res.ok) {
-        toast({ title: "Error", description: result.message, variant: "destructive" });
-        setIsSubmitting(false);
-        return;
-      }
-      
-      // Demo mode: capture OTP if returned (remove when SMS is configured)
-      if (result.demoOtp) {
-        setDemoOtp(result.demoOtp);
-      }
-      
-      setStep("otp");
-      toast({ title: "OTP Sent", description: "Check your phone for the verification code" });
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to send OTP", variant: "destructive" });
-    }
-    setIsSubmitting(false);
+    setStep("otp");
   };
 
   if (step === "loading") {
@@ -272,23 +241,24 @@ export default function KioskCheckinPage() {
           <CardDescription>Visitor Self Check-in</CardDescription>
         </CardHeader>
         <CardContent>
-          {step === "phone" && (
-            <Form {...phoneForm}>
-              <form onSubmit={phoneForm.handleSubmit(proceedToDetails)} className="space-y-4">
+          {step === "email" && (
+            <Form {...emailForm}>
+              <form onSubmit={emailForm.handleSubmit(requestOTP)} className="space-y-4">
                 <FormField
-                  control={phoneForm.control}
-                  name="phone"
+                  control={emailForm.control}
+                  name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
+                      <FormLabel>Email Address</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <Input
-                            placeholder="Enter your phone number"
+                            placeholder="your@email.com"
+                            type="email"
                             className="pl-10"
                             {...field}
-                            data-testid="input-phone"
+                            data-testid="input-email"
                           />
                         </div>
                       </FormControl>
@@ -298,8 +268,17 @@ export default function KioskCheckinPage() {
                   )}
                 />
                 <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="button-continue">
-                  Continue
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending code...
+                    </>
+                  ) : (
+                    <>
+                      Send Verification Code
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               </form>
             </Form>
@@ -327,14 +306,14 @@ export default function KioskCheckinPage() {
 
                 <FormField
                   control={detailsForm.control}
-                  name="email"
+                  name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email (Optional)</FormLabel>
+                      <FormLabel>Phone (Optional)</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input placeholder="your@email.com" className="pl-10" {...field} data-testid="input-email" />
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input placeholder="Your phone number" className="pl-10" {...field} data-testid="input-phone" />
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -384,18 +363,9 @@ export default function KioskCheckinPage() {
                   )}
                 />
 
-                <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="button-submit-details">
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending OTP...
-                    </>
-                  ) : (
-                    <>
-                      Verify Phone
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
+                <Button type="submit" className="w-full" data-testid="button-submit-details">
+                  Continue to Verification
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </form>
             </Form>
@@ -408,15 +378,8 @@ export default function KioskCheckinPage() {
                   <p className="text-sm text-muted-foreground">
                     Enter the 6-digit code sent to
                   </p>
-                  <p className="font-medium">{phone}</p>
+                  <p className="font-medium">{email}</p>
                 </div>
-                
-                {demoOtp && (
-                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-center">
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Demo Mode - Your OTP:</p>
-                    <p className="text-2xl font-bold tracking-widest text-amber-700 dark:text-amber-300" data-testid="text-demo-otp">{demoOtp}</p>
-                  </div>
-                )}
                 
                 <FormField
                   control={otpForm.control}

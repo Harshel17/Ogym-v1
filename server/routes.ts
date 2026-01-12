@@ -8,7 +8,7 @@ import passport from "passport";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
-import { generateOTP, getOTPExpiryTime, sendVerificationEmail } from "./email";
+import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail } from "./email";
 import { db } from "./db";
 import { workoutLogs, workoutLogExercises } from "@shared/schema";
 import { eq, and, isNotNull, inArray } from "drizzle-orm";
@@ -3566,12 +3566,12 @@ export async function registerRoutes(
     }
   });
 
-  // Public: Request OTP for kiosk check-in (rate limited)
+  // Public: Request OTP for kiosk check-in (rate limited) - uses email
   app.post("/api/kiosk/:token/request-otp", kioskOtpLimiter, async (req, res) => {
     try {
-      const { phone } = req.body;
-      if (!phone || phone.length < 10) {
-        return res.status(400).json({ message: "Valid phone number required" });
+      const { email } = req.body;
+      if (!email || !email.includes("@")) {
+        return res.status(400).json({ message: "Valid email address required" });
       }
       
       const session = await storage.getKioskSessionByToken(req.params.token);
@@ -3579,28 +3579,30 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid or expired check-in link" });
       }
       
+      // Get gym name for email
+      const gym = await storage.getGym(session.gymId);
+      const gymName = gym?.name || "the gym";
+      
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const otpHash = await bcrypt.hash(otp, 10);
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
       
       await storage.createKioskOtpCode({
-        phone,
+        phone: email, // Using phone field to store email (reusing existing column)
         kioskSessionId: session.id,
         codeHash: otpHash,
         expiresAt,
         verified: false
       });
       
-      // TODO: Send SMS OTP via Twilio when configured
-      // For demo purposes, return OTP in response (remove in production with real SMS)
-      console.log(`[KIOSK OTP] Phone: ${phone}, OTP: ${otp}`);
+      // Send OTP via email using Resend
+      const emailSent = await sendKioskOtpEmail(email, otp, gymName);
+      console.log(`[KIOSK OTP] Email: ${email}, OTP: ${otp}, Sent: ${emailSent}`);
       
       res.json({ 
-        message: "OTP sent to your phone", 
-        expiresIn: 600,
-        // Demo mode: include OTP in response (remove when SMS is configured)
-        demoOtp: otp 
+        message: "OTP sent to your email", 
+        expiresIn: 600
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to send OTP" });
@@ -3610,10 +3612,10 @@ export async function registerRoutes(
   // Public: Verify OTP and submit visitor info
   app.post("/api/kiosk/:token/submit", kioskSubmitLimiter, async (req, res) => {
     try {
-      const { phone, otp, name, email, visitType, daysCount, amountPaid, notes } = req.body;
+      const { email, otp, name, phone, visitType, daysCount, amountPaid, notes } = req.body;
       
-      if (!phone || !otp || !name) {
-        return res.status(400).json({ message: "Phone, OTP, and name are required" });
+      if (!email || !otp || !name) {
+        return res.status(400).json({ message: "Email, OTP, and name are required" });
       }
       
       const session = await storage.getKioskSessionByToken(req.params.token);
@@ -3621,8 +3623,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid or expired check-in link" });
       }
       
-      // Verify OTP
-      const otpCode = await storage.getValidKioskOtpCode(phone, session.id);
+      // Verify OTP (email is stored in phone field)
+      const otpCode = await storage.getValidKioskOtpCode(email, session.id);
       if (!otpCode) {
         return res.status(400).json({ message: "Invalid or expired OTP. Please request a new one." });
       }
