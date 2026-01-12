@@ -54,6 +54,7 @@ Preferred communication style: Simple, everyday language.
 - **Social Feed:** Activity feed with workout completions, streak milestones, achievements, reactions, and comments.
 - **Tournaments:** Monthly gym challenges with leaderboards and participant tracking.
 - **Daily Points:** Computed dynamically from workout completions (planned vs completed exercises).
+- **Walk-in Visitors:** Track day pass visitors, trial members, and enquiries with name, phone, amount paid, and visit type. Shows daily/weekly stats and conversion rate.
 
 ## Demo Seeding
 

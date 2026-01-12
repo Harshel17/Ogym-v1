@@ -93,6 +93,7 @@ export default function OwnerWalkInVisitorsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/owner/walk-in-visitors"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/walk-in-visitors/stats"] });
       form.reset({
         name: "",
         phone: "",
