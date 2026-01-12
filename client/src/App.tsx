@@ -35,6 +35,7 @@ import OwnerMemberDetailPage from "@/pages/owner-member-detail-page";
 import OwnerRevenuePage from "@/pages/owner-revenue-page";
 import OwnerMemberAnalyticsPage from "@/pages/owner-member-analytics-page";
 import OwnerAnnouncementsPage from "@/pages/owner-announcements-page";
+import OwnerWalkInVisitorsPage from "@/pages/owner-walk-in-visitors-page";
 import AnnouncementsPage from "@/pages/announcements-page";
 import GymRequestPage from "@/pages/gym-request-page";
 import JoinGymPage from "@/pages/join-gym-page";
@@ -262,6 +263,10 @@ function Router() {
 
       <Route path="/owner/announcements">
         <ProtectedRoute component={OwnerAnnouncementsPage} requiredRole="owner" />
+      </Route>
+
+      <Route path="/owner/walk-in-visitors">
+        <ProtectedRoute component={OwnerWalkInVisitorsPage} requiredRole="owner" />
       </Route>
 
       <Route path="/announcements">

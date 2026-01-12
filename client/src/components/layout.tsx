@@ -33,6 +33,7 @@ import {
   Trophy,
   HelpCircle,
   Menu,
+  PersonStanding,
   type LucideIcon
 } from "lucide-react";
 
@@ -185,6 +186,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       badge: 0  // Owners create announcements, they don't receive them
     },
     { 
+      label: "Walk-ins", 
+      href: "/owner/walk-in-visitors", 
+      icon: PersonStanding,
+      visible: isOwner && hasGym,
+      badge: 0
+    },
+    { 
       label: "Announcements", 
       href: "/announcements", 
       icon: Megaphone,
@@ -234,6 +242,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Trainers", href: "/trainers", icon: Users },
           { label: "Transfers", href: "/transfers", icon: ArrowRightLeft, badge: notificationCounts?.pendingTransfers || 0 },
           { label: "Announcements", href: "/owner/announcements", icon: Megaphone },
+          { label: "Walk-ins", href: "/owner/walk-in-visitors", icon: PersonStanding },
           { label: "Feed", href: "/feed", icon: Activity },
           { label: "Tournaments", href: "/tournaments", icon: Trophy },
           { label: "Join Requests", href: "/owner/join-requests", icon: UserPlus, badge: notificationCounts?.pendingJoinRequests || 0 },
