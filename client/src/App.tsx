@@ -276,6 +276,7 @@ function Router() {
       </Route>
 
       <Route path="/checkin/:token" component={KioskCheckinPage} />
+      <Route path="/kiosk/:token" component={KioskCheckinPage} />
 
       <Route path="/announcements">
         <ProtectedRoute component={AnnouncementsPage} />
