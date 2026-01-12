@@ -666,9 +666,34 @@ export const walkInVisitors = pgTable("walk_in_visitors", {
   daysCount: integer("days_count").default(1),
   amountPaid: integer("amount_paid").default(0),
   notes: text("notes"),
+  source: text("source", { enum: ["owner", "trainer", "kiosk"] }).notNull().default("owner"),
   convertedToMember: boolean("converted_to_member").default(false),
   convertedUserId: integer("converted_user_id").references(() => users.id),
   createdByUserId: integer("created_by_user_id").references(() => users.id),
+  kioskSessionId: integer("kiosk_session_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Kiosk sessions for self check-in QR codes
+export const kioskSessions = pgTable("kiosk_sessions", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  token: text("token").notNull().unique(),
+  label: text("label"),
+  expiresAt: timestamp("expires_at").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdByUserId: integer("created_by_user_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// OTP codes for kiosk phone verification
+export const kioskOtpCodes = pgTable("kiosk_otp_codes", {
+  id: serial("id").primaryKey(),
+  phone: text("phone").notNull(),
+  kioskSessionId: integer("kiosk_session_id").references(() => kioskSessions.id).notNull(),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  verified: boolean("verified").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -721,6 +746,8 @@ export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit
 export const insertSupportMessageSchema = createInsertSchema(supportMessages).omit({ id: true, createdAt: true });
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
 export const insertWalkInVisitorSchema = createInsertSchema(walkInVisitors).omit({ id: true, createdAt: true, convertedToMember: true, convertedUserId: true });
+export const insertKioskSessionSchema = createInsertSchema(kioskSessions).omit({ id: true, createdAt: true });
+export const insertKioskOtpCodeSchema = createInsertSchema(kioskOtpCodes).omit({ id: true, createdAt: true });
 
 // === EXPLICIT TYPES ===
 
@@ -828,3 +855,8 @@ export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
 export type WalkInVisitor = typeof walkInVisitors.$inferSelect;
 export type InsertWalkInVisitor = z.infer<typeof insertWalkInVisitorSchema>;
+
+export type KioskSession = typeof kioskSessions.$inferSelect;
+export type InsertKioskSession = z.infer<typeof insertKioskSessionSchema>;
+export type KioskOtpCode = typeof kioskOtpCodes.$inferSelect;
+export type InsertKioskOtpCode = z.infer<typeof insertKioskOtpCodeSchema>;
