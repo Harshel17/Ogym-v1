@@ -3401,6 +3401,78 @@ export async function registerRoutes(
     res.sendStatus(204);
   });
 
+  // === WALK-IN VISITORS ===
+  app.post("/api/owner/walk-in-visitors", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { name, phone, email, visitDate, visitType, daysCount, amountPaid, notes } = req.body;
+      if (!name || !phone || !visitDate) {
+        return res.status(400).json({ message: "Name, phone, and visit date are required" });
+      }
+      const visitor = await storage.createWalkInVisitor({
+        gymId: req.user!.gymId!,
+        name,
+        phone,
+        email,
+        visitDate,
+        visitType: visitType || "day_pass",
+        daysCount: daysCount || 1,
+        amountPaid: amountPaid || 0,
+        notes,
+        createdByUserId: req.user!.id
+      });
+      res.status(201).json(visitor);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to create walk-in visitor" });
+    }
+  });
+
+  app.get("/api/owner/walk-in-visitors", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { date, visitType } = req.query;
+      const visitors = await storage.getWalkInVisitors(req.user!.gymId!, {
+        date: date as string,
+        visitType: visitType as string
+      });
+      res.json(visitors);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to fetch walk-in visitors" });
+    }
+  });
+
+  app.get("/api/owner/walk-in-visitors/stats", requireRole(["owner"]), async (req, res) => {
+    try {
+      const stats = await storage.getWalkInVisitorStats(req.user!.gymId!);
+      res.json(stats);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to fetch walk-in visitor stats" });
+    }
+  });
+
+  app.get("/api/owner/walk-in-visitors/:id", requireRole(["owner"]), async (req, res) => {
+    try {
+      const visitor = await storage.getWalkInVisitorById(parseInt(req.params.id));
+      if (!visitor || visitor.gymId !== req.user!.gymId) {
+        return res.status(404).json({ message: "Visitor not found" });
+      }
+      res.json(visitor);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to fetch walk-in visitor" });
+    }
+  });
+
+  app.patch("/api/owner/walk-in-visitors/:id", requireRole(["owner"]), async (req, res) => {
+    try {
+      const visitor = await storage.getWalkInVisitorById(parseInt(req.params.id));
+      if (!visitor || visitor.gymId !== req.user!.gymId) {
+        return res.status(404).json({ message: "Visitor not found" });
+      }
+      const updated = await storage.updateWalkInVisitor(parseInt(req.params.id), req.body);
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to update walk-in visitor" });
+    }
+  });
+
   // === EXPORT ROUTES ===
   app.get("/api/owner/export/payments", requireRole(["owner"]), async (req, res) => {
     try {
