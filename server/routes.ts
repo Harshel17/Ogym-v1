@@ -7,6 +7,7 @@ import { nanoid } from "nanoid";
 import passport from "passport";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
+import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail } from "./email";
 import { db } from "./db";
 import { workoutLogs, workoutLogExercises } from "@shared/schema";
@@ -48,6 +49,23 @@ const resendRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 1,
   message: { message: "Please wait 60 seconds before requesting another code." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Kiosk rate limiters to prevent spam
+const kioskOtpLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 3,
+  message: { message: "Too many OTP requests. Please wait a minute." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const kioskSubmitLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { message: "Too many submissions. Please wait a minute." },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -3470,6 +3488,170 @@ export async function registerRoutes(
       res.json(updated);
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to update walk-in visitor" });
+    }
+  });
+
+  // === KIOSK ROUTES (Self Check-in) ===
+  
+  // Owner: Create a new kiosk session (generates QR code link)
+  app.post("/api/owner/kiosk-sessions", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { label, expiryHours } = req.body;
+      const token = nanoid(12);
+      const expiresAt = new Date(Date.now() + (expiryHours || 8) * 60 * 60 * 1000);
+      
+      const session = await storage.createKioskSession({
+        gymId: req.user!.gymId!,
+        token,
+        label: label || `Check-in ${new Date().toLocaleDateString()}`,
+        expiresAt,
+        isActive: true,
+        createdByUserId: req.user!.id
+      });
+      
+      res.status(201).json(session);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to create kiosk session" });
+    }
+  });
+
+  // Owner: Get all kiosk sessions
+  app.get("/api/owner/kiosk-sessions", requireRole(["owner"]), async (req, res) => {
+    try {
+      const sessions = await storage.getKioskSessionsByGym(req.user!.gymId!);
+      res.json(sessions);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to fetch kiosk sessions" });
+    }
+  });
+
+  // Owner: Deactivate a kiosk session
+  app.post("/api/owner/kiosk-sessions/:id/deactivate", requireRole(["owner"]), async (req, res) => {
+    try {
+      const session = await storage.getKioskSessionById(parseInt(req.params.id));
+      if (!session || session.gymId !== req.user!.gymId) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      const updated = await storage.deactivateKioskSession(parseInt(req.params.id));
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to deactivate kiosk session" });
+    }
+  });
+
+  // Public: Validate a kiosk token (no auth required)
+  app.get("/api/kiosk/:token", async (req, res) => {
+    try {
+      const session = await storage.getKioskSessionByToken(req.params.token);
+      if (!session) {
+        return res.status(404).json({ message: "Invalid check-in link" });
+      }
+      if (!session.isActive) {
+        return res.status(400).json({ message: "This check-in link has been deactivated" });
+      }
+      if (new Date(session.expiresAt) < new Date()) {
+        return res.status(400).json({ message: "This check-in link has expired" });
+      }
+      
+      // Get gym info for display
+      const gym = await storage.getGym(session.gymId);
+      res.json({ 
+        valid: true, 
+        gymName: gym?.name,
+        gymId: session.gymId,
+        sessionId: session.id
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to validate kiosk token" });
+    }
+  });
+
+  // Public: Request OTP for kiosk check-in (rate limited)
+  app.post("/api/kiosk/:token/request-otp", kioskOtpLimiter, async (req, res) => {
+    try {
+      const { phone } = req.body;
+      if (!phone || phone.length < 10) {
+        return res.status(400).json({ message: "Valid phone number required" });
+      }
+      
+      const session = await storage.getKioskSessionByToken(req.params.token);
+      if (!session || !session.isActive || new Date(session.expiresAt) < new Date()) {
+        return res.status(400).json({ message: "Invalid or expired check-in link" });
+      }
+      
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpHash = await bcrypt.hash(otp, 10);
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      
+      await storage.createKioskOtpCode({
+        phone,
+        kioskSessionId: session.id,
+        codeHash: otpHash,
+        expiresAt,
+        verified: false
+      });
+      
+      // TODO: Send SMS OTP (for now, log it in development)
+      console.log(`[KIOSK OTP] Phone: ${phone}, OTP: ${otp}`);
+      
+      res.json({ message: "OTP sent to your phone", expiresIn: 600 });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to send OTP" });
+    }
+  });
+
+  // Public: Verify OTP and submit visitor info
+  app.post("/api/kiosk/:token/submit", kioskSubmitLimiter, async (req, res) => {
+    try {
+      const { phone, otp, name, email, visitType, daysCount, amountPaid, notes } = req.body;
+      
+      if (!phone || !otp || !name) {
+        return res.status(400).json({ message: "Phone, OTP, and name are required" });
+      }
+      
+      const session = await storage.getKioskSessionByToken(req.params.token);
+      if (!session || !session.isActive || new Date(session.expiresAt) < new Date()) {
+        return res.status(400).json({ message: "Invalid or expired check-in link" });
+      }
+      
+      // Verify OTP
+      const otpCode = await storage.getValidKioskOtpCode(phone, session.id);
+      if (!otpCode) {
+        return res.status(400).json({ message: "Invalid or expired OTP. Please request a new one." });
+      }
+      
+      const isValidOtp = await bcrypt.compare(otp, otpCode.codeHash);
+      if (!isValidOtp) {
+        return res.status(400).json({ message: "Invalid OTP code" });
+      }
+      
+      // Mark OTP as verified
+      await storage.markKioskOtpVerified(otpCode.id);
+      
+      // Create walk-in visitor entry
+      const today = new Date().toISOString().split('T')[0];
+      const visitor = await storage.createWalkInVisitor({
+        gymId: session.gymId,
+        name,
+        phone,
+        email: email || null,
+        visitDate: today,
+        visitType: visitType || "enquiry",
+        daysCount: daysCount || 1,
+        amountPaid: amountPaid || 0,
+        notes: notes || null,
+        source: "kiosk",
+        kioskSessionId: session.id,
+        createdByUserId: null
+      });
+      
+      res.status(201).json({ 
+        message: "Check-in successful! The gym has been notified.",
+        visitor 
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to complete check-in" });
     }
   });
 

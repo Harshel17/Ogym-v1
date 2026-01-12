@@ -27,6 +27,7 @@ type WalkInVisitor = {
   daysCount: number | null;
   amountPaid: number | null;
   notes: string | null;
+  source: "owner" | "trainer" | "kiosk" | null;
   convertedToMember: boolean | null;
   createdAt: string;
 };
@@ -380,9 +381,12 @@ export default function OwnerWalkInVisitorsPage() {
               {visitors.map((visitor) => (
                 <div key={visitor.id} className="flex items-center justify-between p-4 border rounded-lg" data-testid={`visitor-card-${visitor.id}`}>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h4 className="font-medium truncate">{visitor.name}</h4>
                       {getVisitTypeBadge(visitor.visitType)}
+                      {visitor.source === "kiosk" && (
+                        <Badge variant="secondary" className="text-xs">Self Check-in</Badge>
+                      )}
                       {visitor.convertedToMember && (
                         <Badge variant="outline" className="text-green-600 border-green-600">Converted</Badge>
                       )}

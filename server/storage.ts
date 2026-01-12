@@ -46,11 +46,13 @@ import {
   trainingPhases, phaseExercises, type TrainingPhase, type InsertTrainingPhase, type PhaseExercise, type InsertPhaseExercise,
   userProfiles, type UserProfile,
   passwordResetCodes, type PasswordResetCode, type InsertPasswordResetCode,
-  supportTickets, supportMessages, auditLogs, walkInVisitors,
+  supportTickets, supportMessages, auditLogs, walkInVisitors, kioskSessions, kioskOtpCodes,
   type SupportTicket, type InsertSupportTicket,
   type SupportMessage, type InsertSupportMessage,
   type AuditLog, type InsertAuditLog,
-  type WalkInVisitor, type InsertWalkInVisitor
+  type WalkInVisitor, type InsertWalkInVisitor,
+  type KioskSession, type InsertKioskSession,
+  type KioskOtpCode, type InsertKioskOtpCode
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -7097,6 +7099,73 @@ export class DatabaseStorage implements IStorage {
       todayRevenue,
       conversionRate: Math.round(conversionRate * 10) / 10
     };
+  }
+
+  // Kiosk Sessions for self check-in
+  async createKioskSession(data: InsertKioskSession): Promise<KioskSession> {
+    const [session] = await db.insert(kioskSessions).values(data).returning();
+    return session;
+  }
+
+  async getKioskSessionsByGym(gymId: number): Promise<KioskSession[]> {
+    return await db.select().from(kioskSessions)
+      .where(eq(kioskSessions.gymId, gymId))
+      .orderBy(desc(kioskSessions.createdAt));
+  }
+
+  async getKioskSessionByToken(token: string): Promise<KioskSession | null> {
+    const [session] = await db.select().from(kioskSessions)
+      .where(eq(kioskSessions.token, token));
+    return session || null;
+  }
+
+  async getKioskSessionById(id: number): Promise<KioskSession | null> {
+    const [session] = await db.select().from(kioskSessions)
+      .where(eq(kioskSessions.id, id));
+    return session || null;
+  }
+
+  async updateKioskSession(id: number, data: Partial<InsertKioskSession>): Promise<KioskSession> {
+    const [session] = await db.update(kioskSessions)
+      .set(data)
+      .where(eq(kioskSessions.id, id))
+      .returning();
+    return session;
+  }
+
+  async deactivateKioskSession(id: number): Promise<KioskSession> {
+    const [session] = await db.update(kioskSessions)
+      .set({ isActive: false })
+      .where(eq(kioskSessions.id, id))
+      .returning();
+    return session;
+  }
+
+  // Kiosk OTP codes for phone verification
+  async createKioskOtpCode(data: InsertKioskOtpCode): Promise<KioskOtpCode> {
+    const [code] = await db.insert(kioskOtpCodes).values(data).returning();
+    return code;
+  }
+
+  async getValidKioskOtpCode(phone: string, kioskSessionId: number): Promise<KioskOtpCode | null> {
+    const now = new Date();
+    const [code] = await db.select().from(kioskOtpCodes)
+      .where(and(
+        eq(kioskOtpCodes.phone, phone),
+        eq(kioskOtpCodes.kioskSessionId, kioskSessionId),
+        eq(kioskOtpCodes.verified, false),
+        gte(kioskOtpCodes.expiresAt, now)
+      ))
+      .orderBy(desc(kioskOtpCodes.createdAt));
+    return code || null;
+  }
+
+  async markKioskOtpVerified(id: number): Promise<KioskOtpCode> {
+    const [code] = await db.update(kioskOtpCodes)
+      .set({ verified: true })
+      .where(eq(kioskOtpCodes.id, id))
+      .returning();
+    return code;
   }
 }
 
