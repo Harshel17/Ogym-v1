@@ -1,0 +1,47 @@
+YC APPLICATION DRAFT - OGym
+============================
+
+COMPANY: OGym
+CATEGORY: Fitness / Vertical SaaS
+
+---
+
+WHAT OGYM DOES:
+OGym is a multi-tenant platform that gives gym owners, trainers, and members their own dashboards in one system. Owners manage memberships, payments, attendance, and analytics. Trainers create workout plans and track client progress. Members track workouts and fitness progress. Replaces spreadsheets, WhatsApp, and disconnected fitness apps.
+
+---
+
+TRACTION:
+Product is fully built and demo-ready. One gym in Birmingham, AL (Gym Empire) has agreed to demo next week with intent to start a paid pilot at $100/month. Actively reaching out to other local gyms in the Birmingham metro area.
+
+---
+
+BUSINESS MODEL:
+$99/month per gym. Trainers and members use free as part of gym's plan.
+
+Alternative tiered pricing:
+- $99/month (up to 100 members)
+- $199/month (up to 300 members)  
+- $299/month (unlimited)
+
+---
+
+FOUNDER STORY:
+I started OGym because I personally struggled to stay consistent with my workouts. I was using ChatGPT and consumer fitness apps, but it was hard to track what I had done, what I should do next, and how it connected to my gym and trainer. Most fitness apps were confusing, filled with ads, or charged high subscription fees while still not integrating with gyms.
+
+When I spoke with gym owners and trainers, I realized they had the same problem on the business side — they rely on spreadsheets, WhatsApp, and disconnected tools to manage members, workouts, and payments. I built OGym and now have gyms interested in using it, which validates that this problem is real.
+
+---
+
+LONG-TERM VISION:
+OGym becomes the system of record for gym activity (workouts, attendance, payments, member behavior). Once this data exists, we can layer AI on top to predict churn, help trainers generate better programs, and personalize the member experience — without replacing gym staff.
+
+---
+
+TECH STACK:
+React + TypeScript frontend, Node.js + Express backend, PostgreSQL database, hosted on Render. Built using Replit Agent (Claude AI) for development. Planning Capacitor for iOS/Android mobile apps.
+
+---
+
+NEXT MILESTONE:
+5 paying gyms and $500 MRR within 60 days.
