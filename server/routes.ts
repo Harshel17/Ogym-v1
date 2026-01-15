@@ -3274,8 +3274,8 @@ export async function registerRoutes(
   });
 
   // === AI INSIGHTS ===
-  app.get("/api/owner/ai-insights", requireRole(["owner"]), async (req, res) => {
-    const clientDate = (req.query.clientDate as string) || getLocalDate(req);
+  app.get("/api/owner/ai-insights/:date", requireRole(["owner"]), async (req, res) => {
+    const clientDate = req.params.date || getLocalDate(req);
     const insights = await storage.getAiInsights(req.user!.gymId!, clientDate);
     res.json(insights);
   });
