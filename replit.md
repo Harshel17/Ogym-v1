@@ -77,8 +77,9 @@ npx tsx server/run-seed.ts --usa    # Clear all + seed USA demo
 **Data Scope:**
 - 1 gym, 3 trainers, 35 members
 - 90 days of realistic activity
-- 800+ attendance records, 3200+ workout completions
-- Body measurements, announcements, feed posts
+- ~900 attendance records, ~4000 workout completions
+- ~80 body measurements, 8 announcements
+- 6 star members with diet plans, 12 feed posts
 - USD currency, US phone format, Alabama timezone
 
 ### India Demo (Legacy)

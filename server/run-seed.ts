@@ -35,6 +35,13 @@ async function main() {
   }
   
   try {
+    if (usaDemo) {
+      console.log("--usa flag detected, seeding USA demo data...");
+      await resetAndSeedUSADemo();
+      console.log("\nDone! USA demo data seeded successfully.");
+      process.exit(0);
+    }
+    
     console.log("Seeding admin user...");
     await seedAdminUser();
     console.log("Admin user ready.\n");
@@ -42,13 +49,6 @@ async function main() {
     if (adminOnly) {
       console.log("--admin-only flag set, skipping demo data.");
       console.log("Done!");
-      process.exit(0);
-    }
-    
-    if (usaDemo) {
-      console.log("--usa flag detected, seeding USA demo data...");
-      await resetAndSeedUSADemo();
-      console.log("\nDone! USA demo data seeded successfully.");
       process.exit(0);
     }
     

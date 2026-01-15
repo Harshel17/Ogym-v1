@@ -259,66 +259,33 @@ export async function clearAllDemoData(): Promise<void> {
   console.log("Clearing all existing demo data...");
   
   try {
+    // Get all table names from the database (excluding system tables)
+    const tablesResult = await db.execute(sql`
+      SELECT tablename FROM pg_tables 
+      WHERE schemaname = 'public' 
+      AND tablename NOT IN ('session', 'drizzle_migrations')
+    `);
+    
+    const allTables = (tablesResult.rows as Array<{tablename: string}>).map(r => r.tablename);
+    console.log(`Found ${allTables.length} tables to clear`);
+    
+    // Disable foreign key checks, truncate all tables, re-enable
     await db.execute(sql`
       DO $$ 
       DECLARE 
-        r RECORD;
+        tbl TEXT;
+        tbl_list TEXT;
       BEGIN
-        -- Delete from tables in dependency order
-        DELETE FROM feed_reactions;
-        DELETE FROM feed_comments;
-        DELETE FROM feed_posts;
-        DELETE FROM tournament_participants;
-        DELETE FROM tournaments;
-        DELETE FROM announcement_reads;
-        DELETE FROM announcements;
-        DELETE FROM diet_plan_meals;
-        DELETE FROM diet_plans;
-        DELETE FROM star_members;
-        DELETE FROM member_notes;
-        DELETE FROM body_measurements;
-        DELETE FROM workout_session_exercises;
-        DELETE FROM workout_sessions;
-        DELETE FROM workout_log_sets;
-        DELETE FROM workout_log_exercises;
-        DELETE FROM workout_logs;
-        DELETE FROM member_rest_day_swaps;
-        DELETE FROM workout_completions;
-        DELETE FROM workout_plan_sets;
-        DELETE FROM workout_items;
-        DELETE FROM workout_template_items;
-        DELETE FROM workout_templates;
-        DELETE FROM phase_exercises;
-        DELETE FROM training_phases;
-        DELETE FROM workout_cycles;
-        DELETE FROM payment_transactions;
-        DELETE FROM member_subscriptions;
-        DELETE FROM membership_plans;
-        DELETE FROM payments;
-        DELETE FROM attendance;
-        DELETE FROM member_requests;
-        DELETE FROM trainer_member_assignments;
-        DELETE FROM trainer_members;
-        DELETE FROM gym_history;
-        DELETE FROM user_profiles;
-        DELETE FROM support_messages;
-        DELETE FROM support_tickets;
-        DELETE FROM gym_subscriptions;
-        DELETE FROM join_requests;
-        DELETE FROM transfer_requests;
-        DELETE FROM gym_requests;
-        DELETE FROM password_reset_codes;
-        DELETE FROM user_notification_preferences;
+        -- Get list of all public tables except session
+        SELECT string_agg(quote_ident(tablename), ', ')
+        INTO tbl_list
+        FROM pg_tables 
+        WHERE schemaname = 'public' 
+        AND tablename NOT IN ('session', 'drizzle_migrations');
         
-        -- Try optional tables
-        BEGIN DELETE FROM walk_in_visitors; EXCEPTION WHEN undefined_table THEN END;
-        BEGIN DELETE FROM kiosk_otp_codes; EXCEPTION WHEN undefined_table THEN END;
-        BEGIN DELETE FROM kiosk_sessions; EXCEPTION WHEN undefined_table THEN END;
-        BEGIN DELETE FROM audit_logs; EXCEPTION WHEN undefined_table THEN END;
-        
-        -- Finally delete users and gyms
-        DELETE FROM users WHERE is_admin = false;
-        DELETE FROM gyms;
+        IF tbl_list IS NOT NULL AND tbl_list != '' THEN
+          EXECUTE 'TRUNCATE TABLE ' || tbl_list || ' RESTART IDENTITY CASCADE';
+        END IF;
       END $$;
     `);
     
@@ -545,9 +512,10 @@ export async function seedUSADemo(): Promise<void> {
   
   console.log("Created membership subscriptions and payments");
   
-  console.log("\nCreating workout cycles and completions...");
+  console.log("\nCreating workout cycles and completions (batched)...");
   
-  let totalCompletions = 0;
+  const allCompletions: any[] = [];
+  const allAttendance: any[] = [];
   
   for (const member of members) {
     const template = getRandomElement(WORKOUT_TEMPLATES_DATA);
@@ -570,12 +538,12 @@ export async function seedUSADemo(): Promise<void> {
       isActive: true
     }).returning();
     
-    const workoutItemsCreated: (typeof workoutItems.$inferSelect)[] = [];
+    const workoutItemsToInsert = [];
     for (let dayIdx = 0; dayIdx < template.days.length; dayIdx++) {
       const day = template.days[dayIdx];
       for (let exIdx = 0; exIdx < day.exercises.length; exIdx++) {
         const ex = day.exercises[exIdx];
-        const [item] = await db.insert(workoutItems).values({
+        workoutItemsToInsert.push({
           cycleId: cycle.id,
           dayIndex: dayIdx,
           muscleType: ex.muscle,
@@ -585,10 +553,11 @@ export async function seedUSADemo(): Promise<void> {
           reps: ex.reps,
           weight: ex.weight,
           orderIndex: exIdx
-        }).returning();
-        workoutItemsCreated.push(item);
+        });
       }
     }
+    
+    const workoutItemsCreated = await db.insert(workoutItems).values(workoutItemsToInsert).returning();
     
     const workoutDays = generateWorkoutDays(memberStartDays, 0, member.daysPerWeek);
     
@@ -602,7 +571,7 @@ export async function seedUSADemo(): Promise<void> {
         : dayExercises.slice(0, Math.max(1, Math.floor(dayExercises.length * 0.7)));
       
       for (const exercise of exercisesToComplete) {
-        await db.insert(workoutCompletions).values({
+        allCompletions.push({
           gymId: gym.id,
           cycleId: cycle.id,
           workoutItemId: exercise.id,
@@ -613,10 +582,9 @@ export async function seedUSADemo(): Promise<void> {
           actualReps: exercise.reps + getRandomInt(-2, 2),
           actualWeight: exercise.weight
         });
-        totalCompletions++;
       }
       
-      await db.insert(attendance).values({
+      allAttendance.push({
         gymId: gym.id,
         memberId: member.id,
         markedByUserId: member.id,
@@ -627,7 +595,20 @@ export async function seedUSADemo(): Promise<void> {
     }
   }
   
-  console.log(`Created ${totalCompletions} workout completions`);
+  // Batch insert completions in chunks of 500
+  const BATCH_SIZE = 500;
+  for (let i = 0; i < allCompletions.length; i += BATCH_SIZE) {
+    const batch = allCompletions.slice(i, i + BATCH_SIZE);
+    await db.insert(workoutCompletions).values(batch);
+  }
+  console.log(`Created ${allCompletions.length} workout completions`);
+  
+  // Batch insert attendance in chunks of 500
+  for (let i = 0; i < allAttendance.length; i += BATCH_SIZE) {
+    const batch = allAttendance.slice(i, i + BATCH_SIZE);
+    await db.insert(attendance).values(batch);
+  }
+  console.log(`Created ${allAttendance.length} attendance records`);
   
   console.log("\nCreating body measurements...");
   
@@ -822,4 +803,10 @@ export async function seedUSADemo(): Promise<void> {
 export async function resetAndSeedUSADemo(): Promise<void> {
   await clearAllDemoData();
   await seedUSADemo();
+  
+  // Seed admin user at the end (since TRUNCATE clears all tables)
+  const { seedAdminUser } = await import("./seed-admin");
+  console.log("\nSeeding admin user...");
+  await seedAdminUser();
+  console.log("Admin user ready.");
 }
