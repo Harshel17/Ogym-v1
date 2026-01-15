@@ -49,7 +49,7 @@ export default function OwnerAiInsightsPage() {
   const clientDate = new Date().toISOString().split('T')[0];
   
   const { data: insights, isLoading } = useQuery<AiInsightsData>({
-    queryKey: ['/api/owner/ai-insights', clientDate],
+    queryKey: [`/api/owner/ai-insights/${clientDate}`],
   });
 
   const getTypeIcon = (type: string) => {
