@@ -7373,9 +7373,9 @@ export class DatabaseStorage implements IStorage {
       const dayName = dayNames[date.getDay()];
       dayCounts.set(dayName, (dayCounts.get(dayName) || 0) + 1);
       
-      // If we have check-in time, use it for hour analysis
-      if (record.checkInTime) {
-        const hour = parseInt(record.checkInTime.split(':')[0]);
+      // Use createdAt timestamp for hour analysis
+      if (record.createdAt) {
+        const hour = record.createdAt.getHours();
         hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
       }
     }
@@ -7428,7 +7428,7 @@ export class DatabaseStorage implements IStorage {
       .from(workoutLogs)
       .where(and(
         eq(workoutLogs.gymId, gymId),
-        gte(workoutLogs.date, sevenDaysAgoStr)
+        gte(workoutLogs.completedDate, sevenDaysAgoStr)
       ))
       .groupBy(workoutLogs.memberId);
     
