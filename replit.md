@@ -59,30 +59,41 @@ Preferred communication style: Simple, everyday language.
 
 ## Demo Seeding
 
-The project includes comprehensive demo data seeding that generates 8 months of realistic activity:
+The project includes two demo seeding options:
 
-**Demo Gyms:**
-- IronForge Fitness (Hyderabad) - Gym code: IRONFORGE
-- PulseArena Gym (Bengaluru) - Gym code: PULSEARENA
+### USA Demo (Recommended for US demos)
+**Gym:** Gym 24/7 (Birmingham, AL) - Code: GYM247
 
-**Demo Data Scope:**
-- 2 gyms with 4-5 trainers and 60-80 members each
-- 87,000+ workout completions across 8 months
-- 3,300+ body measurements with progression trends
-- 800+ social feed posts with 4,000+ reactions
-- 14 tournaments with 540+ participants
-- 6 transfer requests (3 each direction between gyms)
-- 8 cross-gym join requests
-- 39 announcements with read tracking
-- Diet plans for star members
+**Command:**
+```bash
+npx tsx server/run-seed.ts --usa    # Clear all + seed USA demo
+```
+
+**Credentials (Password: `Demo@12345!`):**
+- **Owner:** owner@gym247.com
+- **Trainers:** marcus@gym247.com, sarah@gym247.com, tyler@gym247.com
+- **Members:** 35 members with realistic US names/emails
+
+**Data Scope:**
+- 1 gym, 3 trainers, 35 members
+- 90 days of realistic activity
+- 800+ attendance records, 3200+ workout completions
+- Body measurements, announcements, feed posts
+- USD currency, US phone format, Alabama timezone
+
+### India Demo (Legacy)
+**Gyms:**
+- IronForge Fitness (Hyderabad) - Code: IRONFORGE
+- PulseArena Gym (Bengaluru) - Code: PULSEARENA
 
 **Commands:**
 ```bash
-npx tsx server/run-seed.ts        # Run demo seed
-npx tsx server/run-seed.ts --reset  # Reset and reseed demo data
+npx tsx server/run-seed.ts           # Run India demo seed
+npx tsx server/run-seed.ts --reset   # Reset and reseed India demo
+npx tsx server/run-seed.ts --admin-only  # Only seed admin (for production)
 ```
 
-**All demo accounts use password:** `demo123`
+**India demo password:** `demo123`
 
 ## Email Integration
 

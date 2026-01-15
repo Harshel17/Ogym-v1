@@ -1,0 +1,54 @@
+I want you to CLEAR ALL existing demo/seed data and regenerate a brand-new, realistic demo dataset for OGym.
+
+Goal:
+Create fresh demo data that looks like a real gym in the USA that has been actively using OGym for ~3 months. The data must look professional and “production-like” so I can demo to gyms.
+
+Requirements (do ALL):
+1) Wipe demo data safely
+- Remove all current demo users, gyms, memberships, payments, attendance logs, workout plans, workout logs, trainer assignments, announcements, messages/notifications, etc.
+- Keep DB schema and core logic unchanged.
+
+2) Create 1 realistic USA gym
+- Example: “gym24/7” (Birmingham, AL) or another believable USA gym name.
+- Set currency to USD and use proper US formatting (dates, addresses, phone format).
+- Gym should look active for the past 90 days.
+
+3) Create real-looking accounts with correct roles
+- 1 Owner account
+- 3 Trainer accounts
+- 25–40 Member accounts
+- Each user should have realistic names, emails, phone numbers (US format), and profiles.
+- Include roles/permissions exactly as OGym expects.
+
+4) Populate ALL OGym features with believable usage
+- Attendance: QR/Check-in logs for the last 90 days (members don’t come every day; realistic patterns).
+- Memberships & Payments: active plans, renewals, missed payments, upgrades, different membership tiers (monthly/3-month/6-month).
+- Trainer assignments: members assigned to trainers, trainer schedules.
+- Workouts: workout plans created by trainers and assigned to members; workout logs filled for many members across weeks.
+- Progress tracking: weights/body measurements/progress entries for at least 15 members across multiple dates.
+- Announcements/notifications: owner posts announcements; system notifications exist.
+- Any other modules present in OGym should also have data (no empty screens).
+
+5) Make the demo data “clean and demo-ready”
+- No broken references, missing IDs, empty tables where screens depend on them, or unrealistic placeholders like “test/test123”.
+- Make sure dashboards show meaningful numbers (active members, monthly revenue, attendance trends, etc.)
+
+6) OTP verification requirement
+- All seeded demo accounts should be considered VERIFIED via OTP.
+- If OTP is enforced in code, ensure seeded users have the proper “verified” flag set (email_verified=true or equivalent).
+- Ensure login works without needing to actually send OTP every time for demo users (but still keep OTP logic intact for real new signups).
+
+7) Provide demo credentials output
+After seeding, print a clean list of demo logins (email + password) for:
+- Owner (1)
+- Trainers (3)
+- Members (at least 5 “highlight” members I can use in demos)
+Use a consistent password like: Demo@12345! (or generate and print unique passwords, but print them clearly)
+
+8) Add a “Reset Demo Data” helper
+Add a single command/script (npm run seed:demo or similar) that I can run anytime to recreate this exact demo dataset from scratch.
+Also add safety so it only runs in demo/dev mode (not production).
+
+Finally:
+- Run the seed and verify by logging in as Owner, Trainer, and Member to confirm pages load and data appears across all major screens.
+- If any page shows empty/broken data, fix the seed data until the demo looks complete.
