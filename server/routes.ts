@@ -3273,6 +3273,13 @@ export async function registerRoutes(
     res.json(subscription);
   });
 
+  // === AI INSIGHTS ===
+  app.get("/api/owner/ai-insights", requireRole(["owner"]), async (req, res) => {
+    const clientDate = (req.query.clientDate as string) || getLocalDate(req);
+    const insights = await storage.getAiInsights(req.user!.gymId!, clientDate);
+    res.json(insights);
+  });
+
   // === OWNER DASHBOARD & ATTENDANCE ANALYTICS ===
   app.get("/api/owner/dashboard-metrics", requireRole(["owner"]), async (req, res) => {
     // Accept client's local date to handle timezone differences

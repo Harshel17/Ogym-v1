@@ -518,6 +518,31 @@ export interface IStorage {
     daysAbsent: number;
   }[]>;
   
+  // AI Insights
+  getAiInsights(gymId: number, clientDate: string): Promise<{
+    churnRisk: { 
+      count: number;
+      members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' }[];
+    };
+    followUpReminders: {
+      count: number;
+      items: { type: 'inactive' | 'subscription_ending' | 'no_trainer' | 'new_member'; memberId: number; name: string; publicId: string | null; message: string; priority: 'high' | 'medium' | 'low' }[];
+    };
+    attendancePatterns: {
+      peakHours: { hour: string; count: number }[];
+      busiestDays: { day: string; count: number }[];
+      averageDaily: number;
+      trend: 'up' | 'down' | 'stable';
+      trendPercent: number;
+    };
+    memberInsights: {
+      totalActive: number;
+      newThisMonth: number;
+      improvedMembers: number;
+      atRiskCount: number;
+    };
+  }>;
+  
   // Workout Sessions
   getOrCreateWorkoutSession(data: InsertWorkoutSession): Promise<WorkoutSession>;
   getWorkoutSession(gymId: number, sessionId: number): Promise<(WorkoutSession & { exercises: WorkoutSessionExercise[] }) | null>;
@@ -7166,6 +7191,270 @@ export class DatabaseStorage implements IStorage {
       .where(eq(kioskOtpCodes.id, id))
       .returning();
     return code;
+  }
+
+  // === AI INSIGHTS ===
+  async getAiInsights(gymId: number, clientDate: string): Promise<{
+    churnRisk: { 
+      count: number;
+      members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' }[];
+    };
+    followUpReminders: {
+      count: number;
+      items: { type: 'inactive' | 'subscription_ending' | 'no_trainer' | 'new_member'; memberId: number; name: string; publicId: string | null; message: string; priority: 'high' | 'medium' | 'low' }[];
+    };
+    attendancePatterns: {
+      peakHours: { hour: string; count: number }[];
+      busiestDays: { day: string; count: number }[];
+      averageDaily: number;
+      trend: 'up' | 'down' | 'stable';
+      trendPercent: number;
+    };
+    memberInsights: {
+      totalActive: number;
+      newThisMonth: number;
+      improvedMembers: number;
+      atRiskCount: number;
+    };
+  }> {
+    const today = new Date(clientDate);
+    const todayStr = clientDate;
+    const currentMonth = todayStr.slice(0, 7);
+    
+    // Get all active members
+    const allMembers = await db.select().from(users)
+      .where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+    
+    // Get subscriptions
+    const allSubs = await db.select()
+      .from(memberSubscriptions)
+      .where(eq(memberSubscriptions.gymId, gymId));
+    
+    const subMap = new Map<number, typeof allSubs[0]>();
+    for (const sub of allSubs) {
+      if (!subMap.has(sub.memberId) || (sub.endDate > (subMap.get(sub.memberId)?.endDate || ''))) {
+        subMap.set(sub.memberId, sub);
+      }
+    }
+    
+    // Active members (subscription not expired)
+    const activeMembers = allMembers.filter(m => {
+      const sub = subMap.get(m.id);
+      return sub && sub.endDate >= todayStr;
+    });
+    
+    // Get trainer assignments
+    const assignments = await db.select().from(trainerMembers)
+      .where(eq(trainerMembers.gymId, gymId));
+    const assignedMemberIds = new Set(assignments.map(a => a.memberId));
+    
+    // Get last attendance for each member (last 30 days)
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+    
+    const recentAttendance = await db.select({
+      memberId: attendance.memberId,
+      lastDate: sql<string>`MAX(${attendance.date})`.as('lastDate')
+    })
+      .from(attendance)
+      .where(and(
+        eq(attendance.gymId, gymId),
+        eq(attendance.status, 'present')
+      ))
+      .groupBy(attendance.memberId);
+    
+    const lastAttendanceMap = new Map<number, string>();
+    for (const row of recentAttendance) {
+      lastAttendanceMap.set(row.memberId, row.lastDate);
+    }
+    
+    // === CHURN RISK ===
+    const churnRiskMembers: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' }[] = [];
+    
+    for (const member of activeMembers) {
+      const lastVisit = lastAttendanceMap.get(member.id) || null;
+      let daysAbsent = 999;
+      
+      if (lastVisit) {
+        const lastDate = new Date(lastVisit);
+        daysAbsent = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+      }
+      
+      // High risk: 14+ days absent, Medium risk: 7-13 days absent
+      if (daysAbsent >= 7) {
+        churnRiskMembers.push({
+          id: member.id,
+          name: member.username,
+          publicId: member.publicId,
+          daysAbsent,
+          lastVisit,
+          riskLevel: daysAbsent >= 14 ? 'high' : 'medium'
+        });
+      }
+    }
+    
+    // Sort by days absent (highest first)
+    churnRiskMembers.sort((a, b) => b.daysAbsent - a.daysAbsent);
+    
+    // === FOLLOW-UP REMINDERS ===
+    const followUpItems: { type: 'inactive' | 'subscription_ending' | 'no_trainer' | 'new_member'; memberId: number; name: string; publicId: string | null; message: string; priority: 'high' | 'medium' | 'low' }[] = [];
+    
+    for (const member of activeMembers) {
+      const sub = subMap.get(member.id);
+      const lastVisit = lastAttendanceMap.get(member.id);
+      
+      // Check subscription ending soon (within 7 days)
+      if (sub) {
+        const endDate = new Date(sub.endDate);
+        const daysUntilEnd = Math.floor((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysUntilEnd >= 0 && daysUntilEnd <= 7) {
+          followUpItems.push({
+            type: 'subscription_ending',
+            memberId: member.id,
+            name: member.username,
+            publicId: member.publicId,
+            message: daysUntilEnd === 0 ? 'Subscription ends today' : `Subscription ends in ${daysUntilEnd} day${daysUntilEnd === 1 ? '' : 's'}`,
+            priority: daysUntilEnd <= 2 ? 'high' : 'medium'
+          });
+        }
+      }
+      
+      // Check no trainer assigned
+      if (!assignedMemberIds.has(member.id)) {
+        followUpItems.push({
+          type: 'no_trainer',
+          memberId: member.id,
+          name: member.username,
+          publicId: member.publicId,
+          message: 'No trainer assigned',
+          priority: 'medium'
+        });
+      }
+      
+      // Check new member (joined this month, never attended)
+      if (member.createdAt) {
+        const createdMonth = member.createdAt.toISOString().slice(0, 7);
+        if (createdMonth === currentMonth && !lastVisit) {
+          followUpItems.push({
+            type: 'new_member',
+            memberId: member.id,
+            name: member.username,
+            publicId: member.publicId,
+            message: 'New member - hasn\'t visited yet',
+            priority: 'high'
+          });
+        }
+      }
+    }
+    
+    // Sort by priority
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    followUpItems.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+    
+    // === ATTENDANCE PATTERNS ===
+    // Get attendance for last 30 days with check-in times
+    const recentAttendanceRecords = await db.select()
+      .from(attendance)
+      .where(and(
+        eq(attendance.gymId, gymId),
+        eq(attendance.status, 'present'),
+        gte(attendance.date, thirtyDaysAgoStr)
+      ));
+    
+    // Peak hours (using checkInTime if available, otherwise estimate from date patterns)
+    const hourCounts = new Map<number, number>();
+    const dayCounts = new Map<string, number>();
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    
+    for (const record of recentAttendanceRecords) {
+      // Count by day of week
+      const date = new Date(record.date);
+      const dayName = dayNames[date.getDay()];
+      dayCounts.set(dayName, (dayCounts.get(dayName) || 0) + 1);
+      
+      // If we have check-in time, use it for hour analysis
+      if (record.checkInTime) {
+        const hour = parseInt(record.checkInTime.split(':')[0]);
+        hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+      }
+    }
+    
+    // Convert to arrays and sort
+    const peakHours = Array.from(hourCounts.entries())
+      .map(([hour, count]) => ({
+        hour: `${hour}:00 - ${hour + 1}:00`,
+        count
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+    
+    const busiestDays = Array.from(dayCounts.entries())
+      .map(([day, count]) => ({ day, count }))
+      .sort((a, b) => b.count - a.count);
+    
+    // Calculate average daily and trend
+    const uniqueDates = new Set(recentAttendanceRecords.map(r => r.date));
+    const averageDaily = uniqueDates.size > 0 ? Math.round(recentAttendanceRecords.length / uniqueDates.size) : 0;
+    
+    // Calculate trend (compare last 14 days to previous 14 days)
+    const fourteenDaysAgo = new Date(today);
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    const fourteenDaysAgoStr = fourteenDaysAgo.toISOString().split('T')[0];
+    
+    const recentCount = recentAttendanceRecords.filter(r => r.date >= fourteenDaysAgoStr).length;
+    const previousCount = recentAttendanceRecords.filter(r => r.date < fourteenDaysAgoStr).length;
+    
+    let trend: 'up' | 'down' | 'stable' = 'stable';
+    let trendPercent = 0;
+    if (previousCount > 0) {
+      trendPercent = Math.round(((recentCount - previousCount) / previousCount) * 100);
+      if (trendPercent > 10) trend = 'up';
+      else if (trendPercent < -10) trend = 'down';
+    }
+    
+    // === MEMBER INSIGHTS ===
+    const newThisMonth = allMembers.filter(m => {
+      if (!m.createdAt) return false;
+      return m.createdAt.toISOString().slice(0, 7) === currentMonth;
+    }).length;
+    
+    // Members who completed workouts this week (as "improved")
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+    
+    const recentWorkouts = await db.select({ memberId: workoutLogs.memberId })
+      .from(workoutLogs)
+      .where(and(
+        eq(workoutLogs.gymId, gymId),
+        gte(workoutLogs.date, sevenDaysAgoStr)
+      ))
+      .groupBy(workoutLogs.memberId);
+    
+    return {
+      churnRisk: {
+        count: churnRiskMembers.length,
+        members: churnRiskMembers.slice(0, 10)
+      },
+      followUpReminders: {
+        count: followUpItems.length,
+        items: followUpItems.slice(0, 10)
+      },
+      attendancePatterns: {
+        peakHours,
+        busiestDays,
+        averageDaily,
+        trend,
+        trendPercent
+      },
+      memberInsights: {
+        totalActive: activeMembers.length,
+        newThisMonth,
+        improvedMembers: recentWorkouts.length,
+        atRiskCount: churnRiskMembers.filter(m => m.riskLevel === 'high').length
+      }
+    };
   }
 }
 

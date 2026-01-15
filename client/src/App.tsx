@@ -37,6 +37,7 @@ import OwnerMemberAnalyticsPage from "@/pages/owner-member-analytics-page";
 import OwnerAnnouncementsPage from "@/pages/owner-announcements-page";
 import OwnerWalkInVisitorsPage from "@/pages/owner-walk-in-visitors-page";
 import OwnerKioskPage from "@/pages/owner-kiosk-page";
+import OwnerAiInsightsPage from "@/pages/owner-ai-insights-page";
 import KioskCheckinPage from "@/pages/kiosk-checkin-page";
 import AnnouncementsPage from "@/pages/announcements-page";
 import GymRequestPage from "@/pages/gym-request-page";
@@ -273,6 +274,10 @@ function Router() {
 
       <Route path="/owner/kiosk">
         <ProtectedRoute component={OwnerKioskPage} requiredRole="owner" />
+      </Route>
+
+      <Route path="/owner/ai-insights">
+        <ProtectedRoute component={OwnerAiInsightsPage} requiredRole="owner" />
       </Route>
 
       <Route path="/checkin/:token" component={KioskCheckinPage} />

@@ -35,6 +35,7 @@ import {
   Menu,
   PersonStanding,
   QrCode,
+  Brain,
   type LucideIcon
 } from "lucide-react";
 
@@ -194,6 +195,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       badge: 0
     },
     { 
+      label: "AI Insights", 
+      href: "/owner/ai-insights", 
+      icon: Brain,
+      visible: isOwner && hasGym,
+      badge: 0
+    },
+    { 
       label: "Self Check-in", 
       href: "/owner/kiosk", 
       icon: QrCode,
@@ -252,6 +260,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Announcements", href: "/owner/announcements", icon: Megaphone },
           { label: "Walk-ins", href: "/owner/walk-in-visitors", icon: PersonStanding },
           { label: "Self Check-in", href: "/owner/kiosk", icon: QrCode },
+          { label: "AI Insights", href: "/owner/ai-insights", icon: Brain },
           { label: "Feed", href: "/feed", icon: Activity },
           { label: "Tournaments", href: "/tournaments", icon: Trophy },
           { label: "Join Requests", href: "/owner/join-requests", icon: UserPlus, badge: notificationCounts?.pendingJoinRequests || 0 },
