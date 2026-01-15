@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2 } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight } from "lucide-react";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
@@ -142,6 +142,15 @@ function OwnerDashboard() {
 
   const { data: gymSubscription } = useQuery<GymSubscription | null>({
     queryKey: ["/api/owner/gym-subscription"]
+  });
+
+  // AI Insights
+  const { data: aiInsights } = useQuery<{
+    churnRisk: { count: number; members: { id: number; name: string; daysAbsent: number; riskLevel: 'high' | 'medium' }[] };
+    followUpReminders: { count: number; items: { type: string; memberId: number; name: string; message: string; priority: string }[] };
+    memberInsights: { totalActive: number; newThisMonth: number; atRiskCount: number };
+  }>({
+    queryKey: [`/api/owner/ai-insights/${getClientLocalDate()}`]
   });
 
   const attendanceList = attendance as any[];
@@ -317,6 +326,76 @@ function OwnerDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* AI Insights Summary */}
+      {aiInsights && (
+        <Card className="border-0 shadow-lg animate-slide-in-up bg-gradient-to-br from-purple-500/5 to-indigo-500/5" style={{ animationDelay: '300ms' }}>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="w-5 h-5 text-purple-500" />
+              AI Insights
+            </CardTitle>
+            <Link href="/owner/ai-insights">
+              <Button variant="ghost" size="sm" className="text-primary" data-testid="link-ai-insights">
+                View All <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              {/* Churn Risk Alert */}
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+                <div className={`p-2 rounded-full ${aiInsights.churnRisk.count > 0 ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-400' : 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400'}`}>
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{aiInsights.churnRisk.count}</p>
+                  <p className="text-xs text-muted-foreground">Members at risk</p>
+                </div>
+              </div>
+              
+              {/* Follow-up Reminders */}
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+                <div className={`p-2 rounded-full ${aiInsights.followUpReminders.count > 0 ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400' : 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400'}`}>
+                  <Bell className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{aiInsights.followUpReminders.count}</p>
+                  <p className="text-xs text-muted-foreground">Follow-ups needed</p>
+                </div>
+              </div>
+              
+              {/* New Members This Month */}
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+                <div className="p-2 rounded-full bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{aiInsights.memberInsights.newThisMonth}</p>
+                  <p className="text-xs text-muted-foreground">New this month</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Quick alerts */}
+            {aiInsights.churnRisk.members.slice(0, 2).length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-sm font-medium text-muted-foreground mb-2">Priority alerts:</p>
+                <div className="space-y-2">
+                  {aiInsights.churnRisk.members.slice(0, 2).map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-2 rounded bg-orange-50 dark:bg-orange-950/30 text-sm">
+                      <span>{member.name} - {member.daysAbsent} days absent</span>
+                      <Badge variant={member.riskLevel === 'high' ? 'destructive' : 'secondary'} className="text-xs">
+                        {member.riskLevel}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4 dashboard-card">
