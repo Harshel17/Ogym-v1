@@ -7,16 +7,13 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
     iosScheme: 'https',
-    url: process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:5000' 
-      : undefined,
-    cleartext: process.env.NODE_ENV === 'development',
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
       backgroundColor: '#4F46E5',
       showSpinner: false,
+      launchAutoHide: true,
     },
     StatusBar: {
       style: 'dark',
@@ -26,11 +23,14 @@ const config: CapacitorConfig = {
       resize: 'body',
       resizeOnFullScreen: true,
     },
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
   },
   android: {
     allowMixedContent: false,
     captureInput: true,
-    webContentsDebuggingEnabled: process.env.NODE_ENV === 'development',
+    webContentsDebuggingEnabled: false,
   },
   ios: {
     contentInset: 'automatic',

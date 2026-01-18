@@ -30,7 +30,7 @@ Preferred communication style: Simple, everyday language.
 - **UI Components:** shadcn/ui built on Radix UI primitives.
 - **Styling:** Tailwind CSS with CSS variables for theming (Indigo/Slate).
 - **Chart Visualization:** Recharts for dashboards.
-- **Mobile Application:** React Native + Expo with role-based navigation.
+- **Mobile Application:** Capacitor (wraps web app for iOS/Android).
 
 ### Technical Implementations
 - **Backend:** Express.js with TypeScript.
@@ -186,6 +186,82 @@ Indexes are defined in `shared/schema.ts` and created automatically by `npm run 
 - **No CORS needed:** Frontend and backend share the same origin
 - **WebView compatible:** Works correctly inside Capacitor/iOS/Android WebViews
 - **Output:** `npm run build` creates `dist/index.cjs` (server) and `dist/public/` (frontend)
+
+## Mobile App (Capacitor)
+
+**App Identity:**
+- **App ID:** com.ogym.fitness
+- **App Name:** OGym
+- **Platforms:** iOS, Android
+
+**Installed Plugins:**
+- `@capacitor/camera` - QR code scanning
+- `@capacitor/push-notifications` - Push notifications
+- `@capacitor/splash-screen` - Splash screen
+- `@capacitor/status-bar` - Status bar styling
+- `@capacitor/keyboard` - Keyboard handling
+- `@capacitor/haptics` - Haptic feedback
+- `@capacitor/app` - App lifecycle
+- `@capacitor/browser` - External links
+
+**Development Commands:**
+```bash
+# Build web app and sync to native projects
+npm run build && npx cap sync
+
+# Open in Android Studio (requires Android Studio installed)
+npx cap open android
+
+# Open in Xcode (requires macOS + Xcode)
+npx cap open ios
+```
+
+**Building for App Stores:**
+
+1. **Android (Google Play):**
+   - Open in Android Studio: `npx cap open android`
+   - Build → Generate Signed Bundle/APK
+   - Upload to Google Play Console ($25 one-time fee)
+
+2. **iOS (App Store):**
+   - Open in Xcode on Mac: `npx cap open ios`
+   - Product → Archive
+   - Upload to App Store Connect ($99/year Apple Developer Program)
+
+**Configuration:** `capacitor.config.ts`
+- Splash screen: Indigo background (#4F46E5)
+- Status bar: Dark style
+- Web directory: `dist/public`
+
+**How It Works (Production):**
+The mobile app bundles the web assets (HTML/JS/CSS) directly into the APK/IPA. When users open the app:
+1. Native shell loads the bundled web assets
+2. Web app makes API calls to `https://app.ogym.fitness` (same as web version)
+3. All authentication and data flows work identically to the web app
+
+**IMPORTANT:** Always run `npm run build && npx cap sync` after any web code changes before building for app stores.
+
+**Platform-Specific Setup:**
+
+**Android Permissions** (already configured in `android/app/src/main/AndroidManifest.xml`):
+- `CAMERA` - For QR code scanning
+- `POST_NOTIFICATIONS` - For push notifications (Android 13+)
+- `INTERNET` - For API calls
+
+**iOS Permissions** (add to `ios/App/App/Info.plist`):
+```xml
+<key>NSCameraUsageDescription</key>
+<string>OGym uses the camera to scan QR codes for check-in</string>
+```
+
+**Push Notifications Setup:**
+- **Android:** Configure Firebase Cloud Messaging (FCM), add `google-services.json` to `android/app/`
+- **iOS:** Configure Apple Push Notification service (APNS) in Apple Developer Portal, enable Push Notifications capability in Xcode
+
+**Future Integrations:**
+- Apple HealthKit - Read steps, calories from Apple Watch
+- Google Fit - Read data from Wear OS devices
+- Both available via Capacitor plugins when needed
 
 ## External Dependencies
 
