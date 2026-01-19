@@ -7,6 +7,10 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
     iosScheme: 'https',
+    // For development: point to the Replit server
+    // For production: remove this line (app bundles assets)
+    url: 'https://ogym-v1.harshel333.repl.co',
+    cleartext: true,
   },
   plugins: {
     SplashScreen: {
