@@ -3605,7 +3605,7 @@ export async function registerRoutes(
       
       // Send OTP via email using Resend
       const emailSent = await sendKioskOtpEmail(email, otp, gymName);
-      console.log(`[KIOSK OTP] Email: ${email}, OTP: ${otp}, Sent: ${emailSent}`);
+      // Security: Never log OTPs in production
       
       res.json({ 
         message: "OTP sent to your email", 
