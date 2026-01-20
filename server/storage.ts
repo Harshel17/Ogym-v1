@@ -4549,10 +4549,16 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(paymentTransactions.paidOn));
   }
 
-  async getAllGymTransactions(gymId: number, method?: string): Promise<(PaymentTransaction & { member: { id: number; username: string } })[]> {
+  async getAllGymTransactions(gymId: number, method?: string, startDate?: string, endDate?: string): Promise<(PaymentTransaction & { member: { id: number; username: string } })[]> {
     const conditions = [eq(memberSubscriptions.gymId, gymId)];
     if (method) {
       conditions.push(eq(paymentTransactions.method, method));
+    }
+    if (startDate) {
+      conditions.push(gte(paymentTransactions.paidOn, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(paymentTransactions.paidOn, endDate));
     }
     
     const results = await db.select({
@@ -4571,6 +4577,32 @@ export class DatabaseStorage implements IStorage {
     return results.map(r => ({
       ...r.transaction,
       member: r.member
+    }));
+  }
+
+  async getPaymentMethodSummary(gymId: number, startDate?: string, endDate?: string): Promise<{ method: string; total: number; count: number }[]> {
+    const conditions = [eq(memberSubscriptions.gymId, gymId)];
+    if (startDate) {
+      conditions.push(gte(paymentTransactions.paidOn, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(paymentTransactions.paidOn, endDate));
+    }
+    
+    const results = await db.select({
+      method: paymentTransactions.method,
+      total: sql<number>`sum(${paymentTransactions.amountPaid})::int`,
+      count: sql<number>`count(*)::int`
+    })
+      .from(paymentTransactions)
+      .innerJoin(memberSubscriptions, eq(paymentTransactions.subscriptionId, memberSubscriptions.id))
+      .where(and(...conditions))
+      .groupBy(paymentTransactions.method);
+    
+    return results.map(r => ({
+      method: r.method,
+      total: r.total || 0,
+      count: r.count || 0
     }));
   }
 

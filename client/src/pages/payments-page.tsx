@@ -794,26 +794,88 @@ type TransactionWithMember = {
 };
 
 const PAYMENT_METHODS = [
-  { value: "all", label: "All Methods" },
-  { value: "cash", label: "Cash" },
-  { value: "venmo", label: "Venmo" },
-  { value: "zelle", label: "Zelle" },
-  { value: "cashapp", label: "CashApp" },
-  { value: "card", label: "Card" },
-  { value: "bank", label: "Bank Transfer" },
-  { value: "other", label: "Other" },
+  { value: "all", label: "All Methods", icon: Banknote },
+  { value: "cash", label: "Cash", icon: Banknote },
+  { value: "venmo", label: "Venmo", icon: CreditCard },
+  { value: "zelle", label: "Zelle", icon: CreditCard },
+  { value: "cashapp", label: "CashApp", icon: CreditCard },
+  { value: "card", label: "Card", icon: CreditCard },
+  { value: "bank", label: "Bank Transfer", icon: CreditCard },
+  { value: "other", label: "Other", icon: Receipt },
 ];
+
+const DATE_RANGES = [
+  { value: "all", label: "All Time" },
+  { value: "week", label: "This Week" },
+  { value: "month", label: "This Month" },
+  { value: "30days", label: "Last 30 Days" },
+  { value: "90days", label: "Last 90 Days" },
+];
+
+type MethodSummary = { method: string; total: number; count: number };
 
 function ByMethodTab() {
   const [selectedMethod, setSelectedMethod] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<string>("all");
   const { format: formatMoney } = useGymCurrency();
+
+  // Calculate date range
+  const getDateRange = () => {
+    const today = new Date();
+    let startDate: string | undefined;
+    let endDate: string | undefined = format(today, "yyyy-MM-dd");
+    
+    switch (dateRange) {
+      case "week":
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        startDate = format(weekStart, "yyyy-MM-dd");
+        break;
+      case "month":
+        startDate = format(new Date(today.getFullYear(), today.getMonth(), 1), "yyyy-MM-dd");
+        break;
+      case "30days":
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        startDate = format(thirtyDaysAgo, "yyyy-MM-dd");
+        break;
+      case "90days":
+        const ninetyDaysAgo = new Date(today);
+        ninetyDaysAgo.setDate(today.getDate() - 90);
+        startDate = format(ninetyDaysAgo, "yyyy-MM-dd");
+        break;
+      default:
+        startDate = undefined;
+        endDate = undefined;
+    }
+    return { startDate, endDate };
+  };
+
+  const { startDate, endDate } = getDateRange();
+
+  // Fetch summary for all methods
+  const { data: summary = [], isLoading: summaryLoading } = useQuery<MethodSummary[]>({
+    queryKey: ["/api/owner/transactions/summary", startDate, endDate],
+    queryFn: async () => {
+      let url = "/api/owner/transactions/summary";
+      const params = new URLSearchParams();
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
+      if (params.toString()) url += `?${params.toString()}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch summary");
+      return res.json();
+    }
+  });
   
   const { data: transactions = [], isLoading } = useQuery<TransactionWithMember[]>({
-    queryKey: ["/api/owner/transactions", selectedMethod === "all" ? null : selectedMethod],
+    queryKey: ["/api/owner/transactions", selectedMethod === "all" ? null : selectedMethod, startDate, endDate],
     queryFn: async () => {
-      const url = selectedMethod === "all" 
-        ? "/api/owner/transactions" 
-        : `/api/owner/transactions?method=${selectedMethod}`;
+      const params = new URLSearchParams();
+      if (selectedMethod !== "all") params.append("method", selectedMethod);
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
+      const url = `/api/owner/transactions${params.toString() ? `?${params.toString()}` : ""}`;
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch transactions");
       return res.json();
@@ -821,44 +883,91 @@ function ByMethodTab() {
   });
 
   const totalAmount = transactions.reduce((sum, txn) => sum + txn.amountPaid, 0);
+  const grandTotal = summary.reduce((sum, s) => sum + s.total, 0);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CreditCard className="h-5 w-5" />
-          Transactions by Payment Method
-        </CardTitle>
-        <CardDescription>Filter and view all payment transactions by method</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap gap-2 mb-6">
-          {PAYMENT_METHODS.map((method) => (
-            <Button
-              key={method.value}
-              variant={selectedMethod === method.value ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedMethod(method.value)}
-              data-testid={`button-filter-${method.value}`}
-            >
-              {method.label}
-            </Button>
-          ))}
-        </div>
-
-        {selectedMethod !== "all" && (
-          <div className="mb-4 p-4 rounded-lg bg-muted/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total {PAYMENT_METHODS.find(m => m.value === selectedMethod)?.label} Payments</p>
-                <p className="text-2xl font-bold">{formatMoney(totalAmount)}</p>
-              </div>
-              <Badge variant="secondary">{transactions.length} transactions</Badge>
-            </div>
+    <div className="space-y-6">
+      {/* Date Range Filter */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground mr-2">Period:</span>
+            {DATE_RANGES.map((range) => (
+              <Button
+                key={range.value}
+                variant={dateRange === range.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => setDateRange(range.value)}
+                data-testid={`button-range-${range.value}`}
+              >
+                {range.label}
+              </Button>
+            ))}
           </div>
-        )}
+        </CardContent>
+      </Card>
 
-        {isLoading ? (
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {summaryLoading ? (
+          <div className="col-span-full flex justify-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            {/* Grand Total Card */}
+            <div 
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedMethod === "all" ? "border-primary bg-primary/5" : "border-border hover-elevate"}`}
+              onClick={() => setSelectedMethod("all")}
+              data-testid="card-summary-all"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Banknote className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">All Methods</span>
+              </div>
+              <p className="text-xl font-bold">{formatMoney(grandTotal)}</p>
+              <p className="text-xs text-muted-foreground">{summary.reduce((sum, s) => sum + s.count, 0)} transactions</p>
+            </div>
+            
+            {/* Individual Method Cards */}
+            {PAYMENT_METHODS.filter(m => m.value !== "all").map((method) => {
+              const methodData = summary.find(s => s.method === method.value);
+              const Icon = method.icon;
+              return (
+                <div 
+                  key={method.value}
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedMethod === method.value ? "border-primary bg-primary/5" : "border-border hover-elevate"}`}
+                  onClick={() => setSelectedMethod(method.value)}
+                  data-testid={`card-summary-${method.value}`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{method.label}</span>
+                  </div>
+                  <p className="text-xl font-bold">{formatMoney(methodData?.total || 0)}</p>
+                  <p className="text-xs text-muted-foreground">{methodData?.count || 0} transactions</p>
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+
+      {/* Transactions List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            {selectedMethod === "all" ? "All Transactions" : `${PAYMENT_METHODS.find(m => m.value === selectedMethod)?.label} Transactions`}
+          </CardTitle>
+          <CardDescription>
+            {selectedMethod !== "all" && (
+              <span className="font-semibold text-foreground">{formatMoney(totalAmount)}</span>
+            )} {transactions.length} transaction{transactions.length !== 1 ? "s" : ""}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
@@ -924,8 +1033,9 @@ function ByMethodTab() {
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

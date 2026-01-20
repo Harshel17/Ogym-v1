@@ -701,11 +701,21 @@ export async function registerRoutes(
     res.json(transactions);
   });
 
-  // Get all gym transactions with optional method filter
+  // Get all gym transactions with optional method and date filters
   app.get("/api/owner/transactions", requireRole(["owner"]), async (req, res) => {
     const method = req.query.method as string | undefined;
-    const transactions = await storage.getAllGymTransactions(req.user!.gymId!, method);
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+    const transactions = await storage.getAllGymTransactions(req.user!.gymId!, method, startDate, endDate);
     res.json(transactions);
+  });
+
+  // Get payment method summary with optional date filters
+  app.get("/api/owner/transactions/summary", requireRole(["owner"]), async (req, res) => {
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+    const summary = await storage.getPaymentMethodSummary(req.user!.gymId!, startDate, endDate);
+    res.json(summary);
   });
 
   app.post("/api/owner/subscriptions/:subscriptionId/payments", requireRole(["owner"]), async (req, res) => {
