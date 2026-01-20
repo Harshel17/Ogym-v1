@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.ogym.fitness',
+  appId: 'com.harshel.ogym',
   appName: 'OGym',
   webDir: 'dist/public',
   server: {
