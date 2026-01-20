@@ -161,6 +161,7 @@ export const payments = pgTable("payments", {
   amountDue: integer("amount_due").notNull(),
   amountPaid: integer("amount_paid").default(0),
   status: text("status", { enum: ["paid", "unpaid", "partial"] }).notNull(),
+  paymentMethod: text("payment_method", { enum: ["cash", "venmo", "zelle", "cashapp", "card", "bank_transfer", "other"] }),
   note: text("note"),
   updatedByUserId: integer("updated_by_user_id").references(() => users.id),
   updatedAt: timestamp("updated_at").defaultNow(),

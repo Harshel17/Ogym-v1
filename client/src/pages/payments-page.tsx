@@ -994,7 +994,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
   const paymentFormSchema = z.object({
     paidOn: z.string().min(1),
     amountInput: z.coerce.number().min(1, "Amount must be at least 1"),
-    method: z.enum(["cash", "upi", "card", "bank", "other"]),
+    method: z.enum(["cash", "venmo", "zelle", "cashapp", "card", "bank", "other"]),
     referenceNote: z.string().optional()
   });
 
@@ -1443,7 +1443,9 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="upi">UPI</SelectItem>
+                        <SelectItem value="venmo">Venmo</SelectItem>
+                        <SelectItem value="zelle">Zelle</SelectItem>
+                        <SelectItem value="cashapp">CashApp</SelectItem>
                         <SelectItem value="card">Card</SelectItem>
                         <SelectItem value="bank">Bank Transfer</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
