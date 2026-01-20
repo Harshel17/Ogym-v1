@@ -2292,35 +2292,30 @@ export class DatabaseStorage implements IStorage {
     subscriptionEndDate: string | null;
     subscriptionStatus: string | null;
   }[]> {
-    const members = await this.getGymMembers(gymId);
-    const assignments = await this.getGymAssignments(gymId);
-    const trainers = await this.getGymTrainers(gymId);
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    
+    const [members, assignments, trainers, allSubscriptions, allCycles, allPayments] = await Promise.all([
+      this.getGymMembers(gymId),
+      this.getGymAssignments(gymId),
+      this.getGymTrainers(gymId),
+      db.select().from(memberSubscriptions).where(eq(memberSubscriptions.gymId, gymId)),
+      db.select().from(workoutCycles).where(and(eq(workoutCycles.gymId, gymId), eq(workoutCycles.isActive, true))),
+      db.select().from(payments).where(and(eq(payments.gymId, gymId), eq(payments.month, currentMonth)))
+    ]);
     
     const trainerMap = new Map(trainers.map(t => [t.id, t.username]));
     const memberTrainerMap = new Map(assignments.map(a => [a.memberId, a.trainerId]));
-    
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    
-    const allSubscriptions = await db.select()
-      .from(memberSubscriptions)
-      .where(eq(memberSubscriptions.gymId, gymId));
-    
     const subscriptionMap = new Map(allSubscriptions.map(s => [s.memberId, s]));
+    const cycleMap = new Map(allCycles.map(c => [c.memberId, c]));
+    const paymentMap = new Map(allPayments.map(p => [p.memberId, p]));
     
-    const result = await Promise.all(members.map(async (member) => {
+    return members.map((member) => {
       const trainerId = memberTrainerMap.get(member.id);
       const trainerName = trainerId ? trainerMap.get(trainerId) || null : null;
-      
-      const cycle = await this.getMemberCycle(member.id);
+      const cycle = cycleMap.get(member.id);
       const cycleEndDate = cycle?.endDate || null;
-      
-      const [latestPayment] = await db.select()
-        .from(payments)
-        .where(and(eq(payments.memberId, member.id), eq(payments.month, currentMonth)))
-        .limit(1);
-      
-      const paymentStatus = latestPayment?.status || null;
-      
+      const payment = paymentMap.get(member.id);
+      const paymentStatus = payment?.status || null;
       const subscription = subscriptionMap.get(member.id);
       const subscriptionEndDate = subscription?.endDate || null;
       const subscriptionStatus = subscription?.status || null;
@@ -2336,9 +2331,7 @@ export class DatabaseStorage implements IStorage {
         subscriptionEndDate,
         subscriptionStatus
       };
-    }));
-    
-    return result;
+    });
   }
 
   async getMemberProfile(memberId: number): Promise<{
