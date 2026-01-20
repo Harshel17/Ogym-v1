@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Banknote, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle, Check, ChevronsUpDown, ChevronDown, ChevronUp, UserPlus } from "lucide-react";
+import { Banknote, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle, Check, ChevronsUpDown, ChevronDown, ChevronUp, UserPlus, Download, Trophy } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { cn } from "@/lib/utils";
@@ -812,6 +813,17 @@ const DATE_RANGES = [
   { value: "90days", label: "Last 90 Days" },
 ];
 
+const CHART_COLORS = [
+  "#4F46E5", // Indigo (primary)
+  "#10B981", // Green
+  "#F59E0B", // Amber
+  "#EF4444", // Red
+  "#8B5CF6", // Purple
+  "#06B6D4", // Cyan
+  "#EC4899", // Pink
+  "#6366F1", // Violet
+];
+
 type MethodSummary = { method: string; total: number; count: number };
 
 function ByMethodTab() {
@@ -953,18 +965,141 @@ function ByMethodTab() {
         )}
       </div>
 
+      {/* Chart and Top Payers Row */}
+      {!summaryLoading && summary.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Pie Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Payment Method Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={summary.filter(s => s.total > 0).map(s => ({
+                        name: PAYMENT_METHODS.find(m => m.value === s.method)?.label || s.method,
+                        value: s.total,
+                        method: s.method
+                      }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={false}
+                    >
+                      {summary.filter(s => s.total > 0).map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => formatMoney(value)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Top Payers */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-yellow-500" />
+                Top Payers {dateRange !== "all" ? `(${DATE_RANGES.find(r => r.value === dateRange)?.label})` : ""}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                // Calculate top payers from transactions
+                const payerTotals: Record<string, { name: string; total: number; count: number }> = {};
+                transactions.forEach(txn => {
+                  const key = txn.member.username;
+                  if (!payerTotals[key]) {
+                    payerTotals[key] = { name: key, total: 0, count: 0 };
+                  }
+                  payerTotals[key].total += txn.amountPaid;
+                  payerTotals[key].count += 1;
+                });
+                const topPayers = Object.values(payerTotals)
+                  .sort((a, b) => b.total - a.total)
+                  .slice(0, 5);
+                
+                if (topPayers.length === 0) {
+                  return <p className="text-muted-foreground text-sm">No transactions in this period</p>;
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {topPayers.map((payer, idx) => (
+                      <div key={payer.name} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${idx === 0 ? 'bg-yellow-100 text-yellow-700' : idx === 1 ? 'bg-gray-100 text-gray-700' : idx === 2 ? 'bg-orange-100 text-orange-700' : 'bg-muted text-muted-foreground'}`}>
+                            {idx + 1}
+                          </span>
+                          <span className="font-medium">{payer.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono font-semibold">{formatMoney(payer.total)}</p>
+                          <p className="text-xs text-muted-foreground">{payer.count} payment{payer.count !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Transactions List */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            {selectedMethod === "all" ? "All Transactions" : `${PAYMENT_METHODS.find(m => m.value === selectedMethod)?.label} Transactions`}
-          </CardTitle>
-          <CardDescription>
-            {selectedMethod !== "all" && (
-              <span className="font-semibold text-foreground">{formatMoney(totalAmount)}</span>
-            )} {transactions.length} transaction{transactions.length !== 1 ? "s" : ""}
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                {selectedMethod === "all" ? "All Transactions" : `${PAYMENT_METHODS.find(m => m.value === selectedMethod)?.label} Transactions`}
+              </CardTitle>
+              <CardDescription>
+                {selectedMethod !== "all" && (
+                  <span className="font-semibold text-foreground">{formatMoney(totalAmount)}</span>
+                )} {transactions.length} transaction{transactions.length !== 1 ? "s" : ""}
+              </CardDescription>
+            </div>
+            {transactions.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Export to CSV
+                  const headers = ["Date", "Member", "Amount", "Method", "Reference"];
+                  const rows = transactions.map(txn => [
+                    format(new Date(txn.paidOn), "yyyy-MM-dd"),
+                    txn.member.username,
+                    (txn.amountPaid / 100).toFixed(2),
+                    txn.method,
+                    txn.referenceNote || ""
+                  ]);
+                  const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${v}"`).join(","))].join("\n");
+                  const blob = new Blob([csv], { type: "text/csv" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `payments-${selectedMethod}-${dateRange}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                data-testid="button-export-csv"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
