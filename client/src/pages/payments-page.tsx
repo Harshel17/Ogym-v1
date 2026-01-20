@@ -867,34 +867,62 @@ function ByMethodTab() {
             No transactions found{selectedMethod !== "all" ? ` for ${PAYMENT_METHODS.find(m => m.value === selectedMethod)?.label}` : ""}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Reference</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map((txn) => (
-                  <TableRow key={txn.id} data-testid={`row-transaction-${txn.id}`}>
-                    <TableCell>{format(new Date(txn.paidOn), "dd MMM yyyy")}</TableCell>
-                    <TableCell className="font-medium">{txn.member.username}</TableCell>
-                    <TableCell className="font-mono">{formatMoney(txn.amountPaid)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">{txn.method}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
-                      {txn.referenceNote || '-'}
-                    </TableCell>
+          <>
+            {/* Mobile card layout */}
+            <div className="space-y-3 md:hidden">
+              {transactions.map((txn) => (
+                <div 
+                  key={txn.id} 
+                  className="p-4 rounded-lg border bg-card"
+                  data-testid={`card-transaction-${txn.id}`}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <p className="font-medium">{txn.member.username}</p>
+                      <p className="text-sm text-muted-foreground">{format(new Date(txn.paidOn), "dd MMM yyyy")}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono font-semibold text-lg">{formatMoney(txn.amountPaid)}</p>
+                      <Badge variant="outline" className="capitalize mt-1">{txn.method}</Badge>
+                    </div>
+                  </div>
+                  {txn.referenceNote && (
+                    <p className="text-sm text-muted-foreground border-t pt-2 mt-2">{txn.referenceNote}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table layout */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Reference</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {transactions.map((txn) => (
+                    <TableRow key={txn.id} data-testid={`row-transaction-${txn.id}`}>
+                      <TableCell>{format(new Date(txn.paidOn), "dd MMM yyyy")}</TableCell>
+                      <TableCell className="font-medium">{txn.member.username}</TableCell>
+                      <TableCell className="font-mono">{formatMoney(txn.amountPaid)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">{txn.method}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
+                        {txn.referenceNote || '-'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
