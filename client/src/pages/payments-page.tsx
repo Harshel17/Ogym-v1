@@ -160,9 +160,10 @@ function OwnerPaymentsView() {
         <MembersNeedSubscriptionSection />
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-lg grid-cols-3">
+          <TabsList className="grid w-full max-w-xl grid-cols-4">
             <TabsTrigger value="subscriptions" data-testid="tab-subscriptions">Subscriptions</TabsTrigger>
             <TabsTrigger value="outstanding" data-testid="tab-outstanding">Outstanding</TabsTrigger>
+            <TabsTrigger value="byMethod" data-testid="tab-by-method">By Method</TabsTrigger>
             <TabsTrigger value="plans" data-testid="tab-plans">Plans</TabsTrigger>
           </TabsList>
           <TabsContent value="subscriptions" className="mt-6">
@@ -170,6 +171,9 @@ function OwnerPaymentsView() {
           </TabsContent>
           <TabsContent value="outstanding" className="mt-6">
             <OutstandingPaymentsTab />
+          </TabsContent>
+          <TabsContent value="byMethod" className="mt-6">
+            <ByMethodTab />
           </TabsContent>
           <TabsContent value="plans" className="mt-6">
             <PlansTab />
@@ -771,6 +775,125 @@ function OutstandingPaymentCard({ sub }: { sub: SubscriptionWithDetails }) {
                 ))}
               </div>
             )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+type TransactionWithMember = {
+  id: number;
+  subscriptionId: number;
+  amountPaid: number;
+  method: string;
+  paidOn: string;
+  referenceNote: string | null;
+  createdAt: Date | null;
+  member: { id: number; username: string };
+};
+
+const PAYMENT_METHODS = [
+  { value: "all", label: "All Methods" },
+  { value: "cash", label: "Cash" },
+  { value: "venmo", label: "Venmo" },
+  { value: "zelle", label: "Zelle" },
+  { value: "cashapp", label: "CashApp" },
+  { value: "card", label: "Card" },
+  { value: "bank", label: "Bank Transfer" },
+  { value: "other", label: "Other" },
+];
+
+function ByMethodTab() {
+  const [selectedMethod, setSelectedMethod] = useState<string>("all");
+  const { format: formatMoney } = useGymCurrency();
+  
+  const { data: transactions = [], isLoading } = useQuery<TransactionWithMember[]>({
+    queryKey: ["/api/owner/transactions", selectedMethod === "all" ? null : selectedMethod],
+    queryFn: async () => {
+      const url = selectedMethod === "all" 
+        ? "/api/owner/transactions" 
+        : `/api/owner/transactions?method=${selectedMethod}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch transactions");
+      return res.json();
+    }
+  });
+
+  const totalAmount = transactions.reduce((sum, txn) => sum + txn.amountPaid, 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CreditCard className="h-5 w-5" />
+          Transactions by Payment Method
+        </CardTitle>
+        <CardDescription>Filter and view all payment transactions by method</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-2 mb-6">
+          {PAYMENT_METHODS.map((method) => (
+            <Button
+              key={method.value}
+              variant={selectedMethod === method.value ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedMethod(method.value)}
+              data-testid={`button-filter-${method.value}`}
+            >
+              {method.label}
+            </Button>
+          ))}
+        </div>
+
+        {selectedMethod !== "all" && (
+          <div className="mb-4 p-4 rounded-lg bg-muted/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total {PAYMENT_METHODS.find(m => m.value === selectedMethod)?.label} Payments</p>
+                <p className="text-2xl font-bold">{formatMoney(totalAmount)}</p>
+              </div>
+              <Badge variant="secondary">{transactions.length} transactions</Badge>
+            </div>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : transactions.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No transactions found{selectedMethod !== "all" ? ` for ${PAYMENT_METHODS.find(m => m.value === selectedMethod)?.label}` : ""}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Member</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead>Reference</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transactions.map((txn) => (
+                  <TableRow key={txn.id} data-testid={`row-transaction-${txn.id}`}>
+                    <TableCell>{format(new Date(txn.paidOn), "dd MMM yyyy")}</TableCell>
+                    <TableCell className="font-medium">{txn.member.username}</TableCell>
+                    <TableCell className="font-mono">{formatMoney(txn.amountPaid)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">{txn.method}</Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
+                      {txn.referenceNote || '-'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </CardContent>

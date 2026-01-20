@@ -701,6 +701,13 @@ export async function registerRoutes(
     res.json(transactions);
   });
 
+  // Get all gym transactions with optional method filter
+  app.get("/api/owner/transactions", requireRole(["owner"]), async (req, res) => {
+    const method = req.query.method as string | undefined;
+    const transactions = await storage.getAllGymTransactions(req.user!.gymId!, method);
+    res.json(transactions);
+  });
+
   app.post("/api/owner/subscriptions/:subscriptionId/payments", requireRole(["owner"]), async (req, res) => {
     const subscriptionId = parseInt(req.params.subscriptionId);
     

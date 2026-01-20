@@ -4549,6 +4549,31 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(paymentTransactions.paidOn));
   }
 
+  async getAllGymTransactions(gymId: number, method?: string): Promise<(PaymentTransaction & { member: { id: number; username: string } })[]> {
+    const conditions = [eq(memberSubscriptions.gymId, gymId)];
+    if (method) {
+      conditions.push(eq(paymentTransactions.method, method));
+    }
+    
+    const results = await db.select({
+      transaction: paymentTransactions,
+      member: {
+        id: users.id,
+        username: users.username
+      }
+    })
+      .from(paymentTransactions)
+      .innerJoin(memberSubscriptions, eq(paymentTransactions.subscriptionId, memberSubscriptions.id))
+      .innerJoin(users, eq(memberSubscriptions.memberId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(paymentTransactions.paidOn));
+    
+    return results.map(r => ({
+      ...r.transaction,
+      member: r.member
+    }));
+  }
+
   async addPaymentTransaction(data: InsertPaymentTransaction): Promise<PaymentTransaction> {
     const [txn] = await db.insert(paymentTransactions).values(data).returning();
     return txn;
