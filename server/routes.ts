@@ -458,8 +458,16 @@ export async function registerRoutes(
   });
 
   app.get("/api/owner/members-details", requireRole(["owner"]), async (req, res) => {
-    const members = await storage.getMembersWithDetails(req.user!.gymId!);
-    res.json(members);
+    const startTime = Date.now();
+    console.log(`[members-details] Starting query for gym ${req.user!.gymId}`);
+    try {
+      const members = await storage.getMembersWithDetails(req.user!.gymId!);
+      console.log(`[members-details] Completed in ${Date.now() - startTime}ms, returned ${members.length} members`);
+      res.json(members);
+    } catch (error) {
+      console.error(`[members-details] Failed after ${Date.now() - startTime}ms:`, error);
+      throw error;
+    }
   });
 
   app.get("/api/owner/trainers", requireRole(["owner"]), async (req, res) => {

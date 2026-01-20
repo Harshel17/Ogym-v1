@@ -2292,8 +2292,10 @@ export class DatabaseStorage implements IStorage {
     subscriptionEndDate: string | null;
     subscriptionStatus: string | null;
   }[]> {
+    const startTime = Date.now();
     const currentMonth = new Date().toISOString().slice(0, 7);
     
+    console.log(`[getMembersWithDetails] Starting batch queries for gym ${gymId}`);
     const [members, assignments, trainers, allSubscriptions, allCycles, allPayments] = await Promise.all([
       this.getGymMembers(gymId),
       this.getGymAssignments(gymId),
@@ -2302,6 +2304,7 @@ export class DatabaseStorage implements IStorage {
       db.select().from(workoutCycles).where(and(eq(workoutCycles.gymId, gymId), eq(workoutCycles.isActive, true))),
       db.select().from(payments).where(and(eq(payments.gymId, gymId), eq(payments.month, currentMonth)))
     ]);
+    console.log(`[getMembersWithDetails] Batch queries completed in ${Date.now() - startTime}ms: ${members.length} members, ${assignments.length} assignments, ${trainers.length} trainers`);
     
     const trainerMap = new Map(trainers.map(t => [t.id, t.username]));
     const memberTrainerMap = new Map(assignments.map(a => [a.memberId, a.trainerId]));

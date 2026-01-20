@@ -64,10 +64,18 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     try {
       const url = `${API_BASE_URL}${queryKey.join("/")}`;
+      
+      // Add 30-second timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
       const res = await fetch(url, {
         credentials: "include",
-        headers: getTimezoneHeaders()
+        headers: getTimezoneHeaders(),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       if (unauthorizedBehavior === "returnNull" && res.status === 401) {
         return null;
@@ -76,6 +84,9 @@ export const getQueryFn: <T>(options: {
       await throwIfResNotOk(res);
       return await res.json();
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error("Request timed out. Please try again.");
+      }
       throw new Error(getNetworkErrorMessage(error));
     }
   };
@@ -87,7 +98,13 @@ export const queryClient = new QueryClient({
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
-      retry: false,
+      retry: (failureCount, error) => {
+        // Retry up to 2 times for timeout/network errors
+        if (failureCount >= 2) return false;
+        const message = (error as Error).message || '';
+        return message.includes('timeout') || message.includes('connect') || message.includes('network');
+      },
+      retryDelay: 1000,
     },
     mutations: {
       retry: false,
