@@ -47,7 +47,5 @@
         <true/>
         <key>NSCameraUsageDescription</key>
         <string>OGym uses the camera to scan QR codes for gym check-in</string>
-        <key>NSPhotoLibraryUsageDescription</key>
-        <string>OGym needs photo library access to upload profile pictures</string>
 </dict>
 </plist>
