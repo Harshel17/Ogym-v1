@@ -5,6 +5,17 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
+// Global error handlers to prevent crashes
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught Exception:', err.message, err.stack);
+  // Don't exit - try to keep running
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[FATAL] Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit - try to keep running
+});
+
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
 app.set('trust proxy', 1); // Trust first proxy (for rate limiting to work correctly)
