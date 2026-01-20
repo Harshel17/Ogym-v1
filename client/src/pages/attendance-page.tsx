@@ -91,15 +91,15 @@ export default function AttendancePage() {
         {isOwner && (
           <div className="lg:col-span-1">
             <Card className="dashboard-card h-full">
-              <CardHeader>
-                <CardTitle>Filter by Date</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="whitespace-nowrap text-base">Filter by Date</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-2 sm:p-4">
                 <Calendar
                   mode="single"
                   selected={date}
                   onSelect={(d) => d && setDate(d)}
-                  className="rounded-md border w-full"
+                  className="rounded-md border mx-auto"
                 />
               </CardContent>
             </Card>
