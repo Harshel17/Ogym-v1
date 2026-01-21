@@ -305,44 +305,44 @@ export default function OwnerWalkInVisitorsPage() {
       </div>
 
       {stats && (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-              <CardTitle className="text-sm font-medium">Today</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 p-3 md:p-6 md:pb-2">
+              <CardTitle className="text-xs md:text-sm font-medium">Today</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.todayCount}</div>
+            <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+              <div className="text-xl md:text-2xl font-bold">{stats.todayCount}</div>
               <p className="text-xs text-muted-foreground">visitors today</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-              <CardTitle className="text-sm font-medium">This Week</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 p-3 md:p-6 md:pb-2">
+              <CardTitle className="text-xs md:text-sm font-medium">This Week</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.weekCount}</div>
+            <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+              <div className="text-xl md:text-2xl font-bold">{stats.weekCount}</div>
               <p className="text-xs text-muted-foreground">visitors this week</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 p-3 md:p-6 md:pb-2">
+              <CardTitle className="text-xs md:text-sm font-medium">Revenue</CardTitle>
               <IndianRupee className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatAmount(stats.todayRevenue)}</div>
+            <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+              <div className="text-xl md:text-2xl font-bold">{formatAmount(stats.todayRevenue)}</div>
               <p className="text-xs text-muted-foreground">from walk-ins</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-              <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 p-3 md:p-6 md:pb-2">
+              <CardTitle className="text-xs md:text-sm font-medium">Conversion</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.conversionRate}%</div>
+            <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+              <div className="text-xl md:text-2xl font-bold">{stats.conversionRate}%</div>
               <p className="text-xs text-muted-foreground">became members</p>
             </CardContent>
           </Card>
@@ -350,22 +350,22 @@ export default function OwnerWalkInVisitorsPage() {
       )}
 
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-4">
+        <CardHeader className="p-3 md:p-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
             <div>
-              <CardTitle>Recent Visitors</CardTitle>
-              <CardDescription>All walk-in visitors and their details</CardDescription>
+              <CardTitle className="text-base md:text-lg">Recent Visitors</CardTitle>
+              <CardDescription className="text-xs md:text-sm">All walk-in visitors and their details</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Input
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="w-40"
+                className="w-[130px] md:w-40 text-sm"
                 data-testid="filter-date"
               />
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-32" data-testid="filter-type">
+                <SelectTrigger className="w-[100px] md:w-32 text-sm" data-testid="filter-type">
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
@@ -378,7 +378,7 @@ export default function OwnerWalkInVisitorsPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -390,49 +390,49 @@ export default function OwnerWalkInVisitorsPage() {
               <p className="text-sm">Add a visitor using the button above</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {visitors.map((visitor) => (
-                <div key={visitor.id} className="flex items-center justify-between p-4 border rounded-lg" data-testid={`visitor-card-${visitor.id}`}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <h4 className="font-medium truncate">{visitor.name}</h4>
+                <div key={visitor.id} className="p-3 md:p-4 border rounded-lg" data-testid={`visitor-card-${visitor.id}`}>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <h4 className="font-medium text-sm md:text-base">{visitor.name}</h4>
                       {getVisitTypeBadge(visitor.visitType)}
                       {visitor.source === "kiosk" && (
                         <Badge variant="secondary" className="text-xs">Self Check-in</Badge>
                       )}
                       {visitor.convertedToMember && (
-                        <Badge variant="outline" className="text-green-600 border-green-600">Converted</Badge>
+                        <Badge variant="outline" className="text-green-600 border-green-600 text-xs">Converted</Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3 h-3" />
-                        {visitor.phone}
-                      </span>
-                      {visitor.email && (
-                        <span className="flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          {visitor.email}
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {format(new Date(visitor.visitDate), "MMM d, yyyy")}
-                      </span>
-                      {visitor.daysCount && visitor.daysCount > 1 && (
-                        <span>{visitor.daysCount} days</span>
-                      )}
+                    <div className="text-right flex-shrink-0">
+                      <div className="font-semibold text-sm md:text-base">{formatAmount(visitor.amountPaid)}</div>
                     </div>
-                    {visitor.notes && (
-                      <div className="mt-2 text-sm text-muted-foreground flex items-center gap-1">
-                        <FileText className="w-3 h-3" />
-                        {visitor.notes}
-                      </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs md:text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Phone className="w-3 h-3" />
+                      {visitor.phone}
+                    </span>
+                    {visitor.email && (
+                      <span className="flex items-center gap-1 truncate max-w-[150px] md:max-w-none">
+                        <Mail className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{visitor.email}</span>
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {format(new Date(visitor.visitDate), "MMM d, yyyy")}
+                    </span>
+                    {visitor.daysCount && visitor.daysCount > 1 && (
+                      <span>{visitor.daysCount} days</span>
                     )}
                   </div>
-                  <div className="text-right ml-4">
-                    <div className="font-semibold">{formatAmount(visitor.amountPaid)}</div>
-                  </div>
+                  {visitor.notes && (
+                    <div className="mt-2 text-xs md:text-sm text-muted-foreground flex items-center gap-1">
+                      <FileText className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{visitor.notes}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
