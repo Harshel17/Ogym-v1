@@ -76,8 +76,21 @@ export default function OwnerWalkInVisitorsPage() {
     }
   });
 
+  const buildVisitorsUrl = () => {
+    const params = new URLSearchParams();
+    if (dateFilter) params.set("date", dateFilter);
+    if (typeFilter && typeFilter !== "all") params.set("visitType", typeFilter);
+    const queryString = params.toString();
+    return `/api/owner/walk-in-visitors${queryString ? `?${queryString}` : ""}`;
+  };
+
   const { data: visitors = [], isLoading } = useQuery<WalkInVisitor[]>({
-    queryKey: ["/api/owner/walk-in-visitors", dateFilter, typeFilter]
+    queryKey: ["/api/owner/walk-in-visitors", dateFilter, typeFilter],
+    queryFn: async () => {
+      const res = await fetch(buildVisitorsUrl(), { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch visitors");
+      return res.json();
+    }
   });
 
   const { data: stats } = useQuery<WalkInStats>({
