@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
+import { QRCodeSVG } from "qrcode.react";
 import { QrCode, Plus, Clock, Copy, Power, PowerOff, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -327,12 +328,12 @@ export default function OwnerKioskPage() {
           </DialogHeader>
           {qrSession && (
             <div className="flex flex-col items-center gap-4">
-              <div className="bg-white p-4 rounded-lg">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getCheckInUrl(qrSession.token))}`}
-                  alt="QR Code"
-                  className="w-48 h-48"
-                  data-testid="img-qr-code"
+              <div className="bg-white p-4 rounded-lg" data-testid="img-qr-code">
+                <QRCodeSVG
+                  value={getCheckInUrl(qrSession.token)}
+                  size={192}
+                  level="M"
+                  includeMargin={false}
                 />
               </div>
               <p className="text-xs text-muted-foreground text-center break-all">
