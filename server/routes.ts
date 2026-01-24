@@ -2445,7 +2445,7 @@ export async function registerRoutes(
   app.get("/api/me/calendar/enhanced", requireRole(["member"]), async (req, res) => {
     const month = req.query.month as string || getLocalDate(req).slice(0, 7);
     const clientToday = req.query.today as string | undefined;
-    const calendar = await storage.getMemberCalendarEnhanced(req.user!.gymId!, req.user!.id, month, clientToday);
+    const calendar = await storage.getMemberCalendarEnhanced(req.user!.gymId, req.user!.id, month, clientToday);
     res.json(calendar);
   });
 
@@ -2471,9 +2471,11 @@ export async function registerRoutes(
   
   // Get workout summary (streak, total, last 7 days, this month, calendar days)
   app.get("/api/member/workout/summary", requireRole(["member"]), async (req, res) => {
-    // Check and apply auto-assign phase before fetching summary
-    await storage.checkAndApplyAutoAssignPhase(req.user!.gymId!, req.user!.id);
-    const summary = await storage.getMemberWorkoutSummary(req.user!.gymId!, req.user!.id);
+    // Check and apply auto-assign phase before fetching summary (only for gym members)
+    if (req.user!.gymId) {
+      await storage.checkAndApplyAutoAssignPhase(req.user!.gymId, req.user!.id);
+    }
+    const summary = await storage.getMemberWorkoutSummary(req.user!.gymId, req.user!.id);
     res.json(summary);
   });
 

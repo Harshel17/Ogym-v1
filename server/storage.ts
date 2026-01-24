@@ -394,7 +394,7 @@ export interface IStorage {
     };
   }>;
   getMemberCalendar(memberId: number, month: string): Promise<{ date: string; title: string; count: number }[]>;
-  getMemberCalendarEnhanced(gymId: number, memberId: number, month: string, clientToday?: string): Promise<{
+  getMemberCalendarEnhanced(gymId: number | null, memberId: number, month: string, clientToday?: string): Promise<{
     date: string;
     status: "present" | "absent" | "rest" | "future";
     completed: { name: string; sets: number; reps: number; weight: string | null }[];
@@ -549,7 +549,7 @@ export interface IStorage {
   getWorkoutSession(gymId: number, sessionId: number): Promise<(WorkoutSession & { exercises: WorkoutSessionExercise[] }) | null>;
   getWorkoutSessionByMemberDate(gymId: number, memberId: number, date: string): Promise<WorkoutSession | null>;
   addWorkoutSessionExercise(data: InsertWorkoutSessionExercise): Promise<WorkoutSessionExercise>;
-  getMemberWorkoutSummary(gymId: number, memberId: number): Promise<{
+  getMemberWorkoutSummary(gymId: number | null, memberId: number): Promise<{
     streak: number;
     totalWorkouts: number;
     last7DaysCount: number;
@@ -3807,7 +3807,7 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getMemberCalendarEnhanced(gymId: number, memberId: number, month: string, clientToday?: string): Promise<{
+  async getMemberCalendarEnhanced(gymId: number | null, memberId: number, month: string, clientToday?: string): Promise<{
     date: string;
     status: "present" | "absent" | "rest" | "future";
     completed: { name: string; sets: number; reps: number; weight: string | null }[];
@@ -3820,15 +3820,20 @@ export class DatabaseStorage implements IStorage {
     const endDate = `${nextYear}-${String(nextMon).padStart(2, "0")}-01`;
     const today = clientToday || new Date().toISOString().split("T")[0];
 
-    const memberAttendance = await db.select()
-      .from(attendance)
-      .where(and(
-        eq(attendance.gymId, gymId),
-        eq(attendance.memberId, memberId),
-        gte(attendance.date, startDate),
-        lt(attendance.date, endDate)
-      ));
-    const attendanceDates = new Set(memberAttendance.filter(a => a.status === "present").map(a => a.date));
+    // For Personal Mode (gymId is null), we don't track attendance via gym attendance table
+    // We only look at workout completions
+    let attendanceDates = new Set<string>();
+    if (gymId !== null) {
+      const memberAttendance = await db.select()
+        .from(attendance)
+        .where(and(
+          eq(attendance.gymId, gymId),
+          eq(attendance.memberId, memberId),
+          gte(attendance.date, startDate),
+          lt(attendance.date, endDate)
+        ));
+      attendanceDates = new Set(memberAttendance.filter(a => a.status === "present").map(a => a.date));
+    }
 
     const completions = await db.select({
       completion: workoutCompletions,
@@ -3842,9 +3847,14 @@ export class DatabaseStorage implements IStorage {
       lt(workoutCompletions.completedDate, endDate)
     ));
 
+    // For personal mode, get cycles with source='self', for gym mode get gym-assigned cycles
+    const cycleCondition = gymId !== null
+      ? and(eq(workoutCycles.gymId, gymId), eq(workoutCycles.memberId, memberId))
+      : and(isNull(workoutCycles.gymId), eq(workoutCycles.memberId, memberId), eq(workoutCycles.source, 'self'));
+    
     const memberCycle = await db.select()
       .from(workoutCycles)
-      .where(and(eq(workoutCycles.gymId, gymId), eq(workoutCycles.memberId, memberId)))
+      .where(cycleCondition)
       .limit(1);
     
     let scheduledItems: typeof workoutItems.$inferSelect[] = [];
@@ -5271,7 +5281,7 @@ export class DatabaseStorage implements IStorage {
     return exercise;
   }
 
-  async getMemberWorkoutSummary(gymId: number, memberId: number): Promise<{
+  async getMemberWorkoutSummary(gymId: number | null, memberId: number): Promise<{
     streak: number;
     totalWorkouts: number;
     last7DaysCount: number;
@@ -5282,8 +5292,13 @@ export class DatabaseStorage implements IStorage {
     // 1. workoutSessions - standalone sessions members create
     // 2. workoutCompletions - completions from trainer-assigned cycles
 
+    // For Personal Mode (gymId is null), we filter differently
+    const sessionCondition = gymId !== null
+      ? and(eq(workoutSessions.gymId, gymId), eq(workoutSessions.memberId, memberId))
+      : and(isNull(workoutSessions.gymId), eq(workoutSessions.memberId, memberId));
+    
     const sessions = await db.select().from(workoutSessions)
-      .where(and(eq(workoutSessions.gymId, gymId), eq(workoutSessions.memberId, memberId)))
+      .where(sessionCondition)
       .orderBy(desc(workoutSessions.date));
     
     // Also get workout completions (from trainer cycles) - these may be in different gyms historically
