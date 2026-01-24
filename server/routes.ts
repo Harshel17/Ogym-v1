@@ -2661,8 +2661,9 @@ export async function registerRoutes(
     const from = fromStr || defaultFrom.toISOString().split("T")[0];
     const to = toStr || todayStr;
     
+    // Support Personal Mode (no gymId)
     const dailyPoints = await storage.getDailyWorkoutPoints(
-      req.user!.gymId!,
+      req.user!.gymId ?? null,
       req.user!.id,
       from,
       to

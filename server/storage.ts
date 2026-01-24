@@ -230,7 +230,7 @@ export interface IStorage {
   }[]>;
   
   // Daily Workout Points
-  getDailyWorkoutPoints(gymId: number, memberId: number, from: string, to: string): Promise<{
+  getDailyWorkoutPoints(gymId: number | null, memberId: number, from: string, to: string): Promise<{
     date: string;
     plannedPoints: number;
     earnedPoints: number;
@@ -2434,7 +2434,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async getDailyWorkoutPoints(gymId: number, memberId: number, from: string, to: string): Promise<{
+  async getDailyWorkoutPoints(gymId: number | null, memberId: number, from: string, to: string): Promise<{
     date: string;
     plannedPoints: number;
     earnedPoints: number;
@@ -2443,8 +2443,9 @@ export class DatabaseStorage implements IStorage {
     missedPoints: number;
     missedExercises: string[];
   }[]> {
-    // Get member's active cycle
-    const cycle = await this.getMemberCycle(memberId);
+    // Get member's active cycle (use 'self' source for Personal Mode / null gymId)
+    const source = gymId === null ? 'self' : 'trainer';
+    const cycle = await this.getMemberCycle(memberId, source);
     if (!cycle) {
       return [];
     }
@@ -2501,7 +2502,7 @@ export class DatabaseStorage implements IStorage {
       .from(workoutCompletions)
       .where(
         and(
-          eq(workoutCompletions.gymId, gymId),
+          gymId === null ? isNull(workoutCompletions.gymId) : eq(workoutCompletions.gymId, gymId),
           eq(workoutCompletions.memberId, memberId),
           gte(workoutCompletions.completedDate, from),
           lte(workoutCompletions.completedDate, to)
@@ -2513,7 +2514,7 @@ export class DatabaseStorage implements IStorage {
       .from(workoutSessions)
       .where(
         and(
-          eq(workoutSessions.gymId, gymId),
+          gymId === null ? isNull(workoutSessions.gymId) : eq(workoutSessions.gymId, gymId),
           eq(workoutSessions.memberId, memberId),
           gte(workoutSessions.date, from),
           lte(workoutSessions.date, to)
@@ -2572,17 +2573,21 @@ export class DatabaseStorage implements IStorage {
       
       // Get earned points (unique completed items for this date)
       const completedItemIds = completionsByDate.get(dateStr) || new Set();
-      const earnedPoints = completedItemIds.size;
       
       // Check if day was marked done
       const session = sessionsByDate.get(dateStr);
       const isMarkedDone = session?.isManuallyCompleted || session?.completedAt !== null;
       
-      // Calculate missed exercises
+      // If day is marked done, count all planned exercises as earned
+      const earnedPoints = isMarkedDone ? plannedPoints : completedItemIds.size;
+      
+      // Calculate missed exercises (none if day is marked done)
       const missedExercises: string[] = [];
-      for (const item of dayItems) {
-        if (!completedItemIds.has(item.id)) {
-          missedExercises.push(item.exerciseName);
+      if (!isMarkedDone) {
+        for (const item of dayItems) {
+          if (!completedItemIds.has(item.id)) {
+            missedExercises.push(item.exerciseName);
+          }
         }
       }
       const missedPoints = plannedPoints - earnedPoints;
