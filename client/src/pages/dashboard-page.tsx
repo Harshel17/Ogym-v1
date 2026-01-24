@@ -754,7 +754,7 @@ function MemberDashboard() {
   const paymentsList = payments as any[];
   const memberStats = stats as any;
   const memberProfile = profile as any;
-  const workoutItems = (todayWorkout as any)?.todayItems || [];
+  const workoutItems = (todayWorkout as any)?.items || [];
 
   const attendedCount = attendanceList.length;
   const lastPayment = paymentsList[0];
