@@ -264,27 +264,27 @@ export function generateCycleTemplates(params: {
   
   const availableEquipment = equipment.length > 0 ? equipment : ["no_equipment" as Equipment];
   
-  if (daysPerWeek <= 3 || splitPreference === "full_body") {
+  // Always generate Full Body option (adapts to any number of days)
+  {
     const days: DayTemplate[] = [];
     for (let i = 0; i < daysPerWeek; i++) {
-      const labels = ["Full Body A", "Full Body B", "Full Body C"];
-      days.push(buildFullBodyDay(labels[i % 3], i, availableEquipment, experience));
+      const labels = ["Full Body A", "Full Body B", "Full Body C", "Full Body D", "Full Body E", "Full Body F"];
+      days.push(buildFullBodyDay(labels[i % 6], i, availableEquipment, experience));
     }
     templates.push({
       name: `Full Body ${daysPerWeek}x`,
-      description: `${daysPerWeek} full body workouts per week. Great for ${experience} lifters.`,
+      description: `${daysPerWeek} full body workouts per week. Hit all muscle groups each session.`,
       cycleLength: daysPerWeek,
       days,
     });
   }
   
-  if (daysPerWeek >= 4 || splitPreference === "upper_lower") {
+  // Always generate Upper/Lower option (adapts to any number of days)
+  {
     const days: DayTemplate[] = [];
-    const pattern = daysPerWeek === 4 
-      ? ["Upper A", "Lower A", "Upper B", "Lower B"]
-      : ["Upper A", "Lower A", "Upper B", "Lower B", "Upper C"];
-    for (let i = 0; i < Math.min(daysPerWeek, pattern.length); i++) {
-      const label = pattern[i];
+    const pattern = ["Upper A", "Lower A", "Upper B", "Lower B", "Upper C", "Lower C"];
+    for (let i = 0; i < daysPerWeek; i++) {
+      const label = pattern[i % 6];
       if (label.includes("Upper")) {
         days.push(buildUpperDay(label, i, availableEquipment, experience, label.includes("A") ? "A" : "B"));
       } else {
@@ -292,48 +292,46 @@ export function generateCycleTemplates(params: {
       }
     }
     templates.push({
-      name: `Upper/Lower ${Math.min(daysPerWeek, 5)}x`,
+      name: `Upper/Lower ${daysPerWeek}x`,
       description: `Alternating upper and lower body workouts. Balanced muscle development.`,
-      cycleLength: days.length,
-      days,
-    });
-  }
-  
-  if (daysPerWeek >= 5 || splitPreference === "ppl") {
-    const cycleLen = daysPerWeek >= 6 ? 6 : 5;
-    const days: DayTemplate[] = [
-      buildPushDay("Push", 0, availableEquipment, experience),
-      buildPullDay("Pull", 1, availableEquipment, experience),
-      buildLegsDay("Legs", 2, availableEquipment, experience),
-    ];
-    if (cycleLen >= 4) {
-      days.push(buildPushDay("Push 2", 3, availableEquipment, experience));
-    }
-    if (cycleLen >= 5) {
-      days.push(buildPullDay("Pull 2", 4, availableEquipment, experience));
-    }
-    if (cycleLen >= 6) {
-      days.push(buildLegsDay("Legs 2", 5, availableEquipment, experience));
-    }
-    templates.push({
-      name: `PPL ${cycleLen}x`,
-      description: `Push/Pull/Legs split. Popular for ${goal === "muscle" ? "muscle building" : "strength training"}.`,
-      cycleLength: cycleLen,
-      days,
-    });
-  }
-  
-  if (templates.length === 0) {
-    const days: DayTemplate[] = [];
-    for (let i = 0; i < Math.min(daysPerWeek, 3); i++) {
-      days.push(buildFullBodyDay(`Day ${i + 1}`, i, availableEquipment, experience));
-    }
-    templates.push({
-      name: `Basic ${daysPerWeek}-Day`,
-      description: `Simple workout routine to get started.`,
       cycleLength: daysPerWeek,
       days,
     });
+  }
+  
+  // Always generate PPL option (adapts to any number of days)
+  {
+    const days: DayTemplate[] = [];
+    const pplCycle = [
+      { label: "Push", build: buildPushDay },
+      { label: "Pull", build: buildPullDay },
+      { label: "Legs", build: buildLegsDay },
+    ];
+    for (let i = 0; i < daysPerWeek; i++) {
+      const template = pplCycle[i % 3];
+      const suffix = Math.floor(i / 3) > 0 ? ` ${Math.floor(i / 3) + 1}` : "";
+      days.push(template.build(`${template.label}${suffix}`, i, availableEquipment, experience));
+    }
+    templates.push({
+      name: `PPL ${daysPerWeek}x`,
+      description: `Push/Pull/Legs split. Great for ${goal === "muscle" ? "muscle building" : "strength training"}.`,
+      cycleLength: daysPerWeek,
+      days,
+    });
+  }
+  
+  // Sort by preference if specified
+  if (splitPreference !== "no_pref") {
+    const preferenceOrder: Record<string, number> = {
+      "full_body": 0,
+      "upper_lower": 1,
+      "ppl": 2,
+    };
+    const idx = preferenceOrder[splitPreference];
+    if (idx !== undefined && idx > 0) {
+      const preferred = templates.splice(idx, 1)[0];
+      templates.unshift(preferred);
+    }
   }
   
   return templates.slice(0, 3);
