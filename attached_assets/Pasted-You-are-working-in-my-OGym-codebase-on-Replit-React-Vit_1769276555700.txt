@@ -1,0 +1,125 @@
+You are working in my OGym codebase on Replit (React/Vite/TS + Wouter + React Query; Express/TS; Passport session auth; Postgres + Drizzle; schema in shared/schema.ts; db sync via npm run db:push).
+
+TASK: Implement the “Workout Cycle Suggestion + Builder” flow for Personal Mode, and ensure it creates a real self-owned workout cycle (workout_cycles + workout_items) that then powers “Today’s Workout” and tracking.
+
+IMPORTANT:
+- Personal Mode users have users.gymId = null and role="member".
+- Personal Mode cycles must be stored in existing tables (workout_cycles, workout_items).
+- Self cycles must be marked with workout_cycles.source = "self" (default trainer cycles = "trainer").
+- For self cycles: gymId = null, trainerId = null, memberId = current user.
+- Do NOT break any gym/trainer flows.
+- Do NOT implement “AI coach” messaging. This is templates + structure.
+- No exact weight suggestions, no auto progression. Rep ranges are fine.
+
+========================
+FEATURE: “Help me build a cycle”
+========================
+UX entry point:
+Personal Mode → My Workouts → Create Cycle
+Add a button:
+  “Help me build a cycle”
+This opens a 3-step wizard:
+
+STEP 1 — Questionnaire (keep short, 6–8 fields max):
+- goal: ["strength","muscle","fat_loss","general"]
+- daysPerWeek: [2..6]
+- experience: ["beginner","intermediate","advanced"]
+- equipment: multi-select ["dumbbells","barbell","machines","cables","cardio","no_equipment"]
+- timePerWorkout: ["30","45","60","75+"]
+- splitPreference: ["no_pref","full_body","upper_lower","ppl"]
+
+STEP 2 — Return 2–3 suggested template cycles:
+Show cards with:
+- template name (e.g., “Full Body 3x”, “Upper/Lower 4x”, “PPL 6x”)
+- short description
+- preview of days (Day 1: Push, Day 2: Pull, etc.)
+User selects one template.
+
+STEP 3 — Editable Cycle Builder (prefilled):
+Open the existing cycle editor UI (or create one) prefilled with:
+- cycle name
+- cycle length (default 4 weeks)
+- days (dayIndex 0–6 as your schema expects)
+- exercises per day, each with:
+  - exerciseName
+  - sets
+  - reps (or repsRange string like “8-12”)
+User can edit everything: add/remove exercises, change sets/reps.
+Then click “Save Cycle”.
+
+After saving:
+- Redirect to “My Workouts” and show the new cycle as Active.
+- “Today’s Workout” should pull from this active self cycle.
+
+========================
+BACKEND
+========================
+Add endpoint:
+POST /api/personal/suggest-cycle
+Body: questionnaire answers listed above
+Returns: array of 2–3 template cycles in JSON:
+[
+  {
+    name: "Full Body 3x (Beginner)",
+    cycleLengthWeeks: 4,
+    days: [
+      { dayIndex: 0, label: "Full Body A", items: [{ exerciseName, sets, repsRange }] },
+      { dayIndex: 2, label: "Full Body B", items: [...] },
+      { dayIndex: 4, label: "Full Body C", items: [...] }
+    ]
+  },
+  ...
+]
+
+Implementation:
+- Use deterministic rules (no OpenAI call for now).
+- Choose templates based on daysPerWeek + equipment:
+  - If daysPerWeek <= 3 → favor Full Body
+  - If daysPerWeek == 4 → favor Upper/Lower
+  - If daysPerWeek >= 5 → favor PPL
+- Equipment substitutions:
+  - If no barbell: replace barbell squat/bench/deadlift with dumbbell or machine variations.
+  - If minimal equipment: bodyweight alternatives.
+Keep templates simple and mainstream.
+
+Cycle creation endpoints (use existing personal endpoints if already present; otherwise add):
+- POST /api/personal/cycles
+  Creates workout_cycles row with:
+    memberId = current user
+    trainerId = null
+    gymId = null
+    source = "self"
+    name, startDate, endDate/cycleLength as per schema
+    isActive = true (and deactivate any previous active self cycle for this member)
+- POST /api/personal/cycles/:cycleId/items
+  Inserts workout_items for each dayIndex and exercise with sets/reps fields
+- GET /api/personal/cycles (list)
+- GET /api/personal/cycles/active (optional convenience)
+
+Security:
+- Personal user can only create/edit/read their own cycles.
+- Trainer/owner queries must remain filtered to source="trainer" and gymId=user.gymId.
+
+========================
+FRONTEND
+========================
+- Add Personal Create Cycle page with:
+  - Manual cycle creation (existing simple flow)
+  - Wizard button “Help me build a cycle”
+- Wizard submits questionnaire to /api/personal/suggest-cycle.
+- Display template cards.
+- On select, open cycle editor prefilled.
+- On save:
+  - call /api/personal/cycles then /api/personal/cycles/:id/items
+  - invalidate queries and show success toast
+- Update Personal “Today’s Workout” (or member today view) to load from active self cycle.
+
+========================
+DELIVERABLES
+========================
+1) Summarize which files you will change before coding.
+2) Implement feature in small steps.
+3) Provide test checklist:
+   - Personal user → Help me build a cycle → select template → edit → save → see it in My Workouts
+   - Personal user → Today’s Workout shows correct day items
+   - Gym users unchanged: trainer cycles still work and don’t show personal cycles anywhere
