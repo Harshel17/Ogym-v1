@@ -2302,7 +2302,10 @@ export async function registerRoutes(
     const schema = z.object({
       name: z.string().min(1),
       cycleLength: z.number().min(1).max(7),
-      days: z.array(daySchema)
+      days: z.array(daySchema),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      progressionMode: z.enum(['calendar', 'completion']).optional()
     });
     
     const input = schema.parse(req.body);
@@ -2315,16 +2318,18 @@ export async function registerRoutes(
       }
     }
     
-    // Create cycle
-    const today = new Date().toISOString().split('T')[0];
-    const endDate = new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    // Create cycle with user-provided dates or defaults
+    const startDate = input.startDate || new Date().toISOString().split('T')[0];
+    const endDate = input.endDate || new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const progressionMode = input.progressionMode || 'calendar';
     
     const cycle = await storage.createWorkoutCycle({
       name: input.name,
       cycleLength: input.cycleLength,
       dayLabels: input.days.map(d => d.label),
-      startDate: today,
-      endDate: endDate,
+      startDate,
+      endDate,
+      progressionMode,
       gymId: null,
       trainerId: null,
       memberId: req.user!.id,

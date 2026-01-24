@@ -25,8 +25,11 @@ import {
   X,
   Plus,
   Trash2,
-  GripVertical
+  GripVertical,
+  CalendarDays,
+  ListChecks
 } from "lucide-react";
+import { format, addDays } from "date-fns";
 
 type Goal = "strength" | "muscle" | "fat_loss" | "general";
 type Experience = "beginner" | "intermediate" | "advanced";
@@ -120,6 +123,13 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
     cycleLength: number;
     days: DayTemplate[];
   } | null>(null);
+  
+  // Cycle settings state
+  const [cycleSettings, setCycleSettings] = useState({
+    startDate: format(new Date(), 'yyyy-MM-dd'),
+    endDate: '',
+    progressionMode: 'calendar' as 'calendar' | 'completion',
+  });
 
   const toggleTemplateExpand = (idx: number) => {
     setExpandedTemplates(prev => {
@@ -148,7 +158,14 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
   });
 
   const createCycleMutation = useMutation({
-    mutationFn: async (data: { name: string; cycleLength: number; days: DayTemplate[] }) => {
+    mutationFn: async (data: { 
+      name: string; 
+      cycleLength: number; 
+      days: DayTemplate[];
+      startDate: string;
+      endDate?: string;
+      progressionMode: 'calendar' | 'completion';
+    }) => {
       const res = await apiRequest("POST", "/api/personal/cycles/bulk", data);
       return res.json();
     },
@@ -171,6 +188,11 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
     setSelectedTemplate(null);
     setExpandedTemplates(new Set());
     setEditableCycle(null);
+    setCycleSettings({
+      startDate: format(new Date(), 'yyyy-MM-dd'),
+      endDate: '',
+      progressionMode: 'calendar',
+    });
   };
 
   const handleEquipmentToggle = (equipment: Equipment) => {
@@ -251,7 +273,16 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
 
   const handleSaveCycle = () => {
     if (!editableCycle) return;
-    createCycleMutation.mutate(editableCycle);
+    
+    // Calculate end date if not provided (default 4 weeks)
+    const endDate = cycleSettings.endDate || format(addDays(new Date(cycleSettings.startDate), 28), 'yyyy-MM-dd');
+    
+    createCycleMutation.mutate({
+      ...editableCycle,
+      startDate: cycleSettings.startDate,
+      endDate,
+      progressionMode: cycleSettings.progressionMode,
+    });
   };
 
   return (
@@ -266,16 +297,18 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
             {step === 1 && "Tell us about yourself"}
             {step === 2 && "Choose a template"}
             {step === 3 && "Customize your cycle"}
+            {step === 4 && "Cycle settings"}
           </DialogTitle>
           <DialogDescription>
             {step === 1 && "Answer a few questions so we can suggest the perfect workout plan for you."}
             {step === 2 && "Select one of these recommended workout programs."}
             {step === 3 && "Review and customize your workout cycle before saving."}
+            {step === 4 && "Set when your cycle starts and how you want to track progress."}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex gap-2 mb-4">
-          {[1, 2, 3].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <div
               key={s}
               className={`h-2 flex-1 rounded-full ${s <= step ? "bg-primary" : "bg-muted"}`}
@@ -601,19 +634,120 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
                 Back
               </Button>
               <Button
+                onClick={() => setStep(4)}
+                disabled={!editableCycle.name.trim()}
+                data-testid="button-continue-step4"
+              >
+                Continue
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && editableCycle && (
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <Label>Start Date</Label>
+              <Input
+                type="date"
+                value={cycleSettings.startDate}
+                onChange={(e) => setCycleSettings(prev => ({ ...prev, startDate: e.target.value }))}
+                data-testid="input-start-date"
+              />
+              <p className="text-xs text-muted-foreground">When should your workout cycle begin?</p>
+            </div>
+
+            <div className="space-y-3">
+              <Label>End Date (Optional)</Label>
+              <Input
+                type="date"
+                value={cycleSettings.endDate}
+                min={cycleSettings.startDate}
+                onChange={(e) => setCycleSettings(prev => ({ ...prev, endDate: e.target.value }))}
+                data-testid="input-end-date"
+              />
+              <p className="text-xs text-muted-foreground">Leave empty for a 4-week cycle. You can always extend later.</p>
+            </div>
+
+            <div className="space-y-3">
+              <Label>How do you want to track progress?</Label>
+              <div className="grid grid-cols-1 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCycleSettings(prev => ({ ...prev, progressionMode: 'calendar' }))}
+                  className={`p-4 rounded-lg border text-left transition-colors ${
+                    cycleSettings.progressionMode === 'calendar'
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover-elevate"
+                  }`}
+                  data-testid="progression-calendar"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${cycleSettings.progressionMode === 'calendar' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                      <CalendarDays className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Calendar-based</p>
+                      <p className="text-sm text-muted-foreground">Move to next workout day automatically each day</p>
+                    </div>
+                  </div>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setCycleSettings(prev => ({ ...prev, progressionMode: 'completion' }))}
+                  className={`p-4 rounded-lg border text-left transition-colors ${
+                    cycleSettings.progressionMode === 'completion'
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover-elevate"
+                  }`}
+                  data-testid="progression-completion"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${cycleSettings.progressionMode === 'completion' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                      <ListChecks className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Completion-based</p>
+                      <p className="text-sm text-muted-foreground">Move to next workout only when you complete the current one</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <Card className="bg-muted/50">
+              <CardContent className="py-4">
+                <h4 className="font-medium mb-2">Summary</h4>
+                <div className="text-sm space-y-1 text-muted-foreground">
+                  <p><span className="font-medium text-foreground">Cycle:</span> {editableCycle.name}</p>
+                  <p><span className="font-medium text-foreground">Days:</span> {editableCycle.cycleLength} workout days</p>
+                  <p><span className="font-medium text-foreground">Starts:</span> {format(new Date(cycleSettings.startDate), 'MMM d, yyyy')}</p>
+                  <p><span className="font-medium text-foreground">Progress:</span> {cycleSettings.progressionMode === 'calendar' ? 'Calendar-based' : 'Completion-based'}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-between pt-4">
+              <Button variant="outline" onClick={() => setStep(3)} data-testid="button-back-step3">
+                <ChevronLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+              <Button
                 onClick={handleSaveCycle}
-                disabled={createCycleMutation.isPending || !editableCycle.name.trim()}
+                disabled={createCycleMutation.isPending || !cycleSettings.startDate}
                 data-testid="button-save-cycle"
               >
                 {createCycleMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
+                    Creating...
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Save Cycle
+                    Create Cycle
                   </>
                 )}
               </Button>
