@@ -41,6 +41,7 @@ Preferred communication style: Simple, everyday language.
 - **Tournaments:** Monthly gym challenges with leaderboards.
 - **Daily Points:** Dynamically computed from workout completions.
 - **Walk-in Visitors:** Tracking for day passes, trials, and inquiries, including self check-in kiosk functionality.
+- **Personal Mode:** Members can use the app without joining a gym for self-managed workout tracking. Personal workouts use `source='self'` in `workout_cycles`, while gym-assigned workouts use `source='trainer'`. Data isolation is enforced via source filtering in storage queries.
 - **Production Security:** Helmet.js, secure session cookies, rate limiting, request body limits, session cleanup.
 - **Database Indexing:** Optimized for common queries (attendance, workout completions, payments, feed posts).
 - **Deployment:** Same-origin deployment via Express serving API and static frontend.
