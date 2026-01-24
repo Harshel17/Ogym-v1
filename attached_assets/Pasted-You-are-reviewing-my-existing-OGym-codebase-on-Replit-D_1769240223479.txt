@@ -1,0 +1,76 @@
+You are reviewing my existing OGym codebase on Replit. 
+DO NOT start implementing or modifying code yet.
+
+I want you to first UNDERSTAND, VALIDATE, and CRITIQUE a major architectural change before any build begins.
+
+CONTEXT (current system):
+- OGym is a gym operating system with owners, trainers, and members.
+- Users are authenticated via Passport.js (session-based).
+- Users currently require a gymCode to register (except owners/admin).
+- users.gymId links a user to a gym.
+- Role-based dashboards exist (owner / trainer / member).
+- Workout system is trainer-driven:
+  - Trainers create workout_cycles for members.
+  - workout_items define exercises per day.
+  - workout_completions track execution.
+
+PROPOSED MAJOR CHANGE (VISION):
+We want to convert OGym into a “two-lane highway” app:
+
+LANE 1 — PERSONAL MODE (no gym required):
+- Users can register/login WITHOUT a gym code.
+- These users are still role="member" but have gymId = null.
+- Personal users can:
+  - Create their own workout cycles (self-guided).
+  - Track workouts, streaks, and progress.
+- These personal cycles reuse the EXISTING workout_cycles, workout_items, and workout_completions tables.
+- The only difference is that these cycles are marked as self-created (not trainer-created).
+
+LANE 2 — GYM-LINKED MODE (existing behavior):
+- If a user enters a gym code (during signup or later), they are linked to a gym.
+- Once linked:
+  - They see the exact same gym dashboards as today.
+  - Owners and trainers gain visibility into the member’s activity.
+- No existing gym/trainer/owner flows should break or change.
+
+PHILOSOPHY / NON-NEGOTIABLES:
+- OGym must NOT replace trainers.
+- Personal Mode is tracking + structure, NOT coaching.
+- AI (future) is only for insights and pattern detection, not decision-making.
+- Trainers remain the authority for structured programs.
+- The system should help gym owners identify high-potential members for trainer conversion.
+
+TECHNICAL INTENT:
+- Prefer minimal schema changes.
+- Likely add ONE field to workout_cycles to indicate origin:
+  - source = "trainer" | "self"
+  OR
+  - mode = "gym" | "personal"
+- Avoid introducing duplicate “routine” or “personal_workout” tables if existing tables can be reused safely.
+- Dashboard routing should switch based on whether user.gymId is null or not.
+- Users should be able to join a gym later from Profile by entering a gym code.
+
+YOUR TASK (NO CODING):
+1) Inspect the repository and summarize:
+   - Where gymCode is enforced today
+   - How dashboards are routed and gated
+   - How workout_cycles are queried and filtered
+
+2) Give your TECHNICAL OPINION on:
+   - Whether reusing workout_cycles/workout_items for Personal Mode is safe
+   - Whether adding a source/mode field is sufficient
+   - Any hidden edge cases or data integrity risks
+   - Whether users.gymId=null is a clean enough signal for Personal Mode
+
+3) Propose:
+   - A clean implementation plan (steps only, no code)
+   - Any improvements or alternatives you recommend
+   - Any risks you foresee if this scales to many personal users
+
+IMPORTANT:
+- Do NOT implement anything yet.
+- Do NOT generate code.
+- Respond only with analysis, concerns, and a recommended approach.
+- Wait for my explicit instruction: “START BUILD”.
+
+This is an architectural review and alignment step.
