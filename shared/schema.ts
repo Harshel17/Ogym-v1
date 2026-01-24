@@ -411,7 +411,7 @@ export const announcementReads = pgTable("announcement_reads", {
 
 export const workoutSessions = pgTable("workout_sessions", {
   id: serial("id").primaryKey(),
-  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  gymId: integer("gym_id").references(() => gyms.id), // Nullable for Personal Mode users
   memberId: integer("member_id").references(() => users.id).notNull(),
   date: text("date").notNull(), // YYYY-MM-DD
   cycleId: integer("cycle_id").references(() => workoutCycles.id),
