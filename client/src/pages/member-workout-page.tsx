@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTodayWorkout, useCompleteWorkout, useMemberCycle, useDailyPoints, useShareWorkout, useSwapRestDay, useUndoRestDaySwap, useLogWorkoutSets } from "@/hooks/use-workouts";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw, Loader2, Plus, Dumbbell } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface WorkoutSummary {
   streak: number;
@@ -42,6 +44,7 @@ interface PlanSetCache {
 
 export default function MemberWorkoutPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const { data: todayData, isLoading: todayLoading } = useTodayWorkout();
   // Use the same session-based stats endpoint as Dashboard for consistency
   const { data: workoutSummary, isLoading: statsLoading } = useQuery<WorkoutSummary>({
@@ -49,10 +52,51 @@ export default function MemberWorkoutPage() {
   });
   const { data: cycleData, isLoading: cycleLoading } = useMemberCycle();
   
+  // Personal Mode - check if user has no gym
+  const isPersonalMode = user?.role === 'member' && !user?.gymId;
+  
+  // Personal Mode - fetch personal cycles
+  const { data: personalCycles, isLoading: personalCyclesLoading } = useQuery<any[]>({
+    queryKey: ["/api/personal/cycles"],
+    enabled: isPersonalMode,
+  });
+  
   // Get daily points for today
   const todayStr = new Date().toISOString().split("T")[0];
   const { data: dailyPoints } = useDailyPoints(todayStr, todayStr);
   const todayPoints = dailyPoints?.[0];
+  
+  // Create personal cycle state
+  const [createCycleOpen, setCreateCycleOpen] = useState(false);
+  const [newCycleName, setNewCycleName] = useState("");
+  const [newCycleLength, setNewCycleLength] = useState(3);
+  
+  // Create personal cycle mutation
+  const createCycleMutation = useMutation({
+    mutationFn: async (data: { name: string; cycleLength: number }) => {
+      const today = new Date().toISOString().split("T")[0];
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + 3);
+      const res = await apiRequest("POST", "/api/personal/cycles", {
+        ...data,
+        startDate: today,
+        endDate: endDate.toISOString().split("T")[0],
+        progressionMode: "completion"
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/personal/cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/cycle"] });
+      setCreateCycleOpen(false);
+      setNewCycleName("");
+      toast({ title: "Workout cycle created!" });
+    },
+    onError: (error: any) => {
+      toast({ title: error.message || "Failed to create cycle", variant: "destructive" });
+    }
+  });
   
   // Share workout dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
@@ -333,7 +377,18 @@ export default function MemberWorkoutPage() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground">{today.message}</p>
-            <p className="text-sm text-muted-foreground mt-2">Contact your trainer to get started.</p>
+            {isPersonalMode ? (
+              <Button 
+                className="mt-4 gap-2" 
+                onClick={() => setCreateCycleOpen(true)}
+                data-testid="button-create-cycle"
+              >
+                <Plus className="w-4 h-4" />
+                Create Workout Cycle
+              </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground mt-2">Contact your trainer to get started.</p>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -695,6 +750,71 @@ export default function MemberWorkoutPage() {
             <Button onClick={handleShareConfirm} disabled={shareWorkoutMutation.isPending} data-testid="button-confirm-share">
               <Share2 className="w-4 h-4 mr-2" />
               Share on Feed
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={createCycleOpen} onOpenChange={setCreateCycleOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Dumbbell className="w-5 h-5" />
+              Create Workout Cycle
+            </DialogTitle>
+            <DialogDescription>
+              Create your own workout cycle to track your exercises. You can add exercises after creating the cycle.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="cycle-name">Cycle Name</Label>
+              <Input
+                id="cycle-name"
+                placeholder="e.g., Push/Pull/Legs"
+                value={newCycleName}
+                onChange={(e) => setNewCycleName(e.target.value)}
+                data-testid="input-cycle-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cycle-length">Days in Cycle</Label>
+              <div className="flex gap-2">
+                {[3, 4, 5, 6, 7].map((days) => (
+                  <Button
+                    key={days}
+                    type="button"
+                    variant={newCycleLength === days ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setNewCycleLength(days)}
+                    data-testid={`button-days-${days}`}
+                  >
+                    {days}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                A {newCycleLength}-day cycle means you'll repeat your workout every {newCycleLength} days
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateCycleOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => createCycleMutation.mutate({ name: newCycleName, cycleLength: newCycleLength })}
+              disabled={!newCycleName.trim() || createCycleMutation.isPending}
+              data-testid="button-submit-cycle"
+            >
+              {createCycleMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Cycle"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
