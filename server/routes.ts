@@ -1258,7 +1258,7 @@ export async function registerRoutes(
       const source = 'self' as const;
       const cycle = await storage.getMemberCycle(req.user!.id, source);
       if (!cycle) {
-        return res.json({ todayItems: [], completedItems: [], skippedItems: [], currentDayIndex: 0, cycleId: null, cycleName: null });
+        return res.json({ items: [], currentDayIndex: 0, cycleId: null, cycleName: null, dayLabel: null, isRestDay: true });
       }
       
       const allItems = await storage.getWorkoutItems(cycle.id);
@@ -1267,23 +1267,32 @@ export async function registerRoutes(
       const completedItemIds = new Set(completions.filter(c => c.status === 'completed').map(c => c.workoutItemId));
       const skippedItemIds = new Set(completions.filter(c => c.status === 'skipped').map(c => c.workoutItemId));
       
-      const todayItems = allItems.filter(item => item.dayIndex === cycle.currentDayIndex);
+      const currentDayIndex = cycle.currentDayIndex ?? 0;
+      const todayItems = allItems.filter(item => item.dayIndex === currentDayIndex);
+      const dayLabel = cycle.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
+      
+      // Check if this is a rest day (from restDays array, day label, or no exercises)
+      const isRestDay = (cycle.restDays?.includes(currentDayIndex)) || 
+                        (dayLabel?.toLowerCase().includes("rest")) || 
+                        todayItems.length === 0;
       
       // Check if day was manually marked as done (Personal Mode - gymId is null)
       const session = await storage.getWorkoutSessionByMemberDate(null, req.user!.id, todayStr);
       const dayManuallyCompleted = session?.isManuallyCompleted === true;
       
       return res.json({
-        todayItems: todayItems.map(item => ({
+        items: todayItems.map(item => ({
           ...item,
           completed: dayManuallyCompleted || completedItemIds.has(item.id),
           skipped: skippedItemIds.has(item.id)
         })),
-        completedItems: dayManuallyCompleted ? todayItems.map(i => i.id) : Array.from(completedItemIds),
-        skippedItems: Array.from(skippedItemIds),
-        currentDayIndex: cycle.currentDayIndex,
+        currentDayIndex,
         cycleId: cycle.id,
         cycleName: cycle.name,
+        cycleLength: cycle.cycleLength,
+        dayLabel,
+        isRestDay,
+        progressionMode: cycle.progressionMode,
         dayManuallyCompleted
       });
     }
