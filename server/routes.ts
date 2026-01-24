@@ -2285,7 +2285,6 @@ export async function registerRoutes(
     }
     
     const itemSchema = z.object({
-      dayIndex: z.number(),
       exerciseName: z.string(),
       muscleType: z.string(),
       bodyPart: z.string(),
@@ -2332,13 +2331,13 @@ export async function registerRoutes(
       source: "self"
     });
     
-    // Add all items
+    // Add all items - use day.dayIndex for each item
     for (const day of input.days) {
       for (let i = 0; i < day.items.length; i++) {
         const item = day.items[i];
         await storage.addWorkoutItem({
           cycleId: cycle.id,
-          dayIndex: item.dayIndex,
+          dayIndex: day.dayIndex,
           exerciseName: item.exerciseName,
           muscleType: item.muscleType,
           bodyPart: item.bodyPart,
