@@ -2257,6 +2257,101 @@ export async function registerRoutes(
     res.json(cycle);
   });
 
+  // Suggest workout cycle templates based on questionnaire
+  app.post("/api/personal/suggest-cycle", requireRole(["member"]), async (req, res) => {
+    if (req.user!.gymId) {
+      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    }
+    
+    const schema = z.object({
+      goal: z.enum(["strength", "muscle", "fat_loss", "general"]),
+      daysPerWeek: z.number().min(2).max(6),
+      experience: z.enum(["beginner", "intermediate", "advanced"]),
+      equipment: z.array(z.enum(["dumbbells", "barbell", "machines", "cables", "cardio", "no_equipment"])),
+      timePerWorkout: z.enum(["30", "45", "60", "75+"]),
+      splitPreference: z.enum(["no_pref", "full_body", "upper_lower", "ppl"])
+    });
+    
+    const input = schema.parse(req.body);
+    const { generateCycleTemplates } = await import("./workout-templates");
+    const templates = generateCycleTemplates(input);
+    res.json(templates);
+  });
+
+  // Create cycle with items in bulk (for wizard)
+  app.post("/api/personal/cycles/bulk", requireRole(["member"]), async (req, res) => {
+    if (req.user!.gymId) {
+      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    }
+    
+    const itemSchema = z.object({
+      dayIndex: z.number(),
+      exerciseName: z.string(),
+      muscleType: z.string(),
+      bodyPart: z.string(),
+      sets: z.number(),
+      reps: z.number(),
+      orderIndex: z.number().optional()
+    });
+    
+    const daySchema = z.object({
+      dayIndex: z.number(),
+      label: z.string(),
+      items: z.array(itemSchema)
+    });
+    
+    const schema = z.object({
+      name: z.string().min(1),
+      cycleLength: z.number().min(1).max(7),
+      days: z.array(daySchema)
+    });
+    
+    const input = schema.parse(req.body);
+    
+    // Deactivate existing personal cycles
+    const existingCycles = await storage.getMemberCycles(req.user!.id, 'self');
+    for (const c of existingCycles) {
+      if (c.isActive) {
+        await storage.deactivateCycle(c.id);
+      }
+    }
+    
+    // Create cycle
+    const today = new Date().toISOString().split('T')[0];
+    const endDate = new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    const cycle = await storage.createWorkoutCycle({
+      name: input.name,
+      cycleLength: input.cycleLength,
+      dayLabels: input.days.map(d => d.label),
+      startDate: today,
+      endDate: endDate,
+      gymId: null,
+      trainerId: null,
+      memberId: req.user!.id,
+      source: "self"
+    });
+    
+    // Add all items
+    for (const day of input.days) {
+      for (let i = 0; i < day.items.length; i++) {
+        const item = day.items[i];
+        await storage.addWorkoutItem({
+          cycleId: cycle.id,
+          dayIndex: item.dayIndex,
+          exerciseName: item.exerciseName,
+          muscleType: item.muscleType,
+          bodyPart: item.bodyPart,
+          sets: item.sets,
+          reps: item.reps,
+          orderIndex: item.orderIndex ?? i
+        });
+      }
+    }
+    
+    res.status(201).json(cycle);
+  });
+
   // === MEMBER PROGRESS - GROUPED SESSIONS ===
   app.get("/api/me/workouts", requireRole(["member"]), async (req, res) => {
     const sessions = await storage.getMemberWorkoutSessions(req.user!.id);
