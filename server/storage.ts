@@ -547,7 +547,7 @@ export interface IStorage {
   // Workout Sessions
   getOrCreateWorkoutSession(data: InsertWorkoutSession): Promise<WorkoutSession>;
   getWorkoutSession(gymId: number, sessionId: number): Promise<(WorkoutSession & { exercises: WorkoutSessionExercise[] }) | null>;
-  getWorkoutSessionByMemberDate(gymId: number, memberId: number, date: string): Promise<WorkoutSession | null>;
+  getWorkoutSessionByMemberDate(gymId: number | null, memberId: number, date: string): Promise<WorkoutSession | null>;
   addWorkoutSessionExercise(data: InsertWorkoutSessionExercise): Promise<WorkoutSessionExercise>;
   getMemberWorkoutSummary(gymId: number | null, memberId: number): Promise<{
     streak: number;
@@ -5250,10 +5250,10 @@ export class DatabaseStorage implements IStorage {
     return { ...session, exercises };
   }
 
-  async getWorkoutSessionByMemberDate(gymId: number, memberId: number, date: string): Promise<WorkoutSession | null> {
+  async getWorkoutSessionByMemberDate(gymId: number | null, memberId: number, date: string): Promise<WorkoutSession | null> {
     const [session] = await db.select().from(workoutSessions)
       .where(and(
-        eq(workoutSessions.gymId, gymId),
+        gymId === null ? isNull(workoutSessions.gymId) : eq(workoutSessions.gymId, gymId),
         eq(workoutSessions.memberId, memberId),
         eq(workoutSessions.date, date)
       ));

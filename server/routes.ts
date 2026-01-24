@@ -1269,17 +1269,22 @@ export async function registerRoutes(
       
       const todayItems = allItems.filter(item => item.dayIndex === cycle.currentDayIndex);
       
+      // Check if day was manually marked as done (Personal Mode - gymId is null)
+      const session = await storage.getWorkoutSessionByMemberDate(null, req.user!.id, todayStr);
+      const dayManuallyCompleted = session?.isManuallyCompleted === true;
+      
       return res.json({
         todayItems: todayItems.map(item => ({
           ...item,
-          completed: completedItemIds.has(item.id),
+          completed: dayManuallyCompleted || completedItemIds.has(item.id),
           skipped: skippedItemIds.has(item.id)
         })),
-        completedItems: Array.from(completedItemIds),
+        completedItems: dayManuallyCompleted ? todayItems.map(i => i.id) : Array.from(completedItemIds),
         skippedItems: Array.from(skippedItemIds),
         currentDayIndex: cycle.currentDayIndex,
         cycleId: cycle.id,
-        cycleName: cycle.name
+        cycleName: cycle.name,
+        dayManuallyCompleted
       });
     }
     
