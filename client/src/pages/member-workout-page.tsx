@@ -8,11 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw, Loader2, Plus, Dumbbell } from "lucide-react";
+import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw, Loader2, Plus, Dumbbell, Wand2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { CycleBuilderWizard } from "@/components/cycle-builder-wizard";
 
 interface WorkoutSummary {
   streak: number;
@@ -70,6 +71,7 @@ export default function MemberWorkoutPage() {
   const [createCycleOpen, setCreateCycleOpen] = useState(false);
   const [newCycleName, setNewCycleName] = useState("");
   const [newCycleLength, setNewCycleLength] = useState(3);
+  const [wizardOpen, setWizardOpen] = useState(false);
   
   // Create personal cycle mutation
   const createCycleMutation = useMutation({
@@ -399,14 +401,26 @@ export default function MemberWorkoutPage() {
             <p className="text-muted-foreground text-center mb-6 max-w-sm">
               Create your own workout cycle to track your exercises and progress. You're in control!
             </p>
-            <Button 
-              className="gap-2" 
-              onClick={() => setCreateCycleOpen(true)}
-              data-testid="button-create-cycle"
-            >
-              <Plus className="w-4 h-4" />
-              Create Workout Cycle
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button 
+                variant="default"
+                className="gap-2" 
+                onClick={() => setWizardOpen(true)}
+                data-testid="button-help-build-cycle"
+              >
+                <Wand2 className="w-4 h-4" />
+                Help me build a cycle
+              </Button>
+              <Button 
+                variant="outline"
+                className="gap-2" 
+                onClick={() => setCreateCycleOpen(true)}
+                data-testid="button-create-cycle"
+              >
+                <Plus className="w-4 h-4" />
+                Create from scratch
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -837,6 +851,8 @@ export default function MemberWorkoutPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CycleBuilderWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </div>
   );
 }
