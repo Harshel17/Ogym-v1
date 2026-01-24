@@ -94,10 +94,8 @@ function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWi
     if (user.role === "trainer") {
       return <PendingApprovalPage />;
     }
-    // Members without gym are in Personal Mode - redirect to my-workouts as their home
-    if (user.role === "member") {
-      return <Redirect to="/my-workouts" />;
-    }
+    // Members without gym are in Personal Mode - they can access personal dashboard
+    // Note: The Dashboard route has allowWithoutGym=true for members
   }
 
   // Check subscription status - block access if expired (unless explicitly allowed)
@@ -163,7 +161,7 @@ function Router() {
       </Route>
       
       <Route path="/">
-        <ProtectedRoute component={DashboardPage} />
+        <ProtectedRoute component={DashboardPage} allowWithoutGym={true} />
       </Route>
       
       <Route path="/members">
