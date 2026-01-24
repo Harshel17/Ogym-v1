@@ -391,6 +391,24 @@ export default function MemberWorkoutPage() {
             )}
           </CardContent>
         </Card>
+      ) : isPersonalMode && !today?.cycleId ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Dumbbell className="w-16 h-16 text-primary mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Start Your Fitness Journey</h3>
+            <p className="text-muted-foreground text-center mb-6 max-w-sm">
+              Create your own workout cycle to track your exercises and progress. You're in control!
+            </p>
+            <Button 
+              className="gap-2" 
+              onClick={() => setCreateCycleOpen(true)}
+              data-testid="button-create-cycle"
+            >
+              <Plus className="w-4 h-4" />
+              Create Workout Cycle
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
