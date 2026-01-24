@@ -89,12 +89,12 @@ export async function registerRoutes(
         role: z.enum(["owner", "trainer", "member"]),
         gymCode: z.string().optional(),
       }).refine((data) => {
-        if (data.role !== "owner") {
+        if (data.role === "trainer") {
           return data.gymCode && data.gymCode.length > 0;
         }
         return true;
       }, {
-        message: "Gym code is required for trainers and members",
+        message: "Gym code is required for trainers",
         path: ["gymCode"],
       });
       
@@ -886,7 +886,8 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Member not assigned to you" });
       }
       
-      const cycle = await storage.getMemberCycle(memberId);
+      // Only show gym-assigned cycles (source='trainer'), not personal workouts
+      const cycle = await storage.getMemberCycle(memberId, 'trainer');
       let cycleItems: any[] = [];
       if (cycle) {
         cycleItems = await storage.getWorkoutItems(cycle.id);
@@ -1243,14 +1244,46 @@ export async function registerRoutes(
       });
     }
     
-    const cycle = await storage.getMemberCycle(req.user!.id);
+    // Use appropriate source based on whether user has a gym
+    const source = req.user!.gymId ? 'trainer' : 'self';
+    const cycle = await storage.getMemberCycle(req.user!.id, source);
     if (!cycle) return res.json(null);
     const items = await storage.getWorkoutItems(cycle.id);
     res.json({ ...cycle, items });
   });
 
   app.get("/api/workouts/today", requireRole(["member"]), async (req, res) => {
-    // Check for active phase with custom exercises first
+    // Personal Mode members don't have phases - skip to cycle check
+    if (!req.user!.gymId) {
+      const source = 'self' as const;
+      const cycle = await storage.getMemberCycle(req.user!.id, source);
+      if (!cycle) {
+        return res.json({ todayItems: [], completedItems: [], skippedItems: [], currentDayIndex: 0, cycleId: null, cycleName: null });
+      }
+      
+      const allItems = await storage.getWorkoutItems(cycle.id);
+      const todayStr = getLocalDate(req);
+      const completions = await storage.getCompletions(req.user!.id, todayStr);
+      const completedItemIds = new Set(completions.filter(c => c.status === 'completed').map(c => c.workoutItemId));
+      const skippedItemIds = new Set(completions.filter(c => c.status === 'skipped').map(c => c.workoutItemId));
+      
+      const todayItems = allItems.filter(item => item.dayIndex === cycle.currentDayIndex);
+      
+      return res.json({
+        todayItems: todayItems.map(item => ({
+          ...item,
+          completed: completedItemIds.has(item.id),
+          skipped: skippedItemIds.has(item.id)
+        })),
+        completedItems: Array.from(completedItemIds),
+        skippedItems: Array.from(skippedItemIds),
+        currentDayIndex: cycle.currentDayIndex,
+        cycleId: cycle.id,
+        cycleName: cycle.name
+      });
+    }
+    
+    // Check for active phase with custom exercises first (gym members only)
     const activePhase = await storage.getActivePhaseForMember(req.user!.id, req.user!.gymId!);
     if (activePhase && activePhase.useCustomExercises) {
       const todayStr = getLocalDate(req);
@@ -1297,7 +1330,9 @@ export async function registerRoutes(
       });
     }
     
-    const cycle = await storage.getMemberCycle(req.user!.id);
+    // Use appropriate source based on whether user has a gym
+    const source = req.user!.gymId ? 'trainer' : 'self';
+    const cycle = await storage.getMemberCycle(req.user!.id, source);
     if (!cycle) return res.json({ items: [], message: "No active workout cycle" });
     
     const todayStr = getLocalDate(req);
@@ -1400,7 +1435,9 @@ export async function registerRoutes(
   
   // Advance day index for completion-based progression
   app.post("/api/workouts/advance-day", requireRole(["member"]), async (req, res) => {
-    const cycle = await storage.getMemberCycle(req.user!.id);
+    // Use appropriate source based on whether user has a gym
+    const source = req.user!.gymId ? 'trainer' : 'self';
+    const cycle = await storage.getMemberCycle(req.user!.id, source);
     if (!cycle) return res.status(400).json({ message: "No active workout cycle" });
     
     if (cycle.progressionMode !== "completion") {
@@ -1415,7 +1452,9 @@ export async function registerRoutes(
   });
 
   app.post("/api/workouts/rest-day-swap", requireRole(["member"]), async (req, res) => {
-    const cycle = await storage.getMemberCycle(req.user!.id);
+    // Use appropriate source based on whether user has a gym
+    const source = req.user!.gymId ? 'trainer' : 'self';
+    const cycle = await storage.getMemberCycle(req.user!.id, source);
     if (!cycle) return res.status(400).json({ message: "No active workout cycle" });
     
     const todayStr = getLocalDate(req);
@@ -1512,7 +1551,7 @@ export async function registerRoutes(
     }
     
     const completion = await storage.completeWorkout({
-      gymId: req.user!.gymId!,
+      gymId: req.user!.gymId || null,
       cycleId: cycle.id,
       workoutItemId: input.workoutItemId,
       memberId: req.user!.id,
@@ -2080,6 +2119,144 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // === PERSONAL MODE ROUTES (Members without gym) ===
+  
+  // Create a personal workout cycle (for members without gym)
+  app.post("/api/personal/cycles", requireRole(["member"]), async (req, res) => {
+    // Only allow if user has no gym (Personal Mode)
+    if (req.user!.gymId) {
+      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    }
+    
+    const schema = z.object({
+      name: z.string().min(1, "Name is required"),
+      cycleLength: z.number().min(1).max(7).default(3),
+      dayLabels: z.array(z.string()).optional(),
+      startDate: z.string(),
+      endDate: z.string(),
+      progressionMode: z.enum(["calendar", "completion"]).optional().default("calendar")
+    });
+    const input = schema.parse(req.body);
+    
+    // Deactivate only existing active personal cycles (source='self'), not gym cycles
+    const existingCycles = await storage.getMemberCycles(req.user!.id, 'self');
+    for (const c of existingCycles) {
+      if (c.isActive) {
+        await storage.deactivateCycle(c.id);
+      }
+    }
+    
+    const cycle = await storage.createWorkoutCycle({
+      ...input,
+      gymId: null,
+      trainerId: null,
+      memberId: req.user!.id,
+      source: "self"
+    });
+    res.status(201).json(cycle);
+  });
+  
+  // Get all personal cycles
+  app.get("/api/personal/cycles", requireRole(["member"]), async (req, res) => {
+    if (req.user!.gymId) {
+      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    }
+    // Only return personal workouts (source='self')
+    const cycles = await storage.getMemberCycles(req.user!.id, 'self');
+    res.json(cycles);
+  });
+  
+  // Add workout item to personal cycle
+  app.post("/api/personal/cycles/:cycleId/items", requireRole(["member"]), async (req, res) => {
+    if (req.user!.gymId) {
+      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    }
+    
+    const cycleId = parseInt(req.params.cycleId);
+    const muscleTypes = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Glutes", "Full Body", "Rest", "Cardio", "Biceps", "Triceps", "Hamstrings", "Quadriceps", "Calves", "Abs", "Stretching", "Mobility", "Other"] as const;
+    const bodyParts = ["Upper Body", "Lower Body", "Full Body", "Recovery"] as const;
+    
+    const schema = z.object({
+      dayIndex: z.number().min(0),
+      muscleType: z.enum(muscleTypes).default("Chest"),
+      bodyPart: z.enum(bodyParts).default("Upper Body"),
+      exerciseName: z.string(),
+      sets: z.number().min(1),
+      reps: z.number().min(1),
+      weight: z.string().optional(),
+      orderIndex: z.number().default(0)
+    });
+    const input = schema.parse(req.body);
+    
+    const cycle = await storage.getCycle(cycleId);
+    if (!cycle || cycle.memberId !== req.user!.id || cycle.source !== "self") {
+      return res.status(403).json({ message: "Not your personal cycle" });
+    }
+    
+    const item = await storage.addWorkoutItem({
+      ...input,
+      cycleId
+    });
+    res.status(201).json(item);
+  });
+  
+  // Delete workout item from personal cycle
+  app.delete("/api/personal/cycles/:cycleId/items/:itemId", requireRole(["member"]), async (req, res) => {
+    if (req.user!.gymId) {
+      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    }
+    
+    const cycleId = parseInt(req.params.cycleId);
+    const itemId = parseInt(req.params.itemId);
+    
+    const cycle = await storage.getCycle(cycleId);
+    if (!cycle || cycle.memberId !== req.user!.id || cycle.source !== "self") {
+      return res.status(403).json({ message: "Not your personal cycle" });
+    }
+    
+    await storage.deleteWorkoutItem(itemId);
+    res.json({ message: "Item deleted" });
+  });
+  
+  // Update personal cycle structure (add/remove days)
+  app.patch("/api/personal/cycles/:cycleId", requireRole(["member"]), async (req, res) => {
+    if (req.user!.gymId) {
+      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    }
+    
+    const cycleId = parseInt(req.params.cycleId);
+    const schema = z.object({
+      name: z.string().optional(),
+      cycleLength: z.number().min(1).max(7).optional(),
+      dayLabels: z.array(z.string()).optional(),
+      restDays: z.array(z.number()).optional(),
+      isActive: z.boolean().optional()
+    });
+    const input = schema.parse(req.body);
+    
+    const cycle = await storage.getCycle(cycleId);
+    if (!cycle || cycle.memberId !== req.user!.id || cycle.source !== "self") {
+      return res.status(403).json({ message: "Not your personal cycle" });
+    }
+    
+    if (input.cycleLength && input.dayLabels) {
+      const updated = await storage.updateCycleStructure(cycleId, input.cycleLength, input.dayLabels, input.restDays || []);
+      return res.json(updated);
+    }
+    
+    if (input.dayLabels) {
+      const updated = await storage.updateCycleDayLabels(cycleId, input.dayLabels);
+      return res.json(updated);
+    }
+    
+    if (input.restDays) {
+      const updated = await storage.updateCycleRestDays(cycleId, input.restDays);
+      return res.json(updated);
+    }
+    
+    res.json(cycle);
+  });
+
   // === MEMBER PROGRESS - GROUPED SESSIONS ===
   app.get("/api/me/workouts", requireRole(["member"]), async (req, res) => {
     const sessions = await storage.getMemberWorkoutSessions(req.user!.id);
@@ -2591,9 +2768,9 @@ export async function registerRoutes(
       }
     }
     
-    // If no cycleId on user, check for cycles assigned to member
+    // If no cycleId on user, check for cycles assigned to member (gym cycles only)
     if (!currentCycleName) {
-      const memberCycles = await storage.getMemberCycles(memberId);
+      const memberCycles = await storage.getMemberCycles(memberId, 'trainer');
       if (memberCycles.length > 0) {
         const latestCycle = memberCycles[0]; // Already sorted by createdAt desc
         currentCycleName = latestCycle.name;
@@ -3282,7 +3459,8 @@ export async function registerRoutes(
     if (isNaN(memberId)) {
       return res.status(400).json({ message: "Invalid member ID" });
     }
-    const cycles = await storage.getMemberCycles(memberId);
+    // Only show gym-assigned cycles (source='trainer'), not personal workouts
+    const cycles = await storage.getMemberCycles(memberId, 'trainer');
     res.json(cycles.map(c => ({ id: c.id, name: c.name })));
   });
 

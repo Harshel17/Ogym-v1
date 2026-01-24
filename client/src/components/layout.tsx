@@ -36,6 +36,7 @@ import {
   PersonStanding,
   QrCode,
   Brain,
+  HeartPulse,
   type LucideIcon
 } from "lucide-react";
 
@@ -60,12 +61,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const hasGym = !!user.gymId;
   const isOwnerWithoutGym = isOwner && !hasGym;
 
+  const isPersonalMode = isMember && !hasGym;
+  
   const navItems = [
     { 
       label: "Dashboard", 
       href: "/", 
       icon: LayoutDashboard,
-      visible: hasGym,
+      visible: hasGym || isPersonalMode,
       badge: 0
     },
     { 
@@ -76,10 +79,38 @@ export function Layout({ children }: { children: React.ReactNode }) {
       badge: 0
     },
     { 
+      label: "My Workouts", 
+      href: "/my-workouts", 
+      icon: Dumbbell,
+      visible: isPersonalMode,
+      badge: 0
+    },
+    { 
+      label: "Progress", 
+      href: "/progress", 
+      icon: TrendingUp,
+      visible: isPersonalMode,
+      badge: 0
+    },
+    { 
+      label: "My Body", 
+      href: "/my-body", 
+      icon: HeartPulse,
+      visible: isPersonalMode,
+      badge: 0
+    },
+    { 
+      label: "Join a Gym", 
+      href: "/join-gym", 
+      icon: Building2,
+      visible: isPersonalMode,
+      badge: 0
+    },
+    { 
       label: "Profile", 
       href: "/profile", 
       icon: UserCircle,
-      visible: hasGym,
+      visible: hasGym || isPersonalMode,
       badge: 0
     },
     { 
@@ -323,11 +354,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
     if (isMember && !hasGym) {
       return {
         primary: [
-          { label: "Join Gym", href: "/join-gym", icon: Building2 },
-          { label: "Support", href: "/support", icon: HelpCircle },
+          { label: "Dashboard", href: "/", icon: LayoutDashboard },
+          { label: "Workouts", href: "/my-workouts", icon: Dumbbell },
+          { label: "Progress", href: "/progress", icon: TrendingUp },
           { label: "Profile", href: "/profile", icon: UserCircle },
         ],
-        secondary: []
+        secondary: [
+          { label: "My Body", href: "/my-body", icon: HeartPulse },
+          { label: "Join Gym", href: "/join-gym", icon: Building2 },
+          { label: "Support", href: "/support", icon: HelpCircle },
+        ]
       };
     }
     return {

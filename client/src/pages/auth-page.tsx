@@ -33,12 +33,12 @@ const registerSchema = z.object({
   role: z.enum(["owner", "trainer", "member"]),
   gymCode: z.string().optional(),
 }).refine((data) => {
-  if (data.role !== "owner") {
+  if (data.role === "trainer") {
     return data.gymCode && data.gymCode.length > 0;
   }
   return true;
 }, {
-  message: "Gym code is required to join a gym",
+  message: "Gym code is required for trainers",
   path: ["gymCode"],
 });
 
@@ -596,10 +596,12 @@ export default function AuthPage() {
                         name="gymCode"
                         render={({ field }) => (
                           <FormItem className={selectedRole !== "owner" ? "animate-in fade-in zoom-in-95 duration-200" : "hidden"}>
-                            <FormLabel>Gym Code</FormLabel>
+                            <FormLabel>
+                              Gym Code {selectedRole === "member" && <span className="text-muted-foreground font-normal">(optional)</span>}
+                            </FormLabel>
                             <FormControl>
                               <Input 
-                                placeholder="Enter the code provided by your gym" 
+                                placeholder={selectedRole === "member" ? "Enter gym code or skip for personal mode" : "Enter the code provided by your gym"}
                                 value={field.value || ""} 
                                 onChange={field.onChange}
                                 onBlur={field.onBlur}

@@ -171,8 +171,8 @@ export const payments = pgTable("payments", {
 
 export const workoutCycles = pgTable("workout_cycles", {
   id: serial("id").primaryKey(),
-  gymId: integer("gym_id").references(() => gyms.id).notNull(),
-  trainerId: integer("trainer_id").references(() => users.id).notNull(),
+  gymId: integer("gym_id").references(() => gyms.id),
+  trainerId: integer("trainer_id").references(() => users.id),
   memberId: integer("member_id").references(() => users.id).notNull(),
   name: text("name").notNull(),
   cycleLength: integer("cycle_length").notNull().default(3),
@@ -182,8 +182,9 @@ export const workoutCycles = pgTable("workout_cycles", {
   endDate: text("end_date").notNull(),
   progressionMode: text("progression_mode", { enum: ["calendar", "completion"] }).default("calendar"),
   currentDayIndex: integer("current_day_index").default(0),
-  lastWorkoutDate: text("last_workout_date"), // YYYY-MM-DD - tracks last workout for auto-reset in completion mode
+  lastWorkoutDate: text("last_workout_date"),
   isActive: boolean("is_active").default(true),
+  source: text("source", { enum: ["trainer", "self"] }).default("trainer"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -203,13 +204,13 @@ export const workoutItems = pgTable("workout_items", {
 
 export const workoutCompletions = pgTable("workout_completions", {
   id: serial("id").primaryKey(),
-  gymId: integer("gym_id").references(() => gyms.id).notNull(),
-  cycleId: integer("cycle_id"), // Can be workout cycle or training phase ID
-  workoutItemId: integer("workout_item_id").references(() => workoutItems.id), // Null for phase exercises
-  phaseExerciseId: integer("phase_exercise_id").references(() => phaseExercises.id), // For phase exercises
+  gymId: integer("gym_id").references(() => gyms.id),
+  cycleId: integer("cycle_id"),
+  workoutItemId: integer("workout_item_id").references(() => workoutItems.id),
+  phaseExerciseId: integer("phase_exercise_id").references(() => phaseExercises.id),
   memberId: integer("member_id").references(() => users.id).notNull(),
   completedDate: text("completed_date").notNull(),
-  exerciseName: text("exercise_name"), // Stores exercise name for both cycle and phase exercises
+  exerciseName: text("exercise_name"),
   actualSets: integer("actual_sets"),
   actualReps: integer("actual_reps"),
   actualWeight: text("actual_weight"),

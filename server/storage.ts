@@ -115,12 +115,13 @@ export interface IStorage {
   // Workout Cycles
   createWorkoutCycle(data: InsertWorkoutCycle): Promise<WorkoutCycle>;
   getTrainerCycles(trainerId: number): Promise<WorkoutCycle[]>;
-  getMemberCycle(memberId: number): Promise<WorkoutCycle | undefined>;
-  getMemberCycles(memberId: number): Promise<WorkoutCycle[]>;
+  getMemberCycle(memberId: number, source?: 'trainer' | 'self'): Promise<WorkoutCycle | undefined>;
+  getMemberCycles(memberId: number, source?: 'trainer' | 'self'): Promise<WorkoutCycle[]>;
   getCycle(cycleId: number): Promise<WorkoutCycle | undefined>;
   updateCycleDayLabels(cycleId: number, dayLabels: string[]): Promise<WorkoutCycle>;
   updateCycleRestDays(cycleId: number, restDays: number[]): Promise<WorkoutCycle>;
   updateCycleStructure(cycleId: number, cycleLength: number, dayLabels: string[], restDays: number[]): Promise<WorkoutCycle>;
+  deactivateCycle(cycleId: number): Promise<void>;
   deleteWorkoutItemsByDay(cycleId: number, dayIndex: number): Promise<void>;
   shiftWorkoutItemsDays(cycleId: number, fromDayIndex: number, shiftAmount: number): Promise<void>;
   updateCycleDayIndex(cycleId: number, currentDayIndex: number): Promise<WorkoutCycle>;
@@ -974,16 +975,24 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(workoutCycles).where(eq(workoutCycles.trainerId, trainerId));
   }
 
-  async getMemberCycle(memberId: number): Promise<WorkoutCycle | undefined> {
+  async getMemberCycle(memberId: number, source?: 'trainer' | 'self'): Promise<WorkoutCycle | undefined> {
+    const conditions = [eq(workoutCycles.memberId, memberId), eq(workoutCycles.isActive, true)];
+    if (source) {
+      conditions.push(eq(workoutCycles.source, source));
+    }
     const [cycle] = await db.select().from(workoutCycles)
-      .where(and(eq(workoutCycles.memberId, memberId), eq(workoutCycles.isActive, true)))
+      .where(and(...conditions))
       .orderBy(desc(workoutCycles.id));
     return cycle;
   }
 
-  async getMemberCycles(memberId: number): Promise<WorkoutCycle[]> {
+  async getMemberCycles(memberId: number, source?: 'trainer' | 'self'): Promise<WorkoutCycle[]> {
+    const conditions = [eq(workoutCycles.memberId, memberId)];
+    if (source) {
+      conditions.push(eq(workoutCycles.source, source));
+    }
     return await db.select().from(workoutCycles)
-      .where(eq(workoutCycles.memberId, memberId))
+      .where(and(...conditions))
       .orderBy(desc(workoutCycles.createdAt));
   }
 
@@ -1006,6 +1015,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(workoutCycles.id, cycleId))
       .returning();
     return cycle;
+  }
+
+  async deactivateCycle(cycleId: number): Promise<void> {
+    await db.update(workoutCycles)
+      .set({ isActive: false })
+      .where(eq(workoutCycles.id, cycleId));
   }
 
   async updateCycleStructure(cycleId: number, cycleLength: number, dayLabels: string[], restDays: number[]): Promise<WorkoutCycle> {

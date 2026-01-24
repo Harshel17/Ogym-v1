@@ -90,8 +90,14 @@ function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWi
     if (user.role === "owner") {
       return <Redirect to="/gym-request" />;
     }
-    // Trainers/members without gym go to pending approval
-    return <PendingApprovalPage />;
+    // Trainers without gym go to pending approval (they need gym approval)
+    if (user.role === "trainer") {
+      return <PendingApprovalPage />;
+    }
+    // Members without gym are in Personal Mode - redirect to my-workouts as their home
+    if (user.role === "member") {
+      return <Redirect to="/my-workouts" />;
+    }
   }
 
   // Check subscription status - block access if expired (unless explicitly allowed)
@@ -139,9 +145,9 @@ function OnboardingRoute() {
     return <Redirect to="/" />;
   }
 
-  // If no gym yet, redirect to pending approval
+  // Personal Mode members (no gym) can use app without onboarding - redirect to dashboard
   if (!user.gymId) {
-    return <PendingApprovalPage />;
+    return <Redirect to="/" />;
   }
 
   return <MemberOnboardingPage />;
@@ -181,35 +187,39 @@ function Router() {
       </Route>
 
       <Route path="/my-workout">
-        <ProtectedRoute component={MemberWorkoutPage} />
+        <ProtectedRoute component={MemberWorkoutPage} allowWithoutGym={true} />
+      </Route>
+
+      <Route path="/my-workouts">
+        <ProtectedRoute component={MemberWorkoutPage} allowWithoutGym={true} />
       </Route>
 
       <Route path="/progress">
-        <ProtectedRoute component={ProgressPage} />
+        <ProtectedRoute component={ProgressPage} allowWithoutGym={true} />
       </Route>
 
       <Route path="/progress/workouts">
-        <ProtectedRoute component={WorkoutHistoryPage} />
+        <ProtectedRoute component={WorkoutHistoryPage} allowWithoutGym={true} />
       </Route>
 
       <Route path="/progress/stats">
-        <ProtectedRoute component={StatsPage} />
+        <ProtectedRoute component={StatsPage} allowWithoutGym={true} />
       </Route>
 
       <Route path="/stats">
-        <ProtectedRoute component={StatsPage} />
+        <ProtectedRoute component={StatsPage} allowWithoutGym={true} />
       </Route>
 
       <Route path="/progress/missed">
-        <ProtectedRoute component={MissedWorkoutsPage} />
+        <ProtectedRoute component={MissedWorkoutsPage} allowWithoutGym={true} />
       </Route>
 
       <Route path="/progress/phases">
-        <ProtectedRoute component={MemberPhasesPage} requiredRole="member" />
+        <ProtectedRoute component={MemberPhasesPage} requiredRole="member" allowWithoutGym={true} />
       </Route>
 
       <Route path="/progress/phases/:phaseId">
-        <ProtectedRoute component={PhaseDetailPage} />
+        <ProtectedRoute component={PhaseDetailPage} allowWithoutGym={true} />
       </Route>
 
       <Route path="/requests">
@@ -217,11 +227,11 @@ function Router() {
       </Route>
 
       <Route path="/profile">
-        <ProtectedRoute component={ProfilePage} />
+        <ProtectedRoute component={ProfilePage} allowWithoutGym={true} />
       </Route>
 
       <Route path="/my-body">
-        <ProtectedRoute component={MyBodyPage} requiredRole="member" />
+        <ProtectedRoute component={MyBodyPage} requiredRole="member" allowWithoutGym={true} />
       </Route>
 
       <Route path="/star-members/:memberId">
