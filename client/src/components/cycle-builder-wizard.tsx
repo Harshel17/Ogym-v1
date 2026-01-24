@@ -14,6 +14,8 @@ import {
   Loader2, 
   ChevronRight, 
   ChevronLeft, 
+  ChevronDown,
+  ChevronUp,
   Dumbbell, 
   Target, 
   Calendar, 
@@ -112,11 +114,24 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
   
   const [templates, setTemplates] = useState<CycleTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<CycleTemplate | null>(null);
+  const [expandedTemplates, setExpandedTemplates] = useState<Set<number>>(new Set());
   const [editableCycle, setEditableCycle] = useState<{
     name: string;
     cycleLength: number;
     days: DayTemplate[];
   } | null>(null);
+
+  const toggleTemplateExpand = (idx: number) => {
+    setExpandedTemplates(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) {
+        next.delete(idx);
+      } else {
+        next.add(idx);
+      }
+      return next;
+    });
+  };
 
   const suggestMutation = useMutation({
     mutationFn: async (data: QuestionnaireData) => {
@@ -154,6 +169,7 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
     setStep(1);
     setTemplates([]);
     setSelectedTemplate(null);
+    setExpandedTemplates(new Set());
     setEditableCycle(null);
   };
 
@@ -414,33 +430,82 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
 
         {step === 2 && (
           <div className="space-y-4">
-            {templates.map((template, idx) => (
-              <Card
-                key={idx}
-                className={`cursor-pointer transition-colors ${
-                  selectedTemplate?.name === template.name ? "ring-2 ring-primary" : "hover-elevate"
-                }`}
-                onClick={() => handleSelectTemplate(template)}
-                data-testid={`template-card-${idx}`}
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="text-lg">{template.name}</CardTitle>
-                    <Badge variant="secondary">{template.cycleLength} days</Badge>
-                  </div>
-                  <CardDescription>{template.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2 flex-wrap">
-                    {template.days.map((day) => (
-                      <Badge key={day.dayIndex} variant="outline">
-                        {day.label} ({day.items.length} exercises)
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            <p className="text-sm text-muted-foreground">Click on a template to preview exercises, then select the one you want to customize.</p>
+            
+            {templates.map((template, idx) => {
+              const isExpanded = expandedTemplates.has(idx);
+              return (
+                <Card
+                  key={idx}
+                  className="transition-colors"
+                  data-testid={`template-card-${idx}`}
+                >
+                  <CardHeader 
+                    className="pb-2 cursor-pointer hover-elevate rounded-t-lg"
+                    onClick={() => toggleTemplateExpand(idx)}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        <CardTitle className="text-lg">{template.name}</CardTitle>
+                      </div>
+                      <Badge variant="secondary">{template.cycleLength} days</Badge>
+                    </div>
+                    <CardDescription className="ml-6">{template.description}</CardDescription>
+                  </CardHeader>
+                  
+                  {isExpanded && (
+                    <CardContent className="pt-0">
+                      <div className="space-y-3 border-t pt-3">
+                        {template.days.map((day) => (
+                          <div key={day.dayIndex} className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="font-medium">
+                                {day.label}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {day.items.length} exercises
+                              </span>
+                            </div>
+                            <div className="ml-2 text-sm text-muted-foreground">
+                              {day.items.map((item, i) => (
+                                <span key={i}>
+                                  {item.exerciseName}
+                                  {i < day.items.length - 1 && " • "}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="mt-4 pt-3 border-t">
+                        <Button 
+                          className="w-full"
+                          onClick={() => handleSelectTemplate(template)}
+                          data-testid={`button-select-template-${idx}`}
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Use This Template
+                        </Button>
+                      </div>
+                    </CardContent>
+                  )}
+                  
+                  {!isExpanded && (
+                    <CardContent className="pt-0">
+                      <div className="flex gap-2 flex-wrap">
+                        {template.days.map((day) => (
+                          <Badge key={day.dayIndex} variant="outline">
+                            {day.label} ({day.items.length})
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            })}
 
             <div className="flex justify-between pt-4">
               <Button variant="outline" onClick={() => setStep(1)} data-testid="button-back-step1">
