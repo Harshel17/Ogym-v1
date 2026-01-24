@@ -27,7 +27,8 @@ import {
   Trash2,
   GripVertical,
   CalendarDays,
-  ListChecks
+  ListChecks,
+  Coffee
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 
@@ -130,6 +131,19 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
     endDate: '',
     progressionMode: 'calendar' as 'calendar' | 'completion',
   });
+  
+  // Rest days - array of day indexes that are rest/recovery days
+  const [restDays, setRestDays] = useState<number[]>([]);
+  
+  const toggleRestDay = (dayIndex: number) => {
+    setRestDays(prev => {
+      if (prev.includes(dayIndex)) {
+        return prev.filter(d => d !== dayIndex);
+      } else {
+        return [...prev, dayIndex];
+      }
+    });
+  };
 
   const toggleTemplateExpand = (idx: number) => {
     setExpandedTemplates(prev => {
@@ -165,6 +179,7 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
       startDate: string;
       endDate?: string;
       progressionMode: 'calendar' | 'completion';
+      restDays: number[];
     }) => {
       const res = await apiRequest("POST", "/api/personal/cycles/bulk", data);
       return res.json();
@@ -193,6 +208,7 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
       endDate: '',
       progressionMode: 'calendar',
     });
+    setRestDays([]);
   };
 
   const handleEquipmentToggle = (equipment: Equipment) => {
@@ -211,6 +227,7 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
       cycleLength: template.cycleLength,
       days: JSON.parse(JSON.stringify(template.days)),
     });
+    setRestDays([]); // Reset rest days when selecting a new template
     setStep(3);
   };
 
@@ -282,6 +299,7 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
       startDate: cycleSettings.startDate,
       endDate,
       progressionMode: cycleSettings.progressionMode,
+      restDays,
     });
   };
 
@@ -562,70 +580,100 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
             </div>
 
             <div className="space-y-3">
-              {editableCycle.days.map((day) => (
-                <Card key={day.dayIndex}>
-                  <CardHeader className="py-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-base">Day {day.dayIndex + 1}: {day.label}</CardTitle>
-                      <Badge variant="outline">{day.items.length} exercises</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="py-2 space-y-2">
-                    {day.items.map((item, itemIdx) => (
-                      <div
-                        key={itemIdx}
-                        className="flex items-center gap-2 p-2 bg-muted/50 rounded-md"
-                      >
-                        <GripVertical className="w-4 h-4 text-muted-foreground" />
-                        <Input
-                          value={item.exerciseName}
-                          onChange={(e) => handleUpdateExercise(day.dayIndex, itemIdx, "exerciseName", e.target.value)}
-                          className="flex-1 h-8 text-sm"
-                          data-testid={`input-exercise-${day.dayIndex}-${itemIdx}`}
-                        />
-                        <div className="flex items-center gap-1">
-                          <Input
-                            type="number"
-                            value={item.sets}
-                            onChange={(e) => handleUpdateExercise(day.dayIndex, itemIdx, "sets", parseInt(e.target.value) || 1)}
-                            className="w-14 h-8 text-sm text-center"
-                            min={1}
-                            data-testid={`input-sets-${day.dayIndex}-${itemIdx}`}
-                          />
-                          <span className="text-muted-foreground text-sm">x</span>
-                          <Input
-                            type="number"
-                            value={item.reps}
-                            onChange={(e) => handleUpdateExercise(day.dayIndex, itemIdx, "reps", parseInt(e.target.value) || 1)}
-                            className="w-14 h-8 text-sm text-center"
-                            min={1}
-                            data-testid={`input-reps-${day.dayIndex}-${itemIdx}`}
-                          />
+              {editableCycle.days.map((day) => {
+                const isRestDay = restDays.includes(day.dayIndex);
+                return (
+                  <Card key={day.dayIndex} className={isRestDay ? "border-primary/30 bg-primary/5" : ""}>
+                    <CardHeader className="py-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          {isRestDay && <Coffee className="w-4 h-4 text-primary" />}
+                          <CardTitle className="text-base">
+                            Day {day.dayIndex + 1}: {isRestDay ? "Rest Day" : day.label}
+                          </CardTitle>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant={isRestDay ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => toggleRestDay(day.dayIndex)}
+                            data-testid={`button-toggle-rest-${day.dayIndex}`}
+                          >
+                            <Coffee className="w-3 h-3 mr-1" />
+                            {isRestDay ? "Rest Day" : "Make Rest Day"}
+                          </Button>
+                          {!isRestDay && (
+                            <Badge variant="outline">{day.items.length} exercises</Badge>
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    {!isRestDay && (
+                      <CardContent className="py-2 space-y-2">
+                        {day.items.map((item, itemIdx) => (
+                          <div
+                            key={itemIdx}
+                            className="flex items-center gap-2 p-2 bg-muted/50 rounded-md"
+                          >
+                            <GripVertical className="w-4 h-4 text-muted-foreground" />
+                            <Input
+                              value={item.exerciseName}
+                              onChange={(e) => handleUpdateExercise(day.dayIndex, itemIdx, "exerciseName", e.target.value)}
+                              className="flex-1 h-8 text-sm"
+                              data-testid={`input-exercise-${day.dayIndex}-${itemIdx}`}
+                            />
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                value={item.sets}
+                                onChange={(e) => handleUpdateExercise(day.dayIndex, itemIdx, "sets", parseInt(e.target.value) || 1)}
+                                className="w-14 h-8 text-sm text-center"
+                                min={1}
+                                data-testid={`input-sets-${day.dayIndex}-${itemIdx}`}
+                              />
+                              <span className="text-muted-foreground text-sm">x</span>
+                              <Input
+                                type="number"
+                                value={item.reps}
+                                onChange={(e) => handleUpdateExercise(day.dayIndex, itemIdx, "reps", parseInt(e.target.value) || 1)}
+                                className="w-14 h-8 text-sm text-center"
+                                min={1}
+                                data-testid={`input-reps-${day.dayIndex}-${itemIdx}`}
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleRemoveExercise(day.dayIndex, itemIdx)}
+                              data-testid={`button-remove-exercise-${day.dayIndex}-${itemIdx}`}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
                         <Button
                           variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleRemoveExercise(day.dayIndex, itemIdx)}
-                          data-testid={`button-remove-exercise-${day.dayIndex}-${itemIdx}`}
+                          size="sm"
+                          onClick={() => handleAddExercise(day.dayIndex)}
+                          className="w-full"
+                          data-testid={`button-add-exercise-${day.dayIndex}`}
                         >
-                          <Trash2 className="w-4 h-4 text-destructive" />
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add Exercise
                         </Button>
-                      </div>
-                    ))}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleAddExercise(day.dayIndex)}
-                      className="w-full"
-                      data-testid={`button-add-exercise-${day.dayIndex}`}
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Exercise
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
+                      </CardContent>
+                    )}
+                    {isRestDay && (
+                      <CardContent className="py-4">
+                        <p className="text-sm text-muted-foreground text-center">
+                          This day is set as a rest/recovery day. No exercises scheduled.
+                        </p>
+                      </CardContent>
+                    )}
+                  </Card>
+                );
+              })}
             </div>
 
             <div className="flex justify-between pt-4">

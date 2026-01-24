@@ -2310,7 +2310,8 @@ export async function registerRoutes(
       days: z.array(daySchema),
       startDate: z.string().optional(),
       endDate: z.string().optional(),
-      progressionMode: z.enum(['calendar', 'completion']).optional()
+      progressionMode: z.enum(['calendar', 'completion']).optional(),
+      restDays: z.array(z.number()).optional()
     });
     
     const input = schema.parse(req.body);
@@ -2332,6 +2333,7 @@ export async function registerRoutes(
       name: input.name,
       cycleLength: input.cycleLength,
       dayLabels: input.days.map(d => d.label),
+      restDays: input.restDays || [],
       startDate,
       endDate,
       progressionMode,
