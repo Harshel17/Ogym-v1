@@ -41,6 +41,7 @@ type SplitPreference = "no_pref" | "full_body" | "upper_lower" | "ppl";
 interface QuestionnaireData {
   goal: Goal;
   daysPerWeek: number;
+  restDaysPerWeek: number;
   experience: Experience;
   equipment: Equipment[];
   timePerWorkout: TimePerWorkout;
@@ -110,6 +111,7 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
   const [questionnaire, setQuestionnaire] = useState<QuestionnaireData>({
     goal: "muscle",
     daysPerWeek: 4,
+    restDaysPerWeek: 1,
     experience: "intermediate",
     equipment: ["dumbbells", "barbell"],
     timePerWorkout: "60",
@@ -377,6 +379,30 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
                   </Button>
                 ))}
               </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <Coffee className="w-4 h-4" />
+                How many rest days do you prefer per week?
+              </Label>
+              <div className="flex gap-2">
+                {[0, 1, 2, 3].map((days) => (
+                  <Button
+                    key={days}
+                    type="button"
+                    variant={questionnaire.restDaysPerWeek === days ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setQuestionnaire(prev => ({ ...prev, restDaysPerWeek: days }))}
+                    data-testid={`rest-days-${days}`}
+                  >
+                    {days === 0 ? "None" : days}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Rest days help your muscles recover. We recommend at least 1-2 rest days per week.
+              </p>
             </div>
 
             <div className="space-y-3">

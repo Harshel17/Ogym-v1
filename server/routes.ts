@@ -2280,6 +2280,7 @@ export async function registerRoutes(
     const schema = z.object({
       goal: z.enum(["strength", "muscle", "fat_loss", "general"]),
       daysPerWeek: z.number().min(2).max(6),
+      restDaysPerWeek: z.number().min(0).max(3).optional().default(1),
       experience: z.enum(["beginner", "intermediate", "advanced"]),
       equipment: z.array(z.enum(["dumbbells", "barbell", "machines", "cables", "cardio", "no_equipment"])),
       timePerWorkout: z.enum(["30", "45", "60", "75+"]),
@@ -2288,7 +2289,7 @@ export async function registerRoutes(
     
     const input = schema.parse(req.body);
     const { generateCycleTemplates } = await import("./workout-templates");
-    const templates = generateCycleTemplates(input);
+    const templates = generateCycleTemplates(input, input.restDaysPerWeek ?? 1);
     res.json(templates);
   });
 

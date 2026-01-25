@@ -258,50 +258,110 @@ export function generateCycleTemplates(params: {
   equipment: Equipment[];
   timePerWorkout: string;
   splitPreference: string;
-}): CycleTemplate[] {
+}, restDaysPerWeek: number = 1): CycleTemplate[] {
   const { goal, daysPerWeek, experience, equipment, splitPreference } = params;
   const templates: CycleTemplate[] = [];
   
   const availableEquipment = equipment.length > 0 ? equipment : ["no_equipment" as Equipment];
   
+  // Total cycle length includes training days + rest days
+  const totalCycleLength = daysPerWeek + restDaysPerWeek;
+  
+  // Helper function to add rest days to a template
+  function addRestDays(trainingDays: DayTemplate[], restCount: number): DayTemplate[] {
+    if (restCount <= 0) {
+      // Just update day indices
+      return trainingDays.map((day, idx) => ({ ...day, dayIndex: idx }));
+    }
+    
+    const trainingCount = trainingDays.length;
+    const total = trainingCount + restCount;
+    
+    // Calculate which positions should be rest days using even distribution
+    // This uses a simple algorithm: place rest days at evenly spaced positions
+    const restPositions = new Set<number>();
+    
+    // Distribute rest days evenly throughout the cycle
+    // For example: 4 training + 2 rest = positions at roughly 2 and 5 (0-indexed)
+    // Formula: position = Math.round((i + 1) * total / (restCount + 1)) for each rest day i
+    for (let i = 0; i < restCount; i++) {
+      // Space rest days evenly - place after every N training days
+      const pos = Math.round(((i + 1) * total) / (restCount + 1));
+      restPositions.add(Math.min(pos, total - 1)); // Clamp to valid range
+    }
+    
+    // Build the final schedule
+    const allDays: DayTemplate[] = [];
+    let trainingIdx = 0;
+    
+    for (let dayIdx = 0; dayIdx < total; dayIdx++) {
+      if (restPositions.has(dayIdx)) {
+        allDays.push({
+          dayIndex: dayIdx,
+          label: "Rest Day",
+          items: []
+        });
+      } else if (trainingIdx < trainingCount) {
+        allDays.push({
+          ...trainingDays[trainingIdx],
+          dayIndex: dayIdx
+        });
+        trainingIdx++;
+      }
+    }
+    
+    // Handle edge case: more rest than training - add remaining rest days at end
+    while (allDays.length < total) {
+      allDays.push({
+        dayIndex: allDays.length,
+        label: "Rest Day",
+        items: []
+      });
+    }
+    
+    return allDays;
+  }
+  
   // Always generate Full Body option (adapts to any number of days)
   {
-    const days: DayTemplate[] = [];
+    const trainingDays: DayTemplate[] = [];
     for (let i = 0; i < daysPerWeek; i++) {
       const labels = ["Full Body A", "Full Body B", "Full Body C", "Full Body D", "Full Body E", "Full Body F"];
-      days.push(buildFullBodyDay(labels[i % 6], i, availableEquipment, experience));
+      trainingDays.push(buildFullBodyDay(labels[i % 6], i, availableEquipment, experience));
     }
+    const days = addRestDays(trainingDays, restDaysPerWeek);
     templates.push({
       name: `Full Body ${daysPerWeek}x`,
-      description: `${daysPerWeek} full body workouts per week. Hit all muscle groups each session.`,
-      cycleLength: daysPerWeek,
+      description: `${daysPerWeek} training days + ${restDaysPerWeek} rest day${restDaysPerWeek !== 1 ? 's' : ''} per cycle.`,
+      cycleLength: totalCycleLength,
       days,
     });
   }
   
   // Always generate Upper/Lower option (adapts to any number of days)
   {
-    const days: DayTemplate[] = [];
+    const trainingDays: DayTemplate[] = [];
     const pattern = ["Upper A", "Lower A", "Upper B", "Lower B", "Upper C", "Lower C"];
     for (let i = 0; i < daysPerWeek; i++) {
       const label = pattern[i % 6];
       if (label.includes("Upper")) {
-        days.push(buildUpperDay(label, i, availableEquipment, experience, label.includes("A") ? "A" : "B"));
+        trainingDays.push(buildUpperDay(label, i, availableEquipment, experience, label.includes("A") ? "A" : "B"));
       } else {
-        days.push(buildLowerDay(label, i, availableEquipment, experience));
+        trainingDays.push(buildLowerDay(label, i, availableEquipment, experience));
       }
     }
+    const days = addRestDays(trainingDays, restDaysPerWeek);
     templates.push({
       name: `Upper/Lower ${daysPerWeek}x`,
-      description: `Alternating upper and lower body workouts. Balanced muscle development.`,
-      cycleLength: daysPerWeek,
+      description: `${daysPerWeek} training days + ${restDaysPerWeek} rest day${restDaysPerWeek !== 1 ? 's' : ''} per cycle.`,
+      cycleLength: totalCycleLength,
       days,
     });
   }
   
   // Always generate PPL option (adapts to any number of days)
   {
-    const days: DayTemplate[] = [];
+    const trainingDays: DayTemplate[] = [];
     const pplCycle = [
       { label: "Push", build: buildPushDay },
       { label: "Pull", build: buildPullDay },
@@ -310,12 +370,13 @@ export function generateCycleTemplates(params: {
     for (let i = 0; i < daysPerWeek; i++) {
       const template = pplCycle[i % 3];
       const suffix = Math.floor(i / 3) > 0 ? ` ${Math.floor(i / 3) + 1}` : "";
-      days.push(template.build(`${template.label}${suffix}`, i, availableEquipment, experience));
+      trainingDays.push(template.build(`${template.label}${suffix}`, i, availableEquipment, experience));
     }
+    const days = addRestDays(trainingDays, restDaysPerWeek);
     templates.push({
       name: `PPL ${daysPerWeek}x`,
-      description: `Push/Pull/Legs split. Great for ${goal === "muscle" ? "muscle building" : "strength training"}.`,
-      cycleLength: daysPerWeek,
+      description: `${daysPerWeek} training days + ${restDaysPerWeek} rest day${restDaysPerWeek !== 1 ? 's' : ''} per cycle.`,
+      cycleLength: totalCycleLength,
       days,
     });
   }
