@@ -2050,13 +2050,8 @@ export class DatabaseStorage implements IStorage {
         return "rest";
       }
       
-      // If autoAssignCycle is true, non-rest days are workout days even without exercises
-      if (phase.autoAssignCycle) {
-        // Day is NOT in restDays = it's a workout day
-        return "workout";
-      }
-      
-      // No explicit exercises and not autoAssignCycle - treat as rest
+      // If no exercises are scheduled for this day, it's effectively a rest day
+      // (regardless of autoAssignCycle - a day without exercises can't be "missed")
       return "rest";
     }
     
