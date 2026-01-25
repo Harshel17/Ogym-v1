@@ -3,7 +3,7 @@ import {
   gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests, announcements, userNotificationPreferences, announcementReads,
   membershipPlans, memberSubscriptions, paymentTransactions, workoutSessions, workoutSessionExercises,
   gymRequests, joinRequests, gymSubscriptions, workoutTemplates, workoutTemplateItems, bodyMeasurements, memberNotes,
-  workoutPlanSets, workoutLogs, workoutLogExercises, workoutLogSets, cycleDayActions,
+  workoutPlanSets, workoutLogs, workoutLogExercises, workoutLogSets, cycleDayActions, cycleScheduleOverrides,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
@@ -44,6 +44,7 @@ import {
   type TournamentParticipant, type InsertTournamentParticipant,
   type MemberRestDaySwap, type InsertMemberRestDaySwap,
   type CycleDayAction, type InsertCycleDayAction,
+  type CycleScheduleOverride, type InsertCycleScheduleOverride,
   trainingPhases, phaseExercises, type TrainingPhase, type InsertTrainingPhase, type PhaseExercise, type InsertPhaseExercise,
   userProfiles, type UserProfile,
   passwordResetCodes, type PasswordResetCode, type InsertPasswordResetCode,
@@ -604,6 +605,12 @@ export interface IStorage {
   getCycleDayActionsInRange(memberId: number, cycleId: number, from: string, to: string): Promise<CycleDayAction[]>;
   getScheduleOverrides(memberId: number, cycleId: number): Promise<MemberRestDaySwap[]>;
   createScheduleOverride(data: InsertMemberRestDaySwap): Promise<MemberRestDaySwap>;
+  
+  // Cycle Schedule Overrides (SWAP/PUSH reordering)
+  getCycleScheduleOverrideForDate(memberId: number, cycleId: number, date: string): Promise<CycleScheduleOverride | null>;
+  getCycleScheduleOverrides(memberId: number, cycleId: number): Promise<CycleScheduleOverride[]>;
+  createCycleScheduleOverride(data: InsertCycleScheduleOverride): Promise<CycleScheduleOverride>;
+  clearCycleScheduleOverrides(memberId: number, cycleId: number, fromDate: string): Promise<void>;
   
   // Gym Requests (Owner onboarding)
   createGymRequest(data: InsertGymRequest): Promise<GymRequest>;
@@ -5799,6 +5806,45 @@ export class DatabaseStorage implements IStorage {
   async createScheduleOverride(data: InsertMemberRestDaySwap): Promise<MemberRestDaySwap> {
     const [swap] = await db.insert(memberRestDaySwaps).values(data).returning();
     return swap;
+  }
+  
+  // === Cycle Schedule Overrides Methods (SWAP/PUSH reordering) ===
+  async getCycleScheduleOverrideForDate(memberId: number, cycleId: number, date: string): Promise<CycleScheduleOverride | null> {
+    const [override] = await db.select().from(cycleScheduleOverrides)
+      .where(and(
+        eq(cycleScheduleOverrides.memberId, memberId),
+        eq(cycleScheduleOverrides.cycleId, cycleId),
+        eq(cycleScheduleOverrides.date, date),
+        eq(cycleScheduleOverrides.isActive, true)
+      ))
+      .orderBy(desc(cycleScheduleOverrides.createdAt))
+      .limit(1);
+    return override || null;
+  }
+  
+  async getCycleScheduleOverrides(memberId: number, cycleId: number): Promise<CycleScheduleOverride[]> {
+    return db.select().from(cycleScheduleOverrides)
+      .where(and(
+        eq(cycleScheduleOverrides.memberId, memberId),
+        eq(cycleScheduleOverrides.cycleId, cycleId),
+        eq(cycleScheduleOverrides.isActive, true)
+      ))
+      .orderBy(cycleScheduleOverrides.date);
+  }
+  
+  async createCycleScheduleOverride(data: InsertCycleScheduleOverride): Promise<CycleScheduleOverride> {
+    const [override] = await db.insert(cycleScheduleOverrides).values(data).returning();
+    return override;
+  }
+  
+  async clearCycleScheduleOverrides(memberId: number, cycleId: number, fromDate: string): Promise<void> {
+    await db.update(cycleScheduleOverrides)
+      .set({ isActive: false })
+      .where(and(
+        eq(cycleScheduleOverrides.memberId, memberId),
+        eq(cycleScheduleOverrides.cycleId, cycleId),
+        gte(cycleScheduleOverrides.date, fromDate)
+      ));
   }
   
   // === Gym Requests Methods ===
