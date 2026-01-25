@@ -1267,33 +1267,42 @@ export async function registerRoutes(
       const completedItemIds = new Set(completions.filter(c => c.status === 'completed').map(c => c.workoutItemId));
       const skippedItemIds = new Set(completions.filter(c => c.status === 'skipped').map(c => c.workoutItemId));
       
-      const currentDayIndex = cycle.currentDayIndex ?? 0;
-      const todayItems = allItems.filter(item => item.dayIndex === currentDayIndex);
-      const dayLabel = cycle.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
+      let effectiveDayIndex = cycle.currentDayIndex ?? 0;
+      let effectiveItems = allItems.filter(item => item.dayIndex === effectiveDayIndex);
+      let dayLabel = cycle.dayLabels?.[effectiveDayIndex] || `Day ${effectiveDayIndex + 1}`;
+      
+      // Check for SWAP/PUSH reorder overrides
+      const scheduleOverride = await storage.getCycleScheduleOverrideForDate(req.user!.id, cycle.id, todayStr);
+      if (scheduleOverride) {
+        effectiveDayIndex = scheduleOverride.dayIndex;
+        effectiveItems = allItems.filter(item => item.dayIndex === effectiveDayIndex);
+        dayLabel = cycle.dayLabels?.[effectiveDayIndex] || `Day ${effectiveDayIndex + 1}`;
+      }
       
       // Check if this is a rest day (from restDays array, day label, or no exercises)
-      const isRestDay = (cycle.restDays?.includes(currentDayIndex)) || 
+      const isRestDay = (cycle.restDays?.includes(effectiveDayIndex)) || 
                         (dayLabel?.toLowerCase().includes("rest")) || 
-                        todayItems.length === 0;
+                        effectiveItems.length === 0;
       
       // Check if day was manually marked as done (Personal Mode - gymId is null)
       const session = await storage.getWorkoutSessionByMemberDate(null, req.user!.id, todayStr);
       const dayManuallyCompleted = session?.isManuallyCompleted === true;
       
       return res.json({
-        items: todayItems.map(item => ({
+        items: effectiveItems.map(item => ({
           ...item,
           completed: dayManuallyCompleted || completedItemIds.has(item.id),
           skipped: skippedItemIds.has(item.id)
         })),
-        currentDayIndex,
+        currentDayIndex: effectiveDayIndex,
         cycleId: cycle.id,
         cycleName: cycle.name,
         cycleLength: cycle.cycleLength,
         dayLabel,
         isRestDay,
         progressionMode: cycle.progressionMode,
-        dayManuallyCompleted
+        dayManuallyCompleted,
+        hasReorderOverride: !!scheduleOverride
       });
     }
     
@@ -1419,6 +1428,19 @@ export async function registerRoutes(
       effectiveItems = [];
     }
     
+    // Check for SWAP/PUSH reorder overrides
+    const scheduleOverride = await storage.getCycleScheduleOverrideForDate(req.user!.id, cycle.id, todayStr);
+    if (scheduleOverride) {
+      effectiveDayIndex = scheduleOverride.dayIndex;
+      const reorderedItems = await storage.getWorkoutItemsByDay(cycle.id, effectiveDayIndex);
+      const reorderedItemsWithStatus = reorderedItems.map(i => ({
+        ...i,
+        completed: completedIds.has(i.id)
+      }));
+      effectiveItems = reorderedItemsWithStatus;
+      effectiveIsRestDay = reorderedItems.length === 0;
+    }
+    
     // Check if tomorrow can be swapped (for UI)
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -1443,7 +1465,8 @@ export async function registerRoutes(
       canSwapRestDay,
       tomorrowDayIndex,
       progressionMode: cycle.progressionMode || "calendar",
-      wasAutoReset
+      wasAutoReset,
+      hasReorderOverride: !!scheduleOverride
     });
   });
   
@@ -1932,6 +1955,238 @@ export async function registerRoutes(
       cycleLength: cycle.cycleLength,
       progressionMode: cycle.progressionMode
     });
+  });
+
+  // REORDER - "Do Another Workout" with SWAP or PUSH
+  // Works for both trainer-assigned and personal cycles
+  // Works for both completion-based and calendar-based cycles
+  app.post("/api/workouts/reorder", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      cycleId: z.number(),
+      targetDayIndex: z.number(), // The day the user wants to do instead
+      action: z.enum(["swap", "push"])
+    });
+    const input = schema.safeParse(req.body);
+    if (!input.success) {
+      return res.status(400).json({ message: "Invalid request", errors: input.error.errors });
+    }
+    
+    const { cycleId, targetDayIndex, action } = input.data;
+    const todayStr = getLocalDate(req);
+    
+    // Verify the cycle belongs to this user
+    const source = req.user!.gymId ? 'trainer' : 'self';
+    const cycle = await storage.getMemberCycle(req.user!.id, source);
+    
+    if (!cycle || cycle.id !== cycleId) {
+      return res.status(400).json({ message: "Invalid cycle or cycle not found" });
+    }
+    
+    // Get all workout items to validate targetDayIndex
+    const allItems = await storage.getWorkoutItems(cycleId);
+    const targetDayItems = allItems.filter(item => item.dayIndex === targetDayIndex);
+    
+    if (targetDayItems.length === 0) {
+      return res.status(400).json({ message: "Target day has no exercises (is a rest day)" });
+    }
+    
+    // Calculate current day index based on progression mode
+    let currentDayIndex: number;
+    if (cycle.progressionMode === "completion") {
+      currentDayIndex = cycle.currentDayIndex ?? 0;
+    } else {
+      // Calendar-based: calculate from start date
+      const today = new Date(todayStr + 'T00:00:00');
+      const startDate = new Date(cycle.startDate);
+      const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    }
+    
+    // Validate: can't reorder to the same day you're already on
+    if (targetDayIndex === currentDayIndex) {
+      return res.status(400).json({ message: "You're already on this workout day" });
+    }
+    
+    // Clear any existing reorder overrides from today onwards
+    await storage.clearCycleScheduleOverrides(req.user!.id, cycleId, todayStr);
+    
+    // Get the list of workout day indices (excluding rest days)
+    const workoutDays: number[] = [];
+    for (let i = 0; i < cycle.cycleLength; i++) {
+      const dayItems = allItems.filter(item => item.dayIndex === i);
+      const label = cycle.dayLabels?.[i] || `Day ${i + 1}`;
+      const isRestDay = cycle.restDays?.includes(i) || label.toLowerCase().includes("rest") || dayItems.length === 0;
+      if (!isRestDay) {
+        workoutDays.push(i);
+      }
+    }
+    
+    if (cycle.progressionMode === "completion") {
+      // COMPLETION-BASED REORDER
+      // For completion mode, we modify the cycle's effective day order
+      // SWAP: swap currentDayIndex with targetDayIndex in the remaining sequence
+      // PUSH: move targetDayIndex to front, shift others forward
+      
+      const currentPos = workoutDays.indexOf(currentDayIndex);
+      const targetPos = workoutDays.indexOf(targetDayIndex);
+      
+      if (currentPos === -1 || targetPos === -1) {
+        return res.status(400).json({ message: "Invalid workout day selection" });
+      }
+      
+      // Create a copy of workoutDays for reordering
+      let newOrder = [...workoutDays];
+      
+      if (action === "swap") {
+        // Swap positions
+        [newOrder[currentPos], newOrder[targetPos]] = [newOrder[targetPos], newOrder[currentPos]];
+      } else {
+        // PUSH: remove target and insert at current position
+        newOrder.splice(targetPos, 1);
+        newOrder.splice(currentPos, 0, targetDayIndex);
+      }
+      
+      // Create override for today: do targetDayIndex workout
+      await storage.createCycleScheduleOverride({
+        gymId: req.user!.gymId || null,
+        memberId: req.user!.id,
+        cycleId,
+        date: todayStr,
+        dayIndex: targetDayIndex,
+        action,
+        originalDayIndex: currentDayIndex
+      });
+      
+      // Store overrides for the remaining reordered days
+      const remainingDays = newOrder.slice(currentPos + 1);
+      let dateOffset = 1;
+      for (const dayIdx of remainingDays) {
+        const futureDate = new Date(todayStr + 'T00:00:00');
+        futureDate.setDate(futureDate.getDate() + dateOffset);
+        const futureDateStr = futureDate.toISOString().split('T')[0];
+        
+        const originalSequenceDayIdx = workoutDays[(currentPos + dateOffset) % workoutDays.length];
+        if (dayIdx !== originalSequenceDayIdx) {
+          await storage.createCycleScheduleOverride({
+            gymId: req.user!.gymId || null,
+            memberId: req.user!.id,
+            cycleId,
+            date: futureDateStr,
+            dayIndex: dayIdx,
+            action,
+            originalDayIndex: originalSequenceDayIdx
+          });
+        }
+        dateOffset++;
+      }
+      
+      const targetLabel = cycle.dayLabels?.[targetDayIndex] || `Day ${targetDayIndex + 1}`;
+      
+      res.json({
+        message: action === "swap" 
+          ? `Swapped today's workout with ${targetLabel}` 
+          : `Doing ${targetLabel} today, other workouts shifted forward`,
+        action,
+        newOrder,
+        todayWorkout: {
+          dayIndex: targetDayIndex,
+          label: targetLabel,
+          items: targetDayItems
+        }
+      });
+      
+    } else {
+      // CALENDAR-BASED REORDER
+      // For calendar mode, we create date-to-dayIndex mappings
+      // SWAP: swap today's date and target's date workouts
+      // PUSH: rotate workouts from target to today
+      
+      const startDate = new Date(cycle.startDate);
+      const today = new Date(todayStr + 'T00:00:00');
+      const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Find the next occurrence of targetDayIndex from today
+      let targetDateOffset = 0;
+      for (let i = 0; i < cycle.cycleLength; i++) {
+        const checkDayIndex = (daysSinceStart + i) % cycle.cycleLength;
+        if (checkDayIndex === targetDayIndex) {
+          targetDateOffset = i;
+          break;
+        }
+      }
+      
+      if (action === "swap") {
+        // SWAP: create two overrides - one for today, one for target date
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + targetDateOffset);
+        const targetDateStr = targetDate.toISOString().split('T')[0];
+        
+        // Today does targetDayIndex workout
+        await storage.createCycleScheduleOverride({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId,
+          date: todayStr,
+          dayIndex: targetDayIndex,
+          action,
+          originalDayIndex: currentDayIndex
+        });
+        
+        // Target date does currentDayIndex workout (if different from today)
+        if (targetDateOffset > 0) {
+          await storage.createCycleScheduleOverride({
+            gymId: req.user!.gymId || null,
+            memberId: req.user!.id,
+            cycleId,
+            date: targetDateStr,
+            dayIndex: currentDayIndex,
+            action,
+            originalDayIndex: targetDayIndex
+          });
+        }
+        
+      } else {
+        // PUSH: rotate workouts so target becomes today, others shift forward
+        for (let i = 0; i <= targetDateOffset; i++) {
+          const overrideDate = new Date(today);
+          overrideDate.setDate(today.getDate() + i);
+          const overrideDateStr = overrideDate.toISOString().split('T')[0];
+          
+          let newDayIndex: number;
+          if (i === 0) {
+            newDayIndex = targetDayIndex;
+          } else {
+            newDayIndex = (daysSinceStart + i - 1) % cycle.cycleLength;
+          }
+          
+          const originalDayForDate = (daysSinceStart + i) % cycle.cycleLength;
+          
+          await storage.createCycleScheduleOverride({
+            gymId: req.user!.gymId || null,
+            memberId: req.user!.id,
+            cycleId,
+            date: overrideDateStr,
+            dayIndex: newDayIndex,
+            action,
+            originalDayIndex: originalDayForDate
+          });
+        }
+      }
+      
+      const targetLabel = cycle.dayLabels?.[targetDayIndex] || `Day ${targetDayIndex + 1}`;
+      
+      res.json({
+        message: action === "swap" 
+          ? `Swapped today's workout with ${targetLabel}` 
+          : `Doing ${targetLabel} today, schedule shifted`,
+        action,
+        todayWorkout: {
+          dayIndex: targetDayIndex,
+          label: targetLabel,
+          items: targetDayItems
+        }
+      });
+    }
   });
 
   app.post("/api/workouts/complete", requireRole(["member"]), async (req, res) => {
