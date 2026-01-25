@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Loader2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,32 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon } from './dika-icons';
+
+function useVisualViewportHeight() {
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const handleResize = () => {
+      const windowHeight = window.innerHeight;
+      const viewportHeight = viewport.height;
+      const newKeyboardHeight = Math.max(0, windowHeight - viewportHeight);
+      setKeyboardHeight(newKeyboardHeight);
+    };
+
+    viewport.addEventListener('resize', handleResize);
+    viewport.addEventListener('scroll', handleResize);
+    
+    return () => {
+      viewport.removeEventListener('resize', handleResize);
+      viewport.removeEventListener('scroll', handleResize);
+    };
+  }, []);
+
+  return keyboardHeight;
+}
 
 interface DikaMessage {
   id: string;
@@ -42,10 +68,18 @@ export function DikaDrawer({
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const keyboardHeight = useVisualViewportHeight();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (keyboardHeight > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [keyboardHeight]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +103,8 @@ export function DikaDrawer({
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent 
         side="right" 
-        className="w-full sm:max-w-md flex flex-col p-0"
+        className="w-full sm:max-w-md flex flex-col p-0 h-[100dvh]"
+        style={{ paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined }}
         data-testid="drawer-dika"
       >
         <SheetHeader className="px-4 py-3 border-b flex-shrink-0 pr-12">
@@ -198,14 +233,17 @@ export function DikaDrawer({
 
         <form 
           onSubmit={handleSubmit} 
-          className="p-4 border-t flex gap-2 flex-shrink-0"
+          className="p-4 border-t flex gap-2 flex-shrink-0 bg-background safe-area-bottom"
+          style={{ paddingBottom: `max(1rem, env(safe-area-inset-bottom))` }}
         >
           <Input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask a question..."
             disabled={isLoading}
             className="flex-1"
+            enterKeyHint="send"
             data-testid="input-dika-message"
           />
           <Button
