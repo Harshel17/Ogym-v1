@@ -49,7 +49,7 @@ function parseDate(dateRef: string): string {
   const today = new Date();
   const normalized = dateRef.toLowerCase().trim();
   
-  if (normalized === 'today') {
+  if (normalized === 'today' || !normalized) {
     return today.toISOString().split('T')[0];
   }
   
@@ -59,6 +59,74 @@ function parseDate(dateRef: string): string {
     return yesterday.toISOString().split('T')[0];
   }
   
+  // Handle weekday names (monday, tuesday, etc.) - find the most recent occurrence
+  const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const weekdayIndex = weekdays.indexOf(normalized);
+  if (weekdayIndex !== -1) {
+    const currentDay = today.getDay();
+    let daysAgo = currentDay - weekdayIndex;
+    if (daysAgo <= 0) daysAgo += 7; // Go to previous week if needed
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() - daysAgo);
+    return targetDate.toISOString().split('T')[0];
+  }
+  
+  // Handle "last <weekday>" - always go to previous week
+  const lastWeekdayMatch = normalized.match(/^last\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/);
+  if (lastWeekdayMatch) {
+    const targetDayIndex = weekdays.indexOf(lastWeekdayMatch[1]);
+    const currentDay = today.getDay();
+    let daysAgo = currentDay - targetDayIndex;
+    if (daysAgo <= 0) daysAgo += 7;
+    daysAgo += 7; // Add another week for "last"
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() - daysAgo);
+    return targetDate.toISOString().split('T')[0];
+  }
+  
+  // Handle ISO format (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return normalized;
+  }
+  
+  // Handle "jan 15", "january 15", etc.
+  const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  const monthFull = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+  const monthDayMatch = normalized.match(/^(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?$/i);
+  if (monthDayMatch) {
+    const monthName = monthDayMatch[1].toLowerCase();
+    const day = parseInt(monthDayMatch[2], 10);
+    let monthIndex = months.findIndex(m => monthName.startsWith(m));
+    if (monthIndex === -1) monthIndex = monthFull.indexOf(monthName);
+    if (monthIndex !== -1 && day >= 1 && day <= 31) {
+      const year = today.getFullYear();
+      const targetDate = new Date(year, monthIndex, day);
+      // If the date is in the future, go to previous year
+      if (targetDate > today) {
+        targetDate.setFullYear(year - 1);
+      }
+      return targetDate.toISOString().split('T')[0];
+    }
+  }
+  
+  // Handle "<day> <month>" format (e.g., "15 january")
+  const dayMonthMatch = normalized.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)$/i);
+  if (dayMonthMatch) {
+    const day = parseInt(dayMonthMatch[1], 10);
+    const monthName = dayMonthMatch[2].toLowerCase();
+    let monthIndex = months.findIndex(m => monthName.startsWith(m));
+    if (monthIndex === -1) monthIndex = monthFull.indexOf(monthName);
+    if (monthIndex !== -1 && day >= 1 && day <= 31) {
+      const year = today.getFullYear();
+      const targetDate = new Date(year, monthIndex, day);
+      if (targetDate > today) {
+        targetDate.setFullYear(year - 1);
+      }
+      return targetDate.toISOString().split('T')[0];
+    }
+  }
+  
+  // Default to today if we can't parse
   return today.toISOString().split('T')[0];
 }
 
