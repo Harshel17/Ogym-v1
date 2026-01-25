@@ -250,6 +250,7 @@ export interface IStorage {
   
   // Profile
   updateUserProfile(userId: number, data: { email?: string; phone?: string }): Promise<User>;
+  updateUserDikaSettings(userId: number, data: { hideDika?: boolean }): Promise<User>;
   getFullMemberProfile(memberId: number): Promise<any>;
   getTrainerProfile(trainerId: number): Promise<any>;
   
@@ -2687,6 +2688,14 @@ export class DatabaseStorage implements IStorage {
 
   // === Profile Methods ===
   async updateUserProfile(userId: number, data: { email?: string; phone?: string }): Promise<User> {
+    const [user] = await db.update(users)
+      .set(data)
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async updateUserDikaSettings(userId: number, data: { hideDika?: boolean }): Promise<User> {
     const [user] = await db.update(users)
       .set(data)
       .where(eq(users.id, userId))

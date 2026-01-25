@@ -74,6 +74,8 @@ export const users = pgTable("users", {
   phone: text("phone"),
   autoPostEnabled: boolean("auto_post_enabled").default(true),
   onboardingCompleted: boolean("onboarding_completed").default(false),
+  hideDika: boolean("hide_dika").default(false),
+  dikaIconPreference: text("dika_icon_preference").default("circle"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

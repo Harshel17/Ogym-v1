@@ -13,6 +13,7 @@ import { db } from "./db";
 import { workoutLogs, workoutLogExercises } from "@shared/schema";
 import { eq, and, isNotNull, inArray } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
+import { handleDikaQuery, getSuggestionChips } from "./dika";
 
 function getAdminJwtSecret(): string {
   const secret = process.env.SESSION_SECRET;
@@ -3859,6 +3860,59 @@ export async function registerRoutes(
     
     const updated = await storage.respondToRequest(requestId, input.response);
     res.json(updated);
+  });
+
+  // === DIKA AI ASSISTANT ===
+  app.post("/api/dika/ask", requireAuth, async (req, res) => {
+    const schema = z.object({
+      message: z.string().min(1).max(500),
+    });
+    
+    const input = schema.safeParse(req.body);
+    if (!input.success) {
+      return res.status(400).json({ message: "Invalid request", errors: input.error.errors });
+    }
+    
+    const user = req.user!;
+    const role = user.role as 'member' | 'trainer' | 'owner';
+    
+    try {
+      const response = await handleDikaQuery(
+        user.id,
+        role,
+        user.gymId || null,
+        input.data.message
+      );
+      
+      res.json(response);
+    } catch (error) {
+      console.error('Dika query error:', error);
+      res.status(500).json({ answer: "Sorry, I encountered an error. Please try again." });
+    }
+  });
+  
+  app.get("/api/dika/suggestions", requireAuth, async (req, res) => {
+    const user = req.user!;
+    const role = user.role as 'member' | 'trainer' | 'owner';
+    const suggestions = getSuggestionChips(role, user.gymId || null);
+    res.json({ suggestions });
+  });
+  
+  app.patch("/api/dika/settings", requireAuth, async (req, res) => {
+    const schema = z.object({
+      hideDika: z.boolean().optional(),
+    });
+    
+    const input = schema.safeParse(req.body);
+    if (!input.success) {
+      return res.status(400).json({ message: "Invalid request" });
+    }
+    
+    if (input.data.hideDika !== undefined) {
+      await storage.updateUserDikaSettings(req.user!.id, { hideDika: input.data.hideDika });
+    }
+    
+    res.json({ success: true });
   });
 
   // === PROFILE ROUTES ===
