@@ -107,6 +107,14 @@ function normalizeMessage(message: string): string {
     'memebers': 'members',
     'workou': 'workout',
     'workot': 'workout',
+    'tomorow': 'tomorrow',
+    'tommorow': 'tomorrow',
+    'tommorrow': 'tomorrow',
+    'tomorro': 'tomorrow',
+    'tomrrow': 'tomorrow',
+    'yesturday': 'yesterday',
+    'yesteday': 'yesterday',
+    'yesterdy': 'yesterday',
   };
   
   for (const [from, to] of Object.entries(synonyms)) {
