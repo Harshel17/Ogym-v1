@@ -17,6 +17,7 @@ import {
 import {
   getMemberWeeklyWorkouts,
   getMemberMonthlyWorkoutCount,
+  getMemberWorkoutLogsDetailed,
   getMemberCurrentCycle,
   getMemberLastRestDay,
   getMemberSkippedThisWeek,
@@ -129,9 +130,10 @@ function getFollowUpChips(intent: DikaIntent, role: UserRole): string[] {
     'owner_not_checked_in_today': ['Who checked in today?', 'Total members'],
     'owner_active_memberships': ['Who checked in today?', 'Who has not paid?'],
     'owner_active_members_today': ['Show names', 'Who did not check in?'],
-    'member_weekly_workouts': ['My workout count this month', 'What is my cycle?'],
-    'member_monthly_workout_count': ['My workouts this week', 'My current cycle'],
+    'member_weekly_workouts': ['My workout count this month', 'Show my workout logs'],
+    'member_monthly_workout_count': ['My workouts this week', 'Show my workout logs'],
     'member_current_cycle': ['My workouts this week', 'My workout count'],
+    'member_workout_logs_detailed': ['Yesterday\'s workout', 'My workout count this month'],
     'trainer_members_skipped_this_week': ['Who checked in today?', 'My workouts'],
   };
   
@@ -163,6 +165,9 @@ async function executeIntent(
       
     case 'member_skipped_this_week':
       return getMemberSkippedThisWeek(userId, gymId);
+      
+    case 'member_workout_logs_detailed':
+      return getMemberWorkoutLogsDetailed(userId, gymId, dateRef);
       
     case 'trainer_member_workout_on_date':
       if (!gymId) {

@@ -202,6 +202,105 @@ export async function getMemberMonthlyWorkoutCount(memberId: number, gymId: numb
   return `You've worked out on ${count} day${count === 1 ? '' : 's'} this ${monthName}.`;
 }
 
+export async function getMemberWorkoutLogsDetailed(memberId: number, gymId: number | null, dateRef?: string): Promise<string> {
+  let targetDate: string;
+  let dateLabel: string;
+  
+  if (dateRef?.toLowerCase() === 'yesterday') {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    targetDate = yesterday.toISOString().split('T')[0];
+    dateLabel = 'yesterday';
+  } else if (dateRef?.toLowerCase() === 'today') {
+    targetDate = new Date().toISOString().split('T')[0];
+    dateLabel = 'today';
+  } else {
+    // Default: show recent workouts (last 7 days)
+    const { start, end } = getWeekRange();
+    
+    const completions = await db.select({
+      completedDate: workoutCompletions.completedDate,
+      exerciseName: workoutItems.exerciseName,
+      muscleType: workoutItems.muscleType,
+      actualSets: workoutCompletions.actualSets,
+      actualReps: workoutCompletions.actualReps,
+      actualWeight: workoutCompletions.actualWeight,
+    })
+    .from(workoutCompletions)
+    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .where(
+      and(
+        eq(workoutCompletions.memberId, memberId),
+        gte(workoutCompletions.completedDate, start),
+        lte(workoutCompletions.completedDate, end)
+      )
+    )
+    .orderBy(desc(workoutCompletions.completedDate));
+    
+    if (completions.length === 0) {
+      return "You haven't logged any workouts this week yet. Complete a workout and mark it as done to see logs here!";
+    }
+    
+    const byDate = new Map<string, typeof completions>();
+    for (const c of completions) {
+      if (!byDate.has(c.completedDate)) {
+        byDate.set(c.completedDate, []);
+      }
+      byDate.get(c.completedDate)!.push(c);
+    }
+    
+    const lines: string[] = ["Here are your recent workout logs:"];
+    for (const [date, exercises] of Array.from(byDate)) {
+      const dateObj = new Date(date + 'T00:00:00');
+      const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      lines.push(`\n${dayName}:`);
+      for (const ex of exercises) {
+        const details = [];
+        if (ex.actualSets) details.push(`${ex.actualSets} sets`);
+        if (ex.actualReps) details.push(`${ex.actualReps} reps`);
+        if (ex.actualWeight) details.push(ex.actualWeight);
+        const detailStr = details.length > 0 ? ` (${details.join(', ')})` : '';
+        lines.push(`• ${ex.exerciseName}${detailStr}`);
+      }
+    }
+    
+    return lines.join('\n');
+  }
+  
+  // For specific date (today/yesterday)
+  const completions = await db.select({
+    exerciseName: workoutItems.exerciseName,
+    muscleType: workoutItems.muscleType,
+    actualSets: workoutCompletions.actualSets,
+    actualReps: workoutCompletions.actualReps,
+    actualWeight: workoutCompletions.actualWeight,
+  })
+  .from(workoutCompletions)
+  .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+  .where(
+    and(
+      eq(workoutCompletions.memberId, memberId),
+      eq(workoutCompletions.completedDate, targetDate)
+    )
+  );
+  
+  if (completions.length === 0) {
+    return `You didn't log any workouts ${dateLabel}.`;
+  }
+  
+  const lines: string[] = [`Here's what you did ${dateLabel}:`];
+  for (const ex of completions) {
+    const details = [];
+    if (ex.actualSets) details.push(`${ex.actualSets} sets`);
+    if (ex.actualReps) details.push(`${ex.actualReps} reps`);
+    if (ex.actualWeight) details.push(ex.actualWeight);
+    const detailStr = details.length > 0 ? ` - ${details.join(', ')}` : '';
+    lines.push(`• ${ex.exerciseName}${detailStr}`);
+  }
+  
+  return lines.join('\n');
+}
+
 export async function getMemberCurrentCycle(memberId: number, gymId: number | null): Promise<string> {
   const source = gymId ? 'trainer' : 'self';
   
