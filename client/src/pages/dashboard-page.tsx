@@ -10,9 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon } from "lucide-react";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
@@ -697,6 +698,13 @@ function MemberDashboard() {
   const [shareableAchievements, setShareableAchievements] = useState<{ type: string; label: string; metadata: Record<string, unknown> }[]>([]);
   const [currentAchievementIndex, setCurrentAchievementIndex] = useState(0);
   
+  // Do Another Workout state
+  const [reorderDialogOpen, setReorderDialogOpen] = useState(false);
+  const [reorderDays, setReorderDays] = useState<any[]>([]);
+  const [selectedReorderDay, setSelectedReorderDay] = useState<number | null>(null);
+  const [reorderAction, setReorderAction] = useState<"swap" | "push">("swap");
+  const { toast } = useToast();
+  
   const { data: attendance = [] } = useMemberAttendance();
   const { data: payments = [] } = useMemberPayments();
   const { data: stats } = useMemberStats();
@@ -749,6 +757,40 @@ function MemberDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/member/workout/missed'] });
     }
   });
+  
+  // Reorder workout mutation ("Do Another Workout")
+  const reorderMutation = useMutation({
+    mutationFn: async (data: { cycleId: number; targetDayIndex: number; action: "swap" | "push" }) => {
+      const res = await apiRequest("POST", "/api/workouts/reorder", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/member/workout/summary"] });
+      setReorderDialogOpen(false);
+      setSelectedReorderDay(null);
+      toast({ title: data.message });
+    },
+    onError: (error: any) => {
+      toast({ title: error.message || "Failed to change workout", variant: "destructive" });
+    }
+  });
+  
+  // Fetch available days for reordering
+  const openReorderDialog = async () => {
+    try {
+      const res = await apiRequest("GET", "/api/workouts/available-days", undefined);
+      const data = await res.json();
+      // Filter out current day and rest days
+      const availableForReorder = (data.days || []).filter((d: any) => 
+        d.dayIndex !== currentDayIndex && !d.isRestDay
+      );
+      setReorderDays(availableForReorder);
+      setReorderDialogOpen(true);
+    } catch (error) {
+      toast({ title: "Failed to fetch workout days", variant: "destructive" });
+    }
+  };
 
   const attendanceList = attendance as any[];
   const paymentsList = payments as any[];
@@ -1213,6 +1255,18 @@ function MemberDashboard() {
                       Mark Day as Done
                     </Button>
                   )}
+                  
+                  {!allCompleted && workoutItems.length > 0 && (
+                    <Button 
+                      variant="ghost"
+                      className="w-full mt-2"
+                      onClick={openReorderDialog}
+                      data-testid="button-different-workout"
+                    >
+                      <Shuffle className="w-4 h-4 mr-2" />
+                      Do a Different Workout
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -1347,6 +1401,124 @@ function MemberDashboard() {
             >
               <Check className="w-4 h-4 mr-2" />
               {markDayDoneMutation.isPending ? "Marking..." : "Yes, Mark as Done"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Do Another Workout / Reorder Dialog */}
+      <Dialog open={reorderDialogOpen} onOpenChange={setReorderDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shuffle className="w-5 h-5" />
+              Do a Different Workout
+            </DialogTitle>
+            <DialogDescription>
+              Choose which workout day you'd like to do today instead.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {reorderDays.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">
+                No other workout days available to switch to.
+              </p>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label>Select Workout Day</Label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {reorderDays.map((day: any) => (
+                      <button
+                        key={day.dayIndex}
+                        type="button"
+                        onClick={() => setSelectedReorderDay(day.dayIndex)}
+                        className={`w-full p-3 rounded-lg border text-left transition-colors ${
+                          selectedReorderDay === day.dayIndex
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:bg-muted/50'
+                        }`}
+                        data-testid={`reorder-day-${day.dayIndex}`}
+                      >
+                        <p className="font-medium">{day.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {day.exercises?.slice(0, 3).join(', ')}{day.exercises?.length > 3 ? '...' : ''}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {selectedReorderDay !== null && (
+                  <div className="space-y-2">
+                    <Label>Choose Action</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setReorderAction("swap")}
+                        className={`p-3 rounded-lg border text-center transition-colors ${
+                          reorderAction === "swap"
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:bg-muted/50'
+                        }`}
+                        data-testid="reorder-action-swap"
+                      >
+                        <ArrowLeftRight className="w-5 h-5 mx-auto mb-1" />
+                        <p className="text-sm font-medium">Swap</p>
+                        <p className="text-xs text-muted-foreground">Exchange positions</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReorderAction("push")}
+                        className={`p-3 rounded-lg border text-center transition-colors ${
+                          reorderAction === "push"
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:bg-muted/50'
+                        }`}
+                        data-testid="reorder-action-push"
+                      >
+                        <ArrowRight className="w-5 h-5 mx-auto mb-1" />
+                        <p className="text-sm font-medium">Do First</p>
+                        <p className="text-xs text-muted-foreground">Shifts others forward</p>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setReorderDialogOpen(false);
+                setSelectedReorderDay(null);
+              }}
+              data-testid="button-cancel-reorder"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedReorderDay !== null && workoutData?.cycleId) {
+                  reorderMutation.mutate({
+                    cycleId: workoutData.cycleId,
+                    targetDayIndex: selectedReorderDay,
+                    action: reorderAction
+                  });
+                }
+              }}
+              disabled={selectedReorderDay === null || reorderMutation.isPending}
+              data-testid="button-confirm-reorder"
+            >
+              {reorderMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Applying...
+                </>
+              ) : (
+                "Apply Change"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
