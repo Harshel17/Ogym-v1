@@ -2084,6 +2084,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMemberStats(memberId: number, gymId: number | null = null): Promise<{ streak: number; totalWorkouts: number; last7Days: number }> {
+    console.log(`[DEBUG getMemberStats] memberId=${memberId}, gymId=${gymId}`);
     // Get data from BOTH workout systems:
     // 1. workoutSessions - standalone sessions members create
     // 2. workoutCompletions - completions from trainer-assigned cycles
@@ -2113,6 +2114,10 @@ export class DatabaseStorage implements IStorage {
     
     // Pre-load schedule data for fast streak calculation
     const scheduleCache = await this.loadMemberScheduleData(memberId, gymId);
+    console.log(`[DEBUG] scheduleCache: directCycles=${scheduleCache.directCycles.length}, cycleExerciseDays keys=${Array.from(scheduleCache.cycleExerciseDays.keys())}`);
+    for (const [cycleId, days] of scheduleCache.cycleExerciseDays) {
+      console.log(`[DEBUG] Cycle ${cycleId} exercise days: ${Array.from(days).join(',')}`);
+    }
     
     // Smart rest day streak calculation:
     // - If today has a workout → count it, then check yesterday onwards
@@ -2142,10 +2147,13 @@ export class DatabaseStorage implements IStorage {
       
       if (hasWorkout) {
         streak++;
+        console.log(`[DEBUG] ${dateStr}: workout done, streak=${streak}`);
       } else {
         const dayStatus = this.getScheduledDayStatusFromCache(dateStr, scheduleCache);
+        console.log(`[DEBUG] ${dateStr}: no workout, dayStatus=${dayStatus}`);
         if (dayStatus === "workout") {
           // Scheduled workout was missed - streak breaks
+          console.log(`[DEBUG] STREAK BREAKS at ${dateStr} - missed scheduled workout`);
           break;
         }
         // Rest day or unplanned - streak continues (no increment)
@@ -2154,6 +2162,7 @@ export class DatabaseStorage implements IStorage {
       checkDate.setDate(checkDate.getDate() - 1);
     }
     
+    console.log(`[DEBUG] Final streak=${streak}`);
     return { streak, totalWorkouts, last7Days };
   }
 
