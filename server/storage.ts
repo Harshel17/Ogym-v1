@@ -5652,17 +5652,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async markDayDone(gymId: number | null, memberId: number, date: string): Promise<{ success: boolean; sessionId: number }> {
+    console.log(`[markDayDone] Starting: gymId=${gymId}, memberId=${memberId}, date=${date}`);
     const cycle = await this.getMemberCycle(memberId);
     if (!cycle) {
       throw new Error("No active cycle found");
     }
+    console.log(`[markDayDone] Found cycle: id=${cycle.id}, startDate=${cycle.startDate}, cycleLength=${cycle.cycleLength}`);
     
     // Calculate dayIndex for this date
-    const startDate = new Date(cycle.startDate);
-    const targetDate = new Date(date);
+    const startDate = new Date(cycle.startDate + "T00:00:00");
+    const targetDate = new Date(date + "T00:00:00");
     const daysSinceStart = Math.floor((targetDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     const dayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
     const dayLabel = cycle.dayLabels?.[dayIndex] || `Day ${dayIndex + 1}`;
+    console.log(`[markDayDone] Calculated: daysSinceStart=${daysSinceStart}, dayIndex=${dayIndex}, dayLabel=${dayLabel}`);
     
     // Check for existing session
     let session = await this.getWorkoutSessionByMemberDate(gymId, memberId, date);
@@ -5693,6 +5696,7 @@ export class DatabaseStorage implements IStorage {
     // Get all workout items for this day and create completion records for any missing ones
     const items = await this.getWorkoutItems(cycle.id);
     const dayItems = items.filter(item => item.dayIndex === dayIndex);
+    console.log(`[markDayDone] Total items for cycle: ${items.length}, Items for dayIndex ${dayIndex}: ${dayItems.length}`);
     
     // Check which items already have completions for this date
     const existingCompletions = await db.select({ workoutItemId: workoutCompletions.workoutItemId })
@@ -5704,8 +5708,10 @@ export class DatabaseStorage implements IStorage {
         )
       );
     const completedItemIds = new Set(existingCompletions.map(c => c.workoutItemId));
+    console.log(`[markDayDone] Existing completions: ${existingCompletions.length}, completed item IDs: ${Array.from(completedItemIds).join(',')}`);
     
     // Create completions for items that don't have them yet
+    let createdCount = 0;
     for (const item of dayItems) {
       if (!completedItemIds.has(item.id)) {
         await db.insert(workoutCompletions).values({
@@ -5718,8 +5724,10 @@ export class DatabaseStorage implements IStorage {
           actualReps: item.reps,
           actualWeight: item.weight
         });
+        createdCount++;
       }
     }
+    console.log(`[markDayDone] Created ${createdCount} new completion records`);
     
     return { success: true, sessionId };
   }
