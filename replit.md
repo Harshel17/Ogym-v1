@@ -42,6 +42,7 @@ Preferred communication style: Simple, everyday language.
 - **Daily Points:** Dynamically computed from workout completions.
 - **Walk-in Visitors:** Tracking for day passes, trials, and inquiries, including self check-in kiosk functionality.
 - **Personal Mode:** Members can use the app without joining a gym for self-managed workout tracking. Personal workouts use `source='self'` in `workout_cycles`, while gym-assigned workouts use `source='trainer'`. Data isolation is enforced via source filtering in storage queries.
+- **Dika Assistant:** AI-powered Q&A assistant that answers factual questions about workouts, attendance, and payments. Uses pattern-based intent classification with 10 predefined intents across member/trainer/owner roles. Read-only system (no advice/recommendations) with session-only context memory (3-5 turns). Frontend includes floating draggable button with icon picker (circle/sunflower/bat) and chat drawer UI with suggestion chips. User settings stored in `hide_dika` and `dika_icon_preference` columns in users table. Located at `server/dika/` (backend) and `client/src/components/dika/` (frontend).
 - **Production Security:** Helmet.js, secure session cookies, rate limiting, request body limits, session cleanup.
 - **Database Indexing:** Optimized for common queries (attendance, workout completions, payments, feed posts).
 - **Deployment:** Same-origin deployment via Express serving API and static frontend.
