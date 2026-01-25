@@ -422,6 +422,7 @@ function MemberProfileView() {
 
         <TransferGymCard />
         <AutoPostSettingsCard />
+        <DikaSettingsCard />
         <MyPostsCard />
       </div>
     </div>
@@ -1022,6 +1023,58 @@ function AutoPostSettingsCard() {
               data-testid="switch-auto-post"
             />
           )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DikaSettingsCard() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
+  const toggleMutation = useMutation({
+    mutationFn: async (hideDika: boolean) => {
+      const res = await apiRequest("PATCH", "/api/dika/settings", { hideDika });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({ 
+        title: user?.hideDika ? "Dika enabled" : "Dika hidden",
+        description: user?.hideDika 
+          ? "The Dika assistant button is now visible" 
+          : "Dika is now hidden from your screen"
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to update setting", variant: "destructive" });
+    }
+  });
+
+  return (
+    <Card className="md:col-span-2">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <MessageSquare className="w-5 h-5" />
+          Dika Assistant
+        </CardTitle>
+        <CardDescription>Your gym's memory - answers questions about workouts, attendance, and payments</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+          <div>
+            <p className="font-medium">Show Dika button</p>
+            <p className="text-sm text-muted-foreground">
+              When enabled, the floating Dika button appears on your screen for quick questions
+            </p>
+          </div>
+          <Switch
+            checked={!user?.hideDika}
+            onCheckedChange={(checked) => toggleMutation.mutate(!checked)}
+            disabled={toggleMutation.isPending}
+            data-testid="switch-dika"
+          />
         </div>
       </CardContent>
     </Card>

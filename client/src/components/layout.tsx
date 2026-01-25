@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useNotificationCounts } from "@/hooks/use-notifications";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dika } from "@/components/dika";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { 
   Drawer,
@@ -575,6 +576,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </DrawerContent>
       </Drawer>
+      
+      <Dika />
     </div>
   );
 }
