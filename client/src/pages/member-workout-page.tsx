@@ -152,6 +152,80 @@ export default function MemberWorkoutPage() {
   const swapRestDayMutation = useSwapRestDay();
   const undoSwapMutation = useUndoRestDaySwap();
   
+  // Rest Today / Train Anyway state
+  const [restTodayDialogOpen, setRestTodayDialogOpen] = useState(false);
+  const [trainAnywayDialogOpen, setTrainAnywayDialogOpen] = useState(false);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [pickDayDialogOpen, setPickDayDialogOpen] = useState(false);
+  const [availableDays, setAvailableDays] = useState<any[]>([]);
+  
+  // Rest Today mutation
+  const restTodayMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/workouts/rest-today", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/member/workout/summary"] });
+      setRestTodayDialogOpen(false);
+      toast({ 
+        title: "Rest day logged",
+        description: data.note
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: error.message || "Failed to log rest day", variant: "destructive" });
+    }
+  });
+  
+  // Train Anyway mutation (for rest days)
+  const trainAnywayMutation = useMutation({
+    mutationFn: async (data: { dayIndex?: number; asExtra?: boolean }) => {
+      const res = await apiRequest("POST", "/api/workouts/train-anyway", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/member/workout/summary"] });
+      setTrainAnywayDialogOpen(false);
+      setPickDayDialogOpen(false);
+      toast({ title: data.message });
+    },
+    onError: (error: any) => {
+      toast({ title: error.message || "Failed to start workout", variant: "destructive" });
+    }
+  });
+  
+  // Reschedule mutation (calendar mode only)
+  const rescheduleMutation = useMutation({
+    mutationFn: async (data: { action: string }) => {
+      const res = await apiRequest("POST", "/api/workouts/reschedule", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/member/workout/summary"] });
+      setRescheduleDialogOpen(false);
+      toast({ title: data.message });
+    },
+    onError: (error: any) => {
+      toast({ title: error.message || "Failed to reschedule", variant: "destructive" });
+    }
+  });
+  
+  // Fetch available days for "Pick Different Day"
+  const fetchAvailableDays = async () => {
+    try {
+      const res = await apiRequest("GET", "/api/workouts/available-days", undefined);
+      const data = await res.json();
+      setAvailableDays(data.days || []);
+      setPickDayDialogOpen(true);
+    } catch (error) {
+      toast({ title: "Failed to fetch available days", variant: "destructive" });
+    }
+  };
+  
   const [expandedExercise, setExpandedExercise] = useState<number | null>(null);
   const [exerciseInputs, setExerciseInputs] = useState<ExerciseInputs>({});
   const [perSetInputs, setPerSetInputs] = useState<PerSetInputs>({});
@@ -450,22 +524,53 @@ export default function MemberWorkoutPage() {
         </Card>
       ) : (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <div>
-              <CardTitle>Today - {today?.dayLabel || `Day ${(today?.dayIndex ?? 0) + 1}`}</CardTitle>
-              {today?.cycleName && (
-                <p className="text-sm text-muted-foreground">{today.cycleName}</p>
+          <CardHeader>
+            <div className="flex flex-row items-center justify-between gap-2">
+              <div>
+                <CardTitle>Today - {today?.dayLabel || `Day ${(today?.dayIndex ?? 0) + 1}`}</CardTitle>
+                {today?.cycleName && (
+                  <p className="text-sm text-muted-foreground">{today.cycleName}</p>
+                )}
+              </div>
+              {todayPoints && todayPoints.plannedPoints > 0 && (
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-500" />
+                  <div className="text-right" data-testid="points-today">
+                    <p className="text-lg font-bold">
+                      {todayPoints.earnedPoints}/{todayPoints.plannedPoints}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Points</p>
+                  </div>
+                </div>
               )}
             </div>
-            {todayPoints && todayPoints.plannedPoints > 0 && (
-              <div className="flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-500" />
-                <div className="text-right" data-testid="points-today">
-                  <p className="text-lg font-bold">
-                    {todayPoints.earnedPoints}/{todayPoints.plannedPoints}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Points</p>
-                </div>
+            {!today?.isRestDay && today?.items?.length > 0 && !today?.dayManuallyCompleted && (
+              <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setRestTodayDialogOpen(true)}
+                  data-testid="button-rest-today"
+                >
+                  <Moon className="w-4 h-4 mr-1" />
+                  Rest Today
+                </Button>
+                {today?.progressionMode === 'calendar' && (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setRescheduleDialogOpen(true)}
+                    data-testid="button-reschedule"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-1" />
+                    Reschedule
+                  </Button>
+                )}
+                <p className="text-xs text-muted-foreground ml-auto">
+                  {today?.progressionMode === 'completion' 
+                    ? "Flex schedule - complete when ready" 
+                    : "Calendar schedule"}
+                </p>
               </div>
             )}
           </CardHeader>
@@ -541,11 +646,38 @@ export default function MemberWorkoutPage() {
                   </div>
                 )}
                 {today?.isRestDay && !today?.swap && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20" data-testid="rest-day-banner">
-                    <Moon className="w-5 h-5 text-indigo-500 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Scheduled Rest Day</p>
-                      <p className="text-xs text-muted-foreground">Feel free to take it easy, or complete the exercises below if you prefer.</p>
+                  <div className="p-4 rounded-lg bg-indigo-500/10 border border-indigo-500/20" data-testid="rest-day-banner">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Moon className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Scheduled Rest Day</p>
+                        <p className="text-xs text-muted-foreground">
+                          {today?.progressionMode === 'completion' 
+                            ? "Take a break! Your next workout awaits when you're ready."
+                            : "Rest and recover. You can reschedule if needed."}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button 
+                        size="sm" 
+                        onClick={() => setTrainAnywayDialogOpen(true)}
+                        data-testid="button-train-anyway"
+                      >
+                        <Dumbbell className="w-4 h-4 mr-1" />
+                        Train Anyway
+                      </Button>
+                      {today?.progressionMode === 'calendar' && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => setRescheduleDialogOpen(true)}
+                          data-testid="button-swap-workout"
+                        >
+                          <RotateCcw className="w-4 h-4 mr-1" />
+                          Swap with Workout Day
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -928,6 +1060,191 @@ export default function MemberWorkoutPage() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rest Today Dialog */}
+      <Dialog open={restTodayDialogOpen} onOpenChange={setRestTodayDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Moon className="w-5 h-5 text-indigo-500" />
+              Rest Today?
+            </DialogTitle>
+            <DialogDescription>
+              {today?.progressionMode === 'completion' 
+                ? "Take a rest! Your next workout will still be the same planned workout when you're ready to continue."
+                : "Mark today as a rest day. Your schedule will continue normally tomorrow."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRestTodayDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => restTodayMutation.mutate()}
+              disabled={restTodayMutation.isPending}
+              data-testid="button-confirm-rest-today"
+            >
+              {restTodayMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Moon className="w-4 h-4 mr-2" />
+              )}
+              Rest Today
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Train Anyway Dialog */}
+      <Dialog open={trainAnywayDialogOpen} onOpenChange={setTrainAnywayDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Dumbbell className="w-5 h-5" />
+              Train on Rest Day
+            </DialogTitle>
+            <DialogDescription>
+              {today?.progressionMode === 'completion' 
+                ? "Choose which workout to do today."
+                : "Log an extra workout without changing your schedule."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            {today?.progressionMode === 'completion' ? (
+              <>
+                <Button 
+                  className="w-full justify-start" 
+                  variant="outline"
+                  onClick={() => trainAnywayMutation.mutate({})}
+                  disabled={trainAnywayMutation.isPending}
+                  data-testid="button-do-next-workout"
+                >
+                  <Target className="w-4 h-4 mr-2" />
+                  Do Next Planned Workout (Recommended)
+                </Button>
+                <Button 
+                  className="w-full justify-start" 
+                  variant="outline"
+                  onClick={fetchAvailableDays}
+                  data-testid="button-pick-different-day"
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Pick a Different Day
+                </Button>
+              </>
+            ) : (
+              <Button 
+                className="w-full justify-start" 
+                onClick={() => trainAnywayMutation.mutate({ asExtra: true })}
+                disabled={trainAnywayMutation.isPending}
+                data-testid="button-train-extra"
+              >
+                <Dumbbell className="w-4 h-4 mr-2" />
+                {trainAnywayMutation.isPending ? "Starting..." : "Start Extra Workout"}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pick Day Dialog (for completion mode) */}
+      <Dialog open={pickDayDialogOpen} onOpenChange={setPickDayDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pick a Workout Day</DialogTitle>
+            <DialogDescription>
+              Choose which day's workout you want to do today.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4 max-h-64 overflow-y-auto">
+            {availableDays.filter(d => !d.isRestDay).map((day) => (
+              <Button
+                key={day.dayIndex}
+                className="w-full justify-start"
+                variant="outline"
+                onClick={() => trainAnywayMutation.mutate({ dayIndex: day.dayIndex })}
+                disabled={trainAnywayMutation.isPending}
+                data-testid={`button-pick-day-${day.dayIndex}`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span>{day.label}</span>
+                  <span className="text-xs text-muted-foreground">{day.exerciseCount} exercises</span>
+                </div>
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Dialog (for calendar mode) */}
+      <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="w-5 h-5" />
+              Reschedule Workout
+            </DialogTitle>
+            <DialogDescription>
+              {today?.isRestDay 
+                ? "Want to workout today? Choose an option to swap your schedule."
+                : "Can't workout today? Choose how to adjust your schedule."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            {today?.isRestDay ? (
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={() => rescheduleMutation.mutate({ action: 'swap_next_workout' })}
+                disabled={rescheduleMutation.isPending}
+                data-testid="button-swap-with-workout"
+              >
+                <ArrowRight className="w-4 h-4 mr-2" />
+                Swap with Next Workout Day
+              </Button>
+            ) : (
+              <>
+                <Button 
+                  className="w-full justify-start" 
+                  variant="outline"
+                  onClick={() => rescheduleMutation.mutate({ action: 'swap_rest' })}
+                  disabled={rescheduleMutation.isPending}
+                  data-testid="button-swap-with-rest"
+                >
+                  <Moon className="w-4 h-4 mr-2" />
+                  Swap with Next Rest Day (Recommended)
+                </Button>
+                <Button 
+                  className="w-full justify-start" 
+                  variant="outline"
+                  onClick={() => rescheduleMutation.mutate({ action: 'move_tomorrow' })}
+                  disabled={rescheduleMutation.isPending}
+                  data-testid="button-move-tomorrow"
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Move to Tomorrow
+                </Button>
+                <Button 
+                  className="w-full justify-start text-muted-foreground" 
+                  variant="ghost"
+                  onClick={() => rescheduleMutation.mutate({ action: 'skip' })}
+                  disabled={rescheduleMutation.isPending}
+                  data-testid="button-skip-workout"
+                >
+                  <AlertCircle className="w-4 h-4 mr-2" />
+                  Skip (Mark as Missed)
+                </Button>
+              </>
+            )}
+          </div>
+          {rescheduleMutation.isPending && (
+            <div className="flex items-center justify-center py-2">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              <span className="text-sm">Rescheduling...</span>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

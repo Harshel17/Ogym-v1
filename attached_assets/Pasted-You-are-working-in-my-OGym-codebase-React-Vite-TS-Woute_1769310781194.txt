@@ -1,0 +1,161 @@
+You are working in my OGym codebase (React/Vite/TS + Wouter + React Query; Express/TS; Passport session auth; Postgres + Drizzle; schema in shared/schema.ts). We already have two cycle behaviors users can choose when creating a workout cycle: (1) Calendar-based and (2) Completion-based.
+
+TASK:
+Implement flexible “Rest/Reschedule/Train Anyway” behavior for BOTH:
+A) Gym Mode cycles (trainer-assigned to members)
+B) Personal Mode cycles (self-created)
+while respecting the chosen cycle behavior (calendar-based vs completion-based).
+
+NON-NEGOTIABLE:
+- Must work for both trainer cycles (source="trainer") and personal cycles (source="self").
+- Must not break existing workflows.
+- Must be predictable and easy for users to understand.
+- Do not silently change plans without an explicit user action.
+- Keep data isolated (personal cycles never show in trainer/owner views; trainer cycles remain gym-scoped).
+
+========================
+FEATURE REQUIREMENTS
+========================
+
+1) Completion-Based Cycles (Sequence-based, flexible)
+Definition:
+- The “Next Workout” is the next uncompleted cycle day in sequence (not tied to date).
+- The cycle advances ONLY when the user completes a workout day.
+
+UI Behavior:
+On Today/Workout screen for completion-based cycles, show:
+- Primary: “Start Next Workout”
+- Secondary: “Rest Today”
+- Optional: “Pick Different Day”
+
+Actions:
+A) Rest Today:
+- Logs a rest event for today (if we track rest), BUT does NOT advance the cycle.
+- The next workout remains the same workout day.
+
+B) Train on a planned rest day:
+- If the next day in sequence is a Rest day OR the user is viewing a Rest day, show “Train Anyway”.
+- “Train Anyway” should offer:
+  1) “Do Next Workout (recommended)” -> starts next uncompleted workout day
+  2) “Pick a Different Day” -> user selects a workout day from the cycle and completes it today
+
+Completion:
+- Completing a workout day marks that cycle day as completed for that date.
+- The next workout is then the next uncompleted day in sequence.
+
+Implementation Notes:
+- Do NOT tie completion-based progression to calendar dates.
+- Ensure both trainer and personal cycles use the exact same logic.
+
+2) Calendar-Based Cycles (Date-based, structured)
+Definition:
+- The plan follows scheduled dates (e.g. Day 1 = Monday relative to startDate).
+- The app shows “Today’s scheduled day” based on date.
+- Flexibility is supported ONLY via explicit rescheduling actions.
+
+UI Behavior:
+On Today/Workout screen for calendar-based cycles, show:
+- Primary: “Start Today’s Scheduled Workout”
+- Secondary: “Reschedule”
+- Optional: “Train Today (Extra)”
+
+Actions:
+A) User wants Rest on a scheduled workout day:
+Button: “Reschedule”
+Provide options:
+  1) “Swap with next Rest day” (recommended):
+     - Today becomes Rest
+     - The scheduled workout is moved to the next Rest day within the current cycle window
+  2) “Move to Tomorrow (shift schedule forward)”:
+     - Move today’s workout to tomorrow and push subsequent scheduled days forward by 1
+  3) “Skip (mark missed)” (optional, not recommended)
+
+B) User wants to Train on a scheduled Rest day:
+Button: “Train Today”
+Provide options:
+  1) “Train Extra (does not change schedule)”:
+     - Logs an extra workout session but keeps calendar schedule unchanged
+  2) “Swap with next workout day” (recommended):
+     - Do the next scheduled workout today
+     - Make that future day Rest or adjust schedule accordingly
+
+Implementation Notes:
+- Do NOT silently rewrite the calendar schedule without user choosing swap/move.
+- Scheduled day mapping must remain correct after reschedule.
+
+========================
+DATA MODEL / STORAGE (choose minimal)
+========================
+We need minimal, reliable tracking for:
+- completion-based day completion order
+- calendar-based reschedule overrides
+
+Option A (preferred minimal):
+- Add a table `cycle_day_logs` or similar:
+  - id
+  - cycleId
+  - memberId
+  - dayIndex
+  - performedAt (date)
+  - type enum ["workout","rest","missed","extra"]
+  - isExtra boolean (optional)
+This can support both modes cleanly.
+
+Option B (if you already have something similar):
+- Reuse existing workout_completions plus add a lightweight schedule override store for calendar mode.
+
+IMPORTANT:
+- Completion-based: determine “next day” using dayIndex completion logs (not time).
+- Calendar-based: determine “today” via startDate + dayIndex, but apply override mapping if swap/move occurred.
+
+Please inspect the existing schema and code first:
+- How cycle behavior is stored (calendar vs completion flag)
+- How “Today’s Workout” is calculated today
+- How completions are stored today
+
+Then propose the smallest schema change that supports:
+- Rest Today (completion mode)
+- Swap/Move (calendar mode)
+- Extra workout (calendar rest day)
+
+========================
+BACKEND ENDPOINTS
+========================
+Implement or extend endpoints (for BOTH trainer cycles and personal cycles):
+- GET /api/cycles/:cycleId/today
+  -> returns what the app should show today (workout/rest + list of items)
+- POST /api/cycles/:cycleId/rest-today
+- POST /api/cycles/:cycleId/train-anyway  (completion mode)
+- POST /api/cycles/:cycleId/reschedule (calendar mode)
+  -> payload includes action: ["swap_rest","move_tomorrow","skip","swap_next_workout","train_extra"]
+- POST /api/cycles/:cycleId/complete
+  -> records completion for that dayIndex and date
+
+Security:
+- Member can only modify/complete cycles where memberId = current user.
+- Trainer can create cycles but should not be able to “complete” on behalf of member.
+- Personal cycles are identical but source="self" and gymId null.
+
+========================
+FRONTEND
+========================
+Update Today / Member workout screens to:
+- Detect cycleBehavior: completion vs calendar
+- Render correct buttons and flows
+- Show confirmation modals for rescheduling actions
+- Keep language simple:
+  - Completion mode: “Your plan advances when you complete workouts. Rest anytime.”
+  - Calendar mode: “Your plan follows the calendar. You can reschedule when needed.”
+
+========================
+DELIVERABLES / TESTS
+========================
+Provide:
+1) List of files changed
+2) Manual test checklist:
+   - Trainer assigns calendar-based cycle -> member reschedules workout day to rest -> schedule updates correctly
+   - Trainer assigns completion-based cycle -> member rests on planned workout day -> cycle does NOT advance
+   - Completion-based: member trains on planned rest day -> chooses “Do Next Workout” -> progresses normally
+   - Calendar-based: member trains on rest day -> chooses “Train Extra” -> schedule unchanged
+   - Personal mode: same behaviors work identically on self cycles
+3) Ensure no personal cycles appear in trainer/owner views, and trainer cycles remain gym-scoped

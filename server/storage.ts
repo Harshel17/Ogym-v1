@@ -3,7 +3,7 @@ import {
   gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests, announcements, userNotificationPreferences, announcementReads,
   membershipPlans, memberSubscriptions, paymentTransactions, workoutSessions, workoutSessionExercises,
   gymRequests, joinRequests, gymSubscriptions, workoutTemplates, workoutTemplateItems, bodyMeasurements, memberNotes,
-  workoutPlanSets, workoutLogs, workoutLogExercises, workoutLogSets,
+  workoutPlanSets, workoutLogs, workoutLogExercises, workoutLogSets, cycleDayActions,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
@@ -43,6 +43,7 @@ import {
   type Tournament, type InsertTournament,
   type TournamentParticipant, type InsertTournamentParticipant,
   type MemberRestDaySwap, type InsertMemberRestDaySwap,
+  type CycleDayAction, type InsertCycleDayAction,
   trainingPhases, phaseExercises, type TrainingPhase, type InsertTrainingPhase, type PhaseExercise, type InsertPhaseExercise,
   userProfiles, type UserProfile,
   passwordResetCodes, type PasswordResetCode, type InsertPasswordResetCode,
@@ -595,6 +596,14 @@ export interface IStorage {
     status: "missed" | "partial";
     missedExercises: string[];
   }[]>;
+  
+  // Cycle Day Actions (Rest/Reschedule/Train Anyway)
+  createCycleDayAction(data: InsertCycleDayAction): Promise<CycleDayAction>;
+  getCycleDayActionForDate(memberId: number, cycleId: number, date: string): Promise<CycleDayAction | null>;
+  getCycleDayActionsForCycle(memberId: number, cycleId: number): Promise<CycleDayAction[]>;
+  getCycleDayActionsInRange(memberId: number, cycleId: number, from: string, to: string): Promise<CycleDayAction[]>;
+  getScheduleOverrides(memberId: number, cycleId: number): Promise<MemberRestDaySwap[]>;
+  createScheduleOverride(data: InsertMemberRestDaySwap): Promise<MemberRestDaySwap>;
   
   // Gym Requests (Owner onboarding)
   createGymRequest(data: InsertGymRequest): Promise<GymRequest>;
@@ -5738,6 +5747,58 @@ export class DatabaseStorage implements IStorage {
     }
     
     return missed;
+  }
+  
+  // === Cycle Day Actions Methods (Rest/Reschedule/Train Anyway) ===
+  async createCycleDayAction(data: InsertCycleDayAction): Promise<CycleDayAction> {
+    const [action] = await db.insert(cycleDayActions).values(data).returning();
+    return action;
+  }
+  
+  async getCycleDayActionForDate(memberId: number, cycleId: number, date: string): Promise<CycleDayAction | null> {
+    const [action] = await db.select().from(cycleDayActions)
+      .where(and(
+        eq(cycleDayActions.memberId, memberId),
+        eq(cycleDayActions.cycleId, cycleId),
+        eq(cycleDayActions.date, date)
+      ))
+      .orderBy(desc(cycleDayActions.createdAt))
+      .limit(1);
+    return action || null;
+  }
+  
+  async getCycleDayActionsForCycle(memberId: number, cycleId: number): Promise<CycleDayAction[]> {
+    return db.select().from(cycleDayActions)
+      .where(and(
+        eq(cycleDayActions.memberId, memberId),
+        eq(cycleDayActions.cycleId, cycleId)
+      ))
+      .orderBy(desc(cycleDayActions.date));
+  }
+  
+  async getCycleDayActionsInRange(memberId: number, cycleId: number, from: string, to: string): Promise<CycleDayAction[]> {
+    return db.select().from(cycleDayActions)
+      .where(and(
+        eq(cycleDayActions.memberId, memberId),
+        eq(cycleDayActions.cycleId, cycleId),
+        gte(cycleDayActions.date, from),
+        lte(cycleDayActions.date, to)
+      ))
+      .orderBy(cycleDayActions.date);
+  }
+  
+  async getScheduleOverrides(memberId: number, cycleId: number): Promise<MemberRestDaySwap[]> {
+    return db.select().from(memberRestDaySwaps)
+      .where(and(
+        eq(memberRestDaySwaps.memberId, memberId),
+        eq(memberRestDaySwaps.cycleId, cycleId)
+      ))
+      .orderBy(desc(memberRestDaySwaps.createdAt));
+  }
+  
+  async createScheduleOverride(data: InsertMemberRestDaySwap): Promise<MemberRestDaySwap> {
+    const [swap] = await db.insert(memberRestDaySwaps).values(data).returning();
+    return swap;
   }
   
   // === Gym Requests Methods ===

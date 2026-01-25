@@ -1538,6 +1538,402 @@ export async function registerRoutes(
     res.json({ message: "Swap cancelled" });
   });
 
+  // REST TODAY - User wants to rest on a scheduled workout day
+  // For completion-based: logs rest, does NOT advance day
+  // For calendar-based: logs rest, schedule unchanged (just marking intent)
+  app.post("/api/workouts/rest-today", requireRole(["member"]), async (req, res) => {
+    const todayStr = getLocalDate(req);
+    const source = req.user!.gymId ? 'trainer' : 'self';
+    const cycle = await storage.getMemberCycle(req.user!.id, source);
+    
+    if (!cycle) {
+      return res.status(400).json({ message: "No active workout cycle" });
+    }
+    
+    // Calculate current day index
+    let currentDayIndex: number;
+    if (cycle.progressionMode === "completion") {
+      currentDayIndex = cycle.currentDayIndex ?? 0;
+    } else {
+      const today = new Date(todayStr + 'T00:00:00');
+      const startDate = new Date(cycle.startDate);
+      const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    }
+    
+    // Check if already rested today
+    const existingAction = await storage.getCycleDayActionForDate(req.user!.id, cycle.id, todayStr);
+    if (existingAction && existingAction.action === 'rest') {
+      return res.json({ message: "Already marked as rest day", action: existingAction });
+    }
+    
+    // Log the rest action
+    const action = await storage.createCycleDayAction({
+      gymId: req.user!.gymId || null,
+      memberId: req.user!.id,
+      cycleId: cycle.id,
+      date: todayStr,
+      action: 'rest',
+      originalDayIndex: currentDayIndex,
+      notes: req.body.notes || null
+    });
+    
+    // For completion-based: DO NOT advance the day
+    // The next workout will still be the same workout day
+    
+    res.json({ 
+      message: "Rest day logged", 
+      action,
+      progressionMode: cycle.progressionMode,
+      note: cycle.progressionMode === 'completion' 
+        ? "Your next workout will be the same planned workout." 
+        : "Your schedule remains unchanged."
+    });
+  });
+
+  // TRAIN ANYWAY - User wants to train on a planned rest day
+  // For completion-based: User picks which workout day to do, then that day advances
+  // For calendar-based: Logs extra workout without changing schedule
+  app.post("/api/workouts/train-anyway", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      dayIndex: z.number().optional(), // Which workout day to perform (for completion mode)
+      asExtra: z.boolean().optional() // For calendar mode: true = extra workout, false = swap
+    });
+    const input = schema.safeParse(req.body);
+    if (!input.success) {
+      return res.status(400).json({ message: "Invalid request", errors: input.error.errors });
+    }
+    
+    const todayStr = getLocalDate(req);
+    const source = req.user!.gymId ? 'trainer' : 'self';
+    const cycle = await storage.getMemberCycle(req.user!.id, source);
+    
+    if (!cycle) {
+      return res.status(400).json({ message: "No active workout cycle" });
+    }
+    
+    // For completion-based: allow training any uncompleted day
+    if (cycle.progressionMode === "completion") {
+      const targetDayIndex = input.data.dayIndex ?? (cycle.currentDayIndex ?? 0);
+      
+      // Verify this day exists and has exercises
+      const items = await storage.getWorkoutItemsByDay(cycle.id, targetDayIndex);
+      if (items.length === 0) {
+        return res.status(400).json({ message: "Selected day has no exercises" });
+      }
+      
+      // Log the action
+      const action = await storage.createCycleDayAction({
+        gymId: req.user!.gymId || null,
+        memberId: req.user!.id,
+        cycleId: cycle.id,
+        date: todayStr,
+        action: 'train_anyway',
+        originalDayIndex: cycle.currentDayIndex ?? 0,
+        performedDayIndex: targetDayIndex
+      });
+      
+      res.json({
+        message: "Training on rest day - do selected workout",
+        action,
+        dayIndex: targetDayIndex,
+        dayLabel: cycle.dayLabels?.[targetDayIndex] || `Day ${targetDayIndex + 1}`,
+        items
+      });
+    } else {
+      // Calendar-based: offer extra workout or swap
+      const asExtra = input.data.asExtra !== false; // Default to extra workout
+      
+      if (asExtra) {
+        // Extra workout - doesn't change schedule
+        const nextWorkoutDayIndex = await findNextWorkoutDay(cycle, todayStr);
+        const items = nextWorkoutDayIndex !== null 
+          ? await storage.getWorkoutItemsByDay(cycle.id, nextWorkoutDayIndex)
+          : [];
+        
+        const action = await storage.createCycleDayAction({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: todayStr,
+          action: 'extra',
+          originalDayIndex: null, // It was a rest day
+          performedDayIndex: nextWorkoutDayIndex
+        });
+        
+        res.json({
+          message: "Extra workout logged - schedule unchanged",
+          action,
+          dayIndex: nextWorkoutDayIndex,
+          dayLabel: nextWorkoutDayIndex !== null 
+            ? cycle.dayLabels?.[nextWorkoutDayIndex] || `Day ${nextWorkoutDayIndex + 1}`
+            : null,
+          items
+        });
+      } else {
+        // Swap with next workout day
+        return res.status(400).json({ 
+          message: "Use reschedule endpoint for swap operations" 
+        });
+      }
+    }
+  });
+
+  // Helper function to find next workout day in a cycle
+  async function findNextWorkoutDay(cycle: any, fromDate: string): Promise<number | null> {
+    const today = new Date(fromDate + 'T00:00:00');
+    const startDate = new Date(cycle.startDate);
+    const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    
+    // Look for next non-rest day in the cycle
+    for (let offset = 0; offset < cycle.cycleLength; offset++) {
+      const dayIdx = (currentDayIndex + offset) % cycle.cycleLength;
+      if (!cycle.restDays?.includes(dayIdx)) {
+        const items = await storage.getWorkoutItemsByDay(cycle.id, dayIdx);
+        if (items.length > 0) {
+          return dayIdx;
+        }
+      }
+    }
+    return null;
+  }
+
+  // RESCHEDULE - For calendar-based cycles only
+  // Allows swapping, moving, or skipping scheduled workouts
+  app.post("/api/workouts/reschedule", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      action: z.enum(['swap_rest', 'move_tomorrow', 'skip', 'swap_next_workout']),
+      targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+    });
+    const input = schema.safeParse(req.body);
+    if (!input.success) {
+      return res.status(400).json({ message: "Invalid request", errors: input.error.errors });
+    }
+    
+    const todayStr = getLocalDate(req);
+    const source = req.user!.gymId ? 'trainer' : 'self';
+    const cycle = await storage.getMemberCycle(req.user!.id, source);
+    
+    if (!cycle) {
+      return res.status(400).json({ message: "No active workout cycle" });
+    }
+    
+    if (cycle.progressionMode !== "calendar") {
+      return res.status(400).json({ 
+        message: "Reschedule is only for calendar-based cycles. Use rest-today for completion-based cycles."
+      });
+    }
+    
+    const today = new Date(todayStr + 'T00:00:00');
+    const startDate = new Date(cycle.startDate);
+    const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    
+    switch (input.data.action) {
+      case 'swap_rest': {
+        // Swap today's workout with the next rest day
+        let nextRestDayOffset = null;
+        for (let offset = 1; offset < cycle.cycleLength; offset++) {
+          const dayIdx = (currentDayIndex + offset) % cycle.cycleLength;
+          if (cycle.restDays?.includes(dayIdx)) {
+            nextRestDayOffset = offset;
+            break;
+          }
+        }
+        
+        if (nextRestDayOffset === null) {
+          return res.status(400).json({ message: "No rest day found in cycle to swap with" });
+        }
+        
+        const targetDate = new Date(today);
+        targetDate.setDate(targetDate.getDate() + nextRestDayOffset);
+        const targetDateStr = targetDate.toISOString().split('T')[0];
+        const targetDayIndex = (currentDayIndex + nextRestDayOffset) % cycle.cycleLength;
+        
+        // Create swap override
+        await storage.createScheduleOverride({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          swapDate: todayStr,
+          targetDate: targetDateStr,
+          targetDayIndex: currentDayIndex // Move today's workout to target date
+        });
+        
+        // Log the reschedule action
+        const action = await storage.createCycleDayAction({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: todayStr,
+          action: 'reschedule',
+          originalDayIndex: currentDayIndex,
+          targetDate: targetDateStr,
+          notes: 'Swapped with rest day'
+        });
+        
+        res.json({
+          message: `Workout moved to ${targetDateStr}. Today is now a rest day.`,
+          action,
+          newRestDay: todayStr,
+          newWorkoutDay: targetDateStr
+        });
+        break;
+      }
+      
+      case 'move_tomorrow': {
+        // Move today's workout to tomorrow, shift schedule forward
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        
+        // Create override to push today's workout to tomorrow
+        await storage.createScheduleOverride({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          swapDate: todayStr,
+          targetDate: tomorrowStr,
+          targetDayIndex: currentDayIndex
+        });
+        
+        const action = await storage.createCycleDayAction({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: todayStr,
+          action: 'reschedule',
+          originalDayIndex: currentDayIndex,
+          targetDate: tomorrowStr,
+          notes: 'Moved to tomorrow'
+        });
+        
+        res.json({
+          message: `Workout moved to tomorrow (${tomorrowStr})`,
+          action
+        });
+        break;
+      }
+      
+      case 'skip': {
+        // Mark as missed/skipped
+        const action = await storage.createCycleDayAction({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: todayStr,
+          action: 'rest', // Using rest action to mark as skipped
+          originalDayIndex: currentDayIndex,
+          notes: 'Workout skipped'
+        });
+        
+        res.json({
+          message: "Workout skipped. Schedule continues as normal.",
+          action
+        });
+        break;
+      }
+      
+      case 'swap_next_workout': {
+        // On a rest day, swap with the next workout day
+        let nextWorkoutOffset = null;
+        for (let offset = 1; offset < cycle.cycleLength; offset++) {
+          const dayIdx = (currentDayIndex + offset) % cycle.cycleLength;
+          if (!cycle.restDays?.includes(dayIdx)) {
+            const items = await storage.getWorkoutItemsByDay(cycle.id, dayIdx);
+            if (items.length > 0) {
+              nextWorkoutOffset = offset;
+              break;
+            }
+          }
+        }
+        
+        if (nextWorkoutOffset === null) {
+          return res.status(400).json({ message: "No workout day found to swap with" });
+        }
+        
+        const targetDate = new Date(today);
+        targetDate.setDate(targetDate.getDate() + nextWorkoutOffset);
+        const targetDateStr = targetDate.toISOString().split('T')[0];
+        const targetDayIndex = (currentDayIndex + nextWorkoutOffset) % cycle.cycleLength;
+        
+        // Create swap override - do the future workout today
+        await storage.createScheduleOverride({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          swapDate: todayStr,
+          targetDate: targetDateStr,
+          targetDayIndex: targetDayIndex // Bring future workout to today
+        });
+        
+        const action = await storage.createCycleDayAction({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: todayStr,
+          action: 'reschedule',
+          originalDayIndex: currentDayIndex,
+          performedDayIndex: targetDayIndex,
+          targetDate: targetDateStr,
+          notes: 'Swapped rest day with workout'
+        });
+        
+        // Get items for the swapped workout
+        const items = await storage.getWorkoutItemsByDay(cycle.id, targetDayIndex);
+        
+        res.json({
+          message: `Doing ${cycle.dayLabels?.[targetDayIndex] || 'Day ' + (targetDayIndex + 1)} today. ${targetDateStr} will be rest.`,
+          action,
+          dayIndex: targetDayIndex,
+          dayLabel: cycle.dayLabels?.[targetDayIndex] || `Day ${targetDayIndex + 1}`,
+          items
+        });
+        break;
+      }
+    }
+  });
+
+  // Get available workout days for "pick different day" in completion mode
+  app.get("/api/workouts/available-days", requireRole(["member"]), async (req, res) => {
+    const source = req.user!.gymId ? 'trainer' : 'self';
+    const cycle = await storage.getMemberCycle(req.user!.id, source);
+    
+    if (!cycle) {
+      return res.json({ days: [] });
+    }
+    
+    const allItems = await storage.getWorkoutItems(cycle.id);
+    const dayGroups = new Map<number, { label: string; exerciseCount: number; isRestDay: boolean }>();
+    
+    for (let dayIdx = 0; dayIdx < cycle.cycleLength; dayIdx++) {
+      const dayItems = allItems.filter(item => item.dayIndex === dayIdx);
+      const label = cycle.dayLabels?.[dayIdx] || `Day ${dayIdx + 1}`;
+      const isRestDay = cycle.restDays?.includes(dayIdx) || 
+                        label.toLowerCase().includes("rest") || 
+                        dayItems.length === 0;
+      
+      dayGroups.set(dayIdx, {
+        label,
+        exerciseCount: dayItems.length,
+        isRestDay
+      });
+    }
+    
+    const days = Array.from(dayGroups.entries()).map(([dayIndex, info]) => ({
+      dayIndex,
+      ...info
+    }));
+    
+    res.json({ 
+      days,
+      currentDayIndex: cycle.currentDayIndex ?? 0,
+      cycleLength: cycle.cycleLength,
+      progressionMode: cycle.progressionMode
+    });
+  });
+
   app.post("/api/workouts/complete", requireRole(["member"]), async (req, res) => {
     const schema = z.object({ 
       workoutItemId: z.number(),

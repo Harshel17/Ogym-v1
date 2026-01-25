@@ -270,7 +270,7 @@ export const workoutLogSets = pgTable("workout_log_sets", {
 
 export const memberRestDaySwaps = pgTable("member_rest_day_swaps", {
   id: serial("id").primaryKey(),
-  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  gymId: integer("gym_id").references(() => gyms.id), // Nullable for Personal Mode
   memberId: integer("member_id").references(() => users.id).notNull(),
   cycleId: integer("cycle_id").references(() => workoutCycles.id).notNull(),
   swapDate: text("swap_date").notNull(),
@@ -278,6 +278,24 @@ export const memberRestDaySwaps = pgTable("member_rest_day_swaps", {
   targetDayIndex: integer("target_day_index").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Cycle day action logs - tracks rest/train/reschedule decisions for both modes
+export const cycleDayActions = pgTable("cycle_day_actions", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id), // Nullable for Personal Mode
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  cycleId: integer("cycle_id").references(() => workoutCycles.id).notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD
+  action: text("action", { enum: ["rest", "train_anyway", "reschedule", "complete", "extra"] }).notNull(),
+  originalDayIndex: integer("original_day_index"), // The day that was scheduled
+  performedDayIndex: integer("performed_day_index"), // The day that was actually done (for train_anyway)
+  targetDate: text("target_date"), // For reschedule: the date workout moved to
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  memberDateIdx: index("cycle_day_actions_member_date_idx").on(table.memberId, table.date),
+  cycleIdx: index("cycle_day_actions_cycle_idx").on(table.cycleId),
+}));
 
 export const memberRequests = pgTable("member_requests", {
   id: serial("id").primaryKey(),
@@ -718,6 +736,7 @@ export const insertWorkoutLogSchema = createInsertSchema(workoutLogs).omit({ id:
 export const insertWorkoutLogExerciseSchema = createInsertSchema(workoutLogExercises).omit({ id: true });
 export const insertWorkoutLogSetSchema = createInsertSchema(workoutLogSets).omit({ id: true });
 export const insertMemberRestDaySwapSchema = createInsertSchema(memberRestDaySwaps).omit({ id: true, createdAt: true });
+export const insertCycleDayActionSchema = createInsertSchema(cycleDayActions).omit({ id: true, createdAt: true });
 export const insertMemberRequestSchema = createInsertSchema(memberRequests).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertGymHistorySchema = createInsertSchema(gymHistory).omit({ id: true });
 export const insertStarMemberSchema = createInsertSchema(starMembers).omit({ id: true, createdAt: true });
@@ -771,6 +790,7 @@ export type WorkoutLog = typeof workoutLogs.$inferSelect;
 export type WorkoutLogExercise = typeof workoutLogExercises.$inferSelect;
 export type WorkoutLogSet = typeof workoutLogSets.$inferSelect;
 export type MemberRestDaySwap = typeof memberRestDaySwaps.$inferSelect;
+export type CycleDayAction = typeof cycleDayActions.$inferSelect;
 export type MemberRequest = typeof memberRequests.$inferSelect;
 export type GymHistory = typeof gymHistory.$inferSelect;
 export type StarMember = typeof starMembers.$inferSelect;
@@ -795,6 +815,7 @@ export type InsertWorkoutLog = z.infer<typeof insertWorkoutLogSchema>;
 export type InsertWorkoutLogExercise = z.infer<typeof insertWorkoutLogExerciseSchema>;
 export type InsertWorkoutLogSet = z.infer<typeof insertWorkoutLogSetSchema>;
 export type InsertMemberRestDaySwap = z.infer<typeof insertMemberRestDaySwapSchema>;
+export type InsertCycleDayAction = z.infer<typeof insertCycleDayActionSchema>;
 export type InsertMemberRequest = z.infer<typeof insertMemberRequestSchema>;
 export type InsertGymHistory = z.infer<typeof insertGymHistorySchema>;
 export type InsertStarMember = z.infer<typeof insertStarMemberSchema>;
