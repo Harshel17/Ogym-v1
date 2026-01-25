@@ -587,7 +587,7 @@ export interface IStorage {
   }>;
   
   // Mark day done (partial completion)
-  markDayDone(gymId: number, memberId: number, date: string): Promise<{ success: boolean; sessionId: number }>;
+  markDayDone(gymId: number | null, memberId: number, date: string): Promise<{ success: boolean; sessionId: number }>;
   
   // Missed workouts
   getMissedWorkouts(gymId: number, memberId: number, from?: string, to?: string): Promise<{
@@ -5651,7 +5651,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async markDayDone(gymId: number, memberId: number, date: string): Promise<{ success: boolean; sessionId: number }> {
+  async markDayDone(gymId: number | null, memberId: number, date: string): Promise<{ success: boolean; sessionId: number }> {
     const cycle = await this.getMemberCycle(memberId);
     if (!cycle) {
       throw new Error("No active cycle found");
@@ -5666,6 +5666,7 @@ export class DatabaseStorage implements IStorage {
     
     // Check for existing session
     let session = await this.getWorkoutSessionByMemberDate(gymId, memberId, date);
+    let sessionId: number;
     
     if (session) {
       // Update existing session to mark as done
@@ -5673,7 +5674,7 @@ export class DatabaseStorage implements IStorage {
         .set({ isManuallyCompleted: true, completedAt: new Date() })
         .where(eq(workoutSessions.id, session.id))
         .returning();
-      return { success: true, sessionId: updated.id };
+      sessionId = updated.id;
     } else {
       // Create new session with manual completion
       const [newSession] = await db.insert(workoutSessions).values({
@@ -5686,8 +5687,41 @@ export class DatabaseStorage implements IStorage {
         isManuallyCompleted: true,
         completedAt: new Date()
       }).returning();
-      return { success: true, sessionId: newSession.id };
+      sessionId = newSession.id;
     }
+    
+    // Get all workout items for this day and create completion records for any missing ones
+    const items = await this.getWorkoutItems(cycle.id);
+    const dayItems = items.filter(item => item.dayIndex === dayIndex);
+    
+    // Check which items already have completions for this date
+    const existingCompletions = await db.select({ workoutItemId: workoutCompletions.workoutItemId })
+      .from(workoutCompletions)
+      .where(
+        and(
+          eq(workoutCompletions.memberId, memberId),
+          eq(workoutCompletions.completedDate, date)
+        )
+      );
+    const completedItemIds = new Set(existingCompletions.map(c => c.workoutItemId));
+    
+    // Create completions for items that don't have them yet
+    for (const item of dayItems) {
+      if (!completedItemIds.has(item.id)) {
+        await db.insert(workoutCompletions).values({
+          gymId,
+          cycleId: cycle.id,
+          workoutItemId: item.id,
+          memberId,
+          completedDate: date,
+          actualSets: item.sets,
+          actualReps: item.reps,
+          actualWeight: item.weight
+        });
+      }
+    }
+    
+    return { success: true, sessionId };
   }
 
   async getMissedWorkouts(gymId: number, memberId: number, from?: string, to?: string): Promise<{

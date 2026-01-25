@@ -3771,7 +3771,7 @@ export async function registerRoutes(
     }
     
     try {
-      const result = await storage.markDayDone(req.user!.gymId!, req.user!.id, date);
+      const result = await storage.markDayDone(req.user!.gymId ?? null, req.user!.id, date);
       res.json(result);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
