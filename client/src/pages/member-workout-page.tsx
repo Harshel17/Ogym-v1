@@ -105,6 +105,31 @@ export default function MemberWorkoutPage() {
   const [pendingShareLabel, setPendingShareLabel] = useState<string>("");
   const shareWorkoutMutation = useShareWorkout();
   
+  // End cycle dialog state
+  const [endCycleDialogOpen, setEndCycleDialogOpen] = useState(false);
+  
+  // End cycle mutation
+  const endCycleMutation = useMutation({
+    mutationFn: async (cycleId: number) => {
+      const res = await apiRequest("PATCH", `/api/personal/cycles/${cycleId}`, {
+        isActive: false
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/personal/cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/cycle"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/member/workout/summary"] });
+      setEndCycleDialogOpen(false);
+      toast({ title: "Cycle ended successfully! You can start a new one." });
+      setWizardOpen(true);
+    },
+    onError: (error: any) => {
+      toast({ title: error.message || "Failed to end cycle", variant: "destructive" });
+    }
+  });
+  
   const handleAskToShare = (focusLabel: string) => {
     setPendingShareLabel(focusLabel);
     setShareDialogOpen(true);
@@ -715,7 +740,20 @@ export default function MemberWorkoutPage() {
       {!cycleLoading && cycle && cycle.items && (
         <Card>
           <CardHeader>
-            <CardTitle>Full Cycle Schedule</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle>Full Cycle Schedule</CardTitle>
+              {isPersonalMode && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setEndCycleDialogOpen(true)}
+                  data-testid="button-end-cycle"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Start New Cycle
+                </Button>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">{cycle.name} - {cycle.startDate} to {cycle.endDate}</p>
           </CardHeader>
           <CardContent>
@@ -782,6 +820,47 @@ export default function MemberWorkoutPage() {
             <Button onClick={handleShareConfirm} disabled={shareWorkoutMutation.isPending} data-testid="button-confirm-share">
               <Share2 className="w-4 h-4 mr-2" />
               Share on Feed
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* End Cycle Confirmation Dialog */}
+      <Dialog open={endCycleDialogOpen} onOpenChange={setEndCycleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="w-5 h-5" />
+              Start a New Cycle?
+            </DialogTitle>
+            <DialogDescription>
+              This will end your current workout cycle "{cycle?.name}". Your workout history and progress will be saved, but you'll start fresh with a new cycle.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">Current cycle:</p>
+              <p className="font-medium">{cycle?.name}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {cycle?.cycleLength} days • Started {cycle?.startDate}
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEndCycleDialogOpen(false)} data-testid="button-cancel-end-cycle">
+              Keep Current Cycle
+            </Button>
+            <Button 
+              onClick={() => cycle?.id && endCycleMutation.mutate(cycle.id)} 
+              disabled={endCycleMutation.isPending}
+              data-testid="button-confirm-end-cycle"
+            >
+              {endCycleMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RotateCcw className="w-4 h-4 mr-2" />
+              )}
+              End & Start New
             </Button>
           </DialogFooter>
         </DialogContent>
