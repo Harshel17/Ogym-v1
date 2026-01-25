@@ -1987,7 +1987,10 @@ export class DatabaseStorage implements IStorage {
     const date = new Date(dateStr + 'T00:00:00');
     
     // First check: Direct workout cycles assigned to member
-    const directCycle = cache.directCycles.find(c => c.startDate <= dateStr && c.endDate >= dateStr);
+    // Handle NULL endDate (means cycle is ongoing/indefinite)
+    const directCycle = cache.directCycles.find(c => 
+      c.startDate <= dateStr && (!c.endDate || c.endDate >= dateStr)
+    );
     
     if (directCycle) {
       const cycleLength = directCycle.cycleLength;
