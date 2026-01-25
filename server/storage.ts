@@ -1872,7 +1872,7 @@ export class DatabaseStorage implements IStorage {
    * Pre-load all schedule data for a member to enable fast streak calculation.
    * Returns cached data structure for use with getScheduledDayStatusFromCache.
    */
-  async loadMemberScheduleData(memberId: number): Promise<{
+  async loadMemberScheduleData(memberId: number, gymId: number | null = null): Promise<{
     phases: (typeof trainingPhases.$inferSelect)[];
     directCycles: (typeof workoutCycles.$inferSelect)[]; // Cycles directly assigned to member
     phaseExerciseDays: Map<number, Set<number>>; // phaseId -> set of dayIndices with exercises
@@ -1885,12 +1885,15 @@ export class DatabaseStorage implements IStorage {
     const phases = await db.select().from(trainingPhases)
       .where(eq(trainingPhases.memberId, memberId));
     
-    // Get all workout cycles directly assigned to this member (not via trainingPhases)
+    // Get workout cycles - match the same query logic as getMemberCalendarEnhanced
+    // For gym mode: filter by gymId + memberId
+    // For personal mode: filter by null gymId + memberId + source='self'
+    const cycleCondition = gymId !== null
+      ? and(eq(workoutCycles.gymId, gymId), eq(workoutCycles.memberId, memberId))
+      : and(isNull(workoutCycles.gymId), eq(workoutCycles.memberId, memberId), eq(workoutCycles.source, 'self'));
+    
     const directCycles = await db.select().from(workoutCycles)
-      .where(and(
-        eq(workoutCycles.memberId, memberId),
-        eq(workoutCycles.isActive, true)
-      ));
+      .where(cycleCondition);
     
     // Get all phase exercises and group by phaseId
     const phaseIds = phases.map(p => p.id);
@@ -5348,7 +5351,8 @@ export class DatabaseStorage implements IStorage {
     const uniqueDates = Array.from(allDates).sort().reverse();
     
     // Pre-load schedule data for fast streak calculation
-    const scheduleCache = await this.loadMemberScheduleData(memberId);
+    // Pass gymId to match the same cycle query logic as getMemberCalendarEnhanced
+    const scheduleCache = await this.loadMemberScheduleData(memberId, gymId);
     
     // Smart rest day streak calculation (consistent with getMemberStats):
     // - If today has workout → count it, then check from yesterday
