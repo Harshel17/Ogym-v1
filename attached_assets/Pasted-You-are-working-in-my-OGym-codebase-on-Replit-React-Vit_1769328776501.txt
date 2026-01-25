@@ -1,0 +1,157 @@
+You are working in my OGym codebase on Replit (React/Vite/TS + Wouter + React Query; Express/TS; Passport session auth; Postgres + Drizzle). We already implemented Rest/Reschedule/Train Anyway with UI + endpoints:
+
+POST /api/workouts/rest-today
+POST /api/workouts/train-anyway
+POST /api/workouts/reschedule
+GET  /api/workouts/available-days
+
+We also are implementing a reorder engine for SWAP/PUSH when selecting “Do Another Workout”, and extending it to rest days.
+
+NEW TASK (IMPORTANT):
+Enhance the “Rest Today” action WHEN TODAY IS A WORKOUT DAY (e.g., Chest).
+Currently, Rest Today just logs rest (completion mode: does not advance; calendar mode: marks today as rest).
+We need two additional options so the member can rest today but also adjust the cycle schedule FOR THIS CYCLE ONLY:
+
+User story:
+Even when today is a workout day (Chest), user clicks “Rest Today”, but instead of just resting and keeping Chest as next, they want:
+1) SWAP: swap today’s workout with the NEXT REST DAY in this cycle
+2) PUSH: push today’s workout forward and pull the next workouts earlier
+These changes apply ONLY to the current cycle instance. Must work for BOTH:
+- Trainer-assigned cycles (source="trainer")
+- Personal cycles (source="self")
+And for BOTH behaviors:
+- Completion-based cycles
+- Calendar-based cycles
+
+========================
+FRONTEND REQUIREMENTS
+========================
+When user clicks “Rest Today” on a WORKOUT DAY, show a dialog:
+Title: “Rest today”
+Subtitle: “How should we adjust your plan for this cycle?”
+Options:
+A) “Just Rest Today” (current behavior)
+B) “Swap with Next Rest Day” (recommended)
+C) “Push Today’s Workout” (move it later; pull others earlier)
+
+- After selecting an option, call the correct backend action and refresh the Today view.
+- Add a small preview text if possible (Before/After order), but not required.
+
+NOTE:
+Keep existing Rest Today flow unchanged for cases where today is already a Rest day (that is handled by Train Anyway / Workout Today flows).
+
+========================
+BACKEND REQUIREMENTS
+========================
+Implement this without breaking existing endpoints. Prefer extending /api/workouts/rest-today to accept an optional adjustment mode:
+
+POST /api/workouts/rest-today
+Body:
+{
+  cycleId: number,
+  adjustPlan?: "none" | "swap_next_rest" | "push_workout"
+}
+
+If it’s easier, create a new endpoint:
+POST /api/workouts/rest-today-adjust
+but prefer extending the existing endpoint.
+
+You MUST support both cycle behaviors:
+
+--------------------------------
+A) COMPLETION-BASED CYCLES
+--------------------------------
+Definition:
+- Progress is sequence-based. “Next workout” is the next uncompleted workout day in remaining sequence.
+- “Rest Today” should log rest without advancing by default.
+
+New options behavior for completion-based:
+
+1) adjustPlan="none"
+- Log rest today
+- Do NOT advance
+- Keep next workout the same (current behavior)
+
+2) adjustPlan="swap_next_rest"
+- Log rest today
+- Reorder the REMAINING (not-yet-completed) day sequence within this cycle:
+  - Find the next Rest dayIndex in the remaining sequence.
+  - Move today’s planned workout dayIndex into that Rest position (swap positions),
+  - Rest is effectively “consumed” today.
+- Do NOT rewrite any already-completed days.
+
+3) adjustPlan="push_workout"
+- Log rest today
+- Push today’s planned workout dayIndex later in the remaining sequence,
+  and pull the workouts that were after it earlier.
+- Recommended simple rule:
+  - Remove today’s planned workout from the remaining sequence head,
+  - Append it to the end of the remaining workout block before the next Rest boundary (or to the end of remaining sequence if that’s simpler).
+- Do NOT rewrite completed days.
+
+Important:
+- Completion-based reorder should be implemented by updating the cycle’s remaining day order / overrides used to compute “next workout”.
+- If you already have a day-order override mechanism from SWAP/PUSH, reuse it.
+
+--------------------------------
+B) CALENDAR-BASED CYCLES
+--------------------------------
+Definition:
+- Today’s planned day is based on date schedule.
+- Adjustments must explicitly update schedule overrides for this cycle only.
+
+New options behavior for calendar-based:
+
+1) adjustPlan="none"
+- Mark today as rest (existing behavior), without moving other scheduled workouts.
+
+2) adjustPlan="swap_next_rest"
+- Find the NEXT scheduled rest date within the current cycle window.
+- Swap: today becomes Rest, and that next Rest date becomes today’s original workout day.
+- Do not modify any past dates.
+
+3) adjustPlan="push_workout"
+- Push today’s workout forward and pull next workouts earlier.
+- Recommended rule (predictable):
+  - Today becomes Rest
+  - Tomorrow becomes today’s original workout
+  - All scheduled days from tomorrow up to (and including) the next Rest day shift forward accordingly
+  - The next Rest day gets moved to the day where the pushed workout lands (end of the block)
+OR implement a simpler “rotate until next rest”:
+  Example:
+    Mon Chest, Tue Back, Wed Shoulders, Thu Rest
+    Push workout on Mon => Mon Rest, Tue Chest, Wed Back, Thu Shoulders (Rest moved out)
+  Choose ONE consistent behavior and document it in code.
+
+Storage:
+- Reuse the same schedule override storage used by /api/workouts/reschedule (date -> dayIndex mapping).
+- Ensure the function that returns today’s workout applies overrides.
+
+Security:
+- Member can only rest/adjust cycles they own (memberId = current user).
+- Must work for trainer cycles + personal cycles; do not leak cycles across gyms.
+- Keep trainer/owner views unchanged and filtered.
+
+========================
+TEST CHECKLIST (MUST PASS)
+========================
+1) Calendar-based trainer cycle:
+- Today workout Chest, next rest on Day4.
+- Rest Today + none => today becomes rest, schedule unchanged otherwise.
+- Rest Today + swap_next_rest => today rest, next rest date becomes Chest.
+- Rest Today + push_workout => today rest, workouts pull earlier, Chest pushed later per chosen rule.
+
+2) Completion-based trainer cycle:
+- Remaining sequence Chest -> Back -> Shoulders -> Rest.
+- Rest Today + none => rest logged, next remains Chest.
+- Rest Today + swap_next_rest => rest logged, Chest moved to rest slot, next becomes Back or Shoulders depending on sequence rule.
+- Rest Today + push_workout => rest logged, Chest pushed later, others pull earlier.
+
+3) Repeat all tests for personal cycle (source="self").
+
+4) Ensure existing Train Anyway / Reschedule flows still work.
+
+Before coding:
+- Identify where “today workout” and “next rest day” are computed.
+- Identify how calendar reschedule overrides are stored.
+- Confirm the chosen push behavior for calendar mode is consistent and implemented exactly.

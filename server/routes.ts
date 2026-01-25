@@ -1565,6 +1565,17 @@ export async function registerRoutes(
   // For completion-based: logs rest, does NOT advance day
   // For calendar-based: logs rest, schedule unchanged (just marking intent)
   app.post("/api/workouts/rest-today", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      cycleId: z.number().optional(),
+      adjustPlan: z.enum(["none", "swap_next_rest", "push_workout"]).optional().default("none"),
+      notes: z.string().optional()
+    });
+    const input = schema.safeParse(req.body);
+    if (!input.success) {
+      return res.status(400).json({ message: "Invalid request", errors: input.error.errors });
+    }
+    
+    const { adjustPlan, notes } = input.data;
     const todayStr = getLocalDate(req);
     const source = req.user!.gymId ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
@@ -1590,28 +1601,375 @@ export async function registerRoutes(
       return res.json({ message: "Already marked as rest day", action: existingAction });
     }
     
-    // Log the rest action
-    const action = await storage.createCycleDayAction({
-      gymId: req.user!.gymId || null,
-      memberId: req.user!.id,
-      cycleId: cycle.id,
-      date: todayStr,
-      action: 'rest',
-      originalDayIndex: currentDayIndex,
-      notes: req.body.notes || null
-    });
+    // Get all items to understand the cycle structure
+    const allItems = await storage.getWorkoutItems(cycle.id);
     
-    // For completion-based: DO NOT advance the day
-    // The next workout will still be the same workout day
+    // Check if today is already a rest day (no exercises)
+    const currentDayItems = allItems.filter(item => item.dayIndex === currentDayIndex);
+    const currentLabel = cycle.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
+    const isCurrentRestDay = cycle.restDays?.includes(currentDayIndex) || 
+                              currentLabel.toLowerCase().includes("rest") || 
+                              currentDayItems.length === 0;
     
-    res.json({ 
-      message: "Rest day logged", 
-      action,
-      progressionMode: cycle.progressionMode,
-      note: cycle.progressionMode === 'completion' 
-        ? "Your next workout will be the same planned workout." 
-        : "Your schedule remains unchanged."
-    });
+    // If already a rest day, just log rest (adjustPlan doesn't apply)
+    if (isCurrentRestDay) {
+      const action = await storage.createCycleDayAction({
+        gymId: req.user!.gymId || null,
+        memberId: req.user!.id,
+        cycleId: cycle.id,
+        date: todayStr,
+        action: 'rest',
+        originalDayIndex: currentDayIndex,
+        notes: notes || null
+      });
+      
+      return res.json({ 
+        message: "Rest day logged", 
+        action,
+        progressionMode: cycle.progressionMode,
+        note: "Today was already a scheduled rest day."
+      });
+    }
+    
+    // Today is a WORKOUT day - handle adjustPlan options
+    
+    if (adjustPlan === "none") {
+      // Just log rest, don't adjust schedule
+      const action = await storage.createCycleDayAction({
+        gymId: req.user!.gymId || null,
+        memberId: req.user!.id,
+        cycleId: cycle.id,
+        date: todayStr,
+        action: 'rest',
+        originalDayIndex: currentDayIndex,
+        notes: notes || null
+      });
+      
+      return res.json({ 
+        message: "Rest day logged", 
+        action,
+        progressionMode: cycle.progressionMode,
+        note: cycle.progressionMode === 'completion' 
+          ? "Your next workout will be the same planned workout." 
+          : "Your schedule remains unchanged."
+      });
+    }
+    
+    // Build list of workout days and rest days
+    const workoutDays: number[] = [];
+    const restDays: number[] = [];
+    for (let i = 0; i < cycle.cycleLength; i++) {
+      const dayItems = allItems.filter(item => item.dayIndex === i);
+      const label = cycle.dayLabels?.[i] || `Day ${i + 1}`;
+      const isRest = cycle.restDays?.includes(i) || label.toLowerCase().includes("rest") || dayItems.length === 0;
+      if (isRest) {
+        restDays.push(i);
+      } else {
+        workoutDays.push(i);
+      }
+    }
+    
+    // Clear any existing overrides from today onwards
+    await storage.clearCycleScheduleOverrides(req.user!.id, cycle.id, todayStr);
+    
+    if (adjustPlan === "swap_next_rest") {
+      // SWAP: Today's workout swaps with the NEXT rest day
+      // Find the next rest day in the cycle (after current position)
+      
+      if (restDays.length === 0) {
+        return res.status(400).json({ message: "No rest day in cycle to swap with" });
+      }
+      
+      // Find next rest day after current position
+      let nextRestDayIndex: number | null = null;
+      for (const restIdx of restDays) {
+        if (restIdx > currentDayIndex) {
+          nextRestDayIndex = restIdx;
+          break;
+        }
+      }
+      // If no rest day after current, wrap around
+      if (nextRestDayIndex === null) {
+        nextRestDayIndex = restDays[0];
+      }
+      
+      const nextRestLabel = cycle.dayLabels?.[nextRestDayIndex] || `Day ${nextRestDayIndex + 1}`;
+      
+      if (cycle.progressionMode === "completion") {
+        // COMPLETION MODE SWAP
+        // Today becomes rest, the rest day slot gets today's workout
+        // Create override: today = rest (mark via action)
+        const action = await storage.createCycleDayAction({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: todayStr,
+          action: 'rest',
+          originalDayIndex: currentDayIndex,
+          notes: notes || `Swapped with ${nextRestLabel}`
+        });
+        
+        // Create schedule override: when we reach nextRestDayIndex position, do currentDayIndex workout
+        const daysUntilNextRest = nextRestDayIndex > currentDayIndex 
+          ? nextRestDayIndex - currentDayIndex 
+          : cycle.cycleLength - currentDayIndex + nextRestDayIndex;
+        
+        const swapDate = new Date(todayStr + 'T00:00:00');
+        swapDate.setDate(swapDate.getDate() + daysUntilNextRest);
+        const swapDateStr = swapDate.toISOString().split('T')[0];
+        
+        await storage.createCycleScheduleOverride({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: swapDateStr,
+          dayIndex: currentDayIndex, // Today's workout moves to this day
+          action: 'swap',
+          originalDayIndex: nextRestDayIndex
+        });
+        
+        return res.json({
+          message: `Resting today. ${currentLabel} moved to ${nextRestLabel}'s slot.`,
+          action,
+          adjustPlan: "swap_next_rest",
+          progressionMode: cycle.progressionMode,
+          swappedTo: { dayIndex: nextRestDayIndex, label: nextRestLabel }
+        });
+        
+      } else {
+        // CALENDAR MODE SWAP
+        // Today becomes rest, next rest date becomes today's workout
+        const today = new Date(todayStr + 'T00:00:00');
+        const startDate = new Date(cycle.startDate);
+        
+        // Find the date of the next rest day
+        let nextRestDate: Date | null = null;
+        for (let offset = 1; offset < cycle.cycleLength * 2; offset++) {
+          const checkDate = new Date(today);
+          checkDate.setDate(checkDate.getDate() + offset);
+          const daysSinceStart = Math.floor((checkDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+          const dayIdx = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+          
+          if (restDays.includes(dayIdx)) {
+            nextRestDate = checkDate;
+            break;
+          }
+        }
+        
+        if (!nextRestDate) {
+          return res.status(400).json({ message: "No rest day found in upcoming schedule" });
+        }
+        
+        const nextRestDateStr = nextRestDate.toISOString().split('T')[0];
+        
+        // Log rest action for today
+        const action = await storage.createCycleDayAction({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: todayStr,
+          action: 'rest',
+          originalDayIndex: currentDayIndex,
+          notes: notes || `Swapped with rest on ${nextRestDateStr}`
+        });
+        
+        // Override today to be rest
+        await storage.createCycleScheduleOverride({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: todayStr,
+          dayIndex: nextRestDayIndex!, // Rest day index
+          action: 'swap',
+          originalDayIndex: currentDayIndex
+        });
+        
+        // Override next rest date to be today's workout
+        await storage.createCycleScheduleOverride({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: nextRestDateStr,
+          dayIndex: currentDayIndex, // Today's workout
+          action: 'swap',
+          originalDayIndex: nextRestDayIndex!
+        });
+        
+        return res.json({
+          message: `Resting today. ${currentLabel} moved to ${nextRestDateStr}.`,
+          action,
+          adjustPlan: "swap_next_rest",
+          progressionMode: cycle.progressionMode,
+          swappedTo: { date: nextRestDateStr }
+        });
+      }
+      
+    } else if (adjustPlan === "push_workout") {
+      // PUSH: Today's workout pushed later, all workouts between pull earlier
+      // Rest goes to today, workouts shift
+      
+      if (cycle.progressionMode === "completion") {
+        // COMPLETION MODE PUSH
+        // Today = rest, push currentDayIndex to end of remaining workout block
+        // All workouts after current position shift earlier by 1
+        
+        // Find next rest day position in sequence
+        let nextRestPos = -1;
+        for (let i = currentDayIndex + 1; i < cycle.cycleLength; i++) {
+          if (restDays.includes(i)) {
+            nextRestPos = i;
+            break;
+          }
+        }
+        
+        // Log rest for today
+        const action = await storage.createCycleDayAction({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: todayStr,
+          action: 'rest',
+          originalDayIndex: currentDayIndex,
+          notes: notes || "Pushed workout, taking rest today"
+        });
+        
+        // Create overrides: shift workouts earlier, push current workout to end
+        // Example: Mon(Chest) Tue(Back) Wed(Shoulders) Thu(Rest)
+        // Push on Mon => Mon(Rest) Tue(Chest) Wed(Back) Thu(Shoulders)
+        
+        const endPos = nextRestPos !== -1 ? nextRestPos : cycle.cycleLength;
+        let dateOffset = 1;
+        
+        // Shift all workout days between current+1 and endPos earlier by one slot
+        for (let i = currentDayIndex + 1; i < endPos; i++) {
+          if (restDays.includes(i)) continue; // Skip rest days in the sequence
+          
+          const shiftDate = new Date(todayStr + 'T00:00:00');
+          shiftDate.setDate(shiftDate.getDate() + dateOffset);
+          const shiftDateStr = shiftDate.toISOString().split('T')[0];
+          
+          await storage.createCycleScheduleOverride({
+            gymId: req.user!.gymId || null,
+            memberId: req.user!.id,
+            cycleId: cycle.id,
+            date: shiftDateStr,
+            dayIndex: i, // This workout moves earlier
+            action: 'push',
+            originalDayIndex: i
+          });
+          dateOffset++;
+        }
+        
+        // Current workout goes to where rest was (or end of block)
+        const pushedDate = new Date(todayStr + 'T00:00:00');
+        pushedDate.setDate(pushedDate.getDate() + dateOffset);
+        const pushedDateStr = pushedDate.toISOString().split('T')[0];
+        
+        await storage.createCycleScheduleOverride({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: pushedDateStr,
+          dayIndex: currentDayIndex, // Today's workout pushed here
+          action: 'push',
+          originalDayIndex: nextRestPos !== -1 ? nextRestPos : currentDayIndex
+        });
+        
+        return res.json({
+          message: `Resting today. ${currentLabel} pushed to later in schedule.`,
+          action,
+          adjustPlan: "push_workout",
+          progressionMode: cycle.progressionMode
+        });
+        
+      } else {
+        // CALENDAR MODE PUSH
+        // Today = rest, tomorrow = today's workout, subsequent days shift forward
+        // Until we reach the next rest day, which absorbs the shift
+        
+        const today = new Date(todayStr + 'T00:00:00');
+        const startDate = new Date(cycle.startDate);
+        
+        // Find next rest date
+        let nextRestOffset = -1;
+        for (let offset = 1; offset < cycle.cycleLength * 2; offset++) {
+          const checkDate = new Date(today);
+          checkDate.setDate(checkDate.getDate() + offset);
+          const daysSinceStart = Math.floor((checkDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+          const dayIdx = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+          
+          if (restDays.includes(dayIdx)) {
+            nextRestOffset = offset;
+            break;
+          }
+        }
+        
+        // Log rest for today
+        const action = await storage.createCycleDayAction({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: todayStr,
+          action: 'rest',
+          originalDayIndex: currentDayIndex,
+          notes: notes || "Pushed workout, taking rest today"
+        });
+        
+        // Override today as rest (use any rest day index)
+        const restDayIndex = restDays.length > 0 ? restDays[0] : currentDayIndex;
+        await storage.createCycleScheduleOverride({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId: cycle.id,
+          date: todayStr,
+          dayIndex: restDayIndex,
+          action: 'push',
+          originalDayIndex: currentDayIndex
+        });
+        
+        // Shift each day from tomorrow to nextRestOffset
+        // Tomorrow gets today's workout, day after gets tomorrow's original, etc.
+        const endOffset = nextRestOffset !== -1 ? nextRestOffset : cycle.cycleLength;
+        
+        for (let offset = 1; offset <= endOffset; offset++) {
+          const shiftDate = new Date(today);
+          shiftDate.setDate(shiftDate.getDate() + offset);
+          const shiftDateStr = shiftDate.toISOString().split('T')[0];
+          
+          // Calculate what workout should be on this shifted date
+          // It should be the workout that WAS scheduled for (offset - 1) days from today
+          const originalDate = new Date(today);
+          originalDate.setDate(originalDate.getDate() + offset - 1);
+          const originalDaysSinceStart = Math.floor((originalDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+          const originalDayIdx = originalDaysSinceStart >= 0 ? originalDaysSinceStart % cycle.cycleLength : 0;
+          
+          // Skip if original was a rest day (we're eating into it)
+          if (restDays.includes(originalDayIdx) && offset > 1) {
+            break; // Stop shifting at the rest day boundary
+          }
+          
+          await storage.createCycleScheduleOverride({
+            gymId: req.user!.gymId || null,
+            memberId: req.user!.id,
+            cycleId: cycle.id,
+            date: shiftDateStr,
+            dayIndex: originalDayIdx,
+            action: 'push',
+            originalDayIndex: originalDayIdx
+          });
+        }
+        
+        return res.json({
+          message: `Resting today. ${currentLabel} pushed to tomorrow, schedule shifted.`,
+          action,
+          adjustPlan: "push_workout",
+          progressionMode: cycle.progressionMode
+        });
+      }
+    }
+    
+    // Fallback (shouldn't reach here)
+    return res.status(400).json({ message: "Invalid adjustPlan option" });
   });
 
   // TRAIN ANYWAY - User wants to train on a planned rest day

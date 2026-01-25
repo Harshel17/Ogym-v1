@@ -166,18 +166,22 @@ export default function MemberWorkoutPage() {
   const [reorderAction, setReorderAction] = useState<"swap" | "push">("swap");
   const [isRestDayReorder, setIsRestDayReorder] = useState(false);
   
-  // Rest Today mutation
+  // Rest Today adjust plan state
+  const [restAdjustPlan, setRestAdjustPlan] = useState<"none" | "swap_next_rest" | "push_workout">("none");
+
+  // Rest Today mutation (with optional adjustPlan)
   const restTodayMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/workouts/rest-today", {});
+    mutationFn: async (adjustPlan: "none" | "swap_next_rest" | "push_workout" = "none") => {
+      const res = await apiRequest("POST", "/api/workouts/rest-today", { adjustPlan });
       return res.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/member/workout/summary"] });
       setRestTodayDialogOpen(false);
+      setRestAdjustPlan("none");
       toast({ 
-        title: "Rest day logged",
+        title: data.message || "Rest day logged",
         description: data.note
       });
     },
@@ -1130,26 +1134,96 @@ export default function MemberWorkoutPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Rest Today Dialog */}
-      <Dialog open={restTodayDialogOpen} onOpenChange={setRestTodayDialogOpen}>
-        <DialogContent>
+      {/* Rest Today Dialog - With Plan Adjustment Options */}
+      <Dialog open={restTodayDialogOpen} onOpenChange={(open) => {
+        setRestTodayDialogOpen(open);
+        if (!open) setRestAdjustPlan("none");
+      }}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Moon className="w-5 h-5 text-indigo-500" />
-              Rest Today?
+              Rest Today
             </DialogTitle>
             <DialogDescription>
-              {today?.progressionMode === 'completion' 
-                ? "Take a rest! Your next workout will still be the same planned workout when you're ready to continue."
-                : "Mark today as a rest day. Your schedule will continue normally tomorrow."}
+              How should we adjust your plan for this cycle?
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-3 py-4">
+            <button
+              type="button"
+              onClick={() => setRestAdjustPlan("none")}
+              className={`w-full p-3 rounded-lg border text-left transition-colors ${
+                restAdjustPlan === "none"
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:bg-muted/50'
+              }`}
+              data-testid="rest-option-none"
+            >
+              <div className="flex items-start gap-3">
+                <Moon className="w-5 h-5 mt-0.5 text-indigo-500" />
+                <div>
+                  <p className="font-medium">Just Rest Today</p>
+                  <p className="text-xs text-muted-foreground">
+                    {today?.progressionMode === 'completion' 
+                      ? "Your next workout will still be the same planned workout."
+                      : "Your schedule remains unchanged for tomorrow."}
+                  </p>
+                </div>
+              </div>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => setRestAdjustPlan("swap_next_rest")}
+              className={`w-full p-3 rounded-lg border text-left transition-colors ${
+                restAdjustPlan === "swap_next_rest"
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:bg-muted/50'
+              }`}
+              data-testid="rest-option-swap"
+            >
+              <div className="flex items-start gap-3">
+                <ArrowLeftRight className="w-5 h-5 mt-0.5 text-indigo-500" />
+                <div>
+                  <p className="font-medium">Swap with Next Rest Day</p>
+                  <p className="text-xs text-muted-foreground">
+                    Today's workout moves to the next rest day slot. Recommended for maintaining balance.
+                  </p>
+                </div>
+              </div>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => setRestAdjustPlan("push_workout")}
+              className={`w-full p-3 rounded-lg border text-left transition-colors ${
+                restAdjustPlan === "push_workout"
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:bg-muted/50'
+              }`}
+              data-testid="rest-option-push"
+            >
+              <div className="flex items-start gap-3">
+                <ArrowRight className="w-5 h-5 mt-0.5 text-indigo-500" />
+                <div>
+                  <p className="font-medium">Push Today's Workout</p>
+                  <p className="text-xs text-muted-foreground">
+                    Today's workout shifts later, other workouts pull earlier.
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setRestTodayDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setRestTodayDialogOpen(false);
+              setRestAdjustPlan("none");
+            }}>
               Cancel
             </Button>
             <Button 
-              onClick={() => restTodayMutation.mutate()}
+              onClick={() => restTodayMutation.mutate(restAdjustPlan)}
               disabled={restTodayMutation.isPending}
               data-testid="button-confirm-rest-today"
             >
@@ -1158,7 +1232,7 @@ export default function MemberWorkoutPage() {
               ) : (
                 <Moon className="w-4 h-4 mr-2" />
               )}
-              Rest Today
+              Confirm Rest
             </Button>
           </DialogFooter>
         </DialogContent>
