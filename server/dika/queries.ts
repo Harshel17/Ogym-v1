@@ -301,6 +301,68 @@ export async function getMemberWorkoutLogsDetailed(memberId: number, gymId: numb
   return lines.join('\n');
 }
 
+export async function getMemberUpcomingWorkout(memberId: number, gymId: number | null): Promise<string> {
+  const source = gymId ? 'trainer' : 'self';
+  
+  const cycles = await db.select()
+    .from(workoutCycles)
+    .where(
+      and(
+        eq(workoutCycles.memberId, memberId),
+        eq(workoutCycles.source, source),
+        eq(workoutCycles.isActive, true)
+      )
+    )
+    .limit(1);
+  
+  if (cycles.length === 0) {
+    return gymId 
+      ? "You don't have an active workout cycle assigned by your trainer yet."
+      : "You don't have an active workout cycle. Create one from your dashboard!";
+  }
+  
+  const cycle = cycles[0];
+  
+  // Calculate tomorrow's dayIndex
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowDate = tomorrow.toISOString().split('T')[0];
+  
+  const startDate = new Date(cycle.startDate + 'T00:00:00');
+  const targetDate = new Date(tomorrowDate + 'T00:00:00');
+  const daysSinceStart = Math.floor((targetDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const dayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+  
+  const dayLabel = cycle.dayLabels?.[dayIndex] || `Day ${dayIndex + 1}`;
+  
+  // Get exercises for that day
+  const items = await db.select()
+    .from(workoutItems)
+    .where(
+      and(
+        eq(workoutItems.cycleId, cycle.id),
+        eq(workoutItems.dayIndex, dayIndex),
+        eq(workoutItems.isDeleted, false)
+      )
+    );
+  
+  if (items.length === 0) {
+    return `Tomorrow is ${dayLabel} - it's a rest day!`;
+  }
+  
+  const lines: string[] = [`Tomorrow is ${dayLabel}:`];
+  for (const item of items) {
+    const details = [];
+    if (item.sets) details.push(`${item.sets} sets`);
+    if (item.reps) details.push(`${item.reps} reps`);
+    if (item.weight) details.push(item.weight);
+    const detailStr = details.length > 0 ? ` - ${details.join(', ')}` : '';
+    lines.push(`• ${item.exerciseName}${detailStr}`);
+  }
+  
+  return lines.join('\n');
+}
+
 export async function getMemberCurrentCycle(memberId: number, gymId: number | null): Promise<string> {
   const source = gymId ? 'trainer' : 'self';
   

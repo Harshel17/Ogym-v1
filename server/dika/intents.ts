@@ -5,6 +5,7 @@ export type DikaIntent =
   | 'member_last_rest_day'
   | 'member_skipped_this_week'
   | 'member_workout_logs_detailed'
+  | 'member_upcoming_workout'
   | 'trainer_member_workout_on_date'
   | 'trainer_members_skipped_this_week'
   | 'owner_unpaid_this_month'
@@ -242,6 +243,20 @@ const intentPatterns: IntentPattern[] = [
     extractors: {
       date: /(yesterday|today)/i,
     },
+  },
+  {
+    intent: 'member_upcoming_workout',
+    patterns: [
+      /what\s+(is|are)\s+(my\s+)?tomorrow['s]?\s+workout/i,
+      /tomorrow['s]?\s+workout/i,
+      /what\s+do\s+i\s+(have\s+to\s+)?do\s+tomorrow/i,
+      /what\s+(is|are)\s+(my\s+)?next\s+workout/i,
+      /next\s+workout/i,
+      /upcoming\s+workout/i,
+      /what\s+should\s+i\s+train\s+tomorrow/i,
+      /what['s]?\s+scheduled\s+(for\s+)?tomorrow/i,
+    ],
+    requiredRole: ['member'],
   },
   {
     intent: 'trainer_member_workout_on_date',
