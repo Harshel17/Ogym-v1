@@ -10,32 +10,23 @@ export function DikaCircleIcon({ className }: { className?: string }) {
 export function SunflowerIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
-      {/* Outer petals - larger, more natural shape */}
-      {[0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5].map((angle, i) => (
-        <path
-          key={`outer-${angle}`}
-          d={`M12,12 Q${11 + (i % 2) * 0.5},${4 - (i % 3) * 0.3} 12,2 Q${13 - (i % 2) * 0.5},${4 + (i % 3) * 0.3} 12,12`}
-          fill="#FFC107"
-          transform={`rotate(${angle} 12 12)`}
-        />
-      ))}
-      {/* Inner petals - smaller accent layer */}
-      {[11.25, 33.75, 56.25, 78.75, 101.25, 123.75, 146.25, 168.75, 191.25, 213.75, 236.25, 258.75, 281.25, 303.75, 326.25, 348.75].map((angle) => (
-        <path
-          key={`inner-${angle}`}
-          d="M12,12 Q11,6 12,4 Q13,6 12,12"
-          fill="#FFB300"
-          transform={`rotate(${angle} 12 12)`}
-        />
-      ))}
-      {/* Seed head with texture */}
-      <circle cx="12" cy="12" r="5" fill="#5D4037" />
-      <circle cx="12" cy="12" r="4" fill="#6D4C41" />
-      {/* Seed pattern */}
-      {[0, 60, 120, 180, 240, 300].map((angle) => (
-        <circle key={`seed-${angle}`} cx="12" cy="10" r="0.6" fill="#4E342E" transform={`rotate(${angle} 12 12)`} />
-      ))}
-      <circle cx="12" cy="12" r="1.5" fill="#3E2723" />
+      {/* Petals */}
+      <path d="M12 1.5L13.5 6.5L12 7.5L10.5 6.5L12 1.5Z" fill="#F59E0B" />
+      <path d="M16.6 3.1L15.5 8L14 7.5L14.5 6L16.6 3.1Z" fill="#F59E0B" />
+      <path d="M20.5 7L16 9.5L15.5 8L17 7L20.5 7Z" fill="#F59E0B" />
+      <path d="M22.5 12L17.5 13.5L17 12L18 10.5L22.5 12Z" fill="#F59E0B" />
+      <path d="M20.5 17L16 14.5L17 13L18 14L20.5 17Z" fill="#F59E0B" />
+      <path d="M16.6 20.9L15 15.5L16 14L16.5 15.5L16.6 20.9Z" fill="#F59E0B" />
+      <path d="M12 22.5L10.5 17.5L12 16.5L13.5 17.5L12 22.5Z" fill="#F59E0B" />
+      <path d="M7.4 20.9L8.5 16L10 16.5L9.5 18L7.4 20.9Z" fill="#F59E0B" />
+      <path d="M3.5 17L8 14.5L8.5 16L7 17L3.5 17Z" fill="#F59E0B" />
+      <path d="M1.5 12L6.5 10.5L7 12L6 13.5L1.5 12Z" fill="#F59E0B" />
+      <path d="M3.5 7L8 9.5L7 11L6 10L3.5 7Z" fill="#F59E0B" />
+      <path d="M7.4 3.1L9 8.5L8 10L7.5 8.5L7.4 3.1Z" fill="#F59E0B" />
+      {/* Center */}
+      <circle cx="12" cy="12" r="5" fill="#78350F" />
+      <circle cx="12" cy="12" r="3.5" fill="#92400E" />
+      <circle cx="11" cy="11" r="1" fill="#78350F" />
     </svg>
   );
 }
@@ -43,39 +34,7 @@ export function SunflowerIcon({ className }: { className?: string }) {
 export function BatIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-      {/* Batman-style bat symbol */}
-      <path d="
-        M12 3
-        C11 3 10 3.5 9.5 4.5
-        L8 4
-        C6 4 4.5 5.5 3.5 7
-        C4.5 7.5 5.5 8.5 5.5 10
-        L4 11
-        C2.5 11.5 1.5 12.5 1.5 14
-        C2.5 14 4 14.5 5.5 15.5
-        C6 17 7 18.5 8.5 19
-        C9 18 10 17.5 12 17.5
-        C14 17.5 15 18 15.5 19
-        C17 18.5 18 17 18.5 15.5
-        C20 14.5 21.5 14 22.5 14
-        C22.5 12.5 21.5 11.5 20 11
-        L18.5 10
-        C18.5 8.5 19.5 7.5 20.5 7
-        C19.5 5.5 18 4 16 4
-        L14.5 4.5
-        C14 3.5 13 3 12 3
-        Z
-        M10 8
-        C10.5 8.5 10.5 9 10 10
-        L9 11
-        C9.5 12 10.5 12.5 12 12.5
-        C13.5 12.5 14.5 12 15 11
-        L14 10
-        C13.5 9 13.5 8.5 14 8
-        C13 8.5 12.5 9 12 9
-        C11.5 9 11 8.5 10 8
-        Z
-      " fillRule="evenodd" />
+      <path d="M12 5C12 5 10 7 10 9C10 9 8 7 5 7C5 7 7 10 7 12C7 12 4 11 2 12C2 12 5 14 7 15C7 15 6 18 8 20C8 20 10 18 12 18C14 18 16 20 16 20C18 18 17 15 17 15C19 14 22 12 22 12C20 11 17 12 17 12C17 10 19 7 19 7C16 7 14 9 14 9C14 7 12 5 12 5Z" />
     </svg>
   );
 }
