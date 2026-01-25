@@ -34,7 +34,27 @@ export function SunflowerIcon({ className }: { className?: string }) {
 export function BatIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path d="M12 5C12 5 10 7 10 9C10 9 8 7 5 7C5 7 7 10 7 12C7 12 4 11 2 12C2 12 5 14 7 15C7 15 6 18 8 20C8 20 10 18 12 18C14 18 16 20 16 20C18 18 17 15 17 15C19 14 22 12 22 12C20 11 17 12 17 12C17 10 19 7 19 7C16 7 14 9 14 9C14 7 12 5 12 5Z" />
+      {/* Dark Knight style bat symbol */}
+      <path d="
+        M12 4
+        L12.8 6
+        L13.5 5
+        L14 6.5
+        C15 6 17 6.5 19 8
+        C20.5 9 22 10.5 23 12
+        L18 11
+        C17.5 12.5 16.5 14 15 15.5
+        C14 16.5 13 17.5 12 18
+        C11 17.5 10 16.5 9 15.5
+        C7.5 14 6.5 12.5 6 11
+        L1 12
+        C2 10.5 3.5 9 5 8
+        C7 6.5 9 6 10 6.5
+        L10.5 5
+        L11.2 6
+        L12 4
+        Z
+      " />
     </svg>
   );
 }
