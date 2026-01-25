@@ -48,21 +48,69 @@ interface IntentPattern {
 function normalizeMessage(message: string): string {
   let normalized = message.toLowerCase().trim();
   normalized = normalized.replace(/[.,!?;:'"()]/g, '');
-  const replacements: Record<string, string> = {
+  
+  const contractions: Record<string, string> = {
+    "hasn't": 'has not',
+    "haven't": 'have not',
+    "didn't": 'did not',
+    "doesn't": 'does not',
+    "don't": 'do not',
+    "won't": 'will not',
+    "isn't": 'is not',
+    "aren't": 'are not',
+    "wasn't": 'was not',
+    "weren't": 'were not',
+    "can't": 'can not',
+    "couldn't": 'could not',
+    "wouldn't": 'would not',
+    "shouldn't": 'should not',
+    'hasnt': 'has not',
+    'havent': 'have not',
+    'didnt': 'did not',
+    'doesnt': 'does not',
+    'dont': 'do not',
+    'wont': 'will not',
+    'isnt': 'is not',
+    'arent': 'are not',
+    'wasnt': 'was not',
+    'werent': 'were not',
+    'cant': 'can not',
+    'couldnt': 'could not',
+    'wouldnt': 'would not',
+    'shouldnt': 'should not',
+  };
+  
+  for (const [from, to] of Object.entries(contractions)) {
+    normalized = normalized.replace(new RegExp(from.replace("'", "'?"), 'gi'), to);
+  }
+  
+  const synonyms: Record<string, string> = {
     'checkedin': 'checked in',
     'checkin': 'check in',
-    'didnt': 'did not',
-    'havent': 'have not',
-    'hasnt': 'has not',
-    'wont': 'will not',
-    'dont': 'do not',
     'subs': 'subscriptions',
     'mem': 'members',
     'mems': 'members',
+    'unpaid': 'not paid',
+    'pending': 'not paid',
+    'dues': 'payments',
+    'owes': 'not paid',
+    'owed': 'not paid',
+    'outstanding': 'not paid',
+    'overdue': 'not paid',
+    'attendence': 'attendance',
+    'attendace': 'attendance',
+    'paymnet': 'payment',
+    'payemnt': 'payment',
+    'memebr': 'member',
+    'memebers': 'members',
+    'workou': 'workout',
+    'workot': 'workout',
   };
-  for (const [from, to] of Object.entries(replacements)) {
-    normalized = normalized.replace(new RegExp(`\\b${from}\\b`, 'g'), to);
+  
+  for (const [from, to] of Object.entries(synonyms)) {
+    normalized = normalized.replace(new RegExp(`\\b${from}\\b`, 'gi'), to);
   }
+  
   return normalized;
 }
 
@@ -115,21 +163,27 @@ const intentPatterns: IntentPattern[] = [
     patterns: [
       /what\s+did\s+i\s+train\s+this\s+week/i,
       /my\s+workouts?\s+this\s+week/i,
-      /show\s+(me\s+)?this\s+week('s)?\s+(training|workouts?)/i,
-      /this\s+week('s)?\s+workouts?/i,
-      /what\s+i\s+trained\s+this\s+week/i,
-      /workouts?\s+i\s+did\s+this\s+week/i,
+      /show\s+(me\s+)?this\s+week/i,
+      /this\s+week\s+workouts?/i,
+      /what\s+i\s+trained/i,
+      /workouts?\s+i\s+did/i,
+      /my\s+training\s+this\s+week/i,
+      /weekly\s+workouts?/i,
+      /this\s+weeks?\s+training/i,
     ],
     requiredRole: ['member'],
   },
   {
     intent: 'member_monthly_workout_count',
     patterns: [
-      /how\s+many\s+(days?\s+)?did\s+i\s+work\s*out\s+this\s+month/i,
-      /my\s+workout\s+count\s+this\s+month/i,
+      /how\s+many\s+(days?\s+)?did\s+i\s+work/i,
+      /my\s+workout\s+count/i,
       /workouts?\s+this\s+month/i,
-      /how\s+many\s+times?\s+did\s+i\s+(train|exercise)\s+this\s+month/i,
-      /days?\s+i\s+worked?\s*out\s+this\s+month/i,
+      /how\s+many\s+times?\s+did\s+i\s+(train|exercise)/i,
+      /days?\s+i\s+worked/i,
+      /monthly\s+workouts?/i,
+      /workouts?\s+count/i,
+      /how\s+often\s+did\s+i\s+train/i,
     ],
     requiredRole: ['member'],
   },
@@ -142,6 +196,9 @@ const intentPatterns: IntentPattern[] = [
       /what\s+cycle\s+am\s+i\s+on/i,
       /current\s+workout\s+plan/i,
       /my\s+workout\s+plan/i,
+      /what\s+am\s+i\s+supposed\s+to\s+do/i,
+      /my\s+program/i,
+      /what\s+is\s+my\s+plan/i,
     ],
     requiredRole: ['member'],
   },
@@ -192,11 +249,15 @@ const intentPatterns: IntentPattern[] = [
   {
     intent: 'owner_unpaid_this_month',
     patterns: [
-      /who\s+hasn'?t\s+paid\s+this\s+month/i,
-      /unpaid\s+members?\s+this\s+month/i,
-      /members?\s+(with\s+)?pending\s+payments?/i,
-      /who\s+owes\s+money/i,
-      /outstanding\s+payments?/i,
+      /who\s+has\s+not\s+paid/i,
+      /not\s+paid\s+this\s+month/i,
+      /not\s+paid\s+members?/i,
+      /members?\s+not\s+paid/i,
+      /members?\s+(with\s+)?not\s+paid\s+payments?/i,
+      /show\s+(me\s+)?not\s+paid/i,
+      /list\s+not\s+paid/i,
+      /payments?\s+not\s+paid/i,
+      /who\s+owes/i,
     ],
     requiredRole: ['owner'],
   },
@@ -224,30 +285,41 @@ const intentPatterns: IntentPattern[] = [
   {
     intent: 'owner_checked_in_today',
     patterns: [
-      /who\s+checked\s+in\s+today/i,
-      /members?\s+who\s+came\s+today/i,
-      /who\s+came\s+in\s+today/i,
+      /who\s+checked\s+in/i,
+      /members?\s+who\s+came/i,
+      /who\s+came\s+in/i,
+      /who\s+is\s+here/i,
+      /who\s+showed\s+up/i,
+      /today\s+attendance\s+list/i,
       /list\s+of\s+members?\s+today/i,
+      /attendance\s+list/i,
     ],
     requiredRole: ['owner'],
   },
   {
     intent: 'owner_not_checked_in_today',
     patterns: [
-      /who\s+did\s+not\s+check\s+in\s+today/i,
+      /who\s+did\s+not\s+check\s+in/i,
       /who\s+has\s+not\s+checked\s+in/i,
+      /who\s+is\s+not\s+here/i,
       /members?\s+who\s+did\s+not\s+come/i,
-      /absent\s+members?\s+today/i,
+      /absent\s+members?/i,
       /who\s+is\s+absent/i,
+      /not\s+checked\s+in\s+today/i,
+      /missing\s+members?/i,
+      /who\s+is\s+missing/i,
     ],
     requiredRole: ['owner'],
   },
   {
     intent: 'owner_active_memberships',
     patterns: [
-      /active\s+memberships?(\s+count)?/i,
-      /how\s+many\s+memberships?\s+active/i,
-      /total\s+active\s+memberships?/i,
+      /active\s+memberships?/i,
+      /how\s+many\s+memberships?/i,
+      /total\s+members?/i,
+      /how\s+many\s+members?\s+do\s+i\s+have/i,
+      /member\s+count/i,
+      /total\s+active/i,
     ],
     requiredRole: ['owner'],
   },

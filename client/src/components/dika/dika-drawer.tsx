@@ -12,6 +12,7 @@ interface DikaMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  followUpChips?: string[];
 }
 
 interface DikaDrawerProps {
@@ -156,24 +157,40 @@ export function DikaDrawer({
           )}
 
           {messages.map((message) => (
-            <div
-              key={message.id}
-              className={cn(
-                "flex",
-                message.role === 'user' ? 'justify-end' : 'justify-start'
-              )}
-            >
+            <div key={message.id} className="space-y-2">
               <div
                 className={cn(
-                  "max-w-[80%] px-3 py-2 rounded-lg text-sm",
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
+                  "flex",
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
                 )}
-                data-testid={`message-${message.role}`}
               >
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                <div
+                  className={cn(
+                    "max-w-[80%] px-3 py-2 rounded-lg text-sm",
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted'
+                  )}
+                  data-testid={`message-${message.role}`}
+                >
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+                </div>
               </div>
+              {message.role === 'assistant' && message.followUpChips && message.followUpChips.length > 0 && (
+                <div className="flex flex-wrap gap-1 pl-1">
+                  {message.followUpChips.map((chip, i) => (
+                    <Badge
+                      key={i}
+                      variant="outline"
+                      className="cursor-pointer hover-elevate text-xs"
+                      onClick={() => handleSuggestionClick(chip)}
+                      data-testid={`chip-followup-${i}`}
+                    >
+                      {chip}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 

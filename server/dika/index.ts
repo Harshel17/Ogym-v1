@@ -40,6 +40,7 @@ export interface DikaResponse {
   intent?: DikaIntent;
   data?: object;
   confidence?: 'high' | 'low';
+  followUpChips?: string[];
 }
 
 export async function handleDikaQuery(
@@ -103,10 +104,13 @@ export async function handleDikaQuery(
       lastDate: dateRef,
     });
     
+    const followUpChips = getFollowUpChips(intentResult.intent, role);
+    
     return {
       answer,
       intent: intentResult.intent,
       confidence: intentResult.confidence,
+      followUpChips,
     };
   } catch (error) {
     console.error('Dika query error:', error);
@@ -116,6 +120,22 @@ export async function handleDikaQuery(
       confidence: 'low',
     };
   }
+}
+
+function getFollowUpChips(intent: DikaIntent, role: UserRole): string[] {
+  const chipsByIntent: Record<string, string[]> = {
+    'owner_unpaid_this_month': ['Who checked in today?', 'Total active members'],
+    'owner_checked_in_today': ['Who did not check in?', 'How many active members?'],
+    'owner_not_checked_in_today': ['Who checked in today?', 'Total members'],
+    'owner_active_memberships': ['Who checked in today?', 'Who has not paid?'],
+    'owner_active_members_today': ['Show names', 'Who did not check in?'],
+    'member_weekly_workouts': ['My workout count this month', 'What is my cycle?'],
+    'member_monthly_workout_count': ['My workouts this week', 'My current cycle'],
+    'member_current_cycle': ['My workouts this week', 'My workout count'],
+    'trainer_members_skipped_this_week': ['Who checked in today?', 'My workouts'],
+  };
+  
+  return chipsByIntent[intent] || [];
 }
 
 async function executeIntent(

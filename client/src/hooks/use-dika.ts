@@ -9,6 +9,7 @@ interface DikaMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  followUpChips?: string[];
 }
 
 interface DikaPosition {
@@ -84,6 +85,7 @@ export function useDika(userId: number, hideDika: boolean) {
         role: 'assistant',
         content: data.answer,
         timestamp: new Date(),
+        followUpChips: data.followUpChips || [],
       };
       setMessages(prev => [...prev, assistantMessage]);
     },
