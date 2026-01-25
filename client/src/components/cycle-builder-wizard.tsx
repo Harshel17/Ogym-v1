@@ -763,7 +763,7 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
                     </div>
                     <div>
                       <p className="font-medium">Calendar-based</p>
-                      <p className="text-sm text-muted-foreground">Move to next workout day automatically each day</p>
+                      <p className="text-sm text-muted-foreground">Best for fixed schedules. Miss a day? It moves on. You can reschedule or swap rest days.</p>
                     </div>
                   </div>
                 </button>
@@ -784,7 +784,7 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
                     </div>
                     <div>
                       <p className="font-medium">Completion-based</p>
-                      <p className="text-sm text-muted-foreground">Move to next workout only when you complete the current one</p>
+                      <p className="text-sm text-muted-foreground">Flexible! Your next workout waits for you. Perfect if your schedule varies week to week.</p>
                     </div>
                   </div>
                 </button>
