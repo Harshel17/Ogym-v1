@@ -94,11 +94,16 @@ function checkAmbiguity(message: string): AmbiguityCheck {
       clarification: "Do you mean active memberships, or members who checked in today?"
     };
   }
-  if (/best\s+(member|trainer)/i.test(normalized) || /top\s+(member|performer)/i.test(normalized)) {
+  const subjectiveWords = ['best', 'worst', 'top', 'consistent', 'lazy', 'strongest', 'weakest'];
+  const hasSubjectiveWord = subjectiveWords.some(word => 
+    new RegExp(`\\b${word}\\b`, 'i').test(normalized)
+  );
+  
+  if (hasSubjectiveWord) {
     return {
       isAmbiguous: true,
-      type: 'ranking_request',
-      clarification: "Dika does not rank or judge members. I can show attendance or workout counts if you want."
+      type: 'subjective_request',
+      clarification: "Dika doesn't rank or judge people. I can show attendance or workout counts if you want."
     };
   }
   return { isAmbiguous: false };
