@@ -83,6 +83,7 @@ export async function handleDikaQuery(
   const memberName = intentResult.extractedEntities.memberName || resolvedMemberName || context?.lastMemberName;
   const dateRef = intentResult.extractedEntities.date || resolvedDate || context?.lastDate || 'today';
   const monthRef = intentResult.extractedEntities.month;
+  const responseMode = intentResult.responseMode || 'count';
   
   try {
     const answer = await executeIntent(
@@ -92,7 +93,8 @@ export async function handleDikaQuery(
       gymId,
       memberName,
       dateRef,
-      monthRef
+      monthRef,
+      responseMode
     );
     
     updateContext(userId, {
@@ -123,7 +125,8 @@ async function executeIntent(
   gymId: number | null,
   memberName?: string,
   dateRef?: string,
-  monthRef?: string
+  monthRef?: string,
+  responseMode: ResponseMode = 'count'
 ): Promise<string> {
   switch (intent) {
     case 'member_weekly_workouts':
@@ -175,11 +178,17 @@ async function executeIntent(
       if (!gymId) {
         return "Dika can only access data within your role.";
       }
+      if (responseMode === 'list') {
+        return getOwnerCheckedInToday(gymId);
+      }
       return getOwnerActiveMembersToday(gymId);
       
     case 'owner_checked_in_today':
       if (!gymId) {
         return "Dika can only access data within your role.";
+      }
+      if (responseMode === 'count') {
+        return getOwnerActiveMembersToday(gymId);
       }
       return getOwnerCheckedInToday(gymId);
       
@@ -232,10 +241,9 @@ export function getSuggestionChips(role: UserRole, gymId: number | null): string
       
     case 'owner':
       return [
-        "Who didn't check in today?",
-        "Expiring memberships next month",
+        "Who checked in today?",
+        "How many active members?",
         "Who hasn't paid this month?",
-        "Attendance this week",
       ];
       
     default:

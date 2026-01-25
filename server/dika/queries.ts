@@ -629,34 +629,5 @@ export async function getOwnerActiveMemberships(gymId: number): Promise<string> 
 }
 
 export async function getOwnerExpiringMemberships(gymId: number, nextMonth: boolean = false): Promise<string> {
-  const now = new Date();
-  let targetMonth: Date;
-  
-  if (nextMonth) {
-    targetMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  } else {
-    targetMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  }
-  
-  const monthStart = targetMonth.toISOString().split('T')[0];
-  const monthEnd = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).toISOString().split('T')[0];
-  const monthName = targetMonth.toLocaleDateString('en-US', { month: 'long' });
-  
-  const expiring = await db.select({
-    fullName: userProfiles.fullName,
-  })
-  .from(users)
-  .innerJoin(userProfiles, eq(users.id, userProfiles.userId))
-  .where(
-    and(
-      eq(users.gymId, gymId),
-      eq(users.role, 'member')
-    )
-  );
-  
-  if (expiring.length === 0) {
-    return `No memberships expiring in ${monthName}.`;
-  }
-  
-  return `You have ${expiring.length} member${expiring.length === 1 ? '' : 's'}. Check your subscriptions page for detailed expiry dates.`;
+  return "Membership expiry dates aren't tracked by Dika. Check your Subscriptions page for payment and expiry details.";
 }
