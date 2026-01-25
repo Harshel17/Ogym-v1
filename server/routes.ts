@@ -2052,6 +2052,117 @@ export async function registerRoutes(
     if (cycle.progressionMode === "completion") {
       // COMPLETION-BASED REORDER
       // For completion mode, we modify the cycle's effective day order
+      
+      if (isRestDayReorder) {
+        // REST DAY REORDER for completion mode
+        // Today is a rest day (currentDayIndex is rest), we want to do targetDayIndex workout instead
+        // SWAP REST: swap rest with target workout - rest moves to where target was
+        // PUSH REST: do target workout today, shift workouts between, rest goes after target
+        
+        const targetPos = workoutDays.indexOf(targetDayIndex);
+        if (targetPos === -1) {
+          return res.status(400).json({ message: "Target must be a workout day" });
+        }
+        
+        // Build the full day sequence including rest days for this cycle
+        const allDaysInOrder: number[] = [];
+        for (let i = 0; i < cycle.cycleLength; i++) {
+          allDaysInOrder.push(i);
+        }
+        
+        // Find position of currentDayIndex (rest) and targetDayIndex in full sequence
+        const restPos = allDaysInOrder.indexOf(currentDayIndex);
+        const targetPosInFull = allDaysInOrder.indexOf(targetDayIndex);
+        
+        // Create override for today: do targetDayIndex workout
+        await storage.createCycleScheduleOverride({
+          gymId: req.user!.gymId || null,
+          memberId: req.user!.id,
+          cycleId,
+          date: todayStr,
+          dayIndex: targetDayIndex,
+          action,
+          originalDayIndex: currentDayIndex
+        });
+        
+        if (action === "swap") {
+          // SWAP: rest goes to where target was, target comes to today
+          // We need an override for when we would have done the target workout
+          // In completion mode, this means the rest day is now "at" that position
+          const daysUntilTarget = Math.abs(targetPosInFull - restPos);
+          
+          const targetDate = new Date(todayStr + 'T00:00:00');
+          targetDate.setDate(targetDate.getDate() + daysUntilTarget);
+          const targetDateStr = targetDate.toISOString().split('T')[0];
+          
+          await storage.createCycleScheduleOverride({
+            gymId: req.user!.gymId || null,
+            memberId: req.user!.id,
+            cycleId,
+            date: targetDateStr,
+            dayIndex: currentDayIndex, // Rest day moves here
+            action,
+            originalDayIndex: targetDayIndex
+          });
+        } else {
+          // PUSH: target workout today, all workouts between shift forward by 1, rest goes to end
+          // For days between rest and target, each shifts one slot earlier
+          const startIdx = Math.min(restPos, targetPosInFull);
+          const endIdx = Math.max(restPos, targetPosInFull);
+          
+          let dateOffset = 1;
+          for (let i = startIdx + 1; i <= endIdx; i++) {
+            if (allDaysInOrder[i] === targetDayIndex) continue; // Skip target, it's already today
+            
+            const futureDate = new Date(todayStr + 'T00:00:00');
+            futureDate.setDate(futureDate.getDate() + dateOffset);
+            const futureDateStr = futureDate.toISOString().split('T')[0];
+            
+            await storage.createCycleScheduleOverride({
+              gymId: req.user!.gymId || null,
+              memberId: req.user!.id,
+              cycleId,
+              date: futureDateStr,
+              dayIndex: allDaysInOrder[i],
+              action,
+              originalDayIndex: allDaysInOrder[i]
+            });
+            dateOffset++;
+          }
+          
+          // Rest day goes to the end of this block
+          const restDate = new Date(todayStr + 'T00:00:00');
+          restDate.setDate(restDate.getDate() + dateOffset);
+          const restDateStr = restDate.toISOString().split('T')[0];
+          
+          await storage.createCycleScheduleOverride({
+            gymId: req.user!.gymId || null,
+            memberId: req.user!.id,
+            cycleId,
+            date: restDateStr,
+            dayIndex: currentDayIndex, // Rest day
+            action,
+            originalDayIndex: targetDayIndex
+          });
+        }
+        
+        const targetLabel = cycle.dayLabels?.[targetDayIndex] || `Day ${targetDayIndex + 1}`;
+        
+        return res.json({
+          message: action === "swap" 
+            ? `Swapped rest day with ${targetLabel}` 
+            : `Doing ${targetLabel} today, rest day moved later`,
+          action,
+          isRestDayReorder: true,
+          todayWorkout: {
+            dayIndex: targetDayIndex,
+            label: targetLabel,
+            items: targetDayItems
+          }
+        });
+      }
+      
+      // NORMAL REORDER (not rest day)
       // SWAP: swap currentDayIndex with targetDayIndex in the remaining sequence
       // PUSH: move targetDayIndex to front, shift others forward
       
