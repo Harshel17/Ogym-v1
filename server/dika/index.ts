@@ -4,7 +4,8 @@ import {
   getRefusalMessage, 
   getUnknownIntentMessage,
   DikaIntent,
-  UserRole 
+  UserRole,
+  ResponseMode
 } from './intents';
 import { 
   getContext, 
@@ -24,6 +25,10 @@ import {
   getOwnerUnpaidThisMonth,
   getOwnerMemberPaymentStatus,
   getOwnerActiveMembersToday,
+  getOwnerCheckedInToday,
+  getOwnerNotCheckedInToday,
+  getOwnerActiveMemberships,
+  getOwnerExpiringMemberships,
 } from './queries';
 
 export interface DikaRequest {
@@ -59,6 +64,14 @@ export async function handleDikaQuery(
   
   const intentResult = classifyIntent(message, role);
   
+  if (intentResult.intent === 'ambiguous') {
+    return {
+      answer: intentResult.clarificationQuestion || "Could you clarify what you mean?",
+      intent: 'ambiguous',
+      confidence: 'low',
+    };
+  }
+  
   if (intentResult.intent === 'unknown') {
     return {
       answer: getUnknownIntentMessage(),
@@ -69,6 +82,7 @@ export async function handleDikaQuery(
   
   const memberName = intentResult.extractedEntities.memberName || resolvedMemberName || context?.lastMemberName;
   const dateRef = intentResult.extractedEntities.date || resolvedDate || context?.lastDate || 'today';
+  const monthRef = intentResult.extractedEntities.month;
   
   try {
     const answer = await executeIntent(
@@ -77,7 +91,8 @@ export async function handleDikaQuery(
       role,
       gymId,
       memberName,
-      dateRef
+      dateRef,
+      monthRef
     );
     
     updateContext(userId, {
@@ -107,7 +122,8 @@ async function executeIntent(
   role: UserRole,
   gymId: number | null,
   memberName?: string,
-  dateRef?: string
+  dateRef?: string,
+  monthRef?: string
 ): Promise<string> {
   switch (intent) {
     case 'member_weekly_workouts':
@@ -157,9 +173,33 @@ async function executeIntent(
       
     case 'owner_active_members_today':
       if (!gymId) {
-        return "This feature is only available in gym mode.";
+        return "Dika can only access data within your role.";
       }
       return getOwnerActiveMembersToday(gymId);
+      
+    case 'owner_checked_in_today':
+      if (!gymId) {
+        return "Dika can only access data within your role.";
+      }
+      return getOwnerCheckedInToday(gymId);
+      
+    case 'owner_not_checked_in_today':
+      if (!gymId) {
+        return "Dika can only access data within your role.";
+      }
+      return getOwnerNotCheckedInToday(gymId);
+      
+    case 'owner_active_memberships':
+      if (!gymId) {
+        return "Dika can only access data within your role.";
+      }
+      return getOwnerActiveMemberships(gymId);
+      
+    case 'owner_expiring_memberships':
+      if (!gymId) {
+        return "Dika can only access data within your role.";
+      }
+      return getOwnerExpiringMemberships(gymId, monthRef === 'next');
       
     default:
       return getUnknownIntentMessage();
@@ -178,23 +218,24 @@ export function getSuggestionChips(role: UserRole, gymId: number | null): string
   switch (role) {
     case 'member':
       return [
-        "What did I train this week?",
-        "What is my current workout cycle?",
-        "How many days did I work out this month?",
+        "My workouts this week",
+        "What is my current cycle?",
+        "How many workouts this month?",
       ];
       
     case 'trainer':
       return [
-        "What did I train this week?",
+        "My workouts this week",
         "Who skipped workouts this week?",
-        "What did John train yesterday?",
+        "Who hasn't checked in today?",
       ];
       
     case 'owner':
       return [
+        "Who didn't check in today?",
+        "Expiring memberships next month",
         "Who hasn't paid this month?",
-        "How many active members today?",
-        "Who skipped workouts this week?",
+        "Attendance this week",
       ];
       
     default:

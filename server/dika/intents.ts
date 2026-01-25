@@ -9,17 +9,28 @@ export type DikaIntent =
   | 'owner_unpaid_this_month'
   | 'owner_member_payment_status'
   | 'owner_active_members_today'
+  | 'owner_checked_in_today'
+  | 'owner_not_checked_in_today'
+  | 'owner_active_memberships'
+  | 'owner_expiring_memberships'
+  | 'ambiguous'
   | 'unknown';
 
 export type UserRole = 'member' | 'trainer' | 'owner';
 
+export type ResponseMode = 'count' | 'list';
+
 export interface IntentResult {
   intent: DikaIntent;
   confidence: 'high' | 'low';
+  responseMode: ResponseMode;
+  ambiguityType?: string;
+  clarificationQuestion?: string;
   extractedEntities: {
     memberName?: string;
     date?: string;
     dateRange?: { start: string; end: string };
+    month?: string;
   };
 }
 
@@ -30,7 +41,67 @@ interface IntentPattern {
   extractors?: {
     memberName?: RegExp;
     date?: RegExp;
+    month?: RegExp;
   };
+}
+
+function normalizeMessage(message: string): string {
+  let normalized = message.toLowerCase().trim();
+  normalized = normalized.replace(/[.,!?;:'"()]/g, '');
+  const replacements: Record<string, string> = {
+    'checkedin': 'checked in',
+    'checkin': 'check in',
+    'didnt': 'did not',
+    'havent': 'have not',
+    'hasnt': 'has not',
+    'wont': 'will not',
+    'dont': 'do not',
+    'subs': 'subscriptions',
+    'mem': 'members',
+    'mems': 'members',
+  };
+  for (const [from, to] of Object.entries(replacements)) {
+    normalized = normalized.replace(new RegExp(`\\b${from}\\b`, 'g'), to);
+  }
+  return normalized;
+}
+
+function detectResponseMode(message: string): ResponseMode {
+  const countPatterns = [/how many/i, /count/i, /number of/i, /total/i];
+  const listPatterns = [/who/i, /list/i, /names?/i, /show me/i, /which/i];
+  
+  for (const pattern of countPatterns) {
+    if (pattern.test(message)) return 'count';
+  }
+  for (const pattern of listPatterns) {
+    if (pattern.test(message)) return 'list';
+  }
+  return 'count';
+}
+
+interface AmbiguityCheck {
+  isAmbiguous: boolean;
+  type?: string;
+  clarification?: string;
+}
+
+function checkAmbiguity(message: string): AmbiguityCheck {
+  const normalized = normalizeMessage(message);
+  if (/active\s+members?\s+today/i.test(normalized)) {
+    return {
+      isAmbiguous: true,
+      type: 'active_meaning',
+      clarification: "Do you mean active memberships, or members who checked in today?"
+    };
+  }
+  if (/best\s+(member|trainer)/i.test(normalized) || /top\s+(member|performer)/i.test(normalized)) {
+    return {
+      isAmbiguous: true,
+      type: 'ranking_request',
+      clarification: "Dika does not rank or judge members. I can show attendance or workout counts if you want."
+    };
+  }
+  return { isAmbiguous: false };
 }
 
 const intentPatterns: IntentPattern[] = [
@@ -141,12 +212,52 @@ const intentPatterns: IntentPattern[] = [
     intent: 'owner_active_members_today',
     patterns: [
       /how\s+many\s+active\s+members?\s+today/i,
-      /active\s+members?\s+today/i,
-      /who\s+checked\s+in\s+today/i,
       /today('s)?\s+attendance/i,
-      /members?\s+who\s+came\s+today/i,
     ],
     requiredRole: ['owner'],
+  },
+  {
+    intent: 'owner_checked_in_today',
+    patterns: [
+      /who\s+checked\s+in\s+today/i,
+      /members?\s+who\s+came\s+today/i,
+      /who\s+came\s+in\s+today/i,
+      /list\s+of\s+members?\s+today/i,
+    ],
+    requiredRole: ['owner'],
+  },
+  {
+    intent: 'owner_not_checked_in_today',
+    patterns: [
+      /who\s+did\s+not\s+check\s+in\s+today/i,
+      /who\s+has\s+not\s+checked\s+in/i,
+      /members?\s+who\s+did\s+not\s+come/i,
+      /absent\s+members?\s+today/i,
+      /who\s+is\s+absent/i,
+    ],
+    requiredRole: ['owner'],
+  },
+  {
+    intent: 'owner_active_memberships',
+    patterns: [
+      /active\s+memberships?(\s+count)?/i,
+      /how\s+many\s+memberships?\s+active/i,
+      /total\s+active\s+memberships?/i,
+    ],
+    requiredRole: ['owner'],
+  },
+  {
+    intent: 'owner_expiring_memberships',
+    patterns: [
+      /expiring\s+memberships?/i,
+      /memberships?\s+expiring/i,
+      /expiring\s+(this|next)\s+month/i,
+      /who\s+is\s+expiring/i,
+    ],
+    requiredRole: ['owner'],
+    extractors: {
+      month: /(this|next)\s+month/i,
+    },
   },
 ];
 
@@ -162,11 +273,25 @@ const ADVICE_PATTERNS = [
 ];
 
 export function isAdviceQuestion(message: string): boolean {
-  return ADVICE_PATTERNS.some(pattern => pattern.test(message));
+  const normalized = normalizeMessage(message);
+  return ADVICE_PATTERNS.some(pattern => pattern.test(normalized));
 }
 
 export function classifyIntent(message: string, role: UserRole): IntentResult {
-  const normalizedMessage = message.toLowerCase().trim();
+  const normalized = normalizeMessage(message);
+  const responseMode = detectResponseMode(message);
+  
+  const ambiguity = checkAmbiguity(message);
+  if (ambiguity.isAmbiguous) {
+    return {
+      intent: 'ambiguous',
+      confidence: 'low',
+      responseMode,
+      ambiguityType: ambiguity.type,
+      clarificationQuestion: ambiguity.clarification,
+      extractedEntities: {},
+    };
+  }
   
   for (const intentPattern of intentPatterns) {
     if (!intentPattern.requiredRole.includes(role)) {
@@ -174,7 +299,7 @@ export function classifyIntent(message: string, role: UserRole): IntentResult {
     }
     
     for (const pattern of intentPattern.patterns) {
-      if (pattern.test(normalizedMessage)) {
+      if (pattern.test(normalized)) {
         const extractedEntities: IntentResult['extractedEntities'] = {};
         
         if (intentPattern.extractors?.memberName) {
@@ -191,9 +316,17 @@ export function classifyIntent(message: string, role: UserRole): IntentResult {
           }
         }
         
+        if (intentPattern.extractors?.month) {
+          const match = message.match(intentPattern.extractors.month);
+          if (match) {
+            extractedEntities.month = match[1];
+          }
+        }
+        
         return {
           intent: intentPattern.intent,
           confidence: 'high',
+          responseMode,
           extractedEntities,
         };
       }
@@ -203,12 +336,13 @@ export function classifyIntent(message: string, role: UserRole): IntentResult {
   return {
     intent: 'unknown',
     confidence: 'low',
+    responseMode,
     extractedEntities: {},
   };
 }
 
 export function getRefusalMessage(): string {
-  return "I can't give training or medical advice. I can help with workout history, attendance, and payments.";
+  return "That question requires judgment, which Dika doesn't do. I can show attendance, workouts, or payments.";
 }
 
 export function getUnknownIntentMessage(): string {

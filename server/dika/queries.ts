@@ -532,3 +532,131 @@ export async function getOwnerActiveMembersToday(gymId: number): Promise<string>
   
   return `${count} member${count === 1 ? ' has' : 's have'} checked in today.`;
 }
+
+export async function getOwnerCheckedInToday(gymId: number): Promise<string> {
+  const today = new Date().toISOString().split('T')[0];
+  
+  const checkIns = await db.select({
+    memberId: attendance.memberId,
+    fullName: userProfiles.fullName,
+  })
+  .from(attendance)
+  .innerJoin(userProfiles, eq(attendance.memberId, userProfiles.userId))
+  .where(
+    and(
+      eq(attendance.gymId, gymId),
+      eq(attendance.date, today)
+    )
+  );
+  
+  if (checkIns.length === 0) {
+    return "No members have checked in today yet.";
+  }
+  
+  const uniqueMembers = new Map<number, string>();
+  checkIns.forEach(c => uniqueMembers.set(c.memberId, c.fullName));
+  
+  const names = Array.from(uniqueMembers.values()).slice(0, 10);
+  const moreCount = uniqueMembers.size > 10 ? ` (and ${uniqueMembers.size - 10} more)` : '';
+  
+  return `Members who checked in today: ${names.join(', ')}${moreCount}`;
+}
+
+export async function getOwnerNotCheckedInToday(gymId: number): Promise<string> {
+  const today = new Date().toISOString().split('T')[0];
+  
+  const allMembers = await db.select({
+    userId: users.id,
+    fullName: userProfiles.fullName,
+  })
+  .from(users)
+  .innerJoin(userProfiles, eq(users.id, userProfiles.userId))
+  .where(
+    and(
+      eq(users.gymId, gymId),
+      eq(users.role, 'member')
+    )
+  );
+  
+  if (allMembers.length === 0) {
+    return "You don't have any members in your gym.";
+  }
+  
+  const memberIds = allMembers.map(m => m.userId);
+  
+  const checkedIn = await db.select({
+    memberId: attendance.memberId,
+  })
+  .from(attendance)
+  .where(
+    and(
+      inArray(attendance.memberId, memberIds),
+      eq(attendance.gymId, gymId),
+      eq(attendance.date, today)
+    )
+  );
+  
+  const checkedInIds = new Set(checkedIn.map(c => c.memberId));
+  const absent = allMembers.filter(m => !checkedInIds.has(m.userId));
+  
+  if (absent.length === 0) {
+    return "All members have checked in today!";
+  }
+  
+  const names = absent.slice(0, 10).map(m => m.fullName);
+  const moreCount = absent.length > 10 ? ` (and ${absent.length - 10} more)` : '';
+  
+  return `Members who haven't checked in today: ${names.join(', ')}${moreCount}`;
+}
+
+export async function getOwnerActiveMemberships(gymId: number): Promise<string> {
+  const today = new Date().toISOString().split('T')[0];
+  
+  const activeCount = await db.select({
+    count: sql<number>`count(distinct ${users.id})`,
+  })
+  .from(users)
+  .where(
+    and(
+      eq(users.gymId, gymId),
+      eq(users.role, 'member')
+    )
+  );
+  
+  const count = activeCount[0]?.count || 0;
+  
+  return `You have ${count} active member${count === 1 ? '' : 's'} in your gym.`;
+}
+
+export async function getOwnerExpiringMemberships(gymId: number, nextMonth: boolean = false): Promise<string> {
+  const now = new Date();
+  let targetMonth: Date;
+  
+  if (nextMonth) {
+    targetMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  } else {
+    targetMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  
+  const monthStart = targetMonth.toISOString().split('T')[0];
+  const monthEnd = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).toISOString().split('T')[0];
+  const monthName = targetMonth.toLocaleDateString('en-US', { month: 'long' });
+  
+  const expiring = await db.select({
+    fullName: userProfiles.fullName,
+  })
+  .from(users)
+  .innerJoin(userProfiles, eq(users.id, userProfiles.userId))
+  .where(
+    and(
+      eq(users.gymId, gymId),
+      eq(users.role, 'member')
+    )
+  );
+  
+  if (expiring.length === 0) {
+    return `No memberships expiring in ${monthName}.`;
+  }
+  
+  return `You have ${expiring.length} member${expiring.length === 1 ? '' : 's'}. Check your subscriptions page for detailed expiry dates.`;
+}
