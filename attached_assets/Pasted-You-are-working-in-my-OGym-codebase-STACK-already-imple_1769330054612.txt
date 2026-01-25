@@ -1,0 +1,211 @@
+You are working in my OGym codebase.
+
+STACK (already implemented):
+- Frontend: React 18 + TypeScript + Vite + Wouter + TanStack React Query + shadcn/ui + Tailwind
+- Backend: Express.js + TypeScript + Passport.js (session-based auth)
+- Database: PostgreSQL (Neon) + Drizzle ORM
+- Schema location: shared/schema.ts
+- Roles: member, trainer, owner, admin
+- Gym-scoped multi-tenant architecture already exists
+- Personal Mode (gymId = null) already exists
+
+====================================================
+FEATURE NAME
+====================================================
+DIKA
+
+UI Name:
+“Ask Dika”
+
+Subtitle:
+“Your gym’s memory”
+
+Internal meaning (not user-facing):
+Dika = Data • Insight • Knowledge • Awareness
+
+====================================================
+CORE PHILOSOPHY (VERY IMPORTANT)
+====================================================
+- Dika is NOT a coach
+- Dika is NOT an AI advisor
+- Dika does NOT give recommendations, advice, or medical guidance
+- Dika NEVER suggests workouts, weights, rest, diet, or actions
+- Dika ONLY answers factual questions using existing OGym data
+- Dika is READ-ONLY (no mutations, no writes)
+- Dika must NEVER hallucinate or guess
+- If data is missing or unsupported, Dika must clearly say so
+
+Trust > intelligence.
+
+====================================================
+UI / UX REQUIREMENTS
+====================================================
+DIKA must be implemented as a **floating, movable icon**:
+
+- Small circular floating button (≈44px)
+- Visible ONLY on authenticated pages (after login)
+- Appears for member / trainer / owner dashboards and pages
+- NOT visible on login, register, onboarding, or payment flows
+- Default position: bottom-right with margin
+- Button must be draggable by the user
+- Position must persist using localStorage (scoped per user)
+- Provide a “Hide Dika” option (drawer menu or long-press)
+- Hidden state persists; allow re-enable from Profile/Settings
+
+On click:
+- Open a drawer (bottom on mobile, right-side panel on desktop)
+
+Drawer content:
+- Header: “Ask Dika”
+- Subtitle: “Your gym’s memory”
+- Input field for questions
+- Send button
+- Scrollable conversation history
+- Loading + error states
+- First-time helper text:
+  “Dika answers questions about workouts, attendance, and payments. It doesn’t give advice.”
+
+Suggestion chips (shown when empty, role-aware):
+
+Member:
+- “What did I train this week?”
+- “What is my current workout cycle?”
+- “How many days did I work out this month?”
+
+Trainer:
+- “What did John train yesterday?”
+- “Who skipped workouts this week?”
+
+Owner:
+- “Who hasn’t paid this month?”
+- “How many active members today?”
+
+====================================================
+CONTEXT MEMORY (IMPORTANT)
+====================================================
+Dika must support **short-term session context memory**:
+
+- Remember context for the **last 3–5 questions**
+- Session-only memory (clears when drawer closes OR after inactivity)
+- No long-term memory across sessions
+
+Context should be stored as structured data, NOT raw text, e.g.:
+- lastMemberId
+- lastMemberName
+- lastDateRange
+- lastIntent
+- role
+- gymId
+- turnCount
+
+Examples:
+- “What did John train yesterday?”
+- “What about today?” → should still refer to John
+- After drawer close → context resets
+- If context is lost, Dika should politely ask for clarification
+
+====================================================
+BACKEND API
+====================================================
+Create a read-only endpoint:
+
+POST /api/dika/ask
+
+Request:
+{
+  message: string
+}
+
+Response:
+{
+  answer: string,
+  intent?: string,
+  data?: object (optional structured summary),
+  confidence?: "high" | "low"
+}
+
+Rules:
+- Identify user from session
+- Enforce role-based access
+- Enforce gym scoping
+- Map message → predefined intent
+- Execute ONLY safe, predefined query functions
+- NEVER allow free-form SQL generation
+
+====================================================
+INTENT-BASED SYSTEM (V1)
+====================================================
+Dika should support **flexible phrasing**, but only map to whitelisted intents.
+
+MEMBER (self-only):
+1) member_weekly_workouts
+2) member_monthly_workout_count
+3) member_current_cycle
+4) member_last_rest_day
+5) member_skipped_this_week
+
+TRAINER (assigned members only):
+6) trainer_member_workout_on_date
+7) trainer_members_skipped_this_week
+
+OWNER (gym-wide):
+8) owner_unpaid_this_month
+9) owner_member_payment_status
+10) owner_active_members_today
+
+Multiple phrasings should map to the same intent:
+- “What did I train this week?”
+- “My workouts this week”
+- “Show this week’s training”
+
+If a question cannot be mapped safely:
+Return:
+“I can help with workout history, attendance, and payments.”
+
+====================================================
+REFUSALS (MANDATORY)
+====================================================
+Dika must refuse questions like:
+- “What workout should I do?”
+- “Should I rest today?”
+- “How much weight should I lift?”
+- “Is this member overtraining?”
+- “Give me a diet plan”
+
+Response:
+“I can’t give training or medical advice. I can help with workout history, attendance, and payments.”
+
+====================================================
+DATA SOURCES
+====================================================
+Use existing OGym tables:
+- workout_cycles
+- workout_items
+- workout_completions
+- rest / reschedule logs (existing system)
+- attendance / check-ins
+- payments / memberships (if unavailable, return safe message)
+
+All queries must be:
+- role-checked
+- gym-scoped
+- member-scoped where applicable
+
+====================================================
+DELIVERABLE EXPECTATION
+====================================================
+DO NOT start building yet.
+
+FIRST:
+1) Review this specification
+2) Suggest improvements or risks
+3) Confirm:
+   - missing tables (if any)
+   - edge cases
+   - recommended file structure
+4) Propose an implementation plan (steps + files to touch)
+
+WAIT for my explicit message:
+“START BUILD DIKA”
+
+Only after that should you implement anything.
