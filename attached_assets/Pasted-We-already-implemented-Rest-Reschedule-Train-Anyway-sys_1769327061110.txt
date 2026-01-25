@@ -1,0 +1,75 @@
+We already implemented:
+- Rest/Reschedule/Train Anyway system
+- “Do Another Workout” reorder feature with SWAP and PUSH for workout days (for both calendar-based and completion-based cycles)
+Endpoints exist:
+POST /api/workouts/rest-today
+POST /api/workouts/train-anyway
+POST /api/workouts/reschedule
+GET  /api/workouts/available-days
+And we are adding /api/workouts/reorder for SWAP/PUSH.
+
+NEW TASK:
+Extend the SWAP/PUSH reorder system to also work when TODAY is a REST DAY.
+This must work for BOTH:
+- trainer-assigned cycles (source="trainer")
+- personal cycles (source="self")
+And for BOTH behaviors:
+- calendar-based
+- completion-based
+Changes apply ONLY to the current cycle instance (no global template change).
+
+USER STORY:
+If today is Rest, the member wants to workout today and move Rest to another day in this same cycle.
+
+FEATURE:
+On Rest Day UI, add button:
+“Workout Today”
+When clicked:
+1) Show day picker of available WORKOUT days in this cycle (future/uncompleted depending on mode).
+2) Then show action picker:
+   - SWAP REST (swap today’s rest with the selected workout day)
+   - PUSH REST (make selected workout day happen today and shift other workouts forward, moving rest later)
+Show a preview of before/after order/schedule.
+
+BEHAVIOR DETAILS:
+
+A) Calendar-based cycles:
+- SWAP REST:
+  - Today’s date becomes the selected workout day
+  - The selected workout day’s scheduled date becomes Rest
+  - No past dates modified; only this cycle schedule.
+- PUSH REST:
+  - Selected workout day becomes today
+  - All workouts between today and the selected workout day shift earlier by one slot
+  - Rest moves to the selected workout day’s original date (or to the end of that block)
+  Example:
+    Mon Rest, Tue Chest, Wed Back, Thu Shoulders
+    Push Rest => Mon Chest, Tue Back, Wed Shoulders, Thu Rest
+
+B) Completion-based cycles:
+- Treat “today” as the next position in remaining sequence.
+- If next is Rest and user chooses “Workout Today”:
+  - SWAP REST: swap Rest with the chosen workout day within remaining uncompleted days.
+  - PUSH REST: remove Rest from next position and insert it after the chosen workout day (or after N workout days).
+- Do not rewrite already-completed days.
+
+DATA / ENDPOINTS:
+- Reuse /api/workouts/reorder if possible by allowing target to be a dayIndex and a flag indicating we are moving/rest.
+- Or create a dedicated endpoint:
+  POST /api/workouts/reorder-rest
+But prefer reusing the existing reorder engine.
+
+Update /api/workouts/available-days to support rest-day reorders:
+- When on rest-day reorder, return valid workout dayIndexes that can be swapped/pushed with.
+
+SECURITY:
+- Member can only reorder their own cycles.
+- Works for both trainer and personal cycles without leaking data.
+
+DELIVERABLES:
+- Summarize changes before coding.
+- Implement UI + backend.
+- Provide test checklist for:
+  - Calendar mode: Rest today -> Swap Rest with Back day, and Push Rest to end.
+  - Completion mode: Rest next -> Workout Today -> Swap/Pull Rest works.
+  - Both trainer cycles and personal cycles.

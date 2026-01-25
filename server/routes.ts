@@ -1919,16 +1919,18 @@ export async function registerRoutes(
   });
 
   // Get available workout days for "pick different day" in completion mode
+  // Query param: forRestDay=true returns only workout days (not rest days) for rest day swaps
   app.get("/api/workouts/available-days", requireRole(["member"]), async (req, res) => {
     const source = req.user!.gymId ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
+    const forRestDay = req.query.forRestDay === 'true';
     
     if (!cycle) {
       return res.json({ days: [] });
     }
     
     const allItems = await storage.getWorkoutItems(cycle.id);
-    const dayGroups = new Map<number, { label: string; exerciseCount: number; isRestDay: boolean }>();
+    const dayGroups = new Map<number, { label: string; exerciseCount: number; isRestDay: boolean; exercises?: string[] }>();
     
     for (let dayIdx = 0; dayIdx < cycle.cycleLength; dayIdx++) {
       const dayItems = allItems.filter(item => item.dayIndex === dayIdx);
@@ -1940,14 +1942,20 @@ export async function registerRoutes(
       dayGroups.set(dayIdx, {
         label,
         exerciseCount: dayItems.length,
-        isRestDay
+        isRestDay,
+        exercises: dayItems.map(item => item.exerciseName)
       });
     }
     
-    const days = Array.from(dayGroups.entries()).map(([dayIndex, info]) => ({
+    let days = Array.from(dayGroups.entries()).map(([dayIndex, info]) => ({
       dayIndex,
       ...info
     }));
+    
+    // If forRestDay=true, filter to only return workout days (not rest days)
+    if (forRestDay) {
+      days = days.filter(d => !d.isRestDay);
+    }
     
     res.json({ 
       days,
@@ -1960,18 +1968,20 @@ export async function registerRoutes(
   // REORDER - "Do Another Workout" with SWAP or PUSH
   // Works for both trainer-assigned and personal cycles
   // Works for both completion-based and calendar-based cycles
+  // Also supports rest day reorder: swap a rest day with a workout day
   app.post("/api/workouts/reorder", requireRole(["member"]), async (req, res) => {
     const schema = z.object({
       cycleId: z.number(),
       targetDayIndex: z.number(), // The day the user wants to do instead
-      action: z.enum(["swap", "push"])
+      action: z.enum(["swap", "push"]),
+      isRestDayReorder: z.boolean().optional().default(false) // True if we're swapping a rest day with a workout day
     });
     const input = schema.safeParse(req.body);
     if (!input.success) {
       return res.status(400).json({ message: "Invalid request", errors: input.error.errors });
     }
     
-    const { cycleId, targetDayIndex, action } = input.data;
+    const { cycleId, targetDayIndex, action, isRestDayReorder } = input.data;
     const todayStr = getLocalDate(req);
     
     // Verify the cycle belongs to this user
@@ -1986,7 +1996,13 @@ export async function registerRoutes(
     const allItems = await storage.getWorkoutItems(cycleId);
     const targetDayItems = allItems.filter(item => item.dayIndex === targetDayIndex);
     
-    if (targetDayItems.length === 0) {
+    // For rest day reorder, target must be a workout day (has exercises)
+    if (isRestDayReorder && targetDayItems.length === 0) {
+      return res.status(400).json({ message: "Target day must be a workout day with exercises" });
+    }
+    
+    // For normal reorder, target must have exercises
+    if (!isRestDayReorder && targetDayItems.length === 0) {
       return res.status(400).json({ message: "Target day has no exercises (is a rest day)" });
     }
     
@@ -2005,6 +2021,18 @@ export async function registerRoutes(
     // Validate: can't reorder to the same day you're already on
     if (targetDayIndex === currentDayIndex) {
       return res.status(400).json({ message: "You're already on this workout day" });
+    }
+    
+    // For rest day reorder, verify today is actually a rest day
+    if (isRestDayReorder) {
+      const currentDayItems = allItems.filter(item => item.dayIndex === currentDayIndex);
+      const currentLabel = cycle.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
+      const isCurrentRestDay = cycle.restDays?.includes(currentDayIndex) || 
+                                currentLabel.toLowerCase().includes("rest") || 
+                                currentDayItems.length === 0;
+      if (!isCurrentRestDay) {
+        return res.status(400).json({ message: "Today is not a rest day" });
+      }
     }
     
     // Clear any existing reorder overrides from today onwards
