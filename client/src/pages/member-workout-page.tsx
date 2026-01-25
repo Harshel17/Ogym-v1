@@ -164,6 +164,7 @@ export default function MemberWorkoutPage() {
   const [reorderDays, setReorderDays] = useState<any[]>([]);
   const [selectedReorderDay, setSelectedReorderDay] = useState<number | null>(null);
   const [reorderAction, setReorderAction] = useState<"swap" | "push">("swap");
+  const [isRestDayReorder, setIsRestDayReorder] = useState(false);
   
   // Rest Today mutation
   const restTodayMutation = useMutation({
@@ -232,9 +233,9 @@ export default function MemberWorkoutPage() {
     }
   };
   
-  // Reorder workout mutation ("Do Another Workout")
+  // Reorder workout mutation ("Do Another Workout" or "Workout Today" from rest day)
   const reorderMutation = useMutation({
-    mutationFn: async (data: { cycleId: number; targetDayIndex: number; action: "swap" | "push" }) => {
+    mutationFn: async (data: { cycleId: number; targetDayIndex: number; action: "swap" | "push"; isRestDayReorder?: boolean }) => {
       const res = await apiRequest("POST", "/api/workouts/reorder", data);
       return res.json();
     },
@@ -243,6 +244,7 @@ export default function MemberWorkoutPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/member/workout/summary"] });
       setReorderDialogOpen(false);
       setSelectedReorderDay(null);
+      setIsRestDayReorder(false);
       toast({ title: data.message });
     },
     onError: (error: any) => {
@@ -251,16 +253,22 @@ export default function MemberWorkoutPage() {
   });
   
   // Fetch available days for reordering
-  const openReorderDialog = async () => {
+  const openReorderDialog = async (forRestDay = false) => {
     try {
-      const res = await apiRequest("GET", "/api/workouts/available-days", undefined);
+      setIsRestDayReorder(forRestDay);
+      const url = forRestDay 
+        ? "/api/workouts/available-days?forRestDay=true" 
+        : "/api/workouts/available-days";
+      const res = await apiRequest("GET", url, undefined);
       const data = await res.json();
-      // Filter out current day and rest days
+      // Filter out current day; for rest day reorder, backend already filters to workout days only
       const currentDayIndex = today?.currentDayIndex ?? today?.dayIndex ?? 0;
       const availableForReorder = (data.days || []).filter((d: any) => 
-        d.dayIndex !== currentDayIndex && !d.isRestDay
+        d.dayIndex !== currentDayIndex && (forRestDay || !d.isRestDay)
       );
       setReorderDays(availableForReorder);
+      setSelectedReorderDay(null);
+      setReorderAction("swap");
       setReorderDialogOpen(true);
     } catch (error) {
       toast({ title: "Failed to fetch workout days", variant: "destructive" });
@@ -599,7 +607,7 @@ export default function MemberWorkoutPage() {
                 <Button 
                   size="sm" 
                   variant="outline"
-                  onClick={openReorderDialog}
+                  onClick={() => openReorderDialog(false)}
                   data-testid="button-do-another-workout"
                 >
                   <Shuffle className="w-4 h-4 mr-1" />
@@ -711,6 +719,15 @@ export default function MemberWorkoutPage() {
                     <div className="flex flex-wrap gap-2">
                       <Button 
                         size="sm" 
+                        onClick={() => openReorderDialog(true)}
+                        data-testid="button-workout-today"
+                      >
+                        <Dumbbell className="w-4 h-4 mr-1" />
+                        Workout Today
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
                         onClick={() => setTrainAnywayDialogOpen(true)}
                         data-testid="button-train-anyway"
                       >
@@ -1303,11 +1320,22 @@ export default function MemberWorkoutPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Shuffle className="w-5 h-5" />
-              Do a Different Workout
+              {isRestDayReorder ? (
+                <>
+                  <Dumbbell className="w-5 h-5" />
+                  Workout Today
+                </>
+              ) : (
+                <>
+                  <Shuffle className="w-5 h-5" />
+                  Do a Different Workout
+                </>
+              )}
             </DialogTitle>
             <DialogDescription>
-              Choose which workout day you'd like to do today instead.
+              {isRestDayReorder 
+                ? "Choose which workout you'd like to do today instead of resting."
+                : "Choose which workout day you'd like to do today instead."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1356,8 +1384,10 @@ export default function MemberWorkoutPage() {
                         data-testid="reorder-action-swap"
                       >
                         <ArrowLeftRight className="w-5 h-5 mx-auto mb-1" />
-                        <p className="text-sm font-medium">Swap</p>
-                        <p className="text-xs text-muted-foreground">Exchange positions</p>
+                        <p className="text-sm font-medium">{isRestDayReorder ? "Swap Rest" : "Swap"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {isRestDayReorder ? "Rest moves to workout's slot" : "Exchange positions"}
+                        </p>
                       </button>
                       <button
                         type="button"
@@ -1370,8 +1400,10 @@ export default function MemberWorkoutPage() {
                         data-testid="reorder-action-push"
                       >
                         <ArrowRight className="w-5 h-5 mx-auto mb-1" />
-                        <p className="text-sm font-medium">Do First</p>
-                        <p className="text-xs text-muted-foreground">Shifts others forward</p>
+                        <p className="text-sm font-medium">{isRestDayReorder ? "Push Rest" : "Do First"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {isRestDayReorder ? "Rest moves later in schedule" : "Shifts others forward"}
+                        </p>
                       </button>
                     </div>
                   </div>
@@ -1385,6 +1417,7 @@ export default function MemberWorkoutPage() {
               onClick={() => {
                 setReorderDialogOpen(false);
                 setSelectedReorderDay(null);
+                setIsRestDayReorder(false);
               }}
               data-testid="button-cancel-reorder"
             >
@@ -1396,7 +1429,8 @@ export default function MemberWorkoutPage() {
                   reorderMutation.mutate({
                     cycleId: today.cycleId,
                     targetDayIndex: selectedReorderDay,
-                    action: reorderAction
+                    action: reorderAction,
+                    isRestDayReorder
                   });
                 }
               }}
