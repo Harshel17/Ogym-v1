@@ -3650,6 +3650,46 @@ export async function registerRoutes(
     res.json(summary);
   });
 
+  // DEBUG: Streak calculation debug endpoint (temporary)
+  app.get("/api/member/workout/streak-debug", requireRole(["member"]), async (req, res) => {
+    const gymId = req.user!.gymId;
+    const memberId = req.user!.id;
+    const scheduleCache = await storage.loadMemberScheduleData(memberId, gymId);
+    
+    // Get last 10 days status
+    const today = new Date();
+    const debugInfo: any[] = [];
+    
+    for (let i = 0; i < 10; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(checkDate.getDate() - i);
+      const dateStr = checkDate.toISOString().split('T')[0];
+      const status = storage.getScheduledDayStatusFromCache(dateStr, scheduleCache);
+      debugInfo.push({ date: dateStr, status });
+    }
+    
+    res.json({
+      memberId,
+      gymId,
+      cyclesFound: scheduleCache.directCycles.length,
+      cycles: scheduleCache.directCycles.map(c => ({
+        id: c.id,
+        startDate: c.startDate,
+        endDate: c.endDate,
+        cycleLength: c.cycleLength,
+        restDays: c.restDays
+      })),
+      phasesFound: scheduleCache.phases.length,
+      cycleExerciseDays: Object.fromEntries(
+        Array.from(scheduleCache.cycleExerciseDays.entries()).map(([k, v]) => [k, Array.from(v)])
+      ),
+      cycleRestDays: Object.fromEntries(
+        Array.from(scheduleCache.cycleRestDays.entries()).map(([k, v]) => [k, Array.from(v)])
+      ),
+      last10Days: debugInfo
+    });
+  });
+
   // Get workout history with optional date filtering
   app.get("/api/member/workout/history", requireRole(["member"]), async (req, res) => {
     const from = req.query.from as string | undefined;
