@@ -71,7 +71,7 @@ export function DikaDrawer({
         className="w-full sm:max-w-md flex flex-col p-0"
         data-testid="drawer-dika"
       >
-        <SheetHeader className="px-4 py-3 border-b flex-shrink-0">
+        <SheetHeader className="px-4 py-3 border-b flex-shrink-0 pr-12">
           <div className="flex items-center justify-between">
             <div>
               <SheetTitle className="text-lg font-semibold">Ask Dika</SheetTitle>
