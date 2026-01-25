@@ -1848,7 +1848,7 @@ function MemberCalendarWidget() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Dumbbell className="w-5 h-5" />
-              {selectedDate && format(new Date(selectedDate), "EEEE, MMMM d, yyyy")}
+              {selectedDate && format(new Date(selectedDate + "T00:00:00"), "EEEE, MMMM d, yyyy")}
             </DialogTitle>
             <DialogDescription>
               {selectedDayData?.status === "present" && "Workout completed"}
