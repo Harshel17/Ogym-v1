@@ -3658,6 +3658,15 @@ export async function registerRoutes(
     res.json({ memberId, gymId, stats });
   });
 
+  // TEMP: Debug daily analytics
+  app.get("/api/debug/daily/:memberId/:gymId/:date", async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    const gymId = parseInt(req.params.gymId);
+    const date = req.params.date;
+    const analytics = await storage.getMemberDailyAnalytics(gymId, memberId, date);
+    res.json(analytics);
+  });
+
   // DEBUG: Streak calculation debug endpoint (temporary)
   app.get("/api/member/workout/streak-debug", requireRole(["member"]), async (req, res) => {
     const gymId = req.user!.gymId;

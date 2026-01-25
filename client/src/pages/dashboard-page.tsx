@@ -1861,7 +1861,7 @@ function MemberCalendarWidget() {
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
             </div>
-          ) : dailyAnalytics && dailyAnalytics.completedCount > 0 ? (
+          ) : dailyAnalytics && dailyAnalytics.exercises.length > 0 ? (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-2">
                 <div className="p-3 bg-muted/50 rounded-lg text-center">
