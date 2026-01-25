@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Circle, Flower2, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
+import { DikaCircleIcon, SunflowerIcon, BatIcon } from './dika-icons';
 
 interface DikaButtonProps {
   icon: DikaIcon;
@@ -138,12 +138,12 @@ export function DikaButton({
     const iconClass = "w-6 h-6 text-white";
     switch (icon) {
       case 'sunflower':
-        return <Flower2 className={iconClass} />;
+        return <SunflowerIcon className={iconClass} />;
       case 'bat':
-        return <Shield className={iconClass} />;
+        return <BatIcon className={iconClass} />;
       case 'circle':
       default:
-        return <Circle className={cn(iconClass, "fill-current")} />;
+        return <DikaCircleIcon className={iconClass} />;
     }
   };
 

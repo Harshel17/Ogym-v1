@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Circle, Flower2, Shield, Settings } from 'lucide-react';
+import { Send, Loader2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
+import { DikaCircleIcon, SunflowerIcon, BatIcon } from './dika-icons';
 
 interface DikaMessage {
   id: string;
@@ -58,10 +59,10 @@ export function DikaDrawer({
     onSend(suggestion);
   };
 
-  const iconOptions: { value: DikaIcon; icon: typeof Circle; label: string }[] = [
-    { value: 'circle', icon: Circle, label: 'Circle' },
-    { value: 'sunflower', icon: Flower2, label: 'Sunflower' },
-    { value: 'bat', icon: Shield, label: 'Hero' },
+  const iconOptions: { value: DikaIcon; icon: React.FC<{ className?: string }>; label: string }[] = [
+    { value: 'circle', icon: DikaCircleIcon, label: 'Dika' },
+    { value: 'sunflower', icon: SunflowerIcon, label: 'Sunflower' },
+    { value: 'bat', icon: BatIcon, label: 'Bat' },
   ];
 
   return (
