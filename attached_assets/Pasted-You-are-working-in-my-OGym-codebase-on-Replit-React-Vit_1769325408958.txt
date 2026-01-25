@@ -1,0 +1,125 @@
+You are working in my OGym codebase on Replit (React/Vite/TS + Wouter + React Query; Express/TS; Passport session auth; Postgres + Drizzle; schema in shared/schema.ts). We already implemented Rest/Reschedule/Train Anyway with UI + endpoints:
+POST /api/workouts/rest-today
+POST /api/workouts/train-anyway
+POST /api/workouts/reschedule
+GET  /api/workouts/available-days
+
+TASK:
+Add a new feature to support “Do Another Workout” with TWO reordering actions: SWAP and PUSH, and it must work for BOTH:
+1) Trainer-assigned cycles (source="trainer", gym mode)
+2) Personal mode cycles (source="self", gymId null)
+And for BOTH cycle behaviors:
+A) Completion-based
+B) Calendar-based
+
+USER STORY:
+Member has a cycle: Day1 Chest, Day2 Back, Day3 Shoulders, Day4 Rest.
+On a given day, the member wants to do a DIFFERENT workout day (e.g., Shoulders) instead of the planned day (e.g., Chest).
+When they pick another workout, they must choose how to adjust the plan for THIS CYCLE ONLY:
+- SWAP: swap the selected workout day with today’s planned day
+  Example: Day1 Chest, Day2 Back, Day3 Shoulders
+  Today Day1, select Day3, SWAP => Day1 Shoulders, Day2 Back, Day3 Chest
+- PUSH: bring the selected workout day to today and shift the other workout days forward in order
+  Example: Day1 Chest, Day2 Back, Day3 Shoulders
+  Today Day1, select Day3, PUSH => Day1 Shoulders, Day2 Chest, Day3 Back
+
+IMPORTANT RULES:
+- Changes apply ONLY within the current cycle instance (do not affect future cycles or templates).
+- Must not change past history; do not rewrite already-completed days.
+- Must not break existing Rest/Reschedule/Train Anyway flows.
+- Must work for both trainer cycles and personal cycles using the same logic.
+- Maintain data isolation: personal cycles never show up in trainer/owner views; trainer cycles remain gym scoped.
+
+========================
+FRONTEND CHANGES
+========================
+1) On Workout Days (and also optionally on Rest Days), add a button:
+   “Do Another Workout”
+2) Clicking it opens a picker (reuse existing Pick Day dialog if possible) showing available workout days from /api/workouts/available-days.
+3) After user selects a workout day, show a second dialog:
+   “Adjust plan for this cycle”
+   Options:
+   - SWAP
+   - PUSH
+   Show a simple preview of before/after order (optional but recommended).
+4) After SWAP/PUSH, the UI should refresh and show the chosen workout as “Today’s workout” and allow logging completion normally.
+
+========================
+BACKEND CHANGES
+========================
+Add a new endpoint:
+POST /api/workouts/reorder
+Body:
+{
+  cycleId: number,
+  targetDayIndex: number,     // the day the user selected (e.g., shoulders dayIndex)
+  action: "swap" | "push",    // reorder type
+  modeContext?: "trainer" | "personal" (optional; can infer from cycle.source)
+}
+
+Behavior must respect cycle behavior type:
+
+A) COMPLETION-BASED cycles:
+- The cycle order is sequence-based.
+- Reorder should update the cycle day ordering FOR THE REMAINING (not-yet-completed) workout days in this cycle only.
+- If there is a concept of “today planned day” in completion mode, treat it as “next uncompleted workout day”.
+- Constraints:
+  - Do not include already-completed dayIndexes in swap/push (reject with 400 or ignore).
+  - SWAP swaps the order position of “next workout day” with the targetDayIndex.
+  - PUSH moves the targetDayIndex to the front (next position), preserving relative order of the others.
+
+B) CALENDAR-BASED cycles:
+- The cycle is date-scheduled.
+- Reorder applies to the current cycle window starting today.
+- Implement reorder by adjusting ONLY the schedule mapping (overrides) for dates from today through the target day’s scheduled date.
+- SWAP: swap today’s scheduled workout with the selected workout’s scheduled date.
+- PUSH: rotate workouts so selected workout becomes today, and the intervening workouts shift forward one slot.
+- Constraints:
+  - Do not modify dates in the past.
+  - Only affect the current cycle instance schedule.
+
+Storage:
+- Use the minimal data structure already used for rescheduling. If there is a “schedule overrides” table/map, reuse it.
+- If you need a new store, create something like:
+  workout_schedule_overrides (cycleId, date, dayIndex)
+  OR a generic cycle_day_overrides table.
+- Ensure queries that compute “today’s workout” apply overrides.
+
+Security:
+- Member can only reorder cycles they own (memberId = current user).
+- Works the same for trainer and personal cycles; trainerId is irrelevant for reorder permission.
+- Ensure gym/trainer views remain filtered properly (no leak).
+
+========================
+INTEGRATION WITH EXISTING FLOWS
+========================
+- /api/workouts/available-days should return only valid workout dayIndexes that can be selected:
+  - In completion mode: only not-yet-completed workout days
+  - In calendar mode: only today/future workout days within the cycle window (exclude past)
+- After reorder, existing completion endpoints should work as-is.
+
+========================
+DELIVERABLES
+========================
+1) Before coding: summarize which files you will touch and where current “today workout” logic lives.
+2) Implement incrementally.
+3) Provide a test checklist:
+
+Completion-based tests:
+- Cycle: Chest(0), Back(1), Shoulders(2)
+- No completions yet, today=next(Chest)
+  - select Shoulders, SWAP => order becomes Shoulders, Back, Chest
+  - select Shoulders, PUSH => order becomes Shoulders, Chest, Back
+- If Chest already completed, selecting Chest should be rejected/hidden.
+
+Calendar-based tests:
+- Cycle scheduled Mon=Chest, Tue=Back, Wed=Shoulders
+- On Mon, select Wed:
+  - SWAP => Mon=Shoulders, Wed=Chest
+  - PUSH => Mon=Shoulders, Tue=Chest, Wed=Back
+- Ensure past days never change.
+
+Modes:
+- Run both tests for trainer-assigned member cycle AND personal cycle.
+
+4) Confirm rest/reschedule/train-anyway still works after reorder.

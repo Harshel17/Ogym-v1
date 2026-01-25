@@ -297,6 +297,25 @@ export const cycleDayActions = pgTable("cycle_day_actions", {
   cycleIdx: index("cycle_day_actions_cycle_idx").on(table.cycleId),
 }));
 
+// Cycle schedule overrides - stores SWAP/PUSH reordering for "Do Another Workout"
+// For completion-based: stores the new day order for remaining workouts
+// For calendar-based: stores date-to-dayIndex mappings for the current cycle window
+export const cycleScheduleOverrides = pgTable("cycle_schedule_overrides", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id), // Nullable for Personal Mode
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  cycleId: integer("cycle_id").references(() => workoutCycles.id).notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD - the date this override applies to
+  dayIndex: integer("day_index").notNull(), // The workout day index to show on this date
+  action: text("action", { enum: ["swap", "push"] }).notNull(), // How this override was created
+  originalDayIndex: integer("original_day_index"), // What was originally scheduled
+  createdAt: timestamp("created_at").defaultNow(),
+  isActive: boolean("is_active").default(true),
+}, (table) => ({
+  memberCycleDateIdx: index("cycle_schedule_overrides_member_cycle_date_idx").on(table.memberId, table.cycleId, table.date),
+  cycleIdx: index("cycle_schedule_overrides_cycle_idx").on(table.cycleId),
+}));
+
 export const memberRequests = pgTable("member_requests", {
   id: serial("id").primaryKey(),
   gymId: integer("gym_id").references(() => gyms.id).notNull(),
@@ -737,6 +756,7 @@ export const insertWorkoutLogExerciseSchema = createInsertSchema(workoutLogExerc
 export const insertWorkoutLogSetSchema = createInsertSchema(workoutLogSets).omit({ id: true });
 export const insertMemberRestDaySwapSchema = createInsertSchema(memberRestDaySwaps).omit({ id: true, createdAt: true });
 export const insertCycleDayActionSchema = createInsertSchema(cycleDayActions).omit({ id: true, createdAt: true });
+export const insertCycleScheduleOverrideSchema = createInsertSchema(cycleScheduleOverrides).omit({ id: true, createdAt: true });
 export const insertMemberRequestSchema = createInsertSchema(memberRequests).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertGymHistorySchema = createInsertSchema(gymHistory).omit({ id: true });
 export const insertStarMemberSchema = createInsertSchema(starMembers).omit({ id: true, createdAt: true });
@@ -791,6 +811,7 @@ export type WorkoutLogExercise = typeof workoutLogExercises.$inferSelect;
 export type WorkoutLogSet = typeof workoutLogSets.$inferSelect;
 export type MemberRestDaySwap = typeof memberRestDaySwaps.$inferSelect;
 export type CycleDayAction = typeof cycleDayActions.$inferSelect;
+export type CycleScheduleOverride = typeof cycleScheduleOverrides.$inferSelect;
 export type MemberRequest = typeof memberRequests.$inferSelect;
 export type GymHistory = typeof gymHistory.$inferSelect;
 export type StarMember = typeof starMembers.$inferSelect;
@@ -816,6 +837,7 @@ export type InsertWorkoutLogExercise = z.infer<typeof insertWorkoutLogExerciseSc
 export type InsertWorkoutLogSet = z.infer<typeof insertWorkoutLogSetSchema>;
 export type InsertMemberRestDaySwap = z.infer<typeof insertMemberRestDaySwapSchema>;
 export type InsertCycleDayAction = z.infer<typeof insertCycleDayActionSchema>;
+export type InsertCycleScheduleOverride = z.infer<typeof insertCycleScheduleOverrideSchema>;
 export type InsertMemberRequest = z.infer<typeof insertMemberRequestSchema>;
 export type InsertGymHistory = z.infer<typeof insertGymHistorySchema>;
 export type InsertStarMember = z.infer<typeof insertStarMemberSchema>;
