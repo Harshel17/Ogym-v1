@@ -5332,12 +5332,13 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(workoutSessions.date));
     
     // Also get workout completions (from trainer cycles) - these may be in different gyms historically
+    // Use leftJoin to include completions with NULL workoutItemId (e.g., "Train Anyway" on unscheduled days)
     const completions = await db.select({
       completion: workoutCompletions,
       workoutItem: workoutItems
     })
     .from(workoutCompletions)
-    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .leftJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
     .where(eq(workoutCompletions.memberId, memberId))
     .orderBy(desc(workoutCompletions.completedDate));
     
@@ -5402,7 +5403,9 @@ export class DatabaseStorage implements IStorage {
     for (const c of completions) {
       if (c.completion.completedDate >= ninetyDaysAgo) {
         if (!completionsByDate.has(c.completion.completedDate)) {
-          completionsByDate.set(c.completion.completedDate, c.workoutItem.muscleType);
+          // Handle null workoutItem (from "Train Anyway" completions) - use exerciseName or default
+          const muscleType = c.workoutItem?.muscleType || c.completion.exerciseName || "Workout";
+          completionsByDate.set(c.completion.completedDate, muscleType);
         }
       }
     }
