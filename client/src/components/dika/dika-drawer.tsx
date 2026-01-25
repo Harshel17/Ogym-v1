@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Send, Loader2, Circle, Flower2, Shield, Settings } from 'lucide-react';
+import { Send, Loader2, Circle, Flower2, Shield, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -77,24 +77,14 @@ export function DikaDrawer({
               <SheetTitle className="text-lg font-semibold">Ask Dika</SheetTitle>
               <p className="text-xs text-muted-foreground">Your gym's memory</p>
             </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowSettings(!showSettings)}
-                data-testid="button-dika-settings"
-              >
-                <Settings className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                data-testid="button-dika-close"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowSettings(!showSettings)}
+              data-testid="button-dika-settings"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
           </div>
         </SheetHeader>
 
