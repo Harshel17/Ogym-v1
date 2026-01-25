@@ -356,9 +356,9 @@ export function isAdviceQuestion(message: string): boolean {
 
 export function classifyIntent(message: string, role: UserRole): IntentResult {
   const normalized = normalizeMessage(message);
-  const responseMode = detectResponseMode(message);
+  const responseMode = detectResponseMode(normalized);
   
-  const ambiguity = checkAmbiguity(message);
+  const ambiguity = checkAmbiguity(normalized);
   if (ambiguity.isAmbiguous) {
     return {
       intent: 'ambiguous',
