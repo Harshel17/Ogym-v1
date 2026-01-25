@@ -3090,7 +3090,7 @@ export async function registerRoutes(
       }
       
       // 2. Streak milestones (7, 14, 30, 60, 100 days)
-      const stats = await storage.getMemberStats(req.user!.id);
+      const stats = await storage.getMemberStats(req.user!.id, req.user!.gymId);
       const streakMilestones = [7, 14, 30, 60, 100];
       if (streakMilestones.includes(stats.streak)) {
         const hasSharedStreak = todayPosts.some((p: { type: string; metadata: string | null }) => {
@@ -3138,7 +3138,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/workouts/stats/my", requireRole(["member"]), async (req, res) => {
-    const stats = await storage.getMemberStats(req.user!.id);
+    const stats = await storage.getMemberStats(req.user!.id, req.user!.gymId);
     res.json(stats);
   });
 
@@ -3546,7 +3546,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/me/stats", requireRole(["member"]), async (req, res) => {
-    const stats = await storage.getEnhancedMemberStats(req.user!.id);
+    const stats = await storage.getEnhancedMemberStats(req.user!.id, req.user!.gymId);
     res.json(stats);
   });
 
@@ -3562,7 +3562,7 @@ export async function registerRoutes(
     const validRanges = ['week', 'month', 'year', 'all'] as const;
     const range = validRanges.includes(rangeParam as any) ? rangeParam as 'week' | 'month' | 'year' | 'all' : 'month';
     
-    const summary = await storage.getPerSetProgressSummary(req.user!.id, range);
+    const summary = await storage.getPerSetProgressSummary(req.user!.id, range, req.user!.gymId);
     res.json(summary);
   });
 
@@ -3603,7 +3603,7 @@ export async function registerRoutes(
 
   // Analytics explanations with example calculation
   app.get("/api/progress/explanations", requireRole(["member"]), async (req, res) => {
-    const explanations = await storage.getAnalyticsExplanationWithExample(req.user!.id);
+    const explanations = await storage.getAnalyticsExplanationWithExample(req.user!.id, req.user!.gymId);
     res.json(explanations);
   });
 
@@ -4225,7 +4225,7 @@ export async function registerRoutes(
       return res.status(403).json({ message: "Member not in your gym" });
     }
     
-    const stats = await storage.getEnhancedMemberStats(memberId);
+    const stats = await storage.getEnhancedMemberStats(memberId, req.user!.gymId);
     const progress = await storage.getMemberProgress(memberId);
     
     res.json({ stats, progress });
@@ -4267,11 +4267,11 @@ export async function registerRoutes(
     }
     
     if (isStar) {
-      const stats = await storage.getMemberStats(memberId);
+      const stats = await storage.getMemberStats(memberId, req.user!.gymId);
       const progress = await storage.getMemberProgress(memberId);
       res.json({ full: true, stats, progress });
     } else {
-      const stats = await storage.getMemberStats(memberId);
+      const stats = await storage.getMemberStats(memberId, req.user!.gymId);
       res.json({ full: false, stats: { totalWorkouts: stats.totalWorkouts, streak: stats.streak } });
     }
   });
@@ -4947,7 +4947,7 @@ export async function registerRoutes(
     if (!member) {
       return res.status(404).json({ message: "Member not found" });
     }
-    const stats = await storage.getEnhancedMemberStats(memberId);
+    const stats = await storage.getEnhancedMemberStats(memberId, req.user!.gymId);
     const progress = await storage.getMemberProgress(memberId);
     res.json({ ...stats, progress });
   });

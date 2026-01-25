@@ -169,7 +169,7 @@ export interface IStorage {
   } | null>;
   
   // Per-set progress analytics
-  getPerSetProgressSummary(memberId: number, range: 'week' | 'month' | 'year' | 'all'): Promise<{
+  getPerSetProgressSummary(memberId: number, range: 'week' | 'month' | 'year' | 'all', gymId?: number | null): Promise<{
     totalVolume: number;
     totalSets: number;
     totalReps: number;
@@ -192,7 +192,7 @@ export interface IStorage {
     bestVolume: number;
   }[]>;
   
-  getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }>;
+  getMemberStats(memberId: number, gymId?: number | null): Promise<{ streak: number; totalWorkouts: number; last7Days: number }>;
   getMemberDailyWorkouts(memberId: number, startDate?: string, endDate?: string): Promise<{
     date: string;
     muscleGroups: string[];
@@ -380,7 +380,7 @@ export interface IStorage {
     }[];
   }[]>;
   updateWorkoutCompletion(completionId: number, memberId: number, data: { actualSets?: number; actualReps?: number; actualWeight?: string; notes?: string }): Promise<WorkoutCompletion | null>;
-  getEnhancedMemberStats(memberId: number): Promise<{
+  getEnhancedMemberStats(memberId: number, gymId?: number | null): Promise<{
     streak: number;
     totalWorkouts: number;
     last7Days: number;
@@ -1274,7 +1274,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Per-set progress analytics implementation
-  async getPerSetProgressSummary(memberId: number, range: 'week' | 'month' | 'year' | 'all'): Promise<{
+  async getPerSetProgressSummary(memberId: number, range: 'week' | 'month' | 'year' | 'all', gymId: number | null = null): Promise<{
     totalVolume: number;
     totalSets: number;
     totalReps: number;
@@ -1308,7 +1308,7 @@ export class DatabaseStorage implements IStorage {
     
     const logIds = filteredLogs.map(l => l.id);
     if (logIds.length === 0) {
-      const basicStats = await this.getMemberStats(memberId);
+      const basicStats = await this.getMemberStats(memberId, gymId);
       return {
         totalVolume: 0,
         totalSets: 0,
@@ -1408,7 +1408,7 @@ export class DatabaseStorage implements IStorage {
       .map(([week, data]) => ({ week, volume: data.volume, sessions: data.sessions.size }))
       .sort((a, b) => a.week.localeCompare(b.week));
     
-    const basicStats = await this.getMemberStats(memberId);
+    const basicStats = await this.getMemberStats(memberId, gymId);
     
     return {
       totalVolume: Math.round(totalVolume),
@@ -1678,7 +1678,7 @@ export class DatabaseStorage implements IStorage {
     return result.sort((a, b) => b.bestVolume - a.bestVolume);
   }
 
-  async getAnalyticsExplanationWithExample(memberId: number): Promise<{
+  async getAnalyticsExplanationWithExample(memberId: number, gymId: number | null = null): Promise<{
     explanations: {
       metric: string;
       definition: string;
@@ -1853,7 +1853,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Get streak info
-    const stats = await this.getMemberStats(memberId);
+    const stats = await this.getMemberStats(memberId, gymId);
     const lastCompleted = await db.select().from(workoutCompletions)
       .where(eq(workoutCompletions.memberId, memberId))
       .orderBy(desc(workoutCompletions.completedDate))
@@ -2083,7 +2083,7 @@ export class DatabaseStorage implements IStorage {
     return this.getScheduledDayStatusFromCache(dateStr, cache);
   }
 
-  async getMemberStats(memberId: number): Promise<{ streak: number; totalWorkouts: number; last7Days: number }> {
+  async getMemberStats(memberId: number, gymId: number | null = null): Promise<{ streak: number; totalWorkouts: number; last7Days: number }> {
     // Get data from BOTH workout systems:
     // 1. workoutSessions - standalone sessions members create
     // 2. workoutCompletions - completions from trainer-assigned cycles
@@ -2112,7 +2112,7 @@ export class DatabaseStorage implements IStorage {
     const last7Days = last7DaysDates.length;
     
     // Pre-load schedule data for fast streak calculation
-    const scheduleCache = await this.loadMemberScheduleData(memberId);
+    const scheduleCache = await this.loadMemberScheduleData(memberId, gymId);
     
     // Smart rest day streak calculation:
     // - If today has a workout → count it, then check yesterday onwards
@@ -2719,7 +2719,7 @@ export class DatabaseStorage implements IStorage {
 
     const cycle = await this.getMemberCycle(memberId);
     const history = await this.getGymHistory(memberId);
-    const stats = await this.getMemberStats(memberId);
+    const stats = await this.getMemberStats(memberId, member.gymId);
     
     const [userProfile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, memberId));
     
@@ -3666,7 +3666,7 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getEnhancedMemberStats(memberId: number): Promise<{
+  async getEnhancedMemberStats(memberId: number, gymId: number | null = null): Promise<{
     streak: number;
     totalWorkouts: number;
     last7Days: number;
@@ -3684,7 +3684,7 @@ export class DatabaseStorage implements IStorage {
     .where(eq(workoutCompletions.memberId, memberId))
     .orderBy(desc(workoutCompletions.completedDate));
 
-    const basicStats = await this.getMemberStats(memberId);
+    const basicStats = await this.getMemberStats(memberId, gymId);
     
     const today = new Date();
     const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
