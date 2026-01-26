@@ -258,6 +258,7 @@ export const workoutLogExercises = pgTable("workout_log_exercises", {
   muscleType: text("muscle_type"),
   bodyPart: text("body_part"),
   orderIndex: integer("order_index").default(0),
+  gymId: integer("gym_id").references(() => gyms.id), // Keep to match production
 });
 
 // Per-set actuals logged by member (immutable history)
@@ -270,6 +271,7 @@ export const workoutLogSets = pgTable("workout_log_sets", {
   actualReps: integer("actual_reps"),
   actualWeight: text("actual_weight"),
   completed: boolean("completed").default(false),
+  gymId: integer("gym_id").references(() => gyms.id), // Keep to match production
 });
 
 export const memberRestDaySwaps = pgTable("member_rest_day_swaps", {
