@@ -3979,10 +3979,12 @@ export class DatabaseStorage implements IStorage {
         }));
 
       let status: "present" | "absent" | "rest" | "future" = "rest";
-      if (wasPresent || completed.length > 0) {
+      if (scheduledForDay.length > 0) {
+        // Workout day: status based on whether any exercises were completed
+        status = completed.length > 0 ? "present" : "absent";
+      } else if (wasPresent || completed.length > 0) {
+        // Rest day with attendance or ad-hoc completions
         status = "present";
-      } else if (scheduledForDay.length > 0) {
-        status = "absent";
       }
 
       result.push({ date: dateStr, status, completed, missed });
