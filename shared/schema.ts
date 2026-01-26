@@ -76,6 +76,7 @@ export const users = pgTable("users", {
   onboardingCompleted: boolean("onboarding_completed").default(false),
   hideDika: boolean("hide_dika").default(false),
   dikaIconPreference: text("dika_icon_preference").default("circle"),
+  trainingMode: text("training_mode", { enum: ["trainer_led", "self_guided"] }).default("trainer_led"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

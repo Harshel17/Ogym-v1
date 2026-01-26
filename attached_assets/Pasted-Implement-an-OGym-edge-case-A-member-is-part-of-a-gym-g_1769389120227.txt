@@ -1,0 +1,81 @@
+Implement an OGym edge case:
+
+A member is part of a gym (gymId is NOT null) so the owner must still see them normally
+(attendance, payments, membership). However, the member may NOT want to be assigned under
+a trainer and wants to create/manage their own workouts like Personal Mode.
+
+We need to support this without moving them to Personal Mode and without creating duplicate accounts.
+
+=== REQUIREMENTS ===
+
+1) Introduce "Training Mode" separate from gym membership
+- A member can be in Gym Mode AND be self-guided.
+- Add a field on the member’s gym membership relationship:
+  training_mode: "trainer_led" | "self_guided"
+- Default is "trainer_led" for existing gym members.
+
+2) Behavior rules
+OWNER:
+- Still sees all members normally.
+- Can see each member’s training mode and trainer assignment status.
+- Owner can assign a trainer only if member is trainer_led.
+
+TRAINER:
+- Can only see members who are trainer_led AND assigned to them.
+- Must NOT see self_guided members in trainer dashboard.
+- Must NOT access self_guided member workouts via API (return 403 or empty).
+
+MEMBER:
+- Can switch to self_guided in a settings UI.
+- If self_guided:
+  - Member can create and manage their own workout cycles/items (like personal mode)
+  - Member workouts are private to them (trainer cannot read/modify)
+  - Gym attendance + payments remain gym-scoped as usual
+- If trainer_led:
+  - Member follows trainer-assigned workflows as current behavior.
+
+3) Trainer assignment rules
+- Update trainer_member_assignments logic:
+  - assignment only valid if membership.training_mode == "trainer_led"
+  - if member toggles to self_guided, automatically deactivate/remove trainer assignment.
+
+4) Workout ownership & access control
+- Ensure workouts/cycles have an owner scope:
+  - For self_guided members: workout data is owned by the member (not trainer)
+  - For trainer_led: workout plans may be created/managed by trainer per existing rules
+- Enforce access checks in workout endpoints:
+  - Trainer requests for self_guided member data should be denied.
+  - Owner can optionally view only high-level stats (counts), but not detailed self_guided workout content
+    unless we explicitly allow it later.
+
+5) Dika integration rules (role-aware + training mode aware)
+- Owner: can ask gym-wide stats and see counts of self_guided vs trainer_led.
+- Trainer: if asking about a self_guided member, respond: "That member is not assigned to you."
+- Member: can ask about their own workouts either way.
+
+6) UI changes
+- Add a “Training Mode” setting for members:
+  - Toggle: Trainer-led / Self-guided
+  - Help text: “Self-guided means your trainer won’t see or manage your workouts.”
+- Owner member list shows a badge:
+  - “Trainer-led (Trainer: X)” or “Self-guided”
+- Trainer dashboard shows only trainer_led assigned members.
+
+=== IMPLEMENTATION NOTES ===
+- Use minimal schema change:
+  - Add training_mode to memberships (or the gym-user join table you already use).
+- Add migration/default:
+  - Existing records default training_mode = "trainer_led"
+- Add backend guards for endpoints:
+  - Any trainer endpoint must filter out self_guided members.
+  - Any trainer access to workouts of self_guided member must be blocked.
+
+DELIVERABLES
+- DB migration + model update
+- Updated assignment logic
+- Updated queries/endpoints for trainer + member + owner
+- Settings UI toggle + badges
+- Basic tests or manual test checklist for:
+  - member toggles to self_guided -> trainer loses access
+  - owner still sees member and payments/attendance
+  - member can create workouts while self_guided
