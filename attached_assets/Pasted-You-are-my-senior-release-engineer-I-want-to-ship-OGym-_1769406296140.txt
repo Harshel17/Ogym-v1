@@ -1,0 +1,82 @@
+You are my senior release engineer.
+
+I want to ship OGym to the Play Store (and later App Store). 
+Do a complete “Release Readiness Audit” of this repository and tell me if we are ready.
+
+Context:
+- OGym is a multi-tenant gym management app (owner/trainer/member roles).
+- We ship a web app + mobile app using Capacitor (Android now).
+- We have authentication, payments, attendance, workout cycles, and Dika.
+
+Your job:
+1) Inspect the project structure and report whether it is production-ready and maintainable.
+2) Identify blockers for Play Store submission.
+3) Give a strict rating out of 10 for release readiness.
+4) Provide an actionable punch-list to reach 10/10.
+
+=== AUDIT OUTPUT FORMAT (must follow) ===
+
+A) Release Readiness Score (0–10)
+- Score:
+- Summary (2–3 lines):
+
+B) Blockers (must-fix before Play Store)
+- [ ] Blocker 1 (explain)
+- [ ] Blocker 2
+(If none, say “No hard blockers found”.)
+
+C) High-Risk Items (strongly recommended)
+- [ ] Item 1
+- [ ] Item 2
+
+D) Structure & Code Quality
+Check:
+- Clean separation: frontend vs backend vs mobile wrappers
+- Clear env config strategy (dev/stage/prod)
+- No secrets committed
+- Consistent logging + error handling
+- API versioning or stable routing
+- Database migrations are clean
+
+E) Mobile Build & Packaging (Capacitor Android)
+Verify:
+- Android build succeeds
+- App ID/package name is correct and consistent
+- Versioning is correct (versionCode increments)
+- App icons/splash exist
+- Deep links and permissions are minimal
+- WebView loads the correct production URL
+- No localhost references
+
+F) Security & Compliance Basics
+Verify:
+- Auth tokens/cookies are secure
+- CORS is correct for production
+- Rate limiting or basic abuse protection exists for APIs
+- Proper error messages (no stack traces to client)
+- HTTPS only for production
+- Privacy policy requirements readiness (data collected)
+
+G) Performance & Stability
+Verify:
+- App boots quickly
+- No obvious console errors
+- Key flows work: login, create workout, check-in, payment flow, Dika ask
+- Offline/poor-network behavior (basic)
+
+H) Store Submission Prep
+Check:
+- Screenshots list (what screens needed)
+- Store listing copy basics (title, short/long description)
+- Privacy policy URL requirement
+- Data safety form notes (what data you collect & why)
+- Crash reporting recommendation
+
+I) Final Recommendation
+- “Ship now” or “Do not ship yet”
+- If “Do not ship”, list the minimum steps to ship.
+
+=== IMPORTANT ===
+Be strict. Don’t be nice. 
+If you claim something is OK, show evidence: file paths, config values, build output, or commands I should run.
+Also highlight anything that could cause rejection.
