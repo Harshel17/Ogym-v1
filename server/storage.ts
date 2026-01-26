@@ -251,6 +251,8 @@ export interface IStorage {
   // Profile
   updateUserProfile(userId: number, data: { email?: string; phone?: string }): Promise<User>;
   updateUserDikaSettings(userId: number, data: { hideDika?: boolean }): Promise<User>;
+  updateMemberTrainingMode(memberId: number, gymId: number, trainingMode: 'trainer_led' | 'self_guided'): Promise<User>;
+  getMemberTrainingMode(memberId: number): Promise<'trainer_led' | 'self_guided' | null>;
   getFullMemberProfile(memberId: number): Promise<any>;
   getTrainerProfile(trainerId: number): Promise<any>;
   
@@ -913,7 +915,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTrainerMembers(trainerId: number): Promise<TrainerMember[]> {
-    return await db.select().from(trainerMembers).where(eq(trainerMembers.trainerId, trainerId));
+    // Only return members who are trainer_led (not self_guided)
+    const result = await db.select({
+      trainerMember: trainerMembers
+    })
+    .from(trainerMembers)
+    .innerJoin(users, eq(trainerMembers.memberId, users.id))
+    .where(and(
+      eq(trainerMembers.trainerId, trainerId),
+      eq(users.trainingMode, 'trainer_led')
+    ));
+    return result.map(r => r.trainerMember);
   }
 
   async getGymAssignments(gymId: number): Promise<TrainerMember[]> {
@@ -2702,6 +2714,40 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return user;
+  }
+
+  async updateMemberTrainingMode(memberId: number, gymId: number, trainingMode: 'trainer_led' | 'self_guided'): Promise<User> {
+    // Update the training mode
+    const [user] = await db.update(users)
+      .set({ trainingMode })
+      .where(eq(users.id, memberId))
+      .returning();
+    
+    // If switching to self_guided, automatically remove trainer assignment
+    if (trainingMode === 'self_guided') {
+      // End any active assignment in trainerMemberAssignments
+      await db.update(trainerMemberAssignments)
+        .set({ endedAt: new Date(), endReason: 'manual' })
+        .where(and(
+          eq(trainerMemberAssignments.gymId, gymId),
+          eq(trainerMemberAssignments.memberId, memberId),
+          isNull(trainerMemberAssignments.endedAt)
+        ));
+      
+      // Remove from trainerMembers (current assignment table)
+      await db.delete(trainerMembers).where(
+        and(eq(trainerMembers.gymId, gymId), eq(trainerMembers.memberId, memberId))
+      );
+    }
+    
+    return user;
+  }
+
+  async getMemberTrainingMode(memberId: number): Promise<'trainer_led' | 'self_guided' | null> {
+    const [user] = await db.select({ trainingMode: users.trainingMode })
+      .from(users)
+      .where(eq(users.id, memberId));
+    return user?.trainingMode as 'trainer_led' | 'self_guided' | null;
   }
 
   async getFullMemberProfile(memberId: number, localDate?: string): Promise<any> {

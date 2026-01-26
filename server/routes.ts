@@ -3993,6 +3993,42 @@ export async function registerRoutes(
     }
   });
 
+  // === TRAINING MODE ENDPOINT ===
+  app.patch("/api/member/training-mode", requireRole(["member"]), async (req, res) => {
+    try {
+      const schema = z.object({
+        trainingMode: z.enum(["trainer_led", "self_guided"])
+      });
+      const { trainingMode } = schema.parse(req.body);
+      
+      if (!req.user!.gymId) {
+        return res.status(400).json({ message: "You must be part of a gym to change training mode" });
+      }
+      
+      const user = await storage.updateMemberTrainingMode(req.user!.id, req.user!.gymId, trainingMode);
+      res.json({ 
+        success: true, 
+        trainingMode: user.trainingMode,
+        message: trainingMode === 'self_guided' 
+          ? "You are now managing your own workouts. Your trainer will no longer have access." 
+          : "You are now in trainer-led mode. Your trainer can manage your workouts."
+      });
+    } catch (error) {
+      console.error("[Training Mode Update] Error:", error);
+      res.status(500).json({ message: "Failed to update training mode" });
+    }
+  });
+
+  app.get("/api/member/training-mode", requireRole(["member"]), async (req, res) => {
+    try {
+      const trainingMode = await storage.getMemberTrainingMode(req.user!.id);
+      res.json({ trainingMode: trainingMode || 'trainer_led' });
+    } catch (error) {
+      console.error("[Training Mode Get] Error:", error);
+      res.status(500).json({ message: "Failed to get training mode" });
+    }
+  });
+
   // === ENHANCED OWNER PROFILE ROUTES ===
   app.get("/api/owner/profile", requireRole(["owner"]), async (req, res) => {
     try {
