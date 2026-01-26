@@ -3370,7 +3370,16 @@ export async function registerRoutes(
     const cycles = await storage.getMemberCycles(req.user!.id, 'self');
     // Sort by phaseNumber descending (newest first)
     const sortedCycles = cycles.sort((a, b) => (b.phaseNumber || 1) - (a.phaseNumber || 1));
-    res.json(sortedCycles);
+    
+    // Fetch items for each cycle
+    const cyclesWithItems = await Promise.all(
+      sortedCycles.map(async (cycle) => {
+        const items = await storage.getWorkoutItems(cycle.id);
+        return { ...cycle, items };
+      })
+    );
+    
+    res.json(cyclesWithItems);
   });
   
   // Add workout item to personal cycle

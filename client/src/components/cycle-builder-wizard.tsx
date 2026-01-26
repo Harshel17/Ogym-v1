@@ -188,6 +188,7 @@ export function CycleBuilderWizard({ open, onOpenChange }: CycleBuilderWizardPro
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/personal/cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/personal/cycles/history"] });
       queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/workouts/cycles/my"] });
       toast({ title: "Success!", description: "Your workout cycle has been created" });

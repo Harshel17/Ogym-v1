@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw, Loader2, Plus, Dumbbell, Wand2, Shuffle, ArrowLeftRight } from "lucide-react";
+import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw, Loader2, Plus, Dumbbell, Wand2, Shuffle, ArrowLeftRight, History, Clock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -69,6 +69,12 @@ export default function MemberWorkoutPage() {
     enabled: !!canManageOwnWorkouts,
   });
   
+  // Cycle history - fetch all cycles (including inactive)
+  const { data: cycleHistory, isLoading: cycleHistoryLoading } = useQuery<any[]>({
+    queryKey: ["/api/personal/cycles/history"],
+    enabled: !!canManageOwnWorkouts,
+  });
+  
   // Get daily points for today
   const todayStr = new Date().toISOString().split("T")[0];
   const { data: dailyPoints } = useDailyPoints(todayStr, todayStr);
@@ -79,6 +85,10 @@ export default function MemberWorkoutPage() {
   const [newCycleName, setNewCycleName] = useState("");
   const [newCycleLength, setNewCycleLength] = useState(3);
   const [wizardOpen, setWizardOpen] = useState(false);
+  
+  // Cycle history state
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [expandedHistoryCycle, setExpandedHistoryCycle] = useState<number | null>(null);
   
   // Create personal cycle mutation
   const createCycleMutation = useMutation({
@@ -96,6 +106,7 @@ export default function MemberWorkoutPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/personal/cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/personal/cycles/history"] });
       queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/workouts/cycle"] });
       setCreateCycleOpen(false);
@@ -125,6 +136,7 @@ export default function MemberWorkoutPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/personal/cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/personal/cycles/history"] });
       queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/workouts/cycle"] });
       queryClient.invalidateQueries({ queryKey: ["/api/member/workout/summary"] });
@@ -1004,6 +1016,104 @@ export default function MemberWorkoutPage() {
               })}
             </div>
           </CardContent>
+        </Card>
+      )}
+
+      {/* Cycle History Section */}
+      {canManageOwnWorkouts && cycleHistory && cycleHistory.length > 1 && (
+        <Card>
+          <CardHeader 
+            className="cursor-pointer hover-elevate"
+            onClick={() => setHistoryOpen(!historyOpen)}
+            data-testid="button-toggle-history"
+          >
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <History className="w-5 h-5" />
+                Workout History
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">{cycleHistory.filter(c => !c.isActive).length} past phases</Badge>
+                {historyOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </div>
+            </div>
+            <CardDescription>
+              View your previous workout phases
+            </CardDescription>
+          </CardHeader>
+          
+          {historyOpen && (
+            <CardContent className="space-y-4">
+              {cycleHistory
+                .filter(c => !c.isActive)
+                .map((historyCycle: any) => (
+                  <div 
+                    key={historyCycle.id} 
+                    className="border rounded-lg p-4"
+                    data-testid={`cycle-history-${historyCycle.id}`}
+                  >
+                    <div 
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => setExpandedHistoryCycle(expandedHistoryCycle === historyCycle.id ? null : historyCycle.id)}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium">{historyCycle.name}</h4>
+                          <Badge variant="outline" className="text-xs">
+                            Phase {historyCycle.phaseNumber || 1}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{historyCycle.startDate} - {historyCycle.endDate || "Ended"}</span>
+                          <span>•</span>
+                          <span>{historyCycle.cycleLength} days</span>
+                        </div>
+                      </div>
+                      {expandedHistoryCycle === historyCycle.id ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </div>
+                    
+                    {expandedHistoryCycle === historyCycle.id && historyCycle.items && (
+                      <div className="mt-4 space-y-3 border-t pt-4">
+                        {Array.from({ length: historyCycle.cycleLength || 3 }, (_, idx) => {
+                          const dayLabel = historyCycle.dayLabels?.[idx] || `Day ${idx + 1}`;
+                          const dayItems = historyCycle.items.filter((w: any) => w.dayIndex === idx);
+                          const muscleTypes = Array.from(new Set(dayItems.map((w: any) => w.muscleType).filter(Boolean)));
+                          return (
+                            <div key={idx}>
+                              <div className="flex items-center gap-2 mb-1">
+                                <h5 className="font-medium text-sm">{dayLabel}</h5>
+                                {muscleTypes.length > 0 && (
+                                  <span className="text-xs text-muted-foreground">({(muscleTypes as string[]).join(" + ")})</span>
+                                )}
+                              </div>
+                              {dayItems.length === 0 ? (
+                                <p className="text-xs text-muted-foreground">No exercises</p>
+                              ) : (
+                                <div className="space-y-1 text-sm">
+                                  {dayItems.map((w: any) => (
+                                    <div key={w.id} className="flex items-center gap-2 text-muted-foreground">
+                                      <span>{w.exerciseName}</span>
+                                      <span>-</span>
+                                      <span>{w.sets}x{w.reps}</span>
+                                      {w.weight && <span>@ {w.weight}</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </CardContent>
+          )}
         </Card>
       )}
 
