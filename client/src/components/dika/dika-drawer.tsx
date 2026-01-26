@@ -81,6 +81,13 @@ export function DikaDrawer({
     }
   }, [keyboardHeight]);
 
+  const handleInputFocus = () => {
+    // Scroll input into view when keyboard opens on mobile
+    setTimeout(() => {
+      inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
@@ -103,8 +110,11 @@ export function DikaDrawer({
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent 
         side="right" 
-        className="w-full sm:max-w-md flex flex-col p-0 h-[100dvh]"
-        style={{ paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined }}
+        className="w-full sm:max-w-md flex flex-col p-0"
+        style={{ 
+          height: keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh',
+          maxHeight: keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh'
+        }}
         data-testid="drawer-dika"
       >
         <SheetHeader className="px-4 py-3 border-b flex-shrink-0 pr-12">
@@ -233,13 +243,14 @@ export function DikaDrawer({
 
         <form 
           onSubmit={handleSubmit} 
-          className="p-4 border-t flex gap-2 flex-shrink-0 bg-background sticky bottom-0 z-50"
-          style={{ paddingBottom: `max(1rem, env(safe-area-inset-bottom))`, marginBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined }}
+          className="p-4 border-t flex gap-2 flex-shrink-0 bg-background"
+          style={{ paddingBottom: `max(1rem, env(safe-area-inset-bottom))` }}
         >
           <Input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onFocus={handleInputFocus}
             placeholder="Ask a question..."
             disabled={isLoading}
             className="flex-1"
