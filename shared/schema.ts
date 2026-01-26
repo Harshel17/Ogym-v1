@@ -188,6 +188,7 @@ export const workoutCycles = pgTable("workout_cycles", {
   lastWorkoutDate: text("last_workout_date"),
   isActive: boolean("is_active").default(true),
   source: text("source", { enum: ["trainer", "self"] }).default("trainer"),
+  phaseNumber: integer("phase_number").default(1),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
