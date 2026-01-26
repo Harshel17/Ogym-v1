@@ -233,8 +233,8 @@ export function DikaDrawer({
 
         <form 
           onSubmit={handleSubmit} 
-          className="p-4 border-t flex gap-2 flex-shrink-0 bg-background safe-area-bottom"
-          style={{ paddingBottom: `max(1rem, env(safe-area-inset-bottom))` }}
+          className="p-4 border-t flex gap-2 flex-shrink-0 bg-background sticky bottom-0 z-50"
+          style={{ paddingBottom: `max(1rem, env(safe-area-inset-bottom))`, marginBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined }}
         >
           <Input
             ref={inputRef}
