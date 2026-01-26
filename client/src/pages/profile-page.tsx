@@ -1032,28 +1032,9 @@ function AutoPostSettingsCard() {
 
 function TrainingModeSettingsCard() {
   const { user } = useAuth();
-  const { toast } = useToast();
   
   const { data: trainingModeData, isLoading } = useQuery<{ trainingMode: string }>({
     queryKey: ["/api/member/training-mode"]
-  });
-  
-  const toggleMutation = useMutation({
-    mutationFn: async (trainingMode: 'trainer_led' | 'self_guided') => {
-      const res = await apiRequest("PATCH", "/api/member/training-mode", { trainingMode });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/member/training-mode"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/member/profile"] });
-      toast({ 
-        title: data.trainingMode === 'self_guided' ? "Self-Guided Mode" : "Trainer-Led Mode",
-        description: data.message
-      });
-    },
-    onError: () => {
-      toast({ title: "Failed to update training mode", variant: "destructive" });
-    }
   });
 
   const isSelfGuided = trainingModeData?.trainingMode === 'self_guided';
@@ -1067,25 +1048,24 @@ function TrainingModeSettingsCard() {
           <Dumbbell className="w-5 h-5" />
           Training Mode
         </CardTitle>
-        <CardDescription>Choose how you want to manage your workouts</CardDescription>
+        <CardDescription>Your current workout management mode</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
           <div>
-            <p className="font-medium">Self-Guided Workouts</p>
+            <p className="font-medium">
+              {isLoading ? "Loading..." : (isSelfGuided ? "Self-Guided Mode" : "Trainer-Led Mode")}
+            </p>
             <p className="text-sm text-muted-foreground">
               {isSelfGuided 
                 ? "You're managing your own workouts. Your trainer cannot see or modify them."
-                : "Turn this on to create and manage your own workouts while staying in your gym."
+                : "Your trainer manages your workout cycles and can track your progress."
               }
             </p>
           </div>
-          <Switch
-            checked={isSelfGuided}
-            onCheckedChange={(checked) => toggleMutation.mutate(checked ? 'self_guided' : 'trainer_led')}
-            disabled={toggleMutation.isPending || isLoading}
-            data-testid="switch-training-mode"
-          />
+          <Badge variant={isSelfGuided ? "secondary" : "default"} data-testid="badge-training-mode">
+            {isSelfGuided ? "Self-Guided" : "Trainer-Led"}
+          </Badge>
         </div>
         {isSelfGuided && (
           <div className="p-3 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 rounded-lg text-sm">
@@ -1093,6 +1073,9 @@ function TrainingModeSettingsCard() {
             Your gym attendance and payments are still tracked normally.
           </div>
         )}
+        <p className="text-xs text-muted-foreground">
+          Contact your gym owner to change your training mode.
+        </p>
       </CardContent>
     </Card>
   );

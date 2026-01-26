@@ -887,6 +887,44 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users).where(and(eq(users.gymId, gymId), eq(users.role, "trainer")));
   }
 
+  async assignTrainerWithMode(trainerId: number | null, memberId: number, gymId: number, trainingMode: 'trainer_led' | 'self_guided'): Promise<TrainerMember | null> {
+    // Close any existing assignment for this member in this gym
+    await db.update(trainerMemberAssignments)
+      .set({ endedAt: new Date(), endReason: trainingMode === 'self_guided' ? 'self_guided_mode' : 'reassignment' })
+      .where(and(
+        eq(trainerMemberAssignments.gymId, gymId),
+        eq(trainerMemberAssignments.memberId, memberId),
+        isNull(trainerMemberAssignments.endedAt)
+      ));
+    
+    // Delete current assignment from trainerMembers
+    await db.delete(trainerMembers).where(
+      and(eq(trainerMembers.gymId, gymId), eq(trainerMembers.memberId, memberId))
+    );
+    
+    // Update training mode
+    await db.update(users)
+      .set({ trainingMode })
+      .where(eq(users.id, memberId));
+    
+    // If self-guided, no trainer assignment needed
+    if (trainingMode === 'self_guided' || !trainerId) {
+      return null;
+    }
+    
+    // Create new current assignment
+    const [assignment] = await db.insert(trainerMembers).values({
+      trainerId, memberId, gymId
+    }).returning();
+    
+    // Record in assignment history
+    await db.insert(trainerMemberAssignments).values({
+      trainerId, memberId, gymId, startedAt: new Date()
+    });
+    
+    return assignment;
+  }
+
   async assignTrainer(trainerId: number, memberId: number, gymId: number): Promise<TrainerMember> {
     // Close any existing assignment for this member in this gym
     await db.update(trainerMemberAssignments)
@@ -901,6 +939,11 @@ export class DatabaseStorage implements IStorage {
     await db.delete(trainerMembers).where(
       and(eq(trainerMembers.gymId, gymId), eq(trainerMembers.memberId, memberId))
     );
+    
+    // Ensure member is trainer_led when assigning trainer
+    await db.update(users)
+      .set({ trainingMode: 'trainer_led' })
+      .where(eq(users.id, memberId));
     
     // Create new current assignment
     const [assignment] = await db.insert(trainerMembers).values({

@@ -335,7 +335,7 @@ export default function MembersPage() {
                       
                       {isOwner && (
                         <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <AssignTrainerDialog memberId={member.id} memberName={member.username} currentTrainer={member.trainerName} />
+                          <AssignTrainerDialog memberId={member.id} memberName={member.username} currentTrainer={member.trainerName} currentTrainingMode={member.trainingMode} />
                         </div>
                       )}
                     </div>
@@ -459,7 +459,7 @@ export default function MembersPage() {
                       {isOwner && (
                         <TableCell className="text-right">
                           {member.role === 'member' && (
-                            <AssignTrainerDialog memberId={member.id} memberName={member.username} currentTrainer={member.trainerName} />
+                            <AssignTrainerDialog memberId={member.id} memberName={member.username} currentTrainer={member.trainerName} currentTrainingMode={member.trainingMode} />
                           )}
                         </TableCell>
                       )}
@@ -835,7 +835,12 @@ function PaymentBadge({ status }: { status: string | null }) {
   );
 }
 
-function AssignTrainerDialog({ memberId, memberName, currentTrainer }: { memberId: number; memberName: string; currentTrainer: string | null }) {
+function AssignTrainerDialog({ memberId, memberName, currentTrainer, currentTrainingMode }: { 
+  memberId: number; 
+  memberName: string; 
+  currentTrainer: string | null;
+  currentTrainingMode: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const { data: trainers = [] } = useTrainers();
   const assignMutation = useAssignTrainer();
@@ -843,15 +848,29 @@ function AssignTrainerDialog({ memberId, memberName, currentTrainer }: { memberI
   const trainersList = trainers as any[];
   
   const formSchema = z.object({
-    trainerId: z.coerce.number().min(1, "Please select a trainer"),
-  });
+    trainingMode: z.enum(['trainer_led', 'self_guided']),
+    trainerId: z.coerce.number().optional(),
+  }).refine(
+    (data) => data.trainingMode === 'self_guided' || (data.trainerId && data.trainerId > 0),
+    { message: "Please select a trainer for trainer-led mode", path: ["trainerId"] }
+  );
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      trainingMode: (currentTrainingMode as 'trainer_led' | 'self_guided') || 'trainer_led',
+      trainerId: undefined,
+    }
   });
 
+  const trainingMode = form.watch('trainingMode');
+
   const onSubmit = (data: z.infer<typeof formSchema>) => {
-    assignMutation.mutate({ memberId, trainerId: data.trainerId }, {
+    assignMutation.mutate({ 
+      memberId, 
+      trainerId: data.trainingMode === 'trainer_led' ? data.trainerId : null,
+      trainingMode: data.trainingMode
+    }, {
       onSuccess: () => setOpen(false)
     });
   };
@@ -865,43 +884,90 @@ function AssignTrainerDialog({ memberId, memberName, currentTrainer }: { memberI
           data-testid={`button-assign-trainer-${memberId}`}
           onClick={(e) => e.stopPropagation()}
         >
-          {currentTrainer ? "Reassign" : "Assign Trainer"}
+          {currentTrainer ? "Reassign" : "Assign"}
         </Button>
       </DialogTrigger>
       <DialogContent onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
-          <DialogTitle>Assign Trainer to {memberName}</DialogTitle>
+          <DialogTitle>Manage Training for {memberName}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={(e) => { e.stopPropagation(); form.handleSubmit(onSubmit)(e); }} className="space-y-4 pt-4">
             <FormField
               control={form.control}
-              name="trainerId"
+              name="trainingMode"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Select Trainer</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
-                    <FormControl>
-                      <SelectTrigger data-testid="select-trainer">
-                        <SelectValue placeholder="Select a trainer" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {trainersList.map((t: any) => (
-                        <SelectItem key={t.id} value={t.id.toString()}>
-                          {t.username}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <FormItem className="space-y-3">
+                  <FormLabel>Training Mode</FormLabel>
+                  <FormControl>
+                    <div className="flex flex-col gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="trainer_led"
+                          checked={field.value === 'trainer_led'}
+                          onChange={() => field.onChange('trainer_led')}
+                          className="w-4 h-4"
+                          data-testid="radio-trainer-led"
+                        />
+                        <span className="text-sm">Trainer-Led (Trainer manages workouts)</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          value="self_guided"
+                          checked={field.value === 'self_guided'}
+                          onChange={() => field.onChange('self_guided')}
+                          className="w-4 h-4"
+                          data-testid="radio-self-guided"
+                        />
+                        <span className="text-sm">Self-Guided (Member manages own workouts)</span>
+                      </label>
+                    </div>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            
+            {trainingMode === 'trainer_led' && (
+              <FormField
+                control={form.control}
+                name="trainerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Select Trainer</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value?.toString()}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-trainer">
+                          <SelectValue placeholder="Select a trainer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {trainersList.map((t: any) => (
+                          <SelectItem key={t.id} value={t.id.toString()}>
+                            {t.username}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            
+            {trainingMode === 'self_guided' && (
+              <p className="text-sm text-muted-foreground">
+                In self-guided mode, the member can create and manage their own workout cycles. 
+                Trainers will not have access to this member's data.
+              </p>
+            )}
+            
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={assignMutation.isPending} data-testid="button-submit-assign">
-                {assignMutation.isPending ? "Assigning..." : "Assign"}
+                {assignMutation.isPending ? "Saving..." : "Save"}
               </Button>
             </div>
           </form>

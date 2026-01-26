@@ -33,17 +33,26 @@ export function useAssignTrainer() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { trainerId: number; memberId: number }) => {
+    mutationFn: async (data: { 
+      trainerId?: number | null; 
+      memberId: number; 
+      trainingMode: 'trainer_led' | 'self_guided';
+    }) => {
       return apiRequest("POST", "/api/owner/assign-trainer", data);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/owner/members'] });
       queryClient.invalidateQueries({ queryKey: ['/api/owner/members-details'] });
       queryClient.invalidateQueries({ queryKey: ['/api/owner/assignments'] });
-      toast({ title: "Success", description: "Trainer assigned successfully" });
+      toast({ 
+        title: "Success", 
+        description: variables.trainingMode === 'self_guided' 
+          ? "Member set to self-guided mode" 
+          : "Trainer assigned successfully"
+      });
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message || "Failed to assign trainer", variant: "destructive" });
+      toast({ title: "Error", description: err.message || "Failed to update training mode", variant: "destructive" });
     },
   });
 }

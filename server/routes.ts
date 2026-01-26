@@ -486,10 +486,32 @@ export async function registerRoutes(
   });
 
   app.post("/api/owner/assign-trainer", requireRole(["owner"]), async (req, res) => {
-    const schema = z.object({ trainerId: z.number(), memberId: z.number() });
+    const schema = z.object({ 
+      trainerId: z.number().nullable().optional(),
+      memberId: z.number(),
+      trainingMode: z.enum(['trainer_led', 'self_guided']).default('trainer_led')
+    });
     const input = schema.parse(req.body);
-    const assignment = await storage.assignTrainer(input.trainerId, input.memberId, req.user!.gymId!);
-    res.status(201).json(assignment);
+    
+    // If trainer_led mode, trainerId is required
+    if (input.trainingMode === 'trainer_led' && !input.trainerId) {
+      return res.status(400).json({ message: "Trainer is required for trainer-led mode" });
+    }
+    
+    const assignment = await storage.assignTrainerWithMode(
+      input.trainerId || null, 
+      input.memberId, 
+      req.user!.gymId!, 
+      input.trainingMode
+    );
+    res.status(201).json({ 
+      success: true, 
+      assignment,
+      trainingMode: input.trainingMode,
+      message: input.trainingMode === 'self_guided' 
+        ? "Member set to self-guided mode" 
+        : "Trainer assigned successfully"
+    });
   });
 
   app.get("/api/owner/assignments", requireRole(["owner"]), async (req, res) => {
@@ -3994,31 +4016,8 @@ export async function registerRoutes(
   });
 
   // === TRAINING MODE ENDPOINT ===
-  app.patch("/api/member/training-mode", requireRole(["member"]), async (req, res) => {
-    try {
-      const schema = z.object({
-        trainingMode: z.enum(["trainer_led", "self_guided"])
-      });
-      const { trainingMode } = schema.parse(req.body);
-      
-      if (!req.user!.gymId) {
-        return res.status(400).json({ message: "You must be part of a gym to change training mode" });
-      }
-      
-      const user = await storage.updateMemberTrainingMode(req.user!.id, req.user!.gymId, trainingMode);
-      res.json({ 
-        success: true, 
-        trainingMode: user.trainingMode,
-        message: trainingMode === 'self_guided' 
-          ? "You are now managing your own workouts. Your trainer will no longer have access." 
-          : "You are now in trainer-led mode. Your trainer can manage your workouts."
-      });
-    } catch (error) {
-      console.error("[Training Mode Update] Error:", error);
-      res.status(500).json({ message: "Failed to update training mode" });
-    }
-  });
-
+  // Note: Training mode is now controlled by gym owners via the assign-trainer endpoint
+  // Members can only view their training mode, not change it
   app.get("/api/member/training-mode", requireRole(["member"]), async (req, res) => {
     try {
       const trainingMode = await storage.getMemberTrainingMode(req.user!.id);
