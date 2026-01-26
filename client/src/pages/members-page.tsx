@@ -50,6 +50,7 @@ type MemberDetail = {
   paymentStatus: string | null;
   subscriptionEndDate: string | null;
   subscriptionStatus: string | null;
+  trainingMode: string | null;
 };
 
 export default function MembersPage() {
@@ -280,6 +281,9 @@ export default function MembersPage() {
                           {isStar && isTrainer && (
                             <Star className="w-4 h-4 fill-yellow-500 text-yellow-500 shrink-0" />
                           )}
+                          {isOwner && member.trainingMode === 'self_guided' && (
+                            <Badge variant="outline" className="text-xs shrink-0">Self-Guided</Badge>
+                          )}
                         </div>
                         
                         {isOwner && (
@@ -412,13 +416,16 @@ export default function MembersPage() {
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${isStar && isTrainer ? "bg-yellow-500/20 text-yellow-600" : "bg-primary/10 text-primary"}`}>
                             {member.username?.slice(0, 2).toUpperCase() || '??'}
                           </div>
-                          <div>
+                          <div className="flex items-center gap-2 flex-wrap">
                             {member.username}
                             {isStar && isTrainer && (
-                              <Badge variant="secondary" className="ml-2 text-yellow-600 text-xs">
+                              <Badge variant="secondary" className="text-yellow-600 text-xs">
                                 <Star className="w-2 h-2 mr-1 fill-current" />
                                 Star
                               </Badge>
+                            )}
+                            {isOwner && member.trainingMode === 'self_guided' && (
+                              <Badge variant="outline" className="text-xs">Self-Guided</Badge>
                             )}
                           </div>
                         </div>

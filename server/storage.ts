@@ -216,6 +216,7 @@ export interface IStorage {
     paymentStatus: string | null;
     subscriptionEndDate: string | null;
     subscriptionStatus: string | null;
+    trainingMode: string | null;
   }[]>;
   
   // Member Profile & Progress
@@ -2341,6 +2342,7 @@ export class DatabaseStorage implements IStorage {
     paymentStatus: string | null;
     subscriptionEndDate: string | null;
     subscriptionStatus: string | null;
+    trainingMode: string | null;
   }[]> {
     const startTime = Date.now();
     const currentMonth = new Date().toISOString().slice(0, 7);
@@ -2382,7 +2384,8 @@ export class DatabaseStorage implements IStorage {
         cycleEndDate,
         paymentStatus,
         subscriptionEndDate,
-        subscriptionStatus
+        subscriptionStatus,
+        trainingMode: member.trainingMode
       };
     });
   }
