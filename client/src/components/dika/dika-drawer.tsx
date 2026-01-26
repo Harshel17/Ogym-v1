@@ -7,27 +7,46 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon } from './dika-icons';
+import { Keyboard } from '@capacitor/keyboard';
+import { Capacitor } from '@capacitor/core';
 
-function useVisualViewportHeight() {
+function useKeyboardHeight() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
+    if (!Capacitor.isNativePlatform()) {
+      // Fallback for web: use visual viewport
+      const viewport = window.visualViewport;
+      if (!viewport) return;
 
-    const handleResize = () => {
-      const windowHeight = window.innerHeight;
-      const viewportHeight = viewport.height;
-      const newKeyboardHeight = Math.max(0, windowHeight - viewportHeight);
-      setKeyboardHeight(newKeyboardHeight);
-    };
+      const handleResize = () => {
+        const windowHeight = window.innerHeight;
+        const viewportHeight = viewport.height;
+        const newKeyboardHeight = Math.max(0, windowHeight - viewportHeight);
+        setKeyboardHeight(newKeyboardHeight);
+      };
 
-    viewport.addEventListener('resize', handleResize);
-    viewport.addEventListener('scroll', handleResize);
-    
+      viewport.addEventListener('resize', handleResize);
+      viewport.addEventListener('scroll', handleResize);
+      
+      return () => {
+        viewport.removeEventListener('resize', handleResize);
+        viewport.removeEventListener('scroll', handleResize);
+      };
+    }
+
+    // Native platform: use Capacitor Keyboard plugin
+    const showListener = Keyboard.addListener('keyboardWillShow', (info) => {
+      setKeyboardHeight(info.keyboardHeight);
+    });
+
+    const hideListener = Keyboard.addListener('keyboardWillHide', () => {
+      setKeyboardHeight(0);
+    });
+
     return () => {
-      viewport.removeEventListener('resize', handleResize);
-      viewport.removeEventListener('scroll', handleResize);
+      showListener.then(handle => handle.remove());
+      hideListener.then(handle => handle.remove());
     };
   }, []);
 
@@ -69,7 +88,7 @@ export function DikaDrawer({
   const [showSettings, setShowSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const keyboardHeight = useVisualViewportHeight();
+  const keyboardHeight = useKeyboardHeight();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
