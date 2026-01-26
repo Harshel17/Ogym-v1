@@ -3324,8 +3324,14 @@ export async function registerRoutes(
     });
     const input = schema.parse(req.body);
     
-    // Deactivate only existing active personal cycles (source='self'), not gym cycles
+    // Get all personal cycles to determine next phase number
     const existingCycles = await storage.getMemberCycles(req.user!.id, 'self');
+    
+    // Find the highest phase number among all cycles (active or not)
+    const maxPhase = existingCycles.reduce((max, c) => Math.max(max, c.phaseNumber || 1), 0);
+    const nextPhaseNumber = maxPhase + 1;
+    
+    // Deactivate only existing active personal cycles (source='self'), not gym cycles
     for (const c of existingCycles) {
       if (c.isActive) {
         await storage.deactivateCycle(c.id);
@@ -3337,7 +3343,8 @@ export async function registerRoutes(
       gymId: null,
       trainerId: null,
       memberId: req.user!.id,
-      source: "self"
+      source: "self",
+      phaseNumber: nextPhaseNumber
     });
     res.status(201).json(cycle);
   });
@@ -3348,9 +3355,22 @@ export async function registerRoutes(
     if (req.user!.gymId && !isSelfGuided) {
       return res.status(403).json({ message: "Only Personal Mode or self-guided members can access their own cycles" });
     }
-    // Only return personal workouts (source='self')
+    // Only return personal workouts (source='self') - includes both active and inactive for history
     const cycles = await storage.getMemberCycles(req.user!.id, 'self');
     res.json(cycles);
+  });
+  
+  // Get personal cycle history (inactive cycles with details)
+  app.get("/api/personal/cycles/history", requireRole(["member"]), async (req, res) => {
+    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
+    if (req.user!.gymId && !isSelfGuided) {
+      return res.status(403).json({ message: "Only Personal Mode or self-guided members can access cycle history" });
+    }
+    // Get all personal cycles sorted by phase number descending
+    const cycles = await storage.getMemberCycles(req.user!.id, 'self');
+    // Sort by phaseNumber descending (newest first)
+    const sortedCycles = cycles.sort((a, b) => (b.phaseNumber || 1) - (a.phaseNumber || 1));
+    res.json(sortedCycles);
   });
   
   // Add workout item to personal cycle
@@ -3503,8 +3523,14 @@ export async function registerRoutes(
     
     const input = schema.parse(req.body);
     
-    // Deactivate existing personal cycles
+    // Get all personal cycles to determine next phase number
     const existingCycles = await storage.getMemberCycles(req.user!.id, 'self');
+    
+    // Find the highest phase number among all cycles (active or not)
+    const maxPhase = existingCycles.reduce((max, c) => Math.max(max, c.phaseNumber || 1), 0);
+    const nextPhaseNumber = maxPhase + 1;
+    
+    // Deactivate existing personal cycles
     for (const c of existingCycles) {
       if (c.isActive) {
         await storage.deactivateCycle(c.id);
@@ -3527,7 +3553,8 @@ export async function registerRoutes(
       gymId: null,
       trainerId: null,
       memberId: req.user!.id,
-      source: "self"
+      source: "self",
+      phaseNumber: nextPhaseNumber
     });
     
     // Add all items - use day.dayIndex for each item
