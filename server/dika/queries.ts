@@ -470,6 +470,7 @@ export async function getTrainerMemberWorkoutOnDate(
   const members = await db.select({
     userId: users.id,
     fullName: userProfiles.fullName,
+    trainingMode: users.trainingMode,
   })
   .from(users)
   .innerJoin(userProfiles, eq(users.id, userProfiles.userId))
@@ -477,12 +478,13 @@ export async function getTrainerMemberWorkoutOnDate(
     and(
       eq(users.gymId, gymId),
       eq(users.role, 'member'),
+      eq(users.trainingMode, 'trainer_led'),
       sql`lower(${userProfiles.fullName}) like ${`%${memberName.toLowerCase()}%`}`
     )
   );
   
   if (members.length === 0) {
-    return `I couldn't find a member named "${memberName}" in your gym.`;
+    return `I couldn't find a trainer-led member named "${memberName}" in your gym. Note: Self-guided members are not visible to trainers.`;
   }
   
   if (members.length > 1) {
