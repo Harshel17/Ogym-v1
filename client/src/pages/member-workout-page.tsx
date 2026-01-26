@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTodayWorkout, useCompleteWorkout, useMemberCycle, useDailyPoints, useShareWorkout, useSwapRestDay, useUndoRestDaySwap, useLogWorkoutSets } from "@/hooks/use-workouts";
+import { useTrainingMode } from "@/hooks/use-gym";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,13 +54,19 @@ export default function MemberWorkoutPage() {
   });
   const { data: cycleData, isLoading: cycleLoading } = useMemberCycle();
   
-  // Personal Mode - check if user has no gym
-  const isPersonalMode = user?.role === 'member' && !user?.gymId;
+  // Self-Guided Mode - check if gym member is in self-guided training mode
+  const { data: trainingModeData } = useTrainingMode();
+  const isSelfGuided = user?.gymId && trainingModeData?.trainingMode === 'self_guided';
   
-  // Personal Mode - fetch personal cycles
+  // Personal Mode - check if user has no gym OR is in self-guided mode
+  // Both get the same workout creation experience
+  const isPersonalMode = user?.role === 'member' && !user?.gymId;
+  const canManageOwnWorkouts = isPersonalMode || isSelfGuided;
+  
+  // Personal Mode / Self-Guided - fetch personal cycles 
   const { data: personalCycles, isLoading: personalCyclesLoading } = useQuery<any[]>({
     queryKey: ["/api/personal/cycles"],
-    enabled: isPersonalMode,
+    enabled: !!canManageOwnWorkouts,
   });
   
   // Get daily points for today
@@ -531,7 +538,7 @@ export default function MemberWorkoutPage() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground">{today.message}</p>
-            {isPersonalMode ? (
+            {canManageOwnWorkouts ? (
               <Button 
                 className="mt-4 gap-2" 
                 onClick={() => setCreateCycleOpen(true)}
@@ -545,13 +552,15 @@ export default function MemberWorkoutPage() {
             )}
           </CardContent>
         </Card>
-      ) : isPersonalMode && !today?.cycleId ? (
+      ) : canManageOwnWorkouts && !today?.cycleId ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Dumbbell className="w-16 h-16 text-primary mb-4" />
             <h3 className="text-xl font-semibold mb-2">Start Your Fitness Journey</h3>
             <p className="text-muted-foreground text-center mb-6 max-w-sm">
-              Create your own workout cycle to track your exercises and progress. You're in control!
+              {isSelfGuided 
+                ? "You're in self-guided mode! Create your own workout cycle to track your exercises and progress."
+                : "Create your own workout cycle to track your exercises and progress. You're in control!"}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button 
@@ -945,7 +954,7 @@ export default function MemberWorkoutPage() {
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
               <CardTitle>Full Cycle Schedule</CardTitle>
-              {isPersonalMode && (
+              {canManageOwnWorkouts && (
                 <Button 
                   variant="outline" 
                   size="sm"

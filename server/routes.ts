@@ -3306,11 +3306,12 @@ export async function registerRoutes(
 
   // === PERSONAL MODE ROUTES (Members without gym) ===
   
-  // Create a personal workout cycle (for members without gym)
+  // Create a personal workout cycle (for members without gym OR self-guided members)
   app.post("/api/personal/cycles", requireRole(["member"]), async (req, res) => {
-    // Only allow if user has no gym (Personal Mode)
-    if (req.user!.gymId) {
-      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    // Allow if user has no gym (Personal Mode) OR is in self-guided training mode
+    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
+    if (req.user!.gymId && !isSelfGuided) {
+      return res.status(403).json({ message: "Only Personal Mode or self-guided members can create their own cycles" });
     }
     
     const schema = z.object({
@@ -3343,8 +3344,9 @@ export async function registerRoutes(
   
   // Get all personal cycles
   app.get("/api/personal/cycles", requireRole(["member"]), async (req, res) => {
-    if (req.user!.gymId) {
-      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
+    if (req.user!.gymId && !isSelfGuided) {
+      return res.status(403).json({ message: "Only Personal Mode or self-guided members can access their own cycles" });
     }
     // Only return personal workouts (source='self')
     const cycles = await storage.getMemberCycles(req.user!.id, 'self');
@@ -3353,8 +3355,9 @@ export async function registerRoutes(
   
   // Add workout item to personal cycle
   app.post("/api/personal/cycles/:cycleId/items", requireRole(["member"]), async (req, res) => {
-    if (req.user!.gymId) {
-      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
+    if (req.user!.gymId && !isSelfGuided) {
+      return res.status(403).json({ message: "Only Personal Mode or self-guided members can manage their own cycles" });
     }
     
     const cycleId = parseInt(req.params.cycleId);
@@ -3387,8 +3390,9 @@ export async function registerRoutes(
   
   // Delete workout item from personal cycle
   app.delete("/api/personal/cycles/:cycleId/items/:itemId", requireRole(["member"]), async (req, res) => {
-    if (req.user!.gymId) {
-      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
+    if (req.user!.gymId && !isSelfGuided) {
+      return res.status(403).json({ message: "Only Personal Mode or self-guided members can manage their own cycles" });
     }
     
     const cycleId = parseInt(req.params.cycleId);
@@ -3405,8 +3409,9 @@ export async function registerRoutes(
   
   // Update personal cycle structure (add/remove days)
   app.patch("/api/personal/cycles/:cycleId", requireRole(["member"]), async (req, res) => {
-    if (req.user!.gymId) {
-      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
+    if (req.user!.gymId && !isSelfGuided) {
+      return res.status(403).json({ message: "Only Personal Mode or self-guided members can manage their own cycles" });
     }
     
     const cycleId = parseInt(req.params.cycleId);
@@ -3466,8 +3471,9 @@ export async function registerRoutes(
 
   // Create cycle with items in bulk (for wizard)
   app.post("/api/personal/cycles/bulk", requireRole(["member"]), async (req, res) => {
-    if (req.user!.gymId) {
-      return res.status(403).json({ message: "Personal Mode is for users without a gym" });
+    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
+    if (req.user!.gymId && !isSelfGuided) {
+      return res.status(403).json({ message: "Only Personal Mode or self-guided members can create their own cycles" });
     }
     
     const itemSchema = z.object({

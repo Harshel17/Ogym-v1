@@ -95,6 +95,14 @@ export function useCheckin() {
   });
 }
 
+// === TRAINING MODE ===
+
+export function useTrainingMode() {
+  return useQuery<{ trainingMode: 'trainer_led' | 'self_guided' }>({
+    queryKey: ['/api/member/training-mode'],
+  });
+}
+
 // === PAYMENTS ===
 
 export function usePayments() {
