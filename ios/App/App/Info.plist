@@ -47,6 +47,10 @@
         <true/>
         <key>NSCameraUsageDescription</key>
         <string>OGym uses the camera to scan QR codes for gym check-in</string>
+        <key>NSPhotoLibraryUsageDescription</key>
+        <string>OGym uses your photo library to let you upload profile pictures and workout photos</string>
+        <key>NSPhotoLibraryAddUsageDescription</key>
+        <string>OGym saves QR codes and workout progress images to your photo library</string>
         <key>ITSAppUsesNonExemptEncryption</key>
         <false/>
 </dict>
