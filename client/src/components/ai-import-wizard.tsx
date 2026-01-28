@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,9 +23,12 @@ import {
   Plus,
   Trash2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ImageIcon,
+  Upload
 } from "lucide-react";
 import { format, addDays } from "date-fns";
+import { createWorker } from "tesseract.js";
 
 interface ParsedExercise {
   name: string;
@@ -90,6 +93,10 @@ export function AIImportWizard({ open, onOpenChange }: AIImportWizardProps) {
   const [rawText, setRawText] = useState("");
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([0]));
+  const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [showOcrWarning, setShowOcrWarning] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [cycleSettings, setCycleSettings] = useState({
     startDate: format(new Date(), 'yyyy-MM-dd'),
@@ -104,6 +111,60 @@ export function AIImportWizard({ open, onOpenChange }: AIImportWizardProps) {
       toast({ title: "Prompt copied!" });
     } catch {
       toast({ title: "Failed to copy", variant: "destructive" });
+    }
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Please upload an image file", variant: "destructive" });
+      return;
+    }
+
+    setIsOcrProcessing(true);
+    setOcrProgress(0);
+    setShowOcrWarning(true);
+
+    try {
+      const worker = await createWorker("eng", 1, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            setOcrProgress(Math.round(m.progress * 100));
+          }
+        }
+      });
+
+      const { data: { text } } = await worker.recognize(file);
+      await worker.terminate();
+
+      if (text.trim()) {
+        setRawText(text);
+        toast({ 
+          title: "Screenshot processed!", 
+          description: "Review the extracted text below. For best results, we recommend copy-pasting from ChatGPT." 
+        });
+      } else {
+        toast({ 
+          title: "No text found", 
+          description: "Could not extract text from this image. Try a clearer screenshot.",
+          variant: "destructive" 
+        });
+      }
+    } catch (error) {
+      console.error("OCR Error:", error);
+      toast({ 
+        title: "Processing failed", 
+        description: "Could not read the screenshot. Please try copy-pasting instead.",
+        variant: "destructive" 
+      });
+    } finally {
+      setIsOcrProcessing(false);
+      setOcrProgress(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -163,6 +224,9 @@ export function AIImportWizard({ open, onOpenChange }: AIImportWizardProps) {
     setParseResult(null);
     setPromptCopied(false);
     setExpandedDays(new Set([0]));
+    setIsOcrProcessing(false);
+    setOcrProgress(0);
+    setShowOcrWarning(false);
     setCycleSettings({
       startDate: format(new Date(), 'yyyy-MM-dd'),
       progressionMode: 'calendar',
@@ -379,8 +443,50 @@ export function AIImportWizard({ open, onOpenChange }: AIImportWizardProps) {
               </CardContent>
             </Card>
 
-            <div className="space-y-2">
-              <Label>Paste ChatGPT's response here</Label>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <Label>Paste ChatGPT's response here</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageUpload}
+                    data-testid="input-screenshot-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isOcrProcessing}
+                    data-testid="button-upload-screenshot"
+                  >
+                    {isOcrProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Reading... {ocrProgress}%
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon className="w-4 h-4 mr-2" />
+                        Upload Screenshot
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {showOcrWarning && rawText && (
+                <Alert className="border-blue-500/50 bg-blue-500/10">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-sm">
+                    Text extracted from screenshot. <strong>For better results, we recommend copy-pasting the text directly from ChatGPT.</strong> Please review and edit below if needed.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <Textarea
                 placeholder={`CYCLE: My 4-Day Split
 
@@ -390,7 +496,12 @@ DAY 1: Push Day
 ...`}
                 className="min-h-[200px] font-mono text-sm"
                 value={rawText}
-                onChange={(e) => setRawText(e.target.value)}
+                onChange={(e) => {
+                  setRawText(e.target.value);
+                  if (showOcrWarning && e.target.value !== rawText) {
+                    setShowOcrWarning(false);
+                  }
+                }}
                 data-testid="textarea-import-paste"
               />
               <p className="text-xs text-muted-foreground">
