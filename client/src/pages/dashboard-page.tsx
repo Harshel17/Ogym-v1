@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun } from "lucide-react";
 import { AnimatedStatCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
+import { MemberWelcomeCards, TrainerWelcomeCards, OwnerWelcomeCards, PersonalModeWelcomeCards } from "@/components/welcome-cards";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
@@ -186,8 +187,12 @@ function OwnerDashboard() {
     count: attendanceList.filter(a => a.date === date && a.status === 'present').length
   }));
 
+  const isFirstTime = totalMembers === 0;
+
   return (
     <div className="space-y-4">
+      {isFirstTime && <OwnerWelcomeCards />}
+
       <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <StatCard 
           title="Total Members" 
@@ -375,12 +380,17 @@ function TrainerDashboard() {
     queryKey: ["/api/trainer/new-members"],
   });
 
+  const totalMembers = dashboardData?.totalMembers || members.length || 0;
+  const isFirstTime = totalMembers === 0;
+
   return (
     <div className="space-y-6">
+      {isFirstTime && <TrainerWelcomeCards />}
+
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard 
           title="My Members" 
-          value={dashboardData?.totalMembers || members.length || 0} 
+          value={totalMembers} 
           icon={Users} 
           description="Members assigned to you"
         />
@@ -577,6 +587,7 @@ type WorkoutSummary = {
 type PerSetInput = { reps: string; weight: string; targetReps: number; targetWeight: string };
 
 function MemberDashboard() {
+  const { user } = useAuth();
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [exerciseInputs, setExerciseInputs] = useState<Record<number, { sets: string; reps: string; weight: string }>>({});
@@ -593,6 +604,8 @@ function MemberDashboard() {
   const [reorderAction, setReorderAction] = useState<"swap" | "push">("swap");
   const [isRestDayReorder, setIsRestDayReorder] = useState(false);
   const { toast } = useToast();
+  
+  const isPersonalMode = user?.role === 'member' && !user?.gymId;
   
   const { data: attendance = [] } = useMemberAttendance();
   const { data: payments = [] } = useMemberPayments();
@@ -1185,6 +1198,10 @@ function MemberDashboard() {
           </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      {workoutSummary && workoutSummary.totalWorkouts === 0 && (
+        isPersonalMode ? <PersonalModeWelcomeCards /> : <MemberWelcomeCards />
+      )}
 
       {workoutSummary && (
         <>

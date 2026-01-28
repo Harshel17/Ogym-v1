@@ -16,6 +16,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CycleBuilderWizard } from "@/components/cycle-builder-wizard";
 import { AIImportWizard } from "@/components/ai-import-wizard";
+import { PersonalModeWelcomeCards, MemberWelcomeCards } from "@/components/welcome-cards";
 
 interface WorkoutSummary {
   streak: number;
@@ -513,6 +514,10 @@ export default function MemberWorkoutPage() {
             Your workout cycle has been reset to Day 1 because you missed more than 3 consecutive days. Welcome back!
           </AlertDescription>
         </Alert>
+      )}
+
+      {!statsLoading && workoutSummary && workoutSummary.totalWorkouts === 0 && (
+        isPersonalMode ? <PersonalModeWelcomeCards /> : <MemberWelcomeCards />
       )}
 
       {!statsLoading && workoutSummary && (
