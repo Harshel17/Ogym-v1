@@ -45,18 +45,21 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>{format(new Date(), 'EEE, MMM d')}</span>
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-40 -mx-4 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border/50">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
+              <Calendar className="w-3 h-3" />
+              <span>{format(new Date(), 'EEE, MMM d')}</span>
+            </div>
+            <h2 className="text-xl font-bold tracking-tight">
+              {greeting}, <span className="text-primary">{user.username}</span>
+            </h2>
           </div>
-          <h2 className="text-2xl font-bold">
-            {greeting}, <span className="text-primary">{user.username}</span>
-          </h2>
-        </div>
-        <div className={`p-2 rounded-lg ${greetingIcon === 'sun' ? 'bg-amber-500/10 text-amber-500' : 'bg-indigo-500/10 text-indigo-400'}`}>
-          {greetingIcon === 'sun' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          <div className={`p-2.5 rounded-xl ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400/20 to-orange-500/20 text-amber-500' : 'bg-gradient-to-br from-indigo-400/20 to-purple-500/20 text-indigo-400'}`}>
+            {greetingIcon === 'sun' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </div>
         </div>
       </div>
 
@@ -68,30 +71,52 @@ export default function DashboardPage() {
 }
 
 function StatCard({ title, value, icon: Icon, description, onClick, color = "primary" }: any) {
-  const colorClasses: Record<string, string> = {
-    primary: "bg-primary/10 text-primary",
-    green: "bg-green-500/10 text-green-600 dark:text-green-400",
-    amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    red: "bg-red-500/10 text-red-600 dark:text-red-400",
-    purple: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
+  const colorClasses: Record<string, { bg: string; icon: string; accent: string }> = {
+    primary: { 
+      bg: "bg-gradient-to-br from-primary/5 to-primary/10", 
+      icon: "bg-primary/15 text-primary",
+      accent: "border-l-primary"
+    },
+    green: { 
+      bg: "bg-gradient-to-br from-emerald-500/5 to-emerald-500/10", 
+      icon: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+      accent: "border-l-emerald-500"
+    },
+    amber: { 
+      bg: "bg-gradient-to-br from-amber-500/5 to-amber-500/10", 
+      icon: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+      accent: "border-l-amber-500"
+    },
+    red: { 
+      bg: "bg-gradient-to-br from-red-500/5 to-red-500/10", 
+      icon: "bg-red-500/15 text-red-600 dark:text-red-400",
+      accent: "border-l-red-500"
+    },
+    purple: { 
+      bg: "bg-gradient-to-br from-purple-500/5 to-purple-500/10", 
+      icon: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
+      accent: "border-l-purple-500"
+    },
   };
+
+  const colorConfig = colorClasses[color] || colorClasses.primary;
   
   return (
     <Card 
-      className={`border shadow-sm hover-elevate ${onClick ? 'cursor-pointer' : ''}`}
+      className={`overflow-visible border-0 ${colorConfig.bg} hover-elevate transition-all duration-200 ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}`}
       onClick={onClick}
     >
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-        <CardTitle className="text-xs font-medium text-muted-foreground">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3">
+        <CardTitle className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
           {title}
         </CardTitle>
-        <div className={`p-2 rounded-lg ${colorClasses[color] || colorClasses.primary}`}>
-          <Icon className="h-4 w-4" />
+        <div className={`p-1.5 rounded-lg ${colorConfig.icon}`}>
+          <Icon className="h-3.5 w-3.5" />
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground mt-1">
+      <CardContent className="pt-0 pb-3 px-3">
+        <div className="text-2xl font-bold tracking-tight">{value}</div>
+        <p className="text-[10px] text-muted-foreground mt-0.5">
           {description}
         </p>
       </CardContent>
@@ -205,21 +230,22 @@ function OwnerDashboard() {
         />
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      {/* Quick Export Actions */}
+      <div className="flex flex-wrap gap-1.5">
         <a href="/api/owner/export/members" download>
-          <Button variant="outline" size="sm" data-testid="button-export-members">
+          <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="button-export-members">
             <Download className="w-3 h-3 mr-1" />
             Members
           </Button>
         </a>
         <a href="/api/owner/export/payments" download>
-          <Button variant="outline" size="sm" data-testid="button-export-payments">
+          <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="button-export-payments">
             <Download className="w-3 h-3 mr-1" />
             Payments
           </Button>
         </a>
         <a href="/api/owner/export/attendance" download>
-          <Button variant="outline" size="sm" data-testid="button-export-attendance">
+          <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="button-export-attendance">
             <Download className="w-3 h-3 mr-1" />
             Attendance
           </Button>
@@ -228,44 +254,46 @@ function OwnerDashboard() {
 
       {/* AI Insights Summary */}
       {aiInsights && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Brain className="w-4 h-4 text-purple-500" />
+        <Card className="border-0 bg-gradient-to-br from-purple-500/5 via-transparent to-indigo-500/5">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <div className="p-1.5 rounded-lg bg-purple-500/15">
+                <Brain className="w-3.5 h-3.5 text-purple-500" />
+              </div>
               AI Insights
             </CardTitle>
             <Link href="/owner/ai-insights">
-              <Button variant="ghost" size="sm" data-testid="link-ai-insights">
+              <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="link-ai-insights">
                 View All <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </Link>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 pb-3 px-3">
             <div className="flex gap-2">
-              <div className="flex-1 text-center p-2 rounded-lg bg-muted/50">
-                <p className="text-lg font-bold">{aiInsights.churnRisk.count}</p>
-                <p className="text-xs text-muted-foreground">At risk</p>
+              <div className="flex-1 text-center p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                <p className="text-xl font-bold text-red-600 dark:text-red-400">{aiInsights.churnRisk.count}</p>
+                <p className="text-[10px] font-medium text-muted-foreground">At risk</p>
               </div>
-              <div className="flex-1 text-center p-2 rounded-lg bg-muted/50">
-                <p className="text-lg font-bold">{aiInsights.followUpReminders.count}</p>
-                <p className="text-xs text-muted-foreground">Follow-ups</p>
+              <div className="flex-1 text-center p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{aiInsights.followUpReminders.count}</p>
+                <p className="text-[10px] font-medium text-muted-foreground">Follow-ups</p>
               </div>
-              <div className="flex-1 text-center p-2 rounded-lg bg-muted/50">
-                <p className="text-lg font-bold">{aiInsights.memberInsights.newThisMonth}</p>
-                <p className="text-xs text-muted-foreground">New</p>
+              <div className="flex-1 text-center p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{aiInsights.memberInsights.newThisMonth}</p>
+                <p className="text-[10px] font-medium text-muted-foreground">New</p>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Attendance (Last 7 days)</CardTitle>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Card className="border-0 bg-muted/30">
+          <CardHeader className="pb-2 pt-3 px-3">
+            <CardTitle className="text-sm font-semibold">Attendance (Last 7 days)</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-[200px] w-full">
+          <CardContent className="px-3 pb-3">
+            <div className="h-[180px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <XAxis 
@@ -297,27 +325,27 @@ function OwnerDashboard() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Recent Activity</CardTitle>
+        <Card className="border-0 bg-muted/30">
+          <CardHeader className="pb-2 pt-3 px-3">
+            <CardTitle className="text-sm font-semibold">Recent Activity</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          <CardContent className="px-3 pb-3">
+            <div className="space-y-2">
               {attendanceList.slice(0, 5).map((record: any) => (
-                <div key={record.id} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium shrink-0">
+                <div key={record.id} className="flex items-center gap-2.5 p-2 rounded-lg bg-background/50">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
                     {record.member?.username?.slice(0, 2).toUpperCase() || '??'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{record.member?.username || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground">{record.date}</p>
+                    <p className="text-xs font-medium truncate">{record.member?.username || 'Unknown'}</p>
+                    <p className="text-[10px] text-muted-foreground">{record.date}</p>
                   </div>
-                  <Badge variant="secondary" className="text-xs shrink-0">
+                  <Badge variant="secondary" className="text-[10px] h-5 shrink-0">
                     {record.verifiedMethod || record.status}
                   </Badge>
                 </div>
               ))}
-              {attendanceList.length === 0 && <p className="text-sm text-muted-foreground">No recent activity.</p>}
+              {attendanceList.length === 0 && <p className="text-xs text-muted-foreground py-4 text-center">No recent activity.</p>}
             </div>
           </CardContent>
         </Card>
