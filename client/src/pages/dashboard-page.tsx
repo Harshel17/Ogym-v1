@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun } from "lucide-react";
+import { AnimatedStatCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
@@ -27,12 +28,20 @@ function getGreeting() {
   return "Good evening";
 }
 
+function getGreetingIcon() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "sun";
+  if (hour >= 12 && hour < 18) return "sun";
+  return "moon";
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   
   if (!user) return null;
 
   const greeting = getGreeting();
+  const greetingIcon = getGreetingIcon();
 
   return (
     <div className="space-y-8 page-enter">
@@ -45,9 +54,14 @@ export default function DashboardPage() {
             <Calendar className="w-4 h-4" />
             <span>{format(new Date(), 'EEEE, MMMM d, yyyy')}</span>
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold font-display text-foreground">
-            {greeting}, <span className="text-primary">{user.username}</span>
-          </h2>
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-xl ${greetingIcon === 'sun' ? 'bg-amber-500/20 text-amber-500' : 'bg-indigo-500/20 text-indigo-400'}`}>
+              {greetingIcon === 'sun' ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold font-display text-foreground">
+              {greeting}, <span className="text-primary">{user.username}</span>
+            </h2>
+          </div>
           <p className="text-muted-foreground mt-2 text-lg">
             {user.role === "owner" && "Here's your gym overview for today."}
             {user.role === "trainer" && "Track your members' progress and workouts."}
@@ -1006,8 +1020,9 @@ function MemberDashboard() {
                 {workoutItems.length > 0 && (
                   <Badge 
                     variant={allCompleted ? "default" : "secondary"}
-                    className={allCompleted ? "bg-green-500 hover:bg-green-600" : ""}
+                    className={allCompleted ? "bg-green-500 hover:bg-green-600 flex items-center gap-1" : ""}
                   >
+                    {allCompleted && <Sparkles className="w-3 h-3" />}
                     {allCompleted ? "Done" : `${completedCount}/${workoutItems.length}`}
                   </Badge>
                 )}
@@ -1021,6 +1036,11 @@ function MemberDashboard() {
               </div>
             </CardHeader>
           </CollapsibleTrigger>
+          {workoutItems.length > 0 && !isWorkoutOpen && (
+            <div className="px-6 pb-4 -mt-2">
+              <WorkoutProgressBar completed={completedCount} total={workoutItems.length} />
+            </div>
+          )}
           
           <CollapsibleContent>
             <CardContent className="pt-0">
@@ -1293,52 +1313,51 @@ function MemberDashboard() {
       </Collapsible>
 
       {workoutSummary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Link href="/progress/workouts">
-            <Card className="stat-card cursor-pointer group" data-testid="card-streak-link">
-              <CardContent className="flex flex-col items-center justify-center py-5">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 text-white mb-3 shadow-lg shadow-orange-500/25 group-hover:scale-105 transition-transform">
-                  <Flame className="w-5 h-5" />
-                </div>
-                <p className="text-2xl font-bold font-display">{workoutSummary.streak}</p>
-                <p className="text-xs text-muted-foreground mt-1">Day Streak</p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/progress/workouts">
-            <Card className="stat-card cursor-pointer group" data-testid="card-total-link">
-              <CardContent className="flex flex-col items-center justify-center py-5">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 text-white mb-3 shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-transform">
-                  <Target className="w-5 h-5" />
-                </div>
-                <p className="text-2xl font-bold font-display">{workoutSummary.totalWorkouts}</p>
-                <p className="text-xs text-muted-foreground mt-1">Total Sessions</p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/progress/workouts">
-            <Card className="stat-card cursor-pointer group" data-testid="card-week-link">
-              <CardContent className="flex flex-col items-center justify-center py-5">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 text-white mb-3 shadow-lg shadow-green-500/25 group-hover:scale-105 transition-transform">
-                  <Calendar className="w-5 h-5" />
-                </div>
-                <p className="text-2xl font-bold font-display">{workoutSummary.last7DaysCount}</p>
-                <p className="text-xs text-muted-foreground mt-1">Last 7 Days</p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/progress/workouts">
-            <Card className="stat-card cursor-pointer group" data-testid="card-month-link">
-              <CardContent className="flex flex-col items-center justify-center py-5">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white mb-3 shadow-lg shadow-purple-500/25 group-hover:scale-105 transition-transform">
-                  <CreditCard className="w-5 h-5" />
-                </div>
-                <p className="text-2xl font-bold font-display">{workoutSummary.thisMonthCount}</p>
-                <p className="text-xs text-muted-foreground mt-1">This Month</p>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-slide-in-up" style={{ animationDelay: '100ms' }}>
+            <Link href="/progress/workouts">
+              <AnimatedStatCard
+                value={workoutSummary.streak}
+                label="Day Streak"
+                icon="flame"
+                color="orange"
+                delay={0}
+              />
+            </Link>
+            <Link href="/progress/workouts">
+              <AnimatedStatCard
+                value={workoutSummary.totalWorkouts}
+                label="Total Sessions"
+                icon="target"
+                color="blue"
+                delay={100}
+              />
+            </Link>
+            <Link href="/progress/workouts">
+              <AnimatedStatCard
+                value={workoutSummary.last7DaysCount}
+                label="Last 7 Days"
+                icon="calendar"
+                color="green"
+                delay={200}
+              />
+            </Link>
+            <Link href="/progress/workouts">
+              <AnimatedStatCard
+                value={workoutSummary.thisMonthCount}
+                label="This Month"
+                icon="trending"
+                color="purple"
+                delay={300}
+              />
+            </Link>
+          </div>
+          
+          <WeeklyProgress 
+            calendarDays={workoutSummary.calendarDays} 
+            className="animate-slide-in-up"
+          />
+        </>
       )}
 
       <MemberCalendarWidget />
