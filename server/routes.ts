@@ -3498,6 +3498,44 @@ export async function registerRoutes(
     res.json(templates);
   });
 
+  // Parse AI-generated workout text for import
+  app.post("/api/personal/workout/parse-import", requireRole(["member"]), async (req, res) => {
+    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
+    if (req.user!.gymId && !isSelfGuided) {
+      return res.status(403).json({ message: "Only Personal Mode or self-guided members can import workouts" });
+    }
+    
+    try {
+      const schema = z.object({
+        rawText: z.string().min(10, "Please provide some workout text to parse").max(15000, "Text is too long (max 15,000 characters)")
+      });
+      
+      const input = schema.safeParse(req.body);
+      if (!input.success) {
+        return res.status(400).json({ 
+          success: false, 
+          message: input.error.errors[0]?.message || "Invalid input",
+          cycleName: "",
+          days: [],
+          warnings: []
+        });
+      }
+      
+      const { parseAIWorkoutText } = await import("./ai-workout-parser");
+      const result = parseAIWorkoutText(input.data.rawText);
+      res.json(result);
+    } catch (error) {
+      console.error("Parse import error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to parse workout text",
+        cycleName: "",
+        days: [],
+        warnings: []
+      });
+    }
+  });
+
   // Create cycle with items in bulk (for wizard)
   app.post("/api/personal/cycles/bulk", requireRole(["member"]), async (req, res) => {
     const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';

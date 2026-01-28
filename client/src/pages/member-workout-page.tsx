@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CycleBuilderWizard } from "@/components/cycle-builder-wizard";
+import { AIImportWizard } from "@/components/ai-import-wizard";
 
 interface WorkoutSummary {
   streak: number;
@@ -85,6 +86,7 @@ export default function MemberWorkoutPage() {
   const [newCycleName, setNewCycleName] = useState("");
   const [newCycleLength, setNewCycleLength] = useState(3);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [aiImportOpen, setAiImportOpen] = useState(false);
   
   // Cycle history state
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -574,7 +576,7 @@ export default function MemberWorkoutPage() {
                 ? "You're in self-guided mode! Create your own workout cycle to track your exercises and progress."
                 : "Create your own workout cycle to track your exercises and progress. You're in control!"}
             </p>
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 flex-wrap justify-center">
               <Button 
                 variant="default"
                 className="gap-2" 
@@ -583,6 +585,15 @@ export default function MemberWorkoutPage() {
               >
                 <Wand2 className="w-4 h-4" />
                 Help me build a cycle
+              </Button>
+              <Button 
+                variant="outline"
+                className="gap-2" 
+                onClick={() => setAiImportOpen(true)}
+                data-testid="button-import-ai"
+              >
+                <Sparkles className="w-4 h-4" />
+                Import from AI/Chat
               </Button>
               <Button 
                 variant="outline"
@@ -1644,6 +1655,7 @@ export default function MemberWorkoutPage() {
       </Dialog>
 
       <CycleBuilderWizard open={wizardOpen} onOpenChange={setWizardOpen} />
+      <AIImportWizard open={aiImportOpen} onOpenChange={setAiImportOpen} />
     </div>
   );
 }
