@@ -6,13 +6,28 @@ import "./index.css";
 const hideLoadingScreen = () => {
   const loadingEl = document.getElementById("app-loading");
   if (loadingEl) {
-    loadingEl.style.transition = "opacity 0.3s ease-out";
+    // Stop all animations before fading
+    const logoContainer = loadingEl.querySelector('.logo-container') as HTMLElement;
+    if (logoContainer) {
+      logoContainer.style.animation = 'none';
+    }
+    const dots = loadingEl.querySelectorAll('.loading-dots span');
+    dots.forEach((dot: Element) => {
+      (dot as HTMLElement).style.animation = 'none';
+    });
+    
+    loadingEl.style.transition = "opacity 0.4s ease-out";
     loadingEl.style.opacity = "0";
-    setTimeout(() => loadingEl.remove(), 300);
+    loadingEl.style.pointerEvents = "none";
+    setTimeout(() => loadingEl.remove(), 400);
   }
 };
 
 createRoot(document.getElementById("root")!).render(<App />);
 
-// Hide loading screen after a brief delay to ensure app is rendered
-setTimeout(hideLoadingScreen, 100);
+// Hide loading screen after app is rendered
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    hideLoadingScreen();
+  });
+});
