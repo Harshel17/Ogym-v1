@@ -18,7 +18,7 @@ import { AnimatedStatCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } f
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { Link, useLocation } from "wouter";
 
 function getGreeting() {
@@ -44,29 +44,19 @@ export default function DashboardPage() {
   const greetingIcon = getGreetingIcon();
 
   return (
-    <div className="space-y-8 page-enter">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-background to-purple-500/10 dark:from-primary/20 dark:via-background dark:to-purple-500/20 p-6 md:p-8 animate-slide-in-up border border-primary/10">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-        
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Calendar className="w-4 h-4" />
-            <span>{format(new Date(), 'EEEE, MMMM d, yyyy')}</span>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+            <Calendar className="w-3.5 h-3.5" />
+            <span>{format(new Date(), 'EEE, MMM d')}</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl ${greetingIcon === 'sun' ? 'bg-amber-500/20 text-amber-500' : 'bg-indigo-500/20 text-indigo-400'}`}>
-              {greetingIcon === 'sun' ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
-            </div>
-            <h2 className="text-3xl md:text-4xl font-bold font-display text-foreground">
-              {greeting}, <span className="text-primary">{user.username}</span>
-            </h2>
-          </div>
-          <p className="text-muted-foreground mt-2 text-lg">
-            {user.role === "owner" && "Here's your gym overview for today."}
-            {user.role === "trainer" && "Track your members' progress and workouts."}
-            {user.role === "member" && "Ready to crush your workout today?"}
-          </p>
+          <h2 className="text-2xl font-bold">
+            {greeting}, <span className="text-primary">{user.username}</span>
+          </h2>
+        </div>
+        <div className={`p-2 rounded-lg ${greetingIcon === 'sun' ? 'bg-amber-500/10 text-amber-500' : 'bg-indigo-500/10 text-indigo-400'}`}>
+          {greetingIcon === 'sun' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </div>
       </div>
 
@@ -77,33 +67,31 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ title, value, icon: Icon, description, delay = 0, onClick, color = "primary" }: any) {
+function StatCard({ title, value, icon: Icon, description, onClick, color = "primary" }: any) {
   const colorClasses: Record<string, string> = {
-    primary: "from-primary/20 to-primary/5 text-primary",
-    green: "from-green-500/20 to-green-500/5 text-green-600 dark:text-green-400",
-    amber: "from-amber-500/20 to-amber-500/5 text-amber-600 dark:text-amber-400",
-    red: "from-red-500/20 to-red-500/5 text-red-600 dark:text-red-400",
-    purple: "from-purple-500/20 to-purple-500/5 text-purple-600 dark:text-purple-400",
+    primary: "bg-primary/10 text-primary",
+    green: "bg-green-500/10 text-green-600 dark:text-green-400",
+    amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    red: "bg-red-500/10 text-red-600 dark:text-red-400",
+    purple: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
   };
   
   return (
     <Card 
-      className={`group relative overflow-hidden border-0 shadow-lg shadow-black/5 bg-card transition-all duration-300 hover:shadow-xl hover:-translate-y-1 animate-slide-in-up ${onClick ? 'cursor-pointer' : ''}`} 
-      style={{ animationDelay: `${delay}ms` }}
+      className={`border shadow-sm hover-elevate ${onClick ? 'cursor-pointer' : ''}`}
       onClick={onClick}
     >
-      <div className={`absolute inset-0 bg-gradient-to-br ${colorClasses[color] || colorClasses.primary} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2 relative z-10">
-        <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground">
           {title}
         </CardTitle>
-        <div className={`p-2.5 rounded-xl bg-gradient-to-br ${colorClasses[color] || colorClasses.primary}`}>
-          <Icon className="h-5 w-5" />
+        <div className={`p-2 rounded-lg ${colorClasses[color] || colorClasses.primary}`}>
+          <Icon className="h-4 w-4" />
         </div>
       </CardHeader>
-      <CardContent className="relative z-10">
-        <div className="text-3xl font-bold font-display text-foreground">{value}</div>
-        <p className="text-xs text-muted-foreground mt-1.5">
+      <CardContent className="pt-0">
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="text-xs text-muted-foreground mt-1">
           {description}
         </p>
       </CardContent>
@@ -195,83 +183,56 @@ function OwnerDashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {user?.gym && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-indigo-600 to-purple-600 p-6 md:p-8 animate-slide-in-up shadow-xl shadow-primary/20" style={{ animationDelay: '100ms' }}>
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjIiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4xKSIvPjwvZz48L3N2Zz4=')] opacity-50" />
-          <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          
-          <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
-            <div className="text-white">
-              <h3 className="text-2xl font-bold">{user.gym.name}</h3>
-              <p className="text-white/70 mt-1">Share this code with trainers and members</p>
-            </div>
-            <div className="flex flex-col items-end gap-3">
-              <div className="bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl px-6 py-3 font-mono font-bold text-2xl text-white tracking-wider">
-                {user.gym.code}
+        <Card className="bg-primary text-primary-foreground">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h3 className="text-lg font-bold">{user.gym.name}</h3>
+                <p className="text-primary-foreground/70 text-sm">Share this code with trainers and members</p>
               </div>
-              <button 
-                onClick={handleCopyCode}
-                className="text-sm px-5 py-2 bg-white text-primary font-semibold rounded-lg hover:bg-white/90 transition-all hover:shadow-lg"
-                data-testid="button-copy-code"
-              >
-                Copy Code
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {gymSubscription && (
-        <Card className={`border-2 ${
-          gymSubscription.paymentStatus === 'paid' 
-            ? 'border-green-500/30 bg-green-50/50 dark:bg-green-950/20' 
-            : gymSubscription.paymentStatus === 'overdue'
-            ? 'border-red-500/30 bg-red-50/50 dark:bg-red-950/20'
-            : 'border-yellow-500/30 bg-yellow-50/50 dark:bg-yellow-950/20'
-        }`}>
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-full ${
-                  gymSubscription.paymentStatus === 'paid'
-                    ? 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400'
-                    : gymSubscription.paymentStatus === 'overdue'
-                    ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400'
-                    : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-400'
-                }`}>
-                  <CreditCard className="h-5 w-5" />
+              <div className="flex items-center gap-2">
+                <div className="bg-white/20 rounded-lg px-4 py-2 font-mono font-bold text-lg tracking-wider">
+                  {user.gym.code}
                 </div>
-                <div>
-                  <h4 className="font-medium text-foreground">OGym Platform Subscription</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Plan: {gymSubscription.planType.replace('_', ' ')}
-                    {gymSubscription.validUntil && ` | Valid until: ${format(new Date(gymSubscription.validUntil), 'PP')}`}
-                  </p>
-                </div>
+                <Button 
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleCopyCode}
+                  data-testid="button-copy-code"
+                >
+                  Copy Code
+                </Button>
               </div>
-              <Badge className={
-                gymSubscription.paymentStatus === 'paid'
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                  : gymSubscription.paymentStatus === 'overdue'
-                  ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-              }>
-                {gymSubscription.paymentStatus.charAt(0).toUpperCase() + gymSubscription.paymentStatus.slice(1)}
-              </Badge>
             </div>
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+      {gymSubscription && (
+        <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm">
+              <span className="font-medium">OGym Platform Subscription</span>
+              <span className="text-muted-foreground"> - {gymSubscription.planType.replace('_', ' ')}</span>
+              {gymSubscription.validUntil && <span className="text-muted-foreground"> | Valid until: {format(new Date(gymSubscription.validUntil), 'PP')}</span>}
+            </span>
+          </div>
+          <Badge variant={gymSubscription.paymentStatus === 'paid' ? 'default' : 'destructive'}>
+            {gymSubscription.paymentStatus.charAt(0).toUpperCase() + gymSubscription.paymentStatus.slice(1)}
+          </Badge>
+        </div>
+      )}
+
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <StatCard 
           title="Total Members" 
           value={totalMembers} 
           icon={Users} 
-          description="Click to view analytics"
+          description="View analytics"
           color="primary"
-          delay={0}
           onClick={() => navigate("/owner/member-analytics")}
         />
         <StatCard 
@@ -280,195 +241,143 @@ function OwnerDashboard() {
           icon={CalendarCheck} 
           description="Active today"
           color="green"
-          delay={50}
           onClick={() => navigate("/owner/attendance")}
         />
         <StatCard 
           title="Yesterday" 
           value={checkedInYesterday} 
           icon={Calendar} 
-          description="Members checked in"
+          description="Checked in"
           color="purple"
-          delay={100}
         />
         <StatCard 
-          title="Pending Payments" 
+          title="Pending" 
           value={pendingPayments} 
           icon={AlertCircle} 
-          description="Unpaid invoices"
+          description="Unpaid"
           color={pendingPayments > 0 ? "amber" : "green"}
-          delay={150}
           onClick={() => navigate("/payments")}
         />
         <StatCard 
-          title="This Month" 
+          title="Revenue" 
           value={formatMoney(revenue)} 
           icon={TrendingUp} 
-          description="Revenue collected"
+          description="This month"
           color="green"
-          delay={200}
           onClick={() => navigate("/owner/revenue")}
         />
       </div>
 
-      <Card className="border-0 shadow-lg animate-slide-in-up" style={{ animationDelay: '250ms' }}>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2">
-            <Download className="w-5 h-5 text-primary" />
-            Export Reports
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            <a href="/api/owner/export/members" download>
-              <Button variant="outline" className="hover:border-primary/50" data-testid="button-export-members">
-                <Download className="w-4 h-4 mr-2" />
-                Export Members
-              </Button>
-            </a>
-            <a href="/api/owner/export/payments" download>
-              <Button variant="outline" className="hover:border-primary/50" data-testid="button-export-payments">
-                <Download className="w-4 h-4 mr-2" />
-                Export Payments
-              </Button>
-            </a>
-            <a href="/api/owner/export/attendance" download>
-              <Button variant="outline" data-testid="button-export-attendance">
-                <Download className="w-4 h-4 mr-2" />
-                Export Attendance
-              </Button>
-            </a>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-wrap gap-2">
+        <a href="/api/owner/export/members" download>
+          <Button variant="outline" size="sm" data-testid="button-export-members">
+            <Download className="w-3 h-3 mr-1" />
+            Members
+          </Button>
+        </a>
+        <a href="/api/owner/export/payments" download>
+          <Button variant="outline" size="sm" data-testid="button-export-payments">
+            <Download className="w-3 h-3 mr-1" />
+            Payments
+          </Button>
+        </a>
+        <a href="/api/owner/export/attendance" download>
+          <Button variant="outline" size="sm" data-testid="button-export-attendance">
+            <Download className="w-3 h-3 mr-1" />
+            Attendance
+          </Button>
+        </a>
+      </div>
 
       {/* AI Insights Summary */}
       {aiInsights && (
-        <Card className="border-0 shadow-lg animate-slide-in-up bg-gradient-to-br from-purple-500/5 to-indigo-500/5" style={{ animationDelay: '300ms' }}>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="w-5 h-5 text-purple-500" />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Brain className="w-4 h-4 text-purple-500" />
               AI Insights
             </CardTitle>
             <Link href="/owner/ai-insights">
-              <Button variant="ghost" size="sm" className="text-primary" data-testid="link-ai-insights">
-                View All <ArrowRight className="w-4 h-4 ml-1" />
+              <Button variant="ghost" size="sm" data-testid="link-ai-insights">
+                View All <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
             </Link>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              {/* Churn Risk Alert */}
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
-                <div className={`p-2 rounded-full ${aiInsights.churnRisk.count > 0 ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-400' : 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400'}`}>
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{aiInsights.churnRisk.count}</p>
-                  <p className="text-xs text-muted-foreground">Members at risk</p>
-                </div>
+          <CardContent className="pt-0">
+            <div className="flex gap-2">
+              <div className="flex-1 text-center p-2 rounded-lg bg-muted/50">
+                <p className="text-lg font-bold">{aiInsights.churnRisk.count}</p>
+                <p className="text-xs text-muted-foreground">At risk</p>
               </div>
-              
-              {/* Follow-up Reminders */}
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
-                <div className={`p-2 rounded-full ${aiInsights.followUpReminders.count > 0 ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400' : 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400'}`}>
-                  <Bell className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{aiInsights.followUpReminders.count}</p>
-                  <p className="text-xs text-muted-foreground">Follow-ups needed</p>
-                </div>
+              <div className="flex-1 text-center p-2 rounded-lg bg-muted/50">
+                <p className="text-lg font-bold">{aiInsights.followUpReminders.count}</p>
+                <p className="text-xs text-muted-foreground">Follow-ups</p>
               </div>
-              
-              {/* New Members This Month */}
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
-                <div className="p-2 rounded-full bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400">
-                  <Users className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{aiInsights.memberInsights.newThisMonth}</p>
-                  <p className="text-xs text-muted-foreground">New this month</p>
-                </div>
+              <div className="flex-1 text-center p-2 rounded-lg bg-muted/50">
+                <p className="text-lg font-bold">{aiInsights.memberInsights.newThisMonth}</p>
+                <p className="text-xs text-muted-foreground">New</p>
               </div>
             </div>
-            
-            {/* Quick alerts */}
-            {aiInsights.churnRisk.members.slice(0, 2).length > 0 && (
-              <div className="mt-4 pt-4 border-t">
-                <p className="text-sm font-medium text-muted-foreground mb-2">Priority alerts:</p>
-                <div className="space-y-2">
-                  {aiInsights.churnRisk.members.slice(0, 2).map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-2 rounded bg-orange-50 dark:bg-orange-950/30 text-sm">
-                      <span>{member.name} - {member.daysAbsent} days absent</span>
-                      <Badge variant={member.riskLevel === 'high' ? 'destructive' : 'secondary'} className="text-xs">
-                        {member.riskLevel}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 dashboard-card">
-          <CardHeader>
-            <CardTitle>Attendance Trends</CardTitle>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Attendance (Last 7 days)</CardTitle>
           </CardHeader>
-          <CardContent className="pl-2">
-            <div className="h-[300px] w-full">
+          <CardContent>
+            <div className="h-[200px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                   <XAxis 
                     dataKey="date" 
                     stroke="#888888" 
-                    fontSize={12} 
+                    fontSize={10} 
                     tickLine={false} 
                     axisLine={false} 
                   />
                   <YAxis 
                     stroke="#888888" 
-                    fontSize={12} 
+                    fontSize={10} 
                     tickLine={false} 
                     axisLine={false} 
-                    tickFormatter={(value) => `${value}`} 
+                    width={30}
                   />
                   <Tooltip 
                     cursor={{ fill: 'transparent' }}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    contentStyle={{ borderRadius: '6px', border: '1px solid hsl(var(--border))', fontSize: '12px' }}
                   />
                   <Bar 
                     dataKey="count" 
                     fill="hsl(var(--primary))" 
-                    radius={[4, 4, 0, 0]} 
-                    barSize={40}
+                    radius={[3, 3, 0, 0]} 
+                    barSize={30}
                   />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
-        <Card className="col-span-3 dashboard-card">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {attendanceList.slice(0, 5).map((record: any) => (
-                <div key={record.id} className="flex items-center">
-                  <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-bold mr-3">
+                <div key={record.id} className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium shrink-0">
                     {record.member?.username?.slice(0, 2).toUpperCase() || '??'}
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium leading-none">{record.member?.username || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground">Checked in {record.date}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{record.member?.username || 'Unknown'}</p>
+                    <p className="text-xs text-muted-foreground">{record.date}</p>
                   </div>
-                  <div className="ml-auto font-medium text-xs text-primary">
+                  <Badge variant="secondary" className="text-xs shrink-0">
                     {record.verifiedMethod || record.status}
-                  </div>
+                  </Badge>
                 </div>
               ))}
               {attendanceList.length === 0 && <p className="text-sm text-muted-foreground">No recent activity.</p>}
