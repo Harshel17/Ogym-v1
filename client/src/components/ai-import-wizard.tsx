@@ -95,6 +95,8 @@ export function AIImportWizard({ open, onOpenChange }: AIImportWizardProps) {
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([0]));
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
+  const [ocrCurrentFile, setOcrCurrentFile] = useState(0);
+  const [ocrTotalFiles, setOcrTotalFiles] = useState(0);
   const [showOcrWarning, setShowOcrWarning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -115,40 +117,60 @@ export function AIImportWizard({ open, onOpenChange }: AIImportWizardProps) {
   };
 
   const handleImageUpload = async (e: { target: { files: FileList | null } }) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast({ title: "Please upload an image file", variant: "destructive" });
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
+      toast({ title: "Please upload image files", variant: "destructive" });
+      return;
+    }
+
+    if (imageFiles.length > 5) {
+      toast({ title: "Maximum 5 screenshots allowed", variant: "destructive" });
       return;
     }
 
     setIsOcrProcessing(true);
     setOcrProgress(0);
+    setOcrTotalFiles(imageFiles.length);
+    setOcrCurrentFile(0);
     setShowOcrWarning(true);
 
+    const allTexts: string[] = [];
+
     try {
-      const worker = await createWorker("eng", 1, {
-        logger: (m) => {
-          if (m.status === 'recognizing text') {
-            setOcrProgress(Math.round(m.progress * 100));
+      for (let i = 0; i < imageFiles.length; i++) {
+        setOcrCurrentFile(i + 1);
+        setOcrProgress(0);
+
+        const worker = await createWorker("eng", 1, {
+          logger: (m) => {
+            if (m.status === 'recognizing text') {
+              setOcrProgress(Math.round(m.progress * 100));
+            }
           }
+        });
+
+        const { data: { text } } = await worker.recognize(imageFiles[i]);
+        await worker.terminate();
+
+        if (text.trim()) {
+          allTexts.push(text.trim());
         }
-      });
+      }
 
-      const { data: { text } } = await worker.recognize(file);
-      await worker.terminate();
-
-      if (text.trim()) {
-        setRawText(text);
+      if (allTexts.length > 0) {
+        const combinedText = allTexts.join('\n\n');
+        setRawText(prev => prev ? prev + '\n\n' + combinedText : combinedText);
         toast({ 
-          title: "Screenshot processed!", 
+          title: `${allTexts.length} screenshot${allTexts.length > 1 ? 's' : ''} processed!`, 
           description: "Review the extracted text below. For best results, we recommend copy-pasting from ChatGPT." 
         });
       } else {
         toast({ 
           title: "No text found", 
-          description: "Could not extract text from this image. Try a clearer screenshot.",
+          description: "Could not extract text from the images. Try clearer screenshots.",
           variant: "destructive" 
         });
       }
@@ -156,12 +178,14 @@ export function AIImportWizard({ open, onOpenChange }: AIImportWizardProps) {
       console.error("OCR Error:", error);
       toast({ 
         title: "Processing failed", 
-        description: "Could not read the screenshot. Please try copy-pasting instead.",
+        description: "Could not read the screenshots. Please try copy-pasting instead.",
         variant: "destructive" 
       });
     } finally {
       setIsOcrProcessing(false);
       setOcrProgress(0);
+      setOcrCurrentFile(0);
+      setOcrTotalFiles(0);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -451,6 +475,7 @@ export function AIImportWizard({ open, onOpenChange }: AIImportWizardProps) {
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
+                    multiple
                     className="hidden"
                     onChange={handleImageUpload}
                     data-testid="input-screenshot-upload"
@@ -466,12 +491,15 @@ export function AIImportWizard({ open, onOpenChange }: AIImportWizardProps) {
                     {isOcrProcessing ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Reading... {ocrProgress}%
+                        {ocrTotalFiles > 1 
+                          ? `Reading ${ocrCurrentFile}/${ocrTotalFiles}... ${ocrProgress}%`
+                          : `Reading... ${ocrProgress}%`
+                        }
                       </>
                     ) : (
                       <>
                         <ImageIcon className="w-4 h-4 mr-2" />
-                        Upload Screenshot
+                        Upload Screenshots
                       </>
                     )}
                   </Button>
