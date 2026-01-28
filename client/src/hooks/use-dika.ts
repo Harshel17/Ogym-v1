@@ -24,7 +24,7 @@ interface DikaLocalSettings {
 
 const DEFAULT_POSITION: DikaPosition = {
   x: window.innerWidth - 70,
-  y: window.innerHeight - 70,
+  y: window.innerHeight - 140, // Account for bottom navigation bar
 };
 
 const STORAGE_KEY_PREFIX = 'dika_settings_';
@@ -38,8 +38,17 @@ function loadLocalSettings(userId: number): DikaLocalSettings {
     const stored = localStorage.getItem(getStorageKey(userId));
     if (stored) {
       const parsed = JSON.parse(stored);
+      let position = parsed.position || DEFAULT_POSITION;
+      
+      // Ensure position is not in the bottom navigation area
+      const bottomNavHeight = 80;
+      const maxY = window.innerHeight - 44 - 10 - bottomNavHeight;
+      if (position.y > maxY) {
+        position = { ...position, y: maxY };
+      }
+      
       return {
-        position: parsed.position || DEFAULT_POSITION,
+        position,
         icon: parsed.icon || 'circle',
       };
     }

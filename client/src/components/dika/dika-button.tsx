@@ -27,10 +27,11 @@ export function DikaButton({
   const constrainPosition = (x: number, y: number) => {
     const buttonSize = 44;
     const margin = 10;
+    const bottomNavHeight = 80; // Account for mobile bottom navigation
     
     return {
       x: Math.max(margin, Math.min(window.innerWidth - buttonSize - margin, x)),
-      y: Math.max(margin, Math.min(window.innerHeight - buttonSize - margin, y)),
+      y: Math.max(margin, Math.min(window.innerHeight - buttonSize - margin - bottomNavHeight, y)),
     };
   };
 
