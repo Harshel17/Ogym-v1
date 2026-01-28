@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
-import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus, MapPin, AlertCircle, Clock, User, FileEdit, Send, Edit2, Lock } from "lucide-react";
+import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus, MapPin, AlertCircle, Clock, User, FileEdit, Send, Edit2, Lock, CreditCard, Copy } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatDistanceToNow, format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -71,6 +71,17 @@ type OwnerProfileData = {
     createdAt: string | null;
     onboardingData: any;
   } | null;
+};
+
+type GymSubscription = {
+  id: number;
+  gymId: number;
+  planType: string;
+  amountPaid: number;
+  paymentStatus: string;
+  paidOn: string | null;
+  validUntil: string | null;
+  notes: string | null;
 };
 
 export default function ProfilePage() {
@@ -441,6 +452,17 @@ function OwnerProfileView() {
     queryKey: ["/api/owner/profile"]
   });
 
+  const { data: gymSubscription } = useQuery<GymSubscription | null>({
+    queryKey: ["/api/owner/gym-subscription"]
+  });
+
+  const handleCopyCode = () => {
+    if (profile?.gym?.code) {
+      navigator.clipboard.writeText(profile.gym.code);
+      toast({ title: "Gym code copied to clipboard!" });
+    }
+  };
+
   useEffect(() => {
     if (profile) {
       setPhone(profile.phone || "");
@@ -482,6 +504,63 @@ function OwnerProfileView() {
         <h2 className="text-3xl font-bold font-display text-foreground">Owner Profile</h2>
         <p className="text-muted-foreground mt-1">Manage your account and gym details.</p>
       </div>
+
+      {profile.gym && (
+        <Card className="bg-primary text-primary-foreground">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h3 className="text-lg font-bold">{profile.gym.name}</h3>
+                <p className="text-primary-foreground/70 text-sm">Share this code with trainers and members</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="bg-white/20 rounded-lg px-4 py-2 font-mono font-bold text-lg tracking-wider">
+                  {profile.gym.code}
+                </div>
+                <Button 
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleCopyCode}
+                  data-testid="button-copy-code-profile"
+                >
+                  <Copy className="w-4 h-4 mr-1" />
+                  Copy
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {gymSubscription && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CreditCard className="w-4 h-4" />
+              OGym Platform Subscription
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="space-y-1">
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Plan:</span>{" "}
+                  <span className="font-medium">{gymSubscription.planType.replace('_', ' ')}</span>
+                </p>
+                {gymSubscription.validUntil && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Valid until:</span>{" "}
+                    <span className="font-medium">{format(new Date(gymSubscription.validUntil), 'PP')}</span>
+                  </p>
+                )}
+              </div>
+              <Badge variant={gymSubscription.paymentStatus === 'paid' ? 'default' : 'destructive'}>
+                {gymSubscription.paymentStatus.charAt(0).toUpperCase() + gymSubscription.paymentStatus.slice(1)}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>

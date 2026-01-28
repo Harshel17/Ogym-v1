@@ -99,17 +99,6 @@ function StatCard({ title, value, icon: Icon, description, onClick, color = "pri
   );
 }
 
-type GymSubscription = {
-  id: number;
-  gymId: number;
-  planType: string;
-  amountPaid: number;
-  paymentStatus: string;
-  paidOn: string | null;
-  validUntil: string | null;
-  notes: string | null;
-};
-
 function OwnerDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -143,10 +132,6 @@ function OwnerDashboard() {
     }
   });
 
-  const { data: gymSubscription } = useQuery<GymSubscription | null>({
-    queryKey: ["/api/owner/gym-subscription"]
-  });
-
   // AI Insights
   const { data: aiInsights } = useQuery<{
     churnRisk: { count: number; members: { id: number; name: string; daysAbsent: number; riskLevel: 'high' | 'medium' }[] };
@@ -176,56 +161,8 @@ function OwnerDashboard() {
     count: attendanceList.filter(a => a.date === date && a.status === 'present').length
   }));
 
-  const handleCopyCode = () => {
-    if (user?.gym?.code) {
-      navigator.clipboard.writeText(user.gym.code);
-    }
-  };
-
   return (
     <div className="space-y-4">
-      {user?.gym && (
-        <Card className="bg-primary text-primary-foreground">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <h3 className="text-lg font-bold">{user.gym.name}</h3>
-                <p className="text-primary-foreground/70 text-sm">Share this code with trainers and members</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="bg-white/20 rounded-lg px-4 py-2 font-mono font-bold text-lg tracking-wider">
-                  {user.gym.code}
-                </div>
-                <Button 
-                  size="sm"
-                  variant="secondary"
-                  onClick={handleCopyCode}
-                  data-testid="button-copy-code"
-                >
-                  Copy Code
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {gymSubscription && (
-        <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm">
-              <span className="font-medium">OGym Platform Subscription</span>
-              <span className="text-muted-foreground"> - {gymSubscription.planType.replace('_', ' ')}</span>
-              {gymSubscription.validUntil && <span className="text-muted-foreground"> | Valid until: {format(new Date(gymSubscription.validUntil), 'PP')}</span>}
-            </span>
-          </div>
-          <Badge variant={gymSubscription.paymentStatus === 'paid' ? 'default' : 'destructive'}>
-            {gymSubscription.paymentStatus.charAt(0).toUpperCase() + gymSubscription.paymentStatus.slice(1)}
-          </Badge>
-        </div>
-      )}
-
       <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <StatCard 
           title="Total Members" 
