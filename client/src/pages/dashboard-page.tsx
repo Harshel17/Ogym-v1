@@ -15,7 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun } from "lucide-react";
 import { AnimatedStatCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
-import { MemberWelcomeCards, TrainerWelcomeCards, OwnerWelcomeCards, PersonalModeWelcomeCards } from "@/components/welcome-cards";
+import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
@@ -131,6 +131,16 @@ function OwnerDashboard() {
   const { data: attendance = [] } = useAttendance();
   const { data: payments = [] } = usePayments();
   const { format: formatMoney } = useGymCurrency();
+  
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem('ogym_owner_onboarding_seen');
+  });
+  
+  const completeOnboarding = () => {
+    localStorage.setItem('ogym_owner_onboarding_seen', 'true');
+    setShowOnboarding(false);
+  };
 
   // Get client's local date to handle timezone differences
   const getClientLocalDate = () => {
@@ -189,10 +199,12 @@ function OwnerDashboard() {
 
   const isFirstTime = totalMembers === 0;
 
+  if (showOnboarding) {
+    return <OwnerOnboarding onComplete={completeOnboarding} />;
+  }
+
   return (
     <div className="space-y-4">
-      {isFirstTime && <OwnerWelcomeCards />}
-
       <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <StatCard 
           title="Total Members" 
@@ -368,6 +380,16 @@ type TrainerDashboardData = {
 };
 
 function TrainerDashboard() {
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem('ogym_trainer_onboarding_seen');
+  });
+  
+  const completeOnboarding = () => {
+    localStorage.setItem('ogym_trainer_onboarding_seen', 'true');
+    setShowOnboarding(false);
+  };
+
   const { data: dashboardData } = useQuery<TrainerDashboardData>({
     queryKey: ["/api/trainer/dashboard"],
   });
@@ -381,12 +403,13 @@ function TrainerDashboard() {
   });
 
   const totalMembers = dashboardData?.totalMembers || members.length || 0;
-  const isFirstTime = totalMembers === 0;
+
+  if (showOnboarding) {
+    return <TrainerOnboarding onComplete={completeOnboarding} />;
+  }
 
   return (
     <div className="space-y-6">
-      {isFirstTime && <TrainerWelcomeCards />}
-
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard 
           title="My Members" 
@@ -606,6 +629,17 @@ function MemberDashboard() {
   const { toast } = useToast();
   
   const isPersonalMode = user?.role === 'member' && !user?.gymId;
+  
+  // Onboarding state
+  const onboardingKey = isPersonalMode ? 'ogym_personal_onboarding_seen' : 'ogym_member_onboarding_seen';
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem(onboardingKey);
+  });
+  
+  const completeOnboarding = () => {
+    localStorage.setItem(onboardingKey, 'true');
+    setShowOnboarding(false);
+  };
   
   const { data: attendance = [] } = useMemberAttendance();
   const { data: payments = [] } = useMemberPayments();
@@ -876,6 +910,12 @@ function MemberDashboard() {
       actualWeight: item.weight || undefined
     });
   };
+
+  if (showOnboarding) {
+    return isPersonalMode 
+      ? <PersonalModeOnboarding onComplete={completeOnboarding} />
+      : <MemberOnboarding onComplete={completeOnboarding} />;
+  }
 
   return (
     <div className="space-y-6">
@@ -1198,10 +1238,6 @@ function MemberDashboard() {
           </CollapsibleContent>
         </Card>
       </Collapsible>
-
-      {workoutSummary && workoutSummary.totalWorkouts === 0 && (
-        isPersonalMode ? <PersonalModeWelcomeCards /> : <MemberWelcomeCards />
-      )}
 
       {workoutSummary && (
         <>

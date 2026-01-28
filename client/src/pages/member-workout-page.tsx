@@ -16,7 +16,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CycleBuilderWizard } from "@/components/cycle-builder-wizard";
 import { AIImportWizard } from "@/components/ai-import-wizard";
-import { PersonalModeWelcomeCards, MemberWelcomeCards } from "@/components/welcome-cards";
+import { PersonalModeOnboarding, MemberOnboarding } from "@/components/onboarding-carousel";
 
 interface WorkoutSummary {
   streak: number;
@@ -64,6 +64,17 @@ export default function MemberWorkoutPage() {
   // Both get the same workout creation experience
   const isPersonalMode = user?.role === 'member' && !user?.gymId;
   const canManageOwnWorkouts = isPersonalMode || isSelfGuided;
+  
+  // Onboarding state
+  const onboardingKey = isPersonalMode ? 'ogym_personal_onboarding_seen' : 'ogym_member_onboarding_seen';
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem(onboardingKey);
+  });
+  
+  const completeOnboarding = () => {
+    localStorage.setItem(onboardingKey, 'true');
+    setShowOnboarding(false);
+  };
   
   // Personal Mode / Self-Guided - fetch personal cycles 
   const { data: personalCycles, isLoading: personalCyclesLoading } = useQuery<any[]>({
@@ -499,6 +510,12 @@ export default function MemberWorkoutPage() {
     return acc;
   }, {});
 
+  if (showOnboarding) {
+    return isPersonalMode 
+      ? <PersonalModeOnboarding onComplete={completeOnboarding} />
+      : <MemberOnboarding onComplete={completeOnboarding} />;
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -514,10 +531,6 @@ export default function MemberWorkoutPage() {
             Your workout cycle has been reset to Day 1 because you missed more than 3 consecutive days. Welcome back!
           </AlertDescription>
         </Alert>
-      )}
-
-      {!statsLoading && workoutSummary && workoutSummary.totalWorkouts === 0 && (
-        isPersonalMode ? <PersonalModeWelcomeCards /> : <MemberWelcomeCards />
       )}
 
       {!statsLoading && workoutSummary && (
