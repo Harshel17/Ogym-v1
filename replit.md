@@ -59,6 +59,12 @@ Before deploying new code to Render, run these SQL commands on the **production 
 ALTER TABLE body_measurements ALTER COLUMN gym_id DROP NOT NULL;
 ```
 
+### Since commit 10616631 (Jan 28, 2026)
+```sql
+-- Allow Personal Mode users to log workouts without gym
+ALTER TABLE workout_logs ALTER COLUMN gym_id DROP NOT NULL;
+```
+
 **Note:** AI Import Workouts feature has NO schema changes - uses existing tables.
 
 ---

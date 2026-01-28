@@ -3234,7 +3234,7 @@ export async function registerRoutes(
       const dayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
       
       workoutLog = await storage.createWorkoutLog({
-        gymId: req.user!.gymId!,
+        gymId: req.user!.gymId ?? null,
         memberId: req.user!.id,
         cycleId: cycle.id,
         dayIndex,

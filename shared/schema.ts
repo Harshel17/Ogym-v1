@@ -240,7 +240,7 @@ export const workoutPlanSets = pgTable("workout_plan_sets", {
 // Workout session log (one per member per date)
 export const workoutLogs = pgTable("workout_logs", {
   id: serial("id").primaryKey(),
-  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  gymId: integer("gym_id").references(() => gyms.id), // Nullable for Personal Mode users
   memberId: integer("member_id").references(() => users.id).notNull(),
   cycleId: integer("cycle_id").references(() => workoutCycles.id),
   dayIndex: integer("day_index").notNull(),
