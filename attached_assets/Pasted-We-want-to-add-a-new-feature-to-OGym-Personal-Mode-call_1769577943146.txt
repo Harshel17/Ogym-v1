@@ -1,0 +1,81 @@
+We want to add a new feature to OGym (Personal Mode) called “Import Workout Cycle from AI/Chat”. 
+
+IMPORTANT: Do NOT start building or editing code yet. First, reply with a detailed implementation plan + questions/assumptions + API/UI/DB changes you recommend. Only after I confirm, you will start implementing.
+
+Context (OGym Personal Mode):
+- Users can create workout cycles (Self Guided / Trainer Assigned). We want a 3rd option: “Import from AI/Chat”.
+- The goal is to let users paste a ChatGPT-generated plan (and later upload screenshots) and automatically convert it into a structured OGym workout cycle (days + exercises + sets/reps/rest), then let the user review/edit before saving.
+
+Feature requirements (V1):
+1) UI: Personal Mode → Workout Cycle Builder
+   - Add button/option: “Import from AI/Chat”
+   - Show an instruction screen before paste:
+     NOTE: For accurate results, use the OGym prompt below to generate your plan in ChatGPT, then paste the response here.
+   - Show a “Copy Prompt” button with the provided prompt text (see below).
+   - Provide a text area to paste the AI output.
+   - After paste, generate a “Preview Cycle” screen where user can edit:
+     - cycle name
+     - day names
+     - exercises per day
+     - sets/reps (or time)
+     - optional rest
+   - User clicks “Save Cycle” → stored like a normal Personal Mode cycle.
+
+2) Backend:
+   - Add endpoint: POST /api/personal/workout/import-ai
+     Input: { raw_text: string }
+     Output: structured JSON like:
+     {
+       cycle_name: string,
+       days: [
+         { name: string, exercises: [{ name: string, sets?: number, reps?: string, duration?: string, rest?: string, notes?: string }] }
+       ]
+     }
+   - The endpoint should parse the raw_text into the structured object.
+   - If parsing fails or format is messy, return a best-effort parse + warnings array.
+   - No medical advice generation; we only transform user-provided AI text into structure.
+
+3) Data model:
+   - Store the created cycle using existing Personal Mode workout cycle tables/structures.
+   - Add optional metadata fields if needed:
+     - source = "import_ai"
+     - raw_import_text (optional, could be stored for debugging; confirm privacy implications)
+     - import_created_at
+
+4) Non-goals for V1 (do not build yet):
+   - Screenshot upload OCR (image parsing) — plan for V2 but skip implementation now.
+   - In-app AI generation — user will use external ChatGPT and paste output.
+
+OGym Recommended Prompt (this must appear in UI with Copy button):
+"""
+You are a certified fitness trainer.
+
+Create a structured workout plan in a clear, machine-readable format.
+
+User details:
+- Goal: [fat loss / muscle gain / strength / general fitness]
+- Experience level: [beginner / intermediate / advanced]
+- Days per week: [number]
+- Equipment available: [gym / home / dumbbells only / bodyweight]
+- Time per workout: [minutes]
+
+Output requirements:
+- Split workouts by days
+- Each day must have:
+  - Workout day name
+  - List of exercises
+  - Sets and reps (or time)
+  - Rest time (if applicable)
+- Do NOT include explanations, emojis, or motivational text
+- Do NOT include medical advice
+- Keep exercise names clear and standard
+
+Return only the workout plan.
+"""
+
+What I need from you now (planning only, no code yet):
+A) Propose the UI screens/components and user flow (with exact field names).
+B) Propose backend parsing approach (regex/rules + optional LLM later) and how to handle messy input.
+C) List DB/schema changes (if any) and how to store/import cycles safely.
+D) Provide edge cases and test cases.
+E) Give a phased plan: V1 (text paste) and V2 (screenshot OCR import).
