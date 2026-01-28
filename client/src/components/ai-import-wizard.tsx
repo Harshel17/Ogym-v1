@@ -469,51 +469,15 @@ export function AIImportWizard({ open, onOpenChange }: AIImportWizardProps) {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <Label>Paste ChatGPT's response here</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={handleImageUpload}
-                    data-testid="input-screenshot-upload"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isOcrProcessing}
-                    data-testid="button-upload-screenshot"
-                  >
-                    {isOcrProcessing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        {ocrTotalFiles > 1 
-                          ? `Reading ${ocrCurrentFile}/${ocrTotalFiles}... ${ocrProgress}%`
-                          : `Reading... ${ocrProgress}%`
-                        }
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="w-4 h-4 mr-2" />
-                        Upload Screenshots
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <Label>Paste ChatGPT's response here (recommended)</Label>
               </div>
-
-              {showOcrWarning && rawText && (
-                <Alert className="border-blue-500/50 bg-blue-500/10">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="text-sm">
-                    Text extracted from screenshot. <strong>For better results, we recommend copy-pasting the text directly from ChatGPT.</strong> Please review and edit below if needed.
-                  </AlertDescription>
-                </Alert>
-              )}
+              
+              <Alert className="border-green-500/50 bg-green-500/10">
+                <Check className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-sm">
+                  <strong>Best method:</strong> In ChatGPT, click "Copy code" button and paste here for accurate results.
+                </AlertDescription>
+              </Alert>
 
               <Textarea
                 placeholder={`CYCLE: My 4-Day Split
@@ -535,6 +499,58 @@ DAY 1: Push Day
               <p className="text-xs text-muted-foreground">
                 Tip: If the format isn't exact, we'll do our best to parse it. You can edit everything in the next step.
               </p>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleImageUpload}
+                data-testid="input-screenshot-upload"
+              />
+              <details className="text-xs">
+                <summary className="text-muted-foreground cursor-pointer hover:text-foreground">
+                  Can't copy text? Try screenshot (less accurate)
+                </summary>
+                <div className="mt-2 p-2 bg-muted/50 rounded-md">
+                  <p className="text-muted-foreground mb-2">
+                    Screenshot OCR may include menu text and have errors. Best to crop to just the workout area.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isOcrProcessing}
+                    data-testid="button-upload-screenshot"
+                  >
+                    {isOcrProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {ocrTotalFiles > 1 
+                          ? `Reading ${ocrCurrentFile}/${ocrTotalFiles}... ${ocrProgress}%`
+                          : `Reading... ${ocrProgress}%`
+                        }
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon className="w-4 h-4 mr-2" />
+                        Upload Screenshot
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </details>
+              
+              {showOcrWarning && rawText && (
+                <Alert className="border-yellow-500/50 bg-yellow-500/10">
+                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <AlertDescription className="text-sm">
+                    Text extracted from screenshot. <strong>Please review carefully</strong> - OCR may include errors or menu text.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
 
             <div className="flex justify-end pt-4">
