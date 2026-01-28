@@ -269,9 +269,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
       badge: notificationCounts?.pendingJoinRequests || 0
     },
     { 
+      label: "Help", 
+      href: "/help", 
+      icon: HelpCircle,
+      visible: true,
+      badge: 0
+    },
+    { 
       label: "Support", 
       href: "/support", 
-      icon: HelpCircle,
+      icon: MessageSquare,
       visible: true,
       badge: 0
     },
@@ -297,7 +304,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Tournaments", href: "/tournaments", icon: Trophy },
           { label: "Join Requests", href: "/owner/join-requests", icon: UserPlus, badge: notificationCounts?.pendingJoinRequests || 0 },
           { label: "Profile", href: "/profile", icon: UserCircle },
-          { label: "Support", href: "/support", icon: HelpCircle },
+          { label: "Help", href: "/help", icon: HelpCircle },
+          { label: "Support", href: "/support", icon: MessageSquare },
         ]
       };
     }
@@ -305,10 +313,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       return {
         primary: [
           { label: "Register", href: "/gym-request", icon: Building2 },
-          { label: "Support", href: "/support", icon: HelpCircle },
+          { label: "Help", href: "/help", icon: HelpCircle },
           { label: "Profile", href: "/profile", icon: UserCircle },
         ],
-        secondary: []
+        secondary: [
+          { label: "Support", href: "/support", icon: MessageSquare },
+        ]
       };
     }
     if (isTrainer) {
@@ -327,7 +337,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Feed", href: "/feed", icon: Activity },
           { label: "Tournaments", href: "/tournaments", icon: Trophy },
           { label: "Profile", href: "/profile", icon: UserCircle },
-          { label: "Support", href: "/support", icon: HelpCircle },
+          { label: "Help", href: "/help", icon: HelpCircle },
+          { label: "Support", href: "/support", icon: MessageSquare },
         ]
       };
     }
@@ -348,7 +359,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Feed", href: "/feed", icon: Activity },
           { label: "Tournaments", href: "/tournaments", icon: Trophy },
           { label: "Profile", href: "/profile", icon: UserCircle },
-          { label: "Support", href: "/support", icon: HelpCircle },
+          { label: "Help", href: "/help", icon: HelpCircle },
+          { label: "Support", href: "/support", icon: MessageSquare },
         ]
       };
     }
@@ -363,7 +375,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         secondary: [
           { label: "My Body", href: "/my-body", icon: HeartPulse },
           { label: "Join Gym", href: "/join-gym", icon: Building2 },
-          { label: "Support", href: "/support", icon: HelpCircle },
+          { label: "Help", href: "/help", icon: HelpCircle },
+          { label: "Support", href: "/support", icon: MessageSquare },
         ]
       };
     }

@@ -51,6 +51,7 @@ import TournamentsPage from "@/pages/tournaments-page";
 import MemberOnboardingPage from "@/pages/member-onboarding-page";
 import PersonalOnboardingPage from "@/pages/personal-onboarding-page";
 import SupportPage from "@/pages/support-page";
+import HelpPage from "@/pages/help-page";
 import TermsPage from "@/pages/terms-page";
 import PrivacyPage from "@/pages/privacy-page";
 import SubscriptionExpiredPage from "@/pages/subscription-expired-page";
@@ -307,6 +308,10 @@ function Router() {
 
       <Route path="/support">
         <ProtectedRoute component={SupportPage} allowWithoutGym={true} allowWithoutOnboarding={true} allowWithExpiredSubscription={true} />
+      </Route>
+
+      <Route path="/help">
+        <ProtectedRoute component={HelpPage} allowWithoutGym={true} allowWithoutOnboarding={true} allowWithExpiredSubscription={true} />
       </Route>
 
       <Route path="/subscription-expired">
