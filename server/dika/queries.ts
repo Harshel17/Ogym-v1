@@ -388,8 +388,12 @@ export async function getMemberCurrentCycle(memberId: number, gymId: number | nu
     .from(workoutItems)
     .where(eq(workoutItems.cycleId, cycle.id));
   
-  const workoutDays = Array.from(new Set(items.map(i => i.dayIndex))).length;
-  const restDays = cycle.cycleLength - workoutDays;
+  // Count rest days based on day labels containing "rest" (case-insensitive)
+  const dayLabels = cycle.dayLabels || [];
+  const restDays = dayLabels.filter(label => 
+    label.toLowerCase().includes('rest')
+  ).length;
+  const workoutDays = cycle.cycleLength - restDays;
   
   let response = `Your current cycle is "${cycle.name}".\n`;
   response += `• ${cycle.cycleLength} days total (${workoutDays} workout days, ${restDays} rest days)\n`;
