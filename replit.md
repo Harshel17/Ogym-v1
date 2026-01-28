@@ -49,6 +49,20 @@ Preferred communication style: Simple, everyday language.
 - **Database Indexing:** Optimized for common queries (attendance, workout completions, payments, feed posts).
 - **Deployment:** Same-origin deployment via Express serving API and static frontend.
 
+## Pending Production Migrations
+
+Before deploying new code to Render, run these SQL commands on the **production database**:
+
+### Since commit a63c0aa (Jan 26, 2026)
+```sql
+-- Allow Personal Mode users to store body measurements without gym
+ALTER TABLE body_measurements ALTER COLUMN gym_id DROP NOT NULL;
+```
+
+**Note:** AI Import Workouts feature has NO schema changes - uses existing tables.
+
+---
+
 ## External Dependencies
 
 - **PostgreSQL:** Primary database.
