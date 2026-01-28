@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dika } from "@/components/dika";
 import { ThemeToggle } from "@/components/theme-toggle";
+import ogymLogo from "@/assets/images/ogym-logo.png";
 import { 
   Drawer,
   DrawerContent,
@@ -400,9 +401,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="p-4 border-b border-sidebar-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="premium-gradient p-2.5 rounded-xl shadow-lg shadow-primary/25 animate-breathe">
-                <Dumbbell className="w-5 h-5 text-white" />
-              </div>
+              <img src={ogymLogo} alt="OGym" className="w-10 h-10 rounded-xl shadow-lg shadow-primary/25" />
               <div>
                 <h1 className="font-display font-bold text-lg leading-none magic-text">OGym</h1>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Fitness Management</p>
@@ -482,9 +481,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 min-w-0 overflow-auto">
         <header className="md:hidden bg-card/80 backdrop-blur-lg border-b border-border p-3 flex items-center justify-between gap-2 sticky top-0 z-20">
            <div className="flex items-center gap-2">
-            <div className="premium-gradient p-1.5 rounded-lg shadow-md shadow-primary/20">
-              <Dumbbell className="w-4 h-4 text-white" />
-            </div>
+            <img src={ogymLogo} alt="OGym" className="w-8 h-8 rounded-lg shadow-md shadow-primary/20" />
             <span className="font-bold font-display text-sm magic-text">OGym</span>
            </div>
            <div className="flex items-center gap-1">
