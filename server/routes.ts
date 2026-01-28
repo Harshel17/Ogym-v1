@@ -4777,12 +4777,12 @@ export async function registerRoutes(
 
   // === BODY MEASUREMENTS ===
   app.get("/api/me/body", requireRole(["member"]), async (req, res) => {
-    const measurements = await storage.getBodyMeasurements(req.user!.gymId!, req.user!.id);
+    const measurements = await storage.getBodyMeasurements(req.user!.gymId, req.user!.id);
     res.json(measurements);
   });
 
   app.get("/api/me/body/latest", requireRole(["member"]), async (req, res) => {
-    const measurement = await storage.getLatestBodyMeasurement(req.user!.gymId!, req.user!.id);
+    const measurement = await storage.getLatestBodyMeasurement(req.user!.gymId, req.user!.id);
     res.json(measurement);
   });
 
@@ -4804,7 +4804,7 @@ export async function registerRoutes(
       return res.status(400).json({ message: result.error.errors[0].message });
     }
     const measurement = await storage.createBodyMeasurement({
-      gymId: req.user!.gymId!,
+      gymId: req.user!.gymId,
       memberId: req.user!.id,
       ...result.data
     });
@@ -5508,52 +5508,87 @@ export async function registerRoutes(
     }
   });
   
-  // Create initial body measurement (member only)
+  // Create initial body measurement (member only - works for both gym and personal mode)
   app.post("/api/body-measurements/initial", requireRole(["member"]), async (req, res) => {
     try {
-      if (!req.user!.gymId) {
-        return res.status(400).json({ message: "User must be assigned to a gym" });
-      }
+      // For Personal Mode, all fields are optional. For gym members, height and weight required.
+      const isPersonalMode = !req.user!.gymId;
       
-      const schema = z.object({
-        height: z.number().min(50, "Height must be at least 50 cm").max(300, "Height must be less than 300 cm"),
-        weight: z.number().min(20, "Weight must be at least 20 kg").max(500, "Weight must be less than 500 kg"),
-        bodyFat: z.number().min(1).max(70).optional(),
-        chest: z.number().min(30).max(300).optional(),
-        waist: z.number().min(30).max(300).optional(),
-        hips: z.number().min(30).max(300).optional()
-      });
+      const schema = isPersonalMode 
+        ? z.object({
+            height: z.number().min(50).max(300).optional(),
+            weight: z.number().min(20).max(500).optional(),
+            bodyFat: z.number().min(1).max(70).optional(),
+            chest: z.number().min(30).max(300).optional(),
+            waist: z.number().min(30).max(300).optional(),
+            hips: z.number().min(30).max(300).optional()
+          })
+        : z.object({
+            height: z.number().min(50, "Height must be at least 50 cm").max(300, "Height must be less than 300 cm"),
+            weight: z.number().min(20, "Weight must be at least 20 kg").max(500, "Weight must be less than 500 kg"),
+            bodyFat: z.number().min(1).max(70).optional(),
+            chest: z.number().min(30).max(300).optional(),
+            waist: z.number().min(30).max(300).optional(),
+            hips: z.number().min(30).max(300).optional()
+          });
       
       const input = schema.parse(req.body);
       
-      // Check if initial measurement already exists
-      const existing = await storage.getInitialBodyMeasurement(req.user!.id);
-      if (existing) {
-        return res.status(400).json({ message: "Initial body measurement already exists" });
+      // Check if any measurement data was provided
+      const hasData = input.height || input.weight || input.bodyFat || input.chest || input.waist || input.hips;
+      
+      if (hasData) {
+        // Check if initial measurement already exists
+        const existing = await storage.getInitialBodyMeasurement(req.user!.id);
+        if (existing) {
+          return res.status(400).json({ message: "Initial body measurement already exists" });
+        }
+        
+        const measurement = await storage.createInitialBodyMeasurement({
+          gymId: req.user!.gymId,
+          memberId: req.user!.id,
+          height: input.height,
+          weight: input.weight,
+          bodyFat: input.bodyFat,
+          chest: input.chest,
+          waist: input.waist,
+          hips: input.hips
+        });
+        
+        // Mark onboarding as complete
+        await storage.setOnboardingCompleted(req.user!.id);
+        
+        console.log(`[Onboarding] Initial body measurement saved and onboarding completed for user ${req.user!.id}`);
+        res.json({ measurement, onboardingCompleted: true });
+      } else {
+        // No data provided, just mark onboarding as complete
+        await storage.setOnboardingCompleted(req.user!.id);
+        console.log(`[Onboarding] Onboarding completed (no measurements) for user ${req.user!.id}`);
+        res.json({ measurement: null, onboardingCompleted: true });
       }
-      
-      const measurement = await storage.createInitialBodyMeasurement({
-        gymId: req.user!.gymId,
-        memberId: req.user!.id,
-        height: input.height,
-        weight: input.weight,
-        bodyFat: input.bodyFat,
-        chest: input.chest,
-        waist: input.waist,
-        hips: input.hips
-      });
-      
-      // Mark onboarding as complete
-      await storage.setOnboardingCompleted(req.user!.id);
-      
-      console.log(`[Onboarding] Initial body measurement saved and onboarding completed for user ${req.user!.id}`);
-      res.json({ measurement, onboardingCompleted: true });
     } catch (err: any) {
       if (err.name === "ZodError") {
         return res.status(400).json({ message: err.errors[0]?.message || "Validation error" });
       }
       console.error("[Onboarding] Failed to save initial body measurement:", err);
       res.status(500).json({ message: "Failed to save body measurement" });
+    }
+  });
+  
+  // Skip onboarding (Personal Mode only - gym members must complete full onboarding)
+  app.post("/api/onboarding/skip", requireRole(["member"]), async (req, res) => {
+    try {
+      // Only allow Personal Mode users to skip onboarding
+      if (req.user!.gymId) {
+        return res.status(403).json({ message: "Gym members must complete onboarding" });
+      }
+      
+      await storage.setOnboardingCompleted(req.user!.id);
+      console.log(`[Onboarding] Skipped onboarding for Personal Mode user ${req.user!.id}`);
+      res.json({ success: true, onboardingCompleted: true });
+    } catch (err) {
+      console.error("[Onboarding] Failed to skip onboarding:", err);
+      res.status(500).json({ message: "Failed to skip onboarding" });
     }
   });
   

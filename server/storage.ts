@@ -306,7 +306,7 @@ export interface IStorage {
   createOrUpdateUserProfile(userId: number, data: { fullName: string; phone: string; gender: string; dob: string; age?: number; address?: string }): Promise<UserProfile>;
   setOnboardingCompleted(userId: number): Promise<void>;
   getInitialBodyMeasurement(memberId: number): Promise<BodyMeasurement | null>;
-  createInitialBodyMeasurement(data: { gymId: number; memberId: number; height: number; weight: number; bodyFat?: number; chest?: number; waist?: number; hips?: number }): Promise<BodyMeasurement>;
+  createInitialBodyMeasurement(data: { gymId: number | null; memberId: number; height?: number; weight?: number; bodyFat?: number; chest?: number; waist?: number; hips?: number }): Promise<BodyMeasurement>;
   getMemberBodyMeasurements(memberId: number): Promise<BodyMeasurement[]>;
   
   // Gym History
@@ -666,8 +666,8 @@ export interface IStorage {
   assignTemplateToMember(templateId: number, memberId: number, startDate: string, endDate: string, gymId: number, trainerId: number): Promise<WorkoutCycle>;
   
   // Body Measurements
-  getBodyMeasurements(gymId: number, memberId: number): Promise<BodyMeasurement[]>;
-  getLatestBodyMeasurement(gymId: number, memberId: number): Promise<BodyMeasurement | null>;
+  getBodyMeasurements(gymId: number | null, memberId: number): Promise<BodyMeasurement[]>;
+  getLatestBodyMeasurement(gymId: number | null, memberId: number): Promise<BodyMeasurement | null>;
   createBodyMeasurement(data: InsertBodyMeasurement): Promise<BodyMeasurement>;
   
   // Member Notes
@@ -6385,17 +6385,23 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Body Measurements
-  async getBodyMeasurements(gymId: number, memberId: number): Promise<BodyMeasurement[]> {
+  async getBodyMeasurements(gymId: number | null, memberId: number): Promise<BodyMeasurement[]> {
+    const condition = gymId 
+      ? and(eq(bodyMeasurements.gymId, gymId), eq(bodyMeasurements.memberId, memberId))
+      : and(isNull(bodyMeasurements.gymId), eq(bodyMeasurements.memberId, memberId));
     return await db.select()
       .from(bodyMeasurements)
-      .where(and(eq(bodyMeasurements.gymId, gymId), eq(bodyMeasurements.memberId, memberId)))
+      .where(condition)
       .orderBy(desc(bodyMeasurements.recordedDate));
   }
   
-  async getLatestBodyMeasurement(gymId: number, memberId: number): Promise<BodyMeasurement | null> {
+  async getLatestBodyMeasurement(gymId: number | null, memberId: number): Promise<BodyMeasurement | null> {
+    const condition = gymId 
+      ? and(eq(bodyMeasurements.gymId, gymId), eq(bodyMeasurements.memberId, memberId))
+      : and(isNull(bodyMeasurements.gymId), eq(bodyMeasurements.memberId, memberId));
     const [measurement] = await db.select()
       .from(bodyMeasurements)
-      .where(and(eq(bodyMeasurements.gymId, gymId), eq(bodyMeasurements.memberId, memberId)))
+      .where(condition)
       .orderBy(desc(bodyMeasurements.recordedDate))
       .limit(1);
     return measurement || null;
@@ -6442,15 +6448,15 @@ export class DatabaseStorage implements IStorage {
     return measurement || null;
   }
   
-  async createInitialBodyMeasurement(data: { gymId: number; memberId: number; height: number; weight: number; bodyFat?: number; chest?: number; waist?: number; hips?: number }): Promise<BodyMeasurement> {
+  async createInitialBodyMeasurement(data: { gymId: number | null; memberId: number; height?: number; weight?: number; bodyFat?: number; chest?: number; waist?: number; hips?: number }): Promise<BodyMeasurement> {
     const today = new Date().toISOString().split("T")[0];
     const [measurement] = await db.insert(bodyMeasurements)
       .values({
         gymId: data.gymId,
         memberId: data.memberId,
         recordedDate: today,
-        height: data.height,
-        weight: data.weight,
+        height: data.height || null,
+        weight: data.weight || null,
         bodyFat: data.bodyFat || null,
         chest: data.chest || null,
         waist: data.waist || null,

@@ -49,6 +49,7 @@ import PendingApprovalPage from "@/pages/pending-approval-page";
 import FeedPage from "@/pages/feed-page";
 import TournamentsPage from "@/pages/tournaments-page";
 import MemberOnboardingPage from "@/pages/member-onboarding-page";
+import PersonalOnboardingPage from "@/pages/personal-onboarding-page";
 import SupportPage from "@/pages/support-page";
 import TermsPage from "@/pages/terms-page";
 import PrivacyPage from "@/pages/privacy-page";
@@ -106,8 +107,8 @@ function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWi
     }
   }
 
-  // Redirect members who haven't completed onboarding
-  if (user.role === "member" && user.gymId && !user.onboardingCompleted && !allowWithoutOnboarding) {
+  // Redirect members who haven't completed onboarding (both gym and personal mode)
+  if (user.role === "member" && !user.onboardingCompleted && !allowWithoutOnboarding) {
     return <Redirect to="/onboarding" />;
   }
 
@@ -143,11 +144,12 @@ function OnboardingRoute() {
     return <Redirect to="/" />;
   }
 
-  // Personal Mode members (no gym) can use app without onboarding - redirect to dashboard
+  // Personal Mode members (no gym) get optional body measurements onboarding
   if (!user.gymId) {
-    return <Redirect to="/" />;
+    return <PersonalOnboardingPage />;
   }
 
+  // Gym members get full onboarding
   return <MemberOnboardingPage />;
 }
 
