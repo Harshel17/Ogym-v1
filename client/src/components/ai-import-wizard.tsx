@@ -114,8 +114,8 @@ export function AIImportWizard({ open, onOpenChange }: AIImportWizardProps) {
     }
   };
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleImageUpload = async (e: { target: { files: FileList | null } }) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
