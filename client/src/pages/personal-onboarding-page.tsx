@@ -83,43 +83,43 @@ export default function PersonalOnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+    <div className="min-h-screen flex items-center justify-center p-4 py-8 bg-background overflow-y-auto">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
       
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Dumbbell className="h-10 w-10 text-primary" />
-            <span className="text-3xl font-bold">OGym</span>
+      <div className="w-full max-w-lg my-auto">
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <Dumbbell className="h-8 w-8 text-primary" />
+            <span className="text-2xl font-bold">OGym</span>
           </div>
-          <h1 className="text-2xl font-bold">Welcome to Personal Mode!</h1>
-          <p className="text-muted-foreground mt-2">Track your workouts freely, on your own terms</p>
+          <h1 className="text-xl font-bold">Welcome to Personal Mode!</h1>
+          <p className="text-muted-foreground text-sm mt-1">Track your workouts freely, on your own terms</p>
         </div>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Ruler className="h-5 w-5 text-primary" />
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                <Ruler className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <CardTitle>Body Measurements</CardTitle>
-                <CardDescription>Optional - helps track your progress over time</CardDescription>
+                <CardTitle className="text-base">Body Measurements</CardTitle>
+                <CardDescription className="text-xs">Optional - helps track your progress over time</CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <Form {...bodyForm}>
-              <form onSubmit={bodyForm.handleSubmit(handleBodySubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={bodyForm.handleSubmit(handleBodySubmit)} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={bodyForm.control}
                     name="height"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Height (cm)</FormLabel>
+                        <FormLabel className="text-sm">Height (cm)</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -140,7 +140,7 @@ export default function PersonalOnboardingPage() {
                     name="weight"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Weight (kg)</FormLabel>
+                        <FormLabel className="text-sm">Weight (kg)</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -157,15 +157,15 @@ export default function PersonalOnboardingPage() {
                   />
                 </div>
 
-                <p className="text-sm text-muted-foreground">Additional measurements (for detailed tracking):</p>
+                <p className="text-xs text-muted-foreground">Additional measurements (for detailed tracking):</p>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={bodyForm.control}
                     name="bodyFat"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Body Fat %</FormLabel>
+                        <FormLabel className="text-sm">Body Fat %</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -186,7 +186,7 @@ export default function PersonalOnboardingPage() {
                     name="chest"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Chest (cm)</FormLabel>
+                        <FormLabel className="text-sm">Chest (cm)</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -207,7 +207,7 @@ export default function PersonalOnboardingPage() {
                     name="waist"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Waist (cm)</FormLabel>
+                        <FormLabel className="text-sm">Waist (cm)</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -228,7 +228,7 @@ export default function PersonalOnboardingPage() {
                     name="hips"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Hips (cm)</FormLabel>
+                        <FormLabel className="text-sm">Hips (cm)</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -245,39 +245,41 @@ export default function PersonalOnboardingPage() {
                   />
                 </div>
 
-                <div className="flex gap-3 pt-2">
+                <div className="flex gap-3 pt-1">
                   <Button 
                     type="button"
                     variant="outline"
+                    size="sm"
                     className="flex-1" 
                     onClick={handleSkip}
                     disabled={skipMutation.isPending || bodyMutation.isPending}
                     data-testid="button-skip-onboarding"
                   >
                     {skipMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
                     ) : (
-                      <SkipForward className="h-4 w-4 mr-2" />
+                      <SkipForward className="h-3 w-3 mr-1" />
                     )}
-                    Skip for Now
+                    Skip
                   </Button>
                   <Button 
                     type="submit" 
+                    size="sm"
                     className="flex-1" 
                     disabled={bodyMutation.isPending || skipMutation.isPending}
                     data-testid="button-save-measurements"
                   >
                     {bodyMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
                     ) : (
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
                     )}
                     Save & Continue
                   </Button>
                 </div>
 
-                <p className="text-xs text-center text-muted-foreground mt-2">
-                  You can always add or update these later in My Body
+                <p className="text-xs text-center text-muted-foreground">
+                  You can always update these later in My Body
                 </p>
               </form>
             </Form>
