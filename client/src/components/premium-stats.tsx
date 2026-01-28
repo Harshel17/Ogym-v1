@@ -19,11 +19,27 @@ const iconMap = {
   trending: TrendingUp,
 };
 
-const colorMap = {
-  orange: "bg-orange-500 text-white",
-  blue: "bg-blue-500 text-white",
-  green: "bg-green-500 text-white",
-  purple: "bg-purple-500 text-white",
+const colorConfig = {
+  orange: {
+    iconBg: "bg-orange-500",
+    hoverBg: "hover:bg-orange-50 dark:hover:bg-orange-950/20",
+    activeBg: "active:bg-orange-100 dark:active:bg-orange-950/30",
+  },
+  blue: {
+    iconBg: "bg-blue-500",
+    hoverBg: "hover:bg-blue-50 dark:hover:bg-blue-950/20",
+    activeBg: "active:bg-blue-100 dark:active:bg-blue-950/30",
+  },
+  green: {
+    iconBg: "bg-green-500",
+    hoverBg: "hover:bg-green-50 dark:hover:bg-green-950/20",
+    activeBg: "active:bg-green-100 dark:active:bg-green-950/30",
+  },
+  purple: {
+    iconBg: "bg-purple-500",
+    hoverBg: "hover:bg-purple-50 dark:hover:bg-purple-950/20",
+    activeBg: "active:bg-purple-100 dark:active:bg-purple-950/30",
+  },
 };
 
 function useSimpleCounter(target: number, delay: number = 0): number {
@@ -49,17 +65,22 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
 }: AnimatedStatCardProps) {
   const displayValue = useSimpleCounter(value, delay);
   const Icon = iconMap[icon];
-  const iconBg = colorMap[color];
+  const colors = colorConfig[color];
 
   return (
     <Card
-      className="cursor-pointer border"
+      className={cn(
+        "cursor-pointer border transition-transform duration-150 ease-out",
+        "hover:scale-[1.02] active:scale-[0.98]",
+        colors.hoverBg,
+        colors.activeBg
+      )}
       onClick={onClick}
       data-testid={`stat-card-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
       <CardContent className="flex flex-col items-center justify-center py-5">
-        <div className={cn("p-2.5 rounded-lg mb-2", iconBg)}>
-          <Icon className="w-4 h-4" />
+        <div className={cn("p-2.5 rounded-xl text-white mb-2", colors.iconBg)}>
+          <Icon className="w-5 h-5" />
         </div>
         <p className="text-2xl font-bold tabular-nums">{displayValue}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
@@ -161,17 +182,17 @@ export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], 
               <div key={dateStr} className="flex flex-col items-center gap-1 flex-1">
                 <div
                   className={cn(
-                    "w-full aspect-square rounded-md flex items-center justify-center text-xs font-medium",
+                    "w-full aspect-square rounded-lg flex items-center justify-center text-xs font-medium",
                     isCompleted && !isFuture
                       ? "bg-green-500 text-white"
                       : isToday
-                      ? "bg-primary/20 text-primary ring-1 ring-primary"
+                      ? "bg-primary/20 text-primary ring-2 ring-primary"
                       : isPast
                       ? "bg-red-100 dark:bg-red-900/30 text-red-500"
                       : "bg-muted text-muted-foreground"
                   )}
                 >
-                  {isCompleted && !isFuture && <Check className="w-3 h-3" />}
+                  {isCompleted && !isFuture && <Check className="w-3.5 h-3.5" />}
                 </div>
                 <span className={cn("text-[10px]", isToday ? "font-bold text-primary" : "text-muted-foreground")}>
                   {dayLabels[index]}
@@ -195,7 +216,7 @@ export const StreakDisplay = memo(function StreakDisplay({ streak, className }: 
   const hasStreak = streak > 0;
 
   return (
-    <div className={cn("flex items-center gap-3 p-4 rounded-lg", hasStreak ? "bg-orange-50 dark:bg-orange-950/30" : "bg-muted/50", className)}>
+    <div className={cn("flex items-center gap-3 p-4 rounded-xl", hasStreak ? "bg-orange-50 dark:bg-orange-950/30" : "bg-muted/50", className)}>
       <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", hasStreak ? "bg-orange-500" : "bg-muted")}>
         <Flame className={cn("w-6 h-6", hasStreak ? "text-white" : "text-muted-foreground")} />
       </div>
