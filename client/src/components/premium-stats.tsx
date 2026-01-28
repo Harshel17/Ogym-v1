@@ -1,8 +1,7 @@
-import { memo, useMemo } from "react";
-import { useAnimatedCounter } from "@/hooks/use-animated-counter";
+import { memo, useMemo, useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Flame, Target, Calendar, TrendingUp } from "lucide-react";
+import { Flame, Target, Calendar, TrendingUp, Check } from "lucide-react";
 
 interface AnimatedStatCardProps {
   value: number;
@@ -21,31 +20,24 @@ const iconMap = {
 };
 
 const colorMap = {
-  orange: {
-    gradient: "from-orange-500 to-red-500",
-    shadow: "shadow-orange-500/25",
-    bg: "bg-orange-50 dark:bg-orange-950/30",
-    text: "text-orange-600 dark:text-orange-400",
-  },
-  blue: {
-    gradient: "from-blue-500 to-indigo-500",
-    shadow: "shadow-blue-500/25",
-    bg: "bg-blue-50 dark:bg-blue-950/30",
-    text: "text-blue-600 dark:text-blue-400",
-  },
-  green: {
-    gradient: "from-green-500 to-emerald-500",
-    shadow: "shadow-green-500/25",
-    bg: "bg-green-50 dark:bg-green-950/30",
-    text: "text-green-600 dark:text-green-400",
-  },
-  purple: {
-    gradient: "from-purple-500 to-pink-500",
-    shadow: "shadow-purple-500/25",
-    bg: "bg-purple-50 dark:bg-purple-950/30",
-    text: "text-purple-600 dark:text-purple-400",
-  },
+  orange: "bg-orange-500 text-white",
+  blue: "bg-blue-500 text-white",
+  green: "bg-green-500 text-white",
+  purple: "bg-purple-500 text-white",
 };
+
+function useSimpleCounter(target: number, delay: number = 0): number {
+  const [value, setValue] = useState(0);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setValue(target);
+    }, delay + 50);
+    return () => clearTimeout(timer);
+  }, [target, delay]);
+  
+  return value;
+}
 
 export const AnimatedStatCard = memo(function AnimatedStatCard({
   value,
@@ -55,37 +47,23 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
   delay = 0,
   onClick,
 }: AnimatedStatCardProps) {
-  const animatedValue = useAnimatedCounter(value, 800, delay);
+  const displayValue = useSimpleCounter(value, delay);
   const Icon = iconMap[icon];
-  const colors = colorMap[color];
+  const iconBg = colorMap[color];
 
   return (
     <Card
-      className="stat-card cursor-pointer group overflow-hidden relative hover:shadow-lg"
+      className="cursor-pointer border"
       onClick={onClick}
       data-testid={`stat-card-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
-      <CardContent className="flex flex-col items-center justify-center py-5 relative z-10">
-        <div
-          className={cn(
-            "p-3 rounded-xl bg-gradient-to-br text-white mb-3 shadow-lg",
-            colors.gradient,
-            colors.shadow
-          )}
-        >
-          <Icon className="w-5 h-5" />
+      <CardContent className="flex flex-col items-center justify-center py-5">
+        <div className={cn("p-2.5 rounded-lg mb-2", iconBg)}>
+          <Icon className="w-4 h-4" />
         </div>
-        <p className="text-3xl font-bold font-display tabular-nums">
-          {animatedValue}
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">{label}</p>
+        <p className="text-2xl font-bold tabular-nums">{displayValue}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
       </CardContent>
-      <div
-        className={cn(
-          "absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none",
-          colors.bg
-        )}
-      />
     </Card>
   );
 });
@@ -106,27 +84,15 @@ export const WorkoutProgressBar = memo(function WorkoutProgressBar({
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-medium text-muted-foreground">
-          Progress
-        </span>
-        <span
-          className={cn(
-            "text-xs font-semibold",
-            isComplete ? "text-green-600 dark:text-green-400" : "text-primary"
-          )}
-        >
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs text-muted-foreground">Progress</span>
+        <span className={cn("text-xs font-medium", isComplete ? "text-green-600" : "")}>
           {completed}/{total}
         </span>
       </div>
       <div className="h-2 bg-muted rounded-full overflow-hidden">
         <div
-          className={cn(
-            "h-full rounded-full",
-            isComplete
-              ? "bg-gradient-to-r from-green-500 to-emerald-400"
-              : "bg-gradient-to-r from-primary to-indigo-400"
-          )}
+          className={cn("h-full rounded-full", isComplete ? "bg-green-500" : "bg-primary")}
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -178,13 +144,11 @@ export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], 
   }, [calendarDays]);
 
   return (
-    <Card className={cn("overflow-hidden", className)} data-testid="card-weekly-progress">
+    <Card className={cn("border", className)} data-testid="card-weekly-progress">
       <CardContent className="py-4">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium">This Week</span>
-          <span className="text-xs text-muted-foreground">
-            {completedCount}/{passedDaysCount} days
-          </span>
+          <span className="text-xs text-muted-foreground">{completedCount}/{passedDaysCount} days</span>
         </div>
         <div className="flex items-center justify-between gap-1">
           {weekDates.map((dateStr, index) => {
@@ -194,44 +158,22 @@ export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], 
             const isCompleted = completedDatesSet.has(dateStr);
 
             return (
-              <div
-                key={dateStr}
-                className="flex flex-col items-center gap-1.5 flex-1"
-              >
+              <div key={dateStr} className="flex flex-col items-center gap-1 flex-1">
                 <div
                   className={cn(
-                    "w-full aspect-square rounded-lg flex items-center justify-center text-xs font-medium",
+                    "w-full aspect-square rounded-md flex items-center justify-center text-xs font-medium",
                     isCompleted && !isFuture
-                      ? "bg-gradient-to-br from-green-500 to-emerald-400 text-white shadow-sm"
+                      ? "bg-green-500 text-white"
                       : isToday
-                      ? "bg-primary/20 text-primary ring-2 ring-primary"
+                      ? "bg-primary/20 text-primary ring-1 ring-primary"
                       : isPast
                       ? "bg-red-100 dark:bg-red-900/30 text-red-500"
                       : "bg-muted text-muted-foreground"
                   )}
                 >
-                  {isCompleted && !isFuture && (
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={3}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  )}
+                  {isCompleted && !isFuture && <Check className="w-3 h-3" />}
                 </div>
-                <span
-                  className={cn(
-                    "text-[10px]",
-                    isToday ? "font-bold text-primary" : "text-muted-foreground"
-                  )}
-                >
+                <span className={cn("text-[10px]", isToday ? "font-bold text-primary" : "text-muted-foreground")}>
                   {dayLabels[index]}
                 </span>
               </div>
@@ -249,42 +191,17 @@ interface StreakDisplayProps {
 }
 
 export const StreakDisplay = memo(function StreakDisplay({ streak, className }: StreakDisplayProps) {
-  const animatedStreak = useAnimatedCounter(streak, 1000, 200);
+  const displayStreak = useSimpleCounter(streak, 200);
   const hasStreak = streak > 0;
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-3 p-4 rounded-xl",
-        hasStreak
-          ? "bg-gradient-to-r from-orange-500/10 to-red-500/10"
-          : "bg-muted/50",
-        className
-      )}
-    >
-      <div
-        className={cn(
-          "relative w-14 h-14 rounded-full flex items-center justify-center",
-          hasStreak ? "bg-gradient-to-br from-orange-500 to-red-500" : "bg-muted"
-        )}
-      >
-        <Flame
-          className={cn(
-            "w-7 h-7",
-            hasStreak ? "text-white" : "text-muted-foreground"
-          )}
-        />
-        {hasStreak && (
-          <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-orange-500 to-red-500 opacity-30 blur-md -z-10" />
-        )}
+    <div className={cn("flex items-center gap-3 p-4 rounded-lg", hasStreak ? "bg-orange-50 dark:bg-orange-950/30" : "bg-muted/50", className)}>
+      <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", hasStreak ? "bg-orange-500" : "bg-muted")}>
+        <Flame className={cn("w-6 h-6", hasStreak ? "text-white" : "text-muted-foreground")} />
       </div>
       <div>
-        <p className="text-3xl font-bold font-display tabular-nums">
-          {animatedStreak}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {hasStreak ? "Day Streak" : "Start your streak!"}
-        </p>
+        <p className="text-2xl font-bold tabular-nums">{displayStreak}</p>
+        <p className="text-sm text-muted-foreground">{hasStreak ? "Day Streak" : "Start your streak!"}</p>
       </div>
     </div>
   );

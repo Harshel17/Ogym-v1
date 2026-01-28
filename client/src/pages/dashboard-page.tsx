@@ -1314,7 +1314,7 @@ function MemberDashboard() {
 
       {workoutSummary && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-slide-in-up" style={{ animationDelay: '100ms' }}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Link href="/progress/workouts">
               <AnimatedStatCard
                 value={workoutSummary.streak}
@@ -1353,10 +1353,7 @@ function MemberDashboard() {
             </Link>
           </div>
           
-          <WeeklyProgress 
-            calendarDays={workoutSummary.calendarDays} 
-            className="animate-slide-in-up"
-          />
+          <WeeklyProgress calendarDays={workoutSummary.calendarDays} />
         </>
       )}
 
