@@ -171,29 +171,46 @@ export function useCompleteWorkout(onAskToShare?: (focusLabel: string) => void) 
 
   return useMutation({
     mutationFn: async (data: { workoutItemId: number; actualSets?: number; actualReps?: number; actualWeight?: string }) => {
-      // Include client's local date to ensure correct timezone handling
       const response = await apiRequest("POST", "/api/workouts/complete", {
         ...data,
         clientDate: getClientLocalDate()
       });
       return response.json();
     },
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/workouts/today'] });
+      const previousData = queryClient.getQueryData(['/api/workouts/today']);
+      queryClient.setQueryData(['/api/workouts/today'], (old: any) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((item: any) =>
+            item.id === data.workoutItemId
+              ? { ...item, completed: true, skipped: false }
+              : item
+          ),
+        };
+      });
+      return { previousData };
+    },
+    onError: (err: any, _data, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/workouts/today'], context.previousData);
+      }
+      toast({ title: "Error", description: err.message || "Failed to complete workout", variant: "destructive" });
+    },
     onSuccess: (result: any) => {
+      if (result?.askToShare && onAskToShare) {
+        onAskToShare(result.focusLabel || "Workout");
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/stats/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/daily-points'] });
       queryClient.invalidateQueries({ queryKey: ['/api/me/calendar/enhanced'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/workout/summary'] });
-      toast({ title: "Done!", description: "Workout completed and attendance marked" });
-      
-      // If server says to ask about sharing, trigger the callback
-      if (result?.askToShare && onAskToShare) {
-        onAskToShare(result.focusLabel || "Workout");
-      }
-    },
-    onError: (err: any) => {
-      toast({ title: "Error", description: err.message || "Failed to complete workout", variant: "destructive" });
     },
   });
 }
