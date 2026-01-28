@@ -87,6 +87,7 @@ export default function MemberWorkoutPage() {
   const [newCycleLength, setNewCycleLength] = useState(3);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [aiImportOpen, setAiImportOpen] = useState(false);
+  const [newCycleOptionsOpen, setNewCycleOptionsOpen] = useState(false);
   
   // Cycle history state
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -143,8 +144,8 @@ export default function MemberWorkoutPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/workouts/cycle"] });
       queryClient.invalidateQueries({ queryKey: ["/api/member/workout/summary"] });
       setEndCycleDialogOpen(false);
-      toast({ title: "Cycle ended successfully! You can start a new one." });
-      setWizardOpen(true);
+      toast({ title: "Cycle ended successfully! Choose how to create your new cycle." });
+      setNewCycleOptionsOpen(true);
     },
     onError: (error: any) => {
       toast({ title: error.message || "Failed to end cycle", variant: "destructive" });
@@ -1196,6 +1197,57 @@ export default function MemberWorkoutPage() {
               End & Start New
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Cycle Options Dialog - Choose creation method */}
+      <Dialog open={newCycleOptionsOpen} onOpenChange={setNewCycleOptionsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Create New Cycle
+            </DialogTitle>
+            <DialogDescription>
+              Choose how you'd like to create your new workout cycle.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-4">
+            <Button 
+              variant="outline" 
+              className="h-auto py-4 justify-start"
+              onClick={() => {
+                setNewCycleOptionsOpen(false);
+                setWizardOpen(true);
+              }}
+              data-testid="button-build-from-scratch"
+            >
+              <div className="flex items-center gap-3">
+                <Wand2 className="w-5 h-5 text-primary" />
+                <div className="text-left">
+                  <div className="font-medium">Build from Scratch</div>
+                  <div className="text-sm text-muted-foreground">Create a custom cycle with the guided wizard</div>
+                </div>
+              </div>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-auto py-4 justify-start"
+              onClick={() => {
+                setNewCycleOptionsOpen(false);
+                setAiImportOpen(true);
+              }}
+              data-testid="button-import-from-ai"
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-5 h-5 text-primary" />
+                <div className="text-left">
+                  <div className="font-medium">Import from AI/Chat</div>
+                  <div className="text-sm text-muted-foreground">Paste or screenshot a workout from ChatGPT</div>
+                </div>
+              </div>
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
