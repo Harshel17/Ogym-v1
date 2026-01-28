@@ -530,7 +530,7 @@ export const paymentTransactions = pgTable("payment_transactions", {
 
 export const bodyMeasurements = pgTable("body_measurements", {
   id: serial("id").primaryKey(),
-  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  gymId: integer("gym_id").references(() => gyms.id),
   memberId: integer("member_id").references(() => users.id).notNull(),
   recordedDate: text("recorded_date").notNull(),
   weight: integer("weight"),
