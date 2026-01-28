@@ -22,30 +22,37 @@ interface DikaLocalSettings {
   icon: DikaIcon;
 }
 
-const DEFAULT_POSITION: DikaPosition = {
-  x: window.innerWidth - 70,
-  y: window.innerHeight - 140, // Account for bottom navigation bar
-};
-
 const STORAGE_KEY_PREFIX = 'dika_settings_';
+
+function getDefaultPosition(): DikaPosition {
+  const bottomNavHeight = 80;
+  return {
+    x: Math.max(10, window.innerWidth - 70),
+    y: Math.max(10, window.innerHeight - 140 - bottomNavHeight),
+  };
+}
 
 function getStorageKey(userId: number): string {
   return `${STORAGE_KEY_PREFIX}${userId}`;
 }
 
 function loadLocalSettings(userId: number): DikaLocalSettings {
+  const defaultPos = getDefaultPosition();
   try {
     const stored = localStorage.getItem(getStorageKey(userId));
     if (stored) {
       const parsed = JSON.parse(stored);
-      let position = parsed.position || DEFAULT_POSITION;
+      let position = parsed.position || defaultPos;
       
-      // Ensure position is not in the bottom navigation area
+      // Ensure position is within visible bounds
       const bottomNavHeight = 80;
       const maxY = window.innerHeight - 44 - 10 - bottomNavHeight;
-      if (position.y > maxY) {
-        position = { ...position, y: maxY };
-      }
+      const maxX = window.innerWidth - 44 - 10;
+      
+      position = {
+        x: Math.max(10, Math.min(position.x, maxX)),
+        y: Math.max(10, Math.min(position.y, maxY)),
+      };
       
       return {
         position,
@@ -55,7 +62,7 @@ function loadLocalSettings(userId: number): DikaLocalSettings {
   } catch (e) {
     console.error('Failed to load Dika settings:', e);
   }
-  return { position: DEFAULT_POSITION, icon: 'circle' };
+  return { position: defaultPos, icon: 'circle' };
 }
 
 function saveLocalSettings(userId: number, settings: DikaLocalSettings): void {
