@@ -488,16 +488,34 @@ export function useLogWorkoutSets() {
       const response = await apiRequest("POST", "/api/workouts/log-sets", data);
       return response.json();
     },
-    onSuccess: (_result, data) => {
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/workouts/today'] });
+      const previousData = queryClient.getQueryData(['/api/workouts/today']);
+      queryClient.setQueryData(['/api/workouts/today'], (old: any) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((item: any) =>
+            item.id === data.workoutItemId
+              ? { ...item, completed: true, skipped: false }
+              : item
+          ),
+        };
+      });
+      return { previousData };
+    },
+    onError: (err: any, _data, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/workouts/today'], context.previousData);
+      }
+      toast({ title: "Error", description: err.message || "Failed to log sets", variant: "destructive" });
+    },
+    onSettled: (_result, _error, data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/log', data.date] });
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/stats/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/daily-points'] });
-      toast({ title: "Logged!", description: "Sets recorded successfully" });
-    },
-    onError: (err: any) => {
-      toast({ title: "Error", description: err.message || "Failed to log sets", variant: "destructive" });
     },
   });
 }

@@ -352,9 +352,8 @@ export default function MemberWorkoutPage() {
         workoutItemId: item.id,
         date: todayStr,
         sets
-      }, {
-        onSuccess: () => setExpandedExercise(null)
       });
+      setExpandedExercise(null);
     } else {
       // Use uniform values (original behavior)
       const inputs = getInputs(item.id, item);
