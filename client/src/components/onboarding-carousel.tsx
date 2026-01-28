@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dumbbell, TrendingUp, Calendar, Users, ClipboardList, CreditCard, Building2, BarChart3, Target, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { Dumbbell, TrendingUp, Calendar, Users, ClipboardList, CreditCard, Building2, BarChart3, Target, ChevronLeft, ChevronRight, Check, Brain, Sparkles } from "lucide-react";
 
 interface Slide {
   icon: typeof Dumbbell;
@@ -181,62 +181,62 @@ function OnboardingCarousel({ slides, onComplete }: OnboardingCarouselProps) {
 const memberSlides: Slide[] = [
   {
     icon: Dumbbell,
-    title: "Track Your Workouts",
-    description: "Log every exercise, set, and rep. Build a complete record of your fitness journey.",
+    title: "Your Workouts, Simplified",
+    description: "Tap to log each exercise as you complete it. Track your sets, reps, and weights with just a few taps. Your trainer designs the plan, you crush the execution!",
     color: "primary"
   },
   {
     icon: TrendingUp,
-    title: "See Your Progress",
-    description: "Watch your streaks grow, track body measurements, and celebrate your achievements.",
+    title: "Watch Yourself Grow",
+    description: "See your workout streaks build day by day. Log your body measurements and watch the transformation happen. Celebrate every milestone along the way!",
     color: "green"
   },
   {
-    icon: Calendar,
-    title: "Stay Consistent",
-    description: "Follow your personalized workout schedule. Never miss a session with smart reminders.",
+    icon: Brain,
+    title: "Meet Dika, Your AI Buddy",
+    description: "Got questions? Ask Dika! She knows your workouts, attendance, and progress. Just tap the floating button and ask anything about your fitness journey.",
     color: "purple"
   }
 ];
 
 const personalModeSlides: Slide[] = [
   {
-    icon: Dumbbell,
-    title: "Create Your Workout",
-    description: "Build custom workout cycles with our wizard or import from your favorite AI assistant.",
+    icon: Sparkles,
+    title: "Build Your Perfect Workout",
+    description: "Use our smart wizard to create custom workout cycles, or paste your favorite routine from ChatGPT. We'll organize it beautifully for you!",
     color: "primary"
   },
   {
     icon: TrendingUp,
-    title: "Track Everything",
-    description: "Log workouts, body measurements, and watch your fitness progress over time.",
+    title: "Track Your Transformation",
+    description: "Log every workout session and body measurement. Watch your progress unfold with visual streaks and stats. Your fitness story, beautifully told!",
     color: "green"
   },
   {
-    icon: Calendar,
-    title: "100% Free Forever",
-    description: "Full workout tracking without any subscriptions, ads, or hidden fees. Your data, your control.",
-    color: "amber"
+    icon: Brain,
+    title: "Meet Dika, Your AI Buddy",
+    description: "Got questions about your workouts? Ask Dika! She's your personal AI assistant who knows everything about your fitness data. Just tap and chat!",
+    color: "purple"
   }
 ];
 
 const trainerSlides: Slide[] = [
   {
     icon: Users,
-    title: "Manage Your Members",
-    description: "View all assigned members, track their attendance, and monitor their progress.",
+    title: "Your Members, One Dashboard",
+    description: "See all your assigned members at a glance. Track who's showing up, who needs motivation, and who's crushing their goals. Stay connected with everyone!",
     color: "primary"
   },
   {
     icon: ClipboardList,
-    title: "Create Workout Plans",
-    description: "Design personalized workout cycles tailored to each member's goals and abilities.",
+    title: "Design Custom Programs",
+    description: "Create personalized workout cycles for each member. Mix exercises, set targets, and watch them progress. Your expertise, their results!",
     color: "green"
   },
   {
     icon: Target,
-    title: "Identify Star Performers",
-    description: "Recognize top performers and create custom diet plans for dedicated members.",
+    title: "Celebrate Star Performers",
+    description: "Identify your top members and give them the spotlight. Create custom diet plans for those going the extra mile. Build champions!",
     color: "amber"
   }
 ];
@@ -244,20 +244,20 @@ const trainerSlides: Slide[] = [
 const ownerSlides: Slide[] = [
   {
     icon: Building2,
-    title: "Manage Your Gym",
-    description: "Invite trainers, register members, and control access to your facility with ease.",
+    title: "Your Gym, Your Way",
+    description: "Invite trainers with a simple code, register members in seconds, and control everything from one place. Running a gym has never been this smooth!",
     color: "primary"
   },
   {
     icon: CreditCard,
-    title: "Handle Payments",
-    description: "Create subscription plans, track payments, and manage member billing effortlessly.",
+    title: "Payments Made Easy",
+    description: "Create subscription plans in any currency, track who's paid and who's due. No more spreadsheets or chasing payments - it's all automated!",
     color: "green"
   },
   {
     icon: BarChart3,
-    title: "View Analytics",
-    description: "Monitor attendance trends, revenue, and get AI-powered insights about your business.",
+    title: "Insights That Matter",
+    description: "See attendance patterns, revenue trends, and AI-powered alerts about at-risk members. Make data-driven decisions to grow your gym!",
     color: "purple"
   }
 ];
