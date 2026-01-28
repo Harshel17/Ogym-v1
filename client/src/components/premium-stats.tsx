@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { useAnimatedCounter } from "@/hooks/use-animated-counter";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,7 @@ const colorMap = {
   },
 };
 
-export function AnimatedStatCard({
+export const AnimatedStatCard = memo(function AnimatedStatCard({
   value,
   label,
   icon,
@@ -60,10 +61,7 @@ export function AnimatedStatCard({
 
   return (
     <Card
-      className={cn(
-        "stat-card cursor-pointer group overflow-hidden relative",
-        "transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
-      )}
+      className="stat-card cursor-pointer group overflow-hidden relative hover:shadow-lg"
       onClick={onClick}
       data-testid={`stat-card-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
@@ -72,8 +70,7 @@ export function AnimatedStatCard({
           className={cn(
             "p-3 rounded-xl bg-gradient-to-br text-white mb-3 shadow-lg",
             colors.gradient,
-            colors.shadow,
-            "group-hover:scale-110 transition-transform duration-300"
+            colors.shadow
           )}
         >
           <Icon className="w-5 h-5" />
@@ -85,13 +82,13 @@ export function AnimatedStatCard({
       </CardContent>
       <div
         className={cn(
-          "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+          "absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none",
           colors.bg
         )}
       />
     </Card>
   );
-}
+});
 
 interface WorkoutProgressBarProps {
   completed: number;
@@ -99,7 +96,7 @@ interface WorkoutProgressBarProps {
   className?: string;
 }
 
-export function WorkoutProgressBar({
+export const WorkoutProgressBar = memo(function WorkoutProgressBar({
   completed,
   total,
   className,
@@ -125,7 +122,7 @@ export function WorkoutProgressBar({
       <div className="h-2 bg-muted rounded-full overflow-hidden">
         <div
           className={cn(
-            "h-full rounded-full transition-all duration-500 ease-out",
+            "h-full rounded-full",
             isComplete
               ? "bg-gradient-to-r from-green-500 to-emerald-400"
               : "bg-gradient-to-r from-primary to-indigo-400"
@@ -135,7 +132,7 @@ export function WorkoutProgressBar({
       </div>
     </div>
   );
-}
+});
 
 interface WeeklyProgressProps {
   calendarDays?: { date: string; focusLabel: string }[];
@@ -149,30 +146,36 @@ const formatLocalDate = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-export function WeeklyProgress({ calendarDays = [], className }: WeeklyProgressProps) {
+export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], className }: WeeklyProgressProps) {
   const dayLabels = ["M", "T", "W", "T", "F", "S", "S"];
-  const today = new Date();
-  const todayStr = formatLocalDate(today);
   
-  const getStartOfWeek = (date: Date) => {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    d.setDate(diff);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  };
-  
-  const weekStart = getStartOfWeek(today);
-  const weekDates: string[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(weekStart);
-    d.setDate(weekStart.getDate() + i);
-    weekDates.push(formatLocalDate(d));
-  }
-  
-  const completedDatesSet = new Set(calendarDays.map(d => d.date));
-  const completedCount = weekDates.filter(d => completedDatesSet.has(d) && d <= todayStr).length;
+  const { weekDates, todayStr, completedDatesSet, completedCount, passedDaysCount } = useMemo(() => {
+    const today = new Date();
+    const todayString = formatLocalDate(today);
+    
+    const getStartOfWeek = (date: Date) => {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      d.setDate(diff);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+    
+    const weekStart = getStartOfWeek(today);
+    const dates: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      dates.push(formatLocalDate(d));
+    }
+    
+    const completedSet = new Set(calendarDays.map(d => d.date));
+    const completed = dates.filter(d => completedSet.has(d) && d <= todayString).length;
+    const passed = dates.filter(d => d <= todayString).length;
+    
+    return { weekDates: dates, todayStr: todayString, completedDatesSet: completedSet, completedCount: completed, passedDaysCount: passed };
+  }, [calendarDays]);
 
   return (
     <Card className={cn("overflow-hidden", className)} data-testid="card-weekly-progress">
@@ -180,7 +183,7 @@ export function WeeklyProgress({ calendarDays = [], className }: WeeklyProgressP
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium">This Week</span>
           <span className="text-xs text-muted-foreground">
-            {completedCount}/{weekDates.filter(d => d <= todayStr).length} days
+            {completedCount}/{passedDaysCount} days
           </span>
         </div>
         <div className="flex items-center justify-between gap-1">
@@ -197,7 +200,7 @@ export function WeeklyProgress({ calendarDays = [], className }: WeeklyProgressP
               >
                 <div
                   className={cn(
-                    "w-full aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all duration-300",
+                    "w-full aspect-square rounded-lg flex items-center justify-center text-xs font-medium",
                     isCompleted && !isFuture
                       ? "bg-gradient-to-br from-green-500 to-emerald-400 text-white shadow-sm"
                       : isToday
@@ -206,9 +209,6 @@ export function WeeklyProgress({ calendarDays = [], className }: WeeklyProgressP
                       ? "bg-red-100 dark:bg-red-900/30 text-red-500"
                       : "bg-muted text-muted-foreground"
                   )}
-                  style={{
-                    animationDelay: `${index * 50}ms`,
-                  }}
                 >
                   {isCompleted && !isFuture && (
                     <svg
@@ -241,14 +241,14 @@ export function WeeklyProgress({ calendarDays = [], className }: WeeklyProgressP
       </CardContent>
     </Card>
   );
-}
+});
 
 interface StreakDisplayProps {
   streak: number;
   className?: string;
 }
 
-export function StreakDisplay({ streak, className }: StreakDisplayProps) {
+export const StreakDisplay = memo(function StreakDisplay({ streak, className }: StreakDisplayProps) {
   const animatedStreak = useAnimatedCounter(streak, 1000, 200);
   const hasStreak = streak > 0;
 
@@ -271,7 +271,7 @@ export function StreakDisplay({ streak, className }: StreakDisplayProps) {
         <Flame
           className={cn(
             "w-7 h-7",
-            hasStreak ? "text-white animate-pulse-subtle" : "text-muted-foreground"
+            hasStreak ? "text-white" : "text-muted-foreground"
           )}
         />
         {hasStreak && (
@@ -288,4 +288,4 @@ export function StreakDisplay({ streak, className }: StreakDisplayProps) {
       </div>
     </div>
   );
-}
+});
