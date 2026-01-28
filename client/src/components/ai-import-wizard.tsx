@@ -509,39 +509,33 @@ DAY 1: Push Day
                 onChange={handleImageUpload}
                 data-testid="input-screenshot-upload"
               />
-              <details className="text-xs">
-                <summary className="text-muted-foreground cursor-pointer hover:text-foreground">
-                  Can't copy text? Try screenshot (less accurate)
-                </summary>
-                <div className="mt-2 p-2 bg-muted/50 rounded-md">
-                  <p className="text-muted-foreground mb-2">
-                    Screenshot OCR may include menu text and have errors. Best to crop to just the workout area.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isOcrProcessing}
-                    data-testid="button-upload-screenshot"
-                  >
-                    {isOcrProcessing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        {ocrTotalFiles > 1 
-                          ? `Reading ${ocrCurrentFile}/${ocrTotalFiles}... ${ocrProgress}%`
-                          : `Reading... ${ocrProgress}%`
-                        }
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="w-4 h-4 mr-2" />
-                        Upload Screenshot
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </details>
+              <div className="flex items-center gap-2 pt-2 border-t">
+                <span className="text-xs text-muted-foreground">Or:</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isOcrProcessing}
+                  className="text-xs h-7"
+                  data-testid="button-upload-screenshot"
+                >
+                  {isOcrProcessing ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      {ocrTotalFiles > 1 
+                        ? `Reading ${ocrCurrentFile}/${ocrTotalFiles}... ${ocrProgress}%`
+                        : `Reading... ${ocrProgress}%`
+                      }
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="w-3 h-3 mr-1" />
+                      Upload Screenshot (less accurate)
+                    </>
+                  )}
+                </Button>
+              </div>
               
               {showOcrWarning && rawText && (
                 <Alert className="border-yellow-500/50 bg-yellow-500/10">
