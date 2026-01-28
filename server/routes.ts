@@ -2776,19 +2776,21 @@ export async function registerRoutes(
       weight: input.actualWeight || item.weight || null
     });
     
-    // Auto-mark attendance
-    const existingAttendance = await storage.getAttendanceByMemberDate(req.user!.id, today);
-    if (!existingAttendance) {
-      await storage.markAttendance({
-        gymId: req.user!.gymId!,
-        memberId: req.user!.id,
-        date: today,
-        status: "present",
-        verifiedMethod: "workout",
-        markedByUserId: req.user!.id
-      });
-    } else if (existingAttendance.verifiedMethod === "qr") {
-      await storage.updateAttendanceMethod(existingAttendance.id, "both");
+    // Auto-mark attendance (only for gym members, not Personal Mode)
+    if (req.user!.gymId) {
+      const existingAttendance = await storage.getAttendanceByMemberDate(req.user!.id, today);
+      if (!existingAttendance) {
+        await storage.markAttendance({
+          gymId: req.user!.gymId,
+          memberId: req.user!.id,
+          date: today,
+          status: "present",
+          verifiedMethod: "workout",
+          markedByUserId: req.user!.id
+        });
+      } else if (existingAttendance.verifiedMethod === "qr") {
+        await storage.updateAttendanceMethod(existingAttendance.id, "both");
+      }
     }
     
     // Check if we should ask user to share on feed (first completion of day + auto-post enabled)
@@ -2887,19 +2889,21 @@ export async function registerRoutes(
       weight: input.actualWeight || phaseExercise.weight || null
     });
     
-    // Auto-mark attendance
-    const existingAttendance = await storage.getAttendanceByMemberDate(req.user!.id, today);
-    if (!existingAttendance) {
-      await storage.markAttendance({
-        gymId: req.user!.gymId!,
-        memberId: req.user!.id,
-        date: today,
-        status: "present",
-        verifiedMethod: "workout",
-        markedByUserId: req.user!.id
-      });
-    } else if (existingAttendance.verifiedMethod === "qr") {
-      await storage.updateAttendanceMethod(existingAttendance.id, "both");
+    // Auto-mark attendance (only for gym members, not Personal Mode)
+    if (req.user!.gymId) {
+      const existingAttendance = await storage.getAttendanceByMemberDate(req.user!.id, today);
+      if (!existingAttendance) {
+        await storage.markAttendance({
+          gymId: req.user!.gymId,
+          memberId: req.user!.id,
+          date: today,
+          status: "present",
+          verifiedMethod: "workout",
+          markedByUserId: req.user!.id
+        });
+      } else if (existingAttendance.verifiedMethod === "qr") {
+        await storage.updateAttendanceMethod(existingAttendance.id, "both");
+      }
     }
     
     // Check if we should ask user to share on feed
@@ -2994,12 +2998,12 @@ export async function registerRoutes(
       }
     }
     
-    // Auto-mark attendance if any completed
-    if (completions.length > 0) {
+    // Auto-mark attendance if any completed (only for gym members, not Personal Mode)
+    if (completions.length > 0 && req.user!.gymId) {
       const existingAttendance = await storage.getAttendanceByMemberDate(req.user!.id, today);
       if (!existingAttendance) {
         await storage.markAttendance({
-          gymId: req.user!.gymId!,
+          gymId: req.user!.gymId,
           memberId: req.user!.id,
           date: today,
           status: "present",
@@ -3078,12 +3082,12 @@ export async function registerRoutes(
       }
     }
     
-    // Auto-mark attendance if any completed
-    if (completions.length > 0) {
+    // Auto-mark attendance if any completed (only for gym members, not Personal Mode)
+    if (completions.length > 0 && req.user!.gymId) {
       const existingAttendance = await storage.getAttendanceByMemberDate(req.user!.id, today);
       if (!existingAttendance) {
         await storage.markAttendance({
-          gymId: req.user!.gymId!,
+          gymId: req.user!.gymId,
           memberId: req.user!.id,
           date: today,
           status: "present",
