@@ -224,19 +224,25 @@ export function parseAIWorkoutText(rawText: string): ParseResult {
   const cycleMatch = rawText.match(/CYCLE:\s*(.+)/i);
   if (cycleMatch) {
     cycleName = cycleMatch[1].trim();
+  } else {
+    // Try to find workout plan name patterns like "4-Day Muscle Gain Workout Plan"
+    const planNameMatch = rawText.match(/(\d+[-–]?Day\s+\w+(?:\s+\w+)*\s*(?:Plan|Workout|Split|Program))/i);
+    if (planNameMatch) {
+      cycleName = planNameMatch[1].trim();
+    }
   }
   
   const days: ParsedDay[] = [];
   let currentDay: ParsedDay | null = null;
   
   const dayPatterns = [
-    /^DAY\s*(\d+)\s*[:\-–]?\s*(.*)$/i,
-    /^Day\s+(\d+)\s*[:\-–]?\s*(.*)$/i,
-    /^\*?\*?DAY\s*(\d+)\*?\*?\s*[:\-–]?\s*(.*)$/i,
-    /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s*[:\-–]?\s*(.*)$/i,
-    /^(Push|Pull|Legs?|Upper|Lower|Back|Chest|Arms?|Shoulders?|Core)\s*(Day)?\s*[:\-–]?\s*(.*)$/i,
-    /^Workout\s*(\d+)\s*[:\-–]?\s*(.*)$/i,
-    /^Session\s*(\d+)\s*[:\-–]?\s*(.*)$/i,
+    /^DAY\s*(\d+)\s*[:\-–—]?\s*(.*)$/i,
+    /^Day\s+(\d+)\s*[:\-–—]?\s*(.*)$/i,
+    /^\*?\*?DAY\s*(\d+)\*?\*?\s*[:\-–—]?\s*(.*)$/i,
+    /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s*[:\-–—]?\s*(.*)$/i,
+    /^(Push|Pull|Legs?|Upper|Lower|Back|Chest|Arms?|Shoulders?|Core)\s*(Day)?\s*[:\-–—]?\s*(.*)$/i,
+    /^Workout\s*(\d+)\s*[:\-–—]?\s*(.*)$/i,
+    /^Session\s*(\d+)\s*[:\-–—]?\s*(.*)$/i,
   ];
   
   for (let i = 0; i < lines.length; i++) {
@@ -309,6 +315,25 @@ export function parseAIWorkoutText(rawText: string): ParseResult {
           const r = parseRest(part);
           if (r) {
             rest = r;
+          }
+        }
+      } else if (cleanLine.includes('—') || cleanLine.includes('–')) {
+        // ChatGPT dash-separated format: "Bench Press — 4 sets x 8-10 reps — 90 sec rest"
+        const parts = cleanLine.split(/[—–]/).map(p => p.trim()).filter(p => p.length > 0);
+        if (parts.length >= 1) {
+          exerciseName = parts[0];
+          
+          for (let j = 1; j < parts.length; j++) {
+            const part = parts[j];
+            const sr = parseSetsReps(part);
+            if (sr.sets !== 3 || sr.reps !== "10") {
+              setsReps = sr;
+            }
+            
+            const r = parseRest(part);
+            if (r) {
+              rest = r;
+            }
           }
         }
       } else {
