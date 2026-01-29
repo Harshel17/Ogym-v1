@@ -523,7 +523,7 @@ export const paymentTransactions = pgTable("payment_transactions", {
   subscriptionId: integer("subscription_id").references(() => memberSubscriptions.id).notNull(),
   paidOn: text("paid_on").notNull(),
   amountPaid: integer("amount_paid").notNull(), // in paise
-  method: text("method", { enum: ["cash", "upi", "card", "bank", "other"] }).notNull(),
+  method: text("method", { enum: ["cash", "upi", "card", "bank", "venmo", "cashapp", "zelle", "paypal", "other"] }).notNull(),
   referenceNote: text("reference_note"),
   source: text("source", { enum: ["owner", "member"] }).default("owner"), // "owner" = entered by owner, "member" = member self-payment
   createdAt: timestamp("created_at").defaultNow(),

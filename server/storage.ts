@@ -3199,12 +3199,12 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Map payment method to transaction method
-      const methodMap: Record<string, "cash" | "upi" | "card" | "bank" | "other"> = {
+      const methodMap: Record<string, "cash" | "upi" | "card" | "bank" | "venmo" | "cashapp" | "zelle" | "paypal" | "other"> = {
         'upi': 'upi',
-        'venmo': 'other',
-        'cashapp': 'other',
-        'zelle': 'bank',
-        'paypal': 'other',
+        'venmo': 'venmo',
+        'cashapp': 'cashapp',
+        'zelle': 'zelle',
+        'paypal': 'paypal',
         'bank_transfer': 'bank',
         'cash': 'cash',
         'other': 'other',
