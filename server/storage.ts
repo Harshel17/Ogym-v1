@@ -270,7 +270,7 @@ export interface IStorage {
     gym: { id: number; name: string } | null;
     trainer: { id: number; username: string } | null;
     cycle: { id: number; name: string } | null;
-    subscription: { status: 'active' | 'expired' | 'none'; endDate: string | null; planName: string | null } | null;
+    subscription: { status: 'active' | 'expired' | 'none'; endDate: string | null; planName: string | null; subscriptionId: number | null; totalAmount: number | null } | null;
     profile: { fullName: string; gender: string; dob: string; address: string | null; emergencyContact: string | null } | null;
   }>;
   updateMemberProfileDetails(memberId: number, data: { phone?: string; address?: string; emergencyContact?: string }): Promise<void>;
@@ -2917,7 +2917,7 @@ export class DatabaseStorage implements IStorage {
     gym: { id: number; name: string } | null;
     trainer: { id: number; username: string } | null;
     cycle: { id: number; name: string } | null;
-    subscription: { status: 'active' | 'expired' | 'none'; endDate: string | null; planName: string | null } | null;
+    subscription: { status: 'active' | 'expired' | 'none'; endDate: string | null; planName: string | null; subscriptionId: number | null; totalAmount: number | null } | null;
     profile: { fullName: string; gender: string; dob: string; address: string | null; emergencyContact: string | null } | null;
   }> {
     const [member] = await db.select().from(users).where(eq(users.id, memberId));
@@ -2938,7 +2938,7 @@ export class DatabaseStorage implements IStorage {
 
     const cycle = await this.getMemberCycle(memberId);
     
-    let subscription: { status: 'active' | 'expired' | 'none'; endDate: string | null; planName: string | null } = { status: 'none', endDate: null, planName: null };
+    let subscription: { status: 'active' | 'expired' | 'none'; endDate: string | null; planName: string | null; subscriptionId: number | null; totalAmount: number | null } = { status: 'none', endDate: null, planName: null, subscriptionId: null, totalAmount: null };
     if (member.gymId) {
       const [sub] = await db.select().from(memberSubscriptions).where(eq(memberSubscriptions.memberId, memberId));
       if (sub) {
@@ -2948,7 +2948,9 @@ export class DatabaseStorage implements IStorage {
         subscription = {
           status: isActive ? 'active' : 'expired',
           endDate: sub.endDate,
-          planName: plan?.name || null
+          planName: plan?.name || null,
+          subscriptionId: sub.id,
+          totalAmount: sub.totalAmount
         };
       }
     }

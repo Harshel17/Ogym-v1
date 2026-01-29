@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
 import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus, MapPin, AlertCircle, Clock, User, FileEdit, Send, Edit2, Lock, CreditCard, Copy } from "lucide-react";
-import { OwnerPaymentSettings, PaymentConfirmationsDashboard } from "@/components/payment-settings";
+import { OwnerPaymentSettings, PaymentConfirmationsDashboard, MemberPaymentSheet } from "@/components/payment-settings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatDistanceToNow, format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -45,7 +45,7 @@ type MemberProfileData = {
   gym: { id: number; name: string } | null;
   trainer: { id: number; username: string } | null;
   cycle: { id: number; name: string } | null;
-  subscription: { status: 'active' | 'expired' | 'none'; endDate: string | null; planName: string | null } | null;
+  subscription: { status: 'active' | 'expired' | 'none'; endDate: string | null; planName: string | null; subscriptionId: number | null; totalAmount: number | null } | null;
   profile: { fullName: string; gender: string; dob: string; address: string | null; emergencyContact: string | null } | null;
 };
 
@@ -108,6 +108,7 @@ function MemberProfileView() {
   const [changeRequestOpen, setChangeRequestOpen] = useState(false);
   const [changeField, setChangeField] = useState<"email" | "gender" | "dob">("email");
   const [requestedValue, setRequestedValue] = useState("");
+  const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
 
   const { data: profile, isLoading } = useQuery<MemberProfileData>({
     queryKey: ["/api/member/profile"]
@@ -240,12 +241,25 @@ function MemberProfileView() {
             )}
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Subscription</span>
-              <Badge 
-                variant={subscriptionStatus === 'active' ? 'default' : subscriptionStatus === 'expired' ? 'destructive' : 'secondary'}
-                className="capitalize"
-              >
-                {subscriptionStatus}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge 
+                  variant={subscriptionStatus === 'active' ? 'default' : subscriptionStatus === 'expired' ? 'destructive' : 'secondary'}
+                  className="capitalize"
+                >
+                  {subscriptionStatus}
+                </Badge>
+                {profile.subscription && profile.subscription.totalAmount && (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setPaymentSheetOpen(true)}
+                    data-testid="button-pay-now"
+                  >
+                    <CreditCard className="w-4 h-4 mr-1" />
+                    Pay
+                  </Button>
+                )}
+              </div>
             </div>
             {profile.subscription?.planName && (
               <div className="flex items-center justify-between">
@@ -257,6 +271,12 @@ function MemberProfileView() {
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Valid Until</span>
                 <span className="text-sm">{new Date(profile.subscription.endDate).toLocaleDateString()}</span>
+              </div>
+            )}
+            {profile.subscription?.totalAmount && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Amount</span>
+                <span className="text-sm font-medium">₹{(profile.subscription.totalAmount / 100).toFixed(0)}</span>
               </div>
             )}
           </CardContent>
@@ -438,6 +458,16 @@ function MemberProfileView() {
         <DikaSettingsCard />
         <MyPostsCard />
       </div>
+
+      {profile?.subscription?.totalAmount && (
+        <MemberPaymentSheet
+          open={paymentSheetOpen}
+          onOpenChange={setPaymentSheetOpen}
+          amount={profile.subscription.totalAmount / 100}
+          paymentType="subscription"
+          subscriptionId={profile.subscription.subscriptionId || undefined}
+        />
+      )}
     </div>
   );
 }
