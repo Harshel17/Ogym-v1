@@ -3,7 +3,7 @@ import { useParams } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Building2, CheckCircle, Phone, User, Mail, FileText, ArrowRight, Loader2, CreditCard, Smartphone, Wallet, DollarSign, Link, ExternalLink, Upload, Camera, Calendar, Clock, ArrowLeft } from "lucide-react";
+import { Building2, CheckCircle, Phone, User, Mail, FileText, ArrowRight, Loader2, CreditCard, Smartphone, Wallet, DollarSign, Link, ExternalLink, Upload, Camera, Calendar, Clock, ArrowLeft, MapPin } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,7 +56,8 @@ const otpSchema = z.object({
 
 const detailsSchema = z.object({
   name: z.string().min(2, "Name is required"),
-  phone: z.string().optional().or(z.literal("")),
+  phone: z.string().min(10, "Enter a valid phone number"),
+  city: z.string().min(2, "City is required"),
   notes: z.string().optional(),
 });
 
@@ -64,8 +65,8 @@ type EmailForm = z.infer<typeof emailSchema>;
 type OTPForm = z.infer<typeof otpSchema>;
 type DetailsForm = z.infer<typeof detailsSchema>;
 
-// Steps: loading -> invalid -> visitType -> payment (day_pass only) -> email -> otp -> success
-type Step = "loading" | "invalid" | "visitType" | "payment" | "email" | "otp" | "success";
+// Steps: loading -> invalid -> visitType -> payment (day_pass only) -> details -> email -> otp -> success
+type Step = "loading" | "invalid" | "visitType" | "payment" | "details" | "email" | "otp" | "success";
 type VisitType = "enquiry" | "trial" | "day_pass";
 
 export default function KioskCheckinPage() {
@@ -99,6 +100,7 @@ export default function KioskCheckinPage() {
     defaultValues: {
       name: "",
       phone: "",
+      city: "",
       notes: "",
     },
   });
@@ -131,8 +133,12 @@ export default function KioskCheckinPage() {
     if (type === "day_pass" && kioskInfo?.dayPassPrice) {
       setStep("payment");
     } else {
-      setStep("email");
+      setStep("details");
     }
+  };
+
+  const handleDetailsSubmit = (data: DetailsForm) => {
+    setStep("email");
   };
 
   const handleScreenshotUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,7 +162,7 @@ export default function KioskCheckinPage() {
       toast({ title: "Payment Method Required", description: "Please select which payment method you used", variant: "destructive" });
       return;
     }
-    setStep("email");
+    setStep("details");
   };
 
   const requestOTP = async (data: EmailForm) => {
@@ -197,6 +203,7 @@ export default function KioskCheckinPage() {
           otp: data.otp,
           name: detailsData.name || email.split("@")[0],
           phone: detailsData.phone || undefined,
+          city: detailsData.city || undefined,
           visitType,
           daysCount: 1,
           amountPaid: visitType === "day_pass" && kioskInfo?.dayPassPrice ? kioskInfo.dayPassPrice : 0,
@@ -648,13 +655,111 @@ export default function KioskCheckinPage() {
             </div>
           )}
 
-          {/* Step 3: Email Entry */}
-          {step === "email" && (
+          {/* Step 3: Visitor Details */}
+          {step === "details" && (
             <div className="space-y-4">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setStep(visitType === "day_pass" ? "payment" : "visitType")}
+                className="mb-2"
+                data-testid="button-back-to-payment"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+
+              <div className="text-center mb-4">
+                <User className="h-10 w-10 mx-auto mb-2 text-primary" />
+                <h3 className="font-semibold text-lg">Your Information</h3>
+                <p className="text-sm text-muted-foreground">Please provide your details</p>
+              </div>
+
+              <Form {...detailsForm}>
+                <form onSubmit={detailsForm.handleSubmit(handleDetailsSubmit)} className="space-y-4">
+                  <FormField
+                    control={detailsForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Enter your name"
+                              className="pl-10"
+                              {...field}
+                              data-testid="input-name"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={detailsForm.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Enter your phone number"
+                              type="tel"
+                              className="pl-10"
+                              {...field}
+                              data-testid="input-phone"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={detailsForm.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Enter your city"
+                              className="pl-10"
+                              {...field}
+                              data-testid="input-city"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button type="submit" className="w-full" data-testid="button-continue-to-email">
+                    Continue
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </form>
+              </Form>
+            </div>
+          )}
+
+          {/* Step 4: Email Entry */}
+          {step === "email" && (
+            <div className="space-y-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setStep("details")}
                 className="mb-2"
                 data-testid="button-back-to-previous"
               >

@@ -83,6 +83,14 @@ ADD COLUMN IF NOT EXISTS code_expires_at TIMESTAMP,
 ADD COLUMN IF NOT EXISTS payment_verified BOOLEAN DEFAULT FALSE;
 ```
 
+### Since commit (Jan 29, 2026 - Kiosk Visitor Details)
+```sql
+-- Add city column for visitor details and make phone nullable
+ALTER TABLE walk_in_visitors 
+ADD COLUMN IF NOT EXISTS city TEXT,
+ALTER COLUMN phone DROP NOT NULL;
+```
+
 **Note:** AI Import Workouts feature has NO schema changes - uses existing tables.
 
 ---

@@ -706,8 +706,9 @@ export const auditLogs = pgTable("audit_logs", {
 export const walkInVisitors = pgTable("walk_in_visitors", {
   id: serial("id").primaryKey(),
   gymId: integer("gym_id").references(() => gyms.id).notNull(),
-  name: text("name").notNull(),
-  phone: text("phone").notNull(),
+  visitorName: text("name").notNull(),
+  phone: text("phone"),
+  city: text("city"),
   email: text("email"),
   visitDate: text("visit_date").notNull(),
   visitType: text("visit_type", { enum: ["day_pass", "trial", "enquiry"] }).notNull().default("day_pass"),

@@ -5236,14 +5236,15 @@ export async function registerRoutes(
   // === WALK-IN VISITORS ===
   app.post("/api/owner/walk-in-visitors", requireRole(["owner"]), async (req, res) => {
     try {
-      const { name, phone, email, visitDate, visitType, daysCount, amountPaid, notes } = req.body;
-      if (!name || !phone || !visitDate) {
-        return res.status(400).json({ message: "Name, phone, and visit date are required" });
+      const { name, phone, city, email, visitDate, visitType, daysCount, amountPaid, notes } = req.body;
+      if (!name || !visitDate) {
+        return res.status(400).json({ message: "Name and visit date are required" });
       }
       const visitor = await storage.createWalkInVisitor({
         gymId: req.user!.gymId!,
-        name,
-        phone,
+        visitorName: name,
+        phone: phone || null,
+        city: city || null,
         email,
         visitDate,
         visitType: visitType || "day_pass",
@@ -5448,7 +5449,7 @@ export async function registerRoutes(
   // Public: Verify OTP and submit visitor info
   app.post("/api/kiosk/:token/submit", kioskSubmitLimiter, async (req, res) => {
     try {
-      const { email, otp, name, phone, visitType, daysCount, amountPaid, paymentMethod, paymentScreenshot, notes } = req.body;
+      const { email, otp, name, phone, city, visitType, daysCount, amountPaid, paymentMethod, paymentScreenshot, notes } = req.body;
       
       if (!email || !otp) {
         return res.status(400).json({ message: "Email and OTP are required" });
@@ -5517,11 +5518,12 @@ export async function registerRoutes(
       
       // Create walk-in visitor entry
       const today = new Date().toISOString().split('T')[0];
-      const visitorName = name || email.split("@")[0];
+      const visitorNameVal = name || email.split("@")[0];
       const visitor = await storage.createWalkInVisitor({
         gymId: session.gymId,
-        name: visitorName,
-        phone: phone || "",
+        visitorName: visitorNameVal,
+        phone: phone || null,
+        city: city || null,
         email: email || null,
         visitDate: today,
         visitType: visitType || "enquiry",
