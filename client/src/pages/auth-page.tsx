@@ -396,7 +396,7 @@ export default function AuthPage() {
             <img 
               src={ogymLogo} 
               alt="OGym Logo" 
-              className="w-full h-full object-cover scale-[1.8]"
+              className="w-full h-full object-cover"
             />
           </div>
           <span className="text-3xl font-bold font-display tracking-wide">OGym</span>
@@ -431,7 +431,7 @@ export default function AuthPage() {
               <img 
                 src={ogymLogo} 
                 alt="OGym Logo" 
-                className="w-full h-full object-cover scale-[1.8]"
+                className="w-full h-full object-cover"
               />
             </div>
             <span className="text-2xl font-bold font-display magic-text">OGym</span>

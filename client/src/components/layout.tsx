@@ -402,7 +402,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl shadow-lg shadow-primary/25 overflow-hidden flex items-center justify-center">
-                <img src={ogymLogo} alt="OGym" className="w-full h-full scale-[1.8] object-cover" />
+                <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
               </div>
               <div>
                 <h1 className="font-display font-bold text-lg leading-none magic-text">OGym</h1>
@@ -484,7 +484,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <header className="md:hidden bg-card/80 backdrop-blur-lg border-b border-border p-3 flex items-center justify-between gap-2 sticky top-0 z-20">
            <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg shadow-md shadow-primary/20 overflow-hidden flex items-center justify-center">
-              <img src={ogymLogo} alt="OGym" className="w-full h-full scale-[1.8] object-cover" />
+              <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold font-display text-sm magic-text">OGym</span>
            </div>
