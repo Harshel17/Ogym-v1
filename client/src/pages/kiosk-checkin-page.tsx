@@ -305,6 +305,41 @@ export default function KioskCheckinPage() {
                 Your payment is pending verification. The gym will confirm shortly.
               </p>
             )}
+
+            {visitType === "enquiry" && (
+              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-left">
+                <h3 className="font-medium mb-2 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  What's Next?
+                </h3>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li>• A staff member will assist you shortly</li>
+                  <li>• Feel free to look around the facility</li>
+                  <li>• Ask about membership plans & pricing</li>
+                </ul>
+              </div>
+            )}
+
+            {visitType === "trial" && (
+              <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg text-left">
+                <h3 className="font-medium mb-2 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-green-600" />
+                  Your Free Trial
+                </h3>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li>• A trainer will greet you shortly</li>
+                  <li>• You'll get a tour of the gym</li>
+                  <li>• Try out the equipment with guidance</li>
+                  <li>• No commitment required!</li>
+                </ul>
+              </div>
+            )}
+
+            {kioskInfo?.phone && (
+              <div className="mb-4 text-sm text-muted-foreground">
+                <p>Questions? Call us: <span className="font-medium">{kioskInfo.phone}</span></p>
+              </div>
+            )}
             
             <Badge variant="outline" className="text-sm">
               You can screenshot this page for your records
