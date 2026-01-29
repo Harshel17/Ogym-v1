@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Dumbbell, Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle } from "lucide-react";
+import { Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle, Dumbbell } from "lucide-react";
+import ogymLogo from "@/assets/images/ogym-logo.png";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -391,9 +392,11 @@ export default function AuthPage() {
         </div>
 
         <div className="relative z-20 flex items-center gap-3 animate-slide-in-up">
-          <div className="bg-white/20 backdrop-blur-lg p-3 rounded-xl animate-glow">
-            <Dumbbell className="w-8 h-8" />
-          </div>
+          <img 
+            src={ogymLogo} 
+            alt="OGym Logo" 
+            className="w-12 h-12 rounded-xl shadow-lg animate-glow"
+          />
           <span className="text-3xl font-bold font-display tracking-wide">OGym</span>
         </div>
 
@@ -422,9 +425,11 @@ export default function AuthPage() {
         </div>
         <div className="w-full max-w-md space-y-8 relative z-10">
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8 animate-slide-in-up">
-            <div className="premium-gradient p-2.5 rounded-xl shadow-lg shadow-primary/25 animate-breathe">
-              <Dumbbell className="w-7 h-7 text-white" />
-            </div>
+            <img 
+              src={ogymLogo} 
+              alt="OGym Logo" 
+              className="w-10 h-10 rounded-xl shadow-lg shadow-primary/25"
+            />
             <span className="text-2xl font-bold font-display magic-text">OGym</span>
           </div>
 
