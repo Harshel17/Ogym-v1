@@ -1918,16 +1918,28 @@ function TransactionsDialog({ subscriptionId, memberName }: { subscriptionId: nu
                   <TableHead>Date</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Method</TableHead>
+                  <TableHead>Entered By</TableHead>
                   <TableHead>Reference</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map((txn) => (
+                {transactions.map((txn: any) => (
                   <TableRow key={txn.id}>
                     <TableCell>{txn.paidOn}</TableCell>
                     <TableCell className="font-mono">{formatMoney(txn.amountPaid)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">{txn.method}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {txn.source === 'member' ? (
+                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 shadow-none dark:bg-blue-900 dark:text-blue-300">
+                          Member Paid
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">
+                          Owner Entered
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
                       {txn.referenceNote || '-'}

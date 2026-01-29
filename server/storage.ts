@@ -3211,7 +3211,7 @@ export class DatabaseStorage implements IStorage {
       };
       const txMethod = methodMap[confirmation.paymentMethod] || 'other';
 
-      // Create payment transaction
+      // Create payment transaction marked as member self-payment
       await db.insert(paymentTransactions).values({
         gymId,
         memberId: confirmation.memberId,
@@ -3220,6 +3220,7 @@ export class DatabaseStorage implements IStorage {
         amountPaid: confirmation.amount,
         method: txMethod,
         referenceNote: confirmation.referenceNote,
+        source: 'member', // Member submitted the payment confirmation
       });
     }
   }

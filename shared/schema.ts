@@ -525,6 +525,7 @@ export const paymentTransactions = pgTable("payment_transactions", {
   amountPaid: integer("amount_paid").notNull(), // in paise
   method: text("method", { enum: ["cash", "upi", "card", "bank", "other"] }).notNull(),
   referenceNote: text("reference_note"),
+  source: text("source", { enum: ["owner", "member"] }).default("owner"), // "owner" = entered by owner, "member" = member self-payment
   createdAt: timestamp("created_at").defaultNow(),
 });
 
