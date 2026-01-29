@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle, Dumbbell } from "lucide-react";
-import ogymLogo from "@/assets/images/ogym-logo-deadlift.png";
+import ogymLogo from "@/assets/images/ogym-logo.png";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
