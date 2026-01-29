@@ -162,11 +162,11 @@ function OwnerPaymentsView() {
         <MembersNeedSubscriptionSection />
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-xl grid-cols-4 gap-1">
-            <TabsTrigger value="subscriptions" data-testid="tab-subscriptions">Subscriptions</TabsTrigger>
-            <TabsTrigger value="outstanding" data-testid="tab-outstanding">Outstanding</TabsTrigger>
-            <TabsTrigger value="byMethod" data-testid="tab-by-method">By Method</TabsTrigger>
-            <TabsTrigger value="plans" data-testid="tab-plans">Plans</TabsTrigger>
+          <TabsList className="flex w-full max-w-xl gap-1">
+            <TabsTrigger value="subscriptions" className="flex-1" data-testid="tab-subscriptions">Subscriptions</TabsTrigger>
+            <TabsTrigger value="outstanding" className="flex-1" data-testid="tab-outstanding">Outstanding</TabsTrigger>
+            <TabsTrigger value="byMethod" className="flex-1" data-testid="tab-by-method">By Method</TabsTrigger>
+            <TabsTrigger value="plans" className="flex-1" data-testid="tab-plans">Plans</TabsTrigger>
           </TabsList>
           <TabsContent value="subscriptions" className="mt-6">
             <SubscriptionsTab statusFilter={statusFilter} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
