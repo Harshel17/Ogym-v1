@@ -367,7 +367,7 @@ export function MemberPaymentSheet({
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [referenceNote, setReferenceNote] = useState("");
   const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null);
-  const [step, setStep] = useState<"plan" | "payment">(existingAmount ? "payment" : "plan");
+  const [step, setStep] = useState<"plan" | "payment">("plan");
 
   const { data: settings, isLoading: settingsLoading } = useQuery<PaymentSettings>({
     queryKey: ["/api/gym/payment-options"],
@@ -423,7 +423,7 @@ export function MemberPaymentSheet({
     setSelectedMethod(null);
     setSelectedPlan(null);
     setReferenceNote("");
-    setStep(existingAmount ? "payment" : "plan");
+    setStep("plan");
   };
 
   return (
