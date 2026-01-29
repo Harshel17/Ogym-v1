@@ -68,6 +68,8 @@ export function OwnerPaymentSettings() {
   };
 
   const currencySymbol = settings?.currency === "USD" ? "$" : "₹";
+  const isUSA = settings?.currency === "USD";
+  const isIndia = settings?.currency !== "USD";
 
   const updateLink = (key: keyof PaymentLinks, value: string) => {
     setPaymentLinks((prev) => ({ ...prev, [key]: value }));
@@ -109,54 +111,60 @@ export function OwnerPaymentSettings() {
           <div className="space-y-6">
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Smartphone className="w-4 h-4" />
-                    UPI ID (India)
-                  </Label>
-                  <Input
-                    value={paymentLinks.upi || ""}
-                    onChange={(e) => updateLink("upi", e.target.value)}
-                    placeholder="yourname@upi"
-                    data-testid="input-upi"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Wallet className="w-4 h-4" />
-                    Venmo
-                  </Label>
-                  <Input
-                    value={paymentLinks.venmo || ""}
-                    onChange={(e) => updateLink("venmo", e.target.value)}
-                    placeholder="@yourvenmo"
-                    data-testid="input-venmo"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4" />
-                    Cash App
-                  </Label>
-                  <Input
-                    value={paymentLinks.cashapp || ""}
-                    onChange={(e) => updateLink("cashapp", e.target.value)}
-                    placeholder="$yourcashtag"
-                    data-testid="input-cashapp"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
-                    Zelle (Email/Phone)
-                  </Label>
-                  <Input
-                    value={paymentLinks.zelle || ""}
-                    onChange={(e) => updateLink("zelle", e.target.value)}
-                    placeholder="your@email.com or phone"
-                    data-testid="input-zelle"
-                  />
-                </div>
+                {isIndia && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Smartphone className="w-4 h-4" />
+                      UPI ID
+                    </Label>
+                    <Input
+                      value={paymentLinks.upi || ""}
+                      onChange={(e) => updateLink("upi", e.target.value)}
+                      placeholder="yourname@upi"
+                      data-testid="input-upi"
+                    />
+                  </div>
+                )}
+                {isUSA && (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <Wallet className="w-4 h-4" />
+                        Venmo
+                      </Label>
+                      <Input
+                        value={paymentLinks.venmo || ""}
+                        onChange={(e) => updateLink("venmo", e.target.value)}
+                        placeholder="@yourvenmo"
+                        data-testid="input-venmo"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <DollarSign className="w-4 h-4" />
+                        Cash App
+                      </Label>
+                      <Input
+                        value={paymentLinks.cashapp || ""}
+                        onChange={(e) => updateLink("cashapp", e.target.value)}
+                        placeholder="$yourcashtag"
+                        data-testid="input-cashapp"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4" />
+                        Zelle (Email/Phone)
+                      </Label>
+                      <Input
+                        value={paymentLinks.zelle || ""}
+                        onChange={(e) => updateLink("zelle", e.target.value)}
+                        placeholder="your@email.com or phone"
+                        data-testid="input-zelle"
+                      />
+                    </div>
+                  </>
+                )}
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Wallet className="w-4 h-4" />
