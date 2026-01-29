@@ -476,7 +476,7 @@ export interface IStorage {
   deactivateMembershipPlan(planId: number): Promise<void>;
   
   // Member Subscriptions
-  getMemberSubscriptions(gymId: number): Promise<(MemberSubscription & { member: User; plan: MembershipPlan | null; totalPaid: number })[]>;
+  getMemberSubscriptions(gymId: number): Promise<(MemberSubscription & { member: User; plan: MembershipPlan | null; totalPaid: number; hasMemberPayments: boolean })[]>;
   getMemberSubscription(memberId: number): Promise<(MemberSubscription & { plan: MembershipPlan | null; totalPaid: number }) | null>;
   createMemberSubscription(data: InsertMemberSubscription): Promise<MemberSubscription>;
   updateSubscriptionStatus(subscriptionId: number, status: string): Promise<void>;
@@ -4778,7 +4778,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // === MEMBER SUBSCRIPTIONS ===
-  async getMemberSubscriptions(gymId: number): Promise<(MemberSubscription & { member: User; plan: MembershipPlan | null; totalPaid: number })[]> {
+  async getMemberSubscriptions(gymId: number): Promise<(MemberSubscription & { member: User; plan: MembershipPlan | null; totalPaid: number; hasMemberPayments: boolean })[]> {
     const subs = await db.select().from(memberSubscriptions)
       .leftJoin(users, eq(memberSubscriptions.memberId, users.id))
       .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
@@ -4787,7 +4787,10 @@ export class DatabaseStorage implements IStorage {
     
     const result = [];
     for (const row of subs) {
-      const transactions = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
+      const transactions = await db.select({ 
+        total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)`,
+        memberPayments: sql<number>`SUM(CASE WHEN ${paymentTransactions.source} = 'member' THEN 1 ELSE 0 END)`
+      })
         .from(paymentTransactions)
         .where(eq(paymentTransactions.subscriptionId, row.member_subscriptions.id));
       
@@ -4795,7 +4798,8 @@ export class DatabaseStorage implements IStorage {
         ...row.member_subscriptions,
         member: row.users!,
         plan: row.membership_plans,
-        totalPaid: Number(transactions[0]?.total || 0)
+        totalPaid: Number(transactions[0]?.total || 0),
+        hasMemberPayments: Number(transactions[0]?.memberPayments || 0) > 0
       });
     }
     return result;

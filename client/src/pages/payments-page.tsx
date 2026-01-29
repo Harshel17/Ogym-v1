@@ -27,7 +27,8 @@ import type { MembershipPlan, MemberSubscription, PaymentTransaction, User } fro
 type SubscriptionWithDetails = MemberSubscription & { 
   member: User; 
   plan: MembershipPlan | null; 
-  totalPaid: number 
+  totalPaid: number;
+  hasMemberPayments?: boolean;
 };
 
 
@@ -1685,6 +1686,11 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
                       <div>
                         <p className="text-xs text-muted-foreground">Paid</p>
                         <p className="font-mono text-sm font-medium text-green-600 dark:text-green-400">{formatMoney(sub.totalPaid)}</p>
+                        {sub.hasMemberPayments && (
+                          <Badge className="mt-1 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 shadow-none dark:bg-blue-900 dark:text-blue-300 text-[10px] px-1.5 py-0">
+                            Member Paid
+                          </Badge>
+                        )}
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Balance</p>
@@ -1749,7 +1755,14 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
                           <div className="text-muted-foreground">to {sub.endDate}</div>
                         </TableCell>
                         <TableCell className="font-mono">{formatMoney(sub.totalAmount)}</TableCell>
-                        <TableCell className="font-mono text-green-600 dark:text-green-400">{formatMoney(sub.totalPaid)}</TableCell>
+                        <TableCell>
+                          <div className="font-mono text-green-600 dark:text-green-400">{formatMoney(sub.totalPaid)}</div>
+                          {sub.hasMemberPayments && (
+                            <Badge className="mt-1 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 shadow-none dark:bg-blue-900 dark:text-blue-300 text-[10px] px-1.5 py-0">
+                              Member Paid
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="font-mono text-red-600 dark:text-red-400">{formatMoney(remaining)}</TableCell>
                         <TableCell>
                           <SubscriptionStatusBadge status={sub.status} />
