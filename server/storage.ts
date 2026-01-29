@@ -5024,9 +5024,21 @@ export class DatabaseStorage implements IStorage {
       member: t.member!
     }));
     
-    const monthlyRevenue = transactions.reduce((sum, t) => sum + t.amountPaid, 0);
+    const membershipRevenue = transactions.reduce((sum, t) => sum + t.amountPaid, 0);
     const totalTransactions = transactions.length;
     const uniquePayers = new Set(transactions.map(t => t.memberId)).size;
+
+    // Add day pass revenue from walk-ins
+    const dayPassResult = await db.select({ total: sql<number>`COALESCE(SUM(${walkInVisitors.amountPaid}), 0)` })
+      .from(walkInVisitors)
+      .where(and(
+        eq(walkInVisitors.gymId, gymId),
+        eq(walkInVisitors.visitType, 'day_pass'),
+        gte(walkInVisitors.visitDate, startDate),
+        lte(walkInVisitors.visitDate, endDate)
+      ));
+    const dayPassRevenue = Number(dayPassResult[0]?.total) || 0;
+    const monthlyRevenue = membershipRevenue + dayPassRevenue;
     
     // Get 6-month breakdown
     const monthlyBreakdown: { month: string; revenue: number }[] = [];
@@ -5042,7 +5054,8 @@ export class DatabaseStorage implements IStorage {
       const mStart = formatDateStr(targetYear, targetMonth, 1);
       const mEnd = formatDateStr(targetYear, targetMonth, getLastDayOfMonth(targetYear, targetMonth));
       
-      const result = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
+      // Membership revenue for this month
+      const memberResult = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
         .from(paymentTransactions)
         .where(and(
           eq(paymentTransactions.gymId, gymId),
@@ -5050,9 +5063,22 @@ export class DatabaseStorage implements IStorage {
           lte(paymentTransactions.paidOn, mEnd)
         ));
       
+      // Day pass revenue for this month
+      const dayPassMonthResult = await db.select({ total: sql<number>`COALESCE(SUM(${walkInVisitors.amountPaid}), 0)` })
+        .from(walkInVisitors)
+        .where(and(
+          eq(walkInVisitors.gymId, gymId),
+          eq(walkInVisitors.visitType, 'day_pass'),
+          gte(walkInVisitors.visitDate, mStart),
+          lte(walkInVisitors.visitDate, mEnd)
+        ));
+      
+      const monthMemberRevenue = Number(memberResult[0]?.total) || 0;
+      const monthDayPassRevenue = Number(dayPassMonthResult[0]?.total) || 0;
+      
       monthlyBreakdown.push({
         month: `${monthNames[targetMonth - 1]} '${String(targetYear).slice(-2)}`,
-        revenue: Number(result[0]?.total) || 0
+        revenue: monthMemberRevenue + monthDayPassRevenue
       });
     }
     
