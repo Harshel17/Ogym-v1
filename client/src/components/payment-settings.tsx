@@ -342,27 +342,44 @@ export function OwnerPaymentSettings() {
   );
 }
 
+type MembershipPlan = {
+  id: number;
+  name: string;
+  durationMonths: number;
+  priceAmount: number;
+  isActive: boolean;
+};
+
 export function MemberPaymentSheet({ 
   open, 
   onOpenChange, 
-  amount, 
+  existingAmount, 
   paymentType,
   subscriptionId 
 }: { 
   open: boolean; 
   onOpenChange: (open: boolean) => void; 
-  amount: number;
+  existingAmount?: number;
   paymentType: "subscription" | "day_pass";
   subscriptionId?: number;
 }) {
   const { toast } = useToast();
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [referenceNote, setReferenceNote] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null);
+  const [step, setStep] = useState<"plan" | "payment">(existingAmount ? "payment" : "plan");
 
-  const { data: settings, isLoading } = useQuery<PaymentSettings>({
+  const { data: settings, isLoading: settingsLoading } = useQuery<PaymentSettings>({
     queryKey: ["/api/gym/payment-options"],
     enabled: open,
   });
+
+  const { data: plans, isLoading: plansLoading } = useQuery<MembershipPlan[]>({
+    queryKey: ["/api/member/membership-plans"],
+    enabled: open && step === "plan",
+  });
+
+  const amount = selectedPlan ? selectedPlan.priceAmount / 100 : (existingAmount || 0);
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -398,97 +415,182 @@ export function MemberPaymentSheet({
 
   const currencySymbol = settings?.currency === "USD" ? "$" : "₹";
   const availableMethods = paymentMethods.filter(m => settings?.paymentLinks?.[m.key]);
+  const isLoading = settingsLoading || plansLoading;
+  const activePlans = plans?.filter(p => p.isActive) || [];
+
+  const handleClose = () => {
+    onOpenChange(false);
+    setSelectedMethod(null);
+    setSelectedPlan(null);
+    setReferenceNote("");
+    setStep(existingAmount ? "payment" : "plan");
+  };
 
   return (
     <div className={`fixed inset-0 z-50 ${open ? "block" : "hidden"}`}>
-      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={() => onOpenChange(false)} />
+      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={handleClose} />
       <div className="fixed inset-x-4 bottom-0 md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:max-w-lg md:w-full">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5" />
-              Pay {currencySymbol}{amount.toFixed(0)}
-            </CardTitle>
-            <CardDescription>
-              Choose a payment method. After paying, confirm to notify your gym.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-              </div>
-            ) : availableMethods.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground">
-                <p>No payment methods available.</p>
-                <p className="text-sm">Contact your gym owner.</p>
-              </div>
-            ) : (
-              <>
-                <div className="grid gap-2">
-                  {availableMethods.map(({ key, label, icon: Icon, getUrl }) => {
-                    const value = settings?.paymentLinks?.[key];
-                    const isSelected = selectedMethod === key;
-                    return (
-                      <button
-                        key={key}
-                        onClick={() => {
-                          setSelectedMethod(key);
-                          if (getUrl && value) {
-                            window.open(getUrl(value), "_blank");
-                          }
-                        }}
-                        className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
-                          isSelected ? "border-primary bg-primary/5" : "border-border hover-elevate"
-                        }`}
-                        data-testid={`payment-method-${key}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon className="w-5 h-5" />
-                          <div className="text-left">
-                            <p className="font-medium">{label}</p>
-                            <p className="text-sm text-muted-foreground">{value}</p>
-                          </div>
-                        </div>
-                        {isSelected && <Check className="w-5 h-5 text-primary" />}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {selectedMethod && (
-                  <div className="space-y-2">
-                    <Label>Reference/Transaction ID (optional)</Label>
-                    <Input
-                      value={referenceNote}
-                      onChange={(e) => setReferenceNote(e.target.value)}
-                      placeholder="e.g., UPI ref number"
-                      data-testid="input-reference"
-                    />
+          {step === "plan" ? (
+            <>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5" />
+                  Select Plan
+                </CardTitle>
+                <CardDescription>
+                  Choose a membership plan to pay for.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
                   </div>
+                ) : activePlans.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <p>No plans available.</p>
+                    <p className="text-sm">Contact your gym owner.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid gap-2">
+                      {activePlans.map((plan) => {
+                        const isSelected = selectedPlan?.id === plan.id;
+                        return (
+                          <button
+                            key={plan.id}
+                            onClick={() => setSelectedPlan(plan)}
+                            className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
+                              isSelected ? "border-primary bg-primary/5" : "border-border hover-elevate"
+                            }`}
+                            data-testid={`plan-${plan.id}`}
+                          >
+                            <div className="text-left">
+                              <p className="font-medium">{plan.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {plan.durationMonths} {plan.durationMonths === 1 ? "month" : "months"}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">{currencySymbol}{(plan.priceAmount / 100).toFixed(0)}</span>
+                              {isSelected && <Check className="w-5 h-5 text-primary" />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex gap-2 pt-4">
+                      <Button
+                        onClick={() => setStep("payment")}
+                        disabled={!selectedPlan}
+                        className="flex-1"
+                        data-testid="button-continue-to-payment"
+                      >
+                        Continue
+                      </Button>
+                      <Button variant="outline" onClick={handleClose}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
                 )}
+              </CardContent>
+            </>
+          ) : (
+            <>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5" />
+                  Pay {currencySymbol}{amount.toFixed(0)}
+                </CardTitle>
+                <CardDescription>
+                  {selectedPlan ? selectedPlan.name : "Choose a payment method"}. After paying, confirm to notify your gym.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {settingsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : availableMethods.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <p>No payment methods available.</p>
+                    <p className="text-sm">Contact your gym owner.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid gap-2">
+                      {availableMethods.map(({ key, label, icon: Icon, getUrl }) => {
+                        const value = settings?.paymentLinks?.[key];
+                        const isSelected = selectedMethod === key;
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => {
+                              setSelectedMethod(key);
+                              if (getUrl && value) {
+                                window.open(getUrl(value), "_blank");
+                              }
+                            }}
+                            className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
+                              isSelected ? "border-primary bg-primary/5" : "border-border hover-elevate"
+                            }`}
+                            data-testid={`payment-method-${key}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Icon className="w-5 h-5" />
+                              <div className="text-left">
+                                <p className="font-medium">{label}</p>
+                                <p className="text-sm text-muted-foreground">{value}</p>
+                              </div>
+                            </div>
+                            {isSelected && <Check className="w-5 h-5 text-primary" />}
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                <div className="flex gap-2 pt-4">
-                  <Button
-                    onClick={() => submitMutation.mutate()}
-                    disabled={!selectedMethod || submitMutation.isPending}
-                    className="flex-1"
-                    data-testid="button-confirm-payment"
-                  >
-                    {submitMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    ) : (
-                      <Check className="w-4 h-4 mr-2" />
+                    {selectedMethod && (
+                      <div className="space-y-2">
+                        <Label>Reference/Transaction ID (optional)</Label>
+                        <Input
+                          value={referenceNote}
+                          onChange={(e) => setReferenceNote(e.target.value)}
+                          placeholder="e.g., UPI ref number"
+                          data-testid="input-reference"
+                        />
+                      </div>
                     )}
-                    I've Paid
-                  </Button>
-                  <Button variant="outline" onClick={() => onOpenChange(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </>
-            )}
-          </CardContent>
+
+                    <div className="flex gap-2 pt-4">
+                      {!existingAmount && (
+                        <Button variant="outline" onClick={() => setStep("plan")}>
+                          Back
+                        </Button>
+                      )}
+                      <Button
+                        onClick={() => submitMutation.mutate()}
+                        disabled={!selectedMethod || submitMutation.isPending}
+                        className="flex-1"
+                        data-testid="button-confirm-payment"
+                      >
+                        {submitMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <Check className="w-4 h-4 mr-2" />
+                        )}
+                        I've Paid
+                      </Button>
+                      <Button variant="outline" onClick={handleClose}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </>
+          )}
         </Card>
       </div>
     </div>

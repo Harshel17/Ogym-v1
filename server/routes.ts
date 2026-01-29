@@ -4262,6 +4262,20 @@ export async function registerRoutes(
     }
   });
 
+  // Get membership plans for member's gym
+  app.get("/api/member/membership-plans", requireRole(["member"]), async (req, res) => {
+    try {
+      if (!req.user!.gymId) {
+        return res.status(400).json({ message: "No gym assigned" });
+      }
+      const plans = await storage.getMembershipPlans(req.user!.gymId);
+      res.json(plans);
+    } catch (error) {
+      console.error("[Member Membership Plans] Error:", error);
+      res.status(500).json({ message: "Failed to fetch plans" });
+    }
+  });
+
   // === STAR MEMBERS ROUTES ===
   app.get("/api/trainer/star-members", requireRole(["trainer"]), async (req, res) => {
     const stars = await storage.getStarMembers(req.user!.id);

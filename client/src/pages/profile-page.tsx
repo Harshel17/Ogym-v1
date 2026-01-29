@@ -248,7 +248,7 @@ function MemberProfileView() {
                 >
                   {subscriptionStatus}
                 </Badge>
-                {profile.subscription && profile.subscription.totalAmount && (
+                {profile.gym && (
                   <Button 
                     size="sm" 
                     variant="outline"
@@ -459,13 +459,13 @@ function MemberProfileView() {
         <MyPostsCard />
       </div>
 
-      {profile?.subscription?.totalAmount && (
+      {profile?.gym && (
         <MemberPaymentSheet
           open={paymentSheetOpen}
           onOpenChange={setPaymentSheetOpen}
-          amount={profile.subscription.totalAmount / 100}
+          existingAmount={profile.subscription?.totalAmount ? profile.subscription.totalAmount / 100 : undefined}
           paymentType="subscription"
-          subscriptionId={profile.subscription.subscriptionId || undefined}
+          subscriptionId={profile.subscription?.subscriptionId || undefined}
         />
       )}
     </div>
