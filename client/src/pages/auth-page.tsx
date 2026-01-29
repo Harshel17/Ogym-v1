@@ -392,11 +392,13 @@ export default function AuthPage() {
         </div>
 
         <div className="relative z-20 flex items-center gap-3 animate-slide-in-up">
-          <img 
-            src={ogymLogo} 
-            alt="OGym Logo" 
-            className="w-12 h-12 rounded-xl shadow-lg animate-glow"
-          />
+          <div className="w-12 h-12 rounded-xl shadow-lg animate-glow overflow-hidden">
+            <img 
+              src={ogymLogo} 
+              alt="OGym Logo" 
+              className="w-full h-full object-cover scale-[1.8]"
+            />
+          </div>
           <span className="text-3xl font-bold font-display tracking-wide">OGym</span>
         </div>
 
@@ -425,11 +427,13 @@ export default function AuthPage() {
         </div>
         <div className="w-full max-w-md space-y-8 relative z-10">
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8 animate-slide-in-up">
-            <img 
-              src={ogymLogo} 
-              alt="OGym Logo" 
-              className="w-10 h-10 rounded-xl shadow-lg shadow-primary/25"
-            />
+            <div className="w-10 h-10 rounded-xl shadow-lg shadow-primary/25 overflow-hidden">
+              <img 
+                src={ogymLogo} 
+                alt="OGym Logo" 
+                className="w-full h-full object-cover scale-[1.8]"
+              />
+            </div>
             <span className="text-2xl font-bold font-display magic-text">OGym</span>
           </div>
 
