@@ -7606,6 +7606,15 @@ export class DatabaseStorage implements IStorage {
     return visitor || null;
   }
 
+  async getWalkInVisitorByCheckinCode(gymId: number, checkinCode: string): Promise<WalkInVisitor | null> {
+    const [visitor] = await db.select().from(walkInVisitors)
+      .where(and(
+        eq(walkInVisitors.gymId, gymId),
+        eq(walkInVisitors.checkinCode, checkinCode)
+      ));
+    return visitor || null;
+  }
+
   async updateWalkInVisitor(id: number, data: Partial<InsertWalkInVisitor>): Promise<WalkInVisitor> {
     const [visitor] = await db.update(walkInVisitors)
       .set(data)

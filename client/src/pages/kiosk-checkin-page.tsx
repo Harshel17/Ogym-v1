@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Building2, CheckCircle, Phone, User, Mail, FileText, ArrowRight, Loader2, CreditCard, Smartphone, Wallet, DollarSign, Link, ExternalLink } from "lucide-react";
+import { Building2, CheckCircle, Phone, User, Mail, FileText, ArrowRight, Loader2, CreditCard, Smartphone, Wallet, DollarSign, Link, ExternalLink, Upload, Camera, Calendar, Clock, ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,13 +18,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   InputOTP,
   InputOTPGroup,
@@ -64,9 +57,6 @@ const otpSchema = z.object({
 const detailsSchema = z.object({
   name: z.string().min(2, "Name is required"),
   phone: z.string().optional().or(z.literal("")),
-  visitType: z.enum(["day_pass", "trial", "enquiry"]),
-  daysCount: z.string().optional(),
-  amountPaid: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -74,17 +64,25 @@ type EmailForm = z.infer<typeof emailSchema>;
 type OTPForm = z.infer<typeof otpSchema>;
 type DetailsForm = z.infer<typeof detailsSchema>;
 
-type Step = "loading" | "invalid" | "email" | "otp" | "details" | "success";
+// Steps: loading -> invalid -> visitType -> payment (day_pass only) -> email -> otp -> success
+type Step = "loading" | "invalid" | "visitType" | "payment" | "email" | "otp" | "success";
+type VisitType = "enquiry" | "trial" | "day_pass";
 
 export default function KioskCheckinPage() {
   const { token } = useParams<{ token: string }>();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [step, setStep] = useState<Step>("loading");
   const [kioskInfo, setKioskInfo] = useState<KioskInfo | null>(null);
+  const [visitType, setVisitType] = useState<VisitType>("enquiry");
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
+  const [checkinCode, setCheckinCode] = useState<string>("");
 
   const emailForm = useForm<EmailForm>({
     resolver: zodResolver(emailSchema),
@@ -101,14 +99,9 @@ export default function KioskCheckinPage() {
     defaultValues: {
       name: "",
       phone: "",
-      visitType: "enquiry",
-      daysCount: "1",
-      amountPaid: "",
       notes: "",
     },
   });
-
-  const visitType = detailsForm.watch("visitType");
 
   useEffect(() => {
     validateToken();
@@ -126,11 +119,44 @@ export default function KioskCheckinPage() {
       }
       
       setKioskInfo(data);
-      setStep("email");
+      setStep("visitType");
     } catch (error) {
       setErrorMessage("Failed to validate link");
       setStep("invalid");
     }
+  };
+
+  const handleVisitTypeSelect = (type: VisitType) => {
+    setVisitType(type);
+    if (type === "day_pass" && kioskInfo?.dayPassPrice) {
+      setStep("payment");
+    } else {
+      setStep("email");
+    }
+  };
+
+  const handleScreenshotUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setPaymentScreenshot(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshotPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePaymentContinue = () => {
+    if (!paymentScreenshot) {
+      toast({ title: "Screenshot Required", description: "Please upload your payment screenshot", variant: "destructive" });
+      return;
+    }
+    if (!selectedPaymentMethod) {
+      toast({ title: "Payment Method Required", description: "Please select which payment method you used", variant: "destructive" });
+      return;
+    }
+    setStep("email");
   };
 
   const requestOTP = async (data: EmailForm) => {
@@ -150,7 +176,7 @@ export default function KioskCheckinPage() {
       }
       
       setEmail(data.email);
-      setStep("details");
+      setStep("otp");
       toast({ title: "OTP Sent", description: "Check your email for the verification code" });
     } catch (error) {
       toast({ title: "Error", description: "Failed to send OTP", variant: "destructive" });
@@ -169,11 +195,13 @@ export default function KioskCheckinPage() {
         body: JSON.stringify({
           email,
           otp: data.otp,
-          name: detailsData.name,
+          name: detailsData.name || email.split("@")[0],
           phone: detailsData.phone || undefined,
-          visitType: detailsData.visitType,
-          daysCount: parseInt(detailsData.daysCount || "1"),
-          amountPaid: detailsData.amountPaid ? parseInt(detailsData.amountPaid) * 100 : 0,
+          visitType,
+          daysCount: 1,
+          amountPaid: visitType === "day_pass" && kioskInfo?.dayPassPrice ? kioskInfo.dayPassPrice : 0,
+          paymentMethod: selectedPaymentMethod || undefined,
+          paymentScreenshot: screenshotPreview || undefined,
           notes: detailsData.notes || undefined,
         }),
       });
@@ -185,6 +213,7 @@ export default function KioskCheckinPage() {
         return;
       }
       
+      setCheckinCode(result.checkinCode || "");
       setStep("success");
     } catch (error) {
       toast({ title: "Error", description: "Failed to complete check-in", variant: "destructive" });
@@ -192,8 +221,25 @@ export default function KioskCheckinPage() {
     setIsSubmitting(false);
   };
 
-  const submitDetails = async (data: DetailsForm) => {
-    setStep("otp");
+  const getPaymentIcon = (method: string) => {
+    switch (method) {
+      case "upi": return <Smartphone className="w-5 h-5" />;
+      case "venmo": return <Wallet className="w-5 h-5" />;
+      case "cashapp": return <DollarSign className="w-5 h-5" />;
+      case "zelle": return <Building2 className="w-5 h-5" />;
+      case "paypal": return <Wallet className="w-5 h-5" />;
+      case "bank": return <Building2 className="w-5 h-5" />;
+      default: return <CreditCard className="w-5 h-5" />;
+    }
+  };
+
+  const getPaymentUrl = (method: string, value: string) => {
+    switch (method) {
+      case "venmo": return `https://venmo.com/${value.replace("@", "")}`;
+      case "cashapp": return `https://cash.app/${value}`;
+      case "paypal": return value.startsWith("http") ? value : `https://paypal.me/${value}`;
+      default: return null;
+    }
   };
 
   if (step === "loading") {
@@ -235,10 +281,33 @@ export default function KioskCheckinPage() {
             </div>
             <h2 className="text-xl font-semibold mb-2">Check-in Complete!</h2>
             <p className="text-muted-foreground mb-4">
-              Welcome to {kioskInfo?.gymName}. The gym has been notified of your visit.
+              Welcome to {kioskInfo?.gymName}
             </p>
+            
+            {visitType === "day_pass" && checkinCode && (
+              <div className="mb-6 p-4 bg-primary/10 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-2">Your Day Pass Code</p>
+                <div className="text-3xl font-bold tracking-widest text-primary mb-2">
+                  {checkinCode}
+                </div>
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  <span>Valid for 24 hours</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Show this code to gym staff for entry
+                </p>
+              </div>
+            )}
+
+            {visitType === "day_pass" && (
+              <p className="text-sm text-muted-foreground mb-4">
+                Your payment is pending verification. The gym will confirm shortly.
+              </p>
+            )}
+            
             <Badge variant="outline" className="text-sm">
-              You can close this page now
+              You can screenshot this page for your records
             </Badge>
           </CardContent>
         </Card>
@@ -257,207 +326,352 @@ export default function KioskCheckinPage() {
           <CardDescription>Visitor Self Check-in</CardDescription>
         </CardHeader>
         <CardContent>
-          {step === "email" && (
-            <Form {...emailForm}>
-              <form onSubmit={emailForm.handleSubmit(requestOTP)} className="space-y-4">
-                <FormField
-                  control={emailForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email Address</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder="your@email.com"
-                            type="email"
-                            className="pl-10"
-                            {...field}
-                            data-testid="input-email"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormDescription>We'll send you a verification code</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="button-continue">
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending code...
-                    </>
-                  ) : (
-                    <>
-                      Send Verification Code
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
+          {/* Step 1: Visit Type Selection */}
+          {step === "visitType" && (
+            <div className="space-y-4">
+              <p className="text-center text-muted-foreground mb-4">
+                What brings you here today?
+              </p>
+              
+              <Button
+                variant="outline"
+                className="w-full h-auto py-4 flex flex-col items-center gap-2"
+                onClick={() => handleVisitTypeSelect("enquiry")}
+                data-testid="button-enquiry"
+              >
+                <FileText className="h-6 w-6" />
+                <span className="font-medium">Just Looking / Enquiry</span>
+                <span className="text-xs text-muted-foreground">Get information about the gym</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full h-auto py-4 flex flex-col items-center gap-2"
+                onClick={() => handleVisitTypeSelect("trial")}
+                data-testid="button-trial"
+              >
+                <Calendar className="h-6 w-6" />
+                <span className="font-medium">Free Trial</span>
+                <span className="text-xs text-muted-foreground">Try the gym for free</span>
+              </Button>
+
+              {kioskInfo?.dayPassPrice && (
+                <Button
+                  variant="outline"
+                  className="w-full h-auto py-4 flex flex-col items-center gap-2"
+                  onClick={() => handleVisitTypeSelect("day_pass")}
+                  data-testid="button-day-pass"
+                >
+                  <CreditCard className="h-6 w-6" />
+                  <span className="font-medium">Day Pass</span>
+                  <Badge variant="secondary" className="mt-1">
+                    {kioskInfo.currency === "USD" ? "$" : "₹"}{(kioskInfo.dayPassPrice / 100).toFixed(0)}
+                  </Badge>
                 </Button>
-              </form>
-            </Form>
+              )}
+            </div>
           )}
 
-          {step === "details" && (
-            <Form {...detailsForm}>
-              <form onSubmit={detailsForm.handleSubmit(submitDetails)} className="space-y-4">
-                <FormField
-                  control={detailsForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Your Name</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input placeholder="Enter your name" className="pl-10" {...field} data-testid="input-name" />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          {/* Step 2: Payment (Day Pass Only) */}
+          {step === "payment" && (
+            <div className="space-y-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setStep("visitType")}
+                className="mb-2"
+                data-testid="button-back-to-visit-type"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
 
-                <FormField
-                  control={detailsForm.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone (Optional)</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input placeholder="Your phone number" className="pl-10" {...field} data-testid="input-phone" />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="text-center mb-4">
+                <h3 className="font-semibold text-lg mb-1">Day Pass Payment</h3>
+                <Badge variant="secondary" className="text-lg px-4 py-1">
+                  {kioskInfo?.currency === "USD" ? "$" : "₹"}{kioskInfo?.dayPassPrice ? (kioskInfo.dayPassPrice / 100).toFixed(0) : "0"}
+                </Badge>
+              </div>
 
-                <FormField
-                  control={detailsForm.control}
-                  name="visitType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Visit Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-visit-type">
-                            <SelectValue placeholder="What brings you here?" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="enquiry">Just Looking / Enquiry</SelectItem>
-                          <SelectItem value="trial">Free Trial</SelectItem>
-                          <SelectItem value="day_pass">Day Pass</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {visitType === "day_pass" && kioskInfo?.dayPassPrice && (
-                  <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium flex items-center gap-2">
-                        <CreditCard className="w-4 h-4" />
-                        Day Pass Price
-                      </span>
-                      <Badge variant="secondary" className="text-base">
-                        {kioskInfo.currency === "USD" ? "$" : "₹"}{(kioskInfo.dayPassPrice / 100).toFixed(0)}
-                      </Badge>
-                    </div>
-                    
-                    {kioskInfo.paymentLinks && Object.keys(kioskInfo.paymentLinks).some(k => kioskInfo.paymentLinks?.[k as keyof PaymentLinks]) && (
-                      <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">Pay using:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {kioskInfo.paymentLinks.upi && (
-                            <Badge variant="outline" className="gap-1" data-testid="badge-upi">
-                              <Smartphone className="w-3 h-3" />
-                              UPI: {kioskInfo.paymentLinks.upi}
-                            </Badge>
-                          )}
-                          {kioskInfo.paymentLinks.venmo && (
-                            <a href={`https://venmo.com/${kioskInfo.paymentLinks.venmo.replace("@", "")}`} target="_blank" rel="noopener noreferrer" className="inline-flex" data-testid="link-venmo">
-                              <Badge variant="outline" className="gap-1">
-                                <Wallet className="w-3 h-3" />
-                                Venmo
-                                <ExternalLink className="w-3 h-3" />
-                              </Badge>
-                            </a>
-                          )}
-                          {kioskInfo.paymentLinks.cashapp && (
-                            <a href={`https://cash.app/${kioskInfo.paymentLinks.cashapp}`} target="_blank" rel="noopener noreferrer" className="inline-flex" data-testid="link-cashapp">
-                              <Badge variant="outline" className="gap-1">
-                                <DollarSign className="w-3 h-3" />
-                                Cash App
-                                <ExternalLink className="w-3 h-3" />
-                              </Badge>
-                            </a>
-                          )}
-                          {kioskInfo.paymentLinks.paypal && (
-                            <a href={kioskInfo.paymentLinks.paypal.startsWith("http") ? kioskInfo.paymentLinks.paypal : `https://paypal.me/${kioskInfo.paymentLinks.paypal}`} target="_blank" rel="noopener noreferrer" className="inline-flex" data-testid="link-paypal">
-                              <Badge variant="outline" className="gap-1">
-                                <Wallet className="w-3 h-3" />
-                                PayPal
-                                <ExternalLink className="w-3 h-3" />
-                              </Badge>
-                            </a>
-                          )}
-                          {kioskInfo.paymentLinks.zelle && (
-                            <Badge variant="outline" className="gap-1" data-testid="badge-zelle">
-                              <Building2 className="w-3 h-3" />
-                              Zelle: {kioskInfo.paymentLinks.zelle}
-                            </Badge>
-                          )}
-                          {kioskInfo.paymentLinks.customLink && (
-                            <a href={kioskInfo.paymentLinks.customLink} target="_blank" rel="noopener noreferrer" className="inline-flex" data-testid="link-custom">
-                              <Badge variant="outline" className="gap-1">
-                                <Link className="w-3 h-3" />
-                                {kioskInfo.paymentLinks.customLinkLabel || "Pay Here"}
-                                <ExternalLink className="w-3 h-3" />
-                              </Badge>
-                            </a>
-                          )}
+              {/* Payment Methods */}
+              {kioskInfo?.paymentLinks && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">1. Pay using one of these methods:</p>
+                  <div className="grid gap-2">
+                    {kioskInfo.paymentLinks.venmo && (
+                      <div 
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedPaymentMethod === "venmo" ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                        onClick={() => setSelectedPaymentMethod("venmo")}
+                        data-testid="payment-venmo"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Wallet className="w-5 h-5 text-blue-500" />
+                            <div>
+                              <p className="font-medium">Venmo</p>
+                              <p className="text-sm text-muted-foreground">{kioskInfo.paymentLinks.venmo}</p>
+                            </div>
+                          </div>
+                          <a 
+                            href={`https://venmo.com/${kioskInfo.paymentLinks.venmo.replace("@", "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-primary"
+                          >
+                            <ExternalLink className="w-5 h-5" />
+                          </a>
                         </div>
-                        <p className="text-xs text-muted-foreground">Complete payment and check in. Staff will verify your payment.</p>
+                      </div>
+                    )}
+
+                    {kioskInfo.paymentLinks.cashapp && (
+                      <div 
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedPaymentMethod === "cashapp" ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                        onClick={() => setSelectedPaymentMethod("cashapp")}
+                        data-testid="payment-cashapp"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <DollarSign className="w-5 h-5 text-green-500" />
+                            <div>
+                              <p className="font-medium">Cash App</p>
+                              <p className="text-sm text-muted-foreground">{kioskInfo.paymentLinks.cashapp}</p>
+                            </div>
+                          </div>
+                          <a 
+                            href={`https://cash.app/${kioskInfo.paymentLinks.cashapp}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-primary"
+                          >
+                            <ExternalLink className="w-5 h-5" />
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {kioskInfo.paymentLinks.zelle && (
+                      <div 
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedPaymentMethod === "zelle" ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                        onClick={() => setSelectedPaymentMethod("zelle")}
+                        data-testid="payment-zelle"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Building2 className="w-5 h-5 text-purple-500" />
+                          <div>
+                            <p className="font-medium">Zelle</p>
+                            <p className="text-sm text-muted-foreground">{kioskInfo.paymentLinks.zelle}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {kioskInfo.paymentLinks.paypal && (
+                      <div 
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedPaymentMethod === "paypal" ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                        onClick={() => setSelectedPaymentMethod("paypal")}
+                        data-testid="payment-paypal"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Wallet className="w-5 h-5 text-blue-600" />
+                            <div>
+                              <p className="font-medium">PayPal</p>
+                              <p className="text-sm text-muted-foreground">{kioskInfo.paymentLinks.paypal}</p>
+                            </div>
+                          </div>
+                          <a 
+                            href={kioskInfo.paymentLinks.paypal.startsWith("http") ? kioskInfo.paymentLinks.paypal : `https://paypal.me/${kioskInfo.paymentLinks.paypal}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-primary"
+                          >
+                            <ExternalLink className="w-5 h-5" />
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {kioskInfo.paymentLinks.upi && (
+                      <div 
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedPaymentMethod === "upi" ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                        onClick={() => setSelectedPaymentMethod("upi")}
+                        data-testid="payment-upi"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Smartphone className="w-5 h-5 text-orange-500" />
+                          <div>
+                            <p className="font-medium">UPI</p>
+                            <p className="text-sm text-muted-foreground">{kioskInfo.paymentLinks.upi}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {kioskInfo.paymentLinks.bankDetails && (
+                      <div 
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedPaymentMethod === "bank" ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                        onClick={() => setSelectedPaymentMethod("bank")}
+                        data-testid="payment-bank"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Building2 className="w-5 h-5" />
+                          <div>
+                            <p className="font-medium">Bank Transfer</p>
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{kioskInfo.paymentLinks.bankDetails}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {kioskInfo.paymentLinks.customLink && (
+                      <div 
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedPaymentMethod === "other" ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                        onClick={() => setSelectedPaymentMethod("other")}
+                        data-testid="payment-custom"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Link className="w-5 h-5" />
+                            <div>
+                              <p className="font-medium">{kioskInfo.paymentLinks.customLinkLabel || "Pay Here"}</p>
+                            </div>
+                          </div>
+                          <a 
+                            href={kioskInfo.paymentLinks.customLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-primary"
+                          >
+                            <ExternalLink className="w-5 h-5" />
+                          </a>
+                        </div>
                       </div>
                     )}
                   </div>
-                )}
+                </div>
+              )}
 
-                <FormField
-                  control={detailsForm.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Anything else? (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Questions, preferences, etc."
-                          className="resize-none"
-                          {...field}
-                          data-testid="input-notes"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+              {/* Screenshot Upload */}
+              <div className="space-y-3 pt-4 border-t">
+                <p className="text-sm font-medium">2. Upload payment screenshot:</p>
+                
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  ref={fileInputRef}
+                  onChange={handleScreenshotUpload}
+                  className="hidden"
+                  data-testid="input-screenshot"
                 />
 
-                <Button type="submit" className="w-full" data-testid="button-submit-details">
-                  Continue to Verification
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </form>
-            </Form>
+                {screenshotPreview ? (
+                  <div className="relative">
+                    <img 
+                      src={screenshotPreview} 
+                      alt="Payment screenshot" 
+                      className="w-full rounded-lg border max-h-48 object-contain bg-muted"
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={() => fileInputRef.current?.click()}
+                      data-testid="button-change-screenshot"
+                    >
+                      Change
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full h-24 border-dashed"
+                    onClick={() => fileInputRef.current?.click()}
+                    data-testid="button-upload-screenshot"
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <Upload className="w-6 h-6" />
+                      <span>Tap to upload screenshot</span>
+                    </div>
+                  </Button>
+                )}
+              </div>
+
+              <Button 
+                className="w-full" 
+                onClick={handlePaymentContinue}
+                disabled={!paymentScreenshot || !selectedPaymentMethod}
+                data-testid="button-continue-after-payment"
+              >
+                Continue
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
           )}
 
+          {/* Step 3: Email Entry */}
+          {step === "email" && (
+            <div className="space-y-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setStep(visitType === "day_pass" ? "payment" : "visitType")}
+                className="mb-2"
+                data-testid="button-back-to-previous"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+
+              <Form {...emailForm}>
+                <form onSubmit={emailForm.handleSubmit(requestOTP)} className="space-y-4">
+                  <FormField
+                    control={emailForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Address</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="your@email.com"
+                              type="email"
+                              className="pl-10"
+                              {...field}
+                              data-testid="input-email"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormDescription>We'll send you a verification code</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="button-send-otp">
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending code...
+                      </>
+                    ) : (
+                      <>
+                        Send Verification Code
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </Form>
+            </div>
+          )}
+
+          {/* Step 4: OTP Verification */}
           {step === "otp" && (
             <Form {...otpForm}>
               <form onSubmit={otpForm.handleSubmit(verifyOTP)} className="space-y-4">
@@ -508,7 +722,7 @@ export default function KioskCheckinPage() {
                   type="button"
                   variant="ghost"
                   className="w-full"
-                  onClick={() => setStep("details")}
+                  onClick={() => setStep("email")}
                   data-testid="button-back"
                 >
                   Go Back

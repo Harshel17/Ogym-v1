@@ -40,7 +40,7 @@ Preferred communication style: Simple, everyday language.
 - **Social Feed:** Activity feed with workout completions, milestones, reactions, and comments.
 - **Tournaments:** Monthly gym challenges with leaderboards.
 - **Daily Points:** Dynamically computed from workout completions.
-- **Walk-in Visitors:** Tracking for day passes, trials, and inquiries, including self check-in kiosk functionality.
+- **Walk-in Visitors:** Tracking for day passes, trials, and inquiries. Self check-in kiosk functionality with redesigned flow: visitors scan QR → select visit type (Enquiry/Trial/Day Pass) → for Day Pass: see payment links, pay externally, upload screenshot → enter email → OTP verification → receive 24-hour valid check-in code. Payment screenshots and check-in codes stored in `walk_in_visitors` table with `payment_verified` status for owner approval.
 - **External Payment Links:** Owners configure payment methods (UPI, Venmo, CashApp, Zelle, PayPal, bank details, custom links) in profile settings. Payment method options are filtered by currency: UPI for India (INR), Venmo/CashApp/Zelle for USA (USD), PayPal/Bank/Custom for both. Stored as JSONB `payment_links` column in gyms table with optional `day_pass_price`. Members see a "Pay" button on their profile next to subscription status, which opens the `MemberPaymentSheet` where they can choose a plan, then payment method, pay externally, then confirm "I've paid". Kiosk visitors see payment options for day passes. Payment confirmations tracked in `payment_confirmations` table for owner approval via `PaymentConfirmationsDashboard`. When owner confirms a member payment, transaction is created with `source='member'` and subscription is extended by 1 month. Payment transactions have `source` column ('owner' for owner-entered, 'member' for member self-payments) displayed in View Ledger. Components in `client/src/components/payment-settings.tsx`.
 - **Personal Mode:** Members can use the app without joining a gym for self-managed workout tracking. Personal workouts use `source='self'` in `workout_cycles`, while gym-assigned workouts use `source='trainer'`. Data isolation is enforced via source filtering in storage queries. Personal Mode users now have optional onboarding to enter body measurements (height/weight), which can be skipped. Body measurements for Personal Mode users are stored with `gymId=null` and queried using `isNull` conditions.
 - **AI Import Workouts:** Personal Mode and Self-Guided users can import workouts from AI assistants (ChatGPT, etc.) via paste or screenshot. Uses regex-based parser (`server/ai-workout-parser.ts`) with ~120 exercise-to-muscle mappings. 3-step wizard (instructions, preview/edit, settings) in `client/src/components/ai-import-wizard.tsx`. Format: pipe-separated (`CYCLE: Name`, `DAY 1: Label`, `- Exercise | Sets | Reps | Rest`). Parser handles DAY/Workout/Session/weekday patterns. Endpoint: `POST /api/personal/workout/parse-import` with 15k char limit, safeParse validation. Screenshot import uses Tesseract.js for client-side OCR with progress indicator and recommendation to copy-paste for better results. Zero AI cost - purely regex parsing and client-side OCR.
@@ -70,6 +70,17 @@ ALTER TABLE workout_logs ALTER COLUMN gym_id DROP NOT NULL;
 ```sql
 -- Track payment source (owner-entered vs member self-payment)
 ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'owner';
+```
+
+### Since commit (Jan 29, 2026 - Kiosk Day Pass Flow)
+```sql
+-- Add day pass payment tracking and check-in codes
+ALTER TABLE walk_in_visitors 
+ADD COLUMN IF NOT EXISTS payment_method TEXT,
+ADD COLUMN IF NOT EXISTS payment_screenshot TEXT,
+ADD COLUMN IF NOT EXISTS checkin_code TEXT,
+ADD COLUMN IF NOT EXISTS code_expires_at TIMESTAMP,
+ADD COLUMN IF NOT EXISTS payment_verified BOOLEAN DEFAULT FALSE;
 ```
 
 **Note:** AI Import Workouts feature has NO schema changes - uses existing tables.

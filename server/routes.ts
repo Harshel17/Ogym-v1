@@ -5396,10 +5396,21 @@ export async function registerRoutes(
   // Public: Verify OTP and submit visitor info
   app.post("/api/kiosk/:token/submit", kioskSubmitLimiter, async (req, res) => {
     try {
-      const { email, otp, name, phone, visitType, daysCount, amountPaid, notes } = req.body;
+      const { email, otp, name, phone, visitType, daysCount, amountPaid, paymentMethod, paymentScreenshot, notes } = req.body;
       
-      if (!email || !otp || !name) {
-        return res.status(400).json({ message: "Email, OTP, and name are required" });
+      if (!email || !otp) {
+        return res.status(400).json({ message: "Email and OTP are required" });
+      }
+      
+      // Validate day_pass requires payment proof
+      if (visitType === "day_pass") {
+        if (!paymentScreenshot || !paymentMethod) {
+          return res.status(400).json({ message: "Payment proof and method are required for day pass" });
+        }
+        // Validate screenshot size (max 2MB base64 ~2.7M chars)
+        if (paymentScreenshot.length > 3000000) {
+          return res.status(400).json({ message: "Payment screenshot is too large. Please use a smaller image." });
+        }
       }
       
       const session = await storage.getKioskSessionByToken(req.params.token);
@@ -5421,17 +5432,53 @@ export async function registerRoutes(
       // Mark OTP as verified
       await storage.markKioskOtpVerified(otpCode.id);
       
+      // Generate unique check-in code for day passes (6 alphanumeric characters)
+      let checkinCode = null;
+      let codeExpiresAt = null;
+      if (visitType === "day_pass") {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Avoid confusing chars like 0/O, 1/I
+        const now = new Date();
+        // Try up to 5 times to generate a unique code
+        for (let attempt = 0; attempt < 5; attempt++) {
+          let candidateCode = "";
+          for (let i = 0; i < 6; i++) {
+            candidateCode += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          // Check if code is unique for this gym (only check active codes)
+          const existing = await storage.getWalkInVisitorByCheckinCode(session.gymId, candidateCode);
+          if (!existing || (existing.codeExpiresAt && new Date(existing.codeExpiresAt) < now)) {
+            checkinCode = candidateCode;
+            break;
+          }
+        }
+        if (!checkinCode) {
+          // Fallback: append timestamp suffix for guaranteed uniqueness
+          checkinCode = "";
+          for (let i = 0; i < 4; i++) {
+            checkinCode += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          checkinCode += (Date.now() % 100).toString().padStart(2, "0");
+        }
+        // Code expires in 24 hours
+        codeExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      }
+      
       // Create walk-in visitor entry
       const today = new Date().toISOString().split('T')[0];
+      const visitorName = name || email.split("@")[0];
       const visitor = await storage.createWalkInVisitor({
         gymId: session.gymId,
-        name,
-        phone,
+        name: visitorName,
+        phone: phone || "",
         email: email || null,
         visitDate: today,
         visitType: visitType || "enquiry",
         daysCount: daysCount || 1,
         amountPaid: amountPaid || 0,
+        paymentMethod: paymentMethod || null,
+        paymentScreenshot: paymentScreenshot || null,
+        checkinCode,
+        codeExpiresAt,
         notes: notes || null,
         source: "kiosk",
         kioskSessionId: session.id,
@@ -5440,6 +5487,7 @@ export async function registerRoutes(
       
       res.status(201).json({ 
         message: "Check-in successful! The gym has been notified.",
+        checkinCode,
         visitor 
       });
     } catch (err: any) {
