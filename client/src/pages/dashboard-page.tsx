@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus } from "lucide-react";
 import { AnimatedStatCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
@@ -177,6 +177,17 @@ function OwnerDashboard() {
     queryKey: [`/api/owner/ai-insights/${getClientLocalDate()}`]
   });
 
+  // Walk-in visitor stats
+  const { data: walkInStats } = useQuery<{
+    todayCount: number;
+    weekCount: number;
+    monthCount: number;
+    todayRevenue: number;
+    conversionRate: number;
+  }>({
+    queryKey: ["/api/owner/walk-in-visitors/stats"]
+  });
+
   const attendanceList = attendance as any[];
   const paymentsList = payments as any[];
 
@@ -205,7 +216,7 @@ function OwnerDashboard() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <StatCard 
           title="Total Members" 
           value={totalMembers} 
@@ -244,6 +255,14 @@ function OwnerDashboard() {
           description="This month"
           color="green"
           onClick={() => navigate("/owner/revenue")}
+        />
+        <StatCard 
+          title="Walk-ins" 
+          value={walkInStats?.todayCount || 0} 
+          icon={UserPlus} 
+          description="Today"
+          color="blue"
+          onClick={() => navigate("/owner/walk-in-visitors")}
         />
       </div>
 
