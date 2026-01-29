@@ -503,6 +503,15 @@ export interface IStorage {
     monthlyBreakdown: { month: string; revenue: number }[];
   }>;
   
+  getDailyRevenueBreakdown(gymId: number, month: string): Promise<{
+    days: { date: string; dayName: string; membershipRevenue: number; dayPassRevenue: number; totalRevenue: number; transactionCount: number }[];
+  }>;
+  
+  getDayTransactions(gymId: number, date: string): Promise<{
+    membershipTransactions: (PaymentTransaction & { member: User })[];
+    dayPassTransactions: { id: number; visitorName: string; email: string; amountPaid: number; visitDate: string; paymentMethod: string | null }[];
+  }>;
+  
   // Subscription Alerts
   getSubscriptionAlerts(gymId: number): Promise<{ active: number; endingSoon: number; overdue: number; needSubscription: number }>;
   getMembersNeedingSubscription(gymId: number): Promise<{ id: number; username: string; publicId: string | null; createdAt: Date | null }[]>;
@@ -5089,6 +5098,104 @@ export class DatabaseStorage implements IStorage {
       transactions,
       monthlyBreakdown
     };
+  }
+
+  async getDailyRevenueBreakdown(gymId: number, month: string): Promise<{
+    days: { date: string; dayName: string; membershipRevenue: number; dayPassRevenue: number; totalRevenue: number; transactionCount: number }[];
+  }> {
+    const [year, monthNum] = month.split('-').map(Number);
+    const daysInMonth = new Date(year, monthNum, 0).getDate();
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    const days: { date: string; dayName: string; membershipRevenue: number; dayPassRevenue: number; totalRevenue: number; transactionCount: number }[] = [];
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayOfWeek = new Date(year, monthNum - 1, day).getDay();
+      
+      // Get membership transactions for this day
+      const membershipResult = await db.select({ 
+        total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)`,
+        count: sql<number>`COUNT(*)`
+      })
+        .from(paymentTransactions)
+        .where(and(
+          eq(paymentTransactions.gymId, gymId),
+          eq(paymentTransactions.paidOn, dateStr)
+        ));
+      
+      // Get day pass transactions for this day
+      const dayPassResult = await db.select({ 
+        total: sql<number>`COALESCE(SUM(${walkInVisitors.amountPaid}), 0)`,
+        count: sql<number>`COUNT(*)`
+      })
+        .from(walkInVisitors)
+        .where(and(
+          eq(walkInVisitors.gymId, gymId),
+          eq(walkInVisitors.visitType, 'day_pass'),
+          eq(walkInVisitors.visitDate, dateStr)
+        ));
+      
+      const membershipRevenue = Number(membershipResult[0]?.total) || 0;
+      const dayPassRevenue = Number(dayPassResult[0]?.total) || 0;
+      const membershipCount = Number(membershipResult[0]?.count) || 0;
+      const dayPassCount = Number(dayPassResult[0]?.count) || 0;
+      
+      days.push({
+        date: dateStr,
+        dayName: dayNames[dayOfWeek],
+        membershipRevenue,
+        dayPassRevenue,
+        totalRevenue: membershipRevenue + dayPassRevenue,
+        transactionCount: membershipCount + dayPassCount
+      });
+    }
+    
+    return { days };
+  }
+
+  async getDayTransactions(gymId: number, date: string): Promise<{
+    membershipTransactions: (PaymentTransaction & { member: User })[];
+    dayPassTransactions: { id: number; visitorName: string; email: string; amountPaid: number; visitDate: string; paymentMethod: string | null }[];
+  }> {
+    // Get membership transactions for this day
+    const membershipTxns = await db.select({
+      transaction: paymentTransactions,
+      member: users
+    })
+      .from(paymentTransactions)
+      .leftJoin(users, eq(paymentTransactions.memberId, users.id))
+      .where(and(
+        eq(paymentTransactions.gymId, gymId),
+        eq(paymentTransactions.paidOn, date)
+      ))
+      .orderBy(desc(paymentTransactions.id));
+    
+    const membershipTransactions = membershipTxns.map(t => ({
+      ...t.transaction,
+      member: t.member!
+    }));
+    
+    // Get day pass transactions for this day
+    const dayPassTxns = await db.select()
+      .from(walkInVisitors)
+      .where(and(
+        eq(walkInVisitors.gymId, gymId),
+        eq(walkInVisitors.visitType, 'day_pass'),
+        eq(walkInVisitors.visitDate, date)
+      ))
+      .orderBy(desc(walkInVisitors.id));
+    
+    const dayPassTransactions = dayPassTxns.map(v => ({
+      id: v.id,
+      visitorName: v.visitorName,
+      email: v.email,
+      amountPaid: v.amountPaid || 0,
+      visitDate: v.visitDate,
+      paymentMethod: v.paymentMethod
+    }));
+    
+    return { membershipTransactions, dayPassTransactions };
   }
 
   // === MEMBER ANALYTICS ===

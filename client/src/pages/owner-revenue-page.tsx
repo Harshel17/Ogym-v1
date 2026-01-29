@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { TrendingUp, Banknote, Users, Calendar, Loader2, ChevronLeft, ChevronRight, Wallet, ArrowLeft, UserPlus } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { TrendingUp, Banknote, Users, Calendar, Loader2, ChevronLeft, ChevronRight, Wallet, ArrowLeft, UserPlus, CalendarDays, ArrowRight } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { useBackNavigation } from "@/hooks/use-back-navigation";
@@ -21,9 +22,34 @@ type RevenueData = {
   monthlyBreakdown: { month: string; revenue: number }[];
 };
 
+type DailyBreakdown = {
+  days: {
+    date: string;
+    dayName: string;
+    membershipRevenue: number;
+    dayPassRevenue: number;
+    totalRevenue: number;
+    transactionCount: number;
+  }[];
+};
+
+type DayTransactions = {
+  membershipTransactions: (PaymentTransaction & { member: User })[];
+  dayPassTransactions: {
+    id: number;
+    visitorName: string;
+    email: string;
+    amountPaid: number;
+    visitDate: string;
+    paymentMethod: string | null;
+  }[];
+};
+
 export default function OwnerRevenuePage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showTotalModal, setShowTotalModal] = useState(false);
+  const [showDailyModal, setShowDailyModal] = useState(false);
+  const [selectedDayDate, setSelectedDayDate] = useState<string | null>(null);
   const monthStr = format(selectedDate, 'yyyy-MM');
   const { format: formatMoney, symbol } = useGymCurrency();
 
@@ -48,6 +74,31 @@ export default function OwnerRevenuePage() {
       return res.json();
     }
   });
+
+  // Daily revenue breakdown
+  const { data: dailyData, isLoading: dailyLoading } = useQuery<DailyBreakdown>({
+    queryKey: ["/api/owner/revenue/daily", monthStr],
+    queryFn: async () => {
+      const res = await fetch(`/api/owner/revenue/daily?month=${monthStr}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch daily revenue");
+      return res.json();
+    },
+    enabled: showDailyModal
+  });
+
+  // Day transactions
+  const { data: dayTransactions, isLoading: dayTxnLoading } = useQuery<DayTransactions>({
+    queryKey: ["/api/owner/revenue/day", selectedDayDate],
+    queryFn: async () => {
+      const res = await fetch(`/api/owner/revenue/day/${selectedDayDate}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch day transactions");
+      return res.json();
+    },
+    enabled: !!selectedDayDate
+  });
+
+  // Filter days with revenue
+  const daysWithRevenue = dailyData?.days?.filter(d => d.totalRevenue > 0) || [];
 
   // Calculate total revenue from all months in breakdown
   const totalAllTime = revenueData?.monthlyBreakdown?.reduce((sum, m) => sum + m.revenue, 0) || 0;
@@ -97,7 +148,7 @@ export default function OwnerRevenuePage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/30 border-green-200 dark:border-green-800">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300 uppercase tracking-wider">
@@ -196,6 +247,29 @@ export default function OwnerRevenuePage() {
             </p>
           </CardContent>
         </Card>
+
+        <Card 
+          className="cursor-pointer hover-elevate bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/30 border-orange-200 dark:border-orange-800"
+          onClick={() => setShowDailyModal(true)}
+          data-testid="card-day-analytics"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-orange-700 dark:text-orange-300 uppercase tracking-wider">
+              Day Analytics
+            </CardTitle>
+            <div className="p-2 bg-orange-200 dark:bg-orange-800 rounded-full text-orange-700 dark:text-orange-300">
+              <CalendarDays className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-orange-800 dark:text-orange-200" data-testid="text-days-with-revenue">
+              {daysWithRevenue.length}
+            </div>
+            <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+              Days with revenue - tap to view
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={showTotalModal} onOpenChange={setShowTotalModal}>
@@ -229,6 +303,170 @@ export default function OwnerRevenuePage() {
               </span>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Daily Revenue Breakdown Modal */}
+      <Dialog open={showDailyModal && !selectedDayDate} onOpenChange={(open) => {
+        setShowDailyModal(open);
+        if (!open) setSelectedDayDate(null);
+      }}>
+        <DialogContent className="max-w-md max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5" />
+              Daily Revenue - {format(selectedDate, 'MMMM yyyy')}
+            </DialogTitle>
+            <DialogDescription>
+              Tap a day to see transactions
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[400px] pr-4">
+            {dailyLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : daysWithRevenue.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CalendarDays className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                <p>No revenue recorded this month</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {daysWithRevenue.map((day) => (
+                  <div 
+                    key={day.date}
+                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg cursor-pointer hover-elevate"
+                    onClick={() => setSelectedDayDate(day.date)}
+                    data-testid={`row-day-${day.date}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center text-sm font-bold text-orange-600 dark:text-orange-400">
+                        {format(new Date(day.date), 'd')}
+                      </div>
+                      <div>
+                        <p className="font-medium">{format(new Date(day.date), 'EEE, MMM d')}</p>
+                        <p className="text-xs text-muted-foreground">{day.transactionCount} transaction{day.transactionCount !== 1 ? 's' : ''}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-green-600 dark:text-green-400">
+                        {formatMoney(day.totalRevenue)}
+                      </span>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Day Transactions Modal */}
+      <Dialog open={!!selectedDayDate} onOpenChange={(open) => {
+        if (!open) setSelectedDayDate(null);
+      }}>
+        <DialogContent className="max-w-lg max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              {selectedDayDate && format(new Date(selectedDayDate), 'EEEE, MMMM d, yyyy')}
+            </DialogTitle>
+            <DialogDescription>
+              All transactions on this day
+            </DialogDescription>
+          </DialogHeader>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="absolute left-4 top-4"
+            onClick={() => setSelectedDayDate(null)}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Back
+          </Button>
+          <ScrollArea className="h-[400px] pr-4 mt-2">
+            {dayTxnLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Membership Payments */}
+                {dayTransactions?.membershipTransactions && dayTransactions.membershipTransactions.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Member Payments ({dayTransactions.membershipTransactions.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {dayTransactions.membershipTransactions.map((txn) => (
+                        <div 
+                          key={txn.id}
+                          className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+                          data-testid={`txn-member-${txn.id}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-green-200 dark:bg-green-800 flex items-center justify-center text-xs font-bold text-green-700 dark:text-green-300">
+                              {txn.member?.username?.slice(0, 2).toUpperCase() || '??'}
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{txn.member?.username || 'Unknown'}</p>
+                              <p className="text-xs text-muted-foreground capitalize">{txn.method}</p>
+                            </div>
+                          </div>
+                          <span className="font-bold text-green-600 dark:text-green-400">
+                            {formatMoney(txn.amountPaid)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Day Pass Payments */}
+                {dayTransactions?.dayPassTransactions && dayTransactions.dayPassTransactions.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                      <UserPlus className="h-4 w-4" />
+                      Day Passes ({dayTransactions.dayPassTransactions.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {dayTransactions.dayPassTransactions.map((txn) => (
+                        <div 
+                          key={txn.id}
+                          className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+                          data-testid={`txn-daypass-${txn.id}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-200 dark:bg-blue-800 flex items-center justify-center text-xs font-bold text-blue-700 dark:text-blue-300">
+                              {txn.visitorName?.slice(0, 2).toUpperCase() || '??'}
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{txn.visitorName}</p>
+                              <p className="text-xs text-muted-foreground">{txn.email}</p>
+                            </div>
+                          </div>
+                          <span className="font-bold text-blue-600 dark:text-blue-400">
+                            {formatMoney(txn.amountPaid)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* No transactions */}
+                {(!dayTransactions?.membershipTransactions?.length && !dayTransactions?.dayPassTransactions?.length) && !dayTxnLoading && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Banknote className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                    <p>No transactions on this day</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 

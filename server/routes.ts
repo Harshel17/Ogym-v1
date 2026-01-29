@@ -5080,6 +5080,28 @@ export async function registerRoutes(
     }
   });
 
+  // Daily Revenue Breakdown
+  app.get("/api/owner/revenue/daily", requireRole(["owner"]), async (req, res) => {
+    try {
+      const month = (req.query.month as string) || getLocalDate(req).slice(0, 7);
+      const dailyData = await storage.getDailyRevenueBreakdown(req.user!.gymId!, month);
+      res.json(dailyData);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to fetch daily revenue" });
+    }
+  });
+
+  // Get transactions for a specific day
+  app.get("/api/owner/revenue/day/:date", requireRole(["owner"]), async (req, res) => {
+    try {
+      const date = req.params.date;
+      const transactions = await storage.getDayTransactions(req.user!.gymId!, date);
+      res.json(transactions);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to fetch day transactions" });
+    }
+  });
+
   // Member Analytics
   app.get("/api/owner/member-analytics", requireRole(["owner"]), async (req, res) => {
     const analytics = await storage.getMemberAnalytics(req.user!.gymId!);
