@@ -1268,6 +1268,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
   const [memberPopoverOpen, setMemberPopoverOpen] = useState(false);
   const [selectedSub, setSelectedSub] = useState<SubscriptionWithDetails | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentSourceFilter, setPaymentSourceFilter] = useState<string>("all");
   const { toast } = useToast();
   const { format: formatMoney } = useGymCurrency();
   
@@ -1275,13 +1276,22 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
     queryKey: ["/api/owner/subscriptions"]
   });
 
-  // Filter subscriptions based on status and search query
+  // Filter subscriptions based on status, search query, and payment source
   const filteredSubscriptions = subscriptions.filter(sub => {
     const matchesSearch = !searchQuery || 
       sub.member?.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       sub.plan?.name?.toLowerCase().includes(searchQuery.toLowerCase());
     
     if (!matchesSearch) return false;
+    
+    // Payment source filter
+    if (paymentSourceFilter === 'owner') {
+      // Only show subscriptions without member payments (all payments entered by owner)
+      if (sub.hasMemberPayments) return false;
+    } else if (paymentSourceFilter === 'member') {
+      // Only show subscriptions that have member payments
+      if (!sub.hasMemberPayments) return false;
+    }
     
     if (!statusFilter) return true;
     
@@ -1620,27 +1630,39 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
           </Dialog>
         </div>
         
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by member or plan name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-9"
-            data-testid="input-search-subscriptions"
-          />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-              onClick={() => setSearchQuery("")}
-              data-testid="button-clear-search"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+        {/* Search Bar and Filter */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by member or plan name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-9"
+              data-testid="input-search-subscriptions"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setSearchQuery("")}
+                data-testid="button-clear-search"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <Select value={paymentSourceFilter} onValueChange={setPaymentSourceFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-payment-source-filter">
+              <SelectValue placeholder="Filter by payment" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Payments</SelectItem>
+              <SelectItem value="owner">Paid by me</SelectItem>
+              <SelectItem value="member">Paid by members</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </CardHeader>
       <CardContent>
