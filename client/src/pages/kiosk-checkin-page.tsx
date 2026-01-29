@@ -563,7 +563,6 @@ export default function KioskCheckinPage() {
                 <input
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   ref={fileInputRef}
                   onChange={handleScreenshotUpload}
                   className="hidden"
