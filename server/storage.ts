@@ -3135,6 +3135,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updatePaymentConfirmation(id: number, gymId: number, confirmedByUserId: number, status: "confirmed" | "rejected"): Promise<void> {
+    // Get the payment confirmation details first
+    const [confirmation] = await db.select().from(paymentConfirmations)
+      .where(and(eq(paymentConfirmations.id, id), eq(paymentConfirmations.gymId, gymId)));
+    
+    if (!confirmation) {
+      throw new Error("Payment confirmation not found");
+    }
+
+    // Update the confirmation status
     await db.update(paymentConfirmations)
       .set({
         status,
@@ -3145,6 +3154,74 @@ export class DatabaseStorage implements IStorage {
         eq(paymentConfirmations.id, id),
         eq(paymentConfirmations.gymId, gymId)
       ));
+
+    // If confirmed and it's a subscription payment, create transaction and update subscription
+    if (status === "confirmed" && confirmation.paymentType === "subscription" && confirmation.memberId) {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Check for existing subscription
+      let [existingSub] = await db.select().from(memberSubscriptions)
+        .where(and(
+          eq(memberSubscriptions.memberId, confirmation.memberId),
+          eq(memberSubscriptions.gymId, gymId)
+        ));
+
+      let subscriptionId: number;
+
+      if (existingSub) {
+        // Extend existing subscription by 1 month (or based on amount logic)
+        const currentEndDate = new Date(existingSub.endDate);
+        const newEndDate = new Date(Math.max(currentEndDate.getTime(), new Date().getTime()));
+        newEndDate.setMonth(newEndDate.getMonth() + 1);
+        
+        await db.update(memberSubscriptions)
+          .set({
+            endDate: newEndDate.toISOString().split('T')[0],
+            status: 'active',
+            updatedAt: new Date(),
+          })
+          .where(eq(memberSubscriptions.id, existingSub.id));
+        subscriptionId = existingSub.id;
+      } else {
+        // Create new subscription
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + 1);
+        const [newSub] = await db.insert(memberSubscriptions).values({
+          gymId,
+          memberId: confirmation.memberId,
+          startDate: today,
+          endDate: endDate.toISOString().split('T')[0],
+          totalAmount: confirmation.amount,
+          status: 'active',
+          paymentMode: 'full',
+        }).returning();
+        subscriptionId = newSub.id;
+      }
+
+      // Map payment method to transaction method
+      const methodMap: Record<string, "cash" | "upi" | "card" | "bank" | "other"> = {
+        'upi': 'upi',
+        'venmo': 'other',
+        'cashapp': 'other',
+        'zelle': 'bank',
+        'paypal': 'other',
+        'bank_transfer': 'bank',
+        'cash': 'cash',
+        'other': 'other',
+      };
+      const txMethod = methodMap[confirmation.paymentMethod] || 'other';
+
+      // Create payment transaction
+      await db.insert(paymentTransactions).values({
+        gymId,
+        memberId: confirmation.memberId,
+        subscriptionId,
+        paidOn: today,
+        amountPaid: confirmation.amount,
+        method: txMethod,
+        referenceNote: confirmation.referenceNote,
+      });
+    }
   }
 
   // === Gym History Methods ===
