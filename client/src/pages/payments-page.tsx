@@ -162,7 +162,7 @@ function OwnerPaymentsView() {
         <MembersNeedSubscriptionSection />
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-xl grid-cols-4">
+          <TabsList className="grid w-full max-w-xl grid-cols-4 gap-1">
             <TabsTrigger value="subscriptions" data-testid="tab-subscriptions">Subscriptions</TabsTrigger>
             <TabsTrigger value="outstanding" data-testid="tab-outstanding">Outstanding</TabsTrigger>
             <TabsTrigger value="byMethod" data-testid="tab-by-method">By Method</TabsTrigger>
