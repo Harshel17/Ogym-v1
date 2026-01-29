@@ -7662,6 +7662,30 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  async getWalkInRevenue(gymId: number, month: string): Promise<{
+    monthlyRevenue: number;
+    monthlyCount: number;
+  }> {
+    const [year, monthNum] = month.split('-').map(Number);
+    const startDate = `${year}-${String(monthNum).padStart(2, '0')}-01`;
+    const endDate = `${year}-${String(monthNum).padStart(2, '0')}-31`;
+    
+    const visitors = await db.select().from(walkInVisitors)
+      .where(and(
+        eq(walkInVisitors.gymId, gymId),
+        eq(walkInVisitors.visitType, 'day_pass'),
+        gte(walkInVisitors.visitDate, startDate),
+        lte(walkInVisitors.visitDate, endDate)
+      ));
+    
+    const monthlyRevenue = visitors.reduce((sum, v) => sum + (v.amountPaid || 0), 0);
+    
+    return {
+      monthlyRevenue,
+      monthlyCount: visitors.length
+    };
+  }
+
   // Kiosk Sessions for self check-in
   async createKioskSession(data: InsertKioskSession): Promise<KioskSession> {
     const [session] = await db.insert(kioskSessions).values(data).returning();

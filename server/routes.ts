@@ -5069,6 +5069,17 @@ export async function registerRoutes(
     res.json(revenueData);
   });
 
+  // Walk-in/Day Pass Revenue
+  app.get("/api/owner/walk-in-revenue", requireRole(["owner"]), async (req, res) => {
+    try {
+      const month = (req.query.month as string) || getLocalDate(req).slice(0, 7);
+      const walkInRevenue = await storage.getWalkInRevenue(req.user!.gymId!, month);
+      res.json(walkInRevenue);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to fetch walk-in revenue" });
+    }
+  });
+
   // Member Analytics
   app.get("/api/owner/member-analytics", requireRole(["owner"]), async (req, res) => {
     const analytics = await storage.getMemberAnalytics(req.user!.gymId!);

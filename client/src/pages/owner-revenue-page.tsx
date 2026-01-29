@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { TrendingUp, Banknote, Users, Calendar, Loader2, ChevronLeft, ChevronRight, Wallet, ArrowLeft } from "lucide-react";
+import { TrendingUp, Banknote, Users, Calendar, Loader2, ChevronLeft, ChevronRight, Wallet, ArrowLeft, UserPlus } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { useBackNavigation } from "@/hooks/use-back-navigation";
@@ -32,6 +32,19 @@ export default function OwnerRevenuePage() {
     queryFn: async () => {
       const res = await fetch(`/api/owner/revenue?month=${monthStr}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch revenue data");
+      return res.json();
+    }
+  });
+
+  // Walk-in/day pass revenue for the month
+  const { data: walkInData } = useQuery<{
+    monthlyRevenue: number;
+    monthlyCount: number;
+  }>({
+    queryKey: ["/api/owner/walk-in-revenue", monthStr],
+    queryFn: async () => {
+      const res = await fetch(`/api/owner/walk-in-revenue?month=${monthStr}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch walk-in revenue");
       return res.json();
     }
   });
@@ -84,7 +97,7 @@ export default function OwnerRevenuePage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/30 border-green-200 dark:border-green-800">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300 uppercase tracking-wider">
@@ -161,6 +174,25 @@ export default function OwnerRevenuePage() {
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Members who paid
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/30 border-blue-200 dark:border-blue-800">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wider">
+              Day Passes
+            </CardTitle>
+            <div className="p-2 bg-blue-200 dark:bg-blue-800 rounded-full text-blue-700 dark:text-blue-300">
+              <UserPlus className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-blue-800 dark:text-blue-200" data-testid="text-daypass-revenue">
+              {formatMoney(walkInData?.monthlyRevenue || 0)}
+            </div>
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+              {walkInData?.monthlyCount || 0} walk-ins this month
             </p>
           </CardContent>
         </Card>
