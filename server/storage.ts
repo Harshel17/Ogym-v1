@@ -4562,6 +4562,7 @@ export class DatabaseStorage implements IStorage {
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
     
+    // Membership revenue
     const revenueResult = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
       .from(paymentTransactions)
       .where(and(
@@ -4569,7 +4570,20 @@ export class DatabaseStorage implements IStorage {
         gte(paymentTransactions.paidOn, monthStart),
         lte(paymentTransactions.paidOn, monthEnd)
       ));
-    const totalRevenue = Number(revenueResult[0]?.total) || 0;
+    const membershipRevenue = Number(revenueResult[0]?.total) || 0;
+
+    // Day pass revenue from walk-ins
+    const walkInResult = await db.select({ total: sql<number>`COALESCE(SUM(${walkInVisitors.amountPaid}), 0)` })
+      .from(walkInVisitors)
+      .where(and(
+        eq(walkInVisitors.gymId, gymId),
+        eq(walkInVisitors.visitType, 'day_pass'),
+        gte(walkInVisitors.visitDate, monthStart),
+        lte(walkInVisitors.visitDate, monthEnd)
+      ));
+    const dayPassRevenue = Number(walkInResult[0]?.total) || 0;
+
+    const totalRevenue = membershipRevenue + dayPassRevenue;
 
     return { totalMembers, checkedInToday, checkedInYesterday, newEnrollmentsLast30Days, pendingPayments, totalRevenue };
   }
