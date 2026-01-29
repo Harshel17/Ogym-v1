@@ -91,6 +91,16 @@ ADD COLUMN IF NOT EXISTS city TEXT,
 ALTER COLUMN phone DROP NOT NULL;
 ```
 
+### Since commit (Jan 29, 2026 - Follow-up Tracking)
+```sql
+-- Add follow-up tracking for walk-in visitors
+ALTER TABLE walk_in_visitors 
+ADD COLUMN IF NOT EXISTS follow_up_status TEXT DEFAULT 'pending',
+ADD COLUMN IF NOT EXISTS follow_up_notes TEXT,
+ADD COLUMN IF NOT EXISTS follow_up_date TIMESTAMP,
+ADD COLUMN IF NOT EXISTS follow_up_by_user_id INTEGER REFERENCES users(id);
+```
+
 **Note:** AI Import Workouts feature has NO schema changes - uses existing tables.
 
 ---

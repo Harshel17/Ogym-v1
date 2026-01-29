@@ -5325,6 +5325,43 @@ export async function registerRoutes(
     }
   });
 
+  // Update follow-up status for a walk-in visitor
+  app.patch("/api/owner/walk-in-visitors/:id/follow-up", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { status, notes } = req.body;
+      const visitorId = parseInt(req.params.id);
+      
+      const visitor = await storage.getWalkInVisitorById(visitorId);
+      if (!visitor || visitor.gymId !== req.user!.gymId) {
+        return res.status(404).json({ message: "Visitor not found" });
+      }
+      
+      const validStatuses = ["pending", "contacted", "follow_up_scheduled", "converted", "not_interested"];
+      if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid follow-up status" });
+      }
+      
+      const updateData: any = {};
+      if (status !== undefined) {
+        updateData.followUpStatus = status;
+        updateData.followUpDate = new Date();
+        updateData.followUpByUserId = req.user!.id;
+        // If converted, also mark convertedToMember
+        if (status === "converted") {
+          updateData.convertedToMember = true;
+        }
+      }
+      if (notes !== undefined) {
+        updateData.followUpNotes = notes;
+      }
+      
+      const updated = await storage.updateWalkInVisitor(visitorId, updateData);
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to update follow-up" });
+    }
+  });
+
   // === KIOSK ROUTES (Self Check-in) ===
   
   // Owner: Create a new kiosk session (generates QR code link)

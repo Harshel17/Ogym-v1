@@ -725,6 +725,11 @@ export const walkInVisitors = pgTable("walk_in_visitors", {
   convertedUserId: integer("converted_user_id").references(() => users.id),
   createdByUserId: integer("created_by_user_id").references(() => users.id),
   kioskSessionId: integer("kiosk_session_id"),
+  // Follow-up tracking
+  followUpStatus: text("follow_up_status", { enum: ["pending", "contacted", "follow_up_scheduled", "converted", "not_interested"] }).default("pending"),
+  followUpNotes: text("follow_up_notes"),
+  followUpDate: timestamp("follow_up_date"),
+  followUpByUserId: integer("follow_up_by_user_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

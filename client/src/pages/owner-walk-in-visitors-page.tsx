@@ -11,16 +11,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { UserPlus, Plus, Users, Calendar, IndianRupee, TrendingUp, Phone, Mail, FileText, Loader2, Image, CheckCircle, Clock, XCircle } from "lucide-react";
+import { UserPlus, Plus, Users, Calendar, IndianRupee, TrendingUp, Phone, Mail, FileText, Loader2, Image, CheckCircle, Clock, XCircle, MessageSquare, UserCheck, Ban, PhoneCall, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
+type FollowUpStatus = "pending" | "contacted" | "follow_up_scheduled" | "converted" | "not_interested";
+
 type WalkInVisitor = {
   id: number;
   gymId: number;
-  name: string;
-  phone: string;
+  visitorName: string;
+  phone: string | null;
+  city: string | null;
   email: string | null;
   visitDate: string;
   visitType: "day_pass" | "trial" | "enquiry";
@@ -34,6 +37,9 @@ type WalkInVisitor = {
   notes: string | null;
   source: "owner" | "trainer" | "kiosk" | null;
   convertedToMember: boolean | null;
+  followUpStatus: FollowUpStatus | null;
+  followUpNotes: string | null;
+  followUpDate: string | null;
   createdAt: string;
 };
 
@@ -64,7 +70,10 @@ export default function OwnerWalkInVisitorsPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [followUpVisitor, setFollowUpVisitor] = useState<WalkInVisitor | null>(null);
+  const [followUpNotes, setFollowUpNotes] = useState("");
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -145,6 +154,22 @@ export default function OwnerWalkInVisitorsPage() {
     }
   });
 
+  const followUpMutation = useMutation({
+    mutationFn: async ({ visitorId, status, notes }: { visitorId: number; status: FollowUpStatus; notes?: string }) => {
+      return apiRequest("PATCH", `/api/owner/walk-in-visitors/${visitorId}/follow-up`, { status, notes });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/walk-in-visitors"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/walk-in-visitors/stats"] });
+      setFollowUpVisitor(null);
+      setFollowUpNotes("");
+      toast({ title: "Follow-up updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to update follow-up", description: error.message, variant: "destructive" });
+    }
+  });
+
   const onSubmit = (data: WalkInForm) => {
     createMutation.mutate(data);
   };
@@ -159,6 +184,33 @@ export default function OwnerWalkInVisitorsPage() {
         return <Badge className="bg-amber-500">Enquiry</Badge>;
       default:
         return <Badge>{type}</Badge>;
+    }
+  };
+
+  const getFollowUpStatusBadge = (status: FollowUpStatus | null) => {
+    switch (status) {
+      case "contacted":
+        return <Badge variant="outline" className="text-blue-600 border-blue-600"><PhoneCall className="w-3 h-3 mr-1" />Contacted</Badge>;
+      case "follow_up_scheduled":
+        return <Badge variant="outline" className="text-purple-600 border-purple-600"><Clock className="w-3 h-3 mr-1" />Scheduled</Badge>;
+      case "converted":
+        return <Badge variant="outline" className="text-green-600 border-green-600"><UserCheck className="w-3 h-3 mr-1" />Converted</Badge>;
+      case "not_interested":
+        return <Badge variant="outline" className="text-red-600 border-red-600"><Ban className="w-3 h-3 mr-1" />Not Interested</Badge>;
+      case "pending":
+      default:
+        return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+    }
+  };
+
+  const openFollowUp = (visitor: WalkInVisitor) => {
+    setFollowUpVisitor(visitor);
+    setFollowUpNotes(visitor.followUpNotes || "");
+  };
+
+  const handleFollowUpStatus = (status: FollowUpStatus) => {
+    if (followUpVisitor) {
+      followUpMutation.mutate({ visitorId: followUpVisitor.id, status, notes: followUpNotes || undefined });
     }
   };
 
@@ -414,13 +466,11 @@ export default function OwnerWalkInVisitorsPage() {
                 <div key={visitor.id} className="p-3 md:p-4 border rounded-lg" data-testid={`visitor-card-${visitor.id}`}>
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <h4 className="font-medium text-sm md:text-base">{visitor.name}</h4>
+                      <h4 className="font-medium text-sm md:text-base">{visitor.visitorName}</h4>
                       {getVisitTypeBadge(visitor.visitType)}
+                      {getFollowUpStatusBadge(visitor.followUpStatus)}
                       {visitor.source === "kiosk" && (
                         <Badge variant="secondary" className="text-xs">Self Check-in</Badge>
-                      )}
-                      {visitor.convertedToMember && (
-                        <Badge variant="outline" className="text-green-600 border-green-600 text-xs">Converted</Badge>
                       )}
                       {visitor.visitType === "day_pass" && visitor.paymentVerified && (
                         <Badge variant="outline" className="text-green-600 border-green-600 text-xs">
@@ -431,7 +481,7 @@ export default function OwnerWalkInVisitorsPage() {
                       {visitor.visitType === "day_pass" && visitor.paymentScreenshot && !visitor.paymentVerified && (
                         <Badge variant="outline" className="text-amber-600 border-amber-600 text-xs">
                           <Clock className="w-3 h-3 mr-1" />
-                          Pending
+                          Payment Pending
                         </Badge>
                       )}
                     </div>
@@ -440,14 +490,22 @@ export default function OwnerWalkInVisitorsPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs md:text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Phone className="w-3 h-3" />
-                      {visitor.phone}
-                    </span>
+                    {visitor.phone && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3" />
+                        {visitor.phone}
+                      </span>
+                    )}
                     {visitor.email && (
                       <span className="flex items-center gap-1 truncate max-w-[150px] md:max-w-none">
                         <Mail className="w-3 h-3 flex-shrink-0" />
                         <span className="truncate">{visitor.email}</span>
+                      </span>
+                    )}
+                    {visitor.city && (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {visitor.city}
                       </span>
                     )}
                     <span className="flex items-center gap-1">
@@ -469,37 +527,59 @@ export default function OwnerWalkInVisitorsPage() {
                       <span className="truncate">{visitor.notes}</span>
                     </div>
                   )}
+                  {visitor.followUpNotes && (
+                    <div className="mt-2 text-xs md:text-sm text-muted-foreground flex items-center gap-1">
+                      <MessageSquare className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{visitor.followUpNotes}</span>
+                    </div>
+                  )}
                   
-                  {/* Day Pass Payment Actions */}
-                  {visitor.visitType === "day_pass" && visitor.paymentScreenshot && (
-                    <div className="mt-3 pt-3 border-t flex flex-wrap items-center gap-2">
+                  {/* Actions Row */}
+                  <div className="mt-3 pt-3 border-t flex flex-wrap items-center gap-2">
+                    {/* Follow-up button for enquiry/trial visitors */}
+                    {(visitor.visitType === "enquiry" || visitor.visitType === "trial") && visitor.followUpStatus !== "converted" && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setScreenshotPreview(visitor.paymentScreenshot)}
-                        data-testid={`button-view-screenshot-${visitor.id}`}
+                        onClick={() => openFollowUp(visitor)}
+                        data-testid={`button-follow-up-${visitor.id}`}
                       >
-                        <Image className="w-4 h-4 mr-1" />
-                        View Payment
+                        <MessageSquare className="w-4 h-4 mr-1" />
+                        Follow-up
                       </Button>
-                      {!visitor.paymentVerified && (
+                    )}
+                    
+                    {/* Day Pass Payment Actions */}
+                    {visitor.visitType === "day_pass" && visitor.paymentScreenshot && (
+                      <>
                         <Button
+                          variant="outline"
                           size="sm"
-                          onClick={() => verifyPaymentMutation.mutate(visitor.id)}
-                          disabled={verifyPaymentMutation.isPending}
-                          data-testid={`button-verify-payment-${visitor.id}`}
+                          onClick={() => setScreenshotPreview(visitor.paymentScreenshot)}
+                          data-testid={`button-view-screenshot-${visitor.id}`}
                         >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Verify Payment
+                          <Image className="w-4 h-4 mr-1" />
+                          View Payment
                         </Button>
-                      )}
-                      {visitor.paymentMethod && (
-                        <span className="text-xs text-muted-foreground">
-                          via {visitor.paymentMethod.toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                        {!visitor.paymentVerified && (
+                          <Button
+                            size="sm"
+                            onClick={() => verifyPaymentMutation.mutate(visitor.id)}
+                            disabled={verifyPaymentMutation.isPending}
+                            data-testid={`button-verify-payment-${visitor.id}`}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Verify Payment
+                          </Button>
+                        )}
+                        {visitor.paymentMethod && (
+                          <span className="text-xs text-muted-foreground">
+                            via {visitor.paymentMethod.toUpperCase()}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -522,6 +602,97 @@ export default function OwnerWalkInVisitorsPage() {
               />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Follow-up Dialog */}
+      <Dialog open={!!followUpVisitor} onOpenChange={(open) => !open && setFollowUpVisitor(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Follow-up: {followUpVisitor?.visitorName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">
+                {followUpVisitor?.visitType === "enquiry" ? "Enquiry" : "Trial"} visit on {followUpVisitor?.visitDate && format(new Date(followUpVisitor.visitDate), "MMM d, yyyy")}
+              </p>
+              {followUpVisitor?.phone && (
+                <p className="text-sm flex items-center gap-2">
+                  <Phone className="w-4 h-4" />
+                  {followUpVisitor.phone}
+                </p>
+              )}
+              {followUpVisitor?.email && (
+                <p className="text-sm flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  {followUpVisitor.email}
+                </p>
+              )}
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium mb-2 block">Notes</label>
+              <Textarea
+                placeholder="Add notes about this follow-up..."
+                value={followUpNotes}
+                onChange={(e) => setFollowUpNotes(e.target.value)}
+                rows={3}
+                data-testid="input-follow-up-notes"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium block">Update Status</label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleFollowUpStatus("contacted")}
+                  disabled={followUpMutation.isPending}
+                  className="justify-start"
+                  data-testid="button-status-contacted"
+                >
+                  <PhoneCall className="w-4 h-4 mr-2 text-blue-600" />
+                  Contacted
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleFollowUpStatus("follow_up_scheduled")}
+                  disabled={followUpMutation.isPending}
+                  className="justify-start"
+                  data-testid="button-status-scheduled"
+                >
+                  <Clock className="w-4 h-4 mr-2 text-purple-600" />
+                  Scheduled
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleFollowUpStatus("converted")}
+                  disabled={followUpMutation.isPending}
+                  className="justify-start"
+                  data-testid="button-status-converted"
+                >
+                  <UserCheck className="w-4 h-4 mr-2 text-green-600" />
+                  Converted
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleFollowUpStatus("not_interested")}
+                  disabled={followUpMutation.isPending}
+                  className="justify-start"
+                  data-testid="button-status-not-interested"
+                >
+                  <Ban className="w-4 h-4 mr-2 text-red-600" />
+                  Not Interested
+                </Button>
+              </div>
+            </div>
+
+            {followUpMutation.isPending && (
+              <div className="flex items-center justify-center py-2">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
