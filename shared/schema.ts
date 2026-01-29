@@ -20,6 +20,8 @@ export const gyms = pgTable("gyms", {
   gymType: text("gym_type", { enum: ["men", "women", "unisex"] }),
   facilities: text("facilities"),
   onboardingData: jsonb("onboarding_data"),
+  paymentLinks: jsonb("payment_links"), // Stores payment methods: { upi, venmo, cashapp, zelle, paypal, bankDetails, customLink }
+  dayPassPrice: integer("day_pass_price"), // Price in smallest unit (paise/cents)
   ownerUserId: integer("owner_user_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -742,6 +744,23 @@ export const kioskOtpCodes = pgTable("kiosk_otp_codes", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// === PAYMENT CONFIRMATIONS (member claims payment, owner confirms) ===
+export const paymentConfirmations = pgTable("payment_confirmations", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  memberId: integer("member_id").references(() => users.id),
+  walkInVisitorId: integer("walk_in_visitor_id").references(() => walkInVisitors.id),
+  paymentType: text("payment_type", { enum: ["subscription", "day_pass"] }).notNull(),
+  paymentMethod: text("payment_method", { enum: ["upi", "venmo", "cashapp", "zelle", "paypal", "bank_transfer", "cash", "other"] }).notNull(),
+  amount: integer("amount").notNull(),
+  referenceNote: text("reference_note"),
+  status: text("status", { enum: ["pending", "confirmed", "rejected"] }).notNull().default("pending"),
+  confirmedByUserId: integer("confirmed_by_user_id").references(() => users.id),
+  confirmedAt: timestamp("confirmed_at"),
+  subscriptionId: integer("subscription_id").references(() => memberSubscriptions.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === SCHEMAS ===
 
 export const insertGymSchema = createInsertSchema(gyms).omit({ id: true, createdAt: true });
@@ -795,6 +814,20 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: tru
 export const insertWalkInVisitorSchema = createInsertSchema(walkInVisitors).omit({ id: true, createdAt: true, convertedToMember: true, convertedUserId: true });
 export const insertKioskSessionSchema = createInsertSchema(kioskSessions).omit({ id: true, createdAt: true });
 export const insertKioskOtpCodeSchema = createInsertSchema(kioskOtpCodes).omit({ id: true, createdAt: true });
+export const insertPaymentConfirmationSchema = createInsertSchema(paymentConfirmations).omit({ id: true, createdAt: true, confirmedAt: true, confirmedByUserId: true });
+
+// Payment Links type for gym settings
+export const paymentLinksSchema = z.object({
+  upi: z.string().optional(),
+  venmo: z.string().optional(),
+  cashapp: z.string().optional(),
+  zelle: z.string().optional(),
+  paypal: z.string().optional(),
+  bankDetails: z.string().optional(),
+  customLink: z.string().optional(),
+  customLinkLabel: z.string().optional(),
+});
+export type PaymentLinks = z.infer<typeof paymentLinksSchema>;
 
 // === EXPLICIT TYPES ===
 
@@ -911,3 +944,6 @@ export type KioskSession = typeof kioskSessions.$inferSelect;
 export type InsertKioskSession = z.infer<typeof insertKioskSessionSchema>;
 export type KioskOtpCode = typeof kioskOtpCodes.$inferSelect;
 export type InsertKioskOtpCode = z.infer<typeof insertKioskOtpCodeSchema>;
+
+export type PaymentConfirmation = typeof paymentConfirmations.$inferSelect;
+export type InsertPaymentConfirmation = z.infer<typeof insertPaymentConfirmationSchema>;

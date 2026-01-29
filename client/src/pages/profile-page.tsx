@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
 import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus, MapPin, AlertCircle, Clock, User, FileEdit, Send, Edit2, Lock, CreditCard, Copy } from "lucide-react";
+import { OwnerPaymentSettings, PaymentConfirmationsDashboard } from "@/components/payment-settings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatDistanceToNow, format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -744,6 +745,9 @@ function OwnerProfileView() {
             </CardContent>
           </Card>
         )}
+
+        <OwnerPaymentSettings />
+        <PaymentConfirmationsDashboard />
       </div>
     </div>
   );

@@ -4145,6 +4145,123 @@ export async function registerRoutes(
     }
   });
 
+  // === GYM PAYMENT SETTINGS ROUTES ===
+  
+  app.get("/api/owner/payment-settings", requireRole(["owner"]), async (req, res) => {
+    try {
+      if (!req.user!.gymId) {
+        return res.status(400).json({ message: "No gym assigned to this owner account" });
+      }
+      const settings = await storage.getGymPaymentSettings(req.user!.gymId);
+      res.json(settings);
+    } catch (error) {
+      console.error("[Payment Settings Get] Error:", error);
+      res.status(500).json({ message: "Failed to fetch payment settings" });
+    }
+  });
+
+  app.put("/api/owner/payment-settings", requireRole(["owner"]), async (req, res) => {
+    try {
+      if (!req.user!.gymId) {
+        return res.status(400).json({ message: "No gym assigned to this owner account" });
+      }
+      const schema = z.object({
+        paymentLinks: z.object({
+          upi: z.string().optional(),
+          venmo: z.string().optional(),
+          cashapp: z.string().optional(),
+          zelle: z.string().optional(),
+          paypal: z.string().optional(),
+          bankDetails: z.string().optional(),
+          customLink: z.string().optional(),
+          customLinkLabel: z.string().optional(),
+        }).optional(),
+        dayPassPrice: z.number().optional(),
+      });
+      const input = schema.parse(req.body);
+      await storage.updateGymPaymentSettings(req.user!.gymId, input);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Payment Settings Update] Error:", error);
+      res.status(500).json({ message: "Failed to update payment settings" });
+    }
+  });
+
+  // Get payment confirmation requests (for owner dashboard)
+  app.get("/api/owner/payment-confirmations", requireRole(["owner"]), async (req, res) => {
+    try {
+      if (!req.user!.gymId) {
+        return res.status(400).json({ message: "No gym assigned" });
+      }
+      const status = req.query.status as string | undefined;
+      const confirmations = await storage.getPaymentConfirmations(req.user!.gymId, status);
+      res.json(confirmations);
+    } catch (error) {
+      console.error("[Payment Confirmations Get] Error:", error);
+      res.status(500).json({ message: "Failed to fetch payment confirmations" });
+    }
+  });
+
+  // Confirm or reject a payment confirmation
+  app.patch("/api/owner/payment-confirmations/:id", requireRole(["owner"]), async (req, res) => {
+    try {
+      if (!req.user!.gymId) {
+        return res.status(400).json({ message: "No gym assigned" });
+      }
+      const id = parseInt(req.params.id);
+      const schema = z.object({
+        status: z.enum(["confirmed", "rejected"]),
+      });
+      const input = schema.parse(req.body);
+      await storage.updatePaymentConfirmation(id, req.user!.gymId, req.user!.id, input.status);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Payment Confirmation Update] Error:", error);
+      res.status(500).json({ message: "Failed to update payment confirmation" });
+    }
+  });
+
+  // Member submits payment confirmation
+  app.post("/api/member/payment-confirmation", requireRole(["member"]), async (req, res) => {
+    try {
+      if (!req.user!.gymId) {
+        return res.status(400).json({ message: "No gym assigned" });
+      }
+      const schema = z.object({
+        paymentType: z.enum(["subscription", "day_pass"]),
+        paymentMethod: z.enum(["upi", "venmo", "cashapp", "zelle", "paypal", "bank_transfer", "cash", "other"]),
+        amount: z.number(),
+        referenceNote: z.string().optional(),
+        subscriptionId: z.number().optional(),
+      });
+      const input = schema.parse(req.body);
+      const confirmation = await storage.createPaymentConfirmation({
+        gymId: req.user!.gymId,
+        memberId: req.user!.id,
+        walkInVisitorId: null,
+        ...input,
+      });
+      res.status(201).json(confirmation);
+    } catch (error) {
+      console.error("[Payment Confirmation Create] Error:", error);
+      res.status(500).json({ message: "Failed to submit payment confirmation" });
+    }
+  });
+
+  // Get gym payment links for member (public for paying)
+  app.get("/api/gym/payment-options", requireRole(["member", "trainer"]), async (req, res) => {
+    try {
+      if (!req.user!.gymId) {
+        return res.status(400).json({ message: "No gym assigned" });
+      }
+      const settings = await storage.getGymPaymentSettings(req.user!.gymId);
+      res.json(settings);
+    } catch (error) {
+      console.error("[Gym Payment Options Get] Error:", error);
+      res.status(500).json({ message: "Failed to fetch payment options" });
+    }
+  });
+
   // === STAR MEMBERS ROUTES ===
   app.get("/api/trainer/star-members", requireRole(["trainer"]), async (req, res) => {
     const stars = await storage.getStarMembers(req.user!.id);
@@ -5203,13 +5320,16 @@ export async function registerRoutes(
         return res.status(400).json({ message: "This check-in link has expired" });
       }
       
-      // Get gym info for display
+      // Get gym info for display including payment options
       const gym = await storage.getGym(session.gymId);
       res.json({ 
         valid: true, 
         gymName: gym?.name,
         gymId: session.gymId,
-        sessionId: session.id
+        sessionId: session.id,
+        currency: gym?.currency || "INR",
+        dayPassPrice: gym?.dayPassPrice,
+        paymentLinks: gym?.paymentLinks || {}
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to validate kiosk token" });

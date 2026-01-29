@@ -48,13 +48,14 @@ import {
   trainingPhases, phaseExercises, type TrainingPhase, type InsertTrainingPhase, type PhaseExercise, type InsertPhaseExercise,
   userProfiles, type UserProfile,
   passwordResetCodes, type PasswordResetCode, type InsertPasswordResetCode,
-  supportTickets, supportMessages, auditLogs, walkInVisitors, kioskSessions, kioskOtpCodes,
+  supportTickets, supportMessages, auditLogs, walkInVisitors, kioskSessions, kioskOtpCodes, paymentConfirmations,
   type SupportTicket, type InsertSupportTicket,
   type SupportMessage, type InsertSupportMessage,
   type AuditLog, type InsertAuditLog,
   type WalkInVisitor, type InsertWalkInVisitor,
   type KioskSession, type InsertKioskSession,
-  type KioskOtpCode, type InsertKioskOtpCode
+  type KioskOtpCode, type InsertKioskOtpCode,
+  type PaymentConfirmation, type InsertPaymentConfirmation
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -300,6 +301,15 @@ export interface IStorage {
     } | null;
   }>;
   updateOwnerProfile(ownerId: number, gymId: number, data: { phone?: string; address?: string; timings?: string }): Promise<void>;
+  
+  // Gym Payment Settings
+  getGymPaymentSettings(gymId: number): Promise<{ paymentLinks: any; dayPassPrice: number | null; currency: string }>;
+  updateGymPaymentSettings(gymId: number, data: { paymentLinks?: any; dayPassPrice?: number }): Promise<void>;
+  
+  // Payment Confirmations
+  getPaymentConfirmations(gymId: number, status?: string): Promise<any[]>;
+  createPaymentConfirmation(data: { gymId: number; memberId: number | null; walkInVisitorId: number | null; paymentType: string; paymentMethod: string; amount: number; referenceNote?: string; subscriptionId?: number }): Promise<any>;
+  updatePaymentConfirmation(id: number, gymId: number, confirmedByUserId: number, status: "confirmed" | "rejected"): Promise<void>;
   
   // User Profiles (Onboarding)
   getUserProfile(userId: number): Promise<UserProfile | null>;
@@ -3056,6 +3066,83 @@ export class DatabaseStorage implements IStorage {
     if (Object.keys(gymUpdate).length > 0) {
       await db.update(gyms).set(gymUpdate).where(eq(gyms.id, gymId));
     }
+  }
+
+  // === Gym Payment Settings Methods ===
+  async getGymPaymentSettings(gymId: number): Promise<{ paymentLinks: any; dayPassPrice: number | null; currency: string }> {
+    const [gym] = await db.select({
+      paymentLinks: gyms.paymentLinks,
+      dayPassPrice: gyms.dayPassPrice,
+      currency: gyms.currency,
+    }).from(gyms).where(eq(gyms.id, gymId));
+    return {
+      paymentLinks: gym?.paymentLinks || {},
+      dayPassPrice: gym?.dayPassPrice || null,
+      currency: gym?.currency || "INR",
+    };
+  }
+
+  async updateGymPaymentSettings(gymId: number, data: { paymentLinks?: any; dayPassPrice?: number }): Promise<void> {
+    const updateData: Record<string, any> = {};
+    if (data.paymentLinks !== undefined) updateData.paymentLinks = data.paymentLinks;
+    if (data.dayPassPrice !== undefined) updateData.dayPassPrice = data.dayPassPrice;
+    
+    if (Object.keys(updateData).length > 0) {
+      await db.update(gyms).set(updateData).where(eq(gyms.id, gymId));
+    }
+  }
+
+  // === Payment Confirmations Methods ===
+  async getPaymentConfirmations(gymId: number, status?: string): Promise<any[]> {
+    let query = db.select({
+      confirmation: paymentConfirmations,
+      member: users,
+      walkInVisitor: walkInVisitors,
+    })
+    .from(paymentConfirmations)
+    .leftJoin(users, eq(paymentConfirmations.memberId, users.id))
+    .leftJoin(walkInVisitors, eq(paymentConfirmations.walkInVisitorId, walkInVisitors.id))
+    .where(eq(paymentConfirmations.gymId, gymId));
+
+    const results = await query.orderBy(desc(paymentConfirmations.createdAt));
+    
+    return results
+      .filter(r => !status || r.confirmation.status === status)
+      .map(r => ({
+        ...r.confirmation,
+        memberName: r.member?.username || null,
+        memberPublicId: r.member?.publicId || null,
+        visitorName: r.walkInVisitor?.name || null,
+        visitorEmail: r.walkInVisitor?.email || null,
+      }));
+  }
+
+  async createPaymentConfirmation(data: { gymId: number; memberId: number | null; walkInVisitorId: number | null; paymentType: string; paymentMethod: string; amount: number; referenceNote?: string; subscriptionId?: number }): Promise<any> {
+    const [confirmation] = await db.insert(paymentConfirmations).values({
+      gymId: data.gymId,
+      memberId: data.memberId,
+      walkInVisitorId: data.walkInVisitorId,
+      paymentType: data.paymentType as any,
+      paymentMethod: data.paymentMethod as any,
+      amount: data.amount,
+      referenceNote: data.referenceNote,
+      subscriptionId: data.subscriptionId,
+      status: "pending",
+    }).returning();
+    return confirmation;
+  }
+
+  async updatePaymentConfirmation(id: number, gymId: number, confirmedByUserId: number, status: "confirmed" | "rejected"): Promise<void> {
+    await db.update(paymentConfirmations)
+      .set({
+        status,
+        confirmedByUserId,
+        confirmedAt: new Date(),
+      })
+      .where(and(
+        eq(paymentConfirmations.id, id),
+        eq(paymentConfirmations.gymId, gymId)
+      ));
   }
 
   // === Gym History Methods ===

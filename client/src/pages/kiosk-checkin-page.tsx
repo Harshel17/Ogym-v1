@@ -3,7 +3,7 @@ import { useParams } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Building2, CheckCircle, Phone, User, Mail, FileText, ArrowRight, Loader2 } from "lucide-react";
+import { Building2, CheckCircle, Phone, User, Mail, FileText, ArrowRight, Loader2, CreditCard, Smartphone, Wallet, DollarSign, Link, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,11 +32,25 @@ import {
 } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
 
+type PaymentLinks = {
+  upi?: string;
+  venmo?: string;
+  cashapp?: string;
+  zelle?: string;
+  paypal?: string;
+  bankDetails?: string;
+  customLink?: string;
+  customLinkLabel?: string;
+};
+
 interface KioskInfo {
   valid: boolean;
   gymName: string;
   gymId: number;
   sessionId: number;
+  currency?: string;
+  dayPassPrice?: number;
+  paymentLinks?: PaymentLinks;
 }
 
 const emailSchema = z.object({
@@ -93,6 +107,8 @@ export default function KioskCheckinPage() {
       notes: "",
     },
   });
+
+  const visitType = detailsForm.watch("visitType");
 
   useEffect(() => {
     validateToken();
@@ -343,6 +359,77 @@ export default function KioskCheckinPage() {
                     </FormItem>
                   )}
                 />
+
+                {visitType === "day_pass" && kioskInfo?.dayPassPrice && (
+                  <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium flex items-center gap-2">
+                        <CreditCard className="w-4 h-4" />
+                        Day Pass Price
+                      </span>
+                      <Badge variant="secondary" className="text-base">
+                        {kioskInfo.currency === "USD" ? "$" : "₹"}{(kioskInfo.dayPassPrice / 100).toFixed(0)}
+                      </Badge>
+                    </div>
+                    
+                    {kioskInfo.paymentLinks && Object.keys(kioskInfo.paymentLinks).some(k => kioskInfo.paymentLinks?.[k as keyof PaymentLinks]) && (
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">Pay using:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {kioskInfo.paymentLinks.upi && (
+                            <Badge variant="outline" className="gap-1" data-testid="badge-upi">
+                              <Smartphone className="w-3 h-3" />
+                              UPI: {kioskInfo.paymentLinks.upi}
+                            </Badge>
+                          )}
+                          {kioskInfo.paymentLinks.venmo && (
+                            <a href={`https://venmo.com/${kioskInfo.paymentLinks.venmo.replace("@", "")}`} target="_blank" rel="noopener noreferrer" className="inline-flex" data-testid="link-venmo">
+                              <Badge variant="outline" className="gap-1">
+                                <Wallet className="w-3 h-3" />
+                                Venmo
+                                <ExternalLink className="w-3 h-3" />
+                              </Badge>
+                            </a>
+                          )}
+                          {kioskInfo.paymentLinks.cashapp && (
+                            <a href={`https://cash.app/${kioskInfo.paymentLinks.cashapp}`} target="_blank" rel="noopener noreferrer" className="inline-flex" data-testid="link-cashapp">
+                              <Badge variant="outline" className="gap-1">
+                                <DollarSign className="w-3 h-3" />
+                                Cash App
+                                <ExternalLink className="w-3 h-3" />
+                              </Badge>
+                            </a>
+                          )}
+                          {kioskInfo.paymentLinks.paypal && (
+                            <a href={kioskInfo.paymentLinks.paypal.startsWith("http") ? kioskInfo.paymentLinks.paypal : `https://paypal.me/${kioskInfo.paymentLinks.paypal}`} target="_blank" rel="noopener noreferrer" className="inline-flex" data-testid="link-paypal">
+                              <Badge variant="outline" className="gap-1">
+                                <Wallet className="w-3 h-3" />
+                                PayPal
+                                <ExternalLink className="w-3 h-3" />
+                              </Badge>
+                            </a>
+                          )}
+                          {kioskInfo.paymentLinks.zelle && (
+                            <Badge variant="outline" className="gap-1" data-testid="badge-zelle">
+                              <Building2 className="w-3 h-3" />
+                              Zelle: {kioskInfo.paymentLinks.zelle}
+                            </Badge>
+                          )}
+                          {kioskInfo.paymentLinks.customLink && (
+                            <a href={kioskInfo.paymentLinks.customLink} target="_blank" rel="noopener noreferrer" className="inline-flex" data-testid="link-custom">
+                              <Badge variant="outline" className="gap-1">
+                                <Link className="w-3 h-3" />
+                                {kioskInfo.paymentLinks.customLinkLabel || "Pay Here"}
+                                <ExternalLink className="w-3 h-3" />
+                              </Badge>
+                            </a>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">Complete payment and check in. Staff will verify your payment.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <FormField
                   control={detailsForm.control}
