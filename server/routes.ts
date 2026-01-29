@@ -5272,6 +5272,25 @@ export async function registerRoutes(
     }
   });
 
+  // Owner: Verify day pass payment
+  app.post("/api/owner/walk-in-visitors/:id/verify-payment", requireRole(["owner"]), async (req, res) => {
+    try {
+      const visitor = await storage.getWalkInVisitorById(parseInt(req.params.id));
+      if (!visitor || visitor.gymId !== req.user!.gymId) {
+        return res.status(404).json({ message: "Visitor not found" });
+      }
+      if (visitor.visitType !== "day_pass") {
+        return res.status(400).json({ message: "Only day pass payments can be verified" });
+      }
+      const updated = await storage.updateWalkInVisitor(parseInt(req.params.id), {
+        paymentVerified: true
+      });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to verify payment" });
+    }
+  });
+
   // === KIOSK ROUTES (Self Check-in) ===
   
   // Owner: Create a new kiosk session (generates QR code link)

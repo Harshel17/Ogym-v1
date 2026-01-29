@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { UserPlus, Plus, Users, Calendar, IndianRupee, TrendingUp, Phone, Mail, FileText, Loader2 } from "lucide-react";
+import { UserPlus, Plus, Users, Calendar, IndianRupee, TrendingUp, Phone, Mail, FileText, Loader2, Image, CheckCircle, Clock, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -26,6 +26,11 @@ type WalkInVisitor = {
   visitType: "day_pass" | "trial" | "enquiry";
   daysCount: number | null;
   amountPaid: number | null;
+  paymentMethod: string | null;
+  paymentScreenshot: string | null;
+  checkinCode: string | null;
+  codeExpiresAt: string | null;
+  paymentVerified: boolean | null;
   notes: string | null;
   source: "owner" | "trainer" | "kiosk" | null;
   convertedToMember: boolean | null;
@@ -59,6 +64,7 @@ export default function OwnerWalkInVisitorsPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -123,6 +129,19 @@ export default function OwnerWalkInVisitorsPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Failed to add visitor", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const verifyPaymentMutation = useMutation({
+    mutationFn: async (visitorId: number) => {
+      return apiRequest("POST", `/api/owner/walk-in-visitors/${visitorId}/verify-payment`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/walk-in-visitors"] });
+      toast({ title: "Payment verified successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to verify payment", description: error.message, variant: "destructive" });
     }
   });
 
@@ -403,6 +422,18 @@ export default function OwnerWalkInVisitorsPage() {
                       {visitor.convertedToMember && (
                         <Badge variant="outline" className="text-green-600 border-green-600 text-xs">Converted</Badge>
                       )}
+                      {visitor.visitType === "day_pass" && visitor.paymentVerified && (
+                        <Badge variant="outline" className="text-green-600 border-green-600 text-xs">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Verified
+                        </Badge>
+                      )}
+                      {visitor.visitType === "day_pass" && visitor.paymentScreenshot && !visitor.paymentVerified && (
+                        <Badge variant="outline" className="text-amber-600 border-amber-600 text-xs">
+                          <Clock className="w-3 h-3 mr-1" />
+                          Pending
+                        </Badge>
+                      )}
                     </div>
                     <div className="text-right flex-shrink-0">
                       <div className="font-semibold text-sm md:text-base">{formatAmount(visitor.amountPaid)}</div>
@@ -426,11 +457,47 @@ export default function OwnerWalkInVisitorsPage() {
                     {visitor.daysCount && visitor.daysCount > 1 && (
                       <span>{visitor.daysCount} days</span>
                     )}
+                    {visitor.checkinCode && (
+                      <span className="font-mono font-medium text-primary">
+                        Code: {visitor.checkinCode}
+                      </span>
+                    )}
                   </div>
                   {visitor.notes && (
                     <div className="mt-2 text-xs md:text-sm text-muted-foreground flex items-center gap-1">
                       <FileText className="w-3 h-3 flex-shrink-0" />
                       <span className="truncate">{visitor.notes}</span>
+                    </div>
+                  )}
+                  
+                  {/* Day Pass Payment Actions */}
+                  {visitor.visitType === "day_pass" && visitor.paymentScreenshot && (
+                    <div className="mt-3 pt-3 border-t flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setScreenshotPreview(visitor.paymentScreenshot)}
+                        data-testid={`button-view-screenshot-${visitor.id}`}
+                      >
+                        <Image className="w-4 h-4 mr-1" />
+                        View Payment
+                      </Button>
+                      {!visitor.paymentVerified && (
+                        <Button
+                          size="sm"
+                          onClick={() => verifyPaymentMutation.mutate(visitor.id)}
+                          disabled={verifyPaymentMutation.isPending}
+                          data-testid={`button-verify-payment-${visitor.id}`}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Verify Payment
+                        </Button>
+                      )}
+                      {visitor.paymentMethod && (
+                        <span className="text-xs text-muted-foreground">
+                          via {visitor.paymentMethod.toUpperCase()}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -439,6 +506,24 @@ export default function OwnerWalkInVisitorsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Screenshot Preview Dialog */}
+      <Dialog open={!!screenshotPreview} onOpenChange={() => setScreenshotPreview(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Payment Screenshot</DialogTitle>
+          </DialogHeader>
+          {screenshotPreview && (
+            <div className="mt-2">
+              <img 
+                src={screenshotPreview} 
+                alt="Payment screenshot" 
+                className="w-full rounded-lg border"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
