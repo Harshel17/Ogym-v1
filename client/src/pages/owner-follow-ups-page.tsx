@@ -10,11 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { 
   Mail, Loader2, Send, Settings, Search, Calendar, Users, CreditCard,
-  UserX, Clock, AlertCircle, ChevronRight, Check, Filter
+  UserX, Clock, AlertCircle, Check, Filter, ChevronRight, Sparkles
 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -88,8 +88,8 @@ function SenderSetupCard() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
+      <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-muted/20">
+        <CardHeader className="pb-4">
           <Skeleton className="h-6 w-32" />
         </CardHeader>
         <CardContent>
@@ -100,13 +100,17 @@ function SenderSetupCard() {
   }
 
   return (
-    <Card>
+    <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-muted/20">
       <CardHeader className="pb-4">
-        <div className="flex items-center gap-2">
-          <Settings className="w-5 h-5 text-primary" />
-          <CardTitle className="text-lg">Sender Setup</CardTitle>
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Settings className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <CardTitle className="text-lg">Sender Setup</CardTitle>
+            <CardDescription className="text-sm">Configure how emails are sent</CardDescription>
+          </div>
         </div>
-        <CardDescription>Configure how emails are sent to your members</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <RadioGroup 
@@ -114,62 +118,53 @@ function SenderSetupCard() {
           onValueChange={(v) => setSendMode(v as "ogym" | "custom")}
           className="space-y-3"
         >
-          <div className="flex items-center space-x-3 p-3 rounded-lg border hover-elevate cursor-pointer" onClick={() => setSendMode("ogym")}>
+          <div 
+            className="flex items-center gap-3 p-4 rounded-xl border bg-background/50 hover-elevate cursor-pointer transition-all" 
+            onClick={() => setSendMode("ogym")}
+          >
             <RadioGroupItem value="ogym" id="ogym" data-testid="radio-send-ogym" />
             <Label htmlFor="ogym" className="flex-1 cursor-pointer">
               <div className="font-medium">Send via OGym</div>
-              <div className="text-sm text-muted-foreground">Quick and recommended</div>
+              <div className="text-sm text-muted-foreground">Quick and reliable</div>
             </Label>
-            <Badge variant="secondary">Recommended</Badge>
+            <Badge className="bg-primary/10 text-primary border-0">Recommended</Badge>
           </div>
-          <div className="flex items-center space-x-3 p-3 rounded-lg border opacity-50 cursor-not-allowed">
+          <div className="flex items-center gap-3 p-4 rounded-xl border opacity-50 cursor-not-allowed">
             <RadioGroupItem value="custom" id="custom" disabled data-testid="radio-send-custom" />
             <Label htmlFor="custom" className="flex-1">
               <div className="font-medium">Send via my email</div>
-              <div className="text-sm text-muted-foreground">Connect Gmail or Outlook (Coming soon)</div>
+              <div className="text-sm text-muted-foreground">Coming soon</div>
             </Label>
           </div>
         </RadioGroup>
 
         {sendMode === "ogym" && (
-          <div className="space-y-3 pt-2">
-            <div className="p-3 bg-muted/50 rounded-lg">
-              <div className="text-sm text-muted-foreground">From:</div>
+          <div className="space-y-4 pt-2">
+            <div className="p-4 bg-muted/50 rounded-xl">
+              <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">From</div>
               <div className="font-medium">{data?.gymName} &lt;no-reply@ogym.fitness&gt;</div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="replyTo">Reply-To Email</Label>
+              <Label htmlFor="replyTo" className="text-sm">Reply-To Email</Label>
               <Input 
                 id="replyTo"
                 type="email"
                 placeholder="Your email for replies"
                 value={replyToEmail}
                 onChange={(e) => setReplyToEmail(e.target.value)}
+                className="h-11"
                 data-testid="input-reply-to"
               />
             </div>
             <Button 
               onClick={() => saveMutation.mutate({ sendMode, replyToEmail })}
               disabled={saveMutation.isPending}
+              className="w-full sm:w-auto"
               data-testid="button-save-settings"
             >
               {saveMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
               Save Settings
             </Button>
-          </div>
-        )}
-
-        {sendMode === "custom" && (
-          <div className="space-y-3 pt-2">
-            <div className="flex gap-2">
-              <Button variant="outline" disabled>
-                Connect Gmail
-              </Button>
-              <Button variant="outline" disabled>
-                Connect Outlook
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground">OAuth integration coming soon</p>
           </div>
         )}
       </CardContent>
@@ -200,42 +195,50 @@ function MessageComposer({
   };
 
   return (
-    <Card className="mt-4">
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <Mail className="w-5 h-5 text-primary" />
+    <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-primary/5">
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Mail className="w-5 h-5 text-primary" />
+          </div>
           <CardTitle className="text-lg">Compose Message</CardTitle>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="subject">Subject</Label>
+          <Label htmlFor="subject" className="text-sm">Subject</Label>
           <Input 
             id="subject"
             placeholder="Enter email subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
+            className="h-11"
             data-testid={`input-subject-${category}`}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="message">Message</Label>
+          <Label htmlFor="message" className="text-sm">Message</Label>
           <Textarea 
             id="message"
             placeholder="Write your message here..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={5}
+            className="resize-none"
             data-testid={`textarea-message-${category}`}
           />
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">
-            {selectedCount} recipient{selectedCount !== 1 ? 's' : ''} selected
-          </span>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-sm text-muted-foreground">
+              {selectedCount} recipient{selectedCount !== 1 ? 's' : ''} selected
+            </span>
+          </div>
           <Button 
             onClick={handleSend}
             disabled={selectedCount === 0 || !subject || !message || isPending}
+            className="w-full sm:w-auto"
             data-testid={`button-send-${category}`}
           >
             {isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
@@ -244,6 +247,51 @@ function MessageComposer({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function MemberCard({ 
+  member, 
+  isSelected, 
+  onToggle, 
+  children,
+  testIdPrefix
+}: { 
+  member: { id: number; name: string; email: string | null }; 
+  isSelected: boolean; 
+  onToggle: () => void;
+  children: React.ReactNode;
+  testIdPrefix: string;
+}) {
+  return (
+    <div 
+      className={`p-4 rounded-xl border transition-all ${isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'bg-card hover-elevate'}`}
+      data-testid={`card-${testIdPrefix}-${member.id}`}
+    >
+      <div className="flex items-start gap-3">
+        <Checkbox 
+          checked={isSelected}
+          onCheckedChange={onToggle}
+          disabled={!member.email}
+          className="mt-1"
+          data-testid={`checkbox-${testIdPrefix}-${member.id}`}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-foreground">{member.name}</span>
+            {!member.email && (
+              <Badge variant="secondary" className="text-xs">No email</Badge>
+            )}
+          </div>
+          {member.email && (
+            <p className="text-sm text-muted-foreground truncate mt-0.5">{member.email}</p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -322,103 +370,121 @@ function DayPassTab() {
     return filtered;
   }, [members, search]);
 
+  const emailableCount = filteredMembers.filter(m => m.email).length;
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 p-4 bg-muted/30 rounded-lg">
-        <Filter className="w-4 h-4 text-muted-foreground" />
-        <div className="flex items-center gap-2">
-          <Label className="text-sm whitespace-nowrap">From:</Label>
-          <Input 
-            type="date" 
-            value={fromDate} 
-            onChange={(e) => setFromDate(e.target.value)}
-            className="w-36 h-8"
-            data-testid="input-from-date"
-          />
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filters</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">From Date</Label>
+              <Input 
+                type="date" 
+                value={fromDate} 
+                onChange={(e) => setFromDate(e.target.value)}
+                className="h-10"
+                data-testid="input-from-date"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">To Date</Label>
+              <Input 
+                type="date" 
+                value={toDate} 
+                onChange={(e) => setToDate(e.target.value)}
+                className="h-10"
+                data-testid="input-to-date"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Min Visits</Label>
+              <Select value={minVisits} onValueChange={setMinVisits}>
+                <SelectTrigger className="h-10" data-testid="select-min-visits">
+                  <SelectValue placeholder="Min visits" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">All visitors</SelectItem>
+                  <SelectItem value="2">2+ visits</SelectItem>
+                  <SelectItem value="3">3+ visits</SelectItem>
+                  <SelectItem value="5">5+ visits</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Search</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Name, email, phone"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-10"
+                  data-testid="input-search-daypass"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {emailableCount > 0 && (
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              checked={filteredMembers.filter(m => m.email).every(m => selectedIds.includes(m.id))}
+              onCheckedChange={toggleAll}
+              data-testid="checkbox-select-all-daypass"
+            />
+            <span className="text-sm text-muted-foreground">Select all ({emailableCount})</span>
+          </div>
+          {selectedIds.length > 0 && (
+            <Badge variant="secondary">{selectedIds.length} selected</Badge>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <Label className="text-sm whitespace-nowrap">To:</Label>
-          <Input 
-            type="date" 
-            value={toDate} 
-            onChange={(e) => setToDate(e.target.value)}
-            className="w-36 h-8"
-            data-testid="input-to-date"
-          />
-        </div>
-        <Select value={minVisits} onValueChange={setMinVisits}>
-          <SelectTrigger className="w-40 h-8" data-testid="select-min-visits">
-            <SelectValue placeholder="Min visits" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1">All visitors</SelectItem>
-            <SelectItem value="2">2+ visits</SelectItem>
-            <SelectItem value="3">3+ visits</SelectItem>
-            <SelectItem value="5">5+ visits</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-2.5 top-2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search name, email, phone"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-8"
-            data-testid="input-search-daypass"
-          />
-        </div>
-      </div>
+      )}
 
       {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+        <div className="grid gap-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
         </div>
       ) : filteredMembers.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>No day pass visitors found</p>
-        </div>
+        <Card className="border-0 shadow-sm">
+          <CardContent className="py-16 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+              <Users className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <p className="font-medium text-foreground">No day pass visitors found</p>
+            <p className="text-sm text-muted-foreground mt-1">Adjust your filters or date range</p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox 
-                    checked={filteredMembers.filter(m => m.email).every(m => selectedIds.includes(m.id))}
-                    onCheckedChange={toggleAll}
-                    data-testid="checkbox-select-all-daypass"
-                  />
-                </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead className="text-center">Visits</TableHead>
-                <TableHead>Last Visit</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMembers.map(member => (
-                <TableRow key={member.id} data-testid={`row-daypass-${member.id}`}>
-                  <TableCell>
-                    <Checkbox 
-                      checked={selectedIds.includes(member.id)}
-                      onCheckedChange={() => toggleSelect(member.id)}
-                      disabled={!member.email}
-                      data-testid={`checkbox-daypass-${member.id}`}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">{member.name}</TableCell>
-                  <TableCell>{member.email || <span className="text-muted-foreground">-</span>}</TableCell>
-                  <TableCell>{member.phone || <span className="text-muted-foreground">-</span>}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="secondary">{member.visitsCount}</Badge>
-                  </TableCell>
-                  <TableCell>{format(new Date(member.lastVisitDate), "MMM d, yyyy")}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="grid gap-3">
+          {filteredMembers.map(member => (
+            <MemberCard
+              key={member.id}
+              member={member}
+              isSelected={selectedIds.includes(member.id)}
+              onToggle={() => toggleSelect(member.id)}
+              testIdPrefix="daypass"
+            >
+              <Badge variant="secondary" className="gap-1">
+                <Users className="w-3 h-3" />
+                {member.visitsCount} visit{member.visitsCount !== 1 ? 's' : ''}
+              </Badge>
+              <Badge variant="outline" className="gap-1">
+                <Calendar className="w-3 h-3" />
+                {format(new Date(member.lastVisitDate), "MMM d")}
+              </Badge>
+              {member.phone && (
+                <span className="text-xs text-muted-foreground">{member.phone}</span>
+              )}
+            </MemberCard>
+          ))}
         </div>
       )}
 
@@ -502,87 +568,100 @@ function InactiveTab() {
     return filtered;
   }, [members, search]);
 
+  const emailableCount = filteredMembers.filter(m => m.email).length;
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 p-4 bg-muted/30 rounded-lg">
-        <Filter className="w-4 h-4 text-muted-foreground" />
-        <Select value={inactiveDays} onValueChange={setInactiveDays}>
-          <SelectTrigger className="w-48 h-8" data-testid="select-inactive-days">
-            <SelectValue placeholder="Inactive since" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7">Inactive 7+ days</SelectItem>
-            <SelectItem value="14">Inactive 14+ days</SelectItem>
-            <SelectItem value="30">Inactive 30+ days</SelectItem>
-            <SelectItem value="60">Inactive 60+ days</SelectItem>
-            <SelectItem value="90">Inactive 90+ days</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-2.5 top-2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search name or email"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-8"
-            data-testid="input-search-inactive"
-          />
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filters</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Inactive Since</Label>
+              <Select value={inactiveDays} onValueChange={setInactiveDays}>
+                <SelectTrigger className="h-10" data-testid="select-inactive-days">
+                  <SelectValue placeholder="Inactive since" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">7+ days</SelectItem>
+                  <SelectItem value="14">14+ days</SelectItem>
+                  <SelectItem value="30">30+ days</SelectItem>
+                  <SelectItem value="60">60+ days</SelectItem>
+                  <SelectItem value="90">90+ days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Search</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Name or email"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-10"
+                  data-testid="input-search-inactive"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {emailableCount > 0 && (
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              checked={filteredMembers.filter(m => m.email).every(m => selectedIds.includes(m.id))}
+              onCheckedChange={toggleAll}
+              data-testid="checkbox-select-all-inactive"
+            />
+            <span className="text-sm text-muted-foreground">Select all ({emailableCount})</span>
+          </div>
+          {selectedIds.length > 0 && (
+            <Badge variant="secondary">{selectedIds.length} selected</Badge>
+          )}
         </div>
-      </div>
+      )}
 
       {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+        <div className="grid gap-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
         </div>
       ) : filteredMembers.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <UserX className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>No inactive members found</p>
-          <p className="text-sm mt-1">Great news! All your members are active.</p>
-        </div>
+        <Card className="border-0 shadow-sm">
+          <CardContent className="py-16 text-center">
+            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="w-8 h-8 text-green-500" />
+            </div>
+            <p className="font-medium text-foreground">All members are active!</p>
+            <p className="text-sm text-muted-foreground mt-1">Great news - no inactive members found</p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox 
-                    checked={filteredMembers.filter(m => m.email).every(m => selectedIds.includes(m.id))}
-                    onCheckedChange={toggleAll}
-                    data-testid="checkbox-select-all-inactive"
-                  />
-                </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Last Visit</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMembers.map(member => (
-                <TableRow key={member.id} data-testid={`row-inactive-${member.id}`}>
-                  <TableCell>
-                    <Checkbox 
-                      checked={selectedIds.includes(member.id)}
-                      onCheckedChange={() => toggleSelect(member.id)}
-                      disabled={!member.email}
-                      data-testid={`checkbox-inactive-${member.id}`}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">{member.name}</TableCell>
-                  <TableCell>{member.email || <span className="text-muted-foreground">-</span>}</TableCell>
-                  <TableCell>
-                    {member.lastVisit ? format(new Date(member.lastVisit), "MMM d, yyyy") : <span className="text-muted-foreground">Never</span>}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={member.membershipStatus === "active" ? "default" : "secondary"}>
-                      {member.membershipStatus.replace("_", " ")}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="grid gap-3">
+          {filteredMembers.map(member => (
+            <MemberCard
+              key={member.id}
+              member={member}
+              isSelected={selectedIds.includes(member.id)}
+              onToggle={() => toggleSelect(member.id)}
+              testIdPrefix="inactive"
+            >
+              <Badge variant="outline" className="gap-1">
+                <Clock className="w-3 h-3" />
+                {member.lastVisit ? format(new Date(member.lastVisit), "MMM d") : "Never visited"}
+              </Badge>
+              <Badge 
+                variant={member.membershipStatus === "active" ? "default" : "secondary"}
+              >
+                {member.membershipStatus.replace("_", " ")}
+              </Badge>
+            </MemberCard>
+          ))}
         </div>
       )}
 
@@ -670,126 +749,121 @@ function PaymentsTab() {
     return `₹${(paise / 100).toLocaleString()}`;
   };
 
+  const emailableCount = filteredMembers.filter(m => m.email).length;
+
+  const filterButtons = [
+    { key: "expires_soon", label: "Expires 7d", icon: Clock, color: "text-amber-500" },
+    { key: "next_month", label: "Next 30d", icon: Calendar, color: "text-blue-500" },
+    { key: "balance", label: "Has balance", icon: CreditCard, color: "text-purple-500" },
+    { key: "expired", label: "Expired", icon: AlertCircle, color: "text-red-500" },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 p-4 bg-muted/30 rounded-lg">
-        <Filter className="w-4 h-4 text-muted-foreground" />
-        <div className="flex flex-wrap gap-2">
-          <Button 
-            variant={filterType === "expires_soon" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setFilterType(filterType === "expires_soon" ? "" : "expires_soon")}
-            data-testid="filter-expires-soon"
-          >
-            <Clock className="w-4 h-4 mr-1" />
-            Expires in 7 days
-          </Button>
-          <Button 
-            variant={filterType === "next_month" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setFilterType(filterType === "next_month" ? "" : "next_month")}
-            data-testid="filter-next-month"
-          >
-            <Calendar className="w-4 h-4 mr-1" />
-            Expires next month
-          </Button>
-          <Button 
-            variant={filterType === "balance" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setFilterType(filterType === "balance" ? "" : "balance")}
-            data-testid="filter-balance"
-          >
-            <CreditCard className="w-4 h-4 mr-1" />
-            Has balance
-          </Button>
-          <Button 
-            variant={filterType === "expired" ? "default" : "outline"} 
-            size="sm"
-            onClick={() => setFilterType(filterType === "expired" ? "" : "expired")}
-            data-testid="filter-expired"
-          >
-            <AlertCircle className="w-4 h-4 mr-1" />
-            Expired
-          </Button>
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Quick Filters</span>
+          </div>
+          <ScrollArea className="w-full">
+            <div className="flex gap-2 pb-2">
+              {filterButtons.map(({ key, label, icon: Icon, color }) => (
+                <Button 
+                  key={key}
+                  variant={filterType === key ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setFilterType(filterType === key ? "" : key)}
+                  className="whitespace-nowrap flex-shrink-0"
+                  data-testid={`filter-${key}`}
+                >
+                  <Icon className={`w-4 h-4 mr-1.5 ${filterType === key ? "" : color}`} />
+                  {label}
+                </Button>
+              ))}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+          <div className="mt-3 space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Search</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Name or email"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-10"
+                data-testid="input-search-payments"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {emailableCount > 0 && (
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              checked={filteredMembers.filter(m => m.email).every(m => selectedIds.includes(m.id))}
+              onCheckedChange={toggleAll}
+              data-testid="checkbox-select-all-payments"
+            />
+            <span className="text-sm text-muted-foreground">Select all ({emailableCount})</span>
+          </div>
+          {selectedIds.length > 0 && (
+            <Badge variant="secondary">{selectedIds.length} selected</Badge>
+          )}
         </div>
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-2.5 top-2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search name or email"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-8"
-            data-testid="input-search-payments"
-          />
-        </div>
-      </div>
+      )}
 
       {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+        <div className="grid gap-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
         </div>
       ) : filteredMembers.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <CreditCard className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>No members found matching this filter</p>
-        </div>
+        <Card className="border-0 shadow-sm">
+          <CardContent className="py-16 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+              <CreditCard className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <p className="font-medium text-foreground">No members found</p>
+            <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters</p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox 
-                    checked={filteredMembers.filter(m => m.email).every(m => selectedIds.includes(m.id))}
-                    onCheckedChange={toggleAll}
-                    data-testid="checkbox-select-all-payments"
-                  />
-                </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead>Expiry</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead>Last Payment</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMembers.map(member => (
-                <TableRow key={member.id} data-testid={`row-payment-${member.id}`}>
-                  <TableCell>
-                    <Checkbox 
-                      checked={selectedIds.includes(member.id)}
-                      onCheckedChange={() => toggleSelect(member.id)}
-                      disabled={!member.email}
-                      data-testid={`checkbox-payment-${member.id}`}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">{member.name}</TableCell>
-                  <TableCell>{member.email || <span className="text-muted-foreground">-</span>}</TableCell>
-                  <TableCell>{member.planName || <span className="text-muted-foreground">-</span>}</TableCell>
-                  <TableCell>
-                    {member.expiryDate ? (
-                      <span className={new Date(member.expiryDate) < new Date() ? "text-red-500" : ""}>
-                        {format(new Date(member.expiryDate), "MMM d, yyyy")}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {member.balance > 0 ? (
-                      <Badge variant="destructive">{formatAmount(member.balance)}</Badge>
-                    ) : (
-                      <Badge variant="secondary">Paid</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {member.lastPaymentDate ? format(new Date(member.lastPaymentDate), "MMM d, yyyy") : <span className="text-muted-foreground">-</span>}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="grid gap-3">
+          {filteredMembers.map(member => {
+            const isExpired = member.expiryDate && new Date(member.expiryDate) < new Date();
+            return (
+              <MemberCard
+                key={member.id}
+                member={member}
+                isSelected={selectedIds.includes(member.id)}
+                onToggle={() => toggleSelect(member.id)}
+                testIdPrefix="payment"
+              >
+                {member.planName && (
+                  <Badge variant="secondary">{member.planName}</Badge>
+                )}
+                {member.expiryDate && (
+                  <Badge variant={isExpired ? "destructive" : "outline"} className="gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {isExpired ? "Expired " : "Expires "}
+                    {format(new Date(member.expiryDate), "MMM d")}
+                  </Badge>
+                )}
+                {member.balance > 0 && (
+                  <Badge variant="destructive" className="gap-1">
+                    <CreditCard className="w-3 h-3" />
+                    {formatAmount(member.balance)} due
+                  </Badge>
+                )}
+                {member.balance === 0 && (
+                  <Badge className="bg-green-500/10 text-green-600 border-0">Paid</Badge>
+                )}
+              </MemberCard>
+            );
+          })}
         </div>
       )}
 
@@ -807,39 +881,57 @@ export default function OwnerFollowUpsPage() {
   const [activeTab, setActiveTab] = useState("daypass");
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">Follow-ups</h2>
-        <p className="text-muted-foreground mt-1">Send targeted emails to day pass visitors, inactive members, and payment reminders</p>
+    <div className="space-y-6 pb-24">
+      <div className="space-y-1">
+        <h1 className="text-2xl sm:text-3xl font-bold font-display text-foreground">Follow-ups</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Send targeted emails to your members</p>
       </div>
 
       <SenderSetupCard />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="daypass" data-testid="tab-daypass">
-            <Users className="w-4 h-4 mr-2" />
-            Day Pass Members
-          </TabsTrigger>
-          <TabsTrigger value="inactive" data-testid="tab-inactive">
-            <UserX className="w-4 h-4 mr-2" />
-            Inactive Members
-          </TabsTrigger>
-          <TabsTrigger value="payments" data-testid="tab-payments">
-            <CreditCard className="w-4 h-4 mr-2" />
-            Payments
-          </TabsTrigger>
-        </TabsList>
+        <ScrollArea className="w-full">
+          <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-3 sm:w-full h-auto p-1 gap-1">
+            <TabsTrigger 
+              value="daypass" 
+              className="flex-1 py-2.5 px-4 data-[state=active]:shadow-sm whitespace-nowrap"
+              data-testid="tab-daypass"
+            >
+              <Users className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="hidden sm:inline">Day Pass</span>
+              <span className="sm:hidden">Day Pass</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="inactive" 
+              className="flex-1 py-2.5 px-4 data-[state=active]:shadow-sm whitespace-nowrap"
+              data-testid="tab-inactive"
+            >
+              <UserX className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="hidden sm:inline">Inactive</span>
+              <span className="sm:hidden">Inactive</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="payments" 
+              className="flex-1 py-2.5 px-4 data-[state=active]:shadow-sm whitespace-nowrap"
+              data-testid="tab-payments"
+            >
+              <CreditCard className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="hidden sm:inline">Payments</span>
+              <span className="sm:hidden">Payments</span>
+            </TabsTrigger>
+          </TabsList>
+          <ScrollBar orientation="horizontal" className="sm:hidden" />
+        </ScrollArea>
 
-        <TabsContent value="daypass">
+        <TabsContent value="daypass" className="mt-4">
           <DayPassTab />
         </TabsContent>
 
-        <TabsContent value="inactive">
+        <TabsContent value="inactive" className="mt-4">
           <InactiveTab />
         </TabsContent>
 
-        <TabsContent value="payments">
+        <TabsContent value="payments" className="mt-4">
           <PaymentsTab />
         </TabsContent>
       </Tabs>
