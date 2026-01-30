@@ -655,6 +655,7 @@ export async function getOwnerMemberPaymentStatus(gymId: number, memberName: str
   }
   
   const member = members[0];
+  const displayName = member.fullName || member.username;
   
   const recentPayments = await db.select()
     .from(payments)
@@ -668,17 +669,17 @@ export async function getOwnerMemberPaymentStatus(gymId: number, memberName: str
     .limit(1);
   
   if (recentPayments.length === 0) {
-    return `${member.fullName} has no payment records.`;
+    return `${displayName} has no payment records.`;
   }
   
   const lastPayment = recentPayments[0];
   const paidThisMonth = lastPayment.month === currentMonth && lastPayment.status === 'paid';
   
   if (paidThisMonth) {
-    return `${member.fullName} has paid this month.`;
+    return `${displayName} has paid this month.`;
   }
   
-  return `${member.fullName} hasn't paid this month. Last payment was for ${lastPayment.month}.`;
+  return `${displayName} hasn't paid this month. Last payment was for ${lastPayment.month}.`;
 }
 
 export async function getOwnerActiveMembersToday(gymId: number): Promise<string> {
