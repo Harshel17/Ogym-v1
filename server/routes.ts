@@ -10,7 +10,7 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions } from "@shared/schema";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users } from "@shared/schema";
 import { eq, and, isNotNull, inArray, sql, desc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips } from "./dika";
@@ -5616,16 +5616,41 @@ export async function registerRoutes(
     }
   });
 
-  // Get members with payment issues for follow-up (optimized with bulk queries)
+  // Get members with payment issues for follow-up (ultra-optimized - direct SQL)
   app.get("/api/followups/payments", requireRole(["owner"]), async (req, res) => {
     try {
       const { type, search } = req.query;
       const gymId = req.user!.gymId!;
       
-      // Bulk fetch subscriptions (already includes member, plan, and totalPaid!)
-      const allSubscriptions = await storage.getMemberSubscriptions(gymId);
+      // Run 2 fast parallel queries instead of N+1 pattern
+      const [subscriptionsWithMembers, paymentTotals] = await Promise.all([
+        // Get subscriptions with member and plan info in one query
+        db.select({
+          id: memberSubscriptions.id,
+          memberId: memberSubscriptions.memberId,
+          totalAmount: memberSubscriptions.totalAmount,
+          endDate: memberSubscriptions.endDate,
+          status: memberSubscriptions.status,
+          memberUsername: users.username,
+          memberEmail: users.email,
+          planName: membershipPlans.name
+        })
+        .from(memberSubscriptions)
+        .leftJoin(users, eq(memberSubscriptions.memberId, users.id))
+        .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+        .where(eq(memberSubscriptions.gymId, gymId)),
+        // Get total paid per subscription in one aggregation
+        db.select({
+          subscriptionId: paymentTransactions.subscriptionId,
+          totalPaid: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)`
+        })
+        .from(paymentTransactions)
+        .groupBy(paymentTransactions.subscriptionId)
+      ]);
       
-            
+      // Create payment lookup
+      const paymentMap = new Map(paymentTotals.map(p => [p.subscriptionId, Number(p.totalPaid)]));
+      
       const today = new Date().toISOString().split("T")[0];
       const next7Days = new Date();
       next7Days.setDate(next7Days.getDate() + 7);
@@ -5643,19 +5668,19 @@ export async function registerRoutes(
         status: string;
       }> = [];
       
-      for (const subscription of allSubscriptions) {
-        const balance = subscription.totalAmount - subscription.totalPaid;
-        const member = subscription.member;
+      for (const sub of subscriptionsWithMembers) {
+        const totalPaid = paymentMap.get(sub.id) || 0;
+        const balance = sub.totalAmount - totalPaid;
         
         // Filter by type
         let include = false;
-        if (type === "expires_soon" && subscription.endDate <= next7Days.toISOString().split("T")[0] && subscription.endDate >= today) {
+        if (type === "expires_soon" && sub.endDate <= next7Days.toISOString().split("T")[0] && sub.endDate >= today) {
           include = true;
-        } else if (type === "next_month" && subscription.endDate <= next30Days.toISOString().split("T")[0] && subscription.endDate > next7Days.toISOString().split("T")[0]) {
+        } else if (type === "next_month" && sub.endDate <= next30Days.toISOString().split("T")[0] && sub.endDate > next7Days.toISOString().split("T")[0]) {
           include = true;
         } else if (type === "balance" && balance > 0) {
           include = true;
-        } else if (type === "expired" && subscription.endDate < today) {
+        } else if (type === "expired" && sub.endDate < today) {
           include = true;
         } else if (!type) {
           include = true; // Show all if no filter
@@ -5663,14 +5688,14 @@ export async function registerRoutes(
         
         if (include) {
           results.push({
-            id: subscription.memberId,
-            name: member.username,
-            email: member.email,
-            planName: subscription.plan?.name || "Custom",
-            expiryDate: subscription.endDate,
+            id: sub.memberId,
+            name: sub.memberUsername || "Unknown",
+            email: sub.memberEmail,
+            planName: sub.planName || "Custom",
+            expiryDate: sub.endDate,
             balance,
-            lastPaymentDate: null, // Skip individual transaction queries for speed
-            status: subscription.status
+            lastPaymentDate: null,
+            status: sub.status
           });
         }
       }
