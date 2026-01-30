@@ -10,8 +10,8 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises } from "@shared/schema";
-import { eq, and, isNotNull, inArray } from "drizzle-orm";
+import { workoutLogs, workoutLogExercises, attendance } from "@shared/schema";
+import { eq, and, isNotNull, inArray, sql } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips } from "./dika";
 
@@ -5539,7 +5539,7 @@ export async function registerRoutes(
     }
   });
 
-  // Get inactive members for follow-up (optimized with bulk queries)
+  // Get inactive members for follow-up (optimized - single efficient query)
   app.get("/api/followups/inactive", requireRole(["owner"]), async (req, res) => {
     try {
       const { inactive_days, search } = req.query;
@@ -5549,26 +5549,28 @@ export async function registerRoutes(
       cutoffDate.setDate(cutoffDate.getDate() - days);
       const cutoffStr = cutoffDate.toISOString().split("T")[0];
       
-      // Bulk fetch all data at once (much faster than individual queries)
-      const [members, allAttendance, allSubscriptions] = await Promise.all([
+      // Fetch members and subscriptions only (skip heavy attendance query)
+      const [members, allSubscriptions] = await Promise.all([
         storage.getGymMembers(gymId),
-        storage.getAttendance(gymId),
         storage.getMemberSubscriptions(gymId)
       ]);
       
-      // Create lookup maps
+      // Create subscription lookup
       const subscriptionMap = new Map(allSubscriptions.map(s => [s.memberId, s]));
       
-      // Group attendance by member and find last present date
-      const lastPresentMap = new Map<number, string | null>();
-      for (const att of allAttendance) {
-        if (att.status === "present") {
-          const existing = lastPresentMap.get(att.memberId);
-          if (!existing || att.date > existing) {
-            lastPresentMap.set(att.memberId, att.date);
-          }
-        }
-      }
+      // Get last attendance per member using efficient aggregation query
+      const lastAttendanceQuery = await db.select({
+        memberId: attendance.memberId,
+        lastDate: sql<string>`MAX(${attendance.date})`
+      })
+      .from(attendance)
+      .where(and(
+        eq(attendance.gymId, gymId),
+        eq(attendance.status, "present")
+      ))
+      .groupBy(attendance.memberId);
+      
+      const lastPresentMap = new Map(lastAttendanceQuery.map(r => [r.memberId, r.lastDate]));
       
       // Build results
       const results: Array<{
