@@ -5054,6 +5054,69 @@ export async function registerRoutes(
     res.json(insights);
   });
 
+  // === AUTOMATED EMAIL REMINDERS ===
+  app.get("/api/owner/automated-emails/stats", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { getAutomatedEmailStats } = await import('./automated-emails');
+      const stats = await getAutomatedEmailStats(req.user!.gymId!);
+      res.json(stats);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to get email stats" });
+    }
+  });
+
+  app.post("/api/owner/automated-emails/send-expiry-reminders", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { processSubscriptionExpiryReminders } = await import('./automated-emails');
+      const clientDate = (req.body.clientDate as string) || getLocalDate(req);
+      const result = await processSubscriptionExpiryReminders(clientDate);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to send expiry reminders" });
+    }
+  });
+
+  app.post("/api/owner/automated-emails/send-weekly-summary", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { sendWeeklyOwnerSummaries } = await import('./automated-emails');
+      const clientDate = (req.body.clientDate as string) || getLocalDate(req);
+      const result = await sendWeeklyOwnerSummaries(clientDate);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to send weekly summary" });
+    }
+  });
+
+  // Admin-only cron trigger endpoint (for scheduled jobs)
+  app.post("/api/cron/automated-emails", async (req, res) => {
+    const cronSecret = req.headers['x-cron-secret'];
+    if (cronSecret !== process.env.CRON_SECRET && !req.user?.isAdmin) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const { processSubscriptionExpiryReminders, sendWeeklyOwnerSummaries } = await import('./automated-emails');
+      const clientDate = new Date().toISOString().split('T')[0];
+      
+      const expiryResult = await processSubscriptionExpiryReminders(clientDate);
+      
+      // Send weekly summaries on Mondays
+      const dayOfWeek = new Date().getDay();
+      let weeklyResult = null;
+      if (dayOfWeek === 1) { // Monday
+        weeklyResult = await sendWeeklyOwnerSummaries(clientDate);
+      }
+      
+      res.json({ 
+        expiryReminders: expiryResult,
+        weeklySummaries: weeklyResult,
+        message: "Automated emails processed"
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to process automated emails" });
+    }
+  });
+
   // === OWNER DASHBOARD & ATTENDANCE ANALYTICS ===
   app.get("/api/owner/dashboard-metrics", requireRole(["owner"]), async (req, res) => {
     // Accept client's local date to handle timezone differences
