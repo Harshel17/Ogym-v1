@@ -228,19 +228,48 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
   
   const memberIdList = memberIds.map(m => m.id);
   
+  // Calculate unpaid members based on active subscriptions and payment transactions
+  // A member is "unpaid" if they have an active subscription where totalPaid < totalAmount
   let unpaidCount = 0;
   let unpaidMemberNames: string[] = [];
   if (memberIdList.length > 0) {
-    const paidMembers = await db.select({ memberId: payments.memberId })
-      .from(payments)
-      .where(and(
-        inArray(payments.memberId, memberIdList),
-        eq(payments.gymId, gymId),
-        eq(payments.month, dates.currentMonth),
-        eq(payments.status, 'paid')
-      ));
-    const paidMemberIds = new Set(paidMembers.map(p => p.memberId));
-    const unpaidMemberIds = memberIdList.filter(id => !paidMemberIds.has(id));
+    // Get active subscriptions for all members
+    const activeSubscriptions = await db.select({
+      memberId: memberSubscriptions.memberId,
+      subscriptionId: memberSubscriptions.id,
+      totalAmount: memberSubscriptions.totalAmount,
+    })
+    .from(memberSubscriptions)
+    .where(and(
+      eq(memberSubscriptions.gymId, gymId),
+      inArray(memberSubscriptions.memberId, memberIdList),
+      eq(memberSubscriptions.status, 'active')
+    ));
+    
+    // Get total paid per subscription
+    const subscriptionIds = activeSubscriptions.map(s => s.subscriptionId);
+    let paidAmountsMap = new Map<number, number>();
+    
+    if (subscriptionIds.length > 0) {
+      const paidAmounts = await db.select({
+        subscriptionId: paymentTransactions.subscriptionId,
+        totalPaid: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)`
+      })
+      .from(paymentTransactions)
+      .where(inArray(paymentTransactions.subscriptionId, subscriptionIds))
+      .groupBy(paymentTransactions.subscriptionId);
+      
+      paidAmountsMap = new Map(paidAmounts.map(p => [p.subscriptionId, Number(p.totalPaid)]));
+    }
+    
+    // Find members with outstanding balance (paid < owed)
+    const unpaidMemberIds: number[] = [];
+    for (const sub of activeSubscriptions) {
+      const totalPaid = paidAmountsMap.get(sub.subscriptionId) || 0;
+      if (totalPaid < sub.totalAmount) {
+        unpaidMemberIds.push(sub.memberId);
+      }
+    }
     unpaidCount = unpaidMemberIds.length;
     
     // Get names of unpaid members (limit to first 10)
