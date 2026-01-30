@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, Settings, Sparkles, Copy, Check, Trash2 } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import { Send, Loader2, Settings, Sparkles, Copy, Check, Trash2, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,117 @@ import { DikaCircleIcon, SunflowerIcon, BatIcon } from './dika-icons';
 import { Keyboard } from '@capacitor/keyboard';
 import { Capacitor } from '@capacitor/core';
 
+function parseMarkdown(text: string): ReactNode[] {
+  const lines = text.split('\n');
+  const elements: ReactNode[] = [];
+  let currentList: string[] = [];
+  let listType: 'ul' | 'ol' | null = null;
+  let keyCounter = 0;
+
+  const flushList = () => {
+    if (currentList.length > 0 && listType) {
+      const ListTag = listType === 'ol' ? 'ol' : 'ul';
+      elements.push(
+        <ListTag 
+          key={`list-${keyCounter++}`} 
+          className={cn(
+            "my-1 ml-4",
+            listType === 'ol' ? "list-decimal" : "list-disc"
+          )}
+        >
+          {currentList.map((item, i) => (
+            <li key={i} className="ml-1">{parseInlineMarkdown(item)}</li>
+          ))}
+        </ListTag>
+      );
+      currentList = [];
+      listType = null;
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    const bulletMatch = line.match(/^[\s]*[-*•]\s+(.+)$/);
+    if (bulletMatch) {
+      if (listType !== 'ul') flushList();
+      listType = 'ul';
+      currentList.push(bulletMatch[1]);
+      continue;
+    }
+    
+    const numberedMatch = line.match(/^[\s]*(\d+)[.)]\s+(.+)$/);
+    if (numberedMatch) {
+      if (listType !== 'ol') flushList();
+      listType = 'ol';
+      currentList.push(numberedMatch[2]);
+      continue;
+    }
+    
+    flushList();
+    
+    if (line.trim() === '') {
+      elements.push(<br key={`br-${keyCounter++}`} />);
+    } else {
+      elements.push(
+        <span key={`line-${keyCounter++}`} className="block">
+          {parseInlineMarkdown(line)}
+        </span>
+      );
+    }
+  }
+  
+  flushList();
+  return elements;
+}
+
+function parseInlineMarkdown(text: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  let remaining = text;
+  let keyCounter = 0;
+
+  while (remaining.length > 0) {
+    const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+    const italicMatch = remaining.match(/(?<!\*)\*([^*]+)\*(?!\*)/);
+    
+    let nextMatch: { type: 'bold' | 'italic'; match: RegExpMatchArray } | null = null;
+    
+    if (boldMatch && boldMatch.index !== undefined) {
+      if (!nextMatch || boldMatch.index < (nextMatch.match.index ?? Infinity)) {
+        nextMatch = { type: 'bold', match: boldMatch };
+      }
+    }
+    if (italicMatch && italicMatch.index !== undefined) {
+      if (!nextMatch || italicMatch.index < (nextMatch.match.index ?? Infinity)) {
+        nextMatch = { type: 'italic', match: italicMatch };
+      }
+    }
+    
+    if (nextMatch && nextMatch.match.index !== undefined) {
+      if (nextMatch.match.index > 0) {
+        parts.push(remaining.slice(0, nextMatch.match.index));
+      }
+      if (nextMatch.type === 'bold') {
+        parts.push(<strong key={`bold-${keyCounter++}`} className="font-semibold">{nextMatch.match[1]}</strong>);
+      } else {
+        parts.push(<em key={`italic-${keyCounter++}`}>{nextMatch.match[1]}</em>);
+      }
+      remaining = remaining.slice(nextMatch.match.index + nextMatch.match[0].length);
+      continue;
+    }
+    
+    parts.push(remaining);
+    break;
+  }
+
+  return parts;
+}
+
+function MarkdownContent({ content }: { content: string }) {
+  const parsed = useMemo(() => parseMarkdown(content), [content]);
+  return <div className="leading-relaxed">{parsed}</div>;
+}
+
 function TypingIndicator() {
   return (
     <div className="flex items-center gap-1 px-3 py-2">
@@ -18,6 +129,60 @@ function TypingIndicator() {
       <div className="w-2 h-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: '300ms' }} />
     </div>
   );
+}
+
+function useVoiceInput(onTranscript: (text: string) => void) {
+  const [isListening, setIsListening] = useState(false);
+  const [isSupported, setIsSupported] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+    setIsSupported(!!SpeechRecognition);
+    
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+      
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        const transcript = event.results[0][0].transcript;
+        onTranscript(transcript);
+        setIsListening(false);
+      };
+      
+      recognition.onerror = () => {
+        setIsListening(false);
+      };
+      
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      
+      recognitionRef.current = recognition;
+    }
+    
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, [onTranscript]);
+
+  const toggleListening = useCallback(() => {
+    if (!recognitionRef.current) return;
+    
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  }, [isListening]);
+
+  return { isListening, isSupported, toggleListening };
 }
 
 function useKeyboardHeight() {
@@ -100,6 +265,12 @@ export function DikaDrawer({
   const [showSettings, setShowSettings] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const handleVoiceTranscript = useCallback((text: string) => {
+    setInput(prev => prev ? `${prev} ${text}` : text);
+  }, []);
+  
+  const { isListening, isSupported: voiceSupported, toggleListening } = useVoiceInput(handleVoiceTranscript);
   const inputRef = useRef<HTMLInputElement>(null);
   const keyboardHeight = useKeyboardHeight();
 
@@ -162,8 +333,9 @@ export function DikaDrawer({
         <SheetHeader className="px-4 py-4 flex-shrink-0 pr-12 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-600">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/30">
-                <Sparkles className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/30 relative">
+                <span className="text-xl font-bold text-white font-display">D</span>
+                <Sparkles className="absolute -top-0.5 -right-0.5 w-3 h-3 text-yellow-300" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
@@ -234,8 +406,14 @@ export function DikaDrawer({
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-violet-50/50 to-transparent dark:from-violet-950/20 dark:to-transparent">
           {messages.length === 0 && (
             <div className="text-center py-8">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/30 flex items-center justify-center">
-                <Sparkles className="w-8 h-8 text-violet-500" />
+              <div className="w-20 h-20 mx-auto mb-4 relative">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 via-purple-500 to-indigo-600 shadow-lg shadow-violet-500/30" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-white font-display tracking-tight">D</span>
+                </div>
+                <Sparkles className="absolute -top-1 -right-1 w-5 h-5 text-yellow-400 drop-shadow-sm" />
+                <Sparkles className="absolute -bottom-1 -left-1 w-4 h-4 text-violet-300 drop-shadow-sm" />
+                <div className="absolute top-0 left-0 w-2 h-2 rounded-full bg-white/60 animate-pulse" />
               </div>
               <h3 className="text-base font-medium mb-1">How can I help you today?</h3>
               <p className="text-sm text-muted-foreground mb-6">
@@ -272,8 +450,9 @@ export function DikaDrawer({
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mr-2 flex-shrink-0 shadow-sm">
-                    <Sparkles className="w-3.5 h-3.5 text-white" />
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mr-2 flex-shrink-0 shadow-sm relative">
+                    <span className="text-sm font-bold text-white font-display">D</span>
+                    <Sparkles className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 text-yellow-300" />
                   </div>
                 )}
                 <div
@@ -285,7 +464,11 @@ export function DikaDrawer({
                   )}
                   data-testid={`message-${message.role}`}
                 >
-                  <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                  {message.role === 'assistant' ? (
+                    <MarkdownContent content={message.content} />
+                  ) : (
+                    <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                  )}
                   {message.role === 'assistant' && (
                     <button
                       onClick={() => handleCopy(message.id, message.content)}
@@ -327,8 +510,9 @@ export function DikaDrawer({
 
           {isLoading && (
             <div className="flex justify-start">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mr-2 flex-shrink-0 shadow-sm">
-                <Sparkles className="w-3.5 h-3.5 text-white" />
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mr-2 flex-shrink-0 shadow-sm relative">
+                <span className="text-sm font-bold text-white font-display">D</span>
+                <Sparkles className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 text-yellow-300" />
               </div>
               <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl rounded-bl-md shadow-sm">
                 <TypingIndicator />
@@ -350,13 +534,34 @@ export function DikaDrawer({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onFocus={handleInputFocus}
-              placeholder="Ask Dika anything..."
+              placeholder={isListening ? "Listening..." : "Ask Dika anything..."}
               disabled={isLoading}
-              className="pr-4 rounded-full border-gray-200 dark:border-gray-700 focus:border-violet-400 focus:ring-violet-400/20"
+              className={cn(
+                "pr-4 rounded-full border-gray-200 dark:border-gray-700 focus:border-violet-400 focus:ring-violet-400/20",
+                isListening && "border-red-400 animate-pulse"
+              )}
               enterKeyHint="send"
               data-testid="input-dika-message"
             />
           </div>
+          {voiceSupported && (
+            <Button
+              type="button"
+              size="icon"
+              variant={isListening ? "destructive" : "outline"}
+              onClick={toggleListening}
+              disabled={isLoading}
+              aria-label={isListening ? "Stop listening" : "Start voice input"}
+              aria-pressed={isListening}
+              className={cn(
+                "rounded-full",
+                isListening && "animate-pulse"
+              )}
+              data-testid="button-dika-voice"
+            >
+              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </Button>
+          )}
           <Button
             type="submit"
             size="icon"
