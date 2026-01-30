@@ -171,6 +171,8 @@ export function DikaButton({
       }}
       aria-label="Ask Dika"
     >
+      {/* Pulse ring animation */}
+      <span className="absolute inset-0 rounded-full animate-ping bg-violet-400 opacity-30" style={{ animationDuration: '2s' }} />
       <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent to-white/20" />
       {renderIcon()}
     </button>

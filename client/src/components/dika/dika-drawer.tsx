@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, Settings, Sparkles } from 'lucide-react';
+import { Send, Loader2, Settings, Sparkles, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -96,9 +96,20 @@ export function DikaDrawer({
 }: DikaDrawerProps) {
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const keyboardHeight = useKeyboardHeight();
+
+  const handleCopy = async (messageId: string, content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedId(messageId);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -153,7 +164,12 @@ export function DikaDrawer({
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div>
-                <SheetTitle className="text-lg font-semibold text-white">Dika AI</SheetTitle>
+                <div className="flex items-center gap-2">
+                  <SheetTitle className="text-lg font-semibold text-white">Dika AI</SheetTitle>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/20 text-white/90 font-medium">
+                    Powered by AI
+                  </span>
+                </div>
                 <p className="text-xs text-white/70">Your intelligent gym assistant</p>
               </div>
             </div>
@@ -232,7 +248,7 @@ export function DikaDrawer({
           )}
 
           {messages.map((message) => (
-            <div key={message.id} className="space-y-2">
+            <div key={message.id} className={cn("space-y-2", message.role === 'assistant' && "mb-6")}>
               <div
                 className={cn(
                   "flex",
@@ -246,7 +262,7 @@ export function DikaDrawer({
                 )}
                 <div
                   className={cn(
-                    "max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm shadow-sm",
+                    "max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm shadow-sm group relative",
                     message.role === 'user'
                       ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-br-md'
                       : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-bl-md'
@@ -254,6 +270,25 @@ export function DikaDrawer({
                   data-testid={`message-${message.role}`}
                 >
                   <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                  {message.role === 'assistant' && (
+                    <button
+                      onClick={() => handleCopy(message.id, message.content)}
+                      className="absolute -bottom-6 left-0 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      data-testid={`button-copy-${message.id}`}
+                    >
+                      {copiedId === message.id ? (
+                        <>
+                          <Check className="w-3 h-3 text-green-500" />
+                          <span className="text-green-500">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
               {message.role === 'assistant' && message.followUpChips && message.followUpChips.length > 0 && (
