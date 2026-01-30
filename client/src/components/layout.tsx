@@ -40,6 +40,7 @@ import {
   Brain,
   HeartPulse,
   PhoneCall,
+  MailCheck,
   type LucideIcon
 } from "lucide-react";
 
@@ -310,6 +311,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Follow-ups", href: "/owner/follow-ups", icon: PhoneCall },
           { label: "Self Check-in", href: "/owner/kiosk", icon: QrCode },
           { label: "AI Insights", href: "/owner/ai-insights", icon: Brain },
+          { label: "Auto Emails", href: "/owner/automated-emails", icon: MailCheck },
           { label: "Feed", href: "/feed", icon: Activity },
           { label: "Tournaments", href: "/tournaments", icon: Trophy },
           { label: "Join Requests", href: "/owner/join-requests", icon: UserPlus, badge: notificationCounts?.pendingJoinRequests || 0 },
