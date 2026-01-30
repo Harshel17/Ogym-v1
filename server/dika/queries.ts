@@ -10,7 +10,7 @@ import {
   userProfiles,
   trainerMemberAssignments
 } from '@shared/schema';
-import { eq, and, gte, lte, isNull, sql, desc, inArray } from 'drizzle-orm';
+import { eq, and, gte, lte, isNull, sql, desc, inArray, or } from 'drizzle-orm';
 
 function getWeekRange(): { start: string; end: string } {
   const now = new Date();
@@ -625,10 +625,12 @@ export async function getOwnerUnpaidThisMonth(gymId: number): Promise<string> {
 
 export async function getOwnerMemberPaymentStatus(gymId: number, memberName: string): Promise<string> {
   const currentMonth = getCurrentMonth();
+  const searchTerm = memberName.toLowerCase();
   
   const members = await db.select({
     userId: users.id,
     fullName: userProfiles.fullName,
+    username: users.username,
   })
   .from(users)
   .innerJoin(userProfiles, eq(users.id, userProfiles.userId))
@@ -636,7 +638,10 @@ export async function getOwnerMemberPaymentStatus(gymId: number, memberName: str
     and(
       eq(users.gymId, gymId),
       eq(users.role, 'member'),
-      sql`lower(${userProfiles.fullName}) like ${`%${memberName.toLowerCase()}%`}`
+      or(
+        sql`lower(${userProfiles.fullName}) like ${`%${searchTerm}%`}`,
+        sql`lower(${users.username}) like ${`%${searchTerm}%`}`
+      )
     )
   );
   
