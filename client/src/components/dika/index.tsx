@@ -26,6 +26,7 @@ function DikaInner({ userId, hideDika }: { userId: number; hideDika: boolean }) 
     updateIcon,
     openDrawer,
     closeDrawer,
+    clearHistory,
     hideDikaButton,
   } = useDika(userId, hideDika);
 
@@ -47,6 +48,7 @@ function DikaInner({ userId, hideDika }: { userId: number; hideDika: boolean }) 
         onSend={sendMessage}
         onIconChange={updateIcon}
         onHide={hideDikaButton}
+        onClearHistory={clearHistory}
       />
     </>
   );

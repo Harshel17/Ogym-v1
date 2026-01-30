@@ -41,6 +41,7 @@ import {
   HeartPulse,
   PhoneCall,
   MailCheck,
+  Sparkles,
   type LucideIcon
 } from "lucide-react";
 
@@ -416,7 +417,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
               </div>
               <div>
-                <h1 className="font-display font-bold text-lg leading-none magic-text">OGym</h1>
+                <div className="flex items-center gap-1.5">
+                  <h1 className="font-display font-bold text-lg leading-none magic-text">OGym</h1>
+                  <span className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-violet-500/10 to-purple-500/10 text-violet-600 dark:text-violet-400 font-medium">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    AI
+                  </span>
+                </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Fitness Management</p>
               </div>
             </div>
@@ -498,6 +505,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold font-display text-sm magic-text">OGym</span>
+            <span className="flex items-center gap-0.5 text-[8px] px-1 py-0.5 rounded-full bg-gradient-to-r from-violet-500/10 to-purple-500/10 text-violet-600 dark:text-violet-400 font-medium">
+              <Sparkles className="w-2 h-2" />
+              AI
+            </span>
            </div>
            <div className="flex items-center gap-1">
              <ThemeToggle />

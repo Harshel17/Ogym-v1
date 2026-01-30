@@ -94,6 +94,7 @@ export function DikaDrawer({
   onSend,
   onIconChange,
   onHide,
+  onClearHistory,
 }: DikaDrawerProps) {
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -204,15 +205,29 @@ export function DikaDrawer({
                 </Button>
               ))}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onHide}
-              className="mt-2 text-xs text-muted-foreground"
-              data-testid="button-hide-dika"
-            >
-              Hide Dika button
-            </Button>
+            <div className="flex gap-2 mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onHide}
+                className="text-xs text-muted-foreground"
+                data-testid="button-hide-dika"
+              >
+                Hide Dika
+              </Button>
+              {messages.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClearHistory}
+                  className="text-xs text-destructive hover:text-destructive"
+                  data-testid="button-clear-history"
+                >
+                  <Trash2 className="w-3 h-3 mr-1" />
+                  Clear history
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
