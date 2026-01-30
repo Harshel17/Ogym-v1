@@ -39,6 +39,7 @@ import {
   QrCode,
   Brain,
   HeartPulse,
+  PhoneCall,
   type LucideIcon
 } from "lucide-react";
 
@@ -228,6 +229,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       badge: 0
     },
     { 
+      label: "Follow-ups", 
+      href: "/owner/follow-ups", 
+      icon: PhoneCall,
+      visible: isOwner && hasGym,
+      badge: 0
+    },
+    { 
       label: "AI Insights", 
       href: "/owner/ai-insights", 
       icon: Brain,
@@ -299,6 +307,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Transfers", href: "/transfers", icon: ArrowRightLeft, badge: notificationCounts?.pendingTransfers || 0 },
           { label: "Announcements", href: "/owner/announcements", icon: Megaphone },
           { label: "Walk-ins", href: "/owner/walk-in-visitors", icon: PersonStanding },
+          { label: "Follow-ups", href: "/owner/follow-ups", icon: PhoneCall },
           { label: "Self Check-in", href: "/owner/kiosk", icon: QrCode },
           { label: "AI Insights", href: "/owner/ai-insights", icon: Brain },
           { label: "Feed", href: "/feed", icon: Activity },
