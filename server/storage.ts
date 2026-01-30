@@ -4530,14 +4530,17 @@ export class DatabaseStorage implements IStorage {
 
     const members = await db.select().from(users).where(and(eq(users.gymId, gymId), eq(users.role, "member")));
     
-    // Count only members with active subscriptions (paying members)
-    const activeSubscriptions = await db.select({ memberId: memberSubscriptions.memberId })
+    // Count only members with active subscriptions (endDate >= today, not by status field)
+    // This matches the logic used in getMemberAnalytics for consistency
+    const activeSubscriptions = await db.select({ memberId: memberSubscriptions.memberId, endDate: memberSubscriptions.endDate })
       .from(memberSubscriptions)
-      .where(and(
-        eq(memberSubscriptions.gymId, gymId),
-        eq(memberSubscriptions.status, 'active')
-      ));
-    const activeMemberIds = new Set(activeSubscriptions.map(s => s.memberId));
+      .where(eq(memberSubscriptions.gymId, gymId));
+    
+    const activeMemberIds = new Set(
+      activeSubscriptions
+        .filter(s => s.endDate && s.endDate >= today)
+        .map(s => s.memberId)
+    );
     const totalMembers = activeMemberIds.size;
 
     const todayAttendance = await db.select({ memberId: attendance.memberId })
