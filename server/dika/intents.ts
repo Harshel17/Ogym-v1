@@ -311,11 +311,16 @@ const intentPatterns: IntentPattern[] = [
       /(\w+)('s)?\s+payment\s+status/i,
       /has\s+(\w+)\s+paid/i,
       /did\s+(\w+)\s+pay/i,
+      /did\s+(\w+)\s+paid/i,
       /check\s+(\w+)('s)?\s+payment/i,
+      /(\w+)\s+paid\s+(his|her|their)?\s*(gym\s+)?(fee|dues|payment)/i,
+      /(\w+)\s+pay\s+(his|her|their)?\s*(gym\s+)?(fee|dues|payment)/i,
+      /is\s+(\w+)('s)?\s+(payment|fee|dues)\s+paid/i,
+      /(\w+)('s)?\s+fee\s+(paid|status)/i,
     ],
     requiredRole: ['owner'],
     extractors: {
-      memberName: /(\w+)(?:'s)?\s+payment|has\s+(\w+)\s+paid|did\s+(\w+)\s+pay|check\s+(\w+)/i,
+      memberName: /(\w+)(?:'s)?\s+payment|has\s+(\w+)\s+paid|did\s+(\w+)\s+pay|did\s+(\w+)\s+paid|check\s+(\w+)|(\w+)\s+paid\s+(?:his|her|their)?|(\w+)\s+pay\s+(?:his|her|their)?|is\s+(\w+)(?:'s)?\s+(?:payment|fee)|(\w+)(?:'s)?\s+fee/i,
     },
   },
   {
