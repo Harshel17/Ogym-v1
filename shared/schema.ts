@@ -784,8 +784,21 @@ export const paymentConfirmations = pgTable("payment_confirmations", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// === GYM EMAIL SETTINGS ===
+export const gymEmailSettings = pgTable("gym_email_settings", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull().unique(),
+  sendMode: text("send_mode", { enum: ["ogym", "custom"] }).notNull().default("ogym"),
+  replyToEmail: text("reply_to_email"),
+  connectedProvider: text("connected_provider", { enum: ["gmail", "outlook"] }),
+  connectedEmail: text("connected_email"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // === SCHEMAS ===
 
+export const insertGymEmailSettingsSchema = createInsertSchema(gymEmailSettings).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertGymSchema = createInsertSchema(gyms).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, onboardingCompleted: true });
 export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({ id: true, createdAt: true, updatedAt: true });
@@ -962,6 +975,9 @@ export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
 export type WalkInVisitor = typeof walkInVisitors.$inferSelect;
 export type InsertWalkInVisitor = z.infer<typeof insertWalkInVisitorSchema>;
+
+export type GymEmailSettings = typeof gymEmailSettings.$inferSelect;
+export type InsertGymEmailSettings = z.infer<typeof insertGymEmailSettingsSchema>;
 
 export type KioskSession = typeof kioskSessions.$inferSelect;
 export type InsertKioskSession = z.infer<typeof insertKioskSessionSchema>;

@@ -1,0 +1,99 @@
+You are working inside my OGym codebase. I want you to REPLACE the current Follow-ups page UI with a new structure. Do NOT keep the existing Follow-ups page content. Build a clean, modern, production-ready page.
+
+GOAL:
+Create a new “Follow-ups” page with:
+1) Sender Setup section at the top (email sending mode toggle)
+2) Tabs: Day Pass Members, Inactive Members, Payments
+3) Each tab has filters + members table with multi-select + message composer + bulk send
+
+IMPORTANT RULES:
+- Keep styling consistent with the app’s current UI components (cards, buttons, inputs, tables).
+- No placeholder text like “lorem ipsum”.
+- All filters should be functional (update displayed list).
+- Bulk send should send to all selected members.
+- Implement clean state management and loading/error states.
+- Use type-safe models/interfaces if the project uses TypeScript.
+
+PAGE LAYOUT:
+
+A) TOP CARD: “Sender Setup”
+- Title: Sender Setup
+- Toggle (radio or segmented control):
+  Option 1: “Send via my email (Connect)” (OAuth mode)
+  Option 2: “Send via OGym (Recommended Quick)”
+- If user chooses “Send via my email (Connect)” show:
+  - Button: “Connect Gmail”
+  - Button: “Connect Outlook”
+  - Text when connected: “Sending as: owner@email.com”
+- If user chooses “Send via OGym” show:
+  - Display From: “{Gym Name} <no-reply@ogym.fitness>”
+  - Input: Reply-To Email (owner email)
+  - Save Settings button
+- Settings must be saved via API.
+
+B) BELOW THAT: TABS
+Tabs: [Day Pass Members] [Inactive Members] [Payments]
+
+TAB 1: Day Pass Members
+Filters Row:
+- Date range: From date, To date
+- Frequently visited dropdown: >=2, >=3, >=5
+- Search field: name/phone/email
+Results Table:
+- Checkbox per row + Select All
+- Columns: Name, Email, Phone, Visits Count, Last Visit Date, Day Pass Count
+Composer:
+- Subject input
+- Message textarea
+- Preview button (optional)
+- Send to Selected button (disabled if none selected)
+
+TAB 2: Inactive Members
+Filters Row:
+- Inactive since dropdown: 7/14/30/60/custom date
+- Membership type dropdown (optional)
+- Search field
+Results Table:
+- Columns: Name, Email, Last Visit, Membership Status, Notes
+Composer same as Tab 1 with Send to Selected
+
+TAB 3: Payments
+Filters Row:
+- Quick filter buttons: Expires soon (7 days), Expires next month, Balance > 0, Ended/Expired
+- Payment status dropdown: Paid/Unpaid/Partial
+- Date range for due date
+Results Table:
+- Columns: Name, Email, Plan, Expiry Date, Balance, Last Payment Date
+Composer same as Tab 1 with Send to Selected
+
+API CONTRACT (create these endpoints if missing, otherwise adapt to existing backend):
+1) GET /api/gym/email/settings
+2) POST /api/gym/email/settings  (save mode + reply-to + from name)
+3) GET /api/followups/daypass?from=YYYY-MM-DD&to=YYYY-MM-DD&min_visits=3&search=q
+4) GET /api/followups/inactive?inactive_days=30&membership_type=...&search=q
+5) GET /api/followups/payments?type=expires_soon|next_month|balance|expired&status=...&from=...&to=...&search=q
+6) POST /api/followups/send
+   body: {
+     category: "DAY_PASS" | "INACTIVE" | "PAYMENTS",
+     member_ids: number[],
+     subject: string,
+     message: string,
+     filters: object
+   }
+
+BACKEND SENDING (MVP):
+- Implement sending using OGym email provider (like Resend/SendGrid/SMTP) as default
+- From: "{Gym Name} <no-reply@ogym.fitness>"
+- Reply-To: owner email from settings
+- Log successes/failures in console for now, but structure code so we can add email_logs later.
+
+DELIVERABLES:
+- Updated Follow-ups page component with all UI and working filter logic
+- API integration for fetching members and sending emails
+- Basic loading skeleton / spinner and error banners
+- Code should compile without errors
+
+Before coding:
+1) Find the current Follow-ups page route/file
+2) Remove old UI but keep route
+3) Implement the new page exactly as described.

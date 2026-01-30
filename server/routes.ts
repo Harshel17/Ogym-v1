@@ -8,7 +8,7 @@ import passport from "passport";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
-import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail } from "./email";
+import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
 import { workoutLogs, workoutLogExercises } from "@shared/schema";
 import { eq, and, isNotNull, inArray } from "drizzle-orm";
@@ -5423,6 +5423,351 @@ export async function registerRoutes(
       res.json({ updated: results.length, visitors: results });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to bulk update follow-ups" });
+    }
+  });
+
+  // === GYM EMAIL SETTINGS ===
+  
+  // Get gym email settings
+  app.get("/api/gym/email/settings", requireRole(["owner"]), async (req, res) => {
+    try {
+      const settings = await storage.getGymEmailSettings(req.user!.gymId!);
+      const gym = await storage.getGymById(req.user!.gymId!);
+      res.json({
+        settings: settings || { sendMode: "ogym", replyToEmail: req.user!.email },
+        gymName: gym?.name || "Your Gym"
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to get email settings" });
+    }
+  });
+
+  // Save gym email settings
+  app.post("/api/gym/email/settings", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { sendMode, replyToEmail } = req.body;
+      const existing = await storage.getGymEmailSettings(req.user!.gymId!);
+      
+      if (existing) {
+        const updated = await storage.updateGymEmailSettings(req.user!.gymId!, {
+          sendMode,
+          replyToEmail
+        });
+        return res.json(updated);
+      }
+      
+      const created = await storage.createGymEmailSettings({
+        gymId: req.user!.gymId!,
+        sendMode,
+        replyToEmail
+      });
+      res.status(201).json(created);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to save email settings" });
+    }
+  });
+
+  // === FOLLOW-UPS API (Day Pass, Inactive, Payments) ===
+
+  // Get day pass visitors for follow-up
+  app.get("/api/followups/daypass", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { from, to, min_visits, search } = req.query;
+      const gymId = req.user!.gymId!;
+      
+      // Get all day pass visitors
+      const visitors = await storage.getWalkInVisitors(gymId);
+      const dayPassVisitors = visitors.filter(v => v.visitType === "day_pass");
+      
+      // Calculate visit counts and apply filters
+      let results = dayPassVisitors.map(v => ({
+        id: v.id,
+        name: v.visitorName,
+        email: v.email,
+        phone: v.phone,
+        visitsCount: 1, // Will aggregate later
+        lastVisitDate: v.visitDate,
+        dayPassCount: v.daysCount || 1
+      }));
+      
+      // Aggregate by email (same person multiple visits)
+      const emailMap = new Map<string, typeof results[0]>();
+      results.forEach(r => {
+        if (r.email) {
+          const existing = emailMap.get(r.email);
+          if (existing) {
+            existing.visitsCount++;
+            existing.dayPassCount += r.dayPassCount;
+            if (r.lastVisitDate > existing.lastVisitDate) {
+              existing.lastVisitDate = r.lastVisitDate;
+              existing.name = r.name;
+              existing.phone = r.phone;
+            }
+          } else {
+            emailMap.set(r.email, { ...r });
+          }
+        }
+      });
+      results = Array.from(emailMap.values());
+      
+      // Apply date filter
+      if (from) {
+        results = results.filter(r => r.lastVisitDate >= (from as string));
+      }
+      if (to) {
+        results = results.filter(r => r.lastVisitDate <= (to as string));
+      }
+      
+      // Apply min visits filter
+      if (min_visits) {
+        results = results.filter(r => r.visitsCount >= parseInt(min_visits as string));
+      }
+      
+      // Apply search filter
+      if (search) {
+        const q = (search as string).toLowerCase();
+        results = results.filter(r => 
+          r.name?.toLowerCase().includes(q) ||
+          r.email?.toLowerCase().includes(q) ||
+          r.phone?.includes(q)
+        );
+      }
+      
+      res.json(results);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to get day pass members" });
+    }
+  });
+
+  // Get inactive members for follow-up
+  app.get("/api/followups/inactive", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { inactive_days, search } = req.query;
+      const gymId = req.user!.gymId!;
+      const days = parseInt((inactive_days as string) || "30");
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      const cutoffStr = cutoffDate.toISOString().split("T")[0];
+      
+      // Get all members
+      const members = await storage.getUsersByGym(gymId, "member");
+      
+      // Get profiles for full name
+      const profiles = await Promise.all(members.map(m => storage.getUserProfile(m.id)));
+      const profileMap = new Map(profiles.filter(Boolean).map(p => [p!.userId, p]));
+      
+      // Get attendance for each member
+      const results: Array<{
+        id: number;
+        name: string;
+        email: string | null;
+        lastVisit: string | null;
+        membershipStatus: string;
+      }> = [];
+      
+      for (const member of members) {
+        const attendance = await storage.getAttendanceByMember(member.id);
+        const presentDays = attendance.filter(a => a.status === "present");
+        const lastPresent = presentDays.length > 0
+          ? presentDays.sort((a, b) => b.date.localeCompare(a.date))[0].date
+          : null;
+        
+        // Check if inactive
+        if (!lastPresent || lastPresent <= cutoffStr) {
+          const profile = profileMap.get(member.id);
+          const subscription = await storage.getCurrentSubscription(gymId, member.id);
+          
+          results.push({
+            id: member.id,
+            name: profile?.fullName || member.username,
+            email: member.email,
+            lastVisit: lastPresent,
+            membershipStatus: subscription?.status || "no_subscription"
+          });
+        }
+      }
+      
+      // Apply search filter
+      let filtered = results;
+      if (search) {
+        const q = (search as string).toLowerCase();
+        filtered = results.filter(r => 
+          r.name.toLowerCase().includes(q) ||
+          r.email?.toLowerCase().includes(q)
+        );
+      }
+      
+      res.json(filtered);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to get inactive members" });
+    }
+  });
+
+  // Get members with payment issues for follow-up
+  app.get("/api/followups/payments", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { type, search } = req.query;
+      const gymId = req.user!.gymId!;
+      
+      // Get all members
+      const members = await storage.getUsersByGym(gymId, "member");
+      const profiles = await Promise.all(members.map(m => storage.getUserProfile(m.id)));
+      const profileMap = new Map(profiles.filter(Boolean).map(p => [p!.userId, p]));
+      
+      const today = new Date().toISOString().split("T")[0];
+      const next7Days = new Date();
+      next7Days.setDate(next7Days.getDate() + 7);
+      const next30Days = new Date();
+      next30Days.setDate(next30Days.getDate() + 30);
+      
+      const results: Array<{
+        id: number;
+        name: string;
+        email: string | null;
+        planName: string | null;
+        expiryDate: string | null;
+        balance: number;
+        lastPaymentDate: string | null;
+        status: string;
+      }> = [];
+      
+      for (const member of members) {
+        const subscription = await storage.getCurrentSubscription(gymId, member.id);
+        if (!subscription) continue;
+        
+        const transactions = await storage.getPaymentTransactions(subscription.id);
+        const totalPaid = transactions.reduce((sum, t) => sum + t.amountPaid, 0);
+        const balance = subscription.totalAmount - totalPaid;
+        const lastPayment = transactions.length > 0 
+          ? transactions.sort((a, b) => b.paidOn.localeCompare(a.paidOn))[0].paidOn 
+          : null;
+        
+        const profile = profileMap.get(member.id);
+        const plan = subscription.planId ? await storage.getMembershipPlanById(subscription.planId) : null;
+        
+        // Filter by type
+        let include = false;
+        if (type === "expires_soon" && subscription.endDate <= next7Days.toISOString().split("T")[0] && subscription.endDate >= today) {
+          include = true;
+        } else if (type === "next_month" && subscription.endDate <= next30Days.toISOString().split("T")[0] && subscription.endDate > next7Days.toISOString().split("T")[0]) {
+          include = true;
+        } else if (type === "balance" && balance > 0) {
+          include = true;
+        } else if (type === "expired" && subscription.endDate < today) {
+          include = true;
+        } else if (!type) {
+          include = true; // Show all if no filter
+        }
+        
+        if (include) {
+          results.push({
+            id: member.id,
+            name: profile?.fullName || member.username,
+            email: member.email,
+            planName: plan?.name || "Custom",
+            expiryDate: subscription.endDate,
+            balance,
+            lastPaymentDate: lastPayment,
+            status: subscription.status
+          });
+        }
+      }
+      
+      // Apply search filter
+      let filtered = results;
+      if (search) {
+        const q = (search as string).toLowerCase();
+        filtered = results.filter(r => 
+          r.name.toLowerCase().includes(q) ||
+          r.email?.toLowerCase().includes(q)
+        );
+      }
+      
+      res.json(filtered);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to get payment follow-ups" });
+    }
+  });
+
+  // Send bulk emails for follow-up
+  app.post("/api/followups/send", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { category, member_ids, subject, message } = req.body;
+      
+      if (!subject || !message || !Array.isArray(member_ids) || member_ids.length === 0) {
+        return res.status(400).json({ message: "subject, message, and member_ids are required" });
+      }
+      
+      const gymId = req.user!.gymId!;
+      const gym = await storage.getGymById(gymId);
+      const settings = await storage.getGymEmailSettings(gymId);
+      const replyTo = settings?.replyToEmail || req.user!.email || undefined;
+      
+      // Collect emails based on category
+      let emails: string[] = [];
+      
+      if (category === "DAY_PASS") {
+        const visitors = await storage.getWalkInVisitors(gymId);
+        // Use email from day pass visitors by ID (actually their visitor IDs)
+        const visitorEmails = visitors
+          .filter(v => member_ids.includes(v.id) && v.email)
+          .map(v => v.email!);
+        // Also handle aggregated - look up by email if passed as string
+        emails = [...new Set(visitorEmails)];
+      } else {
+        // For inactive and payments, member_ids are user IDs
+        const members = await Promise.all(member_ids.map(id => storage.getUser(id)));
+        emails = members
+          .filter((m): m is NonNullable<typeof m> => m !== null && m !== undefined && m.gymId === gymId && !!m.email)
+          .map(m => m.email!);
+      }
+      
+      if (emails.length === 0) {
+        return res.status(400).json({ message: "No valid email addresses found" });
+      }
+      
+      // Send emails
+      const results = {
+        sent: 0,
+        failed: 0,
+        emails: [] as string[]
+      };
+      
+      for (const email of emails) {
+        try {
+          const success = await sendEmail({
+            to: email,
+            subject,
+            text: message,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #4f46e5;">${gym?.name || "Your Gym"}</h2>
+                <div style="white-space: pre-wrap; line-height: 1.6;">${message}</div>
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+                <p style="color: #9ca3af; font-size: 12px;">
+                  This email was sent by ${gym?.name || "Your Gym"} via OGym.
+                  ${replyTo ? `Reply to: ${replyTo}` : ""}
+                </p>
+              </div>
+            `
+          });
+          
+          if (success) {
+            results.sent++;
+            results.emails.push(email);
+          } else {
+            results.failed++;
+          }
+        } catch (err) {
+          console.error(`[FOLLOWUP EMAIL] Failed to send to ${email}:`, err);
+          results.failed++;
+        }
+      }
+      
+      console.log(`[FOLLOWUP EMAIL] Category: ${category}, Sent: ${results.sent}, Failed: ${results.failed}`);
+      res.json(results);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to send emails" });
     }
   });
 

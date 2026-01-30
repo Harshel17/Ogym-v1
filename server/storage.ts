@@ -48,14 +48,15 @@ import {
   trainingPhases, phaseExercises, type TrainingPhase, type InsertTrainingPhase, type PhaseExercise, type InsertPhaseExercise,
   userProfiles, type UserProfile,
   passwordResetCodes, type PasswordResetCode, type InsertPasswordResetCode,
-  supportTickets, supportMessages, auditLogs, walkInVisitors, kioskSessions, kioskOtpCodes, paymentConfirmations,
+  supportTickets, supportMessages, auditLogs, walkInVisitors, kioskSessions, kioskOtpCodes, paymentConfirmations, gymEmailSettings,
   type SupportTicket, type InsertSupportTicket,
   type SupportMessage, type InsertSupportMessage,
   type AuditLog, type InsertAuditLog,
   type WalkInVisitor, type InsertWalkInVisitor,
   type KioskSession, type InsertKioskSession,
   type KioskOtpCode, type InsertKioskOtpCode,
-  type PaymentConfirmation, type InsertPaymentConfirmation
+  type PaymentConfirmation, type InsertPaymentConfirmation,
+  type GymEmailSettings, type InsertGymEmailSettings
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -8162,6 +8163,26 @@ export class DatabaseStorage implements IStorage {
         atRiskCount: churnRiskMembers.filter(m => m.riskLevel === 'high').length
       }
     };
+  }
+
+  // === GYM EMAIL SETTINGS ===
+
+  async getGymEmailSettings(gymId: number): Promise<GymEmailSettings | null> {
+    const [settings] = await db.select().from(gymEmailSettings).where(eq(gymEmailSettings.gymId, gymId));
+    return settings || null;
+  }
+
+  async createGymEmailSettings(data: InsertGymEmailSettings): Promise<GymEmailSettings> {
+    const [settings] = await db.insert(gymEmailSettings).values(data).returning();
+    return settings;
+  }
+
+  async updateGymEmailSettings(gymId: number, data: Partial<InsertGymEmailSettings>): Promise<GymEmailSettings> {
+    const [settings] = await db.update(gymEmailSettings)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(gymEmailSettings.gymId, gymId))
+      .returning();
+    return settings;
   }
 }
 
