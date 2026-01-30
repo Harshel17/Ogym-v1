@@ -1287,8 +1287,9 @@ export async function registerRoutes(
       const allItems = await storage.getWorkoutItems(cycle.id);
       const todayStr = getLocalDate(req);
       const completions = await storage.getCompletions(req.user!.id, todayStr);
-      const completedItemIds = new Set(completions.filter(c => c.status === 'completed').map(c => c.workoutItemId));
-      const skippedItemIds = new Set(completions.filter(c => c.status === 'skipped').map(c => c.workoutItemId));
+      // workoutCompletions table doesn't have a status column - presence of record means completed
+      const completedItemIds = new Set(completions.filter(c => c.workoutItemId != null).map(c => c.workoutItemId));
+      const skippedItemIds = new Set<number>(); // No skip tracking in Personal Mode currently
       
       let effectiveDayIndex = cycle.currentDayIndex ?? 0;
       let effectiveItems = allItems.filter(item => item.dayIndex === effectiveDayIndex);
