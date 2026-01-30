@@ -5699,7 +5699,7 @@ export async function registerRoutes(
       }
       
       const gymId = req.user!.gymId!;
-      const gym = await storage.getGymById(gymId);
+      const gym = await storage.getGym(gymId);
       const settings = await storage.getGymEmailSettings(gymId);
       const replyTo = settings?.replyToEmail || req.user!.email || undefined;
       
