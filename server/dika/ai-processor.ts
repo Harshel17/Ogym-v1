@@ -58,6 +58,11 @@ interface OwnerContext {
     newMembersThisMonth: number;
     attendanceChange: string;
   };
+  // Detailed lists (first 10 for each)
+  unpaidMemberNames: string[];
+  checkedInTodayNames: string[];
+  expiringMemberNames: string[];
+  notCheckedInTodayNames: string[];
 }
 
 interface TrainerContext {
@@ -224,6 +229,7 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
   const memberIdList = memberIds.map(m => m.id);
   
   let unpaidCount = 0;
+  let unpaidMemberNames: string[] = [];
   if (memberIdList.length > 0) {
     const paidMembers = await db.select({ memberId: payments.memberId })
       .from(payments)
@@ -233,7 +239,30 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
         eq(payments.month, dates.currentMonth),
         eq(payments.status, 'paid')
       ));
-    unpaidCount = memberIdList.length - paidMembers.length;
+    const paidMemberIds = new Set(paidMembers.map(p => p.memberId));
+    const unpaidMemberIds = memberIdList.filter(id => !paidMemberIds.has(id));
+    unpaidCount = unpaidMemberIds.length;
+    
+    // Get names of unpaid members (limit to first 10)
+    if (unpaidMemberIds.length > 0) {
+      const unpaidMembersData = await db.select({
+        id: users.id,
+        username: users.username
+      })
+      .from(users)
+      .where(inArray(users.id, unpaidMemberIds.slice(0, 10)));
+      
+      // Try to get full names from profiles
+      const unpaidProfiles = await db.select({
+        userId: userProfiles.userId,
+        fullName: userProfiles.fullName
+      })
+      .from(userProfiles)
+      .where(inArray(userProfiles.userId, unpaidMemberIds.slice(0, 10)));
+      
+      const profileMap = new Map(unpaidProfiles.map(p => [p.userId, p.fullName]));
+      unpaidMemberNames = unpaidMembersData.map(m => profileMap.get(m.id) || m.username);
+    }
   }
   
   const [expiringResult] = await db.select({
@@ -270,6 +299,64 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
     gte(users.createdAt, new Date(dates.monthStart))
   ));
   
+  // Get names of members who checked in today
+  const checkedInMemberIds = await db.select({ memberId: attendance.memberId })
+    .from(attendance)
+    .where(and(
+      eq(attendance.gymId, gymId),
+      eq(attendance.date, dates.today)
+    ));
+  
+  let checkedInTodayNames: string[] = [];
+  if (checkedInMemberIds.length > 0) {
+    const checkedInIds = checkedInMemberIds.map(c => c.memberId).slice(0, 10);
+    const checkedInUsers = await db.select({ id: users.id, username: users.username })
+      .from(users)
+      .where(inArray(users.id, checkedInIds));
+    const checkedInProfiles = await db.select({ userId: userProfiles.userId, fullName: userProfiles.fullName })
+      .from(userProfiles)
+      .where(inArray(userProfiles.userId, checkedInIds));
+    const profileMap = new Map(checkedInProfiles.map(p => [p.userId, p.fullName]));
+    checkedInTodayNames = checkedInUsers.map(u => profileMap.get(u.id) || u.username);
+  }
+  
+  // Get names of members who haven't checked in today (from active members)
+  const checkedInSet = new Set(checkedInMemberIds.map(c => c.memberId));
+  const notCheckedInIds = memberIdList.filter(id => !checkedInSet.has(id)).slice(0, 10);
+  let notCheckedInTodayNames: string[] = [];
+  if (notCheckedInIds.length > 0) {
+    const notCheckedInUsers = await db.select({ id: users.id, username: users.username })
+      .from(users)
+      .where(inArray(users.id, notCheckedInIds));
+    const notCheckedInProfiles = await db.select({ userId: userProfiles.userId, fullName: userProfiles.fullName })
+      .from(userProfiles)
+      .where(inArray(userProfiles.userId, notCheckedInIds));
+    const profileMap = new Map(notCheckedInProfiles.map(p => [p.userId, p.fullName]));
+    notCheckedInTodayNames = notCheckedInUsers.map(u => profileMap.get(u.id) || u.username);
+  }
+  
+  // Get names of members with expiring subscriptions
+  const expiringMembers = await db.select({ memberId: memberSubscriptions.memberId })
+    .from(memberSubscriptions)
+    .where(and(
+      eq(memberSubscriptions.gymId, gymId),
+      sql`${memberSubscriptions.endDate}::date >= CURRENT_DATE`,
+      sql`${memberSubscriptions.endDate}::date <= CURRENT_DATE + INTERVAL '30 days'`
+    ));
+  
+  let expiringMemberNames: string[] = [];
+  if (expiringMembers.length > 0) {
+    const expiringIds = expiringMembers.map(e => e.memberId).slice(0, 10);
+    const expiringUsers = await db.select({ id: users.id, username: users.username })
+      .from(users)
+      .where(inArray(users.id, expiringIds));
+    const expiringProfiles = await db.select({ userId: userProfiles.userId, fullName: userProfiles.fullName })
+      .from(userProfiles)
+      .where(inArray(userProfiles.userId, expiringIds));
+    const profileMap = new Map(expiringProfiles.map(p => [p.userId, p.fullName]));
+    expiringMemberNames = expiringUsers.map(u => profileMap.get(u.id) || u.username);
+  }
+  
   return {
     totalMembers,
     activeMembers: activeMembersResult?.count || 0,
@@ -281,7 +368,11 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
     recentTrends: {
       newMembersThisMonth: newMembersResult?.count || 0,
       attendanceChange: 'stable'
-    }
+    },
+    unpaidMemberNames,
+    checkedInTodayNames,
+    expiringMemberNames,
+    notCheckedInTodayNames
   };
 }
 
@@ -379,19 +470,33 @@ You can help this member with:
   if (userContext.role === 'owner') {
     const ctx = dataContext as OwnerContext;
     const currency = userContext.gymCurrency === 'USD' ? '$' : '₹';
+    
+    const unpaidList = ctx.unpaidMemberNames.length > 0 
+      ? `\n  Names: ${ctx.unpaidMemberNames.join(', ')}${ctx.unpaidThisMonth > 10 ? ` (and ${ctx.unpaidThisMonth - 10} more)` : ''}`
+      : '';
+    const checkedInList = ctx.checkedInTodayNames.length > 0
+      ? `\n  Names: ${ctx.checkedInTodayNames.join(', ')}${ctx.checkedInToday > 10 ? ` (and ${ctx.checkedInToday - 10} more)` : ''}`
+      : '';
+    const notCheckedInList = ctx.notCheckedInTodayNames.length > 0
+      ? `\n- NOT checked in today (sample): ${ctx.notCheckedInTodayNames.join(', ')}`
+      : '';
+    const expiringList = ctx.expiringMemberNames.length > 0
+      ? `\n  Names: ${ctx.expiringMemberNames.join(', ')}${ctx.expiringThisMonth > 10 ? ` (and ${ctx.expiringThisMonth - 10} more)` : ''}`
+      : '';
+    
     return basePrompt + `
 GYM OVERVIEW:
 - Total members: ${ctx.totalMembers}
 - Active subscriptions: ${ctx.activeMembers}
-- Checked in today: ${ctx.checkedInToday} (${ctx.attendanceRate}% of total)
-- Unpaid this month: ${ctx.unpaidThisMonth}
-- Expiring within 30 days: ${ctx.expiringThisMonth}
+- Checked in today: ${ctx.checkedInToday} (${ctx.attendanceRate}% of total)${checkedInList}${notCheckedInList}
+- Unpaid this month: ${ctx.unpaidThisMonth}${unpaidList}
+- Expiring within 30 days: ${ctx.expiringThisMonth}${expiringList}
 - Revenue this month: ${currency}${ctx.revenueThisMonth.toLocaleString()}
 - New members this month: ${ctx.recentTrends.newMembersThisMonth}
 
 You can help this owner with:
-- Business performance analysis
-- Member retention insights
+- Business performance analysis and member lists
+- Member retention insights with specific names
 - Revenue and payment tracking
 - Attendance trends
 - Strategic recommendations for gym growth
