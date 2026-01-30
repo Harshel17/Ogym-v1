@@ -730,6 +730,17 @@ export const walkInVisitors = pgTable("walk_in_visitors", {
   followUpNotes: text("follow_up_notes"),
   followUpDate: timestamp("follow_up_date"),
   followUpByUserId: integer("follow_up_by_user_id").references(() => users.id),
+  // Enhanced follow-up features
+  priority: text("priority", { enum: ["hot", "warm", "cold"] }).default("warm"),
+  tags: text("tags").array(),
+  assignedTrainerId: integer("assigned_trainer_id").references(() => users.id),
+  scheduledFollowUpDate: timestamp("scheduled_follow_up_date"),
+  interactionHistory: jsonb("interaction_history").$type<Array<{
+    type: "call" | "whatsapp" | "email" | "visit" | "note";
+    content: string;
+    timestamp: string;
+    byUserId: number;
+  }>>(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -101,6 +101,17 @@ ADD COLUMN IF NOT EXISTS follow_up_date TIMESTAMP,
 ADD COLUMN IF NOT EXISTS follow_up_by_user_id INTEGER REFERENCES users(id);
 ```
 
+### Since commit (Jan 30, 2026 - Enhanced Follow-ups)
+```sql
+-- Add enhanced follow-up features: priority, tags, trainer assignment, scheduling, interaction history
+ALTER TABLE walk_in_visitors 
+ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'warm',
+ADD COLUMN IF NOT EXISTS tags TEXT[],
+ADD COLUMN IF NOT EXISTS assigned_trainer_id INTEGER REFERENCES users(id),
+ADD COLUMN IF NOT EXISTS scheduled_follow_up_date TIMESTAMP,
+ADD COLUMN IF NOT EXISTS interaction_history JSONB;
+```
+
 **Note:** AI Import Workouts feature has NO schema changes - uses existing tables.
 
 ---

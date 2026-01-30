@@ -5328,7 +5328,7 @@ export async function registerRoutes(
   // Update follow-up status for a walk-in visitor
   app.patch("/api/owner/walk-in-visitors/:id/follow-up", requireRole(["owner"]), async (req, res) => {
     try {
-      const { status, notes } = req.body;
+      const { status, notes, priority, tags, assignedTrainerId, scheduledFollowUpDate, interaction } = req.body;
       const visitorId = parseInt(req.params.id);
       
       const visitor = await storage.getWalkInVisitorById(visitorId);
@@ -5346,7 +5346,6 @@ export async function registerRoutes(
         updateData.followUpStatus = status;
         updateData.followUpDate = new Date();
         updateData.followUpByUserId = req.user!.id;
-        // If converted, also mark convertedToMember
         if (status === "converted") {
           updateData.convertedToMember = true;
         }
@@ -5354,11 +5353,76 @@ export async function registerRoutes(
       if (notes !== undefined) {
         updateData.followUpNotes = notes;
       }
+      if (priority !== undefined) {
+        const validPriorities = ["hot", "warm", "cold"];
+        if (validPriorities.includes(priority)) {
+          updateData.priority = priority;
+        }
+      }
+      if (tags !== undefined) {
+        updateData.tags = tags;
+      }
+      if (assignedTrainerId !== undefined) {
+        updateData.assignedTrainerId = assignedTrainerId || null;
+      }
+      if (scheduledFollowUpDate !== undefined) {
+        updateData.scheduledFollowUpDate = scheduledFollowUpDate ? new Date(scheduledFollowUpDate) : null;
+      }
+      if (interaction) {
+        const currentHistory = (visitor.interactionHistory as any[]) || [];
+        const newInteraction = {
+          type: interaction.type,
+          content: interaction.content,
+          timestamp: new Date().toISOString(),
+          byUserId: req.user!.id
+        };
+        updateData.interactionHistory = [...currentHistory, newInteraction];
+      }
       
       const updated = await storage.updateWalkInVisitor(visitorId, updateData);
       res.json(updated);
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to update follow-up" });
+    }
+  });
+  
+  // Bulk update follow-up status for multiple visitors
+  app.patch("/api/owner/walk-in-visitors/bulk-follow-up", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { visitorIds, status, notes } = req.body;
+      
+      if (!Array.isArray(visitorIds) || visitorIds.length === 0) {
+        return res.status(400).json({ message: "visitorIds must be a non-empty array" });
+      }
+      
+      const validStatuses = ["pending", "contacted", "follow_up_scheduled", "converted", "not_interested"];
+      if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid follow-up status" });
+      }
+      
+      const results = [];
+      for (const id of visitorIds) {
+        const visitor = await storage.getWalkInVisitorById(id);
+        if (visitor && visitor.gymId === req.user!.gymId) {
+          const updateData: any = {
+            followUpStatus: status,
+            followUpDate: new Date(),
+            followUpByUserId: req.user!.id
+          };
+          if (notes) {
+            updateData.followUpNotes = notes;
+          }
+          if (status === "converted") {
+            updateData.convertedToMember = true;
+          }
+          const updated = await storage.updateWalkInVisitor(id, updateData);
+          results.push(updated);
+        }
+      }
+      
+      res.json({ updated: results.length, visitors: results });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to bulk update follow-ups" });
     }
   });
 
