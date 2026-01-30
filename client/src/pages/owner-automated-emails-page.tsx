@@ -235,7 +235,7 @@ export default function OwnerAutomatedEmailsPage() {
         </Card>
       </div>
 
-      {lastResult && lastResult.details.length > 0 && (
+      {lastResult && lastResult.details && lastResult.details.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Last Send Results</CardTitle>
