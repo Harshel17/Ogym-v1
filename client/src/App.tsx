@@ -59,6 +59,7 @@ import PrivacyPage from "@/pages/privacy-page";
 import SubscriptionExpiredPage from "@/pages/subscription-expired-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
+import { SwipeNavigationProvider } from "@/hooks/use-swipe-navigation";
 
 type ProtectedRouteProps = {
   component: React.ComponentType;
@@ -356,7 +357,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <Router />
+          <SwipeNavigationProvider>
+            <Router />
+          </SwipeNavigationProvider>
           <Toaster />
         </AuthProvider>
       </ThemeProvider>
