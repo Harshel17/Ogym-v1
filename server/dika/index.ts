@@ -32,6 +32,7 @@ import {
   getOwnerActiveMemberships,
   getOwnerExpiringMemberships,
 } from './queries';
+import { processWithAI, isAIAvailable } from './ai-processor';
 
 export interface DikaRequest {
   message: string;
@@ -51,6 +52,22 @@ export async function handleDikaQuery(
   gymId: number | null,
   message: string
 ): Promise<DikaResponse> {
+  // Try AI-powered response first
+  if (await isAIAvailable()) {
+    try {
+      const { answer, followUpChips } = await processWithAI(userId, role, gymId, message);
+      return {
+        answer,
+        confidence: 'high',
+        followUpChips,
+      };
+    } catch (error) {
+      console.error('AI processing failed, falling back to pattern matching:', error);
+      // Fall through to pattern-matching fallback
+    }
+  }
+  
+  // Fallback to pattern-matching system
   if (isAdviceQuestion(message)) {
     return {
       answer: getRefusalMessage(),
