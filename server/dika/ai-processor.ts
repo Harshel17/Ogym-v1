@@ -17,7 +17,7 @@ import {
 import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
 
 const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
@@ -678,5 +678,6 @@ function generateFollowUpChips(role: UserRole, lastMessage: string, gymId: numbe
 }
 
 export async function isAIAvailable(): Promise<boolean> {
-  return !!(process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL);
+  const hasApiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+  return !!hasApiKey;
 }
