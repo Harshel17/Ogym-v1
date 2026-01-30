@@ -10,8 +10,8 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance } from "@shared/schema";
-import { eq, and, isNotNull, inArray, sql } from "drizzle-orm";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions } from "@shared/schema";
+import { eq, and, isNotNull, inArray, sql, desc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips } from "./dika";
 
@@ -5539,7 +5539,7 @@ export async function registerRoutes(
     }
   });
 
-  // Get inactive members for follow-up (optimized - single efficient query)
+  // Get inactive members for follow-up (ultra-optimized - all direct SQL)
   app.get("/api/followups/inactive", requireRole(["owner"]), async (req, res) => {
     try {
       const { inactive_days, search } = req.query;
@@ -5549,28 +5549,32 @@ export async function registerRoutes(
       cutoffDate.setDate(cutoffDate.getDate() - days);
       const cutoffStr = cutoffDate.toISOString().split("T")[0];
       
-      // Fetch members and subscriptions only (skip heavy attendance query)
-      const [members, allSubscriptions] = await Promise.all([
+      // All 3 queries run in parallel - all are simple/fast direct SQL
+      const [members, lastAttendanceQuery, subscriptionStatuses] = await Promise.all([
         storage.getGymMembers(gymId),
-        storage.getMemberSubscriptions(gymId)
+        // Fast: aggregate last attendance per member (one row per member)
+        db.select({
+          memberId: attendance.memberId,
+          lastDate: sql<string>`MAX(${attendance.date})`
+        })
+        .from(attendance)
+        .where(and(
+          eq(attendance.gymId, gymId),
+          eq(attendance.status, "present")
+        ))
+        .groupBy(attendance.memberId),
+        // Fast: just get memberId + status (no joins, no payment calculations)
+        db.select({
+          memberId: memberSubscriptions.memberId,
+          status: memberSubscriptions.status
+        })
+        .from(memberSubscriptions)
+        .where(eq(memberSubscriptions.gymId, gymId))
       ]);
       
-      // Create subscription lookup
-      const subscriptionMap = new Map(allSubscriptions.map(s => [s.memberId, s]));
-      
-      // Get last attendance per member using efficient aggregation query
-      const lastAttendanceQuery = await db.select({
-        memberId: attendance.memberId,
-        lastDate: sql<string>`MAX(${attendance.date})`
-      })
-      .from(attendance)
-      .where(and(
-        eq(attendance.gymId, gymId),
-        eq(attendance.status, "present")
-      ))
-      .groupBy(attendance.memberId);
-      
+      // Create lookup maps
       const lastPresentMap = new Map(lastAttendanceQuery.map(r => [r.memberId, r.lastDate]));
+      const subscriptionMap = new Map(subscriptionStatuses.map(s => [s.memberId, s.status]));
       
       // Build results
       const results: Array<{
@@ -5586,14 +5590,12 @@ export async function registerRoutes(
         
         // Check if inactive
         if (!lastPresent || lastPresent <= cutoffStr) {
-          const subscription = subscriptionMap.get(member.id);
-          
           results.push({
             id: member.id,
             name: member.username,
             email: member.email,
             lastVisit: lastPresent,
-            membershipStatus: subscription?.status || "no_subscription"
+            membershipStatus: subscriptionMap.get(member.id) || "no_subscription"
           });
         }
       }
