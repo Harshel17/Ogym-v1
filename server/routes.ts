@@ -5550,7 +5550,7 @@ export async function registerRoutes(
       const cutoffStr = cutoffDate.toISOString().split("T")[0];
       
       // Get all members
-      const members = await storage.getUsersByGym(gymId, "member");
+      const members = await storage.getGymMembers(gymId);
       
       // Get profiles for full name
       const profiles = await Promise.all(members.map(m => storage.getUserProfile(m.id)));
@@ -5610,7 +5610,7 @@ export async function registerRoutes(
       const gymId = req.user!.gymId!;
       
       // Get all members
-      const members = await storage.getUsersByGym(gymId, "member");
+      const members = await storage.getGymMembers(gymId);
       const profiles = await Promise.all(members.map(m => storage.getUserProfile(m.id)));
       const profileMap = new Map(profiles.filter(Boolean).map(p => [p!.userId, p]));
       
