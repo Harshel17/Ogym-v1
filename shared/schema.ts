@@ -796,6 +796,33 @@ export const gymEmailSettings = pgTable("gym_email_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// === AUTOMATED EMAIL REMINDERS ===
+export const automatedEmailReminders = pgTable("automated_email_reminders", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  subscriptionId: integer("subscription_id").references(() => memberSubscriptions.id),
+  reminderType: text("reminder_type", { enum: ["expiry_7_days", "expiry_3_days", "expiry_1_day", "expired"] }).notNull(),
+  sentAt: timestamp("sent_at").defaultNow(),
+  emailTo: text("email_to").notNull(),
+  status: text("status", { enum: ["sent", "failed"] }).notNull().default("sent"),
+  errorMessage: text("error_message"),
+});
+
+// === WEEKLY OWNER SUMMARIES ===
+export const weeklyOwnerSummaries = pgTable("weekly_owner_summaries", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  ownerUserId: integer("owner_user_id").references(() => users.id).notNull(),
+  weekStartDate: text("week_start_date").notNull(), // YYYY-MM-DD
+  weekEndDate: text("week_end_date").notNull(),
+  summaryData: jsonb("summary_data"), // Stores the summary stats
+  sentAt: timestamp("sent_at").defaultNow(),
+  emailTo: text("email_to").notNull(),
+  status: text("status", { enum: ["sent", "failed"] }).notNull().default("sent"),
+  errorMessage: text("error_message"),
+});
+
 // === SCHEMAS ===
 
 export const insertGymEmailSettingsSchema = createInsertSchema(gymEmailSettings).omit({ id: true, createdAt: true, updatedAt: true });
@@ -851,6 +878,8 @@ export const insertWalkInVisitorSchema = createInsertSchema(walkInVisitors).omit
 export const insertKioskSessionSchema = createInsertSchema(kioskSessions).omit({ id: true, createdAt: true });
 export const insertKioskOtpCodeSchema = createInsertSchema(kioskOtpCodes).omit({ id: true, createdAt: true });
 export const insertPaymentConfirmationSchema = createInsertSchema(paymentConfirmations).omit({ id: true, createdAt: true, confirmedAt: true, confirmedByUserId: true });
+export const insertAutomatedEmailReminderSchema = createInsertSchema(automatedEmailReminders).omit({ id: true, sentAt: true });
+export const insertWeeklyOwnerSummarySchema = createInsertSchema(weeklyOwnerSummaries).omit({ id: true, sentAt: true });
 
 // Payment Links type for gym settings
 export const paymentLinksSchema = z.object({
@@ -986,3 +1015,9 @@ export type InsertKioskOtpCode = z.infer<typeof insertKioskOtpCodeSchema>;
 
 export type PaymentConfirmation = typeof paymentConfirmations.$inferSelect;
 export type InsertPaymentConfirmation = z.infer<typeof insertPaymentConfirmationSchema>;
+
+export type AutomatedEmailReminder = typeof automatedEmailReminders.$inferSelect;
+export type InsertAutomatedEmailReminder = z.infer<typeof insertAutomatedEmailReminderSchema>;
+
+export type WeeklyOwnerSummary = typeof weeklyOwnerSummaries.$inferSelect;
+export type InsertWeeklyOwnerSummary = z.infer<typeof insertWeeklyOwnerSummarySchema>;
