@@ -53,4 +53,4 @@ DISABLE_EMAIL_VERIFICATION = "false"
 FROM_EMAIL = "noreply@ogym.fitness"
 
 [agent]
-integrations = ["resend:1.0.0"]
+integrations = ["resend:1.0.0", "javascript_openai_ai_integrations:2.0.0"]
