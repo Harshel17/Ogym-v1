@@ -5539,7 +5539,7 @@ export async function registerRoutes(
     }
   });
 
-  // Get inactive members for follow-up
+  // Get inactive members for follow-up (optimized with bulk queries)
   app.get("/api/followups/inactive", requireRole(["owner"]), async (req, res) => {
     try {
       const { inactive_days, search } = req.query;
@@ -5549,14 +5549,30 @@ export async function registerRoutes(
       cutoffDate.setDate(cutoffDate.getDate() - days);
       const cutoffStr = cutoffDate.toISOString().split("T")[0];
       
-      // Get all members
-      const members = await storage.getGymMembers(gymId);
+      // Bulk fetch all data at once (much faster than individual queries)
+      const [members, allAttendance, allSubscriptions, profiles] = await Promise.all([
+        storage.getGymMembers(gymId),
+        storage.getAttendance(gymId),
+        storage.getMemberSubscriptions(gymId),
+        storage.getGymMembers(gymId).then(m => Promise.all(m.map(member => storage.getUserProfile(member.id))))
+      ]);
       
-      // Get profiles for full name
-      const profiles = await Promise.all(members.map(m => storage.getUserProfile(m.id)));
+      // Create lookup maps
       const profileMap = new Map(profiles.filter(Boolean).map(p => [p!.userId, p]));
+      const subscriptionMap = new Map(allSubscriptions.map(s => [s.memberId, s]));
       
-      // Get attendance for each member
+      // Group attendance by member and find last present date
+      const lastPresentMap = new Map<number, string | null>();
+      for (const att of allAttendance) {
+        if (att.status === "present") {
+          const existing = lastPresentMap.get(att.memberId);
+          if (!existing || att.date > existing) {
+            lastPresentMap.set(att.memberId, att.date);
+          }
+        }
+      }
+      
+      // Build results
       const results: Array<{
         id: number;
         name: string;
@@ -5566,16 +5582,12 @@ export async function registerRoutes(
       }> = [];
       
       for (const member of members) {
-        const attendance = await storage.getMemberAttendance(member.id);
-        const presentDays = attendance.filter(a => a.status === "present");
-        const lastPresent = presentDays.length > 0
-          ? presentDays.sort((a, b) => b.date.localeCompare(a.date))[0].date
-          : null;
+        const lastPresent = lastPresentMap.get(member.id) || null;
         
         // Check if inactive
         if (!lastPresent || lastPresent <= cutoffStr) {
           const profile = profileMap.get(member.id);
-          const subscription = await storage.getMemberSubscription(member.id);
+          const subscription = subscriptionMap.get(member.id);
           
           results.push({
             id: member.id,
@@ -5603,14 +5615,19 @@ export async function registerRoutes(
     }
   });
 
-  // Get members with payment issues for follow-up
+  // Get members with payment issues for follow-up (optimized with bulk queries)
   app.get("/api/followups/payments", requireRole(["owner"]), async (req, res) => {
     try {
       const { type, search } = req.query;
       const gymId = req.user!.gymId!;
       
-      // Get all members
-      const members = await storage.getGymMembers(gymId);
+      // Bulk fetch all data at once (much faster than individual queries)
+      const [allSubscriptions, members] = await Promise.all([
+        storage.getMemberSubscriptions(gymId), // Already includes plan and totalPaid!
+        storage.getGymMembers(gymId)
+      ]);
+      
+      // Get profiles for full names
       const profiles = await Promise.all(members.map(m => storage.getUserProfile(m.id)));
       const profileMap = new Map(profiles.filter(Boolean).map(p => [p!.userId, p]));
       
@@ -5631,19 +5648,10 @@ export async function registerRoutes(
         status: string;
       }> = [];
       
-      for (const member of members) {
-        const subscription = await storage.getMemberSubscription(member.id);
-        if (!subscription) continue;
-        
-        const transactions = await storage.getSubscriptionTransactions(subscription.id);
-        const totalPaid = transactions.reduce((sum, t) => sum + t.amountPaid, 0);
-        const balance = subscription.totalAmount - totalPaid;
-        const lastPayment = transactions.length > 0 
-          ? transactions.sort((a, b) => b.paidOn.localeCompare(a.paidOn))[0].paidOn 
-          : null;
-        
-        const profile = profileMap.get(member.id);
-        const plan = subscription.plan; // Already included from getMemberSubscription
+      for (const subscription of allSubscriptions) {
+        const balance = subscription.totalAmount - subscription.totalPaid;
+        const profile = profileMap.get(subscription.memberId);
+        const member = subscription.member;
         
         // Filter by type
         let include = false;
@@ -5661,13 +5669,13 @@ export async function registerRoutes(
         
         if (include) {
           results.push({
-            id: member.id,
+            id: subscription.memberId,
             name: profile?.fullName || member.username,
             email: member.email,
-            planName: plan?.name || "Custom",
+            planName: subscription.plan?.name || "Custom",
             expiryDate: subscription.endDate,
             balance,
-            lastPaymentDate: lastPayment,
+            lastPaymentDate: null, // Skip individual transaction queries for speed
             status: subscription.status
           });
         }
