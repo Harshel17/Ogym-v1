@@ -6,6 +6,7 @@ import {
   cycleDayActions,
   attendance,
   payments,
+  paymentTransactions,
   users,
   userProfiles,
   trainerMemberAssignments
@@ -657,29 +658,31 @@ export async function getOwnerMemberPaymentStatus(gymId: number, memberName: str
   const member = members[0];
   const displayName = member.fullName || member.username;
   
-  const recentPayments = await db.select()
-    .from(payments)
+  const recentTransactions = await db.select()
+    .from(paymentTransactions)
     .where(
       and(
-        eq(payments.memberId, member.userId),
-        eq(payments.gymId, gymId)
+        eq(paymentTransactions.memberId, member.userId),
+        eq(paymentTransactions.gymId, gymId)
       )
     )
-    .orderBy(desc(payments.month))
+    .orderBy(desc(paymentTransactions.paidOn))
     .limit(1);
   
-  if (recentPayments.length === 0) {
+  if (recentTransactions.length === 0) {
     return `${displayName} has no payment records.`;
   }
   
-  const lastPayment = recentPayments[0];
-  const paidThisMonth = lastPayment.month === currentMonth && lastPayment.status === 'paid';
+  const lastPayment = recentTransactions[0];
+  const lastPaidMonth = lastPayment.paidOn.substring(0, 7);
+  const paidThisMonth = lastPaidMonth === currentMonth;
   
   if (paidThisMonth) {
-    return `${displayName} has paid this month.`;
+    const amountFormatted = (lastPayment.amountPaid / 100).toFixed(0);
+    return `${displayName} has paid this month (${lastPayment.paidOn}, $${amountFormatted} via ${lastPayment.method}).`;
   }
   
-  return `${displayName} hasn't paid this month. Last payment was for ${lastPayment.month}.`;
+  return `${displayName} last paid on ${lastPayment.paidOn}.`;
 }
 
 export async function getOwnerActiveMembersToday(gymId: number): Promise<string> {
