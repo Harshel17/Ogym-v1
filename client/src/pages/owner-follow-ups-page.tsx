@@ -265,28 +265,28 @@ function MemberCard({
 }) {
   return (
     <div 
-      className={`p-4 rounded-xl border transition-all ${isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'bg-card hover-elevate'}`}
+      className={`p-3 rounded-lg border transition-all ${isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'bg-card hover-elevate'}`}
       data-testid={`card-${testIdPrefix}-${member.id}`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2">
         <Checkbox 
           checked={isSelected}
           onCheckedChange={onToggle}
           disabled={!member.email}
-          className="mt-1"
+          className="mt-0.5"
           data-testid={`checkbox-${testIdPrefix}-${member.id}`}
         />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-foreground">{member.name}</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-medium text-sm text-foreground truncate">{member.name}</span>
             {!member.email && (
-              <Badge variant="secondary" className="text-xs">No email</Badge>
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">No email</Badge>
             )}
           </div>
           {member.email && (
-            <p className="text-sm text-muted-foreground truncate mt-0.5">{member.email}</p>
+            <p className="text-xs text-muted-foreground truncate">{member.email}</p>
           )}
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {children}
           </div>
         </div>
@@ -449,42 +449,41 @@ function DayPassTab() {
       )}
 
       {isLoading ? (
-        <div className="grid gap-3">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
         </div>
       ) : filteredMembers.length === 0 ? (
         <Card className="border-0 shadow-sm">
-          <CardContent className="py-16 text-center">
-            <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-muted-foreground" />
+          <CardContent className="py-12 text-center">
+            <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+              <Users className="w-6 h-6 text-muted-foreground" />
             </div>
-            <p className="font-medium text-foreground">No day pass visitors found</p>
-            <p className="text-sm text-muted-foreground mt-1">Adjust your filters or date range</p>
+            <p className="font-medium text-foreground text-sm">No day pass visitors found</p>
+            <p className="text-xs text-muted-foreground mt-1">Adjust your filters or date range</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3">
-          {filteredMembers.map(member => (
-            <MemberCard
-              key={member.id}
-              member={member}
-              isSelected={selectedIds.includes(member.id)}
-              onToggle={() => toggleSelect(member.id)}
-              testIdPrefix="daypass"
-            >
-              <Badge variant="secondary" className="gap-1">
-                <Users className="w-3 h-3" />
-                {member.visitsCount} visit{member.visitsCount !== 1 ? 's' : ''}
-              </Badge>
-              <Badge variant="outline" className="gap-1">
-                <Calendar className="w-3 h-3" />
-                {format(new Date(member.lastVisitDate), "MMM d")}
-              </Badge>
-              {member.phone && (
-                <span className="text-xs text-muted-foreground">{member.phone}</span>
-              )}
-            </MemberCard>
-          ))}
+        <div className="max-h-[400px] overflow-y-auto rounded-lg border bg-muted/20 p-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {filteredMembers.map(member => (
+              <MemberCard
+                key={member.id}
+                member={member}
+                isSelected={selectedIds.includes(member.id)}
+                onToggle={() => toggleSelect(member.id)}
+                testIdPrefix="daypass"
+              >
+                <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0">
+                  <Users className="w-2.5 h-2.5" />
+                  {member.visitsCount}
+                </Badge>
+                <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0">
+                  <Calendar className="w-2.5 h-2.5" />
+                  {format(new Date(member.lastVisitDate), "MMM d")}
+                </Badge>
+              </MemberCard>
+            ))}
+          </div>
         </div>
       )}
 
@@ -628,40 +627,43 @@ function InactiveTab() {
       )}
 
       {isLoading ? (
-        <div className="grid gap-3">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
         </div>
       ) : filteredMembers.length === 0 ? (
         <Card className="border-0 shadow-sm">
-          <CardContent className="py-16 text-center">
-            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="w-8 h-8 text-green-500" />
+          <CardContent className="py-12 text-center">
+            <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-3">
+              <Sparkles className="w-6 h-6 text-green-500" />
             </div>
-            <p className="font-medium text-foreground">All members are active!</p>
-            <p className="text-sm text-muted-foreground mt-1">Great news - no inactive members found</p>
+            <p className="font-medium text-foreground text-sm">All members are active!</p>
+            <p className="text-xs text-muted-foreground mt-1">Great news - no inactive members</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3">
-          {filteredMembers.map(member => (
-            <MemberCard
-              key={member.id}
-              member={member}
-              isSelected={selectedIds.includes(member.id)}
-              onToggle={() => toggleSelect(member.id)}
-              testIdPrefix="inactive"
-            >
-              <Badge variant="outline" className="gap-1">
-                <Clock className="w-3 h-3" />
-                {member.lastVisit ? format(new Date(member.lastVisit), "MMM d") : "Never visited"}
-              </Badge>
-              <Badge 
-                variant={member.membershipStatus === "active" ? "default" : "secondary"}
+        <div className="max-h-[400px] overflow-y-auto rounded-lg border bg-muted/20 p-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {filteredMembers.map(member => (
+              <MemberCard
+                key={member.id}
+                member={member}
+                isSelected={selectedIds.includes(member.id)}
+                onToggle={() => toggleSelect(member.id)}
+                testIdPrefix="inactive"
               >
-                {member.membershipStatus.replace("_", " ")}
-              </Badge>
-            </MemberCard>
-          ))}
+                <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0">
+                  <Clock className="w-2.5 h-2.5" />
+                  {member.lastVisit ? format(new Date(member.lastVisit), "MMM d") : "Never"}
+                </Badge>
+                <Badge 
+                  variant={member.membershipStatus === "active" ? "default" : "secondary"}
+                  className="text-[10px] px-1.5 py-0"
+                >
+                  {member.membershipStatus.replace("_", " ")}
+                </Badge>
+              </MemberCard>
+            ))}
+          </div>
         </div>
       )}
 
@@ -817,53 +819,54 @@ function PaymentsTab() {
       )}
 
       {isLoading ? (
-        <div className="grid gap-3">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
         </div>
       ) : filteredMembers.length === 0 ? (
         <Card className="border-0 shadow-sm">
-          <CardContent className="py-16 text-center">
-            <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-              <CreditCard className="w-8 h-8 text-muted-foreground" />
+          <CardContent className="py-12 text-center">
+            <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+              <CreditCard className="w-6 h-6 text-muted-foreground" />
             </div>
-            <p className="font-medium text-foreground">No members found</p>
-            <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters</p>
+            <p className="font-medium text-foreground text-sm">No members found</p>
+            <p className="text-xs text-muted-foreground mt-1">Try adjusting your filters</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3">
-          {filteredMembers.map(member => {
-            const isExpired = member.expiryDate && new Date(member.expiryDate) < new Date();
-            return (
-              <MemberCard
-                key={member.id}
-                member={member}
-                isSelected={selectedIds.includes(member.id)}
-                onToggle={() => toggleSelect(member.id)}
-                testIdPrefix="payment"
-              >
-                {member.planName && (
-                  <Badge variant="secondary">{member.planName}</Badge>
-                )}
-                {member.expiryDate && (
-                  <Badge variant={isExpired ? "destructive" : "outline"} className="gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {isExpired ? "Expired " : "Expires "}
-                    {format(new Date(member.expiryDate), "MMM d")}
-                  </Badge>
-                )}
-                {member.balance > 0 && (
-                  <Badge variant="destructive" className="gap-1">
-                    <CreditCard className="w-3 h-3" />
-                    {formatAmount(member.balance)} due
-                  </Badge>
-                )}
-                {member.balance === 0 && (
-                  <Badge className="bg-green-500/10 text-green-600 border-0">Paid</Badge>
-                )}
-              </MemberCard>
-            );
-          })}
+        <div className="max-h-[400px] overflow-y-auto rounded-lg border bg-muted/20 p-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {filteredMembers.map(member => {
+              const isExpired = member.expiryDate && new Date(member.expiryDate) < new Date();
+              return (
+                <MemberCard
+                  key={member.id}
+                  member={member}
+                  isSelected={selectedIds.includes(member.id)}
+                  onToggle={() => toggleSelect(member.id)}
+                  testIdPrefix="payment"
+                >
+                  {member.planName && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{member.planName}</Badge>
+                  )}
+                  {member.expiryDate && (
+                    <Badge variant={isExpired ? "destructive" : "outline"} className="gap-1 text-[10px] px-1.5 py-0">
+                      <Calendar className="w-2.5 h-2.5" />
+                      {format(new Date(member.expiryDate), "MMM d")}
+                    </Badge>
+                  )}
+                  {member.balance > 0 && (
+                    <Badge variant="destructive" className="gap-1 text-[10px] px-1.5 py-0">
+                      <CreditCard className="w-2.5 h-2.5" />
+                      {formatAmount(member.balance)}
+                    </Badge>
+                  )}
+                  {member.balance === 0 && (
+                    <Badge className="bg-green-500/10 text-green-600 border-0 text-[10px] px-1.5 py-0">Paid</Badge>
+                  )}
+                </MemberCard>
+              );
+            })}
+          </div>
         </div>
       )}
 
