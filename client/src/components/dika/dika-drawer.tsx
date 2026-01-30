@@ -333,9 +333,13 @@ export function DikaDrawer({
         <SheetHeader className="px-4 py-4 flex-shrink-0 pr-12 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-600">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/30 relative">
-                <span className="text-xl font-bold text-white font-display">D</span>
-                <Sparkles className="absolute -top-0.5 -right-0.5 w-3 h-3 text-yellow-300" />
+              <div className="w-11 h-11 rounded-full relative">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-white/30 via-pink-300/30 to-white/30 p-[2px]">
+                  <div className="w-full h-full rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <span className="text-xl font-black text-white font-display drop-shadow-md">D</span>
+                  </div>
+                </div>
+                <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-yellow-300 drop-shadow-lg" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
@@ -406,16 +410,26 @@ export function DikaDrawer({
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-violet-50/50 to-transparent dark:from-violet-950/20 dark:to-transparent">
           {messages.length === 0 && (
             <div className="text-center py-8">
-              <div className="w-20 h-20 mx-auto mb-4 relative">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 via-purple-500 to-indigo-600 shadow-lg shadow-violet-500/30" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-white font-display tracking-tight">D</span>
+              <div className="w-24 h-24 mx-auto mb-5 relative group">
+                {/* Outer glow ring */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 opacity-20 blur-xl animate-pulse" />
+                {/* Animated ring */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-400 via-fuchsia-500 to-purple-600 p-[3px] animate-spin-slow" style={{ animationDuration: '8s' }}>
+                  <div className="w-full h-full rounded-full bg-gradient-to-b from-violet-50 to-white dark:from-gray-900 dark:to-gray-800" />
                 </div>
-                <Sparkles className="absolute -top-1 -right-1 w-5 h-5 text-yellow-400 drop-shadow-sm" />
-                <Sparkles className="absolute -bottom-1 -left-1 w-4 h-4 text-violet-300 drop-shadow-sm" />
-                <div className="absolute top-0 left-0 w-2 h-2 rounded-full bg-white/60 animate-pulse" />
+                {/* Inner circle with D */}
+                <div className="absolute inset-[6px] rounded-full bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-700 shadow-xl shadow-purple-500/40 flex items-center justify-center">
+                  <span className="text-4xl font-black text-white font-display tracking-tight drop-shadow-lg" style={{ textShadow: '0 2px 10px rgba(139, 92, 246, 0.5)' }}>D</span>
+                </div>
+                {/* Sparkle decorations */}
+                <Sparkles className="absolute -top-1 -right-1 w-6 h-6 text-yellow-400 drop-shadow-lg animate-pulse" />
+                <Sparkles className="absolute -bottom-2 -left-2 w-5 h-5 text-pink-400 drop-shadow-lg animate-pulse" style={{ animationDelay: '0.5s' }} />
+                <Sparkles className="absolute top-1/2 -right-3 w-4 h-4 text-cyan-400 drop-shadow-lg animate-pulse" style={{ animationDelay: '1s' }} />
+                {/* Floating dots */}
+                <div className="absolute -top-2 left-1/4 w-2 h-2 rounded-full bg-gradient-to-r from-yellow-300 to-orange-400 animate-bounce" style={{ animationDelay: '0.2s' }} />
+                <div className="absolute -bottom-1 right-1/4 w-1.5 h-1.5 rounded-full bg-gradient-to-r from-pink-300 to-rose-400 animate-bounce" style={{ animationDelay: '0.7s' }} />
               </div>
-              <h3 className="text-base font-medium mb-1">How can I help you today?</h3>
+              <h3 className="text-lg font-semibold mb-1 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 dark:from-violet-400 dark:via-purple-400 dark:to-indigo-400 bg-clip-text text-transparent">How can I help you today?</h3>
               <p className="text-sm text-muted-foreground mb-6">
                 Ask me about workouts, attendance, payments, and more
               </p>
@@ -450,9 +464,12 @@ export function DikaDrawer({
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mr-2 flex-shrink-0 shadow-sm relative">
-                    <span className="text-sm font-bold text-white font-display">D</span>
-                    <Sparkles className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 text-yellow-300" />
+                  <div className="w-8 h-8 rounded-full mr-2 flex-shrink-0 relative">
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 via-purple-500 to-indigo-600 shadow-md shadow-purple-500/30" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-sm font-black text-white font-display drop-shadow-sm">D</span>
+                    </div>
+                    <Sparkles className="absolute -top-0.5 -right-0.5 w-3 h-3 text-yellow-400 drop-shadow-sm" />
                   </div>
                 )}
                 <div
@@ -510,9 +527,12 @@ export function DikaDrawer({
 
           {isLoading && (
             <div className="flex justify-start">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mr-2 flex-shrink-0 shadow-sm relative">
-                <span className="text-sm font-bold text-white font-display">D</span>
-                <Sparkles className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 text-yellow-300" />
+              <div className="w-8 h-8 rounded-full mr-2 flex-shrink-0 relative">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 via-purple-500 to-indigo-600 shadow-md shadow-purple-500/30 animate-pulse" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-sm font-black text-white font-display drop-shadow-sm">D</span>
+                </div>
+                <Sparkles className="absolute -top-0.5 -right-0.5 w-3 h-3 text-yellow-400 drop-shadow-sm animate-pulse" />
               </div>
               <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl rounded-bl-md shadow-sm">
                 <TypingIndicator />
