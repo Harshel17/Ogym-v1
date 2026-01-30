@@ -3194,7 +3194,7 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD" });
     }
     
-    const log = await storage.getDetailedWorkoutLog(req.user!.gymId!, req.user!.id, req.params.date);
+    const log = await storage.getDetailedWorkoutLog(req.user!.gymId ?? null, req.user!.id, req.params.date);
     res.json(log);
   });
 
@@ -3225,7 +3225,7 @@ export async function registerRoutes(
     }
     
     // Get or create workout log for this date
-    let workoutLog = await storage.getWorkoutLog(req.user!.gymId!, req.user!.id, input.date);
+    let workoutLog = await storage.getWorkoutLog(req.user!.gymId ?? null, req.user!.id, input.date);
     if (!workoutLog) {
       // Calculate day index
       const startDate = new Date(cycle.startDate);
@@ -3276,7 +3276,7 @@ export async function registerRoutes(
       const lastWeight = completedSets.length > 0 ? completedSets[completedSets.length - 1].actualWeight : null;
       
       await storage.completeWorkout({
-        gymId: req.user!.gymId!,
+        gymId: req.user!.gymId ?? null,
         cycleId: cycle.id,
         workoutItemId: item.id,
         memberId: req.user!.id,

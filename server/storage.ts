@@ -159,13 +159,13 @@ export interface IStorage {
   
   // Per-set workout logging
   createWorkoutLog(data: InsertWorkoutLog): Promise<WorkoutLog>;
-  getWorkoutLog(gymId: number, memberId: number, date: string): Promise<WorkoutLog | undefined>;
+  getWorkoutLog(gymId: number | null, memberId: number, date: string): Promise<WorkoutLog | undefined>;
   createWorkoutLogExercise(data: InsertWorkoutLogExercise): Promise<WorkoutLogExercise>;
   getWorkoutLogExercises(workoutLogId: number): Promise<WorkoutLogExercise[]>;
   createWorkoutLogSet(data: InsertWorkoutLogSet): Promise<WorkoutLogSet>;
   updateWorkoutLogSet(id: number, data: Partial<InsertWorkoutLogSet>): Promise<WorkoutLogSet>;
   getWorkoutLogSets(logExerciseId: number): Promise<WorkoutLogSet[]>;
-  getDetailedWorkoutLog(gymId: number, memberId: number, date: string): Promise<{
+  getDetailedWorkoutLog(gymId: number | null, memberId: number, date: string): Promise<{
     log: WorkoutLog;
     exercises: (WorkoutLogExercise & { sets: WorkoutLogSet[] })[];
   } | null>;
@@ -1291,10 +1291,10 @@ export class DatabaseStorage implements IStorage {
     return log;
   }
 
-  async getWorkoutLog(gymId: number, memberId: number, date: string): Promise<WorkoutLog | undefined> {
+  async getWorkoutLog(gymId: number | null, memberId: number, date: string): Promise<WorkoutLog | undefined> {
     const [log] = await db.select().from(workoutLogs)
       .where(and(
-        eq(workoutLogs.gymId, gymId),
+        gymId === null ? isNull(workoutLogs.gymId) : eq(workoutLogs.gymId, gymId),
         eq(workoutLogs.memberId, memberId),
         eq(workoutLogs.completedDate, date)
       ));
@@ -1331,7 +1331,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(workoutLogSets.setNumber);
   }
 
-  async getDetailedWorkoutLog(gymId: number, memberId: number, date: string): Promise<{
+  async getDetailedWorkoutLog(gymId: number | null, memberId: number, date: string): Promise<{
     log: WorkoutLog;
     exercises: (WorkoutLogExercise & { sets: WorkoutLogSet[] })[];
   } | null> {
