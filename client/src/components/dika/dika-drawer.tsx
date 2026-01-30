@@ -412,14 +412,16 @@ export function DikaDrawer({
             <div className="text-center py-8">
               <div className="w-24 h-24 mx-auto mb-5 relative group">
                 {/* Outer glow ring */}
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 opacity-20 blur-xl animate-pulse" />
-                {/* Animated ring */}
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-400 via-fuchsia-500 to-purple-600 p-[3px] animate-spin-slow" style={{ animationDuration: '8s' }}>
-                  <div className="w-full h-full rounded-full bg-gradient-to-b from-violet-50 to-white dark:from-gray-900 dark:to-gray-800" />
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-400 via-pink-400 to-cyan-400 opacity-30 blur-xl animate-pulse" />
+                {/* Animated gradient ring */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-400 via-pink-500 to-cyan-400 p-[3px]" style={{ animation: 'spin 8s linear infinite' }}>
+                  <div className="w-full h-full rounded-full bg-white dark:bg-gray-900" />
                 </div>
-                {/* Inner circle with D */}
-                <div className="absolute inset-[6px] rounded-full bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-700 shadow-xl shadow-purple-500/40 flex items-center justify-center">
-                  <span className="text-4xl font-black text-white font-display tracking-tight drop-shadow-lg" style={{ textShadow: '0 2px 10px rgba(139, 92, 246, 0.5)' }}>D</span>
+                {/* Inner circle with D - light vibrant gradient */}
+                <div className="absolute inset-[6px] rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 shadow-xl shadow-pink-400/30 flex items-center justify-center overflow-hidden">
+                  {/* Shimmer overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-tr from-white/40 via-transparent to-white/20" />
+                  <span className="text-4xl font-black text-white font-display tracking-tight drop-shadow-lg relative z-10" style={{ textShadow: '0 2px 8px rgba(168, 85, 247, 0.4)' }}>D</span>
                 </div>
                 {/* Sparkle decorations */}
                 <Sparkles className="absolute -top-1 -right-1 w-6 h-6 text-yellow-400 drop-shadow-lg animate-pulse" />
@@ -465,7 +467,8 @@ export function DikaDrawer({
               >
                 {message.role === 'assistant' && (
                   <div className="w-8 h-8 rounded-full mr-2 flex-shrink-0 relative">
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 via-purple-500 to-indigo-600 shadow-md shadow-purple-500/30" />
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 shadow-md shadow-pink-400/25" />
+                    <div className="absolute inset-0 bg-gradient-to-tr from-white/30 via-transparent to-white/10 rounded-full" />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-sm font-black text-white font-display drop-shadow-sm">D</span>
                     </div>
@@ -528,7 +531,8 @@ export function DikaDrawer({
           {isLoading && (
             <div className="flex justify-start">
               <div className="w-8 h-8 rounded-full mr-2 flex-shrink-0 relative">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 via-purple-500 to-indigo-600 shadow-md shadow-purple-500/30 animate-pulse" />
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 shadow-md shadow-pink-400/25 animate-pulse" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/30 via-transparent to-white/10 rounded-full" />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="text-sm font-black text-white font-display drop-shadow-sm">D</span>
                 </div>
