@@ -11,7 +11,7 @@ type ReminderType = 'expiry_7_days' | 'expiry_3_days' | 'expiry_1_day' | 'expire
 interface ExpiringMember {
   memberId: number;
   memberName: string;
-  memberEmail: string;
+  memberEmail: string | null;
   subscriptionId: number;
   endDate: string;
   daysUntilExpiry: number;
@@ -408,12 +408,12 @@ export async function sendWeeklyOwnerSummaries(clientDate: string): Promise<{
         lte(attendance.date, weekEndStr)
       ));
 
-    const revenueSum = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amount}), 0)` })
+    const revenueSum = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
       .from(paymentTransactions)
       .where(and(
         eq(paymentTransactions.gymId, gym.gymId),
-        gte(paymentTransactions.transactionDate, weekStartStr),
-        lte(paymentTransactions.transactionDate, weekEndStr)
+        gte(paymentTransactions.paidOn, weekStartStr),
+        lte(paymentTransactions.paidOn, weekEndStr)
       ));
 
     const nextWeekEnd = new Date(today);
