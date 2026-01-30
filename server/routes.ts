@@ -5635,7 +5635,7 @@ export async function registerRoutes(
         const subscription = await storage.getMemberSubscription(member.id);
         if (!subscription) continue;
         
-        const transactions = await storage.getPaymentTransactions(subscription.id);
+        const transactions = await storage.getSubscriptionTransactions(subscription.id);
         const totalPaid = transactions.reduce((sum, t) => sum + t.amountPaid, 0);
         const balance = subscription.totalAmount - totalPaid;
         const lastPayment = transactions.length > 0 
