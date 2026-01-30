@@ -5643,7 +5643,7 @@ export async function registerRoutes(
           : null;
         
         const profile = profileMap.get(member.id);
-        const plan = subscription.planId ? await storage.getMembershipPlanById(subscription.planId) : null;
+        const plan = subscription.plan; // Already included from getMemberSubscription
         
         // Filter by type
         let include = false;
