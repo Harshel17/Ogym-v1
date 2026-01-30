@@ -778,6 +778,7 @@ function OwnerProfileView() {
 
         <OwnerPaymentSettings />
         <PaymentConfirmationsDashboard />
+        <DikaSettingsCard />
       </div>
     </div>
   );
@@ -968,6 +969,7 @@ function TrainerProfileView() {
         </Card>
 
         <TransferGymCard />
+        <DikaSettingsCard />
       </div>
     </div>
   );
