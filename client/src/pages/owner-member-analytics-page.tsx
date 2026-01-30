@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, UserCheck, UserMinus, ArrowRightLeft, Loader2, TrendingUp, UserX, Search, Eye, Bell, Flag, ArrowLeft } from "lucide-react";
+import { Users, UserCheck, UserMinus, ArrowRightLeft, Loader2, TrendingUp, UserX, Search, Eye, Bell, Flag, ArrowLeft, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import { Link } from "wouter";
@@ -44,7 +44,10 @@ type InactiveMember = {
 };
 
 export default function OwnerMemberAnalyticsPage() {
-  const [mainTab, setMainTab] = useState("overview");
+  // Read ?tab= from URL and default to that tab
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialTab = urlParams.get("tab") || "overview";
+  const [mainTab, setMainTab] = useState(initialTab);
   const [activeTab, setActiveTab] = useState("active");
   
   // Inactive members filters
@@ -581,13 +584,25 @@ export default function OwnerMemberAnalyticsPage() {
         <TabsContent value="inactive" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserX className="h-5 w-5" />
-                Inactive Members
-              </CardTitle>
-              <CardDescription>
-                Find members who haven't attended for a specified number of days
-              </CardDescription>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserX className="h-5 w-5" />
+                    Inactive Members
+                  </CardTitle>
+                  <CardDescription>
+                    Find members who haven't attended for a specified number of days
+                  </CardDescription>
+                </div>
+                {inactiveMembers && inactiveMembers.length > 0 && (
+                  <Link href="/owner/follow-ups?tab=inactive">
+                    <Button size="sm" variant="default" data-testid="button-send-bulk-email">
+                      <Mail className="h-4 w-4 mr-1.5" />
+                      Send Bulk Email
+                    </Button>
+                  </Link>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex flex-wrap items-end gap-4">

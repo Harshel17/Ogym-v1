@@ -14,8 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { 
   Mail, Loader2, Send, Settings, Search, Calendar, Users, CreditCard,
-  UserX, Clock, AlertCircle, Check, Filter, ChevronRight, Sparkles
+  UserX, Clock, AlertCircle, Check, Filter, ChevronRight, Sparkles, BarChart3, Brain
 } from "lucide-react";
+import { Link } from "wouter";
 import { format, subDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -881,13 +882,32 @@ function PaymentsTab() {
 }
 
 export default function OwnerFollowUpsPage() {
-  const [activeTab, setActiveTab] = useState("daypass");
+  // Read ?tab= from URL and default to that tab
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialTab = urlParams.get("tab") || "daypass";
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   return (
     <div className="space-y-6 pb-24">
-      <div className="space-y-1">
-        <h1 className="text-2xl sm:text-3xl font-bold font-display text-foreground">Follow-ups</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">Send targeted emails to your members</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-bold font-display text-foreground">Follow-ups</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Send targeted emails to your members</p>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/owner/member-analytics?tab=inactive">
+            <Button variant="outline" size="sm" data-testid="link-member-analytics">
+              <BarChart3 className="w-4 h-4 mr-1.5" />
+              <span className="hidden sm:inline">Analytics</span>
+            </Button>
+          </Link>
+          <Link href="/owner/ai-insights">
+            <Button variant="outline" size="sm" data-testid="link-ai-insights">
+              <Brain className="w-4 h-4 mr-1.5" />
+              <span className="hidden sm:inline">AI Insights</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <SenderSetupCard />

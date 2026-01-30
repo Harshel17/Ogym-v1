@@ -17,7 +17,8 @@ import {
   UserX,
   CreditCard,
   UserPlus,
-  Sparkles
+  Sparkles,
+  Mail
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -181,13 +182,25 @@ export default function OwnerAiInsightsPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card data-testid="card-churn-risk">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Churn Risk Alert
-            </CardTitle>
-            <CardDescription>
-              {insights.churnRisk.count} member{insights.churnRisk.count !== 1 ? 's' : ''} at risk of leaving
-            </CardDescription>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-orange-500" />
+                  Churn Risk Alert
+                </CardTitle>
+                <CardDescription>
+                  {insights.churnRisk.count} member{insights.churnRisk.count !== 1 ? 's' : ''} at risk of leaving
+                </CardDescription>
+              </div>
+              {insights.churnRisk.count > 0 && (
+                <Link href="/owner/follow-ups?tab=inactive">
+                  <Button size="sm" variant="default" data-testid="button-send-followup-churn">
+                    <Mail className="h-4 w-4 mr-1.5" />
+                    Send Follow-ups
+                  </Button>
+                </Link>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {insights.churnRisk.members.length === 0 ? (
