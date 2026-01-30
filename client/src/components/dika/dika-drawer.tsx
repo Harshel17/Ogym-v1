@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, Settings, Sparkles, Copy, Check } from 'lucide-react';
+import { Send, Loader2, Settings, Sparkles, Copy, Check, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -81,6 +81,7 @@ interface DikaDrawerProps {
   onSend: (message: string) => void;
   onIconChange: (icon: DikaIcon) => void;
   onHide: () => void;
+  onClearHistory: () => void;
 }
 
 export function DikaDrawer({

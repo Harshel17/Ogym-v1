@@ -22,7 +22,17 @@ interface DikaLocalSettings {
   icon: DikaIcon;
 }
 
+interface StoredMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  followUpChips?: string[];
+}
+
 const STORAGE_KEY_PREFIX = 'dika_settings_';
+const HISTORY_KEY_PREFIX = 'dika_history_';
+const MAX_HISTORY_MESSAGES = 50;
 
 function getDefaultPosition(): DikaPosition {
   const bottomNavHeight = 80;
@@ -73,17 +83,67 @@ function saveLocalSettings(userId: number, settings: DikaLocalSettings): void {
   }
 }
 
+function getHistoryKey(userId: number): string {
+  return `${HISTORY_KEY_PREFIX}${userId}`;
+}
+
+function loadConversationHistory(userId: number): DikaMessage[] {
+  try {
+    const stored = localStorage.getItem(getHistoryKey(userId));
+    if (stored) {
+      const parsed: StoredMessage[] = JSON.parse(stored);
+      return parsed.map(m => ({
+        ...m,
+        timestamp: new Date(m.timestamp),
+      }));
+    }
+  } catch (e) {
+    console.error('Failed to load Dika history:', e);
+  }
+  return [];
+}
+
+function saveConversationHistory(userId: number, messages: DikaMessage[]): void {
+  try {
+    const toStore: StoredMessage[] = messages.slice(-MAX_HISTORY_MESSAGES).map(m => ({
+      ...m,
+      timestamp: m.timestamp.toISOString(),
+    }));
+    localStorage.setItem(getHistoryKey(userId), JSON.stringify(toStore));
+  } catch (e) {
+    console.error('Failed to save Dika history:', e);
+  }
+}
+
+function clearConversationHistory(userId: number): void {
+  try {
+    localStorage.removeItem(getHistoryKey(userId));
+  } catch (e) {
+    console.error('Failed to clear Dika history:', e);
+  }
+}
+
 export function useDika(userId: number, hideDika: boolean) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<DikaMessage[]>([]);
+  const [messages, setMessages] = useState<DikaMessage[]>(() => 
+    loadConversationHistory(userId)
+  );
   const [localSettings, setLocalSettings] = useState<DikaLocalSettings>(() => 
     loadLocalSettings(userId)
   );
 
   useEffect(() => {
     setLocalSettings(loadLocalSettings(userId));
+    setMessages(loadConversationHistory(userId));
   }, [userId]);
+
+  // Save messages whenever they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveConversationHistory(userId, messages);
+    }
+  }, [messages, userId]);
 
   const { data: suggestionsData } = useQuery<{ suggestions: string[] }>({
     queryKey: ['/api/dika/suggestions'],
@@ -150,8 +210,13 @@ export function useDika(userId: number, hideDika: boolean) {
 
   const closeDrawer = useCallback(() => {
     setIsOpen(false);
-    setMessages([]);
+    // Don't clear messages - they're persisted now
   }, []);
+
+  const clearHistory = useCallback(() => {
+    setMessages([]);
+    clearConversationHistory(userId);
+  }, [userId]);
 
   const hideDikaButton = useCallback(() => {
     toggleHideMutation.mutate(true);
@@ -174,6 +239,7 @@ export function useDika(userId: number, hideDika: boolean) {
     updateIcon,
     openDrawer,
     closeDrawer,
+    clearHistory,
     hideDikaButton,
     showDikaButton,
   };
