@@ -5432,7 +5432,7 @@ export async function registerRoutes(
   app.get("/api/gym/email/settings", requireRole(["owner"]), async (req, res) => {
     try {
       const settings = await storage.getGymEmailSettings(req.user!.gymId!);
-      const gym = await storage.getGymById(req.user!.gymId!);
+      const gym = await storage.getGym(req.user!.gymId!);
       res.json({
         settings: settings || { sendMode: "ogym", replyToEmail: req.user!.email },
         gymName: gym?.name || "Your Gym"
@@ -5566,7 +5566,7 @@ export async function registerRoutes(
       }> = [];
       
       for (const member of members) {
-        const attendance = await storage.getAttendanceByMember(member.id);
+        const attendance = await storage.getMemberAttendance(member.id);
         const presentDays = attendance.filter(a => a.status === "present");
         const lastPresent = presentDays.length > 0
           ? presentDays.sort((a, b) => b.date.localeCompare(a.date))[0].date
@@ -5575,7 +5575,7 @@ export async function registerRoutes(
         // Check if inactive
         if (!lastPresent || lastPresent <= cutoffStr) {
           const profile = profileMap.get(member.id);
-          const subscription = await storage.getCurrentSubscription(gymId, member.id);
+          const subscription = await storage.getMemberSubscription(member.id);
           
           results.push({
             id: member.id,
@@ -5632,7 +5632,7 @@ export async function registerRoutes(
       }> = [];
       
       for (const member of members) {
-        const subscription = await storage.getCurrentSubscription(gymId, member.id);
+        const subscription = await storage.getMemberSubscription(member.id);
         if (!subscription) continue;
         
         const transactions = await storage.getPaymentTransactions(subscription.id);
