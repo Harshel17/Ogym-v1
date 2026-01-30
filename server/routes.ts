@@ -5550,15 +5550,13 @@ export async function registerRoutes(
       const cutoffStr = cutoffDate.toISOString().split("T")[0];
       
       // Bulk fetch all data at once (much faster than individual queries)
-      const [members, allAttendance, allSubscriptions, profiles] = await Promise.all([
+      const [members, allAttendance, allSubscriptions] = await Promise.all([
         storage.getGymMembers(gymId),
         storage.getAttendance(gymId),
-        storage.getMemberSubscriptions(gymId),
-        storage.getGymMembers(gymId).then(m => Promise.all(m.map(member => storage.getUserProfile(member.id))))
+        storage.getMemberSubscriptions(gymId)
       ]);
       
       // Create lookup maps
-      const profileMap = new Map(profiles.filter(Boolean).map(p => [p!.userId, p]));
       const subscriptionMap = new Map(allSubscriptions.map(s => [s.memberId, s]));
       
       // Group attendance by member and find last present date
@@ -5586,12 +5584,11 @@ export async function registerRoutes(
         
         // Check if inactive
         if (!lastPresent || lastPresent <= cutoffStr) {
-          const profile = profileMap.get(member.id);
           const subscription = subscriptionMap.get(member.id);
           
           results.push({
             id: member.id,
-            name: profile?.fullName || member.username,
+            name: member.username,
             email: member.email,
             lastVisit: lastPresent,
             membershipStatus: subscription?.status || "no_subscription"
@@ -5621,16 +5618,10 @@ export async function registerRoutes(
       const { type, search } = req.query;
       const gymId = req.user!.gymId!;
       
-      // Bulk fetch all data at once (much faster than individual queries)
-      const [allSubscriptions, members] = await Promise.all([
-        storage.getMemberSubscriptions(gymId), // Already includes plan and totalPaid!
-        storage.getGymMembers(gymId)
-      ]);
+      // Bulk fetch subscriptions (already includes member, plan, and totalPaid!)
+      const allSubscriptions = await storage.getMemberSubscriptions(gymId);
       
-      // Get profiles for full names
-      const profiles = await Promise.all(members.map(m => storage.getUserProfile(m.id)));
-      const profileMap = new Map(profiles.filter(Boolean).map(p => [p!.userId, p]));
-      
+            
       const today = new Date().toISOString().split("T")[0];
       const next7Days = new Date();
       next7Days.setDate(next7Days.getDate() + 7);
@@ -5650,7 +5641,6 @@ export async function registerRoutes(
       
       for (const subscription of allSubscriptions) {
         const balance = subscription.totalAmount - subscription.totalPaid;
-        const profile = profileMap.get(subscription.memberId);
         const member = subscription.member;
         
         // Filter by type
@@ -5670,7 +5660,7 @@ export async function registerRoutes(
         if (include) {
           results.push({
             id: subscription.memberId,
-            name: profile?.fullName || member.username,
+            name: member.username,
             email: member.email,
             planName: subscription.plan?.name || "Custom",
             expiryDate: subscription.endDate,
