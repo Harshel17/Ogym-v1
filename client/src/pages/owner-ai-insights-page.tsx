@@ -193,7 +193,7 @@ export default function OwnerAiInsightsPage() {
                 </CardDescription>
               </div>
               {insights.churnRisk.count > 0 && (
-                <Link href="/owner/follow-ups?tab=inactive">
+                <Link href="/owner/follow-ups?tab=inactive&days=7">
                   <Button size="sm" variant="default" data-testid="button-send-followup-churn">
                     <Mail className="h-4 w-4 mr-1.5" />
                     Send Follow-ups

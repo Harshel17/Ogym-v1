@@ -502,7 +502,10 @@ function InactiveTab() {
   const { toast } = useToast();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [search, setSearch] = useState("");
-  const [inactiveDays, setInactiveDays] = useState("30");
+  // Read days from URL parameter (from AI Insights link), default to 30
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialDays = urlParams.get("days") || "30";
+  const [inactiveDays, setInactiveDays] = useState(initialDays);
 
   const buildInactiveUrl = () => {
     const params = new URLSearchParams();
