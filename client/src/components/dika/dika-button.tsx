@@ -155,11 +155,13 @@ export function DikaButton({
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       className={cn(
-        "fixed z-50 w-11 h-11 rounded-full",
-        "bg-primary shadow-lg",
+        "fixed z-50 w-12 h-12 rounded-full",
+        "bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600",
+        "shadow-[0_0_20px_rgba(139,92,246,0.5)]",
         "flex items-center justify-center",
         "cursor-grab active:cursor-grabbing",
-        "transition-transform hover:scale-105",
+        "transition-all duration-200 hover:scale-110 hover:shadow-[0_0_30px_rgba(139,92,246,0.7)]",
+        "ring-2 ring-white/20",
         isDragging && "scale-110 opacity-90"
       )}
       style={{
@@ -169,6 +171,7 @@ export function DikaButton({
       }}
       aria-label="Ask Dika"
     >
+      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent to-white/20" />
       {renderIcon()}
     </button>
   );
