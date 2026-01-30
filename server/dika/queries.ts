@@ -633,7 +633,7 @@ export async function getOwnerMemberPaymentStatus(gymId: number, memberName: str
     username: users.username,
   })
   .from(users)
-  .innerJoin(userProfiles, eq(users.id, userProfiles.userId))
+  .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
   .where(
     and(
       eq(users.gymId, gymId),
