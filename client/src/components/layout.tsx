@@ -621,7 +621,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </DrawerContent>
       </Drawer>
       
-      <Dika />
+      {/* Hide Dika on nutrition page to avoid overlap with content */}
+      {location !== "/nutrition" && <Dika />}
     </div>
   );
 }
