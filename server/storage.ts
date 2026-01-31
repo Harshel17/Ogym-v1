@@ -56,7 +56,10 @@ import {
   type KioskSession, type InsertKioskSession,
   type KioskOtpCode, type InsertKioskOtpCode,
   type PaymentConfirmation, type InsertPaymentConfirmation,
-  type GymEmailSettings, type InsertGymEmailSettings
+  type GymEmailSettings, type InsertGymEmailSettings,
+  calorieGoals, foodLogs,
+  type CalorieGoal, type InsertCalorieGoal,
+  type FoodLog, type InsertFoodLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -748,6 +751,16 @@ export interface IStorage {
   // Audit Logs
   createAuditLog(data: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(filters?: { entityType?: string; entityId?: number; adminId?: number }): Promise<(AuditLog & { adminName: string })[]>;
+  
+  // Calorie Tracking
+  getCalorieGoal(userId: number): Promise<CalorieGoal | undefined>;
+  createCalorieGoal(data: InsertCalorieGoal): Promise<CalorieGoal>;
+  updateCalorieGoal(goalId: number, data: Partial<InsertCalorieGoal>): Promise<CalorieGoal>;
+  getFoodLogs(userId: number, date: string): Promise<FoodLog[]>;
+  getFoodLogsByDateRange(userId: number, startDate: string, endDate: string): Promise<FoodLog[]>;
+  createFoodLog(data: InsertFoodLog): Promise<FoodLog>;
+  deleteFoodLog(logId: number, userId: number): Promise<void>;
+  getDailySummary(userId: number, date: string): Promise<{ calories: number; protein: number; carbs: number; fat: number }>;
 }
 
 // Admin Types
@@ -8186,6 +8199,68 @@ export class DatabaseStorage implements IStorage {
       .where(eq(gymEmailSettings.gymId, gymId))
       .returning();
     return settings;
+  }
+
+  // === CALORIE TRACKING ===
+
+  async getCalorieGoal(userId: number): Promise<CalorieGoal | undefined> {
+    const [goal] = await db.select().from(calorieGoals)
+      .where(and(eq(calorieGoals.userId, userId), eq(calorieGoals.isActive, true)))
+      .orderBy(desc(calorieGoals.id))
+      .limit(1);
+    return goal;
+  }
+
+  async createCalorieGoal(data: InsertCalorieGoal): Promise<CalorieGoal> {
+    await db.update(calorieGoals)
+      .set({ isActive: false })
+      .where(and(eq(calorieGoals.userId, data.userId), eq(calorieGoals.isActive, true)));
+    
+    const [goal] = await db.insert(calorieGoals).values(data).returning();
+    return goal;
+  }
+
+  async updateCalorieGoal(goalId: number, data: Partial<InsertCalorieGoal>): Promise<CalorieGoal> {
+    const [goal] = await db.update(calorieGoals)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(calorieGoals.id, goalId))
+      .returning();
+    return goal;
+  }
+
+  async getFoodLogs(userId: number, date: string): Promise<FoodLog[]> {
+    return await db.select().from(foodLogs)
+      .where(and(eq(foodLogs.userId, userId), eq(foodLogs.date, date)))
+      .orderBy(foodLogs.createdAt);
+  }
+
+  async getFoodLogsByDateRange(userId: number, startDate: string, endDate: string): Promise<FoodLog[]> {
+    return await db.select().from(foodLogs)
+      .where(and(
+        eq(foodLogs.userId, userId),
+        gte(foodLogs.date, startDate),
+        lte(foodLogs.date, endDate)
+      ))
+      .orderBy(desc(foodLogs.date), foodLogs.createdAt);
+  }
+
+  async createFoodLog(data: InsertFoodLog): Promise<FoodLog> {
+    const [log] = await db.insert(foodLogs).values(data).returning();
+    return log;
+  }
+
+  async deleteFoodLog(logId: number, userId: number): Promise<void> {
+    await db.delete(foodLogs).where(and(eq(foodLogs.id, logId), eq(foodLogs.userId, userId)));
+  }
+
+  async getDailySummary(userId: number, date: string): Promise<{ calories: number; protein: number; carbs: number; fat: number }> {
+    const logs = await this.getFoodLogs(userId, date);
+    return logs.reduce((acc, log) => ({
+      calories: acc.calories + (log.calories || 0),
+      protein: acc.protein + (log.protein || 0),
+      carbs: acc.carbs + (log.carbs || 0),
+      fat: acc.fat + (log.fat || 0),
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
   }
 }
 
