@@ -93,25 +93,41 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
 interface CalorieProgressCardProps {
   current: number;
   target: number;
+  currentProtein?: number;
+  targetProtein?: number;
   delay?: number;
 }
 
 export const CalorieProgressCard = memo(function CalorieProgressCard({
   current,
   target,
+  currentProtein = 0,
+  targetProtein = 0,
   delay = 0,
 }: CalorieProgressCardProps) {
   const displayValue = useSimpleCounter(current, delay);
   const effectiveTarget = target > 0 ? target : 2000;
-  const percentage = Math.min((current / effectiveTarget) * 100, 100);
-  const isOver = current > effectiveTarget;
+  const caloriePercentage = Math.min((current / effectiveTarget) * 100, 100);
+  const isCaloriesOver = current > effectiveTarget;
   
-  // SVG circle calculations - compact size to match streak card
-  const size = 64;
-  const strokeWidth = 5;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  // Protein calculations
+  const hasProteinTarget = targetProtein > 0;
+  const proteinPercentage = hasProteinTarget ? Math.min((currentProtein / targetProtein) * 100, 100) : 0;
+  const isProteinOver = hasProteinTarget && currentProtein > targetProtein;
+  
+  // SVG circle calculations - dual ring layout
+  const size = 72;
+  const outerStrokeWidth = 6;
+  const innerStrokeWidth = 4;
+  const gap = 3;
+  const outerRadius = (size - outerStrokeWidth) / 2;
+  const innerRadius = outerRadius - outerStrokeWidth / 2 - gap - innerStrokeWidth / 2;
+  
+  const outerCircumference = 2 * Math.PI * outerRadius;
+  const innerCircumference = 2 * Math.PI * innerRadius;
+  
+  const outerStrokeDashoffset = outerCircumference - (caloriePercentage / 100) * outerCircumference;
+  const innerStrokeDashoffset = innerCircumference - (proteinPercentage / 100) * innerCircumference;
 
   return (
     <Card
@@ -123,48 +139,89 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center py-5">
-        {/* Circular Progress Ring */}
+      <CardContent className="flex flex-col items-center justify-center py-3">
+        {/* Dual Ring Progress */}
         <div className="relative">
           <svg
             width={size}
             height={size}
             className="transform -rotate-90"
           >
-            {/* Background track */}
+            {/* Outer ring background (calories) */}
             <circle
               cx={size / 2}
               cy={size / 2}
-              r={radius}
+              r={outerRadius}
               fill="none"
               stroke="hsl(var(--muted))"
-              strokeWidth={strokeWidth}
+              strokeWidth={outerStrokeWidth}
+              opacity={0.4}
             />
-            {/* Progress arc */}
+            {/* Outer ring progress (calories) */}
             <circle
               cx={size / 2}
               cy={size / 2}
-              r={radius}
+              r={outerRadius}
               fill="none"
-              stroke={isOver ? "#f97316" : "#22c55e"}
-              strokeWidth={strokeWidth}
+              stroke={isCaloriesOver ? "#f97316" : "#22c55e"}
+              strokeWidth={outerStrokeWidth}
               strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
+              strokeDasharray={outerCircumference}
+              strokeDashoffset={outerStrokeDashoffset}
               className="transition-all duration-700 ease-out"
             />
+            
+            {/* Inner ring background (protein) - only if target set */}
+            {hasProteinTarget && (
+              <>
+                <circle
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={innerRadius}
+                  fill="none"
+                  stroke="hsl(var(--muted))"
+                  strokeWidth={innerStrokeWidth}
+                  opacity={0.4}
+                />
+                {/* Inner ring progress (protein) */}
+                <circle
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={innerRadius}
+                  fill="none"
+                  stroke={isProteinOver ? "#f97316" : "#3b82f6"}
+                  strokeWidth={innerStrokeWidth}
+                  strokeLinecap="round"
+                  strokeDasharray={innerCircumference}
+                  strokeDashoffset={innerStrokeDashoffset}
+                  className="transition-all duration-700 ease-out"
+                />
+              </>
+            )}
           </svg>
-          {/* Center number */}
+          {/* Center content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className={cn(
               "text-base font-bold tabular-nums leading-none",
-              isOver && "text-orange-500"
+              isCaloriesOver && "text-orange-500"
             )}>
               {displayValue}
             </span>
+            <span className="text-[8px] text-muted-foreground mt-0.5">kcal</span>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground mt-2">Today's Calories</p>
+        
+        <p className="text-xs text-muted-foreground mt-1.5">Today's Calories</p>
+        
+        {/* Protein info */}
+        {hasProteinTarget && (
+          <p className={cn(
+            "text-[10px] tabular-nums mt-0.5",
+            isProteinOver ? "text-orange-500" : "text-blue-500"
+          )}>
+            Protein: {currentProtein}g / {targetProtein}g
+          </p>
+        )}
       </CardContent>
     </Card>
   );

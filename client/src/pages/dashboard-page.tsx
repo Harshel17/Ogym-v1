@@ -670,7 +670,10 @@ function MemberDashboard() {
   const { data: profile } = useMemberProfile();
   
   const todayDateStr = format(new Date(), 'yyyy-MM-dd');
-  const { data: calorieData } = useQuery<{ summary: { calories: number }; goal: { dailyCalorieTarget: number } | null }>({
+  const { data: calorieData } = useQuery<{ 
+    summary: { calories: number; protein: number }; 
+    goal: { dailyCalorieTarget: number; dailyProteinTarget?: number } | null 
+  }>({
     queryKey: ["/api/nutrition/summary", todayDateStr],
     queryFn: async () => {
       const res = await fetch(`/api/nutrition/summary?date=${todayDateStr}`);
@@ -1283,6 +1286,8 @@ function MemberDashboard() {
               <CalorieProgressCard
                 current={calorieData?.summary?.calories || 0}
                 target={calorieData?.goal?.dailyCalorieTarget || 0}
+                currentProtein={calorieData?.summary?.protein || 0}
+                targetProtein={calorieData?.goal?.dailyProteinTarget || 0}
                 delay={100}
               />
             </Link>
