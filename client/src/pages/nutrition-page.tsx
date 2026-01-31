@@ -21,10 +21,10 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLin
 type CalorieGoal = {
   id: number;
   userId: number;
-  dailyCalories: number;
-  dailyProtein: number | null;
-  dailyCarbs: number | null;
-  dailyFat: number | null;
+  dailyCalorieTarget: number;
+  dailyProteinTarget: number | null;
+  dailyCarbsTarget: number | null;
+  dailyFatTarget: number | null;
   goalType: string;
   isActive: boolean;
   createdAt: string;
@@ -294,10 +294,10 @@ export default function NutritionPage() {
   const summary = summaryData?.summary || { calories: 0, protein: 0, carbs: 0, fat: 0 };
   const goalData = summaryData?.goal || goal;
 
-  const calorieGoal = goalData?.dailyCalories || 2000;
-  const proteinGoal = goalData?.dailyProtein || 120;
-  const carbsGoal = goalData?.dailyCarbs || 250;
-  const fatGoal = goalData?.dailyFat || 65;
+  const calorieGoal = goalData?.dailyCalorieTarget || 2000;
+  const proteinGoal = goalData?.dailyProteinTarget || 120;
+  const carbsGoal = goalData?.dailyCarbsTarget || 250;
+  const fatGoal = goalData?.dailyFatTarget || 65;
 
   const caloriePercent = Math.min((summary.calories / calorieGoal) * 100, 100);
   const proteinPercent = Math.min((summary.protein / proteinGoal) * 100, 100);
@@ -422,7 +422,7 @@ export default function NutritionPage() {
             <Beef className="w-4 h-4 text-red-500" />
             <span className="text-sm font-medium">
               Protein: <span className="text-red-500">{totalProteinToday}g</span>
-              {goalData?.dailyProtein && (
+              {goalData?.dailyProteinTarget && (
                 <span className="text-muted-foreground"> / {proteinGoal}g</span>
               )}
             </span>
@@ -1147,20 +1147,20 @@ function GoalForm({ currentGoal, onSubmit, isPending }: {
   isPending: boolean;
 }) {
   const [formData, setFormData] = useState({
-    dailyCalories: currentGoal?.dailyCalories?.toString() || "2000",
-    dailyProtein: currentGoal?.dailyProtein?.toString() || "120",
-    dailyCarbs: currentGoal?.dailyCarbs?.toString() || "250",
-    dailyFat: currentGoal?.dailyFat?.toString() || "65",
+    dailyCalories: currentGoal?.dailyCalorieTarget?.toString() || "2000",
+    dailyProtein: currentGoal?.dailyProteinTarget?.toString() || "120",
+    dailyCarbs: currentGoal?.dailyCarbsTarget?.toString() || "250",
+    dailyFat: currentGoal?.dailyFatTarget?.toString() || "65",
     goalType: currentGoal?.goalType || "maintain"
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      dailyCalories: parseInt(formData.dailyCalories),
-      dailyProtein: formData.dailyProtein ? parseInt(formData.dailyProtein) : null,
-      dailyCarbs: formData.dailyCarbs ? parseInt(formData.dailyCarbs) : null,
-      dailyFat: formData.dailyFat ? parseInt(formData.dailyFat) : null,
+      dailyCalorieTarget: parseInt(formData.dailyCalories),
+      dailyProteinTarget: formData.dailyProtein ? parseInt(formData.dailyProtein) : null,
+      dailyCarbsTarget: formData.dailyCarbs ? parseInt(formData.dailyCarbs) : null,
+      dailyFatTarget: formData.dailyFat ? parseInt(formData.dailyFat) : null,
       goalType: formData.goalType
     });
   };

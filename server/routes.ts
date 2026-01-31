@@ -3772,7 +3772,7 @@ export async function registerRoutes(
       ? Math.round(daysWithProtein.reduce((sum, d) => sum + d.protein, 0) / daysWithProtein.length)
       : 0;
     const totalProtein = analytics.reduce((sum, d) => sum + d.protein, 0);
-    const proteinTarget = goal?.dailyProtein || 100;
+    const proteinTarget = goal?.dailyProteinTarget || 100;
     const proteinTargetTotal = analytics.length * proteinTarget;
     const proteinAdherencePercent = proteinTargetTotal > 0 ? Math.round((totalProtein / proteinTargetTotal) * 100) : 0;
     
