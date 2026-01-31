@@ -1,0 +1,61 @@
+## 6-Day Six Pack Abs Focus
+
+**Duration:** 4 training days per cycle
+**Rest Days:** Day 5, Day 8
+
+---
+
+### Day 1 - Core Focus
+
+| Exercise | Sets | Reps | Muscle |
+|----------|------|------|--------|
+| Plank | 3 | 30 | core |
+| Crunch | 3 | 15 | abs |
+| Hanging Leg Raise | 3 | 12 | lower abs |
+| Russian Twist | 3 | 20 | obliques |
+
+### Day 2 - Upper Body
+
+| Exercise | Sets | Reps | Muscle |
+|----------|------|------|--------|
+| Pull-Up | 3 | 6 | lats |
+| Dumbbell Bench Press | 4 | 8 | chest |
+| Arnold Press | 3 | 10 | front deltoids |
+
+### Day 3 - Lower Body
+
+| Exercise | Sets | Reps | Muscle |
+|----------|------|------|--------|
+| Squat | 4 | 8 | quads |
+| Romanian Deadlift | 3 | 10 | hamstrings |
+| Hip Thrust | 3 | 12 | glutes |
+
+### Day 4 - Core & Cardio
+
+| Exercise | Sets | Reps | Muscle |
+|----------|------|------|--------|
+| Plank | 3 | 30 | core |
+| Mountain Climber | 3 | 20 | core |
+| Russian Twist | 3 | 20 | obliques |
+
+### Day 5 - Upper Body
+
+| Exercise | Sets | Reps | Muscle |
+|----------|------|------|--------|
+| Bent Over Row | 3 | 8 | lats |
+| Incline Bench Press | 4 | 10 | upper chest |
+| Tricep Dip | 3 | 12 | triceps |
+
+### Day 6 - Lower Body & Core
+
+| Exercise | Sets | Reps | Muscle |
+|----------|------|------|--------|
+| Lunge | 3 | 10 | quads |
+| Leg Extension | 3 | 12 | quads |
+| Hanging Leg Raise | 3 | 10 | lower abs |
+
+---
+
+**Ready to start this workout plan?** Click "Save to My Workouts" below to add it to your training schedule!
+
+<!-- WORKOUT_PLAN_DATA:{"name":"6-Day Six Pack Abs Focus","cycleLength":4,"restDays":[4,7],"days":[{"dayIndex":0,"dayLabel":"Day 1 - Core Focus","exercises":[{"exerciseName":"Plank","muscleType":"core","bodyPart":"Lower Body","sets":3,"reps":30},{"exerciseName":"Crunch","muscleType":"abs","bodyPart":"Upper Body","sets":3,"reps":15},{"exerciseName":"Hanging Leg Raise","muscleType":"lower abs","bodyPart":"Upper Body","sets":3,"reps":12},{"exerciseName":"Russian Twist","muscleType":"obliques","bodyPart":"Lower Body","sets":3,"reps":20}]},{"dayIndex":1,"dayLabel":"Day 2 - Upper Body","exercises":[{"exerciseName":"Pull-Up","muscleType":"lats","bodyPart":"Upper Body","sets":3,"reps":6},{"exerciseName":"Dumbbell Bench Press","muscleType":"chest","bodyPart":"Upper Body","sets":4,"reps":8},{"exerciseName":"Arnold Press","muscleType":"front deltoids","bodyPart":"Upper Body","sets":3,"reps":10}]},{"dayIndex":2,"dayLabel":"Day 3 - Lower Body","exercises":[{"exerciseName":"Squat","muscleType":"quads","bodyPart":"Upper Body","sets":4,"reps":8},{"exerciseName":"Romanian Deadlift","muscleType":"hamstrings","bodyPart":"Lower Body","sets":3,"reps":10},{"exerciseName":"Hip Thrust","muscleType":"glutes","bodyPart":"Lower Body","sets":3,"reps":12}]},{"dayIndex":3,"dayLabel":"Day 4 - Core & Cardio","exercises":[{"exerciseName":"Plank","muscleType":"core","bodyPart":"Lower Body","sets":3,"reps":30},{"exerciseName":"Mountain Climber","muscleType":"core","bodyPart":"Lower Body","sets":3,"reps":20},{"exerciseName":"Russian Twist","muscleType":"obliques","bodyPart":"Lower Body","sets":3,"reps":20}]},{"dayIndex":4,"dayLabel":"Day 5 - Upper Body","exercises":[{"exerciseName":"Bent Over Row","muscleType":"lats","bodyPart":"Upper Body","sets":3,"reps":8},{"exerciseName":"Incline Bench Press","muscleType":"upper chest","bodyPart":"Upper Body","sets":4,"reps":10},{"exerciseName":"Tricep Dip","muscleType":"triceps","bodyPart":"Upper Body","sets":3,"reps":12}]},{"dayIndex":5,"dayLabel":"Day 6 - Lower Body & Core","exercises":[{"exerciseName":"Lunge","muscleType":"quads","bodyPart":"Upper Body","sets":3,"reps":10},{"exerciseName":"Leg Extension","muscleType":"quads","bodyPart":"Upper Body","sets":3,"reps":12},{"exerciseName":"Hanging Leg Raise","muscleType":"lower abs","bodyPart":"Upper Body","sets":3,"reps":10}]}]} -->
