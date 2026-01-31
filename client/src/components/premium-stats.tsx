@@ -117,10 +117,10 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const isProteinOver = effectiveProteinTarget > 0 && currentProtein > effectiveProteinTarget;
   
   // SVG circle calculations - dual ring layout (sized to match streak icon)
-  const size = 68;
-  const outerStrokeWidth = 6;
-  const innerStrokeWidth = 4;
-  const gap = 2;
+  const size = 72;
+  const outerStrokeWidth = 5;
+  const innerStrokeWidth = 3;
+  const gap = 3;
   const outerRadius = (size - outerStrokeWidth) / 2;
   const innerRadius = outerRadius - outerStrokeWidth / 2 - gap - innerStrokeWidth / 2;
   
@@ -207,12 +207,12 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
           {/* Center content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className={cn(
-              "text-lg font-bold tabular-nums leading-none",
+              "text-sm font-bold tabular-nums leading-none",
               isCaloriesOver && "text-red-500"
             )}>
               {displayValue}
             </span>
-            <span className="text-[9px] text-muted-foreground mt-0.5">kcal</span>
+            <span className="text-[8px] text-muted-foreground mt-0.5">kcal</span>
           </div>
         </div>
         
