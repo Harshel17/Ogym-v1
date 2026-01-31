@@ -4087,7 +4087,7 @@ export async function registerRoutes(
       for (const day of plan.days) {
         for (let i = 0; i < day.exercises.length; i++) {
           const ex = day.exercises[i];
-          await storage.createWorkoutItem({
+          await storage.addWorkoutItem({
             cycleId: cycle.id,
             dayIndex: day.dayIndex,
             muscleType: ex.muscleType,
