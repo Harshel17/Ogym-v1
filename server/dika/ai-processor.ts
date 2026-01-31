@@ -16,6 +16,7 @@ import {
 } from "@shared/schema";
 import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
+import { detectWorkoutGenerationRequest, generateWorkoutPlan } from "./workout-generator";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
@@ -570,6 +571,22 @@ export async function processWithAI(
         'My workout progress'
       ];
       return { answer, followUpChips };
+    }
+  }
+  
+  // Check if this is a workout generation request
+  if (detectWorkoutGenerationRequest(message)) {
+    try {
+      const { formattedResponse } = await generateWorkoutPlan(message);
+      const followUpChips = [
+        'Modify this plan',
+        'Create another workout',
+        'Explain the exercises'
+      ];
+      return { answer: formattedResponse, followUpChips };
+    } catch (error) {
+      console.error('Workout generation failed:', error);
+      // Fall through to regular AI processing
     }
   }
   

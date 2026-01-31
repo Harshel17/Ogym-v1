@@ -4021,6 +4021,85 @@ export async function registerRoutes(
     
     res.json({ success: true });
   });
+  
+  // Save AI-generated workout plan
+  app.post("/api/dika/save-workout", requireAuth, async (req, res) => {
+    const exerciseSchema = z.object({
+      exerciseName: z.string(),
+      muscleType: z.string(),
+      bodyPart: z.string(),
+      sets: z.number(),
+      reps: z.number(),
+    });
+    
+    const daySchema = z.object({
+      dayIndex: z.number(),
+      dayLabel: z.string(),
+      exercises: z.array(exerciseSchema),
+    });
+    
+    const schema = z.object({
+      plan: z.object({
+        name: z.string(),
+        cycleLength: z.number(),
+        days: z.array(daySchema),
+        restDays: z.array(z.number()),
+      }),
+    });
+    
+    const input = schema.safeParse(req.body);
+    if (!input.success) {
+      return res.status(400).json({ message: "Invalid workout plan", errors: input.error.errors });
+    }
+    
+    const user = req.user!;
+    const plan = input.data.plan;
+    
+    try {
+      const today = getLocalDate(req);
+      const endDate = new Date(today);
+      endDate.setMonth(endDate.getMonth() + 3);
+      
+      // Create workout cycle
+      const cycle = await storage.createWorkoutCycle({
+        gymId: user.gymId || null,
+        trainerId: null,
+        memberId: user.id,
+        name: plan.name,
+        cycleLength: plan.cycleLength,
+        dayLabels: plan.days.map(d => d.dayLabel),
+        restDays: plan.restDays,
+        startDate: today,
+        endDate: endDate.toISOString().split('T')[0],
+        progressionMode: 'completion',
+        source: 'self',
+        isActive: true,
+      });
+      
+      // Create workout items for each day
+      for (const day of plan.days) {
+        for (let i = 0; i < day.exercises.length; i++) {
+          const ex = day.exercises[i];
+          await storage.createWorkoutItem({
+            cycleId: cycle.id,
+            dayIndex: day.dayIndex,
+            muscleType: ex.muscleType,
+            bodyPart: ex.bodyPart,
+            exerciseName: ex.exerciseName,
+            sets: ex.sets,
+            reps: ex.reps,
+            weight: null,
+            orderIndex: i,
+          });
+        }
+      }
+      
+      res.json({ success: true, cycleId: cycle.id, message: "Workout saved successfully!" });
+    } catch (error) {
+      console.error('Save workout error:', error);
+      res.status(500).json({ message: "Failed to save workout" });
+    }
+  });
 
   // === PROFILE ROUTES ===
   app.get("/api/profile/my", requireAuth, async (req, res) => {

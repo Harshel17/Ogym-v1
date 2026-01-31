@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { Send, Loader2, Settings, Sparkles, Copy, Check, Trash2, Mic, MicOff } from 'lucide-react';
+import { Send, Loader2, Settings, Sparkles, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,38 @@ import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon } from './dika-icons';
 import { Keyboard } from '@capacitor/keyboard';
 import { Capacitor } from '@capacitor/core';
+import { useMutation } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+
+interface GeneratedWorkoutPlan {
+  name: string;
+  cycleLength: number;
+  days: Array<{
+    dayIndex: number;
+    dayLabel: string;
+    exercises: Array<{
+      exerciseName: string;
+      muscleType: string;
+      bodyPart: string;
+      sets: number;
+      reps: number;
+    }>;
+  }>;
+  restDays: number[];
+}
+
+function extractWorkoutPlanFromContent(content: string): GeneratedWorkoutPlan | null {
+  const match = content.match(/<!-- WORKOUT_PLAN_DATA:(.+?) -->/);
+  if (match) {
+    try {
+      return JSON.parse(match[1]);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
 function parseMarkdown(text: string): ReactNode[] {
   const lines = text.split('\n');
@@ -282,7 +314,38 @@ export function DikaDrawer({
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [savedWorkoutIds, setSavedWorkoutIds] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  
+  const saveWorkoutMutation = useMutation({
+    mutationFn: async (plan: GeneratedWorkoutPlan) => {
+      const res = await apiRequest('POST', '/api/dika/save-workout', { plan });
+      return res.json();
+    },
+    onSuccess: (_, __, context) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workout-cycles'] });
+      toast({
+        title: "Workout Saved!",
+        description: "Your personalized workout plan is now in My Workouts.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Save Failed",
+        description: "Could not save workout. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const handleSaveWorkout = (messageId: string, content: string) => {
+    const plan = extractWorkoutPlanFromContent(content);
+    if (plan) {
+      saveWorkoutMutation.mutate(plan);
+      setSavedWorkoutIds(prev => new Set(prev).add(messageId));
+    }
+  };
   
   const handleVoiceTranscript = useCallback((text: string) => {
     setInput(prev => prev ? `${prev} ${text}` : text);
@@ -531,23 +594,55 @@ export function DikaDrawer({
                     <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
                   )}
                   {message.role === 'assistant' && (
-                    <button
-                      onClick={() => handleCopy(message.id, message.content)}
-                      className="absolute -bottom-6 left-0 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      data-testid={`button-copy-${message.id}`}
-                    >
-                      {copiedId === message.id ? (
-                        <>
-                          <Check className="w-3 h-3 text-green-500" />
-                          <span className="text-green-500">Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" />
-                          <span>Copy</span>
-                        </>
+                    <div className="absolute -bottom-6 left-0 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleCopy(message.id, message.content)}
+                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                        data-testid={`button-copy-${message.id}`}
+                      >
+                        {copiedId === message.id ? (
+                          <>
+                            <Check className="w-3 h-3 text-green-500" />
+                            <span className="text-green-500">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                      {extractWorkoutPlanFromContent(message.content) && (
+                        <button
+                          onClick={() => handleSaveWorkout(message.id, message.content)}
+                          disabled={savedWorkoutIds.has(message.id) || saveWorkoutMutation.isPending}
+                          className={cn(
+                            "text-xs flex items-center gap-1",
+                            savedWorkoutIds.has(message.id) 
+                              ? "text-green-500" 
+                              : "text-violet-500 hover:text-violet-600"
+                          )}
+                          data-testid={`button-save-workout-${message.id}`}
+                        >
+                          {savedWorkoutIds.has(message.id) ? (
+                            <>
+                              <CheckCircle className="w-3 h-3" />
+                              <span>Saved!</span>
+                            </>
+                          ) : saveWorkoutMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <span>Saving...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-3 h-3" />
+                              <span>Save to My Workouts</span>
+                            </>
+                          )}
+                        </button>
                       )}
-                    </button>
+                    </div>
                   )}
                 </div>
               </div>
