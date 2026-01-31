@@ -417,14 +417,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <h1 className="font-display font-bold text-lg leading-none magic-text">OGym</h1>
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-gradient-to-r from-violet-500/15 to-pink-500/15 border border-violet-300/30 dark:border-violet-500/30">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 flex items-center justify-center shadow-sm shadow-pink-400/30">
-                      <span className="text-xs font-black text-white">D</span>
+                  <div className="flex items-center gap-1 px-1 pr-2.5 py-1 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-violet-200/50 dark:border-violet-500/30 shadow-sm shadow-violet-500/10">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 flex items-center justify-center shadow-sm relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-tr from-white/30 to-transparent" />
+                      <span className="text-xs font-black text-white relative">D</span>
                     </div>
-                    <Sparkles className="w-3.5 h-3.5 text-yellow-500" />
-                    <span className="text-xs font-semibold bg-gradient-to-r from-violet-600 to-pink-600 dark:from-violet-400 dark:to-pink-400 bg-clip-text text-transparent">AI</span>
+                    <div className="flex items-center gap-0.5">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      <span className="text-[11px] font-bold tracking-wide bg-gradient-to-r from-violet-600 to-fuchsia-600 dark:from-violet-400 dark:to-fuchsia-400 bg-clip-text text-transparent">AI</span>
+                    </div>
                   </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Fitness Management</p>
@@ -508,12 +511,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold font-display text-sm magic-text">OGym</span>
-            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-violet-500/15 to-pink-500/15 border border-violet-300/30 dark:border-violet-500/30">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 flex items-center justify-center shadow-sm shadow-pink-400/30">
-                <span className="text-[10px] font-black text-white">D</span>
+            <div className="flex items-center gap-0.5 px-0.5 pr-2 py-0.5 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-violet-200/50 dark:border-violet-500/30 shadow-sm shadow-violet-500/10">
+              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 flex items-center justify-center shadow-sm relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/30 to-transparent" />
+                <span className="text-[10px] font-black text-white relative">D</span>
               </div>
-              <Sparkles className="w-3 h-3 text-yellow-500" />
-              <span className="text-[10px] font-semibold bg-gradient-to-r from-violet-600 to-pink-600 dark:from-violet-400 dark:to-pink-400 bg-clip-text text-transparent">AI</span>
+              <div className="flex items-center gap-0.5">
+                <Sparkles className="w-2.5 h-2.5 text-amber-500" />
+                <span className="text-[9px] font-bold tracking-wide bg-gradient-to-r from-violet-600 to-fuchsia-600 dark:from-violet-400 dark:to-fuchsia-400 bg-clip-text text-transparent">AI</span>
+              </div>
             </div>
            </div>
            <div className="flex items-center gap-1">
