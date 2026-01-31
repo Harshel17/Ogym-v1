@@ -823,7 +823,48 @@ export const weeklyOwnerSummaries = pgTable("weekly_owner_summaries", {
   errorMessage: text("error_message"),
 });
 
+// === CALORIE TRACKING ===
+
+export const calorieGoals = pgTable("calorie_goals", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  dailyCalorieTarget: integer("daily_calorie_target").notNull(),
+  dailyProteinTarget: integer("daily_protein_target"), // in grams
+  dailyCarbsTarget: integer("daily_carbs_target"), // in grams
+  dailyFatTarget: integer("daily_fat_target"), // in grams
+  goalType: text("goal_type", { enum: ["lose", "maintain", "gain"] }).default("maintain"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("calorie_goals_user_idx").on(table.userId),
+}));
+
+export const foodLogs = pgTable("food_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD
+  mealType: text("meal_type", { enum: ["breakfast", "lunch", "dinner", "snack"] }).notNull(),
+  foodName: text("food_name").notNull(),
+  brandName: text("brand_name"),
+  servingSize: text("serving_size"), // e.g., "100g", "1 cup"
+  servingQuantity: integer("serving_quantity").default(1),
+  calories: integer("calories").notNull(),
+  protein: integer("protein"), // in grams
+  carbs: integer("carbs"), // in grams
+  fat: integer("fat"), // in grams
+  fiber: integer("fiber"), // in grams
+  barcode: text("barcode"), // for quick re-logging
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userDateIdx: index("food_logs_user_date_idx").on(table.userId, table.date),
+  barcodeIdx: index("food_logs_barcode_idx").on(table.barcode),
+}));
+
 // === SCHEMAS ===
+
+export const insertCalorieGoalSchema = createInsertSchema(calorieGoals).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertFoodLogSchema = createInsertSchema(foodLogs).omit({ id: true, createdAt: true });
 
 export const insertGymEmailSettingsSchema = createInsertSchema(gymEmailSettings).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertGymSchema = createInsertSchema(gyms).omit({ id: true, createdAt: true });
@@ -1021,3 +1062,8 @@ export type InsertAutomatedEmailReminder = z.infer<typeof insertAutomatedEmailRe
 
 export type WeeklyOwnerSummary = typeof weeklyOwnerSummaries.$inferSelect;
 export type InsertWeeklyOwnerSummary = z.infer<typeof insertWeeklyOwnerSummarySchema>;
+
+export type CalorieGoal = typeof calorieGoals.$inferSelect;
+export type InsertCalorieGoal = z.infer<typeof insertCalorieGoalSchema>;
+export type FoodLog = typeof foodLogs.$inferSelect;
+export type InsertFoodLog = z.infer<typeof insertFoodLogSchema>;
