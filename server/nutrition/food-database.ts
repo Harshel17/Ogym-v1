@@ -282,6 +282,54 @@ export const LOCAL_FOOD_DATABASE: LocalFood[] = [
   { id: "whey-protein", name: "Whey Protein Shake", category: "Protein", servingSize: "1 scoop (30g)", calories: 120, protein: 24, carbs: 3, fat: 1 },
   { id: "chicken-breast", name: "Chicken Breast (Grilled)", category: "Protein", servingSize: "100g", calories: 165, protein: 31, carbs: 0, fat: 3.5 },
   { id: "chicken-thigh", name: "Chicken Thigh", category: "Protein", servingSize: "100g", calories: 209, protein: 26, carbs: 0, fat: 11 },
+  
+  // Protein Supplements - Indian Brands
+  { id: "muscleblaze-biozyme", name: "MuscleBlaze Biozyme Whey", category: "Protein", servingSize: "1 scoop (33g)", calories: 130, protein: 25, carbs: 4, fat: 2 },
+  { id: "muscleblaze-raw", name: "MuscleBlaze Raw Whey Isolate", category: "Protein", servingSize: "1 scoop (30g)", calories: 113, protein: 27, carbs: 1, fat: 0.5 },
+  { id: "muscleblaze-super-gainer", name: "MuscleBlaze Super Gainer XXL", category: "Protein", servingSize: "1 scoop (75g)", calories: 290, protein: 15, carbs: 54, fat: 2 },
+  { id: "muscleblaze-mass-gainer", name: "MuscleBlaze Mass Gainer PRO", category: "Protein", servingSize: "1 scoop (50g)", calories: 190, protein: 10, carbs: 35, fat: 2 },
+  { id: "muscleblaze-beginner", name: "MuscleBlaze Beginner's Whey", category: "Protein", servingSize: "1 scoop (35g)", calories: 128, protein: 24, carbs: 5, fat: 1 },
+  { id: "asitis-whey", name: "AS-IT-IS Whey Protein", category: "Protein", servingSize: "1 scoop (30g)", calories: 117, protein: 24, carbs: 3, fat: 1 },
+  { id: "fast-up-whey", name: "Fast&Up Whey Essentials", category: "Protein", servingSize: "1 scoop (32g)", calories: 120, protein: 24, carbs: 4, fat: 1 },
+  { id: "bigmuscles-premium", name: "BigMuscles Premium Gold Whey", category: "Protein", servingSize: "1 scoop (33g)", calories: 130, protein: 25, carbs: 4, fat: 2 },
+  { id: "nakpro-platinum", name: "Nakpro Platinum Whey Isolate", category: "Protein", servingSize: "1 scoop (30g)", calories: 115, protein: 27, carbs: 1, fat: 0.5 },
+  
+  // Protein Supplements - International Brands  
+  { id: "on-gold-standard", name: "Optimum Nutrition Gold Standard Whey", category: "Protein", servingSize: "1 scoop (31g)", calories: 120, protein: 24, carbs: 3, fat: 1.5 },
+  { id: "on-serious-mass", name: "Optimum Nutrition Serious Mass", category: "Protein", servingSize: "1 scoop (167g)", calories: 625, protein: 25, carbs: 125, fat: 3 },
+  { id: "on-casein", name: "Optimum Nutrition Gold Standard Casein", category: "Protein", servingSize: "1 scoop (34g)", calories: 120, protein: 24, carbs: 3, fat: 1 },
+  { id: "myprotein-impact", name: "MyProtein Impact Whey", category: "Protein", servingSize: "1 scoop (25g)", calories: 103, protein: 21, carbs: 1, fat: 1.9 },
+  { id: "myprotein-isolate", name: "MyProtein Impact Whey Isolate", category: "Protein", servingSize: "1 scoop (25g)", calories: 93, protein: 23, carbs: 0.6, fat: 0.1 },
+  { id: "dymatize-iso100", name: "Dymatize ISO100 Hydrolyzed", category: "Protein", servingSize: "1 scoop (32g)", calories: 120, protein: 25, carbs: 2, fat: 0.5 },
+  { id: "dymatize-elite", name: "Dymatize Elite Whey", category: "Protein", servingSize: "1 scoop (36g)", calories: 140, protein: 25, carbs: 4, fat: 2.5 },
+  { id: "bsn-syntha6", name: "BSN Syntha-6", category: "Protein", servingSize: "1 scoop (47g)", calories: 200, protein: 22, carbs: 15, fat: 6 },
+  { id: "musclepharm-combat", name: "MusclePharm Combat Protein", category: "Protein", servingSize: "1 scoop (34g)", calories: 130, protein: 25, carbs: 3, fat: 1.5 },
+  { id: "isopure-zero-carb", name: "Isopure Zero Carb Whey", category: "Protein", servingSize: "1 scoop (31g)", calories: 100, protein: 25, carbs: 0, fat: 0 },
+  { id: "muscletech-nitrotech", name: "MuscleTech Nitro-Tech", category: "Protein", servingSize: "1 scoop (46g)", calories: 160, protein: 30, carbs: 4, fat: 2.5 },
+  
+  // Protein Bars
+  { id: "quest-bar", name: "Quest Protein Bar", category: "Protein", servingSize: "1 bar (60g)", calories: 190, protein: 21, carbs: 21, fat: 8 },
+  { id: "quest-cookie", name: "Quest Protein Cookie", category: "Protein", servingSize: "1 cookie (59g)", calories: 220, protein: 15, carbs: 20, fat: 9 },
+  { id: "rxbar", name: "RXBar Protein Bar", category: "Protein", servingSize: "1 bar (52g)", calories: 210, protein: 12, carbs: 23, fat: 9 },
+  { id: "one-bar", name: "ONE Protein Bar", category: "Protein", servingSize: "1 bar (60g)", calories: 220, protein: 20, carbs: 23, fat: 8 },
+  { id: "muscleblaze-bar", name: "MuscleBlaze Protein Bar", category: "Protein", servingSize: "1 bar (72g)", calories: 280, protein: 20, carbs: 32, fat: 8 },
+  { id: "ritebite-max", name: "RiteBite Max Protein Bar", category: "Protein", servingSize: "1 bar (70g)", calories: 248, protein: 20, carbs: 26, fat: 8 },
+  { id: "yoga-bar-protein", name: "Yoga Bar Protein Bar", category: "Protein", servingSize: "1 bar (60g)", calories: 210, protein: 20, carbs: 18, fat: 7 },
+  { id: "barebells-bar", name: "Barebells Protein Bar", category: "Protein", servingSize: "1 bar (55g)", calories: 198, protein: 20, carbs: 18, fat: 8 },
+  { id: "grenade-carb-killa", name: "Grenade Carb Killa Bar", category: "Protein", servingSize: "1 bar (60g)", calories: 220, protein: 23, carbs: 18, fat: 9 },
+  { id: "kind-protein-bar", name: "KIND Protein Bar", category: "Protein", servingSize: "1 bar (50g)", calories: 250, protein: 12, carbs: 17, fat: 17 },
+  
+  // Other Protein Supplements
+  { id: "bcaa-powder", name: "BCAA Powder", category: "Protein", servingSize: "1 scoop (7g)", calories: 0, protein: 5, carbs: 0, fat: 0 },
+  { id: "creatine-mono", name: "Creatine Monohydrate", category: "Protein", servingSize: "1 scoop (5g)", calories: 0, protein: 0, carbs: 0, fat: 0 },
+  { id: "pre-workout", name: "Pre-Workout Supplement", category: "Protein", servingSize: "1 scoop (10g)", calories: 10, protein: 0, carbs: 2, fat: 0 },
+  { id: "casein-protein", name: "Casein Protein Shake", category: "Protein", servingSize: "1 scoop (33g)", calories: 120, protein: 24, carbs: 3, fat: 1 },
+  { id: "plant-protein", name: "Plant-Based Protein Shake", category: "Protein", servingSize: "1 scoop (30g)", calories: 120, protein: 20, carbs: 4, fat: 2 },
+  { id: "pea-protein", name: "Pea Protein Isolate", category: "Protein", servingSize: "1 scoop (33g)", calories: 120, protein: 24, carbs: 1, fat: 1.5 },
+  { id: "egg-white-protein", name: "Egg White Protein Powder", category: "Protein", servingSize: "1 scoop (30g)", calories: 110, protein: 25, carbs: 2, fat: 0 },
+  { id: "collagen-peptides", name: "Collagen Peptides", category: "Protein", servingSize: "1 scoop (11g)", calories: 40, protein: 10, carbs: 0, fat: 0 },
+  { id: "mass-gainer", name: "Mass Gainer Shake", category: "Protein", servingSize: "1 scoop (75g)", calories: 300, protein: 15, carbs: 55, fat: 3 },
+  { id: "whey-isolate", name: "Whey Protein Isolate", category: "Protein", servingSize: "1 scoop (30g)", calories: 110, protein: 27, carbs: 1, fat: 0.5 },
 ];
 
 // Common spelling variations / aliases for food items
@@ -311,6 +359,16 @@ const FOOD_ALIASES: Record<string, string[]> = {
   'nuggets': ['nugets', 'nugits'],
   'waffles': ['wafles', 'waffle'],
   'pancakes': ['pancake', 'pankcakes'],
+  'muscleblaze': ['muscle blaze', 'mb', 'muscle blazze'],
+  'optimum nutrition': ['on', 'gold standard'],
+  'myprotein': ['my protein', 'mp'],
+  'quest': ['quest bar', 'quest cookie'],
+  'dymatize': ['dymatise', 'iso 100', 'iso100'],
+  'whey': ['wey', 'whay'],
+  'protein': ['protien', 'protin'],
+  'isolate': ['iso', 'issolate'],
+  'bcaa': ['bca', 'amino'],
+  'creatine': ['creataine', 'creatin'],
 };
 
 function normalizeQuery(query: string): string {
