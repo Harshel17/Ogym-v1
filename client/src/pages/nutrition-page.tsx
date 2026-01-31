@@ -74,8 +74,13 @@ type AnalyticsData = {
   period: string;
   startDate: string;
   endDate: string;
-  dailyData: { date: string; target: number; actual: number; protein: number; carbs: number; fat: number }[];
+  dailyData: { date: string; target: number; actual: number; protein: number; carbs: number; fat: number; proteinTarget?: number }[];
   summary: {
+    avgProtein: number;
+    totalProtein: number;
+    proteinTarget: number;
+    proteinAdherencePercent: number;
+    daysWithProtein: number;
     avgCalories: number;
     totalCalories: number;
     targetTotal: number;
@@ -847,6 +852,8 @@ export default function NutritionPage() {
       )}
 
       <CalorieAnalytics />
+      
+      <ProteinAnalytics />
     </div>
   );
 }
@@ -980,6 +987,136 @@ function CalorieAnalytics() {
 
         <div className="mt-4 text-xs text-muted-foreground text-center">
           {period === "week" ? "Last 7 days" : "Last 30 days"} • Total: {analytics.summary.totalCalories.toLocaleString()} cal
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProteinAnalytics() {
+  const [period, setPeriod] = useState<"week" | "month">("week");
+
+  const { data: analytics, isLoading } = useQuery<AnalyticsData>({
+    queryKey: ["/api/nutrition/analytics", period],
+    queryFn: async () => {
+      const res = await fetch(`/api/nutrition/analytics?period=${period}`);
+      return res.json();
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!analytics || !analytics.dailyData) return null;
+
+  const chartData = analytics.dailyData.map(d => ({
+    date: format(new Date(d.date), period === "week" ? "EEE" : "MMM d"),
+    actual: d.protein,
+    target: analytics.summary.proteinTarget,
+  }));
+
+  const adherenceColor = analytics.summary.proteinAdherencePercent >= 90 ? "text-green-500" : 
+                         analytics.summary.proteinAdherencePercent >= 70 ? "text-yellow-500" : "text-red-500";
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Beef className="w-5 h-5 text-red-500" />
+            Protein Analytics
+          </CardTitle>
+          <div className="flex gap-1">
+            <Button 
+              variant={period === "week" ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setPeriod("week")}
+              data-testid="button-protein-analytics-week"
+            >
+              Week
+            </Button>
+            <Button 
+              variant={period === "month" ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setPeriod("month")}
+              data-testid="button-protein-analytics-month"
+            >
+              Month
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
+          <div className="text-center p-2 sm:p-3 bg-red-50 dark:bg-red-950/30 rounded-lg">
+            <div className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">{analytics.summary.avgProtein}g</div>
+            <div className="text-xs text-muted-foreground">Avg Daily</div>
+          </div>
+          <div className="text-center p-2 sm:p-3 bg-muted rounded-lg">
+            <div className={`text-lg sm:text-xl font-bold ${adherenceColor}`}>
+              {analytics.summary.proteinAdherencePercent}%
+            </div>
+            <div className="text-xs text-muted-foreground">Adherence</div>
+          </div>
+          <div className="text-center p-2 sm:p-3 bg-muted rounded-lg">
+            <div className="text-lg sm:text-xl font-bold">{analytics.summary.daysWithProtein}</div>
+            <div className="text-xs text-muted-foreground">Days Logged</div>
+          </div>
+        </div>
+
+        <div className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
+          <Target className="w-4 h-4" />
+          Daily Target: <span className="font-medium text-red-600 dark:text-red-400">{analytics.summary.proteinTarget}g</span>
+        </div>
+
+        <div className="h-48 sm:h-56">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} barCategoryGap="15%">
+              <XAxis 
+                dataKey="date" 
+                tick={{ fontSize: 11 }}
+                interval={period === "month" ? 4 : 0}
+              />
+              <YAxis 
+                tick={{ fontSize: 11 }}
+                width={40}
+              />
+              <Tooltip 
+                formatter={(value: number, name: string) => [`${value}g`, name === "target" ? "Target" : "Actual"]}
+                labelFormatter={(label) => `${label}`}
+              />
+              <Legend 
+                wrapperStyle={{ fontSize: 11 }}
+                formatter={(value) => value === "target" ? "Target" : "Actual"}
+              />
+              <Bar 
+                dataKey="target" 
+                fill="hsl(var(--muted-foreground))" 
+                radius={[4, 4, 0, 0]}
+                name="target"
+                opacity={0.4}
+              />
+              <Bar 
+                dataKey="actual" 
+                fill="#ef4444" 
+                radius={[4, 4, 0, 0]}
+                name="actual"
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="mt-4 text-xs text-muted-foreground text-center">
+          {period === "week" ? "Last 7 days" : "Last 30 days"} • Total: {analytics.summary.totalProtein.toLocaleString()}g protein
         </div>
       </CardContent>
     </Card>

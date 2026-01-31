@@ -3766,6 +3766,16 @@ export async function registerRoutes(
     const targetTotal = analytics.length * (goal?.dailyCalorieTarget || 2000);
     const adherencePercent = targetTotal > 0 ? Math.round((totalCalories / targetTotal) * 100) : 0;
     
+    // Calculate protein stats
+    const daysWithProtein = analytics.filter(d => d.protein > 0);
+    const avgProtein = daysWithProtein.length > 0 
+      ? Math.round(daysWithProtein.reduce((sum, d) => sum + d.protein, 0) / daysWithProtein.length)
+      : 0;
+    const totalProtein = analytics.reduce((sum, d) => sum + d.protein, 0);
+    const proteinTarget = goal?.dailyProtein || 100;
+    const proteinTargetTotal = analytics.length * proteinTarget;
+    const proteinAdherencePercent = proteinTargetTotal > 0 ? Math.round((totalProtein / proteinTargetTotal) * 100) : 0;
+    
     res.json({
       period,
       startDate,
@@ -3778,6 +3788,11 @@ export async function registerRoutes(
         adherencePercent,
         daysLogged: daysWithData.length,
         dailyTarget: goal?.dailyCalorieTarget || 2000,
+        avgProtein,
+        totalProtein,
+        proteinTarget,
+        proteinAdherencePercent,
+        daysWithProtein: daysWithProtein.length,
       },
       goal: goal || null,
     });
