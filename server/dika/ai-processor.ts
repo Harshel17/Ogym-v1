@@ -15,6 +15,7 @@ import {
   memberSubscriptions
 } from "@shared/schema";
 import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
+import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
@@ -557,6 +558,21 @@ export async function processWithAI(
   gymId: number | null,
   message: string
 ): Promise<{ answer: string; followUpChips: string[] }> {
+  // Check if this is an exercise question first
+  const exerciseQuery = detectExerciseQuestion(message);
+  if (exerciseQuery) {
+    const exercise = findExercise(exerciseQuery);
+    if (exercise) {
+      const answer = formatExerciseResponse(exercise);
+      const followUpChips = [
+        'What muscles does it work?',
+        'Alternative exercises',
+        'My workout progress'
+      ];
+      return { answer, followUpChips };
+    }
+  }
+  
   const [user] = await db.select({
     username: users.username,
   })
