@@ -453,7 +453,7 @@ export default function NutritionPage() {
         onLogFood={(foodName, calories) => {
           setSearchQuery(foodName);
           setSelectedMealType('lunch');
-          setAddFoodOpen(true);
+          setIsAddFoodOpen(true);
         }}
       />
 

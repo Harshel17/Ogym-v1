@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { MapPin, Utensils, Navigation, ChevronRight, Check, X, Loader2, Info, Sparkles } from "lucide-react";
+import { MapPin, Utensils, Navigation, ChevronRight, Check, X, Loader2, Info, Sparkles, Pizza, Coffee, Salad, Beef, UtensilsCrossed, Soup } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -171,16 +171,17 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
   };
 
   const getCategoryIcon = (category: string) => {
+    const iconClass = "w-4 h-4";
     switch (category) {
-      case 'fast_food': return '🍔';
-      case 'pizza': return '🍕';
-      case 'mexican': return '🌮';
-      case 'asian': return '🍜';
-      case 'indian': return '🍛';
-      case 'coffee': return '☕';
-      case 'healthy': return '🥗';
-      case 'casual': return '🍽️';
-      default: return '🍴';
+      case 'fast_food': return <Beef className={`${iconClass} text-orange-500`} />;
+      case 'pizza': return <Pizza className={`${iconClass} text-red-500`} />;
+      case 'mexican': return <UtensilsCrossed className={`${iconClass} text-yellow-600`} />;
+      case 'asian': return <Soup className={`${iconClass} text-amber-500`} />;
+      case 'indian': return <Soup className={`${iconClass} text-orange-600`} />;
+      case 'coffee': return <Coffee className={`${iconClass} text-brown-600`} />;
+      case 'healthy': return <Salad className={`${iconClass} text-green-500`} />;
+      case 'casual': return <Utensils className={`${iconClass} text-slate-500`} />;
+      default: return <Utensils className={`${iconClass} text-muted-foreground`} />;
     }
   };
 
@@ -308,7 +309,7 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="text-lg">{getCategoryIcon(restaurant.category)}</span>
+                              {getCategoryIcon(restaurant.category)}
                               <h4 className="font-medium truncate">{restaurant.name}</h4>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
