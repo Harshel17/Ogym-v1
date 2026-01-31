@@ -31,15 +31,81 @@ interface GeneratedWorkoutPlan {
 }
 
 function extractWorkoutPlanFromContent(content: string): GeneratedWorkoutPlan | null {
-  const match = content.match(/<!-- WORKOUT_PLAN_DATA:([\s\S]+?) -->/);
-  if (match) {
-    try {
-      return JSON.parse(match[1].trim());
-    } catch {
-      return null;
+  // Handle both regular and HTML-encoded comments
+  const patterns = [
+    /<!-- WORKOUT_PLAN_DATA:([\s\S]+?) -->/,
+    /&lt;!-- WORKOUT_PLAN_DATA:([\s\S]+?) --&gt;/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = content.match(pattern);
+    if (match) {
+      try {
+        return JSON.parse(match[1].trim());
+      } catch {
+        continue;
+      }
     }
   }
   return null;
+}
+
+const muscleColorMap: Record<string, string> = {
+  'Legs': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  'Chest': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  'Back': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  'Shoulders': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  'Core': 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+  'Arms': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
+  'Biceps': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
+  'Triceps': 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+  'Glutes': 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
+  'Cardio': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+};
+
+function WorkoutPlanCard({ plan }: { plan: GeneratedWorkoutPlan }) {
+  return (
+    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="px-3 py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white">
+        <h3 className="font-semibold text-sm">{plan.name}</h3>
+        <p className="text-xs text-white/80">{plan.cycleLength} day cycle</p>
+      </div>
+      <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[300px] overflow-y-auto">
+        {plan.days.map((day) => (
+          <div key={day.dayIndex} className="px-3 py-2">
+            <div className="font-medium text-xs text-gray-700 dark:text-gray-300 mb-1.5">
+              {day.dayLabel}
+            </div>
+            <div className="space-y-1">
+              {day.exercises.map((ex, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-600 dark:text-gray-400">{ex.exerciseName}</span>
+                    <span className="text-gray-400 dark:text-gray-500">
+                      {ex.sets}x{ex.reps}
+                    </span>
+                  </div>
+                  <span className={cn(
+                    "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                    muscleColorMap[ex.muscleType] || 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                  )}>
+                    {ex.muscleType}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {plan.restDays.length > 0 && (
+          <div className="px-3 py-2">
+            <div className="font-medium text-xs text-gray-500 dark:text-gray-400">
+              Rest Days: Day {plan.restDays.map(d => d + 1).join(', Day ')}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function parseMarkdown(text: string): ReactNode[] {
@@ -168,8 +234,11 @@ function parseInlineMarkdown(text: string): ReactNode[] {
 
 function MarkdownContent({ content }: { content: string }) {
   const parsed = useMemo(() => {
-    // Strip out hidden workout plan data comments before parsing
-    const cleanContent = content.replace(/<!-- WORKOUT_PLAN_DATA:[\s\S]+? -->/g, '').trim();
+    // Strip out hidden workout plan data comments before parsing (both regular and HTML-encoded)
+    let cleanContent = content
+      .replace(/<!-- WORKOUT_PLAN_DATA:[\s\S]+? -->/g, '')
+      .replace(/&lt;!-- WORKOUT_PLAN_DATA:[\s\S]+? --&gt;/g, '')
+      .trim();
     return parseMarkdown(cleanContent);
   }, [content]);
   return <div className="leading-relaxed">{parsed}</div>;
@@ -598,7 +667,12 @@ export function DikaDrawer({
                   data-testid={`message-${message.role}`}
                 >
                   {message.role === 'assistant' ? (
-                    <MarkdownContent content={message.content} />
+                    <>
+                      <MarkdownContent content={message.content} />
+                      {extractWorkoutPlanFromContent(message.content) && (
+                        <WorkoutPlanCard plan={extractWorkoutPlanFromContent(message.content)!} />
+                      )}
+                    </>
                   ) : (
                     <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
                   )}
