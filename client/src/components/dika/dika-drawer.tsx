@@ -31,10 +31,10 @@ interface GeneratedWorkoutPlan {
 }
 
 function extractWorkoutPlanFromContent(content: string): GeneratedWorkoutPlan | null {
-  const match = content.match(/<!-- WORKOUT_PLAN_DATA:(.+?) -->/);
+  const match = content.match(/<!-- WORKOUT_PLAN_DATA:([\s\S]+?) -->/);
   if (match) {
     try {
-      return JSON.parse(match[1]);
+      return JSON.parse(match[1].trim());
     } catch {
       return null;
     }
@@ -318,12 +318,16 @@ export function DikaDrawer({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
+  const [savingMessageId, setSavingMessageId] = useState<string | null>(null);
+  
   const saveWorkoutMutation = useMutation({
-    mutationFn: async (plan: GeneratedWorkoutPlan) => {
+    mutationFn: async ({ plan, messageId }: { plan: GeneratedWorkoutPlan; messageId: string }) => {
       const res = await apiRequest('POST', '/api/dika/save-workout', { plan });
-      return res.json();
+      return { result: await res.json(), messageId };
     },
-    onSuccess: (_, __, context) => {
+    onSuccess: ({ messageId }) => {
+      setSavedWorkoutIds(prev => new Set(prev).add(messageId));
+      setSavingMessageId(null);
       queryClient.invalidateQueries({ queryKey: ['/api/workout-cycles'] });
       toast({
         title: "Workout Saved!",
@@ -331,6 +335,7 @@ export function DikaDrawer({
       });
     },
     onError: () => {
+      setSavingMessageId(null);
       toast({
         title: "Save Failed",
         description: "Could not save workout. Please try again.",
@@ -341,9 +346,9 @@ export function DikaDrawer({
   
   const handleSaveWorkout = (messageId: string, content: string) => {
     const plan = extractWorkoutPlanFromContent(content);
-    if (plan) {
-      saveWorkoutMutation.mutate(plan);
-      setSavedWorkoutIds(prev => new Set(prev).add(messageId));
+    if (plan && !saveWorkoutMutation.isPending) {
+      setSavingMessageId(messageId);
+      saveWorkoutMutation.mutate({ plan, messageId });
     }
   };
   
@@ -615,7 +620,7 @@ export function DikaDrawer({
                       {extractWorkoutPlanFromContent(message.content) && (
                         <button
                           onClick={() => handleSaveWorkout(message.id, message.content)}
-                          disabled={savedWorkoutIds.has(message.id) || saveWorkoutMutation.isPending}
+                          disabled={savedWorkoutIds.has(message.id) || savingMessageId === message.id}
                           className={cn(
                             "text-xs flex items-center gap-1",
                             savedWorkoutIds.has(message.id) 
@@ -629,7 +634,7 @@ export function DikaDrawer({
                               <CheckCircle className="w-3 h-3" />
                               <span>Saved!</span>
                             </>
-                          ) : saveWorkoutMutation.isPending ? (
+                          ) : savingMessageId === message.id ? (
                             <>
                               <Loader2 className="w-3 h-3 animate-spin" />
                               <span>Saving...</span>

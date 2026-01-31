@@ -4024,26 +4024,31 @@ export async function registerRoutes(
   
   // Save AI-generated workout plan
   app.post("/api/dika/save-workout", requireAuth, async (req, res) => {
+    // Only members can save workout plans
+    if (req.user!.role !== 'member') {
+      return res.status(403).json({ message: "Only members can save workout plans" });
+    }
+    
     const exerciseSchema = z.object({
-      exerciseName: z.string(),
-      muscleType: z.string(),
-      bodyPart: z.string(),
-      sets: z.number(),
-      reps: z.number(),
+      exerciseName: z.string().min(1).max(100),
+      muscleType: z.string().min(1).max(50),
+      bodyPart: z.string().min(1).max(50),
+      sets: z.number().int().min(1).max(20),
+      reps: z.number().int().min(1).max(100),
     });
     
     const daySchema = z.object({
-      dayIndex: z.number(),
-      dayLabel: z.string(),
-      exercises: z.array(exerciseSchema),
+      dayIndex: z.number().int().min(0).max(13),
+      dayLabel: z.string().min(1).max(50),
+      exercises: z.array(exerciseSchema).min(1).max(20),
     });
     
     const schema = z.object({
       plan: z.object({
-        name: z.string(),
-        cycleLength: z.number(),
-        days: z.array(daySchema),
-        restDays: z.array(z.number()),
+        name: z.string().min(1).max(100),
+        cycleLength: z.number().int().min(1).max(14),
+        days: z.array(daySchema).min(1).max(14),
+        restDays: z.array(z.number().int().min(0).max(13)),
       }),
     });
     
