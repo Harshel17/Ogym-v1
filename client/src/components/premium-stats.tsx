@@ -79,11 +79,11 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
       onClick={onClick}
       data-testid={`stat-card-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
-      <CardContent className="flex flex-col items-center justify-center h-[120px] py-0">
-        <div className={cn("p-2.5 rounded-full text-white mb-2 shadow-sm", colors.iconBg)}>
-          <Icon className="w-5 h-5" />
+      <CardContent className="flex flex-col items-center justify-center h-[140px] py-0">
+        <div className={cn("p-3 rounded-full text-white mb-2 shadow-sm", colors.iconBg)}>
+          <Icon className="w-6 h-6" />
         </div>
-        <p className="text-2xl font-bold tabular-nums">{displayValue}</p>
+        <p className="text-3xl font-bold tabular-nums">{displayValue}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
       </CardContent>
     </Card>
@@ -117,9 +117,9 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const isProteinOver = effectiveProteinTarget > 0 && currentProtein > effectiveProteinTarget;
   
   // SVG circle calculations - dual ring layout (sized to match streak icon)
-  const size = 56;
-  const outerStrokeWidth = 5;
-  const innerStrokeWidth = 3;
+  const size = 68;
+  const outerStrokeWidth = 6;
+  const innerStrokeWidth = 4;
   const gap = 2;
   const outerRadius = (size - outerStrokeWidth) / 2;
   const innerRadius = outerRadius - outerStrokeWidth / 2 - gap - innerStrokeWidth / 2;
@@ -144,7 +144,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center h-[120px] py-0">
+      <CardContent className="flex flex-col items-center justify-center h-[140px] py-0">
         {/* Dual Ring Progress */}
         <div className="relative">
           <svg
@@ -207,12 +207,12 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
           {/* Center content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className={cn(
-              "text-base font-bold tabular-nums leading-none",
+              "text-lg font-bold tabular-nums leading-none",
               isCaloriesOver && "text-red-500"
             )}>
               {displayValue}
             </span>
-            <span className="text-[8px] text-muted-foreground mt-0.5">kcal</span>
+            <span className="text-[9px] text-muted-foreground mt-0.5">kcal</span>
           </div>
         </div>
         
