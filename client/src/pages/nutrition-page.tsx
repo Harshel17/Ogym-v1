@@ -28,6 +28,8 @@ type CalorieGoal = {
   goalType: string;
   isActive: boolean;
   createdAt: string;
+  setBy?: string | null;
+  setByUserId?: number | null;
 };
 
 type FoodLog = {
@@ -635,7 +637,7 @@ function CalorieAnalytics() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <BarChart3 className="w-5 h-5" />
             Calorie Analytics
@@ -690,7 +692,7 @@ function CalorieAnalytics() {
 
         <div className="h-48 sm:h-56">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
+            <BarChart data={chartData} barCategoryGap="15%">
               <XAxis 
                 dataKey="date" 
                 tick={{ fontSize: 11 }}
@@ -701,20 +703,25 @@ function CalorieAnalytics() {
                 width={40}
               />
               <Tooltip 
-                formatter={(value: number) => [`${value} cal`, undefined]}
+                formatter={(value: number, name: string) => [`${value} cal`, name === "target" ? "Target" : "Actual"]}
                 labelFormatter={(label) => `${label}`}
               />
-              <ReferenceLine 
-                y={analytics.summary.dailyTarget} 
-                stroke="hsl(var(--primary))" 
-                strokeDasharray="3 3"
-                label={{ value: "Target", fontSize: 10, fill: "hsl(var(--primary))" }}
+              <Legend 
+                wrapperStyle={{ fontSize: 11 }}
+                formatter={(value) => value === "target" ? "Target" : "Actual"}
+              />
+              <Bar 
+                dataKey="target" 
+                fill="hsl(var(--muted-foreground))" 
+                radius={[4, 4, 0, 0]}
+                name="target"
+                opacity={0.4}
               />
               <Bar 
                 dataKey="actual" 
                 fill="hsl(var(--chart-1))" 
                 radius={[4, 4, 0, 0]}
-                name="Calories"
+                name="actual"
               />
             </BarChart>
           </ResponsiveContainer>
