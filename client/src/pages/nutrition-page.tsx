@@ -37,6 +37,7 @@ type FoodLog = {
   userId: number;
   date: string;
   mealType: string;
+  mealLabel: string | null;
   foodName: string;
   brandName: string | null;
   servingSize: string | null;
@@ -86,11 +87,14 @@ type AnalyticsData = {
 };
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
+const ALL_MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack", "protein", "extra"] as const;
 const MEAL_LABELS: Record<string, string> = {
   breakfast: "Breakfast",
   lunch: "Lunch", 
   dinner: "Dinner",
-  snack: "Snack"
+  snack: "Snack",
+  protein: "Protein",
+  extra: "Extra Meal"
 };
 
 export default function NutritionPage() {
@@ -98,7 +102,9 @@ export default function NutritionPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
   const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
+  const [addFoodStep, setAddFoodStep] = useState<"category" | "food">("category");
   const [selectedMealType, setSelectedMealType] = useState<string>("breakfast");
+  const [extraMealLabel, setExtraMealLabel] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<FoodProduct[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -174,6 +180,34 @@ export default function NutritionPage() {
     setSelectedFood(null);
     setQuantity("1");
     setManualEntry({ name: "", calories: "", protein: "", carbs: "", fat: "" });
+    setAddFoodStep("category");
+    setExtraMealLabel("");
+  };
+
+  const openAddFoodForMeal = (mealType: string) => {
+    setSelectedMealType(mealType);
+    setAddFoodStep("food");
+    setIsAddFoodOpen(true);
+  };
+
+  const openGlobalAddFood = () => {
+    setAddFoodStep("category");
+    setIsAddFoodOpen(true);
+  };
+
+  const handleCategorySelect = (category: string) => {
+    setSelectedMealType(category);
+    if (category !== "extra") {
+      setAddFoodStep("food");
+    }
+  };
+
+  const handleExtraMealConfirm = () => {
+    if (!extraMealLabel.trim()) {
+      toast({ title: "Please enter a meal name", variant: "destructive" });
+      return;
+    }
+    setAddFoodStep("food");
   };
 
   const handleSearch = async () => {
@@ -195,6 +229,7 @@ export default function NutritionPage() {
     logFoodMutation.mutate({
       date: dateStr,
       mealType: selectedMealType,
+      mealLabel: selectedMealType === "extra" ? extraMealLabel.trim() : null,
       foodName: selectedFood.name,
       brandName: selectedFood.brandName,
       servingSize: selectedFood.servingSize,
@@ -208,16 +243,24 @@ export default function NutritionPage() {
   };
 
   const handleLogManual = () => {
-    if (!manualEntry.name || !manualEntry.calories) {
-      toast({ title: "Name and calories are required", variant: "destructive" });
-      return;
+    if (selectedMealType === "protein") {
+      if (!manualEntry.name || !manualEntry.protein) {
+        toast({ title: "Name and protein grams are required", variant: "destructive" });
+        return;
+      }
+    } else {
+      if (!manualEntry.name || !manualEntry.calories) {
+        toast({ title: "Name and calories are required", variant: "destructive" });
+        return;
+      }
     }
     logFoodMutation.mutate({
       date: dateStr,
       mealType: selectedMealType,
+      mealLabel: selectedMealType === "extra" ? extraMealLabel.trim() : null,
       foodName: manualEntry.name,
       quantity: 1,
-      calories: parseInt(manualEntry.calories),
+      calories: parseInt(manualEntry.calories) || 0,
       protein: manualEntry.protein ? parseInt(manualEntry.protein) : null,
       carbs: manualEntry.carbs ? parseInt(manualEntry.carbs) : null,
       fat: manualEntry.fat ? parseInt(manualEntry.fat) : null
@@ -263,6 +306,18 @@ export default function NutritionPage() {
     return acc;
   }, {} as Record<string, FoodLog[]>);
 
+  const proteinLogs = foodLogs.filter(log => log.mealType === "protein");
+  const extraLogs = foodLogs.filter(log => log.mealType === "extra");
+  
+  const extraMealsByLabel = extraLogs.reduce((acc, log) => {
+    const label = log.mealLabel || "Extra";
+    if (!acc[label]) acc[label] = [];
+    acc[label].push(log);
+    return acc;
+  }, {} as Record<string, FoodLog[]>);
+
+  const totalProteinToday = foodLogs.reduce((sum, log) => sum + (log.protein || 0), 0);
+
   if (summaryLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -275,13 +330,22 @@ export default function NutritionPage() {
     <div className="p-3 sm:p-4 space-y-4 sm:space-y-6 pb-24">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl sm:text-2xl font-bold">Nutrition</h1>
-        <Dialog open={isGoalDialogOpen} onOpenChange={setIsGoalDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" data-testid="button-set-goal">
-              <Target className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Set Goal</span>
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={openGlobalAddFood}
+            size="sm" 
+            data-testid="button-global-add-food"
+          >
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Add Food</span>
+          </Button>
+          <Dialog open={isGoalDialogOpen} onOpenChange={setIsGoalDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-set-goal">
+                <Target className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Set Goal</span>
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-[95vw] sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Set Daily Goals</DialogTitle>
@@ -293,6 +357,7 @@ export default function NutritionPage() {
             />
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="flex items-center justify-center gap-2 sm:gap-4">
@@ -356,6 +421,16 @@ export default function NutritionPage() {
             </div>
           </div>
 
+          <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-red-50 dark:bg-red-950/30 rounded-lg">
+            <Beef className="w-4 h-4 text-red-500" />
+            <span className="text-sm font-medium">
+              Protein: <span className="text-red-500">{totalProteinToday}g</span>
+              {goalData?.dailyProtein && (
+                <span className="text-muted-foreground"> / {proteinGoal}g</span>
+              )}
+            </span>
+          </div>
+
           <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-4 sm:mt-6">
             <MacroProgress label="Protein" value={summary.protein} goal={proteinGoal} percent={proteinPercent} icon={Beef} color="text-red-500" />
             <MacroProgress label="Carbs" value={summary.carbs} goal={carbsGoal} percent={carbsPercent} icon={Wheat} color="text-amber-500" />
@@ -372,7 +447,7 @@ export default function NutritionPage() {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => { setSelectedMealType(meal); setIsAddFoodOpen(true); }}
+                onClick={() => openAddFoodForMeal(meal)}
                 data-testid={`button-add-${meal}`}
               >
                 <Plus className="w-4 h-4 mr-1" />
@@ -415,13 +490,166 @@ export default function NutritionPage() {
         </Card>
       ))}
 
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Beef className="w-5 h-5 text-red-500" />
+              Protein
+            </CardTitle>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => openAddFoodForMeal("protein")}
+              data-testid="button-add-protein"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">Track shakes, bars & supplements</p>
+        </CardHeader>
+        <CardContent>
+          {proteinLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No protein logged</p>
+          ) : (
+            <div className="space-y-2">
+              {proteinLogs.map((log) => (
+                <div key={log.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{log.foodName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {log.protein}g protein
+                      {log.calories ? ` · ${log.calories} cal` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-red-500">{log.protein}g</span>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => deleteFoodMutation.mutate(log.id)}
+                      data-testid={`button-delete-protein-${log.id}`}
+                    >
+                      <Trash2 className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {Object.keys(extraMealsByLabel).length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Extra Meals</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {Object.entries(extraMealsByLabel).map(([label, logs]) => (
+              <div key={label} className="mb-4 last:mb-0">
+                <p className="text-sm font-medium text-muted-foreground mb-2">{label}</p>
+                <div className="space-y-2">
+                  {logs.map((log) => (
+                    <div key={log.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{log.foodName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {log.quantity > 1 && `${log.quantity}x `}
+                          {log.servingSize || "1 serving"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium">{log.calories} cal</span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => deleteFoodMutation.mutate(log.id)}
+                          data-testid={`button-delete-extra-${log.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Dialog open={isAddFoodOpen} onOpenChange={(open) => { setIsAddFoodOpen(open); if (!open) resetAddFood(); }}>
         <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg">Add to {MEAL_LABELS[selectedMealType]}</DialogTitle>
+            <DialogTitle className="text-lg">
+              {addFoodStep === "category" ? "Add Food" : `Add to ${selectedMealType === "extra" ? extraMealLabel || "Extra Meal" : MEAL_LABELS[selectedMealType]}`}
+            </DialogTitle>
           </DialogHeader>
           
-          {!selectedFood ? (
+          {addFoodStep === "category" ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Choose a category:</p>
+              <div className="grid grid-cols-2 gap-2">
+                {["breakfast", "lunch", "dinner", "snack"].map((cat) => (
+                  <Button
+                    key={cat}
+                    variant="outline"
+                    size="lg"
+                    className="justify-start"
+                    onClick={() => handleCategorySelect(cat)}
+                    data-testid={`button-category-${cat}`}
+                  >
+                    {MEAL_LABELS[cat]}
+                  </Button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="justify-start border-red-200 dark:border-red-900"
+                  onClick={() => handleCategorySelect("protein")}
+                  data-testid="button-category-protein"
+                >
+                  <Beef className="w-4 h-4 mr-2 text-red-500" />
+                  Protein
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="justify-start"
+                  onClick={() => handleCategorySelect("extra")}
+                  data-testid="button-category-extra"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Extra Meal
+                </Button>
+              </div>
+              
+              {selectedMealType === "extra" && (
+                <div className="space-y-2 pt-2 border-t">
+                  <Label>Meal Name</Label>
+                  <Input
+                    placeholder="e.g., Post Workout, Late Night..."
+                    value={extraMealLabel}
+                    onChange={(e) => setExtraMealLabel(e.target.value)}
+                    data-testid="input-extra-meal-label"
+                  />
+                  <Button 
+                    onClick={handleExtraMealConfirm} 
+                    className="w-full"
+                    data-testid="button-confirm-extra-meal"
+                  >
+                    Continue
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : !selectedFood ? (
             <div className="space-y-3 sm:space-y-4">
               <div className="flex gap-2">
                 <Input
@@ -477,17 +705,37 @@ export default function NutritionPage() {
               )}
 
               <div className="border-t pt-4">
-                <p className="text-sm font-medium mb-3">Or add manually:</p>
+                <p className="text-sm font-medium mb-3">
+                  {selectedMealType === "protein" ? "Add protein item:" : "Or add manually:"}
+                </p>
                 <div className="space-y-3">
                   <Input
-                    placeholder="Food name"
+                    placeholder={selectedMealType === "protein" ? "Item name (e.g., Whey Protein)" : "Food name"}
                     value={manualEntry.name}
                     onChange={(e) => setManualEntry({ ...manualEntry, name: e.target.value })}
                     data-testid="input-manual-name"
                   />
+                  {selectedMealType === "protein" ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        placeholder="Protein (g) *"
+                        type="number"
+                        value={manualEntry.protein}
+                        onChange={(e) => setManualEntry({ ...manualEntry, protein: e.target.value })}
+                        data-testid="input-manual-protein"
+                      />
+                      <Input
+                        placeholder="Calories (optional)"
+                        type="number"
+                        value={manualEntry.calories}
+                        onChange={(e) => setManualEntry({ ...manualEntry, calories: e.target.value })}
+                        data-testid="input-manual-calories"
+                      />
+                    </div>
+                  ) : (
                   <div className="grid grid-cols-2 gap-2">
                     <Input
-                      placeholder="Calories"
+                      placeholder="Calories *"
                       type="number"
                       value={manualEntry.calories}
                       onChange={(e) => setManualEntry({ ...manualEntry, calories: e.target.value })}
@@ -515,13 +763,14 @@ export default function NutritionPage() {
                       data-testid="input-manual-fat"
                     />
                   </div>
+                  )}
                   <Button 
                     onClick={handleLogManual} 
                     disabled={logFoodMutation.isPending}
                     className="w-full"
                     data-testid="button-log-manual"
                   >
-                    {logFoodMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add Food"}
+                    {logFoodMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : selectedMealType === "protein" ? "Add Protein" : "Add Food"}
                   </Button>
                 </div>
               </div>
