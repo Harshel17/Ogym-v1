@@ -284,14 +284,79 @@ export const LOCAL_FOOD_DATABASE: LocalFood[] = [
   { id: "chicken-thigh", name: "Chicken Thigh", category: "Protein", servingSize: "100g", calories: 209, protein: 26, carbs: 0, fat: 11 },
 ];
 
+// Common spelling variations / aliases for food items
+const FOOD_ALIASES: Record<string, string[]> = {
+  'biryani': ['briyani', 'biriyani', 'bryani', 'biriani'],
+  'chicken': ['chiken', 'chikn', 'chickin'],
+  'burger': ['burgar', 'buger', 'burgur'],
+  'pizza': ['piza', 'pizzza'],
+  'paratha': ['parantha', 'pratha', 'parota', 'porotta'],
+  'dosa': ['dosai', 'thosai'],
+  'samosa': ['samose', 'somosa'],
+  'paneer': ['panner', 'panir'],
+  'chapati': ['chapathi', 'roti'],
+  'naan': ['nan', 'naaan'],
+  'quesadilla': ['quesadila', 'quesedia'],
+  'burrito': ['burito', 'buritto'],
+  'taco': ['tako'],
+  'lasagna': ['lasagne', 'lazagna'],
+  'spaghetti': ['spagetti', 'sphaghetti'],
+  'sandwich': ['sandwitch', 'sandwhich', 'sandwch'],
+  'omelette': ['omlet', 'omelet', 'omlette'],
+  'smoothie': ['smoothy', 'smoothi'],
+  'cappuccino': ['capuccino', 'capuchino'],
+  'frappuccino': ['frapuccino', 'frappucino'],
+  'milkshake': ['milk shake', 'milkshak'],
+  'fries': ['frys', 'fry'],
+  'nuggets': ['nugets', 'nugits'],
+  'waffles': ['wafles', 'waffle'],
+  'pancakes': ['pancake', 'pankcakes'],
+};
+
+function normalizeQuery(query: string): string {
+  let normalized = query.toLowerCase().trim();
+  
+  // Replace aliases with canonical terms
+  for (const [canonical, aliases] of Object.entries(FOOD_ALIASES)) {
+    for (const alias of aliases) {
+      if (normalized.includes(alias)) {
+        normalized = normalized.replace(alias, canonical);
+      }
+    }
+  }
+  
+  return normalized;
+}
+
 export function searchLocalFoods(query: string): LocalFood[] {
-  const normalizedQuery = query.toLowerCase().trim();
+  const normalizedQuery = normalizeQuery(query);
   if (!normalizedQuery || normalizedQuery.length < 2) return [];
   
   const queryWords = normalizedQuery.split(/\s+/);
   
-  return LOCAL_FOOD_DATABASE.filter(food => {
+  // First pass: exact match on all words
+  const exactMatches = LOCAL_FOOD_DATABASE.filter(food => {
     const searchText = `${food.name} ${food.category}`.toLowerCase();
     return queryWords.every(word => searchText.includes(word));
-  }).slice(0, 10);
+  });
+  
+  if (exactMatches.length >= 5) {
+    return exactMatches.slice(0, 15);
+  }
+  
+  // Second pass: partial match (at least one word matches)
+  const partialMatches = LOCAL_FOOD_DATABASE.filter(food => {
+    const searchText = `${food.name} ${food.category}`.toLowerCase();
+    return queryWords.some(word => word.length >= 3 && searchText.includes(word));
+  });
+  
+  // Combine and deduplicate
+  const combined = [...exactMatches];
+  for (const item of partialMatches) {
+    if (!combined.some(x => x.id === item.id)) {
+      combined.push(item);
+    }
+  }
+  
+  return combined.slice(0, 15);
 }
