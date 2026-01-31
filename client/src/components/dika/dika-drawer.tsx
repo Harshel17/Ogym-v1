@@ -63,14 +63,21 @@ const muscleColorMap: Record<string, string> = {
   'Cardio': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
 };
 
-function WorkoutPlanCard({ plan }: { plan: GeneratedWorkoutPlan }) {
+interface WorkoutPlanCardProps {
+  plan: GeneratedWorkoutPlan;
+  onSave?: () => void;
+  isSaving?: boolean;
+  isSaved?: boolean;
+}
+
+function WorkoutPlanCard({ plan, onSave, isSaving, isSaved }: WorkoutPlanCardProps) {
   return (
     <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="px-3 py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white">
         <h3 className="font-semibold text-sm">{plan.name}</h3>
         <p className="text-xs text-white/80">{plan.cycleLength} day cycle</p>
       </div>
-      <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[300px] overflow-y-auto">
+      <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[250px] overflow-y-auto">
         {plan.days.map((day) => (
           <div key={day.dayIndex} className="px-3 py-2">
             <div className="font-medium text-xs text-gray-700 dark:text-gray-300 mb-1.5">
@@ -104,6 +111,39 @@ function WorkoutPlanCard({ plan }: { plan: GeneratedWorkoutPlan }) {
           </div>
         )}
       </div>
+      {onSave && (
+        <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+          <Button
+            onClick={onSave}
+            disabled={isSaving || isSaved}
+            size="sm"
+            className={cn(
+              "w-full",
+              isSaved 
+                ? "bg-green-500 hover:bg-green-500 text-white" 
+                : "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+            )}
+            data-testid="button-save-workout-card"
+          >
+            {isSaved ? (
+              <>
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Saved to My Workouts!
+              </>
+            ) : isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Save to My Workouts
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -670,7 +710,12 @@ export function DikaDrawer({
                     <>
                       <MarkdownContent content={message.content} />
                       {extractWorkoutPlanFromContent(message.content) && (
-                        <WorkoutPlanCard plan={extractWorkoutPlanFromContent(message.content)!} />
+                        <WorkoutPlanCard 
+                          plan={extractWorkoutPlanFromContent(message.content)!}
+                          onSave={() => handleSaveWorkout(message.id, message.content)}
+                          isSaving={savingMessageId === message.id}
+                          isSaved={savedWorkoutIds.has(message.id)}
+                        />
                       )}
                     </>
                   ) : (

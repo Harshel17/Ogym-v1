@@ -4065,6 +4065,8 @@ export async function registerRoutes(
       const endDate = new Date(today);
       endDate.setMonth(endDate.getMonth() + 3);
       
+      // Note: createWorkoutCycle automatically deactivates existing active cycles (moves them to phases)
+      
       // Create workout cycle
       const cycle = await storage.createWorkoutCycle({
         gymId: user.gymId || null,
