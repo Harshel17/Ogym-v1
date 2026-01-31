@@ -1,0 +1,56 @@
+TASK: Implement “Find My Food” feature inside the Nutrition section.
+
+WHAT IT SHOULD DO (high-level behavior):
+
+1) Entry point
+- Add a button on the Nutrition page under the calorie ring:
+  “Find My Food Nearby”
+  (subtext: “Based on your calories & workout cycle”)
+
+2) On click flow
+- When user clicks “Find My Food Nearby”, open a modal/bottom sheet.
+- Ask for:
+  a) Location permission (only request when user clicks this feature)
+  b) Radius selection (1 / 3 / 5 miles)
+- CTA button: “Show Food Options”
+
+3) Results
+- After user selects radius, show a results screen (still in modal or a new page).
+- Fetch and display nearby restaurants within selected radius.
+- For each restaurant, show:
+  - Restaurant name
+  - Distance (e.g., 1.0 miles)
+  - A “Safest option” suggestion based on the user’s current workout cycle (cut/bulk/maintain) and remaining calories for the day.
+  - A short explanation (“Why this is safest for your cycle today”)
+
+4) “Safest option” logic
+- Do NOT show full menus.
+- Use a simple internal mapping / rules system to generate “safest option” suggestions for common chains (e.g., Chipotle, Subway, Whataburger, Chick-fil-A, Panera, etc.).
+- Keep suggestions realistic and phrased as guidance (no guarantee wording).
+
+5) Dika message (lightweight)
+- At the top of the results, show a short “Dika says…” insight summarizing what kind of meal fits today (based on cycle + remaining calories).
+
+6) After-action
+- When user taps a restaurant card, ask:
+  “Did you eat something from here?”
+  Buttons: “Yes, log food” and “Not now”
+- If “Yes, log food”, open the existing Add Food flow and prefill the suggested item name.
+
+7) Tracking
+- Add basic tracking events:
+  - find_my_food_opened
+  - find_my_food_radius_selected
+  - find_my_food_restaurant_clicked
+  - find_my_food_log_initiated
+
+CONSTRAINTS / DO NOT DO:
+- Do NOT build a full restaurant menu system.
+- Do NOT promise exact calories or exact nutrition facts.
+- Do NOT ask for location permission anywhere else (only inside this feature on click).
+- Keep styling consistent with the current Nutrition page design.
+- Feature should be safe to disable via a simple feature flag if needed.
+
+DELIVERABLE:
+- Push working code implementing the above behavior.
+- Provide a short summary of what files/components were changed.
