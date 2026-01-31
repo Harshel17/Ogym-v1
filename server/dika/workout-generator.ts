@@ -37,7 +37,12 @@ export function detectWorkoutGenerationRequest(message: string): boolean {
     /design\s+(a\s+)?(\d+[\s-]?day\s+)?workout/i,
     /give\s+me\s+(a\s+)?(\d+[\s-]?day\s+)?workout/i,
     /i\s+need\s+(a\s+)?(\d+[\s-]?day\s+)?workout/i,
+    /i\s+want\s+(a\s+)?(\d+[\s-]?day\s+)?workout/i,
+    /suggest\s+(me\s+)?(a\s+)?workout/i,
+    /recommend\s+(me\s+)?(a\s+)?workout/i,
     /workout\s+plan\s+for/i,
+    /workout\s+plan\s+which/i,
+    /workout\s+plan\s+to/i,
     /training\s+plan\s+for/i,
     /exercise\s+routine\s+for/i,
     /gym\s+program/i,
@@ -47,6 +52,12 @@ export function detectWorkoutGenerationRequest(message: string): boolean {
     /upper\s*lower\s+split/i,
     /full\s+body\s+(routine|program|workout)/i,
     /bro\s+split/i,
+    /abs?\s+workout/i,
+    /6[\s-]?pack\s+workout/i,
+    /six[\s-]?pack\s+(workout|plan|routine)/i,
+    /workout\s+for\s+(abs|6[\s-]?pack|six[\s-]?pack)/i,
+    /plan\s+for\s+(abs|6[\s-]?pack|six[\s-]?pack|muscle|strength|weight\s+loss)/i,
+    /workout\s+.*\s+(abs|chest|back|legs|arms|shoulders)/i,
   ];
   
   return patterns.some(pattern => pattern.test(message));
