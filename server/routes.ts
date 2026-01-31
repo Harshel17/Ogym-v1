@@ -3707,6 +3707,8 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Query must be at least 2 characters" });
     }
     
+    const includeExternal = req.query.external !== 'false';
+    
     // Search local curated database first (hotel menu style items)
     const localFoods = searchLocalFoods(query);
     const localProducts: FoodProduct[] = localFoods.map(food => ({
@@ -3724,16 +3726,38 @@ export async function registerRoutes(
       imageUrl: null
     }));
     
-    // Then search Open Food Facts for packaged products
-    const externalResults = await searchFoodByName(query, page);
+    // If we have enough local results or external is disabled, return immediately
+    if (localProducts.length >= 8 || !includeExternal) {
+      return res.json({
+        products: localProducts.slice(0, 15),
+        count: localProducts.length,
+        hasExternal: false
+      });
+    }
     
-    // Combine: local foods first, then external
-    const combinedProducts = [...localProducts, ...externalResults.products];
-    
-    res.json({
-      products: combinedProducts,
-      count: localProducts.length + externalResults.count
-    });
+    // Search Open Food Facts with a timeout (3 seconds max)
+    try {
+      const externalPromise = searchFoodByName(query, page);
+      const timeoutPromise = new Promise<{ products: FoodProduct[], count: number }>((_, reject) => 
+        setTimeout(() => reject(new Error('timeout')), 3000)
+      );
+      
+      const externalResults = await Promise.race([externalPromise, timeoutPromise]);
+      const combinedProducts = [...localProducts, ...externalResults.products].slice(0, 20);
+      
+      res.json({
+        products: combinedProducts,
+        count: localProducts.length + externalResults.count,
+        hasExternal: true
+      });
+    } catch {
+      // If external API fails or times out, just return local results
+      res.json({
+        products: localProducts,
+        count: localProducts.length,
+        hasExternal: false
+      });
+    }
   });
 
   app.get("/api/nutrition/food/barcode/:barcode", requireRole(["member"]), async (req, res) => {
