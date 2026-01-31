@@ -130,9 +130,9 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const outerStrokeDashoffset = outerCircumference - (caloriePercentage / 100) * outerCircumference;
   const innerStrokeDashoffset = innerCircumference - (proteinPercentage / 100) * innerCircumference;
 
-  // Color scheme: Emerald for calories, Violet for protein
+  // Color scheme: Emerald for calories, Teal for protein
   const calorieColor = isCaloriesOver ? "#ef4444" : "#10b981";
-  const proteinColor = isProteinOver ? "#ef4444" : "#8b5cf6";
+  const proteinColor = isProteinOver ? "#ef4444" : "#14b8a6";
 
   return (
     <Card
@@ -222,7 +222,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
         {showProteinRing && (
           <p className={cn(
             "text-[10px] tabular-nums",
-            isProteinOver ? "text-red-500" : "text-violet-500"
+            isProteinOver ? "text-red-500" : "text-teal-500"
           )}>
             Protein: {currentProtein}g / {effectiveProteinTarget}g
           </p>
