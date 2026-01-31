@@ -1267,6 +1267,14 @@ function MemberDashboard() {
         </Card>
       </Collapsible>
 
+      {/* Calorie progress strip - below Today's Workout, above stats cards */}
+      <Link href="/nutrition">
+        <CalorieProgressStrip
+          current={calorieData?.summary?.calories || 0}
+          target={calorieData?.goal?.dailyCalorieTarget || 0}
+        />
+      </Link>
+
       {workoutSummary && (
         <>
           <div className="grid grid-cols-2 gap-4">
@@ -1289,19 +1297,6 @@ function MemberDashboard() {
           </div>
 
           <WeeklyProgress calendarDays={workoutSummary.calendarDays} />
-
-          {/* Sticky calorie progress footer */}
-          <div className="fixed bottom-16 left-0 right-0 z-40 px-4 pb-safe">
-            <Link href="/nutrition">
-              <CalorieProgressStrip
-                current={calorieData?.summary?.calories || 0}
-                target={calorieData?.goal?.dailyCalorieTarget || 0}
-                className="shadow-lg border"
-              />
-            </Link>
-          </div>
-          {/* Spacer to prevent content from being hidden behind sticky footer */}
-          <div className="h-20" />
         </>
       )}
 
