@@ -201,7 +201,7 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
       </p>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md max-w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           {step === 'radius' && (
             <>
               <DialogHeader>
@@ -279,54 +279,54 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
               </DialogHeader>
 
               {dikaGeneralMessage && (
-                <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-200 dark:border-purple-800 rounded-lg p-3 mt-2">
+                <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-200 dark:border-purple-800 rounded-lg p-2.5 sm:p-3 mt-2">
                   <div className="flex items-start gap-2">
-                    <Sparkles className="w-4 h-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                    <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-500 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-xs font-medium text-purple-600 dark:text-purple-400">Dika says...</p>
-                      <p className="text-sm mt-0.5">{dikaGeneralMessage}</p>
+                      <p className="text-[10px] sm:text-xs font-medium text-purple-600 dark:text-purple-400">Dika says...</p>
+                      <p className="text-xs sm:text-sm mt-0.5">{dikaGeneralMessage}</p>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="space-y-3 mt-4 max-h-[50vh] overflow-y-auto">
+              <div className="space-y-2 sm:space-y-3 mt-3 sm:mt-4 max-h-[55vh] overflow-y-auto -mx-1 px-1">
                 {restaurants.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Utensils className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No restaurants found with suggestions in this area.</p>
-                    <p className="text-sm mt-1">Try increasing the search radius.</p>
+                  <div className="text-center py-6 sm:py-8 text-muted-foreground">
+                    <Utensils className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 opacity-50" />
+                    <p className="text-sm sm:text-base">No restaurants found with suggestions in this area.</p>
+                    <p className="text-xs sm:text-sm mt-1">Try increasing the search radius.</p>
                   </div>
                 ) : (
                   restaurants.map((restaurant, index) => (
                     <Card 
                       key={index} 
-                      className="cursor-pointer hover-elevate"
+                      className="cursor-pointer hover-elevate active:scale-[0.98] transition-transform"
                       onClick={() => handleRestaurantClick(restaurant)}
                       data-testid={`card-restaurant-${index}`}
                     >
-                      <CardContent className="p-3">
+                      <CardContent className="p-2.5 sm:p-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
                               {getCategoryIcon(restaurant.category)}
-                              <h4 className="font-medium truncate">{restaurant.name}</h4>
+                              <h4 className="font-medium text-sm sm:text-base truncate">{restaurant.name}</h4>
+                              <span className="text-[10px] sm:text-xs text-muted-foreground flex-shrink-0">
+                                {restaurant.distanceText}
+                              </span>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {restaurant.distanceText}
-                            </p>
                             {restaurant.suggestion && (
-                              <div className="mt-2 space-y-1">
-                                <Badge variant="secondary" className="text-xs">
-                                  Safest: {restaurant.suggestion.item}
-                                </Badge>
-                                <p className="text-xs text-muted-foreground">
-                                  {restaurant.suggestion.approxCalories} • {restaurant.suggestion.reason}
+                              <div className="mt-1.5 sm:mt-2">
+                                <p className="text-xs sm:text-sm font-medium text-primary line-clamp-1">
+                                  {restaurant.suggestion.item}
+                                </p>
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                  {restaurant.suggestion.approxCalories} · {restaurant.suggestion.reason}
                                 </p>
                               </div>
                             )}
                           </div>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-1" />
+                          <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                         </div>
                       </CardContent>
                     </Card>
@@ -336,7 +336,8 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
 
               <Button 
                 variant="outline" 
-                className="w-full mt-4"
+                className="w-full mt-3 sm:mt-4"
+                size="sm"
                 onClick={() => setStep('radius')}
               >
                 Search Again
