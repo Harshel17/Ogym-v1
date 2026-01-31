@@ -116,11 +116,11 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const proteinPercentage = effectiveProteinTarget > 0 ? Math.min((currentProtein / effectiveProteinTarget) * 100, 100) : 0;
   const isProteinOver = effectiveProteinTarget > 0 && currentProtein > effectiveProteinTarget;
   
-  // SVG circle calculations - dual ring layout (matching streak card size)
-  const size = 52;
-  const outerStrokeWidth = 5;
-  const innerStrokeWidth = 3;
-  const gap = 2;
+  // SVG circle calculations - dual ring layout
+  const size = 72;
+  const outerStrokeWidth = 6;
+  const innerStrokeWidth = 4;
+  const gap = 3;
   const outerRadius = (size - outerStrokeWidth) / 2;
   const innerRadius = outerRadius - outerStrokeWidth / 2 - gap - innerStrokeWidth / 2;
   
@@ -130,9 +130,9 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const outerStrokeDashoffset = outerCircumference - (caloriePercentage / 100) * outerCircumference;
   const innerStrokeDashoffset = innerCircumference - (proteinPercentage / 100) * innerCircumference;
 
-  // Color scheme: Emerald for calories, Violet for protein (complementary, modern)
-  const calorieColor = isCaloriesOver ? "#ef4444" : "#10b981"; // red-500 / emerald-500
-  const proteinColor = isProteinOver ? "#ef4444" : "#8b5cf6"; // red-500 / violet-500
+  // Color scheme: Emerald for calories, Violet for protein
+  const calorieColor = isCaloriesOver ? "#ef4444" : "#10b981";
+  const proteinColor = isProteinOver ? "#ef4444" : "#8b5cf6";
 
   return (
     <Card
@@ -144,9 +144,9 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center py-5">
+      <CardContent className="flex flex-col items-center justify-center py-3">
         {/* Dual Ring Progress */}
-        <div className="relative mb-2">
+        <div className="relative">
           <svg
             width={size}
             height={size}
@@ -205,18 +205,28 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
             )}
           </svg>
           {/* Center content */}
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className={cn(
-              "text-sm font-bold tabular-nums leading-none",
+              "text-base font-bold tabular-nums leading-none",
               isCaloriesOver && "text-red-500"
             )}>
               {displayValue}
             </span>
+            <span className="text-[8px] text-muted-foreground mt-0.5">kcal</span>
           </div>
         </div>
         
-        <p className="text-2xl font-bold tabular-nums">{Math.round(caloriePercentage)}%</p>
-        <p className="text-xs text-muted-foreground mt-0.5">Today's Calories</p>
+        <p className="text-xs text-muted-foreground mt-1.5">Today's Calories</p>
+        
+        {/* Protein info */}
+        {showProteinRing && (
+          <p className={cn(
+            "text-[10px] tabular-nums mt-0.5",
+            isProteinOver ? "text-red-500" : "text-violet-500"
+          )}>
+            Protein: {currentProtein}g / {effectiveProteinTarget}g
+          </p>
+        )}
       </CardContent>
     </Card>
   );
