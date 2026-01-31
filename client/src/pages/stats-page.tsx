@@ -109,20 +109,30 @@ type AnalyticsExplanation = {
   };
 };
 
-const COLORS: Record<string, string> = {
-  'Chest': '#6366f1',
-  'Back': '#22c55e', 
-  'Legs': '#f59e0b',
-  'Shoulders': '#ec4899',
-  'Arms': '#14b8a6',
-  'Core': '#8b5cf6',
-  'Glutes': '#f97316',
-  'Full Body': '#0ea5e9',
-  'Cardio': '#ef4444',
-  'Rest': '#64748b',
+const MUSCLE_COLORS: Record<string, { primary: string; light: string }> = {
+  'Chest': { primary: '#6366f1', light: '#818cf8' },
+  'Back': { primary: '#22c55e', light: '#4ade80' },
+  'Legs': { primary: '#f59e0b', light: '#fbbf24' },
+  'Shoulders': { primary: '#ec4899', light: '#f472b6' },
+  'Arms': { primary: '#14b8a6', light: '#2dd4bf' },
+  'Core': { primary: '#8b5cf6', light: '#a78bfa' },
+  'Glutes': { primary: '#f97316', light: '#fb923c' },
+  'Full Body': { primary: '#0ea5e9', light: '#38bdf8' },
+  'Cardio': { primary: '#ef4444', light: '#f87171' },
+  'Rest': { primary: '#64748b', light: '#94a3b8' },
 };
-const DEFAULT_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6', '#8b5cf6', '#f97316'];
-const getColor = (name: string, index: number) => COLORS[name] || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+const DEFAULT_MUSCLE_COLORS = [
+  { primary: '#6366f1', light: '#818cf8' },
+  { primary: '#22c55e', light: '#4ade80' },
+  { primary: '#f59e0b', light: '#fbbf24' },
+  { primary: '#ec4899', light: '#f472b6' },
+  { primary: '#14b8a6', light: '#2dd4bf' },
+  { primary: '#8b5cf6', light: '#a78bfa' },
+  { primary: '#f97316', light: '#fb923c' },
+];
+const getMuscleColor = (name: string, index: number) => 
+  MUSCLE_COLORS[name] || DEFAULT_MUSCLE_COLORS[index % DEFAULT_MUSCLE_COLORS.length];
+const getColor = (name: string, index: number) => getMuscleColor(name, index).primary;
 
 export default function StatsPage() {
   const { user } = useAuth();
@@ -919,27 +929,41 @@ export default function StatsPage() {
 
           {stats.muscleGroupBreakdown && stats.muscleGroupBreakdown.length > 0 && (
             <div className="grid gap-6 md:grid-cols-2">
-              <Card data-testid="card-muscle-chart">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5" />
+              <Card data-testid="card-muscle-chart" className="overflow-hidden">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <BarChart3 className="w-5 h-5 text-primary" />
                     Muscle Group Breakdown
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[250px]">
+                  <div className="h-[280px] relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
+                        <defs>
+                          {stats.muscleGroupBreakdown.map((entry, index) => {
+                            const colors = getMuscleColor(entry.name, index);
+                            return (
+                              <linearGradient key={`gradient-${index}`} id={`muscleGradient-${index}`} x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stopColor={colors.light} />
+                                <stop offset="100%" stopColor={colors.primary} />
+                              </linearGradient>
+                            );
+                          })}
+                        </defs>
                         <Pie
                           data={stats.muscleGroupBreakdown}
                           dataKey="count"
                           nameKey="name"
                           cx="50%"
                           cy="50%"
-                          outerRadius={80}
+                          innerRadius={50}
+                          outerRadius={85}
+                          paddingAngle={3}
+                          cornerRadius={4}
                           label={({ cx, cy, midAngle, outerRadius, name, percentage }) => {
                             const RADIAN = Math.PI / 180;
-                            const radius = outerRadius + 25;
+                            const radius = outerRadius + 20;
                             const x = cx + radius * Math.cos(-midAngle * RADIAN);
                             const y = cy + radius * Math.sin(-midAngle * RADIAN);
                             return (
@@ -949,55 +973,102 @@ export default function StatsPage() {
                                 fill="hsl(var(--foreground))"
                                 textAnchor={x > cx ? 'start' : 'end'}
                                 dominantBaseline="central"
-                                fontSize={11}
+                                fontSize={10}
+                                fontWeight={500}
                               >
                                 {`${name} ${percentage}%`}
                               </text>
                             );
                           }}
-                          labelLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+                          labelLine={{ 
+                            stroke: 'hsl(var(--muted-foreground))',
+                            strokeWidth: 1,
+                            strokeDasharray: '2 2'
+                          }}
                         >
                           {stats.muscleGroupBreakdown.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={getColor(entry.name, index)} />
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={`url(#muscleGradient-${index})`}
+                              stroke="hsl(var(--background))"
+                              strokeWidth={2}
+                            />
                           ))}
                         </Pie>
                         <Tooltip 
                           contentStyle={{ 
                             backgroundColor: 'hsl(var(--card))', 
                             border: '1px solid hsl(var(--border))',
-                            borderRadius: '8px'
+                            borderRadius: '12px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
                           }}
-                          labelStyle={{ color: 'hsl(var(--foreground))' }}
+                          labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
+                          formatter={(value: number, name: string) => [`${value} sessions`, name]}
                         />
                       </PieChart>
                     </ResponsiveContainer>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">
+                          {stats.muscleGroupBreakdown.reduce((sum, g) => sum + g.count, 0)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Total</div>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card data-testid="card-muscle-list">
-                <CardHeader>
-                  <CardTitle>Sessions by Muscle Group</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Sessions by Muscle Group</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {stats.muscleGroupBreakdown.map((group, index) => (
-                    <div key={group.name} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: getColor(group.name, index) }}
-                          />
-                          <span className="text-sm font-medium">{group.name}</span>
+                <CardContent className="space-y-3">
+                  {stats.muscleGroupBreakdown.map((group, index) => {
+                    const colors = getMuscleColor(group.name, index);
+                    return (
+                      <div 
+                        key={group.name} 
+                        className="group relative p-2.5 rounded-lg hover:bg-muted/50 transition-colors cursor-default"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2.5">
+                            <div 
+                              className="w-3.5 h-3.5 rounded-full shadow-sm transition-transform group-hover:scale-110" 
+                              style={{ 
+                                backgroundColor: colors.primary,
+                                boxShadow: `0 0 0 2px hsl(var(--background)), 0 0 0 4px ${colors.light}40`
+                              }}
+                            />
+                            <span className="text-sm font-medium">{group.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span 
+                              className="text-sm font-semibold px-2 py-0.5 rounded-full"
+                              style={{ 
+                                backgroundColor: `${colors.primary}20`,
+                                color: colors.primary
+                              }}
+                            >
+                              {group.count}
+                            </span>
+                            <span className="text-xs text-muted-foreground font-medium w-10 text-right">
+                              {group.percentage}%
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary">{group.count}</Badge>
-                          <span className="text-sm text-muted-foreground">{group.percentage}%</span>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full rounded-full transition-all duration-700 ease-out"
+                            style={{ 
+                              width: `${group.percentage}%`,
+                              background: `linear-gradient(90deg, ${colors.light}, ${colors.primary})`
+                            }}
+                          />
                         </div>
                       </div>
-                      <Progress value={group.percentage} className="h-2" />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
             </div>
