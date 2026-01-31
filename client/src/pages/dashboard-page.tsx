@@ -669,6 +669,15 @@ function MemberDashboard() {
   const { data: todayWorkout, isLoading: workoutLoading } = useTodayWorkout();
   const { data: profile } = useMemberProfile();
   
+  const todayDateStr = format(new Date(), 'yyyy-MM-dd');
+  const { data: calorieData } = useQuery<{ summary: { calories: number }; goal: { dailyCalories: number } | null }>({
+    queryKey: ["/api/nutrition/summary", todayDateStr],
+    queryFn: async () => {
+      const res = await fetch(`/api/nutrition/summary?date=${todayDateStr}`);
+      return res.json();
+    }
+  });
+  
   const handleAskToShare = (achievements: { type: string; label: string; metadata: Record<string, unknown> }[]) => {
     if (achievements.length > 0) {
       setShareableAchievements(achievements);
@@ -1260,7 +1269,7 @@ function MemberDashboard() {
 
       {workoutSummary && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <Link href="/progress/workouts">
               <AnimatedStatCard
                 value={workoutSummary.streak}
@@ -1270,31 +1279,13 @@ function MemberDashboard() {
                 delay={0}
               />
             </Link>
-            <Link href="/progress/workouts">
+            <Link href="/nutrition">
               <AnimatedStatCard
-                value={workoutSummary.totalWorkouts}
-                label="Total Sessions"
-                icon="target"
-                color="blue"
-                delay={100}
-              />
-            </Link>
-            <Link href="/progress/workouts">
-              <AnimatedStatCard
-                value={workoutSummary.last7DaysCount}
-                label="Last 7 Days"
-                icon="calendar"
+                value={calorieData?.summary?.calories || 0}
+                label="Today's Calories"
+                icon="apple"
                 color="green"
-                delay={200}
-              />
-            </Link>
-            <Link href="/progress/workouts">
-              <AnimatedStatCard
-                value={workoutSummary.thisMonthCount}
-                label="This Month"
-                icon="trending"
-                color="purple"
-                delay={300}
+                delay={100}
               />
             </Link>
           </div>

@@ -1,12 +1,12 @@
 import { memo, useMemo, useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Flame, Target, Calendar, TrendingUp, Check } from "lucide-react";
+import { Flame, Target, Calendar, TrendingUp, Check, Apple } from "lucide-react";
 
 interface AnimatedStatCardProps {
   value: number;
   label: string;
-  icon: "flame" | "target" | "calendar" | "trending";
+  icon: "flame" | "target" | "calendar" | "trending" | "apple";
   color: "orange" | "blue" | "green" | "purple";
   delay?: number;
   onClick?: () => void;
@@ -17,6 +17,7 @@ const iconMap = {
   target: Target,
   calendar: Calendar,
   trending: TrendingUp,
+  apple: Apple,
 };
 
 const colorConfig = {
