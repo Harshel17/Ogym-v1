@@ -102,6 +102,16 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   delay = 0,
 }: CalorieProgressCardProps) {
   const displayValue = useSimpleCounter(current, delay);
+  const effectiveTarget = target > 0 ? target : 2000;
+  const percentage = Math.min((current / effectiveTarget) * 100, 100);
+  const isOver = current > effectiveTarget;
+  
+  // SVG circle calculations
+  const size = 72;
+  const strokeWidth = 6;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   return (
     <Card
@@ -113,12 +123,61 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center py-5">
-        <div className="p-2.5 rounded-xl text-white mb-2 bg-green-500">
-          <Apple className="w-5 h-5" />
+      <CardContent className="flex flex-col items-center justify-center py-4">
+        {/* Circular Progress Ring */}
+        <div className="relative mb-1">
+          <svg
+            width={size}
+            height={size}
+            className="transform -rotate-90"
+          >
+            {/* Background circle */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke="hsl(var(--muted))"
+              strokeWidth={strokeWidth}
+            />
+            {/* Progress circle */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={isOver ? "url(#overGradient)" : "url(#progressGradient)"}
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              className="transition-all duration-700 ease-out"
+            />
+            {/* Gradient definitions */}
+            <defs>
+              <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#22c55e" />
+                <stop offset="100%" stopColor="#10b981" />
+              </linearGradient>
+              <linearGradient id="overGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#f97316" />
+                <stop offset="100%" stopColor="#ef4444" />
+              </linearGradient>
+            </defs>
+          </svg>
+          {/* Center text */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className={cn(
+              "text-lg font-bold tabular-nums leading-none",
+              isOver && "text-orange-500"
+            )}>
+              {displayValue}
+            </span>
+            <span className="text-[9px] text-muted-foreground mt-0.5">kcal</span>
+          </div>
         </div>
-        <p className="text-2xl font-bold tabular-nums">{displayValue}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">Today's Calories</p>
+        <p className="text-xs text-muted-foreground">Today's Calories</p>
+        <p className="text-[10px] text-muted-foreground/70 tabular-nums">/ {effectiveTarget}</p>
       </CardContent>
     </Card>
   );
