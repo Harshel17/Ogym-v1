@@ -427,29 +427,29 @@ export default function NutritionPage() {
               </div>
 
               {searchResults.length > 0 && (
-                <div className="space-y-2 max-h-[200px] sm:max-h-[280px] overflow-y-auto">
-                  {searchResults.map((product) => (
+                <div className="space-y-1.5 max-h-[220px] sm:max-h-[300px] overflow-y-auto rounded-lg border bg-card">
+                  {searchResults.map((product, index) => (
                     <button
                       key={product.barcode}
                       onClick={() => setSelectedFood(product)}
-                      className="w-full p-2.5 sm:p-3 text-left border rounded-lg hover-elevate"
+                      className={`w-full px-3 py-2.5 text-left hover-elevate flex items-center justify-between gap-2 ${index !== searchResults.length - 1 ? 'border-b' : ''}`}
                       data-testid={`button-select-food-${product.barcode}`}
                     >
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        {product.imageUrl ? (
-                          <img src={product.imageUrl} alt="" className="w-10 h-10 object-contain rounded flex-shrink-0" />
-                        ) : (
-                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                            <Apple className="w-5 h-5 text-muted-foreground" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm sm:text-base line-clamp-1">{product.name}</p>
-                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">
-                            {product.nutrients.calories} cal · {product.servingSize || "1 serving"}
-                            {product.brandName && ` · ${product.brandName}`}
-                          </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm sm:text-base">{product.name}</p>
+                          {product.barcode?.startsWith('local-') && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium shrink-0">MENU</span>
+                          )}
                         </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {product.servingSize || "1 serving"}
+                          {product.brandName && ` · ${product.brandName}`}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold text-sm">{product.nutrients.calories}</p>
+                        <p className="text-[10px] text-muted-foreground">cal</p>
                       </div>
                     </button>
                   ))}
