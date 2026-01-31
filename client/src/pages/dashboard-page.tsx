@@ -1288,14 +1288,20 @@ function MemberDashboard() {
             </Link>
           </div>
 
-          <Link href="/nutrition">
-            <CalorieProgressStrip
-              current={calorieData?.summary?.calories || 0}
-              target={calorieData?.goal?.dailyCalorieTarget || 0}
-            />
-          </Link>
-          
           <WeeklyProgress calendarDays={workoutSummary.calendarDays} />
+
+          {/* Sticky calorie progress footer */}
+          <div className="fixed bottom-16 left-0 right-0 z-40 px-4 pb-safe">
+            <Link href="/nutrition">
+              <CalorieProgressStrip
+                current={calorieData?.summary?.calories || 0}
+                target={calorieData?.goal?.dailyCalorieTarget || 0}
+                className="shadow-lg border"
+              />
+            </Link>
+          </div>
+          {/* Spacer to prevent content from being hidden behind sticky footer */}
+          <div className="h-20" />
         </>
       )}
 
