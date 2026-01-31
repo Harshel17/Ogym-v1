@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from "recharts";
+import { FindMyFood } from "@/components/find-my-food";
 
 type CalorieGoal = {
   id: number;
@@ -445,6 +446,16 @@ export default function NutritionPage() {
         <Plus className="w-5 h-5 mr-2" />
         Add Food
       </Button>
+
+      <FindMyFood 
+        remainingCalories={remaining}
+        goalType={(goalData?.goalType as 'lose' | 'maintain' | 'gain') || 'maintain'}
+        onLogFood={(foodName, calories) => {
+          setSearchQuery(foodName);
+          setSelectedMealType('lunch');
+          setAddFoodOpen(true);
+        }}
+      />
 
       {MEAL_TYPES.map((meal) => (
         <Card key={meal}>

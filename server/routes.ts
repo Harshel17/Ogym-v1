@@ -16,6 +16,7 @@ import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips } from "./dika";
 import { searchFoodByName, lookupByBarcode, FoodProduct } from "./nutrition/open-food-facts";
 import { searchLocalFoods } from "./nutrition/food-database";
+import { findRestaurantSuggestion, getSuggestionForGoal, getGeneralDikaMessage, GoalType } from "./nutrition/restaurant-suggestions";
 import { insertFoodLogSchema, insertCalorieGoalSchema } from "@shared/schema";
 
 function getAdminJwtSecret(): string {
@@ -3868,6 +3869,94 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Product not found" });
     }
     res.json(product);
+  });
+
+  app.post("/api/nutrition/find-nearby-restaurants", requireRole(["member"]), async (req, res) => {
+    try {
+      const schema = z.object({
+        lat: z.number(),
+        lon: z.number(),
+        radiusMiles: z.number().min(0.5).max(10),
+        goalType: z.enum(["lose", "maintain", "gain"]),
+        remainingCalories: z.number()
+      });
+
+      const { lat, lon, radiusMiles, goalType, remainingCalories } = schema.parse(req.body);
+      const radiusMeters = radiusMiles * 1609.34;
+
+      const overpassQuery = `
+        [out:json][timeout:25];
+        (
+          node["amenity"="restaurant"](around:${radiusMeters},${lat},${lon});
+          node["amenity"="fast_food"](around:${radiusMeters},${lat},${lon});
+          node["amenity"="cafe"](around:${radiusMeters},${lat},${lon});
+        );
+        out body;
+      `;
+
+      const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
+      
+      const response = await fetch(overpassUrl);
+      if (!response.ok) {
+        throw new Error("Failed to fetch from Overpass API");
+      }
+
+      const data = await response.json();
+      const elements = data.elements || [];
+
+      const toRad = (deg: number) => deg * Math.PI / 180;
+      const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 3959;
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      };
+
+      const restaurantsWithSuggestions = elements
+        .filter((el: any) => el.tags?.name)
+        .map((el: any) => {
+          const distance = haversineDistance(lat, lon, el.lat, el.lon);
+          const restaurantSuggestion = findRestaurantSuggestion(el.tags.name);
+          
+          let suggestion = null;
+          let category = 'casual';
+          
+          if (restaurantSuggestion) {
+            const goalSuggestion = getSuggestionForGoal(restaurantSuggestion, goalType as GoalType, remainingCalories);
+            suggestion = goalSuggestion;
+            category = restaurantSuggestion.category;
+          }
+
+          return {
+            name: el.tags.name,
+            distance,
+            distanceText: distance < 1 ? `${(distance * 5280).toFixed(0)} ft` : `${distance.toFixed(1)} mi`,
+            suggestion,
+            category,
+            lat: el.lat,
+            lon: el.lon
+          };
+        })
+        .filter((r: any) => r.suggestion !== null)
+        .sort((a: any, b: any) => a.distance - b.distance)
+        .slice(0, 15);
+
+      const dikaMessage = getGeneralDikaMessage(goalType as GoalType, remainingCalories);
+
+      res.json({
+        restaurants: restaurantsWithSuggestions,
+        dikaMessage,
+        totalFound: elements.length,
+        withSuggestions: restaurantsWithSuggestions.length
+      });
+    } catch (error) {
+      console.error("Find nearby restaurants error:", error);
+      res.status(500).json({ message: "Failed to find nearby restaurants" });
+    }
   });
 
   // === MEMBER PROGRESS - GROUPED SESSIONS ===
