@@ -14,6 +14,8 @@ import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, memb
 import { eq, and, isNotNull, inArray, sql, desc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips } from "./dika";
+import { searchFoodByName, lookupByBarcode } from "./nutrition/open-food-facts";
+import { insertFoodLogSchema, insertCalorieGoalSchema } from "@shared/schema";
 
 function getAdminJwtSecret(): string {
   const secret = process.env.SESSION_SECRET;
@@ -3627,6 +3629,96 @@ export async function registerRoutes(
     }
     
     res.status(201).json(cycle);
+  });
+
+  // === NUTRITION / CALORIE TRACKING ===
+  
+  app.get("/api/nutrition/goal", requireRole(["member"]), async (req, res) => {
+    const goal = await storage.getCalorieGoal(req.user!.id);
+    res.json(goal || null);
+  });
+
+  app.post("/api/nutrition/goal", requireRole(["member"]), async (req, res) => {
+    const schema = insertCalorieGoalSchema.omit({ id: true, createdAt: true, updatedAt: true, isActive: true });
+    const input = schema.parse(req.body);
+    const goal = await storage.createCalorieGoal({ ...input, userId: req.user!.id });
+    res.status(201).json(goal);
+  });
+
+  app.patch("/api/nutrition/goal/:goalId", requireRole(["member"]), async (req, res) => {
+    const goalId = parseInt(req.params.goalId);
+    const existing = await storage.getCalorieGoal(req.user!.id);
+    if (!existing || existing.id !== goalId) {
+      return res.status(404).json({ message: "Goal not found" });
+    }
+    const schema = z.object({
+      dailyCalories: z.number().optional(),
+      dailyProtein: z.number().optional(),
+      dailyCarbs: z.number().optional(),
+      dailyFat: z.number().optional(),
+      goalType: z.enum(["lose", "maintain", "gain"]).optional(),
+    });
+    const input = schema.parse(req.body);
+    const updated = await storage.updateCalorieGoal(goalId, input);
+    res.json(updated);
+  });
+
+  app.get("/api/nutrition/logs", requireRole(["member"]), async (req, res) => {
+    const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const logs = await storage.getFoodLogs(req.user!.id, date);
+    res.json(logs);
+  });
+
+  app.get("/api/nutrition/logs/range", requireRole(["member"]), async (req, res) => {
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "startDate and endDate required" });
+    }
+    const logs = await storage.getFoodLogsByDateRange(req.user!.id, startDate, endDate);
+    res.json(logs);
+  });
+
+  app.post("/api/nutrition/logs", requireRole(["member"]), async (req, res) => {
+    const schema = insertFoodLogSchema.omit({ id: true, createdAt: true });
+    const input = schema.parse(req.body);
+    const log = await storage.createFoodLog({ ...input, userId: req.user!.id });
+    res.status(201).json(log);
+  });
+
+  app.delete("/api/nutrition/logs/:logId", requireRole(["member"]), async (req, res) => {
+    const logId = parseInt(req.params.logId);
+    await storage.deleteFoodLog(logId, req.user!.id);
+    res.status(204).end();
+  });
+
+  app.get("/api/nutrition/summary", requireRole(["member"]), async (req, res) => {
+    const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const summary = await storage.getDailySummary(req.user!.id, date);
+    const goal = await storage.getCalorieGoal(req.user!.id);
+    res.json({ summary, goal });
+  });
+
+  app.get("/api/nutrition/food/search", requireRole(["member"]), async (req, res) => {
+    const query = req.query.q as string;
+    const page = parseInt(req.query.page as string) || 1;
+    if (!query || query.length < 2) {
+      return res.status(400).json({ message: "Query must be at least 2 characters" });
+    }
+    const results = await searchFoodByName(query, page);
+    res.json(results);
+  });
+
+  app.get("/api/nutrition/food/barcode/:barcode", requireRole(["member"]), async (req, res) => {
+    const barcode = req.params.barcode;
+    if (!barcode) {
+      return res.status(400).json({ message: "Barcode required" });
+    }
+    const product = await lookupByBarcode(barcode);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    res.json(product);
   });
 
   // === MEMBER PROGRESS - GROUPED SESSIONS ===

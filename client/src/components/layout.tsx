@@ -42,6 +42,7 @@ import {
   PhoneCall,
   MailCheck,
   Sparkles,
+  Apple,
   type LucideIcon
 } from "lucide-react";
 
@@ -101,6 +102,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "My Body", 
       href: "/my-body", 
       icon: HeartPulse,
+      visible: isPersonalMode,
+      badge: 0
+    },
+    { 
+      label: "Nutrition", 
+      href: "/nutrition", 
+      icon: Apple,
       visible: isPersonalMode,
       badge: 0
     },
@@ -199,6 +207,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "My Body", 
       href: "/my-body", 
       icon: Scale,
+      visible: isMember,
+      badge: 0
+    },
+    { 
+      label: "Nutrition", 
+      href: "/nutrition", 
+      icon: Apple,
       visible: isMember,
       badge: 0
     },
@@ -365,6 +380,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ],
         secondary: [
           { label: "My Body", href: "/my-body", icon: Scale },
+          { label: "Nutrition", href: "/nutrition", icon: Apple },
           { label: "My Diet", href: "/my-diet-plan", icon: Utensils },
           { label: "Payments", href: "/payments", icon: CreditCard },
           { label: "Requests", href: "/requests", icon: MessageSquare, badge: notificationCounts?.pendingRequests || 0 },
@@ -387,6 +403,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ],
         secondary: [
           { label: "My Body", href: "/my-body", icon: HeartPulse },
+          { label: "Nutrition", href: "/nutrition", icon: Apple },
           { label: "Join Gym", href: "/join-gym", icon: Building2 },
           { label: "Help", href: "/help", icon: HelpCircle },
           { label: "Support", href: "/support", icon: MessageSquare },
