@@ -866,15 +866,20 @@ function CreateCycleDialog({ members }: { members: any[] }) {
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().min(1, "End date is required"),
     progressionMode: z.enum(["calendar", "completion"]),
+    calorieTarget: z.coerce.number().min(500).max(10000).optional().or(z.literal("")),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", cycleLength: 3, startDate: "", endDate: "", progressionMode: "calendar" as const },
+    defaultValues: { name: "", cycleLength: 3, startDate: "", endDate: "", progressionMode: "calendar" as const, calorieTarget: "" },
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
-    createCycleMutation.mutate(data, {
+    const submitData = {
+      ...data,
+      calorieTarget: data.calorieTarget && data.calorieTarget !== "" ? Number(data.calorieTarget) : undefined,
+    };
+    createCycleMutation.mutate(submitData, {
       onSuccess: () => {
         setOpen(false);
         form.reset();
@@ -1003,6 +1008,28 @@ function CreateCycleDialog({ members }: { members: any[] }) {
                     {field.value === "completion" 
                       ? "Day advances only when member completes their workout" 
                       : "Day advances automatically based on calendar dates"}
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="calorieTarget"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Daily Calorie Target (optional)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder="e.g., 2000" 
+                      {...field} 
+                      value={field.value || ""}
+                      data-testid="input-calorie-target" 
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Set a daily calorie goal for the member's nutrition tracking
                   </p>
                   <FormMessage />
                 </FormItem>

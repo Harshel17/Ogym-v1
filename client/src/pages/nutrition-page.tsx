@@ -8,13 +8,15 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 import { 
   Flame, Apple, Beef, Wheat, Droplet, Plus, Search, Loader2, 
-  ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X
+  ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X, TrendingUp, Calendar, BarChart3
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, subDays } from "date-fns";
 import { Progress } from "@/components/ui/progress";
 import { BarcodeScanner } from "@/components/barcode-scanner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from "recharts";
 
 type CalorieGoal = {
   id: number;
@@ -62,6 +64,22 @@ type FoodProduct = {
 
 type NutritionSummary = {
   summary: { calories: number; protein: number; carbs: number; fat: number };
+  goal: CalorieGoal | null;
+};
+
+type AnalyticsData = {
+  period: string;
+  startDate: string;
+  endDate: string;
+  dailyData: { date: string; target: number; actual: number; protein: number; carbs: number; fat: number }[];
+  summary: {
+    avgCalories: number;
+    totalCalories: number;
+    targetTotal: number;
+    adherencePercent: number;
+    daysLogged: number;
+    dailyTarget: number;
+  };
   goal: CalorieGoal | null;
 };
 
@@ -574,7 +592,139 @@ export default function NutritionPage() {
           onClose={() => setShowScanner(false)}
         />
       )}
+
+      <CalorieAnalytics />
     </div>
+  );
+}
+
+function CalorieAnalytics() {
+  const [period, setPeriod] = useState<"week" | "month">("week");
+
+  const { data: analytics, isLoading } = useQuery<AnalyticsData>({
+    queryKey: ["/api/nutrition/analytics", period],
+    queryFn: async () => {
+      const res = await fetch(`/api/nutrition/analytics?period=${period}`);
+      return res.json();
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!analytics || !analytics.dailyData) return null;
+
+  const chartData = analytics.dailyData.map(d => ({
+    date: format(new Date(d.date), period === "week" ? "EEE" : "MMM d"),
+    actual: d.actual,
+    target: d.target,
+  }));
+
+  const adherenceColor = analytics.summary.adherencePercent >= 90 ? "text-green-500" : 
+                         analytics.summary.adherencePercent >= 70 ? "text-yellow-500" : "text-red-500";
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <BarChart3 className="w-5 h-5" />
+            Calorie Analytics
+          </CardTitle>
+          <div className="flex gap-1">
+            <Button 
+              variant={period === "week" ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setPeriod("week")}
+              data-testid="button-analytics-week"
+            >
+              Week
+            </Button>
+            <Button 
+              variant={period === "month" ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setPeriod("month")}
+              data-testid="button-analytics-month"
+            >
+              Month
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
+          <div className="text-center p-2 sm:p-3 bg-muted rounded-lg">
+            <div className="text-lg sm:text-xl font-bold">{analytics.summary.avgCalories}</div>
+            <div className="text-xs text-muted-foreground">Avg Daily</div>
+          </div>
+          <div className="text-center p-2 sm:p-3 bg-muted rounded-lg">
+            <div className={`text-lg sm:text-xl font-bold ${adherenceColor}`}>
+              {analytics.summary.adherencePercent}%
+            </div>
+            <div className="text-xs text-muted-foreground">Adherence</div>
+          </div>
+          <div className="text-center p-2 sm:p-3 bg-muted rounded-lg">
+            <div className="text-lg sm:text-xl font-bold">{analytics.summary.daysLogged}</div>
+            <div className="text-xs text-muted-foreground">Days Logged</div>
+          </div>
+        </div>
+
+        {analytics.goal && (
+          <div className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
+            <Target className="w-4 h-4" />
+            Daily Target: <span className="font-medium text-foreground">{analytics.summary.dailyTarget} cal</span>
+            {analytics.goal.setBy === "trainer" && (
+              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Set by Trainer</span>
+            )}
+          </div>
+        )}
+
+        <div className="h-48 sm:h-56">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData}>
+              <XAxis 
+                dataKey="date" 
+                tick={{ fontSize: 11 }}
+                interval={period === "month" ? 4 : 0}
+              />
+              <YAxis 
+                tick={{ fontSize: 11 }}
+                width={40}
+              />
+              <Tooltip 
+                formatter={(value: number) => [`${value} cal`, undefined]}
+                labelFormatter={(label) => `${label}`}
+              />
+              <ReferenceLine 
+                y={analytics.summary.dailyTarget} 
+                stroke="hsl(var(--primary))" 
+                strokeDasharray="3 3"
+                label={{ value: "Target", fontSize: 10, fill: "hsl(var(--primary))" }}
+              />
+              <Bar 
+                dataKey="actual" 
+                fill="hsl(var(--chart-1))" 
+                radius={[4, 4, 0, 0]}
+                name="Calories"
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="mt-4 text-xs text-muted-foreground text-center">
+          {period === "week" ? "Last 7 days" : "Last 30 days"} • Total: {analytics.summary.totalCalories.toLocaleString()} cal
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
