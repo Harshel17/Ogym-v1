@@ -110,10 +110,12 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const caloriePercentage = Math.min((current / effectiveTarget) * 100, 100);
   const isCaloriesOver = current > effectiveTarget;
   
-  // Protein calculations
-  const hasProteinTarget = targetProtein > 0;
-  const proteinPercentage = hasProteinTarget ? Math.min((currentProtein / targetProtein) * 100, 100) : 0;
-  const isProteinOver = hasProteinTarget && currentProtein > targetProtein;
+  // Protein calculations - show ring if there's any protein data or a target set
+  // Use 100g as default target if none set but user has logged protein
+  const effectiveProteinTarget = targetProtein > 0 ? targetProtein : (currentProtein > 0 ? 100 : 0);
+  const showProteinRing = effectiveProteinTarget > 0 || currentProtein > 0;
+  const proteinPercentage = effectiveProteinTarget > 0 ? Math.min((currentProtein / effectiveProteinTarget) * 100, 100) : 0;
+  const isProteinOver = effectiveProteinTarget > 0 && currentProtein > effectiveProteinTarget;
   
   // SVG circle calculations - dual ring layout
   const size = 72;
@@ -171,8 +173,8 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
               className="transition-all duration-700 ease-out"
             />
             
-            {/* Inner ring background (protein) - only if target set */}
-            {hasProteinTarget && (
+            {/* Inner ring background (protein) - show if protein data exists */}
+            {showProteinRing && (
               <>
                 <circle
                   cx={size / 2}
@@ -214,12 +216,12 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
         <p className="text-xs text-muted-foreground mt-1.5">Today's Calories</p>
         
         {/* Protein info */}
-        {hasProteinTarget && (
+        {showProteinRing && (
           <p className={cn(
             "text-[10px] tabular-nums mt-0.5",
             isProteinOver ? "text-orange-500" : "text-blue-500"
           )}>
-            Protein: {currentProtein}g / {targetProtein}g
+            Protein: {currentProtein}g / {effectiveProteinTarget}g
           </p>
         )}
       </CardContent>
