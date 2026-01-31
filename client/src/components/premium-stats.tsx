@@ -102,9 +102,10 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   delay = 0,
 }: CalorieProgressCardProps) {
   const displayValue = useSimpleCounter(current, delay);
-  const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
-  const isOver = current > target && target > 0;
-  const remaining = target > 0 ? Math.max(target - current, 0) : 0;
+  // Use 2000 as default if no goal set
+  const effectiveTarget = target > 0 ? target : 2000;
+  const percentage = Math.min((current / effectiveTarget) * 100, 100);
+  const isOver = current > effectiveTarget;
 
   return (
     <Card
@@ -121,35 +122,27 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
           <Apple className="w-5 h-5" />
         </div>
         <p className="text-2xl font-bold tabular-nums">{displayValue}</p>
-        <p className="text-xs text-muted-foreground mt-0.5 mb-2">Today's Calories</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Today's Calories</p>
         
-        {target > 0 && (
-          <div className="w-full px-2">
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-700 ease-out",
-                  isOver 
-                    ? "bg-gradient-to-r from-orange-400 to-red-500" 
-                    : "bg-gradient-to-r from-green-400 to-emerald-500"
-                )}
-                style={{ width: `${percentage}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[10px] text-muted-foreground">
-                {isOver ? (
-                  <span className="text-orange-500 font-medium">+{current - target} over</span>
-                ) : (
-                  `${remaining} left`
-                )}
-              </span>
-              <span className="text-[10px] text-muted-foreground font-medium">
-                {target}
-              </span>
-            </div>
+        <div className="w-full px-1 mt-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-muted-foreground">Progress</span>
+            <span className={cn("text-xs font-medium", isOver ? "text-orange-500" : "")}>
+              {current}/{effectiveTarget}
+            </span>
           </div>
-        )}
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all duration-700 ease-out",
+                isOver 
+                  ? "bg-gradient-to-r from-orange-400 to-red-500" 
+                  : "bg-gradient-to-r from-green-400 to-emerald-500"
+              )}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
