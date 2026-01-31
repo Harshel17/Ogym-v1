@@ -331,14 +331,6 @@ export default function NutritionPage() {
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl sm:text-2xl font-bold">Nutrition</h1>
         <div className="flex items-center gap-2">
-          <Button 
-            onClick={openGlobalAddFood}
-            size="sm" 
-            data-testid="button-global-add-food"
-          >
-            <Plus className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Add Food</span>
-          </Button>
           <Dialog open={isGoalDialogOpen} onOpenChange={setIsGoalDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" data-testid="button-set-goal">
@@ -438,6 +430,16 @@ export default function NutritionPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Button 
+        onClick={openGlobalAddFood}
+        className="w-full"
+        size="lg"
+        data-testid="button-global-add-food"
+      >
+        <Plus className="w-5 h-5 mr-2" />
+        Add Food
+      </Button>
 
       {MEAL_TYPES.map((meal) => (
         <Card key={meal}>
