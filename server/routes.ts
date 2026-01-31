@@ -3680,7 +3680,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/nutrition/logs", requireRole(["member"]), async (req, res) => {
-    const schema = insertFoodLogSchema.omit({ id: true, createdAt: true });
+    const schema = insertFoodLogSchema.omit({ userId: true });
     const input = schema.parse(req.body);
     const log = await storage.createFoodLog({ ...input, userId: req.user!.id });
     res.status(201).json(log);
