@@ -102,10 +102,6 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   delay = 0,
 }: CalorieProgressCardProps) {
   const displayValue = useSimpleCounter(current, delay);
-  // Use 2000 as default if no goal set
-  const effectiveTarget = target > 0 ? target : 2000;
-  const percentage = Math.min((current / effectiveTarget) * 100, 100);
-  const isOver = current > effectiveTarget;
 
   return (
     <Card
@@ -117,31 +113,51 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center py-4">
+      <CardContent className="flex flex-col items-center justify-center py-5">
         <div className="p-2.5 rounded-xl text-white mb-2 bg-green-500">
           <Apple className="w-5 h-5" />
         </div>
         <p className="text-2xl font-bold tabular-nums">{displayValue}</p>
         <p className="text-xs text-muted-foreground mt-0.5">Today's Calories</p>
-        
-        <div className="w-full px-1 mt-2">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-muted-foreground">Progress</span>
-            <span className={cn("text-xs font-medium", isOver ? "text-orange-500" : "")}>
-              {current}/{effectiveTarget}
-            </span>
-          </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div
-              className={cn(
-                "h-full rounded-full transition-all duration-700 ease-out",
-                isOver 
-                  ? "bg-gradient-to-r from-orange-400 to-red-500" 
-                  : "bg-gradient-to-r from-green-400 to-emerald-500"
-              )}
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
+      </CardContent>
+    </Card>
+  );
+});
+
+interface CalorieProgressStripProps {
+  current: number;
+  target: number;
+  className?: string;
+}
+
+export const CalorieProgressStrip = memo(function CalorieProgressStrip({
+  current,
+  target,
+  className,
+}: CalorieProgressStripProps) {
+  const effectiveTarget = target > 0 ? target : 2000;
+  const percentage = Math.min((current / effectiveTarget) * 100, 100);
+  const isOver = current > effectiveTarget;
+
+  return (
+    <Card className={cn("", className)} data-testid="calorie-progress-strip">
+      <CardContent className="py-3 px-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium">Calories</span>
+          <span className={cn("text-sm font-semibold tabular-nums", isOver ? "text-orange-500" : "")}>
+            {current}/{effectiveTarget}
+          </span>
+        </div>
+        <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+          <div
+            className={cn(
+              "h-full rounded-full transition-all duration-700 ease-out",
+              isOver 
+                ? "bg-gradient-to-r from-orange-400 to-red-500" 
+                : "bg-gradient-to-r from-green-400 to-emerald-500"
+            )}
+            style={{ width: `${percentage}%` }}
+          />
         </div>
       </CardContent>
     </Card>
