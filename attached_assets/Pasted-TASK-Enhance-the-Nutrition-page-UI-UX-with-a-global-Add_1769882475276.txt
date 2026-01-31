@@ -1,0 +1,81 @@
+TASK: Enhance the Nutrition page UI/UX with a global “+ Add Food” button, support for extra meals, and a dedicated Protein section + overall protein intake summary. Keep current design style and do NOT break existing calorie ring, meal sections, or analytics.
+
+CONTEXT (current page):
+- Nutrition page shows: calorie ring (Eaten/Remaining), macros summary, meal sections (Breakfast/Lunch/Dinner/Snack) each with “+ Add”, and a Calorie Analytics card (Week/Month target vs actual).
+- We already have food logging per meal category.
+
+GOAL:
+Make it easier to log food quickly, support multiple meals beyond fixed categories, and add protein tracking as a first-class feature.
+
+REQUIREMENTS:
+
+1) GLOBAL “+ ADD FOOD” AT TOP
+- Add a global “+” button at the TOP of the Nutrition page (top-right near the Nutrition title OR directly under the calorie ring as a prominent button).
+- When user taps this global +, open a bottom sheet / modal called “Add Food”.
+
+2) ADD FOOD MODAL FLOW
+In the “Add Food” modal:
+- First step: user selects a destination category:
+  - Breakfast
+  - Lunch
+  - Dinner
+  - Snack
+  - Protein
+  - Extra Meal (custom)
+- Then show the existing Add Food form (food name, calories, etc.) for that selection.
+
+3) EXTRA MEAL SUPPORT
+- If user selects “Extra Meal”, prompt for a custom label/name for the meal (e.g., “Second Breakfast”, “Post Workout”, “Late Night”).
+- Save the food log with meal_type = "extra" and meal_label = <custom label>.
+- UI rendering:
+  - Add a new section below Snack (or near bottom) called “Extra Meals”.
+  - Group items by meal_label (show label as a subheading), then list the foods under it.
+  - Each item should behave like existing meal items (shows name, details, calories, delete action).
+
+4) PROTEIN SECTION
+- Add a new dedicated section called “Protein” with its own “+ Add” button (same style as other meal sections).
+- Protein entries are for protein shakes/bars/cookies/supplements.
+- Protein add form must include:
+  - item name (required)
+  - protein grams (required)
+  - calories (optional but recommended)
+  - optional notes (optional)
+- Save protein logs with meal_type = "protein" and protein_grams field.
+
+5) OVERALL PROTEIN INTAKE SUMMARY
+- Show a small “Protein Intake” summary near the top (near calorie ring/macros) that displays:
+  - totalProteinToday (sum of protein_grams across ALL foods logged today, including protein section + any meals where protein_grams exists)
+- Display format example:
+  - “Protein: 92g” (and if we have a target, “92g / 130g”)
+- If protein grams are not available for regular foods, still count protein section logs at minimum.
+
+6) DATA MODEL / STORAGE
+- If we already store food logs, extend schema safely:
+  - meal_type: enum/string (breakfast/lunch/dinner/snack/extra/protein)
+  - meal_label: nullable string (only for extra)
+  - protein_grams: nullable number
+- Ensure existing logs still work (default meal_type from existing category).
+
+7) DO NOT CHANGE / DO NOT BREAK
+- Do NOT remove or redesign the calorie ring.
+- Do NOT remove existing meal sections; only enhance them.
+- Do NOT break Calorie Analytics section.
+- Do NOT add complex nutrition APIs or restaurant APIs in this task.
+- Keep styles consistent with current page (light theme, same card style, same spacing).
+
+8) ACCEPTANCE CHECKLIST
+- Global + exists at top and opens Add Food modal.
+- Add Food modal lets user choose category (including Protein + Extra Meal).
+- Extra Meal: user can create multiple custom extra meal labels and add foods to them.
+- Protein section exists with + Add, logs protein grams, shows in list.
+- Protein Intake total updates correctly for today.
+- All existing sections still work and analytics still render.
+
+IMPLEMENTATION NOTES
+- Use the same component patterns used on this page for sections/cards.
+- Add minimal new UI; prefer bottom sheet/modal and reuse existing add form where possible.
+- Add feature flag if needed, but keep it enabled by default.
+
+Deliverable:
+- Push working code updates for Nutrition page + any required backend/schema changes.
+- Include a short summary of changes and where the new UI appears.

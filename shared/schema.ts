@@ -846,7 +846,8 @@ export const foodLogs = pgTable("food_logs", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id).notNull(),
   date: text("date").notNull(), // YYYY-MM-DD
-  mealType: text("meal_type", { enum: ["breakfast", "lunch", "dinner", "snack"] }).notNull(),
+  mealType: text("meal_type", { enum: ["breakfast", "lunch", "dinner", "snack", "extra", "protein"] }).notNull(),
+  mealLabel: text("meal_label"), // custom label for "extra" meal type
   foodName: text("food_name").notNull(),
   brandName: text("brand_name"),
   servingSize: text("serving_size"), // e.g., "100g", "1 cup"
