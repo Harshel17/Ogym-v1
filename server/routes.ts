@@ -949,7 +949,8 @@ export async function registerRoutes(
       dayLabels: z.array(z.string()).optional(),
       startDate: z.string(),
       endDate: z.string(),
-      progressionMode: z.enum(["calendar", "completion"]).optional().default("calendar")
+      progressionMode: z.enum(["calendar", "completion"]).optional().default("calendar"),
+      calorieTarget: z.number().min(500).max(10000).optional(),
     });
     const input = schema.parse(req.body);
     
@@ -959,11 +960,45 @@ export async function registerRoutes(
     }
     
     const cycle = await storage.createWorkoutCycle({
-      ...input,
+      memberId: input.memberId,
+      name: input.name,
+      cycleLength: input.cycleLength,
+      dayLabels: input.dayLabels,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      progressionMode: input.progressionMode,
       gymId: req.user!.gymId!,
       trainerId: req.user!.id
     });
+    
+    // If calorie target provided, set it for the member
+    if (input.calorieTarget) {
+      await storage.setCalorieGoalByTrainer(req.user!.id, input.memberId, {
+        dailyCalorieTarget: input.calorieTarget,
+      });
+    }
+    
     res.status(201).json(cycle);
+  });
+
+  // Trainer sets calorie target for a member
+  app.post("/api/trainer/members/:memberId/calorie-goal", requireRole(["trainer"]), async (req, res) => {
+    const memberId = parseInt(req.params.memberId);
+    const schema = z.object({
+      dailyCalorieTarget: z.number().min(500).max(10000),
+      dailyProteinTarget: z.number().optional(),
+      dailyCarbsTarget: z.number().optional(),
+      dailyFatTarget: z.number().optional(),
+    });
+    const input = schema.parse(req.body);
+    
+    const assignments = await storage.getTrainerMembers(req.user!.id);
+    if (!assignments.some(a => a.memberId === memberId)) {
+      return res.status(403).json({ message: "Member not assigned to you" });
+    }
+    
+    const goal = await storage.setCalorieGoalByTrainer(req.user!.id, memberId, input);
+    res.status(201).json(goal);
   });
 
   app.patch("/api/trainer/cycles/:cycleId/labels", requireRole(["trainer"]), async (req, res) => {
@@ -3698,6 +3733,54 @@ export async function registerRoutes(
     const summary = await storage.getDailySummary(req.user!.id, date);
     const goal = await storage.getCalorieGoal(req.user!.id);
     res.json({ summary, goal });
+  });
+
+  // Weekly/Monthly calorie analytics
+  app.get("/api/nutrition/analytics", requireRole(["member"]), async (req, res) => {
+    const period = req.query.period as string || 'week'; // 'week' or 'month'
+    const today = new Date();
+    let startDate: string;
+    let endDate = today.toISOString().split('T')[0];
+    
+    if (period === 'month') {
+      // Last 30 days
+      const start = new Date(today);
+      start.setDate(start.getDate() - 29);
+      startDate = start.toISOString().split('T')[0];
+    } else {
+      // Last 7 days (default)
+      const start = new Date(today);
+      start.setDate(start.getDate() - 6);
+      startDate = start.toISOString().split('T')[0];
+    }
+    
+    const analytics = await storage.getCalorieAnalytics(req.user!.id, startDate, endDate);
+    const goal = await storage.getCalorieGoal(req.user!.id);
+    
+    // Calculate averages
+    const daysWithData = analytics.filter(d => d.actual > 0);
+    const avgCalories = daysWithData.length > 0 
+      ? Math.round(daysWithData.reduce((sum, d) => sum + d.actual, 0) / daysWithData.length)
+      : 0;
+    const totalCalories = analytics.reduce((sum, d) => sum + d.actual, 0);
+    const targetTotal = analytics.length * (goal?.dailyCalorieTarget || 2000);
+    const adherencePercent = targetTotal > 0 ? Math.round((totalCalories / targetTotal) * 100) : 0;
+    
+    res.json({
+      period,
+      startDate,
+      endDate,
+      dailyData: analytics,
+      summary: {
+        avgCalories,
+        totalCalories,
+        targetTotal,
+        adherencePercent,
+        daysLogged: daysWithData.length,
+        dailyTarget: goal?.dailyCalorieTarget || 2000,
+      },
+      goal: goal || null,
+    });
   });
 
   app.get("/api/nutrition/food/search", requireRole(["member"]), async (req, res) => {

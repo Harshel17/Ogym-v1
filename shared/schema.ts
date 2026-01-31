@@ -833,6 +833,8 @@ export const calorieGoals = pgTable("calorie_goals", {
   dailyCarbsTarget: integer("daily_carbs_target"), // in grams
   dailyFatTarget: integer("daily_fat_target"), // in grams
   goalType: text("goal_type", { enum: ["lose", "maintain", "gain"] }).default("maintain"),
+  setBy: text("set_by", { enum: ["trainer", "self"] }).default("self"), // Who set this target
+  setByUserId: integer("set_by_user_id").references(() => users.id), // Trainer who set it (if trainer)
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

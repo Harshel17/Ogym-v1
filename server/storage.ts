@@ -756,11 +756,13 @@ export interface IStorage {
   getCalorieGoal(userId: number): Promise<CalorieGoal | undefined>;
   createCalorieGoal(data: InsertCalorieGoal): Promise<CalorieGoal>;
   updateCalorieGoal(goalId: number, data: Partial<InsertCalorieGoal>): Promise<CalorieGoal>;
+  setCalorieGoalByTrainer(trainerId: number, memberId: number, data: { dailyCalorieTarget: number; dailyProteinTarget?: number; dailyCarbsTarget?: number; dailyFatTarget?: number }): Promise<CalorieGoal>;
   getFoodLogs(userId: number, date: string): Promise<FoodLog[]>;
   getFoodLogsByDateRange(userId: number, startDate: string, endDate: string): Promise<FoodLog[]>;
   createFoodLog(data: InsertFoodLog): Promise<FoodLog>;
   deleteFoodLog(logId: number, userId: number): Promise<void>;
   getDailySummary(userId: number, date: string): Promise<{ calories: number; protein: number; carbs: number; fat: number }>;
+  getCalorieAnalytics(userId: number, startDate: string, endDate: string): Promise<{ date: string; target: number; actual: number; protein: number; carbs: number; fat: number }[]>;
 }
 
 // Admin Types
@@ -8261,6 +8263,69 @@ export class DatabaseStorage implements IStorage {
       carbs: acc.carbs + (log.carbs || 0),
       fat: acc.fat + (log.fat || 0),
     }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+  }
+
+  async setCalorieGoalByTrainer(trainerId: number, memberId: number, data: { dailyCalorieTarget: number; dailyProteinTarget?: number; dailyCarbsTarget?: number; dailyFatTarget?: number }): Promise<CalorieGoal> {
+    // Deactivate any existing goals for this member
+    await db.update(calorieGoals)
+      .set({ isActive: false })
+      .where(and(eq(calorieGoals.userId, memberId), eq(calorieGoals.isActive, true)));
+    
+    // Create new goal set by trainer
+    const [goal] = await db.insert(calorieGoals).values({
+      userId: memberId,
+      dailyCalorieTarget: data.dailyCalorieTarget,
+      dailyProteinTarget: data.dailyProteinTarget || null,
+      dailyCarbsTarget: data.dailyCarbsTarget || null,
+      dailyFatTarget: data.dailyFatTarget || null,
+      goalType: 'maintain',
+      setBy: 'trainer',
+      setByUserId: trainerId,
+      isActive: true,
+    }).returning();
+    return goal;
+  }
+
+  async getCalorieAnalytics(userId: number, startDate: string, endDate: string): Promise<{ date: string; target: number; actual: number; protein: number; carbs: number; fat: number }[]> {
+    // Get current goal for target
+    const goal = await this.getCalorieGoal(userId);
+    const targetCalories = goal?.dailyCalorieTarget || 2000;
+    
+    // Get all food logs in date range
+    const logs = await this.getFoodLogsByDateRange(userId, startDate, endDate);
+    
+    // Group logs by date
+    const dailyData: Record<string, { calories: number; protein: number; carbs: number; fat: number }> = {};
+    
+    for (const log of logs) {
+      if (!dailyData[log.date]) {
+        dailyData[log.date] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+      }
+      dailyData[log.date].calories += log.calories || 0;
+      dailyData[log.date].protein += log.protein || 0;
+      dailyData[log.date].carbs += log.carbs || 0;
+      dailyData[log.date].fat += log.fat || 0;
+    }
+    
+    // Generate array for all dates in range
+    const result: { date: string; target: number; actual: number; protein: number; carbs: number; fat: number }[] = [];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      const dayData = dailyData[dateStr] || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+      result.push({
+        date: dateStr,
+        target: targetCalories,
+        actual: dayData.calories,
+        protein: dayData.protein,
+        carbs: dayData.carbs,
+        fat: dayData.fat,
+      });
+    }
+    
+    return result;
   }
 }
 
