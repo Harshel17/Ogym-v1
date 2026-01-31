@@ -107,8 +107,8 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const isOver = current > effectiveTarget;
   
   // SVG circle calculations
-  const size = 72;
-  const strokeWidth = 6;
+  const size = 80;
+  const strokeWidth = 7;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
@@ -123,15 +123,23 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center py-4">
-        {/* Circular Progress Ring */}
+      <CardContent className="flex flex-col items-center justify-center py-3">
+        {/* Circular Progress Ring with glow */}
         <div className="relative mb-1">
+          {/* Glow effect */}
+          <div 
+            className={cn(
+              "absolute inset-0 rounded-full blur-md opacity-40 transition-opacity duration-500",
+              isOver ? "bg-orange-400" : "bg-emerald-400"
+            )}
+            style={{ transform: 'scale(0.85)' }}
+          />
           <svg
             width={size}
             height={size}
-            className="transform -rotate-90"
+            className="transform -rotate-90 relative z-10"
           >
-            {/* Background circle */}
+            {/* Background circle with subtle pattern */}
             <circle
               cx={size / 2}
               cy={size / 2}
@@ -139,45 +147,73 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
               fill="none"
               stroke="hsl(var(--muted))"
               strokeWidth={strokeWidth}
+              opacity={0.5}
             />
-            {/* Progress circle */}
+            {/* Secondary track for depth */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius - 1}
+              fill="none"
+              stroke="hsl(var(--muted))"
+              strokeWidth={1}
+              opacity={0.3}
+            />
+            {/* Progress circle with gradient */}
             <circle
               cx={size / 2}
               cy={size / 2}
               r={radius}
               fill="none"
-              stroke={isOver ? "url(#overGradient)" : "url(#progressGradient)"}
+              stroke={isOver ? "url(#calorieOverGradient)" : "url(#calorieProgressGradient)"}
               strokeWidth={strokeWidth}
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
-              className="transition-all duration-700 ease-out"
+              className="transition-all duration-1000 ease-out"
+              style={{
+                filter: isOver 
+                  ? 'drop-shadow(0 0 4px rgba(249, 115, 22, 0.6))' 
+                  : 'drop-shadow(0 0 4px rgba(34, 197, 94, 0.5))'
+              }}
             />
             {/* Gradient definitions */}
             <defs>
-              <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#22c55e" />
-                <stop offset="100%" stopColor="#10b981" />
+              <linearGradient id="calorieProgressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#4ade80" />
+                <stop offset="50%" stopColor="#22c55e" />
+                <stop offset="100%" stopColor="#16a34a" />
               </linearGradient>
-              <linearGradient id="overGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#f97316" />
-                <stop offset="100%" stopColor="#ef4444" />
+              <linearGradient id="calorieOverGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#fb923c" />
+                <stop offset="50%" stopColor="#f97316" />
+                <stop offset="100%" stopColor="#ea580c" />
               </linearGradient>
             </defs>
           </svg>
-          {/* Center text */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={cn(
-              "text-lg font-bold tabular-nums leading-none",
-              isOver && "text-orange-500"
+          {/* Center content with subtle background */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+            <div className={cn(
+              "flex flex-col items-center justify-center rounded-full",
+              "w-14 h-14 bg-background/80 backdrop-blur-sm"
             )}>
-              {displayValue}
-            </span>
-            <span className="text-[9px] text-muted-foreground mt-0.5">kcal</span>
+              <span className={cn(
+                "text-xl font-bold tabular-nums leading-none tracking-tight",
+                isOver ? "text-orange-500" : "text-foreground"
+              )}>
+                {displayValue}
+              </span>
+              <span className="text-[8px] text-muted-foreground mt-0.5 uppercase tracking-wider">kcal</span>
+            </div>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">Today's Calories</p>
-        <p className="text-[10px] text-muted-foreground/70 tabular-nums">/ {effectiveTarget}</p>
+        <p className="text-xs font-medium text-muted-foreground mt-1">Today's Calories</p>
+        <p className={cn(
+          "text-[10px] tabular-nums",
+          isOver ? "text-orange-500/80" : "text-muted-foreground/60"
+        )}>
+          {isOver ? `+${current - effectiveTarget} over` : `${effectiveTarget - current} left`}
+        </p>
       </CardContent>
     </Card>
   );
