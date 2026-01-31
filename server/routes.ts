@@ -14,7 +14,8 @@ import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, memb
 import { eq, and, isNotNull, inArray, sql, desc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips } from "./dika";
-import { searchFoodByName, lookupByBarcode } from "./nutrition/open-food-facts";
+import { searchFoodByName, lookupByBarcode, FoodProduct } from "./nutrition/open-food-facts";
+import { searchLocalFoods } from "./nutrition/food-database";
 import { insertFoodLogSchema, insertCalorieGoalSchema } from "@shared/schema";
 
 function getAdminJwtSecret(): string {
@@ -3705,8 +3706,34 @@ export async function registerRoutes(
     if (!query || query.length < 2) {
       return res.status(400).json({ message: "Query must be at least 2 characters" });
     }
-    const results = await searchFoodByName(query, page);
-    res.json(results);
+    
+    // Search local curated database first (hotel menu style items)
+    const localFoods = searchLocalFoods(query);
+    const localProducts: FoodProduct[] = localFoods.map(food => ({
+      barcode: `local-${food.id}`,
+      name: food.name,
+      brandName: food.category,
+      servingSize: food.servingSize,
+      nutrients: {
+        calories: food.calories,
+        protein: food.protein,
+        carbs: food.carbs,
+        fat: food.fat,
+        fiber: null
+      },
+      imageUrl: null
+    }));
+    
+    // Then search Open Food Facts for packaged products
+    const externalResults = await searchFoodByName(query, page);
+    
+    // Combine: local foods first, then external
+    const combinedProducts = [...localProducts, ...externalResults.products];
+    
+    res.json({
+      products: combinedProducts,
+      count: localProducts.length + externalResults.count
+    });
   });
 
   app.get("/api/nutrition/food/barcode/:barcode", requireRole(["member"]), async (req, res) => {

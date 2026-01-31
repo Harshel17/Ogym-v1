@@ -252,17 +252,17 @@ export default function NutritionPage() {
   }
 
   return (
-    <div className="p-4 space-y-6 pb-24">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Nutrition</h1>
+    <div className="p-3 sm:p-4 space-y-4 sm:space-y-6 pb-24">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold">Nutrition</h1>
         <Dialog open={isGoalDialogOpen} onOpenChange={setIsGoalDialogOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" data-testid="button-set-goal">
-              <Target className="w-4 h-4 mr-2" />
-              Set Goal
+              <Target className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Set Goal</span>
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Set Daily Goals</DialogTitle>
             </DialogHeader>
@@ -275,7 +275,7 @@ export default function NutritionPage() {
         </Dialog>
       </div>
 
-      <div className="flex items-center justify-center gap-4">
+      <div className="flex items-center justify-center gap-2 sm:gap-4">
         <Button 
           variant="ghost" 
           size="icon" 
@@ -284,7 +284,7 @@ export default function NutritionPage() {
         >
           <ChevronLeft className="w-5 h-5" />
         </Button>
-        <span className="text-lg font-medium min-w-[160px] text-center">
+        <span className="text-sm sm:text-lg font-medium min-w-[140px] sm:min-w-[160px] text-center">
           {format(selectedDate, "EEE, MMM d, yyyy")}
         </span>
         <Button 
@@ -298,14 +298,14 @@ export default function NutritionPage() {
       </div>
 
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-center">
-              <div className="text-3xl font-bold">{summary.calories}</div>
-              <div className="text-sm text-muted-foreground">Eaten</div>
+        <CardContent className="pt-4 sm:pt-6">
+          <div className="flex items-center justify-between mb-4 gap-2">
+            <div className="text-center flex-1">
+              <div className="text-2xl sm:text-3xl font-bold">{summary.calories}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Eaten</div>
             </div>
-            <div className="relative w-24 h-24">
-              <svg className="w-full h-full transform -rotate-90">
+            <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 96 96">
                 <circle
                   cx="48" cy="48" r="42"
                   stroke="currentColor"
@@ -323,20 +323,20 @@ export default function NutritionPage() {
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <Flame className="w-5 h-5 text-orange-500" />
+                <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
               </div>
             </div>
-            <div className="text-center">
-              <div className={`text-3xl font-bold ${remaining < 0 ? "text-destructive" : ""}`}>
+            <div className="text-center flex-1">
+              <div className={`text-2xl sm:text-3xl font-bold ${remaining < 0 ? "text-destructive" : ""}`}>
                 {Math.abs(remaining)}
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 {remaining >= 0 ? "Remaining" : "Over"}
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mt-6">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-4 sm:mt-6">
             <MacroProgress label="Protein" value={summary.protein} goal={proteinGoal} percent={proteinPercent} icon={Beef} color="text-red-500" />
             <MacroProgress label="Carbs" value={summary.carbs} goal={carbsGoal} percent={carbsPercent} icon={Wheat} color="text-amber-500" />
             <MacroProgress label="Fat" value={summary.fat} goal={fatGoal} percent={fatPercent} icon={Droplet} color="text-blue-500" />
@@ -396,26 +396,28 @@ export default function NutritionPage() {
       ))}
 
       <Dialog open={isAddFoodOpen} onOpenChange={(open) => { setIsAddFoodOpen(open); if (!open) resetAddFood(); }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add to {MEAL_LABELS[selectedMealType]}</DialogTitle>
+            <DialogTitle className="text-lg">Add to {MEAL_LABELS[selectedMealType]}</DialogTitle>
           </DialogHeader>
           
           {!selectedFood ? (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div className="flex gap-2">
                 <Input
-                  placeholder="Search foods..."
+                  placeholder="Search foods (e.g., dosa, biryani)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  className="text-base"
                   data-testid="input-food-search"
                 />
-                <Button onClick={handleSearch} disabled={isSearching} data-testid="button-search-food">
+                <Button onClick={handleSearch} disabled={isSearching} size="icon" data-testid="button-search-food">
                   {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 </Button>
                 <Button 
                   variant="outline"
+                  size="icon"
                   onClick={() => { setIsAddFoodOpen(false); setShowScanner(true); }}
                   disabled={isScanLookup}
                   data-testid="button-scan-barcode"
@@ -425,22 +427,26 @@ export default function NutritionPage() {
               </div>
 
               {searchResults.length > 0 && (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                <div className="space-y-2 max-h-[200px] sm:max-h-[280px] overflow-y-auto">
                   {searchResults.map((product) => (
                     <button
                       key={product.barcode}
                       onClick={() => setSelectedFood(product)}
-                      className="w-full p-3 text-left border rounded-lg hover-elevate"
+                      className="w-full p-2.5 sm:p-3 text-left border rounded-lg hover-elevate"
                       data-testid={`button-select-food-${product.barcode}`}
                     >
-                      <div className="flex items-center gap-3">
-                        {product.imageUrl && (
-                          <img src={product.imageUrl} alt="" className="w-10 h-10 object-contain rounded" />
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt="" className="w-10 h-10 object-contain rounded flex-shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                            <Apple className="w-5 h-5 text-muted-foreground" />
+                          </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{product.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {product.nutrients.calories} cal per {product.servingSize || "100g"}
+                          <p className="font-medium text-sm sm:text-base line-clamp-1">{product.name}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">
+                            {product.nutrients.calories} cal · {product.servingSize || "1 serving"}
                             {product.brandName && ` · ${product.brandName}`}
                           </p>
                         </div>
@@ -582,10 +588,10 @@ function MacroProgress({ label, value, goal, percent, icon: Icon, color }: {
 }) {
   return (
     <div className="text-center">
-      <Icon className={`w-5 h-5 mx-auto mb-1 ${color}`} />
-      <Progress value={percent} className="h-2 mb-1" />
-      <div className="text-sm font-medium">{value}g</div>
-      <div className="text-xs text-muted-foreground">/ {goal}g</div>
+      <Icon className={`w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 ${color}`} />
+      <Progress value={percent} className="h-1.5 sm:h-2 mb-1" />
+      <div className="text-xs sm:text-sm font-medium">{value}g</div>
+      <div className="text-[10px] sm:text-xs text-muted-foreground">/ {goal}g</div>
     </div>
   );
 }
