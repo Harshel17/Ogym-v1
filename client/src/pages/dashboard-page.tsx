@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus } from "lucide-react";
-import { AnimatedStatCard, CalorieProgressCard, CalorieProgressStrip, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
+import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { Switch } from "@/components/ui/switch";
@@ -1266,14 +1266,6 @@ function MemberDashboard() {
           </CollapsibleContent>
         </Card>
       </Collapsible>
-
-      {/* Calorie progress strip - below Today's Workout, above stats cards */}
-      <Link href="/nutrition">
-        <CalorieProgressStrip
-          current={calorieData?.summary?.calories || 0}
-          target={calorieData?.goal?.dailyCalorieTarget || 0}
-        />
-      </Link>
 
       {workoutSummary && (
         <>
