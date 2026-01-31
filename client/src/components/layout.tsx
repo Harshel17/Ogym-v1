@@ -92,27 +92,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       badge: 0
     },
     { 
-      label: "Progress", 
-      href: "/progress", 
-      icon: TrendingUp,
-      visible: isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "My Body", 
-      href: "/my-body", 
-      icon: HeartPulse,
-      visible: isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "Nutrition", 
-      href: "/nutrition", 
-      icon: Apple,
-      visible: isPersonalMode,
-      badge: 0
-    },
-    { 
       label: "Join a Gym", 
       href: "/join-gym", 
       icon: Building2,
@@ -193,7 +172,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Progress", 
       href: "/progress", 
       icon: TrendingUp,
-      visible: isMember,
+      visible: isMember || isPersonalMode,
       badge: 0
     },
     { 
@@ -207,14 +186,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "My Body", 
       href: "/my-body", 
       icon: Scale,
-      visible: isMember,
+      visible: isMember || isPersonalMode,
       badge: 0
     },
     { 
       label: "Nutrition", 
       href: "/nutrition", 
       icon: Apple,
-      visible: isMember,
+      visible: isMember || isPersonalMode,
       badge: 0
     },
     { 

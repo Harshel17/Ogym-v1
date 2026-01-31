@@ -117,7 +117,7 @@ export default function NutritionPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/nutrition/goal"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/summary", dateStr] });
       toast({ title: "Goal saved!" });
       setIsGoalDialogOpen(false);
     }
@@ -129,8 +129,8 @@ export default function NutritionPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/logs"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/logs", dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/summary", dateStr] });
       toast({ title: "Food logged!" });
       setIsAddFoodOpen(false);
       resetAddFood();
@@ -142,8 +142,8 @@ export default function NutritionPage() {
       await apiRequest("DELETE", `/api/nutrition/logs/${logId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/logs"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/logs", dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/summary", dateStr] });
       toast({ title: "Food removed" });
     }
   });
