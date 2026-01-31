@@ -43,6 +43,7 @@ import {
   MailCheck,
   Sparkles,
   Apple,
+  Salad,
   type LucideIcon
 } from "lucide-react";
 
@@ -355,11 +356,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Workout", href: "/my-workout", icon: Dumbbell },
           { label: "Attendance", href: "/attendance", icon: CalendarCheck },
-          { label: "Progress", href: "/progress", icon: TrendingUp },
+          { label: "Nutrition", href: "/nutrition", icon: Salad },
         ],
         secondary: [
+          { label: "Progress", href: "/progress", icon: TrendingUp },
           { label: "My Body", href: "/my-body", icon: Scale },
-          { label: "Nutrition", href: "/nutrition", icon: Apple },
           { label: "My Diet", href: "/my-diet-plan", icon: Utensils },
           { label: "Payments", href: "/payments", icon: CreditCard },
           { label: "Requests", href: "/requests", icon: MessageSquare, badge: notificationCounts?.pendingRequests || 0 },
@@ -378,11 +379,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Workouts", href: "/my-workouts", icon: Dumbbell },
           { label: "Progress", href: "/progress", icon: TrendingUp },
-          { label: "Profile", href: "/profile", icon: UserCircle },
+          { label: "Nutrition", href: "/nutrition", icon: Salad },
         ],
         secondary: [
           { label: "My Body", href: "/my-body", icon: HeartPulse },
-          { label: "Nutrition", href: "/nutrition", icon: Apple },
+          { label: "Profile", href: "/profile", icon: UserCircle },
           { label: "Join Gym", href: "/join-gym", icon: Building2 },
           { label: "Help", href: "/help", icon: HelpCircle },
           { label: "Support", href: "/support", icon: MessageSquare },
