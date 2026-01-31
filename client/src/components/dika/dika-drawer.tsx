@@ -407,7 +407,30 @@ export function DikaDrawer({
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-violet-50/50 to-transparent dark:from-violet-950/20 dark:to-transparent">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-violet-50/50 to-transparent dark:from-violet-950/20 dark:to-transparent relative">
+          {/* Background Art */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Floating circles */}
+            <div className="absolute top-10 left-4 w-20 h-20 rounded-full bg-gradient-to-br from-violet-200/30 to-pink-200/30 dark:from-violet-500/10 dark:to-pink-500/10 blur-xl" />
+            <div className="absolute top-1/3 right-6 w-16 h-16 rounded-full bg-gradient-to-br from-cyan-200/30 to-blue-200/30 dark:from-cyan-500/10 dark:to-blue-500/10 blur-xl" />
+            <div className="absolute bottom-1/4 left-8 w-24 h-24 rounded-full bg-gradient-to-br from-pink-200/20 to-orange-200/20 dark:from-pink-500/10 dark:to-orange-500/10 blur-2xl" />
+            <div className="absolute bottom-10 right-10 w-14 h-14 rounded-full bg-gradient-to-br from-purple-200/30 to-indigo-200/30 dark:from-purple-500/10 dark:to-indigo-500/10 blur-xl" />
+            
+            {/* Subtle grid pattern */}
+            <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.02]" style={{ 
+              backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)',
+              backgroundSize: '24px 24px'
+            }} />
+            
+            {/* Decorative shapes */}
+            <div className="absolute top-20 right-1/4 w-3 h-3 rounded-full bg-violet-300/40 dark:bg-violet-400/20 animate-pulse" style={{ animationDelay: '0s' }} />
+            <div className="absolute top-1/2 left-1/4 w-2 h-2 rounded-full bg-pink-300/40 dark:bg-pink-400/20 animate-pulse" style={{ animationDelay: '1s' }} />
+            <div className="absolute bottom-1/3 right-1/3 w-2.5 h-2.5 rounded-full bg-cyan-300/40 dark:bg-cyan-400/20 animate-pulse" style={{ animationDelay: '2s' }} />
+            
+            {/* Gradient lines */}
+            <div className="absolute top-0 left-1/2 w-px h-32 bg-gradient-to-b from-violet-200/50 to-transparent dark:from-violet-500/20" />
+            <div className="absolute bottom-0 right-1/3 w-px h-24 bg-gradient-to-t from-pink-200/50 to-transparent dark:from-pink-500/20" />
+          </div>
           {messages.length === 0 && (
             <div className="text-center py-8">
               <div className="w-24 h-24 mx-auto mb-5 relative group">
