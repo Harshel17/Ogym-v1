@@ -280,12 +280,18 @@ export const LOCAL_FOOD_DATABASE: LocalFood[] = [
   { id: "paneer", name: "Paneer", category: "Dairy", servingSize: "100g", calories: 265, protein: 18, carbs: 3, fat: 21 },
   { id: "cheese-slice", name: "Cheese Slice", category: "Dairy", servingSize: "1 slice (20g)", calories: 70, protein: 4, carbs: 1, fat: 6 },
   { id: "whey-protein", name: "Whey Protein Shake", category: "Protein", servingSize: "1 scoop (30g)", calories: 120, protein: 24, carbs: 3, fat: 1 },
+  { id: "whey-protein-26g", name: "Whey Protein Shake (26g)", category: "Protein", servingSize: "1 scoop (32g)", calories: 125, protein: 26, carbs: 3, fat: 1 },
+  { id: "whey-protein-42g", name: "Whey Protein Shake (42g)", category: "Protein", servingSize: "2 scoops (60g)", calories: 240, protein: 42, carbs: 6, fat: 2 },
+  { id: "premium-protein-shake", name: "Premium Protein Shake", category: "Protein", servingSize: "1 bottle (330ml)", calories: 160, protein: 30, carbs: 4, fat: 2 },
+  { id: "ready-to-drink-protein", name: "Ready-to-Drink Protein Shake", category: "Protein", servingSize: "1 bottle (500ml)", calories: 200, protein: 35, carbs: 8, fat: 3 },
   { id: "chicken-breast", name: "Chicken Breast (Grilled)", category: "Protein", servingSize: "100g", calories: 165, protein: 31, carbs: 0, fat: 3.5 },
   { id: "chicken-thigh", name: "Chicken Thigh", category: "Protein", servingSize: "100g", calories: 209, protein: 26, carbs: 0, fat: 11 },
   
   // Protein Supplements - Indian Brands
   { id: "muscleblaze-biozyme", name: "MuscleBlaze Biozyme Whey", category: "Protein", servingSize: "1 scoop (33g)", calories: 130, protein: 25, carbs: 4, fat: 2 },
+  { id: "muscleblaze-biozyme-42g", name: "MuscleBlaze Biozyme Whey (42g Protein)", category: "Protein", servingSize: "2 scoops (66g)", calories: 260, protein: 42, carbs: 8, fat: 4 },
   { id: "muscleblaze-raw", name: "MuscleBlaze Raw Whey Isolate", category: "Protein", servingSize: "1 scoop (30g)", calories: 113, protein: 27, carbs: 1, fat: 0.5 },
+  { id: "muscleblaze-raw-26g", name: "MuscleBlaze Raw Whey (26g Protein)", category: "Protein", servingSize: "1 scoop (30g)", calories: 113, protein: 26, carbs: 1, fat: 0.5 },
   { id: "muscleblaze-super-gainer", name: "MuscleBlaze Super Gainer XXL", category: "Protein", servingSize: "1 scoop (75g)", calories: 290, protein: 15, carbs: 54, fat: 2 },
   { id: "muscleblaze-mass-gainer", name: "MuscleBlaze Mass Gainer PRO", category: "Protein", servingSize: "1 scoop (50g)", calories: 190, protein: 10, carbs: 35, fat: 2 },
   { id: "muscleblaze-beginner", name: "MuscleBlaze Beginner's Whey", category: "Protein", servingSize: "1 scoop (35g)", calories: 128, protein: 24, carbs: 5, fat: 1 },
