@@ -417,12 +417,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
               </div>
               <div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <h1 className="font-display font-bold text-lg leading-none magic-text">OGym</h1>
-                  <span className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-violet-500/10 to-purple-500/10 text-violet-600 dark:text-violet-400 font-medium">
-                    <Sparkles className="w-2.5 h-2.5" />
-                    AI
-                  </span>
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-gradient-to-r from-violet-500/15 to-pink-500/15 border border-violet-300/30 dark:border-violet-500/30">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 flex items-center justify-center shadow-sm shadow-pink-400/30">
+                      <span className="text-xs font-black text-white">D</span>
+                    </div>
+                    <Sparkles className="w-3.5 h-3.5 text-yellow-500" />
+                    <span className="text-xs font-semibold bg-gradient-to-r from-violet-600 to-pink-600 dark:from-violet-400 dark:to-pink-400 bg-clip-text text-transparent">AI</span>
+                  </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Fitness Management</p>
               </div>
@@ -505,10 +508,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold font-display text-sm magic-text">OGym</span>
-            <span className="flex items-center gap-0.5 text-[8px] px-1 py-0.5 rounded-full bg-gradient-to-r from-violet-500/10 to-purple-500/10 text-violet-600 dark:text-violet-400 font-medium">
-              <Sparkles className="w-2 h-2" />
-              AI
-            </span>
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-violet-500/15 to-pink-500/15 border border-violet-300/30 dark:border-violet-500/30">
+              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 flex items-center justify-center shadow-sm shadow-pink-400/30">
+                <span className="text-[10px] font-black text-white">D</span>
+              </div>
+              <Sparkles className="w-3 h-3 text-yellow-500" />
+              <span className="text-[10px] font-semibold bg-gradient-to-r from-violet-600 to-pink-600 dark:from-violet-400 dark:to-pink-400 bg-clip-text text-transparent">AI</span>
+            </div>
            </div>
            <div className="flex items-center gap-1">
              <ThemeToggle />
