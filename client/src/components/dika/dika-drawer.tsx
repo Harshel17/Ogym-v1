@@ -167,7 +167,11 @@ function parseInlineMarkdown(text: string): ReactNode[] {
 }
 
 function MarkdownContent({ content }: { content: string }) {
-  const parsed = useMemo(() => parseMarkdown(content), [content]);
+  const parsed = useMemo(() => {
+    // Strip out hidden workout plan data comments before parsing
+    const cleanContent = content.replace(/<!-- WORKOUT_PLAN_DATA:[\s\S]+? -->/g, '').trim();
+    return parseMarkdown(cleanContent);
+  }, [content]);
   return <div className="leading-relaxed">{parsed}</div>;
 }
 
