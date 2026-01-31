@@ -79,8 +79,8 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
       onClick={onClick}
       data-testid={`stat-card-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
-      <CardContent className="flex flex-col items-center justify-center py-5">
-        <div className={cn("p-3 rounded-full text-white mb-2 shadow-sm", colors.iconBg)}>
+      <CardContent className="flex flex-col items-center justify-center h-[120px] py-0">
+        <div className={cn("p-2.5 rounded-full text-white mb-2 shadow-sm", colors.iconBg)}>
           <Icon className="w-5 h-5" />
         </div>
         <p className="text-2xl font-bold tabular-nums">{displayValue}</p>
@@ -116,11 +116,11 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const proteinPercentage = effectiveProteinTarget > 0 ? Math.min((currentProtein / effectiveProteinTarget) * 100, 100) : 0;
   const isProteinOver = effectiveProteinTarget > 0 && currentProtein > effectiveProteinTarget;
   
-  // SVG circle calculations - dual ring layout
-  const size = 72;
-  const outerStrokeWidth = 6;
-  const innerStrokeWidth = 4;
-  const gap = 3;
+  // SVG circle calculations - dual ring layout (sized to match streak icon)
+  const size = 56;
+  const outerStrokeWidth = 5;
+  const innerStrokeWidth = 3;
+  const gap = 2;
   const outerRadius = (size - outerStrokeWidth) / 2;
   const innerRadius = outerRadius - outerStrokeWidth / 2 - gap - innerStrokeWidth / 2;
   
@@ -144,7 +144,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center py-3">
+      <CardContent className="flex flex-col items-center justify-center h-[120px] py-0">
         {/* Dual Ring Progress */}
         <div className="relative">
           <svg
@@ -216,12 +216,12 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
           </div>
         </div>
         
-        <p className="text-xs text-muted-foreground mt-1.5">Today's Calories</p>
+        <p className="text-xs text-muted-foreground mt-1">Today's Calories</p>
         
         {/* Protein info */}
         {showProteinRing && (
           <p className={cn(
-            "text-[10px] tabular-nums mt-0.5",
+            "text-[10px] tabular-nums",
             isProteinOver ? "text-red-500" : "text-violet-500"
           )}>
             Protein: {currentProtein}g / {effectiveProteinTarget}g
