@@ -90,6 +90,71 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
   );
 });
 
+interface CalorieProgressCardProps {
+  current: number;
+  target: number;
+  delay?: number;
+}
+
+export const CalorieProgressCard = memo(function CalorieProgressCard({
+  current,
+  target,
+  delay = 0,
+}: CalorieProgressCardProps) {
+  const displayValue = useSimpleCounter(current, delay);
+  const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+  const isOver = current > target && target > 0;
+  const remaining = target > 0 ? Math.max(target - current, 0) : 0;
+
+  return (
+    <Card
+      className={cn(
+        "cursor-pointer border transition-transform duration-150 ease-out",
+        "hover:scale-[1.02] active:scale-[0.98]",
+        "hover:bg-green-50 dark:hover:bg-green-950/20",
+        "active:bg-green-100 dark:active:bg-green-950/30"
+      )}
+      data-testid="stat-card-calories"
+    >
+      <CardContent className="flex flex-col items-center justify-center py-4">
+        <div className="p-2.5 rounded-xl text-white mb-2 bg-green-500">
+          <Apple className="w-5 h-5" />
+        </div>
+        <p className="text-2xl font-bold tabular-nums">{displayValue}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 mb-2">Today's Calories</p>
+        
+        {target > 0 && (
+          <div className="w-full px-2">
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-700 ease-out",
+                  isOver 
+                    ? "bg-gradient-to-r from-orange-400 to-red-500" 
+                    : "bg-gradient-to-r from-green-400 to-emerald-500"
+                )}
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-[10px] text-muted-foreground">
+                {isOver ? (
+                  <span className="text-orange-500 font-medium">+{current - target} over</span>
+                ) : (
+                  `${remaining} left`
+                )}
+              </span>
+              <span className="text-[10px] text-muted-foreground font-medium">
+                {target}
+              </span>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+});
+
 interface WorkoutProgressBarProps {
   completed: number;
   total: number;
