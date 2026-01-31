@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addDays, subDays } from "date-fns";
 import { Progress } from "@/components/ui/progress";
+import { BarcodeScanner } from "@/components/barcode-scanner";
 
 type CalorieGoal = {
   id: number;
@@ -84,6 +85,8 @@ export default function NutritionPage() {
   const [selectedFood, setSelectedFood] = useState<FoodProduct | null>(null);
   const [quantity, setQuantity] = useState("1");
   const [manualEntry, setManualEntry] = useState({ name: "", calories: "", protein: "", carbs: "", fat: "" });
+  const [showScanner, setShowScanner] = useState(false);
+  const [isScanLookup, setIsScanLookup] = useState(false);
 
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
@@ -199,6 +202,25 @@ export default function NutritionPage() {
       carbs: manualEntry.carbs ? parseInt(manualEntry.carbs) : null,
       fat: manualEntry.fat ? parseInt(manualEntry.fat) : null
     });
+  };
+
+  const handleBarcodeScan = async (barcode: string) => {
+    setShowScanner(false);
+    setIsScanLookup(true);
+    try {
+      const res = await fetch(`/api/nutrition/food/barcode/${barcode}`);
+      if (res.ok) {
+        const product = await res.json();
+        setSelectedFood(product);
+        setIsAddFoodOpen(true);
+      } else {
+        toast({ title: "Product not found", description: "Try searching manually instead", variant: "destructive" });
+        setIsAddFoodOpen(true);
+      }
+    } catch {
+      toast({ title: "Lookup failed", variant: "destructive" });
+    }
+    setIsScanLookup(false);
   };
 
   const summary = summaryData?.summary || { calories: 0, protein: 0, carbs: 0, fat: 0 };
@@ -392,6 +414,14 @@ export default function NutritionPage() {
                 <Button onClick={handleSearch} disabled={isSearching} data-testid="button-search-food">
                   {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => { setIsAddFoodOpen(false); setShowScanner(true); }}
+                  disabled={isScanLookup}
+                  data-testid="button-scan-barcode"
+                >
+                  {isScanLookup ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
+                </Button>
               </div>
 
               {searchResults.length > 0 && (
@@ -531,6 +561,13 @@ export default function NutritionPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {showScanner && (
+        <BarcodeScanner
+          onScan={handleBarcodeScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 }
