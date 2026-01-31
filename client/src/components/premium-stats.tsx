@@ -22,24 +22,24 @@ const iconMap = {
 
 const colorConfig = {
   orange: {
-    iconBg: "bg-orange-500",
-    hoverBg: "hover:bg-orange-50 dark:hover:bg-orange-950/20",
-    activeBg: "active:bg-orange-100 dark:active:bg-orange-950/30",
+    iconBg: "bg-gradient-to-br from-amber-400 to-orange-500",
+    hoverBg: "hover:bg-amber-50 dark:hover:bg-amber-950/20",
+    activeBg: "active:bg-amber-100 dark:active:bg-amber-950/30",
   },
   blue: {
-    iconBg: "bg-blue-500",
-    hoverBg: "hover:bg-blue-50 dark:hover:bg-blue-950/20",
-    activeBg: "active:bg-blue-100 dark:active:bg-blue-950/30",
+    iconBg: "bg-gradient-to-br from-sky-400 to-blue-500",
+    hoverBg: "hover:bg-sky-50 dark:hover:bg-sky-950/20",
+    activeBg: "active:bg-sky-100 dark:active:bg-sky-950/30",
   },
   green: {
-    iconBg: "bg-green-500",
-    hoverBg: "hover:bg-green-50 dark:hover:bg-green-950/20",
-    activeBg: "active:bg-green-100 dark:active:bg-green-950/30",
+    iconBg: "bg-gradient-to-br from-emerald-400 to-teal-500",
+    hoverBg: "hover:bg-emerald-50 dark:hover:bg-emerald-950/20",
+    activeBg: "active:bg-emerald-100 dark:active:bg-emerald-950/30",
   },
   purple: {
-    iconBg: "bg-purple-500",
-    hoverBg: "hover:bg-purple-50 dark:hover:bg-purple-950/20",
-    activeBg: "active:bg-purple-100 dark:active:bg-purple-950/30",
+    iconBg: "bg-gradient-to-br from-violet-400 to-purple-500",
+    hoverBg: "hover:bg-violet-50 dark:hover:bg-violet-950/20",
+    activeBg: "active:bg-violet-100 dark:active:bg-violet-950/30",
   },
 };
 
@@ -80,7 +80,7 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
       data-testid={`stat-card-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
       <CardContent className="flex flex-col items-center justify-center py-5">
-        <div className={cn("p-2.5 rounded-xl text-white mb-2", colors.iconBg)}>
+        <div className={cn("p-3 rounded-full text-white mb-2 shadow-sm", colors.iconBg)}>
           <Icon className="w-5 h-5" />
         </div>
         <p className="text-2xl font-bold tabular-nums">{displayValue}</p>
@@ -111,17 +111,16 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const isCaloriesOver = current > effectiveTarget;
   
   // Protein calculations - show ring if there's any protein data or a target set
-  // Use 100g as default target if none set but user has logged protein
   const effectiveProteinTarget = targetProtein > 0 ? targetProtein : (currentProtein > 0 ? 100 : 0);
   const showProteinRing = effectiveProteinTarget > 0 || currentProtein > 0;
   const proteinPercentage = effectiveProteinTarget > 0 ? Math.min((currentProtein / effectiveProteinTarget) * 100, 100) : 0;
   const isProteinOver = effectiveProteinTarget > 0 && currentProtein > effectiveProteinTarget;
   
-  // SVG circle calculations - dual ring layout
-  const size = 72;
-  const outerStrokeWidth = 6;
-  const innerStrokeWidth = 4;
-  const gap = 3;
+  // SVG circle calculations - dual ring layout (matching streak card size)
+  const size = 52;
+  const outerStrokeWidth = 5;
+  const innerStrokeWidth = 3;
+  const gap = 2;
   const outerRadius = (size - outerStrokeWidth) / 2;
   const innerRadius = outerRadius - outerStrokeWidth / 2 - gap - innerStrokeWidth / 2;
   
@@ -131,19 +130,23 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const outerStrokeDashoffset = outerCircumference - (caloriePercentage / 100) * outerCircumference;
   const innerStrokeDashoffset = innerCircumference - (proteinPercentage / 100) * innerCircumference;
 
+  // Color scheme: Emerald for calories, Violet for protein (complementary, modern)
+  const calorieColor = isCaloriesOver ? "#ef4444" : "#10b981"; // red-500 / emerald-500
+  const proteinColor = isProteinOver ? "#ef4444" : "#8b5cf6"; // red-500 / violet-500
+
   return (
     <Card
       className={cn(
         "cursor-pointer border transition-transform duration-150 ease-out",
         "hover:scale-[1.02] active:scale-[0.98]",
-        "hover:bg-green-50 dark:hover:bg-green-950/20",
-        "active:bg-green-100 dark:active:bg-green-950/30"
+        "hover:bg-emerald-50 dark:hover:bg-emerald-950/20",
+        "active:bg-emerald-100 dark:active:bg-emerald-950/30"
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center py-3">
+      <CardContent className="flex flex-col items-center justify-center py-5">
         {/* Dual Ring Progress */}
-        <div className="relative">
+        <div className="relative mb-2">
           <svg
             width={size}
             height={size}
@@ -155,9 +158,9 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
               cy={size / 2}
               r={outerRadius}
               fill="none"
-              stroke="hsl(var(--muted))"
+              stroke="currentColor"
+              className="text-muted/30"
               strokeWidth={outerStrokeWidth}
-              opacity={0.4}
             />
             {/* Outer ring progress (calories) */}
             <circle
@@ -165,7 +168,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
               cy={size / 2}
               r={outerRadius}
               fill="none"
-              stroke={isCaloriesOver ? "#f97316" : "#22c55e"}
+              stroke={calorieColor}
               strokeWidth={outerStrokeWidth}
               strokeLinecap="round"
               strokeDasharray={outerCircumference}
@@ -173,7 +176,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
               className="transition-all duration-700 ease-out"
             />
             
-            {/* Inner ring background (protein) - show if protein data exists */}
+            {/* Inner ring background (protein) */}
             {showProteinRing && (
               <>
                 <circle
@@ -181,9 +184,9 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
                   cy={size / 2}
                   r={innerRadius}
                   fill="none"
-                  stroke="hsl(var(--muted))"
+                  stroke="currentColor"
+                  className="text-muted/30"
                   strokeWidth={innerStrokeWidth}
-                  opacity={0.4}
                 />
                 {/* Inner ring progress (protein) */}
                 <circle
@@ -191,7 +194,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
                   cy={size / 2}
                   r={innerRadius}
                   fill="none"
-                  stroke={isProteinOver ? "#f97316" : "#3b82f6"}
+                  stroke={proteinColor}
                   strokeWidth={innerStrokeWidth}
                   strokeLinecap="round"
                   strokeDasharray={innerCircumference}
@@ -202,28 +205,18 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
             )}
           </svg>
           {/* Center content */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center">
             <span className={cn(
-              "text-base font-bold tabular-nums leading-none",
-              isCaloriesOver && "text-orange-500"
+              "text-sm font-bold tabular-nums leading-none",
+              isCaloriesOver && "text-red-500"
             )}>
               {displayValue}
             </span>
-            <span className="text-[8px] text-muted-foreground mt-0.5">kcal</span>
           </div>
         </div>
         
-        <p className="text-xs text-muted-foreground mt-1.5">Today's Calories</p>
-        
-        {/* Protein info */}
-        {showProteinRing && (
-          <p className={cn(
-            "text-[10px] tabular-nums mt-0.5",
-            isProteinOver ? "text-orange-500" : "text-blue-500"
-          )}>
-            Protein: {currentProtein}g / {effectiveProteinTarget}g
-          </p>
-        )}
+        <p className="text-2xl font-bold tabular-nums">{Math.round(caloriePercentage)}%</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Today's Calories</p>
       </CardContent>
     </Card>
   );
