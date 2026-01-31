@@ -82,8 +82,9 @@ function parseInlineMarkdown(text: string): ReactNode[] {
   while (remaining.length > 0) {
     const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
     const italicMatch = remaining.match(/(?<!\*)\*([^*]+)\*(?!\*)/);
+    const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
     
-    let nextMatch: { type: 'bold' | 'italic'; match: RegExpMatchArray } | null = null;
+    let nextMatch: { type: 'bold' | 'italic' | 'link'; match: RegExpMatchArray } | null = null;
     
     if (boldMatch && boldMatch.index !== undefined) {
       if (!nextMatch || boldMatch.index < (nextMatch.match.index ?? Infinity)) {
@@ -95,6 +96,11 @@ function parseInlineMarkdown(text: string): ReactNode[] {
         nextMatch = { type: 'italic', match: italicMatch };
       }
     }
+    if (linkMatch && linkMatch.index !== undefined) {
+      if (!nextMatch || linkMatch.index < (nextMatch.match.index ?? Infinity)) {
+        nextMatch = { type: 'link', match: linkMatch };
+      }
+    }
     
     if (nextMatch && nextMatch.match.index !== undefined) {
       if (nextMatch.match.index > 0) {
@@ -102,8 +108,20 @@ function parseInlineMarkdown(text: string): ReactNode[] {
       }
       if (nextMatch.type === 'bold') {
         parts.push(<strong key={`bold-${keyCounter++}`} className="font-semibold">{nextMatch.match[1]}</strong>);
-      } else {
+      } else if (nextMatch.type === 'italic') {
         parts.push(<em key={`italic-${keyCounter++}`}>{nextMatch.match[1]}</em>);
+      } else if (nextMatch.type === 'link') {
+        parts.push(
+          <a 
+            key={`link-${keyCounter++}`} 
+            href={nextMatch.match[2]} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-violet-400 hover:text-violet-300 underline underline-offset-2"
+          >
+            {nextMatch.match[1]}
+          </a>
+        );
       }
       remaining = remaining.slice(nextMatch.match.index + nextMatch.match[0].length);
       continue;
