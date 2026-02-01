@@ -6,6 +6,9 @@ import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
 
+// Feature flag - set to true when ready to enable health integration
+const HEALTH_FEATURE_ENABLED = false;
+
 interface HealthSummaryProps {
   compact?: boolean;
   className?: string;
@@ -16,6 +19,11 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
   const { data: healthData, isLoading: dataLoading } = useHealthDataToday();
 
   const isNative = Capacitor.isNativePlatform();
+
+  // Hide when feature is disabled
+  if (!HEALTH_FEATURE_ENABLED) {
+    return null;
+  }
 
   if (!isNative && !statusLoading && !status?.connected) {
     return null;
