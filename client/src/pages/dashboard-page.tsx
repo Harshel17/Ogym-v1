@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus } from "lucide-react";
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
+import { HealthSummary } from "@/components/health-summary";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
@@ -1267,6 +1268,8 @@ function MemberDashboard() {
           </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      <HealthSummary />
 
       {workoutSummary && (
         <>
