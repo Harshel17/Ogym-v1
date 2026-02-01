@@ -8,7 +8,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 import { 
   Flame, Apple, Beef, Wheat, Droplet, Plus, Search, Loader2, 
-  ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X, TrendingUp, Calendar, BarChart3
+  ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X, TrendingUp, Calendar, BarChart3, Watch
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +18,7 @@ import { BarcodeScanner } from "@/components/barcode-scanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from "recharts";
 import { FindMyFood } from "@/components/find-my-food";
+import { useHealthStatus, useHealthDataToday } from "@/hooks/use-health-data";
 
 type CalorieGoal = {
   id: number;
@@ -141,6 +142,9 @@ export default function NutritionPage() {
   const { data: goal } = useQuery<CalorieGoal | null>({
     queryKey: ["/api/nutrition/goal"]
   });
+
+  const { data: healthStatus } = useHealthStatus();
+  const { data: healthData } = useHealthDataToday();
 
   const createGoalMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -428,6 +432,18 @@ export default function NutritionPage() {
               )}
             </span>
           </div>
+
+          {healthStatus?.connected && healthData?.caloriesBurned && (
+            <div className="flex items-center justify-center gap-2 mt-2 py-2 px-3 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/30 rounded-lg">
+              <Watch className="w-4 h-4 text-orange-500" />
+              <span className="text-sm font-medium">
+                Burned: <span className="text-orange-500">{healthData.caloriesBurned.toLocaleString()} cal</span>
+                <span className="text-muted-foreground ml-1">
+                  (Net: {(summary.calories - healthData.caloriesBurned).toLocaleString()} cal)
+                </span>
+              </span>
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-4 sm:mt-6">
             <MacroProgress label="Protein" value={summary.protein} goal={proteinGoal} percent={proteinPercent} icon={Beef} color="text-red-500" />
