@@ -525,7 +525,8 @@ export function DikaDrawer({
         className="w-full sm:max-w-md flex flex-col p-0"
         style={{ 
           height: keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh',
-          maxHeight: keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh'
+          maxHeight: keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh',
+          zIndex: 100000,
         }}
         data-testid="drawer-dika"
       >
