@@ -41,8 +41,8 @@ class HealthService {
     }
 
     try {
-      const { CapacitorHealth } = await import('capacitor-health');
-      this.healthPlugin = CapacitorHealth;
+      const { Health } = await import('capacitor-health');
+      this.healthPlugin = Health;
       return true;
     } catch (error) {
       console.error('Failed to initialize health plugin:', error);
@@ -67,7 +67,7 @@ class HealthService {
     if (!this.healthPlugin) return false;
 
     try {
-      const result = await this.healthPlugin.isAvailable();
+      const result = await this.healthPlugin.isHealthAvailable();
       return result.available;
     } catch (error) {
       console.error('Failed to check health permissions:', error);
@@ -83,12 +83,17 @@ class HealthService {
     if (!this.healthPlugin) return false;
 
     try {
-      const datatypes = [
-        { read: ['steps', 'calories', 'activity', 'heart_rate', 'sleep'] }
+      const permissions = [
+        'READ_STEPS',
+        'READ_ACTIVE_CALORIES', 
+        'READ_TOTAL_CALORIES',
+        'READ_HEART_RATE',
+        'READ_DISTANCE',
+        'READ_WORKOUTS'
       ];
 
-      const result = await this.healthPlugin.requestAuthorization(datatypes);
-      return result.authorized;
+      await this.healthPlugin.requestHealthPermissions({ permissions });
+      return true;
     } catch (error) {
       console.error('Failed to request health permissions:', error);
       return false;
@@ -115,6 +120,7 @@ class HealthService {
         source,
       };
 
+      // Fetch steps
       try {
         const stepsResult = await this.healthPlugin.queryAggregated({
           startDate: startOfDay.toISOString(),
@@ -122,89 +128,76 @@ class HealthService {
           dataType: 'steps',
           bucket: 'day'
         });
-        if (stepsResult?.value) {
-          data.steps = Math.round(stepsResult.value);
+        if (stepsResult?.aggregatedData?.[0]?.value) {
+          data.steps = Math.round(stepsResult.aggregatedData[0].value);
         }
       } catch (e) {
         console.log('Could not fetch steps:', e);
       }
 
+      // Fetch active calories
       try {
         const caloriesResult = await this.healthPlugin.queryAggregated({
           startDate: startOfDay.toISOString(),
           endDate: endOfDay.toISOString(),
-          dataType: 'calories',
+          dataType: 'active-calories',
           bucket: 'day'
         });
-        if (caloriesResult?.value) {
-          data.caloriesBurned = Math.round(caloriesResult.value);
+        if (caloriesResult?.aggregatedData?.[0]?.value) {
+          data.activeCalories = Math.round(caloriesResult.aggregatedData[0].value);
+          data.caloriesBurned = data.activeCalories;
         }
       } catch (e) {
         console.log('Could not fetch calories:', e);
       }
 
+      // Fetch workouts to get heart rate, duration, and other data
       try {
-        const activeResult = await this.healthPlugin.queryAggregated({
+        const workoutsResult = await this.healthPlugin.queryWorkouts({
           startDate: startOfDay.toISOString(),
           endDate: endOfDay.toISOString(),
-          dataType: 'activity',
-          bucket: 'day'
+          includeHeartRate: true,
+          includeRoute: false,
+          includeSteps: false
         });
-        if (activeResult?.value) {
-          data.activeMinutes = Math.round(activeResult.value);
-        }
-      } catch (e) {
-        console.log('Could not fetch activity:', e);
-      }
-
-      try {
-        const heartRateResult = await this.healthPlugin.query({
-          startDate: startOfDay.toISOString(),
-          endDate: endOfDay.toISOString(),
-          dataType: 'heart_rate',
-          limit: 100
-        });
-        if (heartRateResult?.data?.length > 0) {
-          const values = heartRateResult.data.map((d: any) => d.value);
-          data.avgHeartRate = Math.round(values.reduce((a: number, b: number) => a + b, 0) / values.length);
-          data.maxHeartRate = Math.round(Math.max(...values));
-          const restingValues = heartRateResult.data
-            .filter((d: any) => d.sourceName?.toLowerCase().includes('resting') || d.value < 80)
-            .map((d: any) => d.value);
-          if (restingValues.length > 0) {
-            data.restingHeartRate = Math.round(Math.min(...restingValues));
-          }
-        }
-      } catch (e) {
-        console.log('Could not fetch heart rate:', e);
-      }
-
-      try {
-        const sleepResult = await this.healthPlugin.query({
-          startDate: new Date(startOfDay.getTime() - 24 * 60 * 60 * 1000).toISOString(),
-          endDate: endOfDay.toISOString(),
-          dataType: 'sleep',
-          limit: 50
-        });
-        if (sleepResult?.data?.length > 0) {
-          let totalSleepMinutes = 0;
-          for (const sleepEntry of sleepResult.data) {
-            if (sleepEntry.startDate && sleepEntry.endDate) {
-              const start = new Date(sleepEntry.startDate).getTime();
-              const end = new Date(sleepEntry.endDate).getTime();
-              totalSleepMinutes += (end - start) / (1000 * 60);
+        
+        if (workoutsResult?.workouts?.length > 0) {
+          const workouts: Array<{ type: string; duration: number; calories: number }> = [];
+          let totalActiveMinutes = 0;
+          let totalCalories = 0;
+          const heartRates: number[] = [];
+          
+          for (const workout of workoutsResult.workouts) {
+            workouts.push({
+              type: workout.type || 'unknown',
+              duration: workout.duration || 0,
+              calories: workout.calories || 0
+            });
+            totalActiveMinutes += (workout.duration || 0);
+            totalCalories += (workout.calories || 0);
+            
+            if (workout.heartRate?.length > 0) {
+              for (const hr of workout.heartRate) {
+                if (hr.bpm) heartRates.push(hr.bpm);
+              }
             }
           }
-          data.sleepMinutes = Math.round(totalSleepMinutes);
           
-          const sleepHours = totalSleepMinutes / 60;
-          if (sleepHours < 5) data.sleepQuality = 'poor';
-          else if (sleepHours < 6) data.sleepQuality = 'fair';
-          else if (sleepHours < 8) data.sleepQuality = 'good';
-          else data.sleepQuality = 'excellent';
+          data.watchWorkouts = workouts;
+          if (totalActiveMinutes > 0) {
+            data.activeMinutes = Math.round(totalActiveMinutes / 60);
+          }
+          if (totalCalories > 0 && !data.caloriesBurned) {
+            data.caloriesBurned = totalCalories;
+          }
+          
+          if (heartRates.length > 0) {
+            data.avgHeartRate = Math.round(heartRates.reduce((a, b) => a + b, 0) / heartRates.length);
+            data.maxHeartRate = Math.round(Math.max(...heartRates));
+          }
         }
       } catch (e) {
-        console.log('Could not fetch sleep:', e);
+        console.log('Could not fetch workouts:', e);
       }
 
       return data;
