@@ -46,8 +46,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-40 -mx-4 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border/50">
+      {/* Sticky Greeting Header - Sticks below the OGym app bar on mobile */}
+      <div 
+        className="sticky top-[53px] z-30 -mx-4 px-4 py-3 bg-background dark:bg-background backdrop-blur-sm border-b border-border/40 shadow-sm md:relative md:top-0 md:shadow-none md:border-b-0 md:mx-0 md:px-0 md:bg-transparent md:backdrop-blur-none"
+      >
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
