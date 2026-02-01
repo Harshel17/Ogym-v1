@@ -4446,21 +4446,22 @@ export async function registerRoutes(
     
     const exerciseSchema = z.object({
       exerciseName: z.string().min(1).max(100),
-      muscleType: z.string().min(1).max(50),
+      muscleType: z.string().min(1).max(100),
       bodyPart: z.string().min(1).max(50),
-      sets: z.number().int().min(1).max(20),
-      reps: z.number().int().min(1).max(100),
+      sets: z.number().int().min(1).max(30),
+      reps: z.number().int().min(1).max(200),
+      restSeconds: z.number().int().optional(),
     });
     
     const daySchema = z.object({
       dayIndex: z.number().int().min(0).max(13),
-      dayLabel: z.string().min(1).max(50),
-      exercises: z.array(exerciseSchema).min(1).max(20),
+      dayLabel: z.string().min(1).max(100),
+      exercises: z.array(exerciseSchema).min(1).max(30),
     });
     
     const schema = z.object({
       plan: z.object({
-        name: z.string().min(1).max(100),
+        name: z.string().min(1).max(150),
         cycleLength: z.number().int().min(1).max(14),
         days: z.array(daySchema).min(1).max(14),
         restDays: z.array(z.number().int().min(0).max(13)),
@@ -4469,6 +4470,8 @@ export async function registerRoutes(
     
     const input = schema.safeParse(req.body);
     if (!input.success) {
+      console.error('Save workout validation error:', JSON.stringify(input.error.errors, null, 2));
+      console.error('Request body:', JSON.stringify(req.body, null, 2).slice(0, 500));
       return res.status(400).json({ message: "Invalid workout plan", errors: input.error.errors });
     }
     
