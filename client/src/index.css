@@ -4,6 +4,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile fixed header */
+.mobile-fixed-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background-color: hsl(var(--background));
+  padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+  padding-bottom: 8px;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-bottom: 1px solid var(--header-border);
+}
+
 /* Mobile header content offset */
 .mobile-content-offset {
   padding-top: calc(env(safe-area-inset-top, 0px) + 64px);
