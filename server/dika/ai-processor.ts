@@ -526,15 +526,21 @@ TODAY'S DATE: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 
   if (userContext.role === 'member') {
     const ctx = dataContext as MemberContext;
     
+    const getHealthSourceLabel = (source: string | null): string => {
+      if (source === 'apple_health') return 'Apple Health';
+      if (source === 'google_fit') return 'Google Fit';
+      return 'fitness device';
+    };
+    
     const healthDataSection = ctx.healthData.connected && ctx.healthData.today ? `
-FITNESS DEVICE DATA (from ${ctx.healthData.source === 'apple_health' ? 'Apple Health' : 'Google Fit'}):
+FITNESS DEVICE DATA (from ${getHealthSourceLabel(ctx.healthData.source)}):
 - Steps today: ${ctx.healthData.today.steps?.toLocaleString() || 'N/A'}
 - Calories burned today: ${ctx.healthData.today.caloriesBurned?.toLocaleString() || 'N/A'}
 - Active minutes: ${ctx.healthData.today.activeMinutes || 'N/A'}
 - Average heart rate: ${ctx.healthData.today.avgHeartRate || 'N/A'} bpm
 - Sleep last night: ${ctx.healthData.today.sleepMinutes ? `${Math.floor(ctx.healthData.today.sleepMinutes / 60)}h ${ctx.healthData.today.sleepMinutes % 60}m` : 'N/A'}
 ` : ctx.healthData.connected ? `
-FITNESS DEVICE: Connected to ${ctx.healthData.source === 'apple_health' ? 'Apple Health' : 'Google Fit'} (no data synced today)
+FITNESS DEVICE: Connected to ${getHealthSourceLabel(ctx.healthData.source)} (no data synced today)
 ` : '';
     
     return basePrompt + `
