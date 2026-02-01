@@ -11,6 +11,7 @@ import { Scale, Ruler, Activity, TrendingUp, TrendingDown, Minus, Plus, Loader2,
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { format, parseISO } from "date-fns";
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { ConnectHealth } from "@/components/connect-health";
 
 type BodyMeasurement = {
   id: number;
@@ -259,6 +260,8 @@ export default function MyBodyPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <ConnectHealth />
 
       {latest && (
         <div className="grid gap-4 md:grid-cols-4">
