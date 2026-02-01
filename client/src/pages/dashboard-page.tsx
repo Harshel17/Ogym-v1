@@ -45,54 +45,27 @@ export default function DashboardPage() {
   const greetingIcon = getGreetingIcon();
 
   return (
-    <>
-      {/* Fixed Greeting Header on Mobile - Positioned below the OGym app bar */}
-      <div 
-        className="fixed left-0 right-0 top-[53px] z-30 px-4 py-3 bg-background border-b border-border/40 shadow-sm md:hidden"
-      >
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
-              <Calendar className="w-3 h-3" />
-              <span>{format(new Date(), 'EEE, MMM d')}</span>
-            </div>
-            <h2 className="text-xl font-bold tracking-tight">
-              {greeting}, <span className="text-primary">{user.username}</span>
-            </h2>
+    <div className="space-y-4">
+      {/* Greeting Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
+            <Calendar className="w-3 h-3" />
+            <span>{format(new Date(), 'EEE, MMM d')}</span>
           </div>
-          <div className={`p-2.5 rounded-xl ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400/20 to-orange-500/20 text-amber-500' : 'bg-gradient-to-br from-indigo-400/20 to-purple-500/20 text-indigo-400'}`}>
-            {greetingIcon === 'sun' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </div>
+          <h2 className="text-xl font-bold tracking-tight">
+            {greeting}, <span className="text-primary">{user.username}</span>
+          </h2>
+        </div>
+        <div className={`p-2.5 rounded-xl ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400/20 to-orange-500/20 text-amber-500' : 'bg-gradient-to-br from-indigo-400/20 to-purple-500/20 text-indigo-400'}`}>
+          {greetingIcon === 'sun' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </div>
       </div>
 
-      {/* Spacer for fixed header on mobile */}
-      <div className="h-[72px] md:hidden" />
-
-      {/* Desktop header (not fixed) */}
-      <div className="hidden md:block mb-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
-              <Calendar className="w-3 h-3" />
-              <span>{format(new Date(), 'EEE, MMM d')}</span>
-            </div>
-            <h2 className="text-xl font-bold tracking-tight">
-              {greeting}, <span className="text-primary">{user.username}</span>
-            </h2>
-          </div>
-          <div className={`p-2.5 rounded-xl ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400/20 to-orange-500/20 text-amber-500' : 'bg-gradient-to-br from-indigo-400/20 to-purple-500/20 text-indigo-400'}`}>
-            {greetingIcon === 'sun' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {user.role === "owner" && <OwnerDashboard />}
-        {user.role === "trainer" && <TrainerDashboard />}
-        {user.role === "member" && <MemberDashboard />}
-      </div>
-    </>
+      {user.role === "owner" && <OwnerDashboard />}
+      {user.role === "trainer" && <TrainerDashboard />}
+      {user.role === "member" && <MemberDashboard />}
+    </div>
   );
 }
 
