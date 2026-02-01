@@ -12,7 +12,8 @@ import {
   bodyMeasurements,
   trainerMemberAssignments,
   gyms,
-  memberSubscriptions
+  memberSubscriptions,
+  healthData
 } from "@shared/schema";
 import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
@@ -46,6 +47,17 @@ interface MemberContext {
   };
   subscriptionStatus: string;
   subscriptionExpiryDate: string | null;
+  healthData: {
+    connected: boolean;
+    source: string | null;
+    today: {
+      steps?: number;
+      caloriesBurned?: number;
+      activeMinutes?: number;
+      avgHeartRate?: number;
+      sleepMinutes?: number;
+    } | null;
+  };
 }
 
 interface OwnerContext {
@@ -174,6 +186,42 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
     }
   }
   
+  const [userData] = await db.select({
+    healthConnected: users.healthConnected,
+    healthSource: users.healthSource
+  })
+  .from(users)
+  .where(eq(users.id, userId))
+  .limit(1);
+
+  let healthContext: MemberContext['healthData'] = {
+    connected: false,
+    source: null,
+    today: null
+  };
+
+  if (userData?.healthConnected) {
+    const [todayHealth] = await db.select()
+      .from(healthData)
+      .where(and(
+        eq(healthData.userId, userId),
+        eq(healthData.date, dates.today)
+      ))
+      .limit(1);
+
+    healthContext = {
+      connected: true,
+      source: userData.healthSource || null,
+      today: todayHealth ? {
+        steps: todayHealth.steps || undefined,
+        caloriesBurned: todayHealth.caloriesBurned || undefined,
+        activeMinutes: todayHealth.activeMinutes || undefined,
+        avgHeartRate: todayHealth.avgHeartRate || undefined,
+        sleepMinutes: todayHealth.sleepMinutes || undefined
+      } : null
+    };
+  }
+  
   return {
     workoutsThisWeek: weeklyWorkouts?.count || 0,
     workoutsThisMonth: monthlyWorkouts?.count || 0,
@@ -193,7 +241,8 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
       } : null
     },
     subscriptionStatus,
-    subscriptionExpiryDate
+    subscriptionExpiryDate,
+    healthData: healthContext
   };
 }
 
@@ -476,6 +525,18 @@ TODAY'S DATE: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 
 
   if (userContext.role === 'member') {
     const ctx = dataContext as MemberContext;
+    
+    const healthDataSection = ctx.healthData.connected && ctx.healthData.today ? `
+FITNESS DEVICE DATA (from ${ctx.healthData.source === 'apple_health' ? 'Apple Health' : 'Google Fit'}):
+- Steps today: ${ctx.healthData.today.steps?.toLocaleString() || 'N/A'}
+- Calories burned today: ${ctx.healthData.today.caloriesBurned?.toLocaleString() || 'N/A'}
+- Active minutes: ${ctx.healthData.today.activeMinutes || 'N/A'}
+- Average heart rate: ${ctx.healthData.today.avgHeartRate || 'N/A'} bpm
+- Sleep last night: ${ctx.healthData.today.sleepMinutes ? `${Math.floor(ctx.healthData.today.sleepMinutes / 60)}h ${ctx.healthData.today.sleepMinutes % 60}m` : 'N/A'}
+` : ctx.healthData.connected ? `
+FITNESS DEVICE: Connected to ${ctx.healthData.source === 'apple_health' ? 'Apple Health' : 'Google Fit'} (no data synced today)
+` : '';
+    
     return basePrompt + `
 MEMBER DATA:
 - Workouts this week: ${ctx.workoutsThisWeek}
@@ -489,12 +550,13 @@ BODY MEASUREMENTS:
 - Latest (${ctx.bodyMeasurements.latest.date}): ${ctx.bodyMeasurements.latest.weight ? `Weight: ${ctx.bodyMeasurements.latest.weight}kg` : ''}${ctx.bodyMeasurements.latest.bodyFat ? `, Body Fat: ${ctx.bodyMeasurements.latest.bodyFat}%` : ''}
 ${ctx.bodyMeasurements.previous ? `- Previous (${ctx.bodyMeasurements.previous.date}): ${ctx.bodyMeasurements.previous.weight ? `Weight: ${ctx.bodyMeasurements.previous.weight}kg` : ''}${ctx.bodyMeasurements.previous.bodyFat ? `, Body Fat: ${ctx.bodyMeasurements.previous.bodyFat}%` : ''}` : ''}
 ` : '- No body measurements recorded'}
-
+${healthDataSection}
 You can help this member with:
 - Workout progress and consistency analysis
 - Attendance patterns
 - Body measurement trends and progress
 - Subscription status
+${ctx.healthData.connected ? '- Fitness device data analysis (steps, calories burned, heart rate, sleep)' : ''}
 - Motivation and encouragement based on their data`;
   }
   
