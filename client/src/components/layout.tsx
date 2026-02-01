@@ -501,7 +501,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile Fixed Header - Outside main to avoid stacking context issues */}
-      <header className="md:hidden mobile-fixed-header flex items-center justify-between gap-2">
+      <header 
+        className="md:hidden flex items-center justify-between gap-2"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 99999,
+          backgroundColor: 'hsl(var(--background))',
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)',
+          paddingBottom: '8px',
+          paddingLeft: '12px',
+          paddingRight: '12px',
+          borderBottom: '1px solid var(--header-border)',
+        }}
+      >
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg shadow-md shadow-primary/20 overflow-hidden flex items-center justify-center">
             <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
