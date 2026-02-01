@@ -4,6 +4,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile header content offset */
+.mobile-content-offset {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 64px);
+}
+
+@media (min-width: 768px) {
+  .mobile-content-offset {
+    padding-top: 1rem;
+  }
+}
+
 :root {
   --font-sans: 'DM Sans', sans-serif;
   --font-display: 'Outfit', sans-serif;
@@ -36,6 +47,7 @@
   --border: 220 13% 91%;
   --input: 220 13% 91%;
   --ring: 217 91% 60%;
+  --header-border: rgba(0, 0, 0, 0.06);
 
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
@@ -91,6 +103,7 @@
   --border: 217 33% 20%;
   --input: 217 33% 20%;
   --ring: 217 91% 60%;
+  --header-border: rgba(255, 255, 255, 0.08);
 
   --card: 222 47% 11%;
   --card-foreground: 210 40% 98%;
