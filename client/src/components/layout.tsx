@@ -502,19 +502,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile Fixed Header - Outside main to avoid stacking context issues */}
       <header 
-        className="md:hidden flex items-center justify-between gap-2"
+        className="md:hidden flex items-center justify-between gap-2 fixed top-0 left-0 right-0 bg-background border-b border-border"
         style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
           zIndex: 99999,
-          backgroundColor: 'hsl(var(--background))',
           paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)',
           paddingBottom: '8px',
           paddingLeft: '12px',
           paddingRight: '12px',
-          borderBottom: '1px solid var(--header-border)',
         }}
       >
         <div className="flex items-center gap-2">
