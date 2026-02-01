@@ -500,33 +500,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
+      {/* Mobile Fixed Header - Outside main to avoid stacking context issues */}
+      <header className="md:hidden mobile-fixed-header flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg shadow-md shadow-primary/20 overflow-hidden flex items-center justify-center">
+            <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
+          </div>
+          <span className="font-bold font-display text-sm magic-text">OGym</span>
+          <div className="flex items-center gap-0.5 px-0.5 pr-2 py-0.5 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-violet-200/50 dark:border-violet-500/30 shadow-sm shadow-violet-500/10">
+            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 flex items-center justify-center shadow-sm relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-tr from-white/30 to-transparent" />
+              <span className="text-[10px] font-black text-white relative">D</span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <Sparkles className="w-2.5 h-2.5 text-amber-500" />
+              <span className="text-[9px] font-bold tracking-wide bg-gradient-to-r from-violet-600 to-fuchsia-600 dark:from-violet-400 dark:to-fuchsia-400 bg-clip-text text-transparent">AI</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <Button variant="ghost" size="icon" onClick={() => logoutMutation.mutate()}>
+            <LogOut className="w-4 h-4" />
+          </Button>
+        </div>
+      </header>
+
       {/* Main Content */}
       <main className="flex-1 min-w-0 overflow-auto">
-        <header className="md:hidden mobile-fixed-header flex items-center justify-between gap-2">
-           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg shadow-md shadow-primary/20 overflow-hidden flex items-center justify-center">
-              <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
-            </div>
-            <span className="font-bold font-display text-sm magic-text">OGym</span>
-            <div className="flex items-center gap-0.5 px-0.5 pr-2 py-0.5 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-violet-200/50 dark:border-violet-500/30 shadow-sm shadow-violet-500/10">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 flex items-center justify-center shadow-sm relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-tr from-white/30 to-transparent" />
-                <span className="text-[10px] font-black text-white relative">D</span>
-              </div>
-              <div className="flex items-center gap-0.5">
-                <Sparkles className="w-2.5 h-2.5 text-amber-500" />
-                <span className="text-[9px] font-bold tracking-wide bg-gradient-to-r from-violet-600 to-fuchsia-600 dark:from-violet-400 dark:to-fuchsia-400 bg-clip-text text-transparent">AI</span>
-              </div>
-            </div>
-           </div>
-           <div className="flex items-center gap-1">
-             <ThemeToggle />
-             <Button variant="ghost" size="icon" onClick={() => logoutMutation.mutate()}>
-               <LogOut className="w-4 h-4" />
-             </Button>
-           </div>
-        </header>
-        
         <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 md:pb-8 mobile-content-offset">
           {children}
         </div>
