@@ -79,6 +79,8 @@ export const users = pgTable("users", {
   hideDika: boolean("hide_dika").default(false),
   dikaIconPreference: text("dika_icon_preference").default("circle"),
   trainingMode: text("training_mode", { enum: ["trainer_led", "self_guided"] }).default("trainer_led"),
+  healthConnected: boolean("health_connected").default(false),
+  healthSource: text("health_source", { enum: ["apple_health", "google_fit"] }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -864,10 +866,45 @@ export const foodLogs = pgTable("food_logs", {
   barcodeIdx: index("food_logs_barcode_idx").on(table.barcode),
 }));
 
+// Health data from fitness devices (Apple Health, Google Fit)
+export const healthData = pgTable("health_data", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD format
+  
+  // Activity metrics
+  steps: integer("steps"),
+  caloriesBurned: integer("calories_burned"), // Total daily burn including BMR
+  activeCalories: integer("active_calories"), // Exercise/activity only
+  activeMinutes: integer("active_minutes"),
+  distanceMeters: integer("distance_meters"), // Walking/running distance
+  
+  // Heart rate
+  restingHeartRate: integer("resting_heart_rate"),
+  avgHeartRate: integer("avg_heart_rate"),
+  maxHeartRate: integer("max_heart_rate"),
+  
+  // Sleep
+  sleepMinutes: integer("sleep_minutes"),
+  sleepQuality: text("sleep_quality", { enum: ["poor", "fair", "good", "excellent"] }),
+  
+  // Workouts auto-detected by watch
+  watchWorkouts: jsonb("watch_workouts"), // [{type: 'running', duration: 30, calories: 250}]
+  
+  // Meta
+  source: text("source", { enum: ["apple_health", "google_fit"] }).notNull(),
+  lastSyncedAt: timestamp("last_synced_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userDateIdx: index("health_data_user_date_idx").on(table.userId, table.date),
+  userDateUnique: uniqueIndex("health_data_user_date_unique").on(table.userId, table.date),
+}));
+
 // === SCHEMAS ===
 
 export const insertCalorieGoalSchema = createInsertSchema(calorieGoals).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertFoodLogSchema = createInsertSchema(foodLogs).omit({ id: true, createdAt: true });
+export const insertHealthDataSchema = createInsertSchema(healthData).omit({ id: true, createdAt: true, lastSyncedAt: true });
 
 export const insertGymEmailSettingsSchema = createInsertSchema(gymEmailSettings).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertGymSchema = createInsertSchema(gyms).omit({ id: true, createdAt: true });
@@ -1070,3 +1107,6 @@ export type CalorieGoal = typeof calorieGoals.$inferSelect;
 export type InsertCalorieGoal = z.infer<typeof insertCalorieGoalSchema>;
 export type FoodLog = typeof foodLogs.$inferSelect;
 export type InsertFoodLog = z.infer<typeof insertFoodLogSchema>;
+
+export type HealthData = typeof healthData.$inferSelect;
+export type InsertHealthData = z.infer<typeof insertHealthDataSchema>;

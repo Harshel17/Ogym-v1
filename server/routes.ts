@@ -3959,6 +3959,91 @@ export async function registerRoutes(
     }
   });
 
+  // === HEALTH DATA (FITNESS DEVICES) ===
+  
+  // Get today's health data
+  app.get("/api/health/today", requireRole(["member"]), async (req, res) => {
+    const today = new Date().toISOString().split('T')[0];
+    const data = await storage.getHealthData(req.user!.id, today);
+    res.json(data || null);
+  });
+
+  // Get health data for a specific date
+  app.get("/api/health/:date", requireRole(["member"]), async (req, res) => {
+    const data = await storage.getHealthData(req.user!.id, req.params.date);
+    res.json(data || null);
+  });
+
+  // Get health data for a date range
+  app.get("/api/health/range/:startDate/:endDate", requireRole(["member"]), async (req, res) => {
+    const data = await storage.getHealthDataByRange(
+      req.user!.id,
+      req.params.startDate,
+      req.params.endDate
+    );
+    res.json(data);
+  });
+
+  // Sync health data from device
+  app.post("/api/health/sync", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      steps: z.number().optional(),
+      caloriesBurned: z.number().optional(),
+      activeCalories: z.number().optional(),
+      activeMinutes: z.number().optional(),
+      distanceMeters: z.number().optional(),
+      restingHeartRate: z.number().optional(),
+      avgHeartRate: z.number().optional(),
+      maxHeartRate: z.number().optional(),
+      sleepMinutes: z.number().optional(),
+      sleepQuality: z.enum(["poor", "fair", "good", "excellent"]).optional(),
+      watchWorkouts: z.array(z.object({
+        type: z.string(),
+        duration: z.number(),
+        calories: z.number()
+      })).optional(),
+      source: z.enum(["apple_health", "google_fit"])
+    });
+
+    try {
+      const input = schema.parse(req.body);
+      const data = await storage.upsertHealthData({
+        userId: req.user!.id,
+        ...input
+      });
+      res.json(data);
+    } catch (error) {
+      console.error("Health sync error:", error);
+      res.status(400).json({ message: "Invalid health data" });
+    }
+  });
+
+  // Connect/disconnect health service
+  app.post("/api/health/connect", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      connected: z.boolean(),
+      source: z.enum(["apple_health", "google_fit"]).nullable()
+    });
+
+    try {
+      const { connected, source } = schema.parse(req.body);
+      await storage.updateUserHealthConnection(req.user!.id, connected, source);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Health connect error:", error);
+      res.status(400).json({ message: "Invalid request" });
+    }
+  });
+
+  // Get user's health connection status
+  app.get("/api/health/status", requireRole(["member"]), async (req, res) => {
+    res.json({
+      connected: req.user!.healthConnected || false,
+      source: req.user!.healthSource || null
+    });
+  });
+
   // === MEMBER PROGRESS - GROUPED SESSIONS ===
   app.get("/api/me/workouts", requireRole(["member"]), async (req, res) => {
     const sessions = await storage.getMemberWorkoutSessions(req.user!.id);

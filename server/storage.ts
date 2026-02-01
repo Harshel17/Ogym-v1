@@ -57,9 +57,10 @@ import {
   type KioskOtpCode, type InsertKioskOtpCode,
   type PaymentConfirmation, type InsertPaymentConfirmation,
   type GymEmailSettings, type InsertGymEmailSettings,
-  calorieGoals, foodLogs,
+  calorieGoals, foodLogs, healthData,
   type CalorieGoal, type InsertCalorieGoal,
-  type FoodLog, type InsertFoodLog
+  type FoodLog, type InsertFoodLog,
+  type HealthData, type InsertHealthData
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -763,6 +764,12 @@ export interface IStorage {
   deleteFoodLog(logId: number, userId: number): Promise<void>;
   getDailySummary(userId: number, date: string): Promise<{ calories: number; protein: number; carbs: number; fat: number }>;
   getCalorieAnalytics(userId: number, startDate: string, endDate: string): Promise<{ date: string; target: number; actual: number; protein: number; carbs: number; fat: number }[]>;
+  
+  // Health Data (Fitness Devices)
+  getHealthData(userId: number, date: string): Promise<HealthData | undefined>;
+  getHealthDataByRange(userId: number, startDate: string, endDate: string): Promise<HealthData[]>;
+  upsertHealthData(data: InsertHealthData): Promise<HealthData>;
+  updateUserHealthConnection(userId: number, connected: boolean, source: 'apple_health' | 'google_fit' | null): Promise<void>;
 }
 
 // Admin Types
@@ -8326,6 +8333,53 @@ export class DatabaseStorage implements IStorage {
     }
     
     return result;
+  }
+
+  // Health Data (Fitness Devices)
+  async getHealthData(userId: number, date: string): Promise<HealthData | undefined> {
+    const [data] = await db.select().from(healthData)
+      .where(and(eq(healthData.userId, userId), eq(healthData.date, date)));
+    return data;
+  }
+
+  async getHealthDataByRange(userId: number, startDate: string, endDate: string): Promise<HealthData[]> {
+    return await db.select().from(healthData)
+      .where(and(
+        eq(healthData.userId, userId),
+        gte(healthData.date, startDate),
+        lte(healthData.date, endDate)
+      ))
+      .orderBy(desc(healthData.date));
+  }
+
+  async upsertHealthData(data: InsertHealthData): Promise<HealthData> {
+    // Try to find existing record for this user and date
+    const existing = await this.getHealthData(data.userId, data.date);
+    
+    if (existing) {
+      // Update existing record
+      const [updated] = await db.update(healthData)
+        .set({
+          ...data,
+          lastSyncedAt: new Date(),
+        })
+        .where(eq(healthData.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      // Insert new record
+      const [inserted] = await db.insert(healthData).values(data).returning();
+      return inserted;
+    }
+  }
+
+  async updateUserHealthConnection(userId: number, connected: boolean, source: 'apple_health' | 'google_fit' | null): Promise<void> {
+    await db.update(users)
+      .set({ 
+        healthConnected: connected,
+        healthSource: source 
+      })
+      .where(eq(users.id, userId));
   }
 }
 
