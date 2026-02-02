@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity } from "lucide-react";
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
 import { HealthSummary } from "@/components/health-summary";
@@ -785,6 +785,17 @@ function MemberDashboard() {
   const muscleTypes = Array.from(new Set(workoutItems.map((i: any) => i.muscleType).filter(Boolean)));
   const muscleTypesDisplay = muscleTypes.length > 0 ? muscleTypes.join(" + ") : null;
 
+  // Helper to get exercise type styling
+  const getExerciseTypeStyle = (item: any) => {
+    if (item.exerciseType === 'cardio') {
+      return { icon: Heart, color: 'text-rose-500', bg: 'bg-rose-500/10', label: 'Cardio' };
+    }
+    if (item.muscleType === 'Core' || item.muscleType === 'Abs') {
+      return { icon: Target, color: 'text-amber-500', bg: 'bg-amber-500/10', label: 'Core' };
+    }
+    return { icon: Dumbbell, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Strength' };
+  };
+
   const allCompleted = workoutItems.length > 0 && workoutItems.every((i: any) => i.completed);
   const incompleteIds = workoutItems.filter((i: any) => !i.completed).map((i: any) => i.id);
   const completedCount = workoutItems.filter((i: any) => i.completed).length;
@@ -795,7 +806,7 @@ function MemberDashboard() {
     }
   };
 
-  const handleInputChange = (itemId: number, field: 'sets' | 'reps' | 'weight', value: string) => {
+  const handleInputChange = (itemId: number, field: 'sets' | 'reps' | 'weight' | 'durationMinutes' | 'distanceKm', value: string) => {
     setExerciseInputs(prev => ({
       ...prev,
       [itemId]: {
@@ -1149,10 +1160,19 @@ function MemberDashboard() {
                           </button>
                           
                           <div className="flex-1 min-w-0">
-                            <p className={`font-medium text-sm ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
-                              {item.exerciseName}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1.5">
+                              {(() => {
+                                const style = getExerciseTypeStyle(item);
+                                const TypeIcon = style.icon;
+                                return (
+                                  <TypeIcon className={`w-3.5 h-3.5 ${style.color} flex-shrink-0`} />
+                                );
+                              })()}
+                              <p className={`font-medium text-sm ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                {item.exerciseName}
+                              </p>
+                            </div>
+                            <p className="text-xs text-muted-foreground ml-5">
                               {item.exerciseType === 'cardio' ? (
                                 <>
                                   {item.durationMinutes ? `${item.durationMinutes} min` : ''}

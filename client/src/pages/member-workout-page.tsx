@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw, Loader2, Plus, Dumbbell, Wand2, Shuffle, ArrowLeftRight, History, Clock } from "lucide-react";
+import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw, Loader2, Plus, Dumbbell, Wand2, Shuffle, ArrowLeftRight, History, Clock, Heart } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -864,6 +864,13 @@ export default function MemberWorkoutPage() {
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-2 flex-wrap">
+                                    {item.exerciseType === 'cardio' ? (
+                                      <Heart className="w-4 h-4 text-rose-500 flex-shrink-0" />
+                                    ) : (item.muscleType === 'Core' || item.muscleType === 'Abs') ? (
+                                      <Target className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                                    ) : (
+                                      <Dumbbell className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                                    )}
                                     <h3 className={`font-semibold ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
                                       {item.exerciseName}
                                     </h3>
@@ -874,7 +881,7 @@ export default function MemberWorkoutPage() {
                                       <Badge className="bg-green-500 text-white text-xs">Done</Badge>
                                     )}
                                   </div>
-                                  <p className="text-sm text-muted-foreground">
+                                  <p className="text-sm text-muted-foreground ml-6">
                                     {item.exerciseType === 'cardio' ? (
                                       <>
                                         {item.durationMinutes ? `${item.durationMinutes} min` : ''}
