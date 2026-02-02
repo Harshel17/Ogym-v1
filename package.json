@@ -57,6 +57,7 @@
     "@types/helmet": "^0.0.48",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/nodemailer": "^7.0.4",
+    "@zxing/library": "^0.21.3",
     "bcrypt": "^6.0.0",
     "capacitor-health": "^7.0.0",
     "class-variance-authority": "^0.7.1",

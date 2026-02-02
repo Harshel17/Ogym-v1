@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { X, Camera, Loader2, ImageIcon } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
 
 interface BarcodeScannerProps {
   onScan: (barcode: string) => void;
@@ -33,27 +34,119 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
     }
   }, []);
 
+  const scanImageWithZxing = async (imageDataUrl: string): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = async () => {
+        try {
+          const hints = new Map();
+          hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+            BarcodeFormat.EAN_13,
+            BarcodeFormat.EAN_8,
+            BarcodeFormat.UPC_A,
+            BarcodeFormat.UPC_E,
+            BarcodeFormat.CODE_128,
+            BarcodeFormat.CODE_39,
+            BarcodeFormat.CODE_93,
+            BarcodeFormat.ITF,
+            BarcodeFormat.QR_CODE,
+            BarcodeFormat.DATA_MATRIX,
+          ]);
+          hints.set(DecodeHintType.TRY_HARDER, true);
+
+          const reader = new BrowserMultiFormatReader(hints);
+          
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          
+          const result = await reader.decodeFromImageElement(img);
+          console.log("ZXing barcode result:", result.getText());
+          resolve(result.getText());
+        } catch (err) {
+          console.log("ZXing scan failed, trying with rotation...", err);
+          
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.height;
+            canvas.height = img.width;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.translate(canvas.width / 2, canvas.height / 2);
+              ctx.rotate(Math.PI / 2);
+              ctx.drawImage(img, -img.width / 2, -img.height / 2);
+              
+              const hints = new Map();
+              hints.set(DecodeHintType.TRY_HARDER, true);
+              const reader = new BrowserMultiFormatReader(hints);
+              const rotatedImg = new Image();
+              rotatedImg.src = canvas.toDataURL();
+              await new Promise(r => rotatedImg.onload = r);
+              const result = await reader.decodeFromImageElement(rotatedImg);
+              console.log("ZXing barcode result (rotated):", result.getText());
+              resolve(result.getText());
+              return;
+            }
+          } catch (rotErr) {
+            console.log("Rotated scan also failed");
+          }
+          
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = imageDataUrl;
+    });
+  };
+
   const scanImageFile = async (imageBase64: string) => {
     setIsProcessingPhoto(true);
+    setError(null);
+    
     try {
-      const html5QrCode = new Html5Qrcode("barcode-reader-photo");
+      const result = await scanImageWithZxing(imageBase64);
       
-      const response = await fetch(imageBase64);
-      const blob = await response.blob();
-      const file = new File([blob], "barcode.jpg", { type: "image/jpeg" });
+      if (result) {
+        console.log("Barcode found:", result);
+        onScan(result);
+        onClose();
+        return;
+      }
       
-      const result = await html5QrCode.scanFile(file, true);
-      console.log("Barcode found in photo:", result);
-      onScan(result);
-      onClose();
+      console.log("ZXing failed, trying html5-qrcode...");
+      try {
+        const html5QrCode = new Html5Qrcode("barcode-reader-photo", { verbose: false });
+        
+        const response = await fetch(imageBase64);
+        const blob = await response.blob();
+        const file = new File([blob], "barcode.jpg", { type: "image/jpeg" });
+        
+        const html5Result = await html5QrCode.scanFile(file, true);
+        console.log("html5-qrcode result:", html5Result);
+        onScan(html5Result);
+        onClose();
+        return;
+      } catch (html5Err) {
+        console.log("html5-qrcode also failed:", html5Err);
+      }
+      
+      setError("No barcode found in the photo. Please ensure the barcode is clearly visible and try again.");
+      setIsProcessingPhoto(false);
     } catch (err: any) {
       console.error("Photo scan error:", err);
-      setError("No barcode found in the photo. Please try again with a clearer image.");
+      setError("Could not scan the photo. Please try again with a clearer image.");
       setIsProcessingPhoto(false);
     }
   };
 
   const takePhotoAndScan = async () => {
+    setError(null);
     try {
       const permission = await CapacitorCamera.requestPermissions({ permissions: ['camera'] });
       if (permission.camera !== 'granted' && permission.camera !== 'limited') {
@@ -62,11 +155,13 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
       }
 
       const photo = await CapacitorCamera.getPhoto({
-        quality: 90,
+        quality: 100,
         allowEditing: false,
         resultType: CameraResultType.DataUrl,
         source: CameraSource.Camera,
         correctOrientation: true,
+        width: 1920,
+        height: 1080,
       });
 
       if (photo.dataUrl) {
@@ -74,7 +169,7 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
       }
     } catch (err: any) {
       console.error("Camera error:", err);
-      if (err.message?.includes("cancelled") || err.message?.includes("canceled")) {
+      if (err.message?.includes("cancelled") || err.message?.includes("canceled") || err.message?.includes("User cancelled")) {
         return;
       }
       setError("Could not take photo. Please try again.");
@@ -82,9 +177,10 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
   };
 
   const pickPhotoAndScan = async () => {
+    setError(null);
     try {
       const photo = await CapacitorCamera.getPhoto({
-        quality: 90,
+        quality: 100,
         allowEditing: false,
         resultType: CameraResultType.DataUrl,
         source: CameraSource.Photos,
@@ -95,7 +191,7 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
       }
     } catch (err: any) {
       console.error("Photo pick error:", err);
-      if (err.message?.includes("cancelled") || err.message?.includes("canceled")) {
+      if (err.message?.includes("cancelled") || err.message?.includes("canceled") || err.message?.includes("User cancelled")) {
         return;
       }
       setError("Could not select photo. Please try again.");
@@ -200,7 +296,7 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
               <Camera className="w-16 h-16 mx-auto text-primary" />
               <div>
                 <h3 className="font-semibold text-lg mb-1">Scan Product Barcode</h3>
-                <p className="text-sm text-muted-foreground">Take a photo of the barcode or select from gallery</p>
+                <p className="text-sm text-muted-foreground">Take a clear photo of the barcode</p>
               </div>
               <div className="space-y-2">
                 <Button 
@@ -221,6 +317,9 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
                   Choose from Gallery
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Tip: Hold camera steady and ensure barcode is well-lit
+              </p>
             </CardContent>
           </Card>
         )}
