@@ -1,0 +1,175 @@
+You are acting as a Senior Full-Stack Engineer + Security Auditor + QA Lead.
+Your task is to perform a complete audit of the OGym codebase and produce a structured report.
+
+🚫 Rules (Important)
+
+DO NOT implement fixes
+
+DO NOT refactor
+
+DO NOT change code
+
+ONLY inspect, test, and report
+
+If you find critical issues, provide clear recommended fixes, but do not apply them.
+
+✅ Audit Areas (Do all)
+1) Security Audit (High priority)
+
+Check for:
+
+Authentication/session/JWT issues (token storage, expiry, refresh, insecure cookies, missing httpOnly, etc.)
+
+Authorization checks (owner vs trainer vs member) — verify route + API protection
+
+Input validation & sanitization (XSS, SQL injection, unsafe rendering)
+
+Sensitive data leakage (logs, client-side env vars, API responses)
+
+CORS / CSRF risk (especially if cookies used)
+
+Rate limiting / brute force protection (login, OTP, password reset if exists)
+
+File uploads risks (resume upload, images, docs) if present
+
+Dependencies vulnerabilities (npm audit / package risks)
+
+Secrets management (keys accidentally in repo, dotenv usage, capacitor config leaks)
+
+Deliverable: list vulnerabilities with severity: Critical / High / Medium / Low
+
+2) Workflow + App Logic Audit
+
+Check:
+
+Core user workflows end-to-end:
+
+owner onboarding → create gym → add trainers/members
+
+member login → attendance → workouts → nutrition → progress
+
+trainer flow → assign cycles → track member progress
+
+Broken/unfinished flows, dead screens, navigation loops
+
+Error handling (API failures, offline behavior, retries)
+
+Data consistency (what happens if API fails mid-step?)
+
+Permissions edge cases (what can wrong user access?)
+
+Deliverable: “Workflow risk map” + where users may get stuck
+
+3) Bug & Code Quality Audit
+
+Check for:
+
+Console errors, runtime crashes, undefined handling
+
+React key warnings, state mutation risks
+
+Duplicate logic, missing null checks, unsafe type usage
+
+Incorrect dependencies in useEffect (infinite loops, stale states)
+
+Any obvious memory leaks / event listener leaks
+
+API integration issues (wrong endpoints, missing headers, inconsistent base URL)
+
+Deliverable: bug list + exact file paths + reproduction steps
+
+4) Performance Audit (Mobile + WebView)
+
+Check:
+
+Large re-renders, heavy components on main screens
+
+Unnecessary API calls
+
+Slow lists (need virtualization?)
+
+Images too large / not optimized
+
+Bundle size / lazy-loading opportunities
+
+Startup time (cold start), navigation lag
+
+Deliverable: top 10 performance bottlenecks + quick wins
+
+5) Reliability & Production Readiness
+
+Check:
+
+Logging strategy (client + server)
+
+Crash reporting readiness (Sentry or equivalent)
+
+Build configs (dev vs prod)
+
+Environment variables separation
+
+API error standardization
+
+Offline/poor-network handling
+
+Database integrity constraints (if backend exists in repo)
+
+Deliverable: release readiness score + blockers
+
+✅ Required Output Format
+
+Return the report in this structure:
+
+Executive Summary (score out of 10 + biggest risks)
+
+Critical Blockers (must fix before release)
+
+Security Findings
+
+Critical
+
+High
+
+Medium
+
+Low
+
+Workflow Findings
+
+Bug Findings
+
+Performance Findings
+
+Reliability / Production Readiness
+
+Recommended Fix Order (Week 1 / Week 2 / Later)
+
+Top 15 Action Items (each includes file path + suggested fix)
+
+For every finding include:
+
+Severity
+
+Affected file(s)
+
+Why it matters
+
+Suggested fix (text only)
+
+✅ How to Audit (MANDATORY)
+
+Do the audit in this order:
+
+Scan auth + API routes first
+
+Scan role-based access control
+
+Scan data flow + storage
+
+Scan UI workflows
+
+Run dependency/security checks
+
+Compile report
+
+At the end, ask me before starting any fixes.
