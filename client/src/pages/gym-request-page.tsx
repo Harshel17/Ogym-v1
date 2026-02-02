@@ -11,8 +11,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Loader2, Clock, CheckCircle2, XCircle, Send } from "lucide-react";
+import { Building2, Loader2, Clock, CheckCircle2, XCircle, Send, AlertCircle } from "lucide-react";
 import { getRegionConfig, type Country } from "@shared/currency";
+import { isIOS, isNative } from "@/lib/capacitor-init";
+
+// Helper: Check if we're running on iOS native app (not web)
+const isIOSNativeApp = () => isNative() && isIOS();
 
 type GymRequest = {
   id: number;
@@ -127,6 +131,19 @@ export default function GymRequestPage() {
   const onSubmit = (data: z.infer<typeof formSchema>) => {
     submitMutation.mutate(data);
   };
+
+  // Block gym registration on iOS native app per Apple Guideline 3.1.1
+  if (isIOSNativeApp()) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] text-center px-4">
+        <AlertCircle className="w-16 h-16 text-muted-foreground mb-4" />
+        <h2 className="text-2xl font-bold">Not Available</h2>
+        <p className="text-muted-foreground">
+          Gym owner accounts are created outside the app. Existing accounts can sign in.
+        </p>
+      </div>
+    );
+  }
 
   if (user?.gymId) {
     return (

@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Building2, CheckCircle2, XCircle, Loader2, LogOut, RefreshCw } from "lucide-react";
 import { Link } from "wouter";
+import { isIOS, isNative } from "@/lib/capacitor-init";
+
+// Helper: Check if we're running on iOS native app (not web)
+const isIOSNativeApp = () => isNative() && isIOS();
 
 type GymRequest = {
   id: number;
@@ -123,15 +127,24 @@ export default function PendingApprovalPage() {
                   </p>
                 </div>
               )}
-              <p className="text-sm text-center text-muted-foreground">
-                You can submit a new request with updated information.
-              </p>
-              <Link href={isOwner ? "/gym-request" : "/join-gym"}>
-                <Button className="w-full" data-testid="button-resubmit-request">
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Submit New Request
-                </Button>
-              </Link>
+              {/* Hide resubmit button on iOS native app for owners per Apple Guideline 3.1.1 */}
+              {isOwner && isIOSNativeApp() ? (
+                <p className="text-sm text-center text-muted-foreground">
+                  Gym owner accounts are created outside the app. Existing accounts can sign in.
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm text-center text-muted-foreground">
+                    You can submit a new request with updated information.
+                  </p>
+                  <Link href={isOwner ? "/gym-request" : "/join-gym"}>
+                    <Button className="w-full" data-testid="button-resubmit-request">
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Submit New Request
+                    </Button>
+                  </Link>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
@@ -167,16 +180,21 @@ export default function PendingApprovalPage() {
               <CardTitle>No Pending Request</CardTitle>
               <CardDescription>
                 {isOwner 
-                  ? "You haven't submitted a gym registration request yet."
+                  ? (isIOSNativeApp() 
+                      ? "Gym owner accounts are created outside the app. Existing accounts can sign in."
+                      : "You haven't submitted a gym registration request yet.")
                   : "You haven't submitted a request to join a gym yet."}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href={isOwner ? "/gym-request" : "/join-gym"}>
-                <Button className="w-full" data-testid="button-submit-request">
-                  {isOwner ? "Register Your Gym" : "Join a Gym"}
-                </Button>
-              </Link>
+              {/* Hide gym registration button on iOS native app per Apple Guideline 3.1.1 */}
+              {!(isOwner && isIOSNativeApp()) && (
+                <Link href={isOwner ? "/gym-request" : "/join-gym"}>
+                  <Button className="w-full" data-testid="button-submit-request">
+                    {isOwner ? "Register Your Gym" : "Join a Gym"}
+                  </Button>
+                </Link>
+              )}
             </CardContent>
           </Card>
         )}

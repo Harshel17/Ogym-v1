@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle, Dumbbell, ExternalLink } from "lucide-react";
+import { Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle, Dumbbell } from "lucide-react";
 import { isIOS, isNative } from "@/lib/capacitor-init";
 
 // Helper: Check if we're running on iOS native app (not web)
@@ -536,8 +536,8 @@ export default function AuthPage() {
                       // Guard: Block owner registration on iOS native app per Apple Guideline 3.1.1
                       if (isIOSNativeApp() && d.role === "owner") {
                         toast({
-                          title: "Registration unavailable",
-                          description: "Please register as a gym owner at app.ogym.fitness",
+                          title: "Role not available",
+                          description: "This role is not available in the iOS app.",
                           variant: "destructive",
                         });
                         return;
@@ -615,19 +615,10 @@ export default function AuthPage() {
                                 {!isIOSNativeApp() && <SelectItem value="owner">Gym Owner</SelectItem>}
                               </SelectContent>
                             </Select>
-                            {/* Show info for gym owners on iOS native app */}
+                            {/* iOS native app: informational message only, no links per Apple Guideline 3.1.1 */}
                             {isIOSNativeApp() && (
-                              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                                <ExternalLink className="w-3 h-3" />
-                                Gym owners: Register at{" "}
-                                <a 
-                                  href="https://app.ogym.fitness" 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-primary underline"
-                                >
-                                  app.ogym.fitness
-                                </a>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Gym owner accounts are created outside the app. Existing accounts can sign in.
                               </p>
                             )}
                             <FormMessage />
