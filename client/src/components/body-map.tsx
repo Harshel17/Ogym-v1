@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 interface BodyMapProps {
   highlightedMuscles: string[];
   onMuscleClick?: (muscle: string) => void;
@@ -72,22 +70,68 @@ export function BodyMapFront({
   const isHighlighted = (region: string) => highlightedMuscles.includes(region);
   const isSelected = (region: string) => selectedMuscle === region;
   
-  const getMuscleClass = (region: string) => {
-    if (isSelected(region)) return "fill-primary stroke-primary cursor-pointer";
-    if (isHighlighted(region)) return "fill-primary/50 stroke-primary/70 cursor-pointer";
-    return "fill-muted/30 stroke-muted-foreground/30 cursor-pointer";
+  const getMuscleStyle = (region: string) => {
+    if (isSelected(region)) {
+      return {
+        fill: "url(#selectedGradient)",
+        stroke: "hsl(var(--primary))",
+        strokeWidth: 2,
+        filter: "url(#glow)",
+        cursor: "pointer",
+        transition: "all 0.3s ease"
+      };
+    }
+    if (isHighlighted(region)) {
+      return {
+        fill: "url(#highlightGradient)",
+        stroke: "hsl(var(--primary) / 0.7)",
+        strokeWidth: 1.5,
+        cursor: "pointer",
+        transition: "all 0.3s ease"
+      };
+    }
+    return {
+      fill: "hsl(var(--muted) / 0.15)",
+      stroke: "hsl(var(--muted-foreground) / 0.2)",
+      strokeWidth: 1,
+      cursor: "pointer",
+      transition: "all 0.3s ease"
+    };
   };
 
   return (
-    <svg viewBox="0 0 200 400" className={`w-full max-w-[180px] ${className}`}>
-      <g className="body-outline">
-        <ellipse cx="100" cy="30" rx="25" ry="28" className="fill-muted/20 stroke-muted-foreground/40" strokeWidth="1.5" />
-        
-        <path d="M75 58 L60 70 L55 130 L70 135 L80 90 L80 58 Z" className="fill-muted/20 stroke-muted-foreground/40" strokeWidth="1.5" />
-        <path d="M125 58 L140 70 L145 130 L130 135 L120 90 L120 58 Z" className="fill-muted/20 stroke-muted-foreground/40" strokeWidth="1.5" />
-        
-        <path d="M80 200 L75 280 L70 360 L85 365 L95 280 L100 240 L105 280 L115 365 L130 360 L125 280 L120 200 Z" 
-              className="fill-muted/20 stroke-muted-foreground/40" strokeWidth="1.5" />
+    <svg viewBox="0 0 200 400" className={`w-full max-w-[160px] ${className}`}>
+      <defs>
+        <linearGradient id="highlightGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
+        </linearGradient>
+        <linearGradient id="selectedGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="1" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.8" />
+        </linearGradient>
+        <linearGradient id="bodyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.08" />
+        </linearGradient>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.15"/>
+        </filter>
+      </defs>
+      
+      <g className="body-outline" filter="url(#softShadow)">
+        <ellipse cx="100" cy="32" rx="22" ry="26" fill="url(#bodyGradient)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
+        <path d="M78 58 L65 68 L58 125 L68 130 L78 88 L78 58 Z" fill="url(#bodyGradient)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
+        <path d="M122 58 L135 68 L142 125 L132 130 L122 88 L122 58 Z" fill="url(#bodyGradient)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
+        <path d="M82 200 L78 275 L72 355 L88 358 L96 278 L100 235 L104 278 L112 358 L128 355 L122 275 L118 200 Z" 
+              fill="url(#bodyGradient)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
       </g>
       
       <g className="muscles" onClick={(e) => {
@@ -98,72 +142,70 @@ export function BodyMapFront({
         <path 
           data-region="shoulders"
           data-testid="region-shoulders-front"
-          d="M65 62 L55 75 L58 95 L75 85 L80 65 Z M135 62 L145 75 L142 95 L125 85 L120 65 Z"
-          className={getMuscleClass("shoulders")}
-          strokeWidth="1"
+          d="M68 62 L58 72 L60 92 L74 84 L78 64 Z M132 62 L142 72 L140 92 L126 84 L122 64 Z"
+          style={getMuscleStyle("shoulders")}
         />
         
         <path 
           data-region="chest"
           data-testid="region-chest"
-          d="M80 65 L75 85 L80 110 L100 115 L120 110 L125 85 L120 65 L100 60 Z"
-          className={getMuscleClass("chest")}
-          strokeWidth="1"
+          d="M78 64 L74 82 L78 108 L100 114 L122 108 L126 82 L122 64 L100 58 Z"
+          style={getMuscleStyle("chest")}
         />
         
         <path 
           data-region="biceps"
           data-testid="region-biceps"
-          d="M55 95 L50 130 L60 135 L70 100 Z M145 95 L150 130 L140 135 L130 100 Z"
-          className={getMuscleClass("biceps")}
-          strokeWidth="1"
+          d="M58 92 L52 125 L62 130 L70 96 Z M142 92 L148 125 L138 130 L130 96 Z"
+          style={getMuscleStyle("biceps")}
         />
         
         <path 
           data-region="forearms"
           data-testid="region-forearms"
-          d="M50 130 L45 170 L55 175 L60 135 Z M150 130 L155 170 L145 175 L140 135 Z"
-          className={getMuscleClass("forearms")}
-          strokeWidth="1"
+          d="M52 125 L46 168 L56 172 L62 130 Z M148 125 L154 168 L144 172 L138 130 Z"
+          style={getMuscleStyle("forearms")}
         />
         
         <path 
           data-region="abs"
           data-testid="region-abs"
-          d="M85 115 L80 160 L85 200 L100 205 L115 200 L120 160 L115 115 L100 120 Z"
-          className={getMuscleClass("abs")}
-          strokeWidth="1"
+          d="M86 114 L82 155 L86 198 L100 202 L114 198 L118 155 L114 114 L100 118 Z"
+          style={getMuscleStyle("abs")}
         />
         
         <path 
           data-region="obliques"
           data-testid="region-obliques"
-          d="M75 110 L80 115 L80 160 L75 200 L70 195 L72 155 Z M125 110 L120 115 L120 160 L125 200 L130 195 L128 155 Z"
-          className={getMuscleClass("obliques")}
-          strokeWidth="1"
+          d="M76 108 L82 114 L82 155 L78 198 L72 192 L74 152 Z M124 108 L118 114 L118 155 L122 198 L128 192 L126 152 Z"
+          style={getMuscleStyle("obliques")}
         />
         
         <path 
           data-region="quads"
           data-testid="region-quads"
-          d="M80 205 L75 260 L80 310 L95 315 L100 260 L100 210 Z M120 205 L125 260 L120 310 L105 315 L100 260 L100 210 Z"
-          className={getMuscleClass("quads")}
-          strokeWidth="1"
+          d="M82 204 L78 258 L82 308 L96 312 L100 258 L100 208 Z M118 204 L122 258 L118 308 L104 312 L100 258 L100 208 Z"
+          style={getMuscleStyle("quads")}
         />
         
         <path 
           data-region="calves"
           data-testid="region-calves-front"
-          d="M78 320 L75 360 L90 365 L92 325 Z M122 320 L125 360 L110 365 L108 325 Z"
-          className={getMuscleClass("calves")}
-          strokeWidth="1"
+          d="M80 316 L76 354 L90 358 L92 322 Z M120 316 L124 354 L110 358 L108 322 Z"
+          style={getMuscleStyle("calves")}
         />
       </g>
       
       <g className="labels pointer-events-none">
-        <text x="100" y="92" textAnchor="middle" className="fill-foreground text-[8px] font-medium">Chest</text>
-        <text x="100" y="165" textAnchor="middle" className="fill-foreground text-[8px] font-medium">Abs</text>
-        <text x="100" y="265" textAnchor="middle" className="fill-foreground text-[8px] font-medium">Quads</text>
+        {isHighlighted("chest") && (
+          <text x="100" y="90" textAnchor="middle" className="fill-primary-foreground text-[7px] font-semibold drop-shadow-sm">Chest</text>
+        )}
+        {isHighlighted("abs") && (
+          <text x="100" y="162" textAnchor="middle" className="fill-primary-foreground text-[7px] font-semibold drop-shadow-sm">Abs</text>
+        )}
+        {isHighlighted("quads") && (
+          <text x="100" y="262" textAnchor="middle" className="fill-primary-foreground text-[7px] font-semibold drop-shadow-sm">Quads</text>
+        )}
       </g>
     </svg>
   );
@@ -178,22 +220,68 @@ export function BodyMapBack({
   const isHighlighted = (region: string) => highlightedMuscles.includes(region);
   const isSelected = (region: string) => selectedMuscle === region;
   
-  const getMuscleClass = (region: string) => {
-    if (isSelected(region)) return "fill-primary stroke-primary cursor-pointer";
-    if (isHighlighted(region)) return "fill-primary/50 stroke-primary/70 cursor-pointer";
-    return "fill-muted/30 stroke-muted-foreground/30 cursor-pointer";
+  const getMuscleStyle = (region: string) => {
+    if (isSelected(region)) {
+      return {
+        fill: "url(#selectedGradientBack)",
+        stroke: "hsl(var(--primary))",
+        strokeWidth: 2,
+        filter: "url(#glowBack)",
+        cursor: "pointer",
+        transition: "all 0.3s ease"
+      };
+    }
+    if (isHighlighted(region)) {
+      return {
+        fill: "url(#highlightGradientBack)",
+        stroke: "hsl(var(--primary) / 0.7)",
+        strokeWidth: 1.5,
+        cursor: "pointer",
+        transition: "all 0.3s ease"
+      };
+    }
+    return {
+      fill: "hsl(var(--muted) / 0.15)",
+      stroke: "hsl(var(--muted-foreground) / 0.2)",
+      strokeWidth: 1,
+      cursor: "pointer",
+      transition: "all 0.3s ease"
+    };
   };
 
   return (
-    <svg viewBox="0 0 200 400" className={`w-full max-w-[180px] ${className}`}>
-      <g className="body-outline">
-        <ellipse cx="100" cy="30" rx="25" ry="28" className="fill-muted/20 stroke-muted-foreground/40" strokeWidth="1.5" />
-        
-        <path d="M75 58 L60 70 L55 130 L70 135 L80 90 L80 58 Z" className="fill-muted/20 stroke-muted-foreground/40" strokeWidth="1.5" />
-        <path d="M125 58 L140 70 L145 130 L130 135 L120 90 L120 58 Z" className="fill-muted/20 stroke-muted-foreground/40" strokeWidth="1.5" />
-        
-        <path d="M80 200 L75 280 L70 360 L85 365 L95 280 L100 240 L105 280 L115 365 L130 360 L125 280 L120 200 Z" 
-              className="fill-muted/20 stroke-muted-foreground/40" strokeWidth="1.5" />
+    <svg viewBox="0 0 200 400" className={`w-full max-w-[160px] ${className}`}>
+      <defs>
+        <linearGradient id="highlightGradientBack" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
+        </linearGradient>
+        <linearGradient id="selectedGradientBack" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="1" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.8" />
+        </linearGradient>
+        <linearGradient id="bodyGradientBack" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.08" />
+        </linearGradient>
+        <filter id="glowBack" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        <filter id="softShadowBack" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.15"/>
+        </filter>
+      </defs>
+      
+      <g className="body-outline" filter="url(#softShadowBack)">
+        <ellipse cx="100" cy="32" rx="22" ry="26" fill="url(#bodyGradientBack)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
+        <path d="M78 58 L65 68 L58 125 L68 130 L78 88 L78 58 Z" fill="url(#bodyGradientBack)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
+        <path d="M122 58 L135 68 L142 125 L132 130 L122 88 L122 58 Z" fill="url(#bodyGradientBack)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
+        <path d="M82 200 L78 275 L72 355 L88 358 L96 278 L100 235 L104 278 L112 358 L128 355 L122 275 L118 200 Z" 
+              fill="url(#bodyGradientBack)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
       </g>
       
       <g className="muscles" onClick={(e) => {
@@ -204,64 +292,63 @@ export function BodyMapBack({
         <path 
           data-region="shoulders"
           data-testid="region-shoulders-back"
-          d="M65 62 L55 75 L58 95 L75 85 L80 65 Z M135 62 L145 75 L142 95 L125 85 L120 65 Z"
-          className={getMuscleClass("shoulders")}
-          strokeWidth="1"
+          d="M68 62 L58 72 L60 92 L74 84 L78 64 Z M132 62 L142 72 L140 92 L126 84 L122 64 Z"
+          style={getMuscleStyle("shoulders")}
         />
         
         <path 
           data-region="upper-back"
           data-testid="region-upper-back"
-          d="M80 65 L75 85 L80 120 L100 125 L120 120 L125 85 L120 65 L100 60 Z"
-          className={getMuscleClass("upper-back")}
-          strokeWidth="1"
+          d="M78 64 L74 82 L78 118 L100 124 L122 118 L126 82 L122 64 L100 58 Z"
+          style={getMuscleStyle("upper-back")}
         />
         
         <path 
           data-region="lats"
           data-testid="region-lats"
-          d="M75 120 L70 160 L80 170 L85 130 Z M125 120 L130 160 L120 170 L115 130 Z"
-          className={getMuscleClass("lats")}
-          strokeWidth="1"
+          d="M74 118 L70 158 L80 168 L84 128 Z M126 118 L130 158 L120 168 L116 128 Z"
+          style={getMuscleStyle("lats")}
         />
         
         <path 
           data-region="triceps"
           data-testid="region-triceps"
-          d="M55 95 L50 130 L60 135 L70 100 Z M145 95 L150 130 L140 135 L130 100 Z"
-          className={getMuscleClass("triceps")}
-          strokeWidth="1"
+          d="M58 92 L52 125 L62 130 L70 96 Z M142 92 L148 125 L138 130 L130 96 Z"
+          style={getMuscleStyle("triceps")}
         />
         
         <path 
           data-region="glutes"
           data-testid="region-glutes"
-          d="M80 195 L75 220 L85 235 L100 238 L115 235 L125 220 L120 195 L100 200 Z"
-          className={getMuscleClass("glutes")}
-          strokeWidth="1"
+          d="M82 194 L76 218 L86 234 L100 238 L114 234 L124 218 L118 194 L100 198 Z"
+          style={getMuscleStyle("glutes")}
         />
         
         <path 
           data-region="hamstrings"
           data-testid="region-hamstrings"
-          d="M80 240 L75 300 L90 310 L100 270 Z M120 240 L125 300 L110 310 L100 270 Z"
-          className={getMuscleClass("hamstrings")}
-          strokeWidth="1"
+          d="M82 240 L76 298 L92 308 L100 268 Z M118 240 L124 298 L108 308 L100 268 Z"
+          style={getMuscleStyle("hamstrings")}
         />
         
         <path 
           data-region="calves"
           data-testid="region-calves-back"
-          d="M78 315 L75 360 L90 365 L92 320 Z M122 315 L125 360 L110 365 L108 320 Z"
-          className={getMuscleClass("calves")}
-          strokeWidth="1"
+          d="M80 314 L76 354 L90 358 L92 318 Z M120 314 L124 354 L110 358 L108 318 Z"
+          style={getMuscleStyle("calves")}
         />
       </g>
       
       <g className="labels pointer-events-none">
-        <text x="100" y="95" textAnchor="middle" className="fill-foreground text-[8px] font-medium">Back</text>
-        <text x="100" y="218" textAnchor="middle" className="fill-foreground text-[8px] font-medium">Glutes</text>
-        <text x="100" y="280" textAnchor="middle" className="fill-foreground text-[8px] font-medium">Hamstrings</text>
+        {isHighlighted("upper-back") && (
+          <text x="100" y="95" textAnchor="middle" className="fill-primary-foreground text-[7px] font-semibold drop-shadow-sm">Back</text>
+        )}
+        {isHighlighted("glutes") && (
+          <text x="100" y="218" textAnchor="middle" className="fill-primary-foreground text-[7px] font-semibold drop-shadow-sm">Glutes</text>
+        )}
+        {isHighlighted("hamstrings") && (
+          <text x="100" y="278" textAnchor="middle" className="fill-primary-foreground text-[7px] font-semibold drop-shadow-sm">Hamstrings</text>
+        )}
       </g>
     </svg>
   );
@@ -274,13 +361,13 @@ export function BodyMap(props: BodyMapProps & { view?: "front" | "back" | "both"
   if (view === "back") return <BodyMapBack {...mapProps} />;
   
   return (
-    <div className="flex justify-center gap-2">
+    <div className="flex justify-center items-start gap-6">
       <div className="text-center">
-        <p className="text-xs text-muted-foreground mb-1">Front</p>
+        <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Front</p>
         <BodyMapFront {...mapProps} />
       </div>
       <div className="text-center">
-        <p className="text-xs text-muted-foreground mb-1">Back</p>
+        <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Back</p>
         <BodyMapBack {...mapProps} />
       </div>
     </div>
