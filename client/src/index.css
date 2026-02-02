@@ -34,18 +34,22 @@ html:not(.dark) #root {
 
 /* Android-specific: Add status bar padding when running in Capacitor */
 html.capacitor-android {
-  --safe-top: 24px;
+  --safe-top: 28px;
+}
+
+/* Mobile app header - base padding for safe areas */
+.mobile-app-header {
+  padding-top: max(env(safe-area-inset-top, 0px), 8px);
 }
 
 /* Android status bar spacer - adds padding at top for status bar */
-html.capacitor-android .mobile-fixed-header,
-html.capacitor-android header[style*="zIndex: 99999"] {
-  padding-top: 28px !important;
+html.capacitor-android .mobile-app-header {
+  padding-top: 32px !important;
 }
 
 /* Push content down on Android to account for header + status bar */
 html.capacitor-android .mobile-content-offset {
-  padding-top: 76px !important;
+  padding-top: 80px !important;
 }
 
 /* Mobile fixed header */
