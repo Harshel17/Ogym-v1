@@ -2,10 +2,11 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { X, Camera, Loader2, ImageIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { X, Camera, Loader2, ImageIcon, Keyboard } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from "@capacitor/camera";
-import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
+import { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from "@zxing/library";
 
 interface BarcodeScannerProps {
   onScan: (barcode: string) => void;
@@ -17,6 +18,8 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
   const [error, setError] = useState<string | null>(null);
   const [showPhotoOption, setShowPhotoOption] = useState(false);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualBarcode, setManualBarcode] = useState("");
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scannedRef = useRef(false);
@@ -34,75 +37,46 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
     }
   }, []);
 
-  const scanImageWithZxing = async (imageDataUrl: string): Promise<string | null> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = async () => {
-        try {
-          const hints = new Map();
-          hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-            BarcodeFormat.EAN_13,
-            BarcodeFormat.EAN_8,
-            BarcodeFormat.UPC_A,
-            BarcodeFormat.UPC_E,
-            BarcodeFormat.CODE_128,
-            BarcodeFormat.CODE_39,
-            BarcodeFormat.CODE_93,
-            BarcodeFormat.ITF,
-            BarcodeFormat.QR_CODE,
-            BarcodeFormat.DATA_MATRIX,
-          ]);
-          hints.set(DecodeHintType.TRY_HARDER, true);
+  const scanWithZxing = async (imageDataUrl: string): Promise<string | null> => {
+    try {
+      const hints = new Map();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.CODE_39,
+        BarcodeFormat.ITF,
+      ]);
+      hints.set(DecodeHintType.TRY_HARDER, true);
+      
+      const reader = new BrowserMultiFormatReader(hints);
+      
+      const result = await reader.decodeFromImageUrl(imageDataUrl);
+      console.log("ZXing decoded:", result.getText());
+      return result.getText();
+    } catch (err) {
+      console.log("ZXing primary scan failed:", err);
+      return null;
+    }
+  };
 
-          const reader = new BrowserMultiFormatReader(hints);
-          
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            resolve(null);
-            return;
-          }
-          ctx.drawImage(img, 0, 0);
-          
-          const result = await reader.decodeFromImageElement(img);
-          console.log("ZXing barcode result:", result.getText());
-          resolve(result.getText());
-        } catch (err) {
-          console.log("ZXing scan failed, trying with rotation...", err);
-          
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.height;
-            canvas.height = img.width;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.translate(canvas.width / 2, canvas.height / 2);
-              ctx.rotate(Math.PI / 2);
-              ctx.drawImage(img, -img.width / 2, -img.height / 2);
-              
-              const hints = new Map();
-              hints.set(DecodeHintType.TRY_HARDER, true);
-              const reader = new BrowserMultiFormatReader(hints);
-              const rotatedImg = new Image();
-              rotatedImg.src = canvas.toDataURL();
-              await new Promise(r => rotatedImg.onload = r);
-              const result = await reader.decodeFromImageElement(rotatedImg);
-              console.log("ZXing barcode result (rotated):", result.getText());
-              resolve(result.getText());
-              return;
-            }
-          } catch (rotErr) {
-            console.log("Rotated scan also failed");
-          }
-          
-          resolve(null);
-        }
-      };
-      img.onerror = () => resolve(null);
-      img.src = imageDataUrl;
-    });
+  const scanWithHtml5Qrcode = async (imageDataUrl: string): Promise<string | null> => {
+    try {
+      const html5QrCode = new Html5Qrcode("barcode-reader-photo", { verbose: false });
+      
+      const response = await fetch(imageDataUrl);
+      const blob = await response.blob();
+      const file = new File([blob], "barcode.jpg", { type: "image/jpeg" });
+      
+      const result = await html5QrCode.scanFile(file, true);
+      console.log("html5-qrcode decoded:", result);
+      return result;
+    } catch (err) {
+      console.log("html5-qrcode scan failed:", err);
+      return null;
+    }
   };
 
   const scanImageFile = async (imageBase64: string) => {
@@ -110,7 +84,11 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
     setError(null);
     
     try {
-      const result = await scanImageWithZxing(imageBase64);
+      let result = await scanWithZxing(imageBase64);
+      
+      if (!result) {
+        result = await scanWithHtml5Qrcode(imageBase64);
+      }
       
       if (result) {
         console.log("Barcode found:", result);
@@ -119,34 +97,20 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
         return;
       }
       
-      console.log("ZXing failed, trying html5-qrcode...");
-      try {
-        const html5QrCode = new Html5Qrcode("barcode-reader-photo", { verbose: false });
-        
-        const response = await fetch(imageBase64);
-        const blob = await response.blob();
-        const file = new File([blob], "barcode.jpg", { type: "image/jpeg" });
-        
-        const html5Result = await html5QrCode.scanFile(file, true);
-        console.log("html5-qrcode result:", html5Result);
-        onScan(html5Result);
-        onClose();
-        return;
-      } catch (html5Err) {
-        console.log("html5-qrcode also failed:", html5Err);
-      }
-      
-      setError("No barcode found in the photo. Please ensure the barcode is clearly visible and try again.");
+      setError("No barcode detected. You can enter it manually below.");
+      setShowManualEntry(true);
       setIsProcessingPhoto(false);
     } catch (err: any) {
       console.error("Photo scan error:", err);
-      setError("Could not scan the photo. Please try again with a clearer image.");
+      setError("Could not scan the photo. You can enter the barcode manually.");
+      setShowManualEntry(true);
       setIsProcessingPhoto(false);
     }
   };
 
   const takePhotoAndScan = async () => {
     setError(null);
+    setShowManualEntry(false);
     try {
       const permission = await CapacitorCamera.requestPermissions({ permissions: ['camera'] });
       if (permission.camera !== 'granted' && permission.camera !== 'limited') {
@@ -178,6 +142,7 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
 
   const pickPhotoAndScan = async () => {
     setError(null);
+    setShowManualEntry(false);
     try {
       const photo = await CapacitorCamera.getPhoto({
         quality: 100,
@@ -195,6 +160,14 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
         return;
       }
       setError("Could not select photo. Please try again.");
+    }
+  };
+
+  const handleManualSubmit = () => {
+    const cleanedBarcode = manualBarcode.replace(/\s/g, '').trim();
+    if (cleanedBarcode.length >= 8) {
+      onScan(cleanedBarcode);
+      onClose();
     }
   };
 
@@ -290,41 +263,95 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
           </div>
         )}
 
-        {showPhotoOption && !isProcessingPhoto && !error && (
+        {showPhotoOption && !isProcessingPhoto && (
           <Card className="max-w-sm mx-4 w-full">
             <CardContent className="pt-6 text-center space-y-4">
-              <Camera className="w-16 h-16 mx-auto text-primary" />
-              <div>
-                <h3 className="font-semibold text-lg mb-1">Scan Product Barcode</h3>
-                <p className="text-sm text-muted-foreground">Take a clear photo of the barcode</p>
-              </div>
-              <div className="space-y-2">
-                <Button 
-                  onClick={takePhotoAndScan} 
-                  className="w-full gap-2"
-                  data-testid="button-take-photo"
-                >
-                  <Camera className="w-4 h-4" />
-                  Take Photo
-                </Button>
-                <Button 
-                  onClick={pickPhotoAndScan} 
-                  variant="outline"
-                  className="w-full gap-2"
-                  data-testid="button-pick-photo"
-                >
-                  <ImageIcon className="w-4 h-4" />
-                  Choose from Gallery
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Tip: Hold camera steady and ensure barcode is well-lit
-              </p>
+              {!showManualEntry ? (
+                <>
+                  <Camera className="w-16 h-16 mx-auto text-primary" />
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">Scan Product Barcode</h3>
+                    <p className="text-sm text-muted-foreground">Take a clear photo of the barcode</p>
+                  </div>
+                  {error && (
+                    <p className="text-sm text-destructive">{error}</p>
+                  )}
+                  <div className="space-y-2">
+                    <Button 
+                      onClick={takePhotoAndScan} 
+                      className="w-full gap-2"
+                      data-testid="button-take-photo"
+                    >
+                      <Camera className="w-4 h-4" />
+                      Take Photo
+                    </Button>
+                    <Button 
+                      onClick={pickPhotoAndScan} 
+                      variant="outline"
+                      className="w-full gap-2"
+                      data-testid="button-pick-photo"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      Choose from Gallery
+                    </Button>
+                    <Button 
+                      onClick={() => setShowManualEntry(true)} 
+                      variant="ghost"
+                      className="w-full gap-2"
+                      data-testid="button-manual-entry"
+                    >
+                      <Keyboard className="w-4 h-4" />
+                      Enter Manually
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Keyboard className="w-12 h-12 mx-auto text-primary" />
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">Enter Barcode</h3>
+                    <p className="text-sm text-muted-foreground">Type the numbers below the barcode</p>
+                  </div>
+                  {error && (
+                    <p className="text-sm text-destructive">{error}</p>
+                  )}
+                  <div className="space-y-3">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="e.g. 8901234567890"
+                      value={manualBarcode}
+                      onChange={(e) => setManualBarcode(e.target.value)}
+                      className="text-center text-lg tracking-wider"
+                      data-testid="input-barcode"
+                    />
+                    <Button 
+                      onClick={handleManualSubmit}
+                      disabled={manualBarcode.replace(/\s/g, '').length < 8}
+                      className="w-full"
+                      data-testid="button-submit-barcode"
+                    >
+                      Look Up Product
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setShowManualEntry(false);
+                        setError(null);
+                      }} 
+                      variant="ghost"
+                      className="w-full"
+                      data-testid="button-back-to-scan"
+                    >
+                      Back to Camera
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
         
-        {error && (
+        {error && !showPhotoOption && (
           <Card className="max-w-sm mx-4">
             <CardContent className="pt-6 text-center">
               <Camera className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
