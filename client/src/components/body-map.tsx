@@ -7,27 +7,45 @@ interface BodyMapProps {
   className?: string;
 }
 
-export const muscleToRegions: Record<string, string[]> = {
-  "Chest": ["chest"],
-  "Back": ["upper-back", "lats"],
-  "Shoulders": ["shoulders"],
-  "Arms": ["biceps", "triceps", "forearms"],
-  "Biceps": ["biceps"],
-  "Triceps": ["triceps"],
-  "Legs": ["quads", "hamstrings", "calves"],
-  "Quadriceps": ["quads"],
-  "Hamstrings": ["hamstrings"],
-  "Calves": ["calves"],
-  "Glutes": ["glutes"],
-  "Core": ["abs", "obliques"],
-  "Abs": ["abs"],
-  "Full Body": ["chest", "upper-back", "quads", "shoulders", "biceps", "triceps", "abs", "glutes", "hamstrings"],
-  "Cardio": [],
-  "Other": [],
-  "Rest": [],
-  "Stretching": [],
-  "Mobility": []
+const baseMuscleToRegions: Record<string, string[]> = {
+  "chest": ["chest"],
+  "back": ["upper-back", "lats"],
+  "shoulders": ["shoulders"],
+  "front deltoids": ["shoulders"],
+  "rear deltoids": ["shoulders"],
+  "arms": ["biceps", "triceps", "forearms"],
+  "biceps": ["biceps"],
+  "triceps": ["triceps"],
+  "forearms": ["forearms"],
+  "legs": ["quads", "hamstrings", "calves"],
+  "quadriceps": ["quads"],
+  "quads": ["quads"],
+  "hamstrings": ["hamstrings"],
+  "calves": ["calves"],
+  "glutes": ["glutes"],
+  "core": ["abs", "obliques"],
+  "abs": ["abs"],
+  "lower abs": ["abs"],
+  "upper abs": ["abs"],
+  "obliques": ["obliques"],
+  "lats": ["lats"],
+  "upper back": ["upper-back"],
+  "lower back": ["upper-back"],
+  "full body": ["chest", "upper-back", "quads", "shoulders", "biceps", "triceps", "abs", "glutes", "hamstrings"],
+  "cardio": [],
+  "other": [],
+  "rest": [],
+  "stretching": [],
+  "mobility": []
 };
+
+export const muscleToRegions: Record<string, string[]> = Object.fromEntries(
+  Object.entries(baseMuscleToRegions).flatMap(([key, value]) => [
+    [key, value],
+    [key.charAt(0).toUpperCase() + key.slice(1), value],
+    [key.toUpperCase(), value]
+  ])
+);
 
 export const regionToMuscle: Record<string, string> = {
   "chest": "Chest",
