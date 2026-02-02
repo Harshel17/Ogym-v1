@@ -90,16 +90,16 @@ export function BodyMapFront({
       return {
         ...base,
         fill: "url(#highlightGradientFront)",
-        stroke: "hsl(var(--primary) / 0.5)",
+        stroke: "hsl(var(--primary) / 0.6)",
         strokeWidth: 1.5,
         filter: "url(#softGlowFront)"
       };
     }
     return {
       ...base,
-      fill: "hsl(var(--muted) / 0.08)",
-      stroke: "hsl(var(--muted-foreground) / 0.15)",
-      strokeWidth: 0.8
+      fill: "hsl(var(--muted-foreground) / 0.08)",
+      stroke: "hsl(var(--muted-foreground) / 0.25)",
+      strokeWidth: 1.2
     };
   };
 
@@ -107,22 +107,22 @@ export function BodyMapFront({
     <svg viewBox="0 0 200 400" className={`w-full max-w-[200px] ${className}`}>
       <defs>
         <linearGradient id="highlightGradientFront" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.6" />
-          <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
+          <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
         </linearGradient>
         <linearGradient id="selectedGradientFront" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.95" />
           <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.75" />
         </linearGradient>
         <radialGradient id="bodyFillFront" cx="50%" cy="30%" r="70%">
-          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.12" />
-          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.04" />
+          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.08" />
         </radialGradient>
         <filter id="glowFront" x="-100%" y="-100%" width="300%" height="300%">
           <feGaussianBlur stdDeviation="4" result="blur"/>
-          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.4"/>
+          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.5"/>
           <feComposite in2="blur" operator="in"/>
           <feMerge>
             <feMergeNode/>
@@ -131,7 +131,7 @@ export function BodyMapFront({
         </filter>
         <filter id="softGlowFront" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="2" result="blur"/>
-          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.2"/>
+          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.25"/>
           <feComposite in2="blur" operator="in"/>
           <feMerge>
             <feMergeNode/>
@@ -139,16 +139,16 @@ export function BodyMapFront({
           </feMerge>
         </filter>
         <filter id="bodyShadowFront" x="-10%" y="-10%" width="120%" height="120%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.08"/>
+          <feDropShadow dx="0" dy="2" stdDeviation="4" floodOpacity="0.12"/>
         </filter>
       </defs>
       
       <g className="body-outline" filter="url(#bodyShadowFront)">
-        <ellipse cx="100" cy="32" rx="24" ry="28" fill="url(#bodyFillFront)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
-        <path d="M76 60 L62 72 L54 130 L66 135 L78 85 L78 60 Z" fill="url(#bodyFillFront)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
-        <path d="M124 60 L138 72 L146 130 L134 135 L122 85 L122 60 Z" fill="url(#bodyFillFront)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
+        <ellipse cx="100" cy="32" rx="24" ry="28" fill="url(#bodyFillFront)" stroke="hsl(var(--muted-foreground) / 0.35)" strokeWidth="1.5" />
+        <path d="M76 60 L62 72 L54 130 L66 135 L78 85 L78 60 Z" fill="url(#bodyFillFront)" stroke="hsl(var(--muted-foreground) / 0.35)" strokeWidth="1.5" />
+        <path d="M124 60 L138 72 L146 130 L134 135 L122 85 L122 60 Z" fill="url(#bodyFillFront)" stroke="hsl(var(--muted-foreground) / 0.35)" strokeWidth="1.5" />
         <path d="M80 202 L76 278 L70 358 L88 362 L98 280 L100 238 L102 280 L112 362 L130 358 L124 278 L120 202 Z" 
-              fill="url(#bodyFillFront)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
+              fill="url(#bodyFillFront)" stroke="hsl(var(--muted-foreground) / 0.35)" strokeWidth="1.5" />
       </g>
       
       <g className="muscles" onClick={(e) => {
@@ -215,13 +215,19 @@ export function BodyMapFront({
       
       <g className="labels pointer-events-none">
         {isHighlighted("chest") && (
-          <text x="100" y="92" textAnchor="middle" className="fill-primary-foreground text-[8px] font-bold" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>CHEST</text>
+          <>
+            <text x="100" y="92" textAnchor="middle" fill="white" fontSize="9" fontWeight="700" style={{textShadow: '0 1px 3px rgba(0,0,0,0.5)'}}>CHEST</text>
+          </>
         )}
         {isHighlighted("abs") && (
-          <text x="100" y="165" textAnchor="middle" className="fill-primary-foreground text-[8px] font-bold" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>ABS</text>
+          <>
+            <text x="100" y="165" textAnchor="middle" fill="white" fontSize="9" fontWeight="700" style={{textShadow: '0 1px 3px rgba(0,0,0,0.5)'}}>ABS</text>
+          </>
         )}
         {isHighlighted("quads") && (
-          <text x="100" y="268" textAnchor="middle" className="fill-primary-foreground text-[8px] font-bold" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>QUADS</text>
+          <>
+            <text x="100" y="268" textAnchor="middle" fill="white" fontSize="9" fontWeight="700" style={{textShadow: '0 1px 3px rgba(0,0,0,0.5)'}}>QUADS</text>
+          </>
         )}
       </g>
     </svg>
@@ -257,16 +263,16 @@ export function BodyMapBack({
       return {
         ...base,
         fill: "url(#highlightGradientBack)",
-        stroke: "hsl(var(--primary) / 0.5)",
+        stroke: "hsl(var(--primary) / 0.6)",
         strokeWidth: 1.5,
         filter: "url(#softGlowBack)"
       };
     }
     return {
       ...base,
-      fill: "hsl(var(--muted) / 0.08)",
-      stroke: "hsl(var(--muted-foreground) / 0.15)",
-      strokeWidth: 0.8
+      fill: "hsl(var(--muted-foreground) / 0.08)",
+      stroke: "hsl(var(--muted-foreground) / 0.25)",
+      strokeWidth: 1.2
     };
   };
 
@@ -274,22 +280,22 @@ export function BodyMapBack({
     <svg viewBox="0 0 200 400" className={`w-full max-w-[200px] ${className}`}>
       <defs>
         <linearGradient id="highlightGradientBack" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.6" />
-          <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
+          <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
         </linearGradient>
         <linearGradient id="selectedGradientBack" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.95" />
           <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.75" />
         </linearGradient>
         <radialGradient id="bodyFillBack" cx="50%" cy="30%" r="70%">
-          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.12" />
-          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.04" />
+          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.08" />
         </radialGradient>
         <filter id="glowBack" x="-100%" y="-100%" width="300%" height="300%">
           <feGaussianBlur stdDeviation="4" result="blur"/>
-          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.4"/>
+          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.5"/>
           <feComposite in2="blur" operator="in"/>
           <feMerge>
             <feMergeNode/>
@@ -298,7 +304,7 @@ export function BodyMapBack({
         </filter>
         <filter id="softGlowBack" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="2" result="blur"/>
-          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.2"/>
+          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.25"/>
           <feComposite in2="blur" operator="in"/>
           <feMerge>
             <feMergeNode/>
@@ -306,16 +312,16 @@ export function BodyMapBack({
           </feMerge>
         </filter>
         <filter id="bodyShadowBack" x="-10%" y="-10%" width="120%" height="120%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.08"/>
+          <feDropShadow dx="0" dy="2" stdDeviation="4" floodOpacity="0.12"/>
         </filter>
       </defs>
       
       <g className="body-outline" filter="url(#bodyShadowBack)">
-        <ellipse cx="100" cy="32" rx="24" ry="28" fill="url(#bodyFillBack)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
-        <path d="M76 60 L62 72 L54 130 L66 135 L78 85 L78 60 Z" fill="url(#bodyFillBack)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
-        <path d="M124 60 L138 72 L146 130 L134 135 L122 85 L122 60 Z" fill="url(#bodyFillBack)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
+        <ellipse cx="100" cy="32" rx="24" ry="28" fill="url(#bodyFillBack)" stroke="hsl(var(--muted-foreground) / 0.35)" strokeWidth="1.5" />
+        <path d="M76 60 L62 72 L54 130 L66 135 L78 85 L78 60 Z" fill="url(#bodyFillBack)" stroke="hsl(var(--muted-foreground) / 0.35)" strokeWidth="1.5" />
+        <path d="M124 60 L138 72 L146 130 L134 135 L122 85 L122 60 Z" fill="url(#bodyFillBack)" stroke="hsl(var(--muted-foreground) / 0.35)" strokeWidth="1.5" />
         <path d="M80 202 L76 278 L70 358 L88 362 L98 280 L100 238 L102 280 L112 362 L130 358 L124 278 L120 202 Z" 
-              fill="url(#bodyFillBack)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
+              fill="url(#bodyFillBack)" stroke="hsl(var(--muted-foreground) / 0.35)" strokeWidth="1.5" />
       </g>
       
       <g className="muscles" onClick={(e) => {
@@ -375,13 +381,19 @@ export function BodyMapBack({
       
       <g className="labels pointer-events-none">
         {isHighlighted("upper-back") && (
-          <text x="100" y="98" textAnchor="middle" className="fill-primary-foreground text-[8px] font-bold" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>BACK</text>
+          <>
+            <text x="100" y="98" textAnchor="middle" fill="white" fontSize="9" fontWeight="700" style={{textShadow: '0 1px 3px rgba(0,0,0,0.5)'}}>BACK</text>
+          </>
         )}
         {isHighlighted("glutes") && (
-          <text x="100" y="222" textAnchor="middle" className="fill-primary-foreground text-[8px] font-bold" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>GLUTES</text>
+          <>
+            <text x="100" y="222" textAnchor="middle" fill="white" fontSize="9" fontWeight="700" style={{textShadow: '0 1px 3px rgba(0,0,0,0.5)'}}>GLUTES</text>
+          </>
         )}
         {isHighlighted("hamstrings") && (
-          <text x="100" y="285" textAnchor="middle" className="fill-primary-foreground text-[8px] font-bold" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>HAMSTRINGS</text>
+          <>
+            <text x="100" y="285" textAnchor="middle" fill="white" fontSize="9" fontWeight="700" style={{textShadow: '0 1px 3px rgba(0,0,0,0.5)'}}>HAMSTRINGS</text>
+          </>
         )}
       </g>
     </svg>
@@ -395,13 +407,13 @@ export function BodyMap(props: BodyMapProps & { view?: "front" | "back" | "both"
   if (view === "back") return <BodyMapBack {...mapProps} />;
   
   return (
-    <div className="flex justify-center items-start gap-8 py-4">
+    <div className="flex justify-center items-start gap-10 py-4">
       <div className="text-center">
-        <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-widest">Front</p>
+        <p className="text-xs font-bold text-foreground/70 mb-3 uppercase tracking-[0.2em]">Front</p>
         <BodyMapFront {...mapProps} />
       </div>
       <div className="text-center">
-        <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-widest">Back</p>
+        <p className="text-xs font-bold text-foreground/70 mb-3 uppercase tracking-[0.2em]">Back</p>
         <BodyMapBack {...mapProps} />
       </div>
     </div>
