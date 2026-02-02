@@ -12,7 +12,7 @@
   right: 0;
   z-index: 9999;
   background-color: hsl(var(--background));
-  padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+  padding-top: calc(env(safe-area-inset-top, 24px) + 8px);
   padding-bottom: 8px;
   padding-left: 12px;
   padding-right: 12px;
@@ -21,7 +21,7 @@
 
 /* Mobile header content offset */
 .mobile-content-offset {
-  padding-top: calc(env(safe-area-inset-top, 0px) + 64px);
+  padding-top: calc(env(safe-area-inset-top, 24px) + 56px);
 }
 
 @media (min-width: 768px) {

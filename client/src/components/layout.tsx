@@ -505,7 +505,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="md:hidden flex items-center justify-between gap-2 fixed top-0 left-0 right-0 bg-background border-b border-border"
         style={{
           zIndex: 99999,
-          paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)',
+          paddingTop: 'calc(env(safe-area-inset-top, 24px) + 8px)',
           paddingBottom: '8px',
           paddingLeft: '12px',
           paddingRight: '12px',
