@@ -3832,7 +3832,7 @@ export class DatabaseStorage implements IStorage {
     }[];
   }[]> {
     const [member] = await db.select().from(users).where(eq(users.id, memberId));
-    if (!member || !member.gymId) return [];
+    if (!member) return [];
 
     const sessionMap = new Map<string, {
       date: string;
