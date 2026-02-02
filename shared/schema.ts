@@ -203,9 +203,12 @@ export const workoutItems = pgTable("workout_items", {
   muscleType: text("muscle_type").notNull().default("Chest"),
   bodyPart: text("body_part").notNull().default("Upper Body"),
   exerciseName: text("exercise_name").notNull(),
+  exerciseType: text("exercise_type").notNull().default("strength"), // 'strength' or 'cardio'
   sets: integer("sets").notNull(),
   reps: integer("reps").notNull(),
   weight: text("weight"),
+  durationMinutes: integer("duration_minutes"), // For cardio exercises
+  distanceKm: text("distance_km"), // For cardio exercises (text to allow "5km", "3.2mi" etc)
   orderIndex: integer("order_index").default(0),
   isDeleted: boolean("is_deleted").default(false),
 });
@@ -219,9 +222,12 @@ export const workoutCompletions = pgTable("workout_completions", {
   memberId: integer("member_id").references(() => users.id).notNull(),
   completedDate: text("completed_date").notNull(),
   exerciseName: text("exercise_name"),
+  exerciseType: text("exercise_type").default("strength"), // 'strength' or 'cardio'
   actualSets: integer("actual_sets"),
   actualReps: integer("actual_reps"),
   actualWeight: text("actual_weight"),
+  actualDurationMinutes: integer("actual_duration_minutes"), // For cardio
+  actualDistanceKm: text("actual_distance_km"), // For cardio
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
