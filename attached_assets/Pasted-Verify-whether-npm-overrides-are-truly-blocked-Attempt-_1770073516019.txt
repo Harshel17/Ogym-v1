@@ -1,0 +1,90 @@
+Verify whether npm overrides are truly blocked.
+
+Attempt to add this to package.json (DO NOT commit if it breaks):
+
+"overrides": { "tar": "^7.5.7" }
+
+Run:
+
+npm install
+
+npm audit
+
+npm run build
+
+npx cap sync (or the exact capacitor sync command used)
+
+If it fails:
+
+capture the exact error output
+
+revert the change and keep the Security Exception Note
+
+If it succeeds:
+
+keep the change and update the Security Exception Note to “resolved via overrides”
+
+Output:
+
+whether overrides work
+
+error logs if they don’t
+
+final decision
+
+Why: If overrides work, you can remove the last “High” findings and your audit goes green.
+
+2) Make the Security Exception “enterprise-grade”
+
+Your note is already good; it just needs two additions that auditors expect:
+
+Add these lines (tell Replit to append them)
+
+Owner: “Engineering lead / repo maintainer”
+
+Review date: set a date (e.g., review in 30 days)
+
+Trigger to revisit: “when Capacitor CLI releases a patched dependency chain”
+
+CI mitigation (if you have CI): fail build only on runtime deps; allow dev-tool highs with exception file
+
+Prompt to Replit
+
+Prompt:
+
+Update the Security Exception Note to include:
+
+Owner
+
+Date created
+
+Review date (30 days)
+
+Revisit trigger (Capacitor CLI update / tar patched upstream)
+
+Explicit statement: “devDependency only; not shipped in production artifacts”
+
+Store it as SECURITY_EXCEPTION.md in repo root
+
+No other changes.
+
+3) Quick sanity checks for code splitting
+
+Your implementation sounds fine, but two common pitfalls:
+
+Putting <Suspense> inside ProtectedRoute can sometimes cause “flash” or blank screens on auth transitions.
+
+Lazy routes should have stable fallback UI.
+
+Minimal verification prompt
+
+Prompt:
+
+Regression test lazy-loading routes:
+
+Navigate to each lazy route from cold start while logged out → ensure redirect works and no blank screen.
+
+Navigate while logged in → spinner appears briefly, route loads.
+
+Refresh directly on lazy route URL → loads correctly.
+Report any issues and fix only if needed.
