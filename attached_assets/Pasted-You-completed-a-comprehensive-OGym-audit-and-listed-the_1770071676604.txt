@@ -1,0 +1,189 @@
+You completed a comprehensive OGym audit and listed the prioritized action items.
+Now I want you to FIX ALL issues from the audit in a controlled, production-safe way.
+
+🚫 Hard Rules
+
+Do NOT redesign UI.
+
+Do NOT refactor code unless explicitly required to fix an audit item.
+
+Do NOT change business logic or feature behavior.
+
+Make changes in small, isolated batches (like “Commit Group 1/2/3…”).
+
+After each batch: show files changed + code diffs + how to test.
+
+If a fix requires a breaking dependency upgrade, STOP and ask (do not proceed).
+
+Prefer minimal risk changes over “best practice rewrites”.
+
+✅ Fix Plan (MANDATORY ORDER)
+Batch 1 — Security (Must fix first)
+1.1 Fix HIGH npm vulnerabilities (AWS SDK/transitive)
+
+Run npm audit and paste full summary.
+
+Apply remediation:
+
+Run npm audit fix ONLY if it does not introduce breaking major upgrades.
+
+If major upgrades are required, propose a safe manual plan and pause.
+
+After upgrades:
+
+run npm run build (or equivalent)
+
+run the app and confirm no runtime errors
+
+Deliverables:
+
+before/after audit summary
+
+list of upgraded packages + versions
+
+changed files (package.json, lockfile)
+
+1.2 Review & address dangerouslySetInnerHTML risk
+
+Trace data flow into client/src/components/ui/chart.tsx where dangerouslySetInnerHTML is used.
+
+If any user-controlled input can reach it, sanitize or remove usage safely.
+
+If it is truly controlled, add a clear code comment explaining why it’s safe.
+
+Batch 2 — TypeScript correctness (Eliminate the 647 errors)
+2.1 Extend authenticated user typing
+
+Fix server/routes.ts TypeScript errors caused by req.user typing.
+
+Implement module augmentation to extend Express.User with:
+
+id, gymId, role (and any other fields used in routes)
+
+Ensure tsconfig picks up the types.
+
+Remove errors without adding any everywhere.
+
+Deliverables:
+
+before/after TypeScript error count
+
+file paths for type augmentation
+
+confirmation server build passes
+
+2.2 Fix Set iteration TS errors
+
+Fix Set iteration issues in server/routes.ts at mentioned lines:
+
+Use Array.from(set) or [...set] to avoid tsconfig changes unless required.
+
+Batch 3 — Actual bug fixes found in audit
+3.1 Fix method mismatch
+
+Fix the bug: getTrainingPhase should be getTrainingPhases (or correct call based on real implementation).
+
+Update call sites safely
+
+Verify route returns correct data
+
+Deliverables:
+
+diff + how to reproduce
+
+Batch 4 — Reliability / Production safety
+4.1 Add React Error Boundary
+
+Create ErrorBoundary component
+
+Wrap app/router in ErrorBoundary
+
+Friendly fallback UI + Reload button
+
+Only show stack trace in dev
+
+4.2 Reduce noisy production console logging
+
+Replace excessive console.log with a simple logger utility:
+
+debug/info/warn/error
+
+disable debug logs in production
+
+Keep important error logs.
+
+4.3 Session cleanup strategy (if sessions stored)
+
+Identify session storage backend.
+
+If sessions persist, implement minimal pruning plan (cron-like cleanup) OR document the cleanup strategy if handled externally.
+
+Batch 5 — Performance (Do after correctness + reliability)
+5.1 Implement route-level code splitting
+
+Add React.lazy() and <Suspense> for major routes
+
+Start with biggest pages first (largest imports)
+
+Add a simple loading fallback
+
+Ensure routing still works
+
+5.2 Add list virtualization for long lists
+
+Add virtualization (react-window or similar) for large lists:
+
+members list
+
+payments list
+
+Only apply where list size can be large
+
+5.3 Improve data freshness strategy
+
+Review staleTime: Infinity in queryClient
+
+Adjust to a reasonable value or implement selective invalidation
+
+Do not increase API load unnecessarily
+
+✅ Verification Checklist (MANDATORY)
+
+After all batches:
+
+npm audit shows no HIGH vulnerabilities with fixes available
+
+TypeScript check passes (or error count explained with justification)
+
+App builds successfully
+
+No runtime crashes on launch
+
+Auth still works for Owner/Trainer/Member roles
+
+Core workflows still work:
+
+Owner: gym → members → payments
+
+Trainer: assign workouts
+
+Member: attendance + nutrition + progress
+
+Performance: verify initial load improved (bundle reduced / lazy routes working)
+
+✅ Output Format (MANDATORY)
+
+For each batch output:
+
+“Batch X completed”
+
+Files changed
+
+Key diffs (snippets)
+
+Test steps + results
+At the end:
+
+Final summary table of what was fixed
+
+Any remaining risks / deferred items (with reasons)

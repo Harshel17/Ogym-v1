@@ -76,6 +76,11 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
+  // SECURITY NOTE: dangerouslySetInnerHTML is safe here because:
+  // 1. `id` comes from React's useId() - fully controlled, not user input
+  // 2. `config` is developer-defined ChartConfig passed from parent components
+  // 3. All color values are from static theme configs, not user-controlled
+  // 4. No external/untrusted data reaches this CSS generation
   return (
     <style
       dangerouslySetInnerHTML={{
