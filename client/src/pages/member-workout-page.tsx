@@ -17,6 +17,9 @@ import { useToast } from "@/hooks/use-toast";
 import { CycleBuilderWizard } from "@/components/cycle-builder-wizard";
 import { AIImportWizard } from "@/components/ai-import-wizard";
 import { PersonalModeOnboarding, MemberOnboarding } from "@/components/onboarding-carousel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { VisualWorkoutMap } from "@/components/visual-workout-map";
+import { User } from "lucide-react";
 
 interface WorkoutSummary {
   streak: number;
@@ -1067,7 +1070,7 @@ export default function MemberWorkoutPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
-              <CardTitle>Full Cycle Schedule</CardTitle>
+              <CardTitle>Workout Cycle</CardTitle>
               {canManageOwnWorkouts && (
                 <Button 
                   variant="outline" 
@@ -1083,40 +1086,79 @@ export default function MemberWorkoutPage() {
             <p className="text-sm text-muted-foreground">{cycle.name} - {cycle.startDate} to {cycle.endDate}</p>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {Array.from({ length: cycle.cycleLength || 3 }, (_, idx) => {
-                const dayLabel = cycle.dayLabels?.[idx] || `Day ${idx + 1}`;
-                const dayItems = cycle.items.filter((w: any) => w.dayIndex === idx);
-                const muscleTypes = Array.from(new Set(dayItems.map((w: any) => w.muscleType).filter(Boolean)));
-                return (
-                  <div key={idx}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-sm">{dayLabel}</h3>
-                      {muscleTypes.length > 0 && (
-                        <span className="text-xs text-muted-foreground">({muscleTypes.join(" + ")})</span>
-                      )}
-                    </div>
-                    {dayItems.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No exercises assigned</p>
-                    ) : (
-                      <div className="space-y-1 text-sm">
-                        {dayItems.map((w: any) => (
-                          <div key={w.id} className="flex items-center gap-2 text-muted-foreground">
-                            <span>{w.exerciseName}</span>
-                            <span>-</span>
-                            <span>{w.sets}x{w.reps}</span>
-                            {w.weight && <span>@ {w.weight}</span>}
-                            {w.muscleType && (
-                              <Badge variant="outline" className="text-xs ml-auto">{w.muscleType}</Badge>
-                            )}
+            <Tabs defaultValue="schedule" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="schedule" data-testid="tab-schedule">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Schedule
+                </TabsTrigger>
+                <TabsTrigger value="visual" data-testid="tab-visual">
+                  <User className="w-4 h-4 mr-2" />
+                  Visual
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="schedule">
+                <div className="space-y-4">
+                  {Array.from({ length: cycle.cycleLength || 3 }, (_, idx) => {
+                    const dayLabel = cycle.dayLabels?.[idx] || `Day ${idx + 1}`;
+                    const dayItems = cycle.items.filter((w: any) => w.dayIndex === idx);
+                    const muscleTypes = Array.from(new Set(dayItems.map((w: any) => w.muscleType).filter(Boolean)));
+                    return (
+                      <div key={idx}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="font-semibold text-sm">{dayLabel}</h3>
+                          {muscleTypes.length > 0 && (
+                            <span className="text-xs text-muted-foreground">({muscleTypes.join(" + ")})</span>
+                          )}
+                        </div>
+                        {dayItems.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No exercises assigned</p>
+                        ) : (
+                          <div className="space-y-1 text-sm">
+                            {dayItems.map((w: any) => (
+                              <div key={w.id} className="flex items-center gap-2 text-muted-foreground">
+                                {w.exerciseType === 'cardio' ? (
+                                  <Heart className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
+                                ) : (w.muscleType === 'Core' || w.muscleType === 'Abs') ? (
+                                  <Target className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                                ) : (
+                                  <Dumbbell className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                )}
+                                <span>{w.exerciseName}</span>
+                                <span>-</span>
+                                {w.exerciseType === 'cardio' ? (
+                                  <span>
+                                    {w.durationMinutes ? `${w.durationMinutes} min` : ''}
+                                    {w.distanceKm ? ` · ${w.distanceKm}` : ''}
+                                  </span>
+                                ) : (
+                                  <>
+                                    <span>{w.sets}x{w.reps}</span>
+                                    {w.weight && <span>@ {w.weight}</span>}
+                                  </>
+                                )}
+                                {w.muscleType && (
+                                  <Badge variant="outline" className="text-xs ml-auto">{w.muscleType}</Badge>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="visual">
+                <VisualWorkoutMap
+                  workoutItems={cycle.items}
+                  cycleLength={cycle.cycleLength || 3}
+                  dayLabels={cycle.dayLabels}
+                />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       )}
