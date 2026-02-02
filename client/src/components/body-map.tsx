@@ -70,68 +70,85 @@ export function BodyMapFront({
   const isHighlighted = (region: string) => highlightedMuscles.includes(region);
   const isSelected = (region: string) => selectedMuscle === region;
   
-  const getMuscleStyle = (region: string) => {
+  const getMuscleStyle = (region: string): React.CSSProperties => {
+    const base: React.CSSProperties = {
+      cursor: "pointer",
+      transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+      transformOrigin: "center"
+    };
+    
     if (isSelected(region)) {
       return {
-        fill: "url(#selectedGradient)",
+        ...base,
+        fill: "url(#selectedGradientFront)",
         stroke: "hsl(var(--primary))",
-        strokeWidth: 2,
-        filter: "url(#glow)",
-        cursor: "pointer",
-        transition: "all 0.3s ease"
+        strokeWidth: 2.5,
+        filter: "url(#glowFront)"
       };
     }
     if (isHighlighted(region)) {
       return {
-        fill: "url(#highlightGradient)",
-        stroke: "hsl(var(--primary) / 0.7)",
+        ...base,
+        fill: "url(#highlightGradientFront)",
+        stroke: "hsl(var(--primary) / 0.5)",
         strokeWidth: 1.5,
-        cursor: "pointer",
-        transition: "all 0.3s ease"
+        filter: "url(#softGlowFront)"
       };
     }
     return {
-      fill: "hsl(var(--muted) / 0.15)",
-      stroke: "hsl(var(--muted-foreground) / 0.2)",
-      strokeWidth: 1,
-      cursor: "pointer",
-      transition: "all 0.3s ease"
+      ...base,
+      fill: "hsl(var(--muted) / 0.08)",
+      stroke: "hsl(var(--muted-foreground) / 0.15)",
+      strokeWidth: 0.8
     };
   };
 
   return (
-    <svg viewBox="0 0 200 400" className={`w-full max-w-[160px] ${className}`}>
+    <svg viewBox="0 0 200 400" className={`w-full max-w-[200px] ${className}`}>
       <defs>
-        <linearGradient id="highlightGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
+        <linearGradient id="highlightGradientFront" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.6" />
+          <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.45" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
         </linearGradient>
-        <linearGradient id="selectedGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="1" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.8" />
+        <linearGradient id="selectedGradientFront" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.95" />
+          <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
         </linearGradient>
-        <linearGradient id="bodyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.08" />
-        </linearGradient>
-        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+        <radialGradient id="bodyFillFront" cx="50%" cy="30%" r="70%">
+          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.12" />
+          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.04" />
+        </radialGradient>
+        <filter id="glowFront" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.4"/>
+          <feComposite in2="blur" operator="in"/>
           <feMerge>
-            <feMergeNode in="coloredBlur"/>
+            <feMergeNode/>
             <feMergeNode in="SourceGraphic"/>
           </feMerge>
         </filter>
-        <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.15"/>
+        <filter id="softGlowFront" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.2"/>
+          <feComposite in2="blur" operator="in"/>
+          <feMerge>
+            <feMergeNode/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        <filter id="bodyShadowFront" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.08"/>
         </filter>
       </defs>
       
-      <g className="body-outline" filter="url(#softShadow)">
-        <ellipse cx="100" cy="32" rx="22" ry="26" fill="url(#bodyGradient)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
-        <path d="M78 58 L65 68 L58 125 L68 130 L78 88 L78 58 Z" fill="url(#bodyGradient)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
-        <path d="M122 58 L135 68 L142 125 L132 130 L122 88 L122 58 Z" fill="url(#bodyGradient)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
-        <path d="M82 200 L78 275 L72 355 L88 358 L96 278 L100 235 L104 278 L112 358 L128 355 L122 275 L118 200 Z" 
-              fill="url(#bodyGradient)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
+      <g className="body-outline" filter="url(#bodyShadowFront)">
+        <ellipse cx="100" cy="32" rx="24" ry="28" fill="url(#bodyFillFront)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
+        <path d="M76 60 L62 72 L54 130 L66 135 L78 85 L78 60 Z" fill="url(#bodyFillFront)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
+        <path d="M124 60 L138 72 L146 130 L134 135 L122 85 L122 60 Z" fill="url(#bodyFillFront)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
+        <path d="M80 202 L76 278 L70 358 L88 362 L98 280 L100 238 L102 280 L112 362 L130 358 L124 278 L120 202 Z" 
+              fill="url(#bodyFillFront)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
       </g>
       
       <g className="muscles" onClick={(e) => {
@@ -142,69 +159,69 @@ export function BodyMapFront({
         <path 
           data-region="shoulders"
           data-testid="region-shoulders-front"
-          d="M68 62 L58 72 L60 92 L74 84 L78 64 Z M132 62 L142 72 L140 92 L126 84 L122 64 Z"
+          d="M66 64 L56 75 L58 96 L74 86 L78 66 Z M134 64 L144 75 L142 96 L126 86 L122 66 Z"
           style={getMuscleStyle("shoulders")}
         />
         
         <path 
           data-region="chest"
           data-testid="region-chest"
-          d="M78 64 L74 82 L78 108 L100 114 L122 108 L126 82 L122 64 L100 58 Z"
+          d="M78 66 L72 86 L78 112 L100 118 L122 112 L128 86 L122 66 L100 58 Z"
           style={getMuscleStyle("chest")}
         />
         
         <path 
           data-region="biceps"
           data-testid="region-biceps"
-          d="M58 92 L52 125 L62 130 L70 96 Z M142 92 L148 125 L138 130 L130 96 Z"
+          d="M56 96 L50 130 L62 136 L72 100 Z M144 96 L150 130 L138 136 L128 100 Z"
           style={getMuscleStyle("biceps")}
         />
         
         <path 
           data-region="forearms"
           data-testid="region-forearms"
-          d="M52 125 L46 168 L56 172 L62 130 Z M148 125 L154 168 L144 172 L138 130 Z"
+          d="M50 130 L44 172 L56 178 L62 136 Z M150 130 L156 172 L144 178 L138 136 Z"
           style={getMuscleStyle("forearms")}
         />
         
         <path 
           data-region="abs"
           data-testid="region-abs"
-          d="M86 114 L82 155 L86 198 L100 202 L114 198 L118 155 L114 114 L100 118 Z"
+          d="M84 118 L80 158 L84 200 L100 206 L116 200 L120 158 L116 118 L100 122 Z"
           style={getMuscleStyle("abs")}
         />
         
         <path 
           data-region="obliques"
           data-testid="region-obliques"
-          d="M76 108 L82 114 L82 155 L78 198 L72 192 L74 152 Z M124 108 L118 114 L118 155 L122 198 L128 192 L126 152 Z"
+          d="M74 112 L80 118 L80 158 L76 200 L70 194 L72 154 Z M126 112 L120 118 L120 158 L124 200 L130 194 L128 154 Z"
           style={getMuscleStyle("obliques")}
         />
         
         <path 
           data-region="quads"
           data-testid="region-quads"
-          d="M82 204 L78 258 L82 308 L96 312 L100 258 L100 208 Z M118 204 L122 258 L118 308 L104 312 L100 258 L100 208 Z"
+          d="M80 208 L76 262 L82 315 L98 320 L100 262 L100 212 Z M120 208 L124 262 L118 315 L102 320 L100 262 L100 212 Z"
           style={getMuscleStyle("quads")}
         />
         
         <path 
           data-region="calves"
           data-testid="region-calves-front"
-          d="M80 316 L76 354 L90 358 L92 322 Z M120 316 L124 354 L110 358 L108 322 Z"
+          d="M78 322 L74 358 L90 362 L94 328 Z M122 322 L126 358 L110 362 L106 328 Z"
           style={getMuscleStyle("calves")}
         />
       </g>
       
       <g className="labels pointer-events-none">
         {isHighlighted("chest") && (
-          <text x="100" y="90" textAnchor="middle" className="fill-primary-foreground text-[7px] font-semibold drop-shadow-sm">Chest</text>
+          <text x="100" y="92" textAnchor="middle" className="fill-primary-foreground text-[8px] font-bold" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>CHEST</text>
         )}
         {isHighlighted("abs") && (
-          <text x="100" y="162" textAnchor="middle" className="fill-primary-foreground text-[7px] font-semibold drop-shadow-sm">Abs</text>
+          <text x="100" y="165" textAnchor="middle" className="fill-primary-foreground text-[8px] font-bold" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>ABS</text>
         )}
         {isHighlighted("quads") && (
-          <text x="100" y="262" textAnchor="middle" className="fill-primary-foreground text-[7px] font-semibold drop-shadow-sm">Quads</text>
+          <text x="100" y="268" textAnchor="middle" className="fill-primary-foreground text-[8px] font-bold" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>QUADS</text>
         )}
       </g>
     </svg>
@@ -220,68 +237,85 @@ export function BodyMapBack({
   const isHighlighted = (region: string) => highlightedMuscles.includes(region);
   const isSelected = (region: string) => selectedMuscle === region;
   
-  const getMuscleStyle = (region: string) => {
+  const getMuscleStyle = (region: string): React.CSSProperties => {
+    const base: React.CSSProperties = {
+      cursor: "pointer",
+      transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+      transformOrigin: "center"
+    };
+    
     if (isSelected(region)) {
       return {
+        ...base,
         fill: "url(#selectedGradientBack)",
         stroke: "hsl(var(--primary))",
-        strokeWidth: 2,
-        filter: "url(#glowBack)",
-        cursor: "pointer",
-        transition: "all 0.3s ease"
+        strokeWidth: 2.5,
+        filter: "url(#glowBack)"
       };
     }
     if (isHighlighted(region)) {
       return {
+        ...base,
         fill: "url(#highlightGradientBack)",
-        stroke: "hsl(var(--primary) / 0.7)",
+        stroke: "hsl(var(--primary) / 0.5)",
         strokeWidth: 1.5,
-        cursor: "pointer",
-        transition: "all 0.3s ease"
+        filter: "url(#softGlowBack)"
       };
     }
     return {
-      fill: "hsl(var(--muted) / 0.15)",
-      stroke: "hsl(var(--muted-foreground) / 0.2)",
-      strokeWidth: 1,
-      cursor: "pointer",
-      transition: "all 0.3s ease"
+      ...base,
+      fill: "hsl(var(--muted) / 0.08)",
+      stroke: "hsl(var(--muted-foreground) / 0.15)",
+      strokeWidth: 0.8
     };
   };
 
   return (
-    <svg viewBox="0 0 200 400" className={`w-full max-w-[160px] ${className}`}>
+    <svg viewBox="0 0 200 400" className={`w-full max-w-[200px] ${className}`}>
       <defs>
         <linearGradient id="highlightGradientBack" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.4" />
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.6" />
+          <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.45" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
         </linearGradient>
         <linearGradient id="selectedGradientBack" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="1" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.8" />
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.95" />
+          <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
         </linearGradient>
-        <linearGradient id="bodyGradientBack" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.08" />
-        </linearGradient>
-        <filter id="glowBack" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+        <radialGradient id="bodyFillBack" cx="50%" cy="30%" r="70%">
+          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.12" />
+          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.04" />
+        </radialGradient>
+        <filter id="glowBack" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.4"/>
+          <feComposite in2="blur" operator="in"/>
           <feMerge>
-            <feMergeNode in="coloredBlur"/>
+            <feMergeNode/>
             <feMergeNode in="SourceGraphic"/>
           </feMerge>
         </filter>
-        <filter id="softShadowBack" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.15"/>
+        <filter id="softGlowBack" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.2"/>
+          <feComposite in2="blur" operator="in"/>
+          <feMerge>
+            <feMergeNode/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        <filter id="bodyShadowBack" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.08"/>
         </filter>
       </defs>
       
-      <g className="body-outline" filter="url(#softShadowBack)">
-        <ellipse cx="100" cy="32" rx="22" ry="26" fill="url(#bodyGradientBack)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
-        <path d="M78 58 L65 68 L58 125 L68 130 L78 88 L78 58 Z" fill="url(#bodyGradientBack)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
-        <path d="M122 58 L135 68 L142 125 L132 130 L122 88 L122 58 Z" fill="url(#bodyGradientBack)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
-        <path d="M82 200 L78 275 L72 355 L88 358 L96 278 L100 235 L104 278 L112 358 L128 355 L122 275 L118 200 Z" 
-              fill="url(#bodyGradientBack)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="1" />
+      <g className="body-outline" filter="url(#bodyShadowBack)">
+        <ellipse cx="100" cy="32" rx="24" ry="28" fill="url(#bodyFillBack)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
+        <path d="M76 60 L62 72 L54 130 L66 135 L78 85 L78 60 Z" fill="url(#bodyFillBack)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
+        <path d="M124 60 L138 72 L146 130 L134 135 L122 85 L122 60 Z" fill="url(#bodyFillBack)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
+        <path d="M80 202 L76 278 L70 358 L88 362 L98 280 L100 238 L102 280 L112 362 L130 358 L124 278 L120 202 Z" 
+              fill="url(#bodyFillBack)" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="1" />
       </g>
       
       <g className="muscles" onClick={(e) => {
@@ -292,62 +326,62 @@ export function BodyMapBack({
         <path 
           data-region="shoulders"
           data-testid="region-shoulders-back"
-          d="M68 62 L58 72 L60 92 L74 84 L78 64 Z M132 62 L142 72 L140 92 L126 84 L122 64 Z"
+          d="M66 64 L56 75 L58 96 L74 86 L78 66 Z M134 64 L144 75 L142 96 L126 86 L122 66 Z"
           style={getMuscleStyle("shoulders")}
         />
         
         <path 
           data-region="upper-back"
           data-testid="region-upper-back"
-          d="M78 64 L74 82 L78 118 L100 124 L122 118 L126 82 L122 64 L100 58 Z"
+          d="M78 66 L72 86 L78 122 L100 128 L122 122 L128 86 L122 66 L100 58 Z"
           style={getMuscleStyle("upper-back")}
         />
         
         <path 
           data-region="lats"
           data-testid="region-lats"
-          d="M74 118 L70 158 L80 168 L84 128 Z M126 118 L130 158 L120 168 L116 128 Z"
+          d="M72 122 L68 164 L80 174 L86 132 Z M128 122 L132 164 L120 174 L114 132 Z"
           style={getMuscleStyle("lats")}
         />
         
         <path 
           data-region="triceps"
           data-testid="region-triceps"
-          d="M58 92 L52 125 L62 130 L70 96 Z M142 92 L148 125 L138 130 L130 96 Z"
+          d="M56 96 L50 130 L62 136 L72 100 Z M144 96 L150 130 L138 136 L128 100 Z"
           style={getMuscleStyle("triceps")}
         />
         
         <path 
           data-region="glutes"
           data-testid="region-glutes"
-          d="M82 194 L76 218 L86 234 L100 238 L114 234 L124 218 L118 194 L100 198 Z"
+          d="M80 196 L74 222 L86 240 L100 244 L114 240 L126 222 L120 196 L100 202 Z"
           style={getMuscleStyle("glutes")}
         />
         
         <path 
           data-region="hamstrings"
           data-testid="region-hamstrings"
-          d="M82 240 L76 298 L92 308 L100 268 Z M118 240 L124 298 L108 308 L100 268 Z"
+          d="M80 246 L74 305 L92 318 L100 274 Z M120 246 L126 305 L108 318 L100 274 Z"
           style={getMuscleStyle("hamstrings")}
         />
         
         <path 
           data-region="calves"
           data-testid="region-calves-back"
-          d="M80 314 L76 354 L90 358 L92 318 Z M120 314 L124 354 L110 358 L108 318 Z"
+          d="M78 322 L74 358 L90 362 L94 328 Z M122 322 L126 358 L110 362 L106 328 Z"
           style={getMuscleStyle("calves")}
         />
       </g>
       
       <g className="labels pointer-events-none">
         {isHighlighted("upper-back") && (
-          <text x="100" y="95" textAnchor="middle" className="fill-primary-foreground text-[7px] font-semibold drop-shadow-sm">Back</text>
+          <text x="100" y="98" textAnchor="middle" className="fill-primary-foreground text-[8px] font-bold" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>BACK</text>
         )}
         {isHighlighted("glutes") && (
-          <text x="100" y="218" textAnchor="middle" className="fill-primary-foreground text-[7px] font-semibold drop-shadow-sm">Glutes</text>
+          <text x="100" y="222" textAnchor="middle" className="fill-primary-foreground text-[8px] font-bold" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>GLUTES</text>
         )}
         {isHighlighted("hamstrings") && (
-          <text x="100" y="278" textAnchor="middle" className="fill-primary-foreground text-[7px] font-semibold drop-shadow-sm">Hamstrings</text>
+          <text x="100" y="285" textAnchor="middle" className="fill-primary-foreground text-[8px] font-bold" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>HAMSTRINGS</text>
         )}
       </g>
     </svg>
@@ -361,13 +395,13 @@ export function BodyMap(props: BodyMapProps & { view?: "front" | "back" | "both"
   if (view === "back") return <BodyMapBack {...mapProps} />;
   
   return (
-    <div className="flex justify-center items-start gap-6">
+    <div className="flex justify-center items-start gap-8 py-4">
       <div className="text-center">
-        <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Front</p>
+        <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-widest">Front</p>
         <BodyMapFront {...mapProps} />
       </div>
       <div className="text-center">
-        <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Back</p>
+        <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-widest">Back</p>
         <BodyMapBack {...mapProps} />
       </div>
     </div>
