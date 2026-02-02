@@ -42,6 +42,8 @@ Preferred communication style: Simple, everyday language.
 - **Dika Assistant:** An AI-powered personal assistant using OpenAI GPT-4o-mini (via Replit AI Integrations) providing contextual, role-specific insights to owners, members, and trainers.
 - **Automated Email Reminders:** System for sending subscription expiry reminders and weekly owner summaries using Resend API.
 - **Production Security:** Implemented with Helmet.js, secure session cookies, rate limiting, request body limits, and session cleanup.
+- **Error Handling:** React Error Boundary component for graceful UI error recovery.
+- **Logging:** Server-side logger utility (`server/logger.ts`) with log levels and production filtering.
 - **Database Indexing:** Optimized for common queries.
 - **Deployment:** Same-origin deployment with Express serving API and static frontend.
 - **Fitness Device Integration:** Health tracking columns in `users` and a `health_data` table for fitness device data.
