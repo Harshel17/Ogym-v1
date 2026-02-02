@@ -7,7 +7,7 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import { Layout } from "@/components/layout";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 
@@ -16,9 +16,6 @@ import DashboardPage from "@/pages/dashboard-page";
 import MembersPage from "@/pages/members-page";
 import TrainersPage from "@/pages/trainers-page";
 import AttendancePage from "@/pages/attendance-page";
-import PaymentsPage from "@/pages/payments-page";
-import TrainerWorkoutPage from "@/pages/trainer-workout-page";
-import MemberWorkoutPage from "@/pages/member-workout-page";
 import ProgressPage from "@/pages/progress-page";
 import WorkoutHistoryPage from "@/pages/workout-history-page";
 import StatsPage from "@/pages/stats-page";
@@ -27,7 +24,6 @@ import ProfilePage from "@/pages/profile-page";
 import MyBodyPage from "@/pages/my-body-page";
 import NutritionPage from "@/pages/nutrition-page";
 import StarMembersPage from "@/pages/star-members-page";
-import StarMemberDetailPage from "@/pages/star-member-detail-page";
 import DietPlansPage from "@/pages/diet-plans-page";
 import MyDietPlanPage from "@/pages/my-diet-plan-page";
 import WorkoutTemplatesPage from "@/pages/workout-templates-page";
@@ -51,7 +47,6 @@ import GymRequestPage from "@/pages/gym-request-page";
 import JoinGymPage from "@/pages/join-gym-page";
 import OwnerJoinRequestsPage from "@/pages/owner-join-requests-page";
 import AdminLoginPage from "@/pages/admin-login-page";
-import AdminDashboardPage from "@/pages/admin-dashboard-page";
 import PendingApprovalPage from "@/pages/pending-approval-page";
 import FeedPage from "@/pages/feed-page";
 import TournamentsPage from "@/pages/tournaments-page";
@@ -65,6 +60,20 @@ import SubscriptionExpiredPage from "@/pages/subscription-expired-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 import { SwipeNavigationProvider } from "@/hooks/use-swipe-navigation";
+
+const PaymentsPage = lazy(() => import("@/pages/payments-page"));
+const TrainerWorkoutPage = lazy(() => import("@/pages/trainer-workout-page"));
+const MemberWorkoutPage = lazy(() => import("@/pages/member-workout-page"));
+const StarMemberDetailPage = lazy(() => import("@/pages/star-member-detail-page"));
+const AdminDashboardPage = lazy(() => import("@/pages/admin-dashboard-page"));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[200px]">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 type ProtectedRouteProps = {
   component: React.ComponentType;
@@ -123,7 +132,9 @@ function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWi
 
   return (
     <Layout>
-      <Component />
+      <Suspense fallback={<PageLoader />}>
+        <Component />
+      </Suspense>
     </Layout>
   );
 }
@@ -351,7 +362,11 @@ function Router() {
       </Route>
 
       <Route path="/admin" component={AdminLoginPage} />
-      <Route path="/admin/dashboard" component={AdminDashboardPage} />
+      <Route path="/admin/dashboard">
+        <Suspense fallback={<PageLoader />}>
+          <AdminDashboardPage />
+        </Suspense>
+      </Route>
 
       <Route path="/terms" component={TermsPage} />
       <Route path="/privacy" component={PrivacyPage} />
