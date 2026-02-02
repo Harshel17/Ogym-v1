@@ -1063,7 +1063,7 @@ function TrainingPhasesTab({ memberId, memberName, currentCycleName, currentCycl
                 <input
                   id="phase-name"
                   type="text"
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm mt-1"
+                  className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm shadow-sm mt-1"
                   placeholder="e.g., 12-Week Lean Bulk"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -1075,7 +1075,7 @@ function TrainingPhasesTab({ memberId, memberName, currentCycleName, currentCycl
                 <Label htmlFor="goal-type">Goal Type</Label>
                 <select
                   id="goal-type"
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                  className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                   value={goalType}
                   onChange={(e) => setGoalType(e.target.value)}
                   data-testid="select-goal-type"
@@ -1095,7 +1095,7 @@ function TrainingPhasesTab({ memberId, memberName, currentCycleName, currentCycl
                   <input
                     id="start-date"
                     type="date"
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
                     data-testid="input-start-date"
@@ -1106,7 +1106,7 @@ function TrainingPhasesTab({ memberId, memberName, currentCycleName, currentCycl
                   <input
                     id="end-date"
                     type="date"
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                     data-testid="input-end-date"
@@ -1168,7 +1168,7 @@ function TrainingPhasesTab({ memberId, memberName, currentCycleName, currentCycl
                   <Label htmlFor="cycle">Select Workout Cycle</Label>
                   <select
                     id="cycle"
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                     value={cycleId}
                     onChange={(e) => setCycleId(e.target.value)}
                     data-testid="select-cycle"
@@ -1193,7 +1193,7 @@ function TrainingPhasesTab({ memberId, memberName, currentCycleName, currentCycl
                   <Label htmlFor="template-cycle">Start from template (optional)</Label>
                   <select
                     id="template-cycle"
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                     value={cycleId}
                     onChange={(e) => setCycleId(e.target.value)}
                     data-testid="select-template-cycle"
@@ -1473,7 +1473,7 @@ function UnifiedPhaseEditor({
               <input
                 id="edit-phase-name"
                 type="text"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm mt-1"
+                className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm shadow-sm mt-1"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 data-testid="input-edit-phase-name"
@@ -1483,7 +1483,7 @@ function UnifiedPhaseEditor({
               <Label htmlFor="edit-goal-type">Goal Type</Label>
               <select
                 id="edit-goal-type"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                 value={goalType}
                 onChange={(e) => setGoalType(e.target.value)}
                 data-testid="select-edit-goal-type"
@@ -1502,7 +1502,7 @@ function UnifiedPhaseEditor({
                 <input
                   id="edit-start-date"
                   type="date"
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                  className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   data-testid="input-edit-start-date"
@@ -1513,7 +1513,7 @@ function UnifiedPhaseEditor({
                 <input
                   id="edit-end-date"
                   type="date"
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                  className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   data-testid="input-edit-end-date"
@@ -1629,7 +1629,7 @@ function UnifiedPhaseEditor({
                     <div>
                       <Label>Day</Label>
                       <select
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                        className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                         value={newExercise.dayIndex}
                         onChange={(e) => setNewExercise({ ...newExercise, dayIndex: parseInt(e.target.value) })}
                       >
@@ -1641,7 +1641,7 @@ function UnifiedPhaseEditor({
                     <div>
                       <Label>Exercise Name</Label>
                       <input
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                        className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                         placeholder="e.g. Bench Press"
                         value={newExercise.exerciseName}
                         onChange={(e) => setNewExercise({ ...newExercise, exerciseName: e.target.value })}
@@ -1651,7 +1651,7 @@ function UnifiedPhaseEditor({
                     <div>
                       <Label>Body Part</Label>
                       <select
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                        className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                         value={newExercise.bodyPart}
                         onChange={(e) => setNewExercise({ ...newExercise, bodyPart: e.target.value })}
                         data-testid="select-body-part"
@@ -1664,7 +1664,7 @@ function UnifiedPhaseEditor({
                     <div>
                       <Label>Muscle Group</Label>
                       <select
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                        className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                         value={newExercise.muscleType}
                         onChange={(e) => setNewExercise({ ...newExercise, muscleType: e.target.value })}
                         data-testid="select-muscle-type"
@@ -1678,7 +1678,7 @@ function UnifiedPhaseEditor({
                       <Label>Sets</Label>
                       <input
                         type="number"
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                        className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                         value={newExercise.sets}
                         onChange={(e) => setNewExercise({ ...newExercise, sets: parseInt(e.target.value) || 3 })}
                       />
@@ -1687,7 +1687,7 @@ function UnifiedPhaseEditor({
                       <Label>Reps</Label>
                       <input
                         type="number"
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                        className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                         value={newExercise.reps}
                         onChange={(e) => setNewExercise({ ...newExercise, reps: parseInt(e.target.value) || 10 })}
                       />
@@ -1941,7 +1941,7 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
                 <div>
                   <Label>Day</Label>
                   <select
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                     value={newExercise.dayIndex}
                     onChange={(e) => setNewExercise({ ...newExercise, dayIndex: parseInt(e.target.value) })}
                   >
@@ -1953,7 +1953,7 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
                 <div>
                   <Label>Exercise Name</Label>
                   <input
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                     placeholder="e.g., Bench Press"
                     value={newExercise.exerciseName}
                     onChange={(e) => setNewExercise({ ...newExercise, exerciseName: e.target.value })}
@@ -1962,7 +1962,7 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
                 <div>
                   <Label>Body Part</Label>
                   <select
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                     value={newExercise.bodyPart}
                     onChange={(e) => setNewExercise({ ...newExercise, bodyPart: e.target.value })}
                   >
@@ -1974,7 +1974,7 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
                 <div>
                   <Label>Muscle Group</Label>
                   <select
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                     value={newExercise.muscleType}
                     onChange={(e) => setNewExercise({ ...newExercise, muscleType: e.target.value })}
                   >
@@ -1987,7 +1987,7 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
                   <Label>Sets</Label>
                   <input
                     type="number"
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                     value={newExercise.sets}
                     onChange={(e) => setNewExercise({ ...newExercise, sets: parseInt(e.target.value) || 3 })}
                   />
@@ -1996,7 +1996,7 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
                   <Label>Reps</Label>
                   <input
                     type="number"
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                     value={newExercise.reps}
                     onChange={(e) => setNewExercise({ ...newExercise, reps: parseInt(e.target.value) || 10 })}
                   />
@@ -2004,7 +2004,7 @@ function PhaseExerciseEditor({ phaseId, onClose }: { phaseId: number; onClose: (
                 <div>
                   <Label>Weight (optional)</Label>
                   <input
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+                    className="flex min-h-[44px] md:min-h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base md:text-sm mt-1"
                     placeholder="e.g., 60kg"
                     value={newExercise.weight}
                     onChange={(e) => setNewExercise({ ...newExercise, weight: e.target.value })}
