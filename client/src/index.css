@@ -32,8 +32,9 @@ html:not(.dark) #root {
   --android-status-bar-height: 24px;
 }
 
-/* Android-specific: Add status bar padding when running in Capacitor */
-html.capacitor-android {
+/* Android-specific: Add status bar padding when running in Capacitor or detected via user-agent */
+html.capacitor-android,
+html.is-android {
   --safe-top: 28px;
 }
 
@@ -43,12 +44,14 @@ html.capacitor-android {
 }
 
 /* Android status bar spacer - adds padding at top for status bar */
-html.capacitor-android .mobile-app-header {
+html.capacitor-android .mobile-app-header,
+html.is-android .mobile-app-header {
   padding-top: 32px !important;
 }
 
 /* Push content down on Android to account for header + status bar */
-html.capacitor-android .mobile-content-offset {
+html.capacitor-android .mobile-content-offset,
+html.is-android .mobile-content-offset {
   padding-top: 80px !important;
 }
 

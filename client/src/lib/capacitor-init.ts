@@ -1,14 +1,36 @@
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 
+// Detect platform from user agent as fallback
+function detectPlatformFromUserAgent(): 'android' | 'ios' | 'web' {
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('android')) return 'android';
+  if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) return 'ios';
+  return 'web';
+}
+
 export async function initializeCapacitor() {
   // Add platform classes to document for CSS targeting
-  if (Capacitor.isNativePlatform()) {
+  // Use both Capacitor detection AND user-agent detection
+  const isNative = Capacitor.isNativePlatform();
+  const platform = isNative ? Capacitor.getPlatform() : detectPlatformFromUserAgent();
+  
+  // Always add platform class for CSS targeting (works in browser too)
+  if (platform === 'android') {
+    document.documentElement.classList.add('capacitor-android');
+    document.documentElement.classList.add('is-android');
+  } else if (platform === 'ios') {
+    document.documentElement.classList.add('capacitor-ios');
+    document.documentElement.classList.add('is-ios');
+  }
+  
+  if (isNative) {
     document.documentElement.classList.add('capacitor-native');
-    document.documentElement.classList.add(`capacitor-${Capacitor.getPlatform()}`);
   }
 
-  if (!Capacitor.isNativePlatform()) {
+  console.log(`Platform detected: ${platform}, isNative: ${isNative}`);
+
+  if (!isNative) {
     return;
   }
 
