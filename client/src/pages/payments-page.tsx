@@ -1709,7 +1709,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
                         <p className="text-xs text-muted-foreground">Paid</p>
                         <p className="font-mono text-sm font-medium text-green-600 dark:text-green-400">{formatMoney(sub.totalPaid)}</p>
                         {sub.hasMemberPayments && (
-                          <Badge className="mt-1 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 shadow-none dark:bg-blue-900 dark:text-blue-300 text-[10px] px-1.5 py-0">
+                          <Badge className="mt-1 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 shadow-none dark:bg-blue-900 dark:text-blue-300 text-xs px-1.5 py-0">
                             Member Paid
                           </Badge>
                         )}
@@ -1780,7 +1780,7 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
                         <TableCell>
                           <div className="font-mono text-green-600 dark:text-green-400">{formatMoney(sub.totalPaid)}</div>
                           {sub.hasMemberPayments && (
-                            <Badge className="mt-1 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 shadow-none dark:bg-blue-900 dark:text-blue-300 text-[10px] px-1.5 py-0">
+                            <Badge className="mt-1 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 shadow-none dark:bg-blue-900 dark:text-blue-300 text-xs px-1.5 py-0">
                               Member Paid
                             </Badge>
                           )}

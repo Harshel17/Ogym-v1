@@ -586,7 +586,7 @@ function MemberWorkoutDialog({
                             {isRestDay && <Moon className="w-3 h-3 mr-1" />}
                             <span className="text-xs truncate max-w-[80px]">{label || `D${dayIndex + 1}`}</span>
                             {!isRestDay && exerciseCount > 0 && (
-                              <span className="ml-1 text-[10px] opacity-70">({exerciseCount})</span>
+                              <span className="ml-1 text-xs opacity-70">({exerciseCount})</span>
                             )}
                           </TabsTrigger>
                         );
@@ -719,7 +719,7 @@ function MemberWorkoutDialog({
                                         {isRestDay && <Moon className="w-3 h-3 mr-1" />}
                                         <span>{dayLabel.substring(0, 6) || `D${dayIndex + 1}`}</span>
                                         {!isRestDay && exerciseCount > 0 && (
-                                          <span className="ml-1 text-[10px] opacity-70">({exerciseCount})</span>
+                                          <span className="ml-1 text-xs opacity-70">({exerciseCount})</span>
                                         )}
                                       </TabsTrigger>
                                     );
@@ -756,14 +756,14 @@ function MemberWorkoutDialog({
                                                 key={ex.id}
                                                 className="flex items-center gap-2 p-2 rounded-lg border bg-card text-sm"
                                               >
-                                                <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
+                                                <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-medium">
                                                   {idx + 1}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                   <div className="flex items-center gap-1.5 flex-wrap">
                                                     <span className="font-medium text-sm">{ex.exerciseName}</span>
                                                     {ex.muscleType && (
-                                                      <Badge variant="outline" className="text-[10px]">{ex.muscleType}</Badge>
+                                                      <Badge variant="outline" className="text-xs">{ex.muscleType}</Badge>
                                                     )}
                                                   </div>
                                                   <p className="text-xs text-muted-foreground">

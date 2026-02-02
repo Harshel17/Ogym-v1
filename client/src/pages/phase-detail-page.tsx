@@ -180,7 +180,7 @@ function PointsDayItem({ workout }: { workout: DailyWorkout }) {
             <div key={idx} className="flex items-center justify-between py-1 px-2 text-xs bg-background rounded">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <span className="text-[10px] text-green-600 dark:text-green-400 font-bold">+1</span>
+                  <span className="text-xs text-green-600 dark:text-green-400 font-bold">+1</span>
                 </div>
                 <span>{ex.name}</span>
               </div>
@@ -300,7 +300,7 @@ export default function PhaseDetailPage() {
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto shrink-0" />
                 </div>
-                <p className="mt-1.5 text-[10px] sm:text-xs text-muted-foreground truncate">
+                <p className="mt-1.5 text-xs text-muted-foreground truncate">
                   {format(parseISO(phase.startDate), "MMM d")} - {format(parseISO(phase.endDate), "MMM d, yyyy")}
                 </p>
               </CardContent>
@@ -347,7 +347,7 @@ export default function PhaseDetailPage() {
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <p className="mt-1 text-[10px] sm:text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               Day {daysPassed} of {durationDays}
             </p>
           </CardContent>
@@ -364,7 +364,7 @@ export default function PhaseDetailPage() {
                 <p className="text-lg sm:text-xl font-semibold">{analytics?.attendanceDays || 0} days</p>
               </div>
             </div>
-            <p className="mt-1.5 text-[10px] sm:text-xs text-muted-foreground">
+            <p className="mt-1.5 text-xs text-muted-foreground">
               {analytics?.totalDays ? Math.round((analytics.attendanceDays / analytics.totalDays) * 100) : 0}% attendance rate
             </p>
           </CardContent>
@@ -384,7 +384,7 @@ export default function PhaseDetailPage() {
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto shrink-0" />
                 </div>
-                <p className="mt-1.5 text-[10px] sm:text-xs text-muted-foreground">
+                <p className="mt-1.5 text-xs text-muted-foreground">
                   Avg {analytics?.avgPointsPerDay?.toFixed(1) || 0} pts/day
                 </p>
               </CardContent>
@@ -571,10 +571,10 @@ export default function PhaseDetailPage() {
                   <XAxis 
                     dataKey="date" 
                     tickFormatter={(val) => format(parseISO(val), "M/d")}
-                    className="text-[10px] sm:text-xs"
+                    className="text-xs"
                     interval="preserveStartEnd"
                   />
-                  <YAxis className="text-[10px] sm:text-xs" width={30} />
+                  <YAxis className="text-xs" width={30} />
                   <Tooltip 
                     labelFormatter={(val) => format(parseISO(val as string), "MMM d, yyyy")}
                     formatter={(value: number) => [value, "Points"]}
@@ -610,12 +610,12 @@ export default function PhaseDetailPage() {
                   <XAxis 
                     dataKey="date" 
                     tickFormatter={(val) => format(parseISO(val), "M/d")}
-                    className="text-[10px] sm:text-xs"
+                    className="text-xs"
                     interval="preserveStartEnd"
                   />
                   <YAxis 
                     domain={['dataMin - 2', 'dataMax + 2']}
-                    className="text-[10px] sm:text-xs"
+                    className="text-xs"
                     width={35}
                   />
                   <Tooltip 

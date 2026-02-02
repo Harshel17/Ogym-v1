@@ -221,7 +221,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
         {/* Protein info */}
         {showProteinRing && (
           <p className={cn(
-            "text-[10px] tabular-nums",
+            "text-xs tabular-nums",
             isProteinOver ? "text-red-500" : "text-blue-500"
           )}>
             Protein: {currentProtein}g / {effectiveProteinTarget}g
@@ -377,7 +377,7 @@ export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], 
                 >
                   {isCompleted && !isFuture && <Check className="w-3.5 h-3.5" />}
                 </div>
-                <span className={cn("text-[10px]", isToday ? "font-bold text-primary" : "text-muted-foreground")}>
+                <span className={cn("text-xs", isToday ? "font-bold text-primary" : "text-muted-foreground")}>
                   {dayLabels[index]}
                 </span>
               </div>

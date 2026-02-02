@@ -281,7 +281,7 @@ function MemberCard({
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-medium text-sm text-foreground truncate">{member.name}</span>
             {!member.email && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">No email</Badge>
+              <Badge variant="secondary" className="text-xs px-1.5 py-0">No email</Badge>
             )}
           </div>
           {member.email && (
@@ -474,11 +474,11 @@ function DayPassTab() {
                 onToggle={() => toggleSelect(member.id)}
                 testIdPrefix="daypass"
               >
-                <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0">
+                <Badge variant="secondary" className="gap-1 text-xs px-1.5 py-0">
                   <Users className="w-2.5 h-2.5" />
                   {member.visitsCount}
                 </Badge>
-                <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0">
+                <Badge variant="outline" className="gap-1 text-xs px-1.5 py-0">
                   <Calendar className="w-2.5 h-2.5" />
                   {format(new Date(member.lastVisitDate), "MMM d")}
                 </Badge>
@@ -655,13 +655,13 @@ function InactiveTab() {
                 onToggle={() => toggleSelect(member.id)}
                 testIdPrefix="inactive"
               >
-                <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0">
+                <Badge variant="outline" className="gap-1 text-xs px-1.5 py-0">
                   <Clock className="w-2.5 h-2.5" />
                   {member.lastVisit ? format(new Date(member.lastVisit), "MMM d") : "Never"}
                 </Badge>
                 <Badge 
                   variant={member.membershipStatus === "active" ? "default" : "secondary"}
-                  className="text-[10px] px-1.5 py-0"
+                  className="text-xs px-1.5 py-0"
                 >
                   {member.membershipStatus.replace("_", " ")}
                 </Badge>
@@ -850,22 +850,22 @@ function PaymentsTab() {
                   testIdPrefix="payment"
                 >
                   {member.planName && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{member.planName}</Badge>
+                    <Badge variant="secondary" className="text-xs px-1.5 py-0">{member.planName}</Badge>
                   )}
                   {member.expiryDate && (
-                    <Badge variant={isExpired ? "destructive" : "outline"} className="gap-1 text-[10px] px-1.5 py-0">
+                    <Badge variant={isExpired ? "destructive" : "outline"} className="gap-1 text-xs px-1.5 py-0">
                       <Calendar className="w-2.5 h-2.5" />
                       {format(new Date(member.expiryDate), "MMM d")}
                     </Badge>
                   )}
                   {member.balance > 0 && (
-                    <Badge variant="destructive" className="gap-1 text-[10px] px-1.5 py-0">
+                    <Badge variant="destructive" className="gap-1 text-xs px-1.5 py-0">
                       <CreditCard className="w-2.5 h-2.5" />
                       {formatAmount(member.balance)}
                     </Badge>
                   )}
                   {member.balance === 0 && (
-                    <Badge className="bg-green-500/10 text-green-600 border-0 text-[10px] px-1.5 py-0">Paid</Badge>
+                    <Badge className="bg-green-500/10 text-green-600 border-0 text-xs px-1.5 py-0">Paid</Badge>
                   )}
                 </MemberCard>
               );

@@ -283,7 +283,7 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
                   <div className="flex items-start gap-2">
                     <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-500 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-[10px] sm:text-xs font-medium text-purple-600 dark:text-purple-400">Dika says...</p>
+                      <p className="text-xs font-medium text-purple-600 dark:text-purple-400">Dika says...</p>
                       <p className="text-xs sm:text-sm mt-0.5">{dikaGeneralMessage}</p>
                     </div>
                   </div>
@@ -311,7 +311,7 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
                             <div className="flex items-center gap-1.5 sm:gap-2">
                               {getCategoryIcon(restaurant.category)}
                               <h4 className="font-medium text-sm sm:text-base truncate">{restaurant.name}</h4>
-                              <span className="text-[10px] sm:text-xs text-muted-foreground flex-shrink-0">
+                              <span className="text-xs text-muted-foreground flex-shrink-0">
                                 {restaurant.distanceText}
                               </span>
                             </div>
@@ -320,7 +320,7 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
                                 <p className="text-xs sm:text-sm font-medium text-primary line-clamp-1">
                                   {restaurant.suggestion.item}
                                 </p>
-                                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                                   {restaurant.suggestion.approxCalories} · {restaurant.suggestion.reason}
                                 </p>
                               </div>

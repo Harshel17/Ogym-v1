@@ -376,7 +376,7 @@ function PhaseExerciseView({ phase, exercises, isLoading }: { phase: ActivePhase
                 {isRestDay && <Moon className="w-3 h-3 mr-1" />}
                 <span className="text-xs">{label.substring(0, 10) || `D${dayIndex + 1}`}</span>
                 {!isRestDay && exerciseCount > 0 && (
-                  <span className="ml-1 text-[10px] opacity-70">({exerciseCount})</span>
+                  <span className="ml-1 text-xs opacity-70">({exerciseCount})</span>
                 )}
               </TabsTrigger>
             );
@@ -684,7 +684,7 @@ function CycleDetailView({ cycle, members, activePhase }: { cycle: any; members:
                     {isRestDay && <Moon className="w-3 h-3 mr-1" />}
                     <span className="text-xs">{shortLabel}</span>
                     {exercises.length > 0 && !isRestDay && (
-                      <span className="ml-1 text-[10px] opacity-70">({exercises.length})</span>
+                      <span className="ml-1 text-xs opacity-70">({exercises.length})</span>
                     )}
                   </TabsTrigger>
                 ))}

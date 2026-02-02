@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useKeyboardAwareScroll } from "@/hooks/use-keyboard";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -99,6 +100,9 @@ export default function AuthPage() {
   const [supportError, setSupportError] = useState("");
   
   const { toast } = useToast();
+  
+  // Enable keyboard-aware scrolling for mobile form handling
+  useKeyboardAwareScroll();
   
   const supportMutation = useMutation({
     mutationFn: async (data: any) => {
