@@ -903,11 +903,20 @@ function MemberDashboard() {
     });
   };
 
+  // Helper to get local date in YYYY-MM-DD format (same as hooks use)
+  const getLocalDate = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleCompleteExercise = (item: any) => {
     const perSet = perSetInputs[item.id];
     
     if (perSet && !perSet.sameForAll && perSet.setInputs.length > 0) {
-      const todayStr = new Date().toISOString().split("T")[0];
+      const todayStr = getLocalDate();
       const sets = perSet.setInputs.map((setInput, idx) => ({
         setNumber: idx + 1,
         targetReps: setInput.targetReps,
