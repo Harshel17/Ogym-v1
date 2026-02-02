@@ -1,0 +1,204 @@
+✅ Replit “Implement Fixes” Prompt (Critical + High Priority)
+
+You already completed a UI/UX audit and produced a report. Now I want you to IMPLEMENT FIXES for the Critical Issues (Section 1) and High Priority Issues (Section 2) only.
+
+🚫 Rules
+
+Do NOT do any refactors unrelated to the listed issues.
+
+Do NOT change business logic.
+
+Do NOT redesign UI.
+
+Make changes minimal, mobile-safe, and testable.
+
+After each fix, run through a basic manual-check list and report results.
+
+If you are unsure about file locations, search the codebase first.
+
+✅ Fix Scope
+1) Toast notifications safe-area positioning (Critical 1.1)
+
+Goal: toast must never overlap status bar / notch on iOS and must look good on Android too.
+Tasks:
+
+Find where toast container is positioned (likely global layout or toast provider).
+
+Update top offset to respect safe-area:
+
+top: max(env(safe-area-inset-top), 16px)
+
+Ensure it works even if safe-area env values are missing (fallback to 16px).
+
+Deliverable: toast appears below notch/dynamic island and not clipped.
+
+2) Dialog modals mobile sizing + scroll (Critical 1.2)
+
+Goal: all dialogs must fit on small phones and scroll internally.
+Tasks:
+
+Locate dialog component(s) (DialogContent usage).
+
+Add mobile defaults:
+
+max-h-[90vh] overflow-y-auto
+
+responsive width: w-[92vw] sm:max-w-lg (or equivalent)
+
+Ensure long dialog content scrolls inside dialog and background doesn’t trap scroll.
+
+3) Bottom nav safe area fallback on Android (Critical 1.3)
+
+Goal: bottom navigation + page content never hides behind gesture bar or 3-button nav.
+Tasks:
+
+Locate bottom nav container padding (pb-safe usage).
+
+Add fallback padding:
+
+pb-[calc(env(safe-area-inset-bottom)+8px)]
+
+Make sure it doesn’t double-pad when pb-safe already works (avoid huge padding).
+
+4) Status bar overlay configuration conflict (Critical 1.4)
+
+Goal: Capacitor status bar overlay config must be consistent.
+Tasks:
+
+Find capacitor.config.ts and App.tsx usage of setOverlaysWebView.
+
+Align them:
+
+Pick ONE behavior (overlay true or false) and make both match.
+
+Verify header/top padding behaves correctly with that choice.
+
+5) Keyboard handling for forms beyond Dika (High 2.1)
+
+Goal: forms should not be blocked by keyboard across the app.
+Tasks:
+
+Identify current keyboard hook (useKeyboardHeight) used only in dika-drawer.
+
+Create a shared hook and apply it where necessary:
+
+login/register
+
+onboarding/profile setup
+
+nutrition inputs
+
+Implement the least invasive fix:
+
+add bottom padding / scroll-into-view behavior on focus
+
+OR wrap form pages in a keyboard-aware container
+
+6) Touch target minimum sizes (High 2.2)
+
+Goal: all inputs meet minimum 44px height.
+Tasks:
+
+Update shared Input component from h-9 to h-11 OR min-h-[44px].
+
+Ensure it doesn’t break desktop styling (use responsive classes if needed).
+
+7) Increase extremely small text sizes (High 2.3)
+
+Goal: remove usage of text-[9px], text-[10px], text-[11px] on mobile.
+Tasks:
+
+Search for these classes globally.
+
+Replace with:
+
+minimum text-xs (12px) for mobile
+
+prefer text-sm for body
+
+Keep layout stable (avoid overflow). Use truncate where needed.
+
+8) Horizontal tables: add scroll indicators or convert to mobile cards (High 2.4)
+
+Goal: users understand tables scroll horizontally.
+Tasks (choose lowest-risk option):
+
+Add left/right gradient “scroll hint” overlay on overflow-x containers, OR
+
+Add a subtle “Swipe →” label for mobile only.
+
+Do NOT redesign tables fully unless necessary.
+
+9) Tab label truncation (High 2.5)
+
+Goal: bottom nav labels never look broken.
+Tasks:
+
+Improve label sizing and truncation:
+
+use text-[10px] + truncate
+
+adjust min width
+
+If needed, use icon-only on very small screens (<360px).
+
+✅ Implementation Approach (MANDATORY)
+Step A: Locate files
+
+Before changing anything, output:
+
+Files you found for: Toast, Dialog, BottomNav/Layout, Capacitor setup, Input component, bottom tabs, table wrappers.
+
+Step B: Apply fixes incrementally
+
+Implement fixes in this order:
+
+Status bar config conflict
+
+Safe area toast + bottom nav
+
+Dialog sizing
+
+Input heights + text sizes
+
+Keyboard handling
+
+Table scroll hint + tab labels
+
+Step C: Show diffs
+
+After each fix group, show:
+
+files changed
+
+code diff snippets
+
+why change solves the issue
+
+Step D: Quick manual test checklist
+
+After implementing, report if these pass:
+
+iPhone notch/dynamic island top spacing
+
+Android gesture bar bottom spacing
+
+Dialog scroll on small screen
+
+Keyboard does not block primary CTA on forms
+
+Inputs are easy to tap
+
+Table scroll hint visible
+
+Bottom tabs labels not cut off
+
+✅ Final Output
+
+End with:
+
+A checklist of fixed items (1.1 → 2.5)
+
+Remaining issues not fixed (Medium/Minor)
+
+Any risky areas you avoided and why

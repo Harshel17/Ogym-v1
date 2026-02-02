@@ -721,7 +721,7 @@ export default function NutritionPage() {
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-sm sm:text-base">{product.name}</p>
                           {product.barcode?.startsWith('local-') && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium shrink-0">MENU</span>
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium shrink-0">MENU</span>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -731,7 +731,7 @@ export default function NutritionPage() {
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-semibold text-sm">{product.nutrients.calories}</p>
-                        <p className="text-[10px] text-muted-foreground">cal</p>
+                        <p className="text-xs text-muted-foreground">cal</p>
                       </div>
                     </button>
                   ))}
@@ -1163,7 +1163,7 @@ function MacroProgress({ label, value, goal, percent, icon: Icon, color }: {
       <Icon className={`w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 ${color}`} />
       <Progress value={percent} className="h-1.5 sm:h-2 mb-1" />
       <div className="text-xs sm:text-sm font-medium">{value}g</div>
-      <div className="text-[10px] sm:text-xs text-muted-foreground">/ {goal}g</div>
+      <div className="text-xs text-muted-foreground">/ {goal}g</div>
     </div>
   );
 }

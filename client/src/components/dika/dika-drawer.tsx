@@ -7,8 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon } from './dika-icons';
-import { Keyboard } from '@capacitor/keyboard';
-import { Capacitor } from '@capacitor/core';
+import { useKeyboardHeight } from '@/hooks/use-keyboard';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -93,7 +92,7 @@ function WorkoutPlanCard({ plan, onSave, isSaving, isSaved }: WorkoutPlanCardPro
                     </span>
                   </div>
                   <span className={cn(
-                    "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                    "px-1.5 py-0.5 rounded text-xs font-medium",
                     muscleColorMap[ex.muscleType] || 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
                   )}>
                     {ex.muscleType}
@@ -348,49 +347,6 @@ function useVoiceInput(onTranscript: (text: string) => void) {
   return { isListening, isSupported, toggleListening };
 }
 
-function useKeyboardHeight() {
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) {
-      // Fallback for web: use visual viewport
-      const viewport = window.visualViewport;
-      if (!viewport) return;
-
-      const handleResize = () => {
-        const windowHeight = window.innerHeight;
-        const viewportHeight = viewport.height;
-        const newKeyboardHeight = Math.max(0, windowHeight - viewportHeight);
-        setKeyboardHeight(newKeyboardHeight);
-      };
-
-      viewport.addEventListener('resize', handleResize);
-      viewport.addEventListener('scroll', handleResize);
-      
-      return () => {
-        viewport.removeEventListener('resize', handleResize);
-        viewport.removeEventListener('scroll', handleResize);
-      };
-    }
-
-    // Native platform: use Capacitor Keyboard plugin
-    const showListener = Keyboard.addListener('keyboardWillShow', (info) => {
-      setKeyboardHeight(info.keyboardHeight);
-    });
-
-    const hideListener = Keyboard.addListener('keyboardWillHide', () => {
-      setKeyboardHeight(0);
-    });
-
-    return () => {
-      showListener.then(handle => handle.remove());
-      hideListener.then(handle => handle.remove());
-    };
-  }, []);
-
-  return keyboardHeight;
-}
-
 interface DikaMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -549,7 +505,7 @@ export function DikaDrawer({
               <div>
                 <div className="flex items-center gap-2">
                   <SheetTitle className="text-lg font-semibold text-white">Dika AI</SheetTitle>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/20 text-white/90 font-medium">
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/20 text-white/90 font-medium">
                     Powered by AI
                   </span>
                 </div>

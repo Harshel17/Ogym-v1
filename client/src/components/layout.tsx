@@ -427,7 +427,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </div>
                   </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Fitness Management</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Fitness Management</p>
               </div>
             </div>
             <ThemeToggle />
@@ -539,7 +539,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Mobile Bottom Tab Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 pb-safe">
+      <nav 
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
+      >
         <div className="flex justify-around items-center h-16">
           {primaryTabs.map((item) => {
             const isActive = location === item.href || 
@@ -555,12 +558,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <div className="relative">
                     <item.icon className={`w-5 h-5 ${isActive ? "stroke-[2.5]" : ""}`} />
                     {(item.badge ?? 0) > 0 && (
-                      <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                      <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-0.5">
                         {(item.badge ?? 0) > 99 ? '99+' : item.badge}
                       </span>
                     )}
                   </div>
-                  <span className={`text-[10px] mt-1 ${isActive ? "font-semibold" : "font-medium"}`}>{item.label}</span>
+                  <span className={`text-[11px] mt-1 truncate max-w-[60px] ${isActive ? "font-semibold" : "font-medium"}`}>{item.label}</span>
                 </div>
               </Link>
             );
@@ -574,12 +577,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <div className="relative">
                 <Menu className="w-5 h-5" />
                 {secondaryBadgeCount > 0 && (
-                  <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                  <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-0.5">
                     {secondaryBadgeCount > 99 ? '99+' : secondaryBadgeCount}
                   </span>
                 )}
               </div>
-              <span className="text-[10px] mt-1 font-medium">More</span>
+              <span className="text-[11px] mt-1 font-medium">More</span>
             </div>
           )}
         </div>
@@ -587,7 +590,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* More Menu Drawer */}
       <Drawer open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
-        <DrawerContent className="pb-safe">
+        <DrawerContent style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}>
           <DrawerHeader>
             <DrawerTitle>More Options</DrawerTitle>
           </DrawerHeader>

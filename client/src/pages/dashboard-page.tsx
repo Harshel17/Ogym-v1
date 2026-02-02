@@ -107,7 +107,7 @@ function StatCard({ title, value, icon: Icon, description, onClick, color = "pri
       onClick={onClick}
     >
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3">
-        <CardTitle className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+        <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
           {title}
         </CardTitle>
         <div className={`p-1.5 rounded-lg ${colorConfig.icon}`}>
@@ -116,7 +116,7 @@ function StatCard({ title, value, icon: Icon, description, onClick, color = "pri
       </CardHeader>
       <CardContent className="pt-0 pb-3 px-3">
         <div className="text-2xl font-bold tracking-tight">{value}</div>
-        <p className="text-[10px] text-muted-foreground mt-0.5">
+        <p className="text-xs text-muted-foreground mt-0.5">
           {description}
         </p>
       </CardContent>
@@ -307,15 +307,15 @@ function OwnerDashboard() {
             <div className="flex gap-2">
               <div className="flex-1 text-center p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
                 <p className="text-xl font-bold text-red-600 dark:text-red-400">{aiInsights.churnRisk.count}</p>
-                <p className="text-[10px] font-medium text-muted-foreground">At risk</p>
+                <p className="text-xs font-medium text-muted-foreground">At risk</p>
               </div>
               <div className="flex-1 text-center p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
                 <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{aiInsights.followUpReminders.count}</p>
-                <p className="text-[10px] font-medium text-muted-foreground">Follow-ups</p>
+                <p className="text-xs font-medium text-muted-foreground">Follow-ups</p>
               </div>
               <div className="flex-1 text-center p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                 <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{aiInsights.memberInsights.newThisMonth}</p>
-                <p className="text-[10px] font-medium text-muted-foreground">New</p>
+                <p className="text-xs font-medium text-muted-foreground">New</p>
               </div>
             </div>
           </CardContent>
@@ -368,14 +368,14 @@ function OwnerDashboard() {
             <div className="space-y-2">
               {attendanceList.slice(0, 5).map((record: any) => (
                 <div key={record.id} className="flex items-center gap-2.5 p-2 rounded-lg bg-background/50">
-                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
                     {record.member?.username?.slice(0, 2).toUpperCase() || '??'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{record.member?.username || 'Unknown'}</p>
-                    <p className="text-[10px] text-muted-foreground">{record.date}</p>
+                    <p className="text-xs text-muted-foreground">{record.date}</p>
                   </div>
-                  <Badge variant="secondary" className="text-[10px] h-5 shrink-0">
+                  <Badge variant="secondary" className="text-xs h-5 shrink-0">
                     {record.verifiedMethod || record.status}
                   </Badge>
                 </div>
