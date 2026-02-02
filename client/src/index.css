@@ -4,6 +4,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* iOS Safe Area - Prevent white bars */
+html, body {
+  height: 100%;
+  margin: 0;
+  background: #0b1220;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #0b1220;
+}
+
+/* Light mode background override */
+html:not(.dark) body,
+html:not(.dark) #root {
+  background: hsl(220 20% 97%);
+}
+
+/* Safe area CSS variables */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
 /* Mobile fixed header */
 .mobile-fixed-header {
   position: fixed;

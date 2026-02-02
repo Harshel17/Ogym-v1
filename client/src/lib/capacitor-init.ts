@@ -10,11 +10,13 @@ export async function initializeCapacitor() {
     // Disable status bar overlay so content doesn't go under it
     await StatusBar.setOverlaysWebView({ overlay: false });
     
-    // Set status bar style
-    await StatusBar.setStyle({ style: Style.Dark });
+    // Set status bar style - Light style for dark backgrounds (light icons on dark bg)
+    await StatusBar.setStyle({ style: Style.Light });
     
-    // Set status bar background color
-    await StatusBar.setBackgroundColor({ color: '#1e3a5f' });
+    // Set status bar background color (matching dark theme)
+    if (Capacitor.getPlatform() === 'android') {
+      await StatusBar.setBackgroundColor({ color: '#0b1220' });
+    }
     
     console.log('Capacitor StatusBar configured successfully');
   } catch (error) {

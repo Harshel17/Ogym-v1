@@ -527,10 +527,15 @@ export function DikaDrawer({
           height: keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh',
           maxHeight: keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh',
           zIndex: 100000,
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          background: 'linear-gradient(to bottom, #8b5cf6 0%, #8b5cf6 env(safe-area-inset-top), hsl(var(--background)) env(safe-area-inset-top))',
         }}
         data-testid="drawer-dika"
       >
-        <SheetHeader className="px-4 py-4 flex-shrink-0 pr-12 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-600">
+        <SheetHeader 
+          className="px-4 py-4 flex-shrink-0 pr-12 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-600"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-full relative">

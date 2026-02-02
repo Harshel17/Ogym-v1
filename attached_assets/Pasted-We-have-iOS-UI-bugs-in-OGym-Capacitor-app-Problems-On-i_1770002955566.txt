@@ -1,0 +1,93 @@
+We have iOS UI bugs in OGym (Capacitor app):
+
+Problems
+
+On iOS, there are white strips/bars at the top and bottom (safe-area/background not filling).
+
+On Dika AI screen, the top header/content overlaps the iOS status bar (time/wifi/battery).
+
+Goal
+
+The whole app should respect iOS safe-area.
+
+No white bars anywhere.
+
+No screen should render under the status bar.
+
+Fix should be global (not only 1 page), but also ensure Dika AI is correct.
+
+1) Add viewport-fit=cover
+
+Find the main HTML template (index.html or equivalent) and ensure this meta tag exists (or update it):
+
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+2) Fix global background so safe-area is not white
+
+In the global stylesheet (App.css / global.css / index.css), set background on html, body:
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: #0b1220; /* match OGym dark theme */
+}
+
+Also ensure the root container fills the screen and has the same background:
+
+#root, .app, .app-root, ion-app, ion-content {
+  min-height: 100vh;
+  background: #0b1220;
+}
+
+(Use whichever root container exists in our project; don’t leave unused selectors.)
+
+3) Apply safe-area padding globally
+
+Add these CSS variables and apply them to the main app wrapper:
+
+:root {
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+
+.app-root, #root, ion-app {
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+If padding-top breaks any header layout, instead apply safe-area on the specific top header containers (but we must still remove white bars globally).
+
+4) Prevent native status bar overlay (Capacitor iOS)
+
+Create src/capacitor-init.ts (or src/utils/capacitor-init.ts) and add:
+
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
+
+
+export async function initNativeUI() {
+  if (!Capacitor.isNativePlatform()) return;
+
+
+  try {
+    await StatusBar.setOverlaysWebView({ overlay: false });
+    await StatusBar.setStyle({ style: Style.Light }); // use Light icons for dark header
+    // await StatusBar.setBackgroundColor({ color: '#0b1220' });
+  } catch (e) {
+    console.log('StatusBar init error', e);
+  }
+}
+
+Then call it once on app startup in src/main.tsx / src/main.ts / src/App.tsx:
+
+import { initNativeUI } from './capacitor-init';
+initNativeUI();
+5) Dika AI screen: ensure header never overlaps status bar
+
+Find the Dika AI screen header container (top purple bar). Add safe-area padding to that header:
+
+.dikaHeader {
+  padding-top: calc(env(safe-area-inset-top) + 12px);
+}
+
+If header is position: fixed, also push the page content down accordingly (add padding-top on the page container equal to header height).
