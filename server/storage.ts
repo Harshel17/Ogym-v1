@@ -214,10 +214,14 @@ export interface IStorage {
   }>;
   getMembersWithDetails(gymId: number): Promise<{
     id: number;
+    publicId: string | null;
     username: string;
+    email: string | null;
+    phone: string | null;
     role: string;
     createdAt: Date | null;
     trainerName: string | null;
+    trainerUsername: string | null;
     cycleEndDate: string | null;
     paymentStatus: string | null;
     subscriptionEndDate: string | null;
@@ -2460,12 +2464,17 @@ export class DatabaseStorage implements IStorage {
       const subscriptionEndDate = subscription?.endDate || null;
       const subscriptionStatus = subscription?.status || null;
       
+      const trainer = trainerId ? trainers.find(t => t.id === trainerId) : null;
       return {
         id: member.id,
+        publicId: member.publicId,
         username: member.username,
+        email: member.email,
+        phone: member.phone,
         role: member.role,
         createdAt: member.createdAt,
         trainerName,
+        trainerUsername: trainer?.username || null,
         cycleEndDate,
         paymentStatus,
         subscriptionEndDate,

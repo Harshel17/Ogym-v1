@@ -884,7 +884,7 @@ export async function registerRoutes(
   app.get("/api/trainer/phases/:phaseId/exercises", requireRole(["trainer"]), async (req, res) => {
     try {
       const phaseId = parseInt(req.params.phaseId);
-      const phase = await storage.getTrainingPhase(phaseId);
+      const phase = await storage.getTrainingPhaseById(phaseId);
       
       if (!phase) {
         return res.status(404).json({ message: "Phase not found" });
@@ -2803,7 +2803,7 @@ export async function registerRoutes(
     
     // Create/update workout session for proper session-based stats
     const todayItems = await storage.getWorkoutItemsByDay(cycle.id, currentDayIndex);
-    const muscleTypes = [...new Set(todayItems.map(i => i.muscleType).filter(Boolean))];
+    const muscleTypes = Array.from(new Set(todayItems.map(i => i.muscleType).filter(Boolean)));
     const focusLabel = muscleTypes.join(" + ") || cycle.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
     
     const session = await storage.getOrCreateWorkoutSession({
@@ -2915,7 +2915,7 @@ export async function registerRoutes(
     // Get focus label from phase
     const phaseExercises = await storage.getPhaseExercises(phase.id);
     const todayExercises = phaseExercises.filter(ex => ex.dayIndex === currentDayIndex);
-    const muscleTypes = [...new Set(todayExercises.map(i => i.muscleType).filter(Boolean))];
+    const muscleTypes = Array.from(new Set(todayExercises.map(i => i.muscleType).filter(Boolean)));
     const focusLabel = muscleTypes.join(" + ") || phase.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
     
     // Create/update workout session
@@ -3021,7 +3021,7 @@ export async function registerRoutes(
         
         const phaseExercises = await storage.getPhaseExercises(phase.id);
         const todayExercises = phaseExercises.filter(ex => ex.dayIndex === currentDayIndex);
-        const muscleTypes = [...new Set(todayExercises.map(i => i.muscleType).filter(Boolean))];
+        const muscleTypes = Array.from(new Set(todayExercises.map(i => i.muscleType).filter(Boolean)));
         const focusLabel = muscleTypes.join(" + ") || phase.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
         
         session = await storage.getOrCreateWorkoutSession({
@@ -3105,7 +3105,7 @@ export async function registerRoutes(
         const currentDayIndex = daysDiff % cycle.cycleLength;
         
         const todayItems = await storage.getWorkoutItemsByDay(cycle.id, currentDayIndex);
-        const muscleTypes = [...new Set(todayItems.map(i => i.muscleType).filter(Boolean))];
+        const muscleTypes = Array.from(new Set(todayItems.map(i => i.muscleType).filter(Boolean)));
         const focusLabel = muscleTypes.join(" + ") || cycle.dayLabels?.[currentDayIndex] || `Day ${currentDayIndex + 1}`;
         
         session = await storage.getOrCreateWorkoutSession({
@@ -4848,8 +4848,8 @@ export async function registerRoutes(
     let currentCycleName: string | null = null;
     let currentCycleLength: number | null = null;
     
-    if (member.cycleId) {
-      const cycle = await storage.getCycle(member.cycleId);
+    if ((member as any).cycleId) {
+      const cycle = await storage.getCycle((member as any).cycleId);
       if (cycle) {
         currentCycleName = cycle.name;
         currentCycleLength = cycle.cycleLength;
@@ -6320,7 +6320,7 @@ export async function registerRoutes(
           .filter(v => member_ids.includes(v.id) && v.email)
           .map(v => v.email!);
         // Also handle aggregated - look up by email if passed as string
-        emails = [...new Set(visitorEmails)];
+        emails = Array.from(new Set(visitorEmails));
       } else {
         // For inactive and payments, member_ids are user IDs
         const members = await Promise.all(member_ids.map(id => storage.getUser(id)));
@@ -7193,7 +7193,7 @@ export async function registerRoutes(
           email: owner.email, 
           phone: owner.phone, 
           publicId: owner.publicId,
-          status: owner.status || "active"
+          status: (owner as any).status || "active"
         } : null,
         members: members.map(m => ({ 
           id: m.id, 
@@ -8952,7 +8952,7 @@ async function seedDemoData() {
         await storage.addFeedReaction({
           postId: post.id,
           userId: reactor.id,
-          reactionType: reactions[Math.floor(Math.random() * reactions.length)]
+          reactionType: reactions[Math.floor(Math.random() * reactions.length)] as "like" | "fire" | "muscle" | "clap"
         });
       }
     }
@@ -9044,7 +9044,7 @@ async function seedDemoData() {
   const template1 = await storage.createWorkoutTemplate({
     gymId, trainerId: trainer.id,
     name: "Beginner Full Body",
-    cycleLength: 1,
+    daysPerCycle: 1,
     description: "Perfect for newcomers - covers all major muscle groups"
   });
   await storage.createWorkoutTemplateItems([
@@ -9057,7 +9057,7 @@ async function seedDemoData() {
   const template2 = await storage.createWorkoutTemplate({
     gymId, trainerId: trainer.id,
     name: "Intermediate PPL",
-    cycleLength: 3,
+    daysPerCycle: 3,
     description: "Push-Pull-Legs split for intermediate lifters"
   });
   await storage.createWorkoutTemplateItems([
