@@ -1,6 +1,10 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { initializeCapacitor } from "./lib/capacitor-init";
+
+// Initialize Capacitor plugins (StatusBar, etc.)
+initializeCapacitor();
 
 // Hide loading screen after app mounts
 const hideLoadingScreen = () => {
