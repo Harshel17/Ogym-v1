@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil, Trash2, Search, X, Moon, Settings2, PlusCircle, MinusCircle, Layers } from "lucide-react";
+import { Shield, Plus, Dumbbell, Activity, Calendar, ChevronRight, User, Pencil, Trash2, Search, X, Moon, Settings2, PlusCircle, MinusCircle, Layers, Timer, Route } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -1078,10 +1078,12 @@ function CreateCycleDialog({ members }: { members: any[] }) {
 
 const muscleTypes = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Glutes", "Full Body", "Cardio", "Rest"];
 const bodyParts = ["Upper Body", "Lower Body", "Full Body", "Cardio", "Recovery"];
+const cardioExercises = ["Running", "Walking", "Cycling", "Swimming", "Jump Rope", "Rowing", "Elliptical", "Stair Climbing", "HIIT", "Treadmill"];
 
 function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLength: number }) {
   const [open, setOpen] = useState(false);
   const [sameForAll, setSameForAll] = useState(true);
+  const [exerciseType, setExerciseType] = useState<"strength" | "cardio">("strength");
   const [perSetData, setPerSetData] = useState<{ reps: number; weight: string }[]>([]);
   const addWorkoutMutation = useAddWorkoutItem();
   const updatePlanSetsMutation = useUpdateWorkoutPlanSets();
@@ -1095,6 +1097,8 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
     sets: z.coerce.number().min(1, "At least 1 set").max(10, "Max 10 sets"),
     reps: z.coerce.number().min(1, "At least 1 rep"),
     weight: z.string().optional(),
+    durationMinutes: z.coerce.number().optional(),
+    distanceKm: z.string().optional(),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -1106,9 +1110,22 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
       weight: "", 
       dayIndex: 0,
       muscleType: "Chest",
-      bodyPart: "Upper Body"
+      bodyPart: "Upper Body",
+      durationMinutes: 30,
+      distanceKm: ""
     },
   });
+
+  const handleExerciseTypeChange = (type: "strength" | "cardio") => {
+    setExerciseType(type);
+    if (type === "cardio") {
+      form.setValue("muscleType", "Cardio");
+      form.setValue("bodyPart", "Cardio");
+    } else {
+      form.setValue("muscleType", "Chest");
+      form.setValue("bodyPart", "Upper Body");
+    }
+  };
 
   const watchedSets = form.watch("sets");
   const watchedReps = form.watch("reps");
@@ -1156,11 +1173,27 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
   };
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
-    addWorkoutMutation.mutate({ ...data, cycleId }, {
+    const workoutData = {
+      ...data,
+      cycleId,
+      exerciseType,
+      ...(exerciseType === "cardio" ? {
+        sets: 1,
+        reps: 1,
+        weight: undefined,
+        durationMinutes: data.durationMinutes || 30,
+        distanceKm: data.distanceKm || undefined
+      } : {
+        durationMinutes: undefined,
+        distanceKm: undefined
+      })
+    };
+
+    addWorkoutMutation.mutate(workoutData, {
       onSuccess: async (response: any) => {
         const newItemId = response?.id;
         
-        if (newItemId && !sameForAll && perSetData.length > 0) {
+        if (newItemId && exerciseType === "strength" && !sameForAll && perSetData.length > 0) {
           const setsToSave = perSetData.map((set, idx) => ({
             setNumber: idx + 1,
             targetReps: set.reps,
@@ -1177,6 +1210,7 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
         queryClient.invalidateQueries({ queryKey: ["/api/trainer/cycles", cycleId, "items"] });
         setOpen(false);
         setSameForAll(true);
+        setExerciseType("strength");
         setPerSetData([]);
         form.reset({ 
           exerciseName: "", 
@@ -1184,8 +1218,10 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
           reps: 10, 
           weight: "", 
           dayIndex: data.dayIndex,
-          muscleType: data.muscleType,
-          bodyPart: data.bodyPart
+          muscleType: "Chest",
+          bodyPart: "Upper Body",
+          durationMinutes: 30,
+          distanceKm: ""
         });
       },
     });
@@ -1209,6 +1245,32 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
+            {/* Exercise Type Toggle */}
+            <div className="flex items-center gap-2 p-1 bg-muted rounded-lg">
+              <Button
+                type="button"
+                variant={exerciseType === "strength" ? "default" : "ghost"}
+                size="sm"
+                className="flex-1"
+                onClick={() => handleExerciseTypeChange("strength")}
+                data-testid="button-type-strength"
+              >
+                <Dumbbell className="w-4 h-4 mr-2" />
+                Strength
+              </Button>
+              <Button
+                type="button"
+                variant={exerciseType === "cardio" ? "default" : "ghost"}
+                size="sm"
+                className="flex-1"
+                onClick={() => handleExerciseTypeChange("cardio")}
+                data-testid="button-type-cardio"
+              >
+                <Activity className="w-4 h-4 mr-2" />
+                Cardio
+              </Button>
+            </div>
+
             <FormField
               control={form.control}
               name="dayIndex"
@@ -1231,149 +1293,217 @@ function AddWorkoutDialog({ cycleId, cycleLength }: { cycleId: number; cycleLeng
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="muscleType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Muscle Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-muscle-type">
-                          <SelectValue placeholder="Select muscle" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent position="popper" className="z-[200] max-h-[200px]">
-                        {muscleTypes.map((muscle) => (
-                          <SelectItem key={muscle} value={muscle}>{muscle}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="bodyPart"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Body Part</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-body-part">
-                          <SelectValue placeholder="Select body part" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent position="popper" className="z-[200]">
-                        {bodyParts.map((part) => (
-                          <SelectItem key={part} value={part}>{part}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <FormField
-              control={form.control}
-              name="exerciseName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Exercise Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Bench Press, Squats, Deadlift" {...field} data-testid="input-exercise" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="sets"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Number of Sets</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={1} max={10} {...field} data-testid="input-sets" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm font-medium">Same reps/weight for all sets</span>
-              <Switch 
-                checked={sameForAll} 
-                onCheckedChange={setSameForAll}
-                data-testid="switch-same-for-all"
-              />
-            </div>
-
-            {sameForAll ? (
-              <div className="grid grid-cols-2 gap-3">
-                <FormField
-                  control={form.control}
-                  name="reps"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Reps (all sets)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min={1} {...field} data-testid="input-reps" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="weight"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Weight (optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., 50kg" {...field} data-testid="input-weight" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground font-medium">
-                  <div className="col-span-2">Set</div>
-                  <div className="col-span-5">Reps</div>
-                  <div className="col-span-5">Weight</div>
+            {exerciseType === "strength" ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="muscleType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Muscle Type</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-muscle-type">
+                              <SelectValue placeholder="Select muscle" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent position="popper" className="z-[200] max-h-[200px]">
+                            {muscleTypes.map((muscle) => (
+                              <SelectItem key={muscle} value={muscle}>{muscle}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="bodyPart"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Body Part</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-body-part">
+                              <SelectValue placeholder="Select body part" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent position="popper" className="z-[200]">
+                            {bodyParts.map((part) => (
+                              <SelectItem key={part} value={part}>{part}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-                {Array.from({ length: Number(watchedSets) || 1 }, (_, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-                    <div className="col-span-2 text-sm font-medium text-center">
-                      {idx + 1}
-                    </div>
-                    <div className="col-span-5">
-                      <Input 
-                        type="number" 
-                        min={1} 
-                        value={perSetData[idx]?.reps || 10}
-                        onChange={(e) => updatePerSetReps(idx, parseInt(e.target.value) || 1)}
-                        data-testid={`input-set-${idx + 1}-reps`}
-                      />
-                    </div>
-                    <div className="col-span-5">
-                      <Input 
-                        placeholder="e.g., 50kg"
-                        value={perSetData[idx]?.weight || ""}
-                        onChange={(e) => updatePerSetWeight(idx, e.target.value)}
-                        data-testid={`input-set-${idx + 1}-weight`}
-                      />
-                    </div>
+                <FormField
+                  control={form.control}
+                  name="exerciseName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Exercise Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Bench Press, Squats, Deadlift" {...field} data-testid="input-exercise" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="sets"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of Sets</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} max={10} {...field} data-testid="input-sets" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            ) : (
+              <>
+                <FormField
+                  control={form.control}
+                  name="exerciseName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cardio Exercise</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-cardio-exercise">
+                            <SelectValue placeholder="Select cardio exercise" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent position="popper" className="z-[200]">
+                          {cardioExercises.map((ex) => (
+                            <SelectItem key={ex} value={ex}>{ex}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="durationMinutes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <Timer className="w-3.5 h-3.5" />
+                          Duration (minutes)
+                        </FormLabel>
+                        <FormControl>
+                          <Input type="number" min={1} placeholder="30" {...field} data-testid="input-duration" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="distanceKm"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <Route className="w-3.5 h-3.5" />
+                          Distance (optional)
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 5km" {...field} data-testid="input-distance" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </>
+            )}
+
+            {exerciseType === "strength" && (
+              <>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm font-medium">Same reps/weight for all sets</span>
+                  <Switch 
+                    checked={sameForAll} 
+                    onCheckedChange={setSameForAll}
+                    data-testid="switch-same-for-all"
+                  />
+                </div>
+
+                {sameForAll ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="reps"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Reps (all sets)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={1} {...field} data-testid="input-reps" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="weight"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Weight (optional)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., 50kg" {...field} data-testid="input-weight" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                ))}
-              </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground font-medium">
+                      <div className="col-span-2">Set</div>
+                      <div className="col-span-5">Reps</div>
+                      <div className="col-span-5">Weight</div>
+                    </div>
+                    {Array.from({ length: Number(watchedSets) || 1 }, (_, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                        <div className="col-span-2 text-sm font-medium text-center">
+                          {idx + 1}
+                        </div>
+                        <div className="col-span-5">
+                          <Input 
+                            type="number" 
+                            min={1} 
+                            value={perSetData[idx]?.reps || 10}
+                            onChange={(e) => updatePerSetReps(idx, parseInt(e.target.value) || 1)}
+                            data-testid={`input-set-${idx + 1}-reps`}
+                          />
+                        </div>
+                        <div className="col-span-5">
+                          <Input 
+                            placeholder="e.g., 50kg"
+                            value={perSetData[idx]?.weight || ""}
+                            onChange={(e) => updatePerSetWeight(idx, e.target.value)}
+                            data-testid={`input-set-${idx + 1}-weight`}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

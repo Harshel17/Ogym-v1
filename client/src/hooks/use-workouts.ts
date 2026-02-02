@@ -52,7 +52,7 @@ export function useAddWorkoutItem() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { cycleId: number; dayIndex: number; muscleType?: string; bodyPart?: string; exerciseName: string; sets: number; reps: number; weight?: string; orderIndex?: number }) => {
+    mutationFn: async (data: { cycleId: number; dayIndex: number; muscleType?: string; bodyPart?: string; exerciseName: string; exerciseType?: string; sets: number; reps: number; weight?: string; durationMinutes?: number; distanceKm?: string; orderIndex?: number }) => {
       const { cycleId, ...rest } = data;
       const response = await apiRequest("POST", `/api/trainer/cycles/${cycleId}/items`, rest);
       return response.json();
