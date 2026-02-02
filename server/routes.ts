@@ -1147,14 +1147,18 @@ export async function registerRoutes(
     const cycleId = parseInt(req.params.cycleId);
     const muscleTypes = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Glutes", "Full Body", "Rest", "Cardio", "Biceps", "Triceps", "Hamstrings", "Quadriceps", "Calves", "Abs", "Stretching", "Mobility", "Other"] as const;
     const bodyParts = ["Upper Body", "Lower Body", "Full Body", "Recovery"] as const;
+    const exerciseTypes = ["strength", "cardio"] as const;
     const schema = z.object({
       dayIndex: z.number().min(0),
       muscleType: z.enum(muscleTypes).default("Chest"),
       bodyPart: z.enum(bodyParts).default("Upper Body"),
       exerciseName: z.string(),
+      exerciseType: z.enum(exerciseTypes).default("strength"),
       sets: z.number().min(1),
       reps: z.number().min(1),
       weight: z.string().optional(),
+      durationMinutes: z.number().optional(),
+      distanceKm: z.string().optional(),
       orderIndex: z.number().default(0)
     });
     const input = schema.parse(req.body);
@@ -2755,6 +2759,8 @@ export async function registerRoutes(
       actualSets: z.number().optional(),
       actualReps: z.number().optional(),
       actualWeight: z.string().optional(),
+      actualDurationMinutes: z.number().optional(),
+      actualDistanceKm: z.string().optional(),
       clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
     });
     const input = schema.parse(req.body);
@@ -2783,7 +2789,9 @@ export async function registerRoutes(
       completedDate: today,
       actualSets: input.actualSets,
       actualReps: input.actualReps,
-      actualWeight: input.actualWeight
+      actualWeight: input.actualWeight,
+      actualDurationMinutes: input.actualDurationMinutes,
+      actualDistanceKm: input.actualDistanceKm
     });
     
     // Calculate current day index for session creation
@@ -3436,15 +3444,19 @@ export async function registerRoutes(
     const cycleId = parseInt(req.params.cycleId);
     const muscleTypes = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Glutes", "Full Body", "Rest", "Cardio", "Biceps", "Triceps", "Hamstrings", "Quadriceps", "Calves", "Abs", "Stretching", "Mobility", "Other"] as const;
     const bodyParts = ["Upper Body", "Lower Body", "Full Body", "Recovery"] as const;
+    const exerciseTypes = ["strength", "cardio"] as const;
     
     const schema = z.object({
       dayIndex: z.number().min(0),
       muscleType: z.enum(muscleTypes).default("Chest"),
       bodyPart: z.enum(bodyParts).default("Upper Body"),
       exerciseName: z.string(),
+      exerciseType: z.enum(exerciseTypes).default("strength"),
       sets: z.number().min(1),
       reps: z.number().min(1),
       weight: z.string().optional(),
+      durationMinutes: z.number().optional(),
+      distanceKm: z.string().optional(),
       orderIndex: z.number().default(0)
     });
     const input = schema.parse(req.body);

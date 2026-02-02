@@ -170,7 +170,7 @@ export function useCompleteWorkout(onAskToShare?: (focusLabel: string) => void) 
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: { workoutItemId: number; actualSets?: number; actualReps?: number; actualWeight?: string }) => {
+    mutationFn: async (data: { workoutItemId: number; actualSets?: number; actualReps?: number; actualWeight?: string; actualDurationMinutes?: number; actualDistanceKm?: string }) => {
       const response = await apiRequest("POST", "/api/workouts/complete", {
         ...data,
         clientDate: getClientLocalDate()

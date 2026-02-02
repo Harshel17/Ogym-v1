@@ -32,6 +32,8 @@ interface ExerciseInputs {
     sets: string;
     reps: string;
     weight: string;
+    durationMinutes?: string;
+    distanceKm?: string;
   };
 }
 
@@ -328,9 +330,11 @@ export default function MemberWorkoutPage() {
 
   const getInputs = (itemId: number, item: any) => {
     return exerciseInputs[itemId] || {
-      sets: String(item.sets),
-      reps: String(item.reps),
+      sets: String(item.sets || ''),
+      reps: String(item.reps || ''),
       weight: item.weight || '',
+      durationMinutes: item.durationMinutes ? String(item.durationMinutes) : '',
+      distanceKm: item.distanceKm || '',
     };
   };
 
@@ -357,7 +361,19 @@ export default function MemberWorkoutPage() {
   const handleCompleteExercise = (item: any) => {
     const perSet = perSetInputs[item.id];
     
-    // If using per-set mode with individual inputs
+    // Cardio exercises use duration/distance instead of sets/reps/weight
+    if (item.exerciseType === 'cardio') {
+      const inputs = getInputs(item.id, item);
+      completeWorkoutMutation.mutate({
+        workoutItemId: item.id,
+        actualDurationMinutes: inputs.durationMinutes ? parseInt(inputs.durationMinutes) : item.durationMinutes,
+        actualDistanceKm: inputs.distanceKm || item.distanceKm || undefined,
+      });
+      setExpandedExercise(null);
+      return;
+    }
+    
+    // Strength exercises: If using per-set mode with individual inputs
     if (perSet && !perSet.sameForAll && perSet.setInputs.length > 0) {
       const todayStr = getLocalDate();
       const sets = perSet.setInputs.map((setInput, idx) => ({
@@ -859,8 +875,17 @@ export default function MemberWorkoutPage() {
                                     )}
                                   </div>
                                   <p className="text-sm text-muted-foreground">
-                                    Target: {item.sets} sets x {item.reps} reps
-                                    {item.weight && ` @ ${item.weight}`}
+                                    {item.exerciseType === 'cardio' ? (
+                                      <>
+                                        {item.durationMinutes ? `${item.durationMinutes} min` : ''}
+                                        {item.distanceKm ? ` · ${item.distanceKm}` : ''}
+                                      </>
+                                    ) : (
+                                      <>
+                                        Target: {item.sets} sets x {item.reps} reps
+                                        {item.weight && ` @ ${item.weight}`}
+                                      </>
+                                    )}
                                   </p>
                                 </div>
                               </div>
@@ -884,54 +909,84 @@ export default function MemberWorkoutPage() {
                                       Log your actual performance:
                                     </p>
                                     
-                                    <div className="flex items-center justify-between mb-4 py-2">
-                                      <span className="text-sm font-medium">Same for all sets</span>
-                                      <Switch 
-                                        checked={perSetInputs[item.id]?.sameForAll ?? true}
-                                        onCheckedChange={(value) => toggleSameForAll(item.id, value, item)}
-                                        data-testid={`switch-same-for-all-${item.id}`}
-                                      />
-                                    </div>
-
-                                    {(perSetInputs[item.id]?.sameForAll ?? true) ? (
-                                      <div className="grid grid-cols-3 gap-3 mb-4">
+                                    {item.exerciseType === 'cardio' ? (
+                                      <div className="grid grid-cols-2 gap-3 mb-4">
                                         <div>
-                                          <Label htmlFor={`sets-${item.id}`} className="text-xs">Sets</Label>
+                                          <Label htmlFor={`duration-${item.id}`} className="text-xs">Duration (min)</Label>
                                           <Input
-                                            id={`sets-${item.id}`}
+                                            id={`duration-${item.id}`}
                                             type="number"
                                             min="1"
-                                            value={inputs.sets}
-                                            onChange={(e) => updateInput(item.id, 'sets', e.target.value)}
+                                            placeholder={item.durationMinutes ? String(item.durationMinutes) : '30'}
+                                            value={inputs.durationMinutes || ''}
+                                            onChange={(e) => updateInput(item.id, 'durationMinutes', e.target.value)}
                                             className="mt-1"
-                                            data-testid={`input-sets-${item.id}`}
+                                            data-testid={`input-duration-${item.id}`}
                                           />
                                         </div>
                                         <div>
-                                          <Label htmlFor={`reps-${item.id}`} className="text-xs">Reps</Label>
+                                          <Label htmlFor={`distance-${item.id}`} className="text-xs">Distance</Label>
                                           <Input
-                                            id={`reps-${item.id}`}
-                                            type="number"
-                                            min="1"
-                                            value={inputs.reps}
-                                            onChange={(e) => updateInput(item.id, 'reps', e.target.value)}
-                                            className="mt-1"
-                                            data-testid={`input-reps-${item.id}`}
-                                          />
-                                        </div>
-                                        <div>
-                                          <Label htmlFor={`weight-${item.id}`} className="text-xs">Weight</Label>
-                                          <Input
-                                            id={`weight-${item.id}`}
+                                            id={`distance-${item.id}`}
                                             type="text"
-                                            placeholder="e.g. 50kg"
-                                            value={inputs.weight}
-                                            onChange={(e) => updateInput(item.id, 'weight', e.target.value)}
+                                            placeholder={item.distanceKm || 'e.g., 5km'}
+                                            value={inputs.distanceKm || ''}
+                                            onChange={(e) => updateInput(item.id, 'distanceKm', e.target.value)}
                                             className="mt-1"
-                                            data-testid={`input-weight-${item.id}`}
+                                            data-testid={`input-distance-${item.id}`}
                                           />
                                         </div>
                                       </div>
+                                    ) : (
+                                      <>
+                                        <div className="flex items-center justify-between mb-4 py-2">
+                                          <span className="text-sm font-medium">Same for all sets</span>
+                                          <Switch 
+                                            checked={perSetInputs[item.id]?.sameForAll ?? true}
+                                            onCheckedChange={(value) => toggleSameForAll(item.id, value, item)}
+                                            data-testid={`switch-same-for-all-${item.id}`}
+                                          />
+                                        </div>
+
+                                        {(perSetInputs[item.id]?.sameForAll ?? true) ? (
+                                          <div className="grid grid-cols-3 gap-3 mb-4">
+                                            <div>
+                                              <Label htmlFor={`sets-${item.id}`} className="text-xs">Sets</Label>
+                                              <Input
+                                                id={`sets-${item.id}`}
+                                                type="number"
+                                                min="1"
+                                                value={inputs.sets}
+                                                onChange={(e) => updateInput(item.id, 'sets', e.target.value)}
+                                                className="mt-1"
+                                                data-testid={`input-sets-${item.id}`}
+                                              />
+                                            </div>
+                                            <div>
+                                              <Label htmlFor={`reps-${item.id}`} className="text-xs">Reps</Label>
+                                              <Input
+                                                id={`reps-${item.id}`}
+                                                type="number"
+                                                min="1"
+                                                value={inputs.reps}
+                                                onChange={(e) => updateInput(item.id, 'reps', e.target.value)}
+                                                className="mt-1"
+                                                data-testid={`input-reps-${item.id}`}
+                                              />
+                                            </div>
+                                            <div>
+                                              <Label htmlFor={`weight-${item.id}`} className="text-xs">Weight</Label>
+                                              <Input
+                                                id={`weight-${item.id}`}
+                                                type="text"
+                                                placeholder="e.g. 50kg"
+                                                value={inputs.weight}
+                                                onChange={(e) => updateInput(item.id, 'weight', e.target.value)}
+                                                className="mt-1"
+                                                data-testid={`input-weight-${item.id}`}
+                                              />
+                                            </div>
+                                          </div>
                                     ) : (
                                       <div className="space-y-3 mb-4">
                                         <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground font-medium">
@@ -968,6 +1023,8 @@ export default function MemberWorkoutPage() {
                                           </div>
                                         ))}
                                       </div>
+                                    )}
+                                      </>
                                     )}
 
                                     <Button

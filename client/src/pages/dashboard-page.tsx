@@ -631,7 +631,7 @@ function MemberDashboard() {
   const { user } = useAuth();
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
-  const [exerciseInputs, setExerciseInputs] = useState<Record<number, { sets: string; reps: string; weight: string }>>({});
+  const [exerciseInputs, setExerciseInputs] = useState<Record<number, { sets: string; reps: string; weight: string; durationMinutes?: string; distanceKm?: string }>>({});
   const [perSetInputs, setPerSetInputs] = useState<Record<number, { sameForAll: boolean; setInputs: PerSetInput[] }>>({});
   const [loadingPlanSets, setLoadingPlanSets] = useState<number | null>(null);
   const [showMarkDoneDialog, setShowMarkDoneDialog] = useState(false);
@@ -950,6 +950,19 @@ function MemberDashboard() {
   const handleCompleteExercise = (item: any) => {
     const perSet = perSetInputs[item.id];
     
+    // Cardio exercises use duration/distance instead of sets/reps/weight
+    if (item.exerciseType === 'cardio') {
+      const inputs = exerciseInputs[item.id] || {};
+      completeWorkoutMutation.mutate({
+        workoutItemId: item.id,
+        actualDurationMinutes: inputs.durationMinutes ? parseInt(inputs.durationMinutes) : item.durationMinutes,
+        actualDistanceKm: inputs.distanceKm || item.distanceKm || undefined
+      });
+      setExpandedItem(null);
+      return;
+    }
+    
+    // Strength exercises with per-set logging
     if (perSet && !perSet.sameForAll && perSet.setInputs.length > 0) {
       const todayStr = getLocalDate();
       const sets = perSet.setInputs.map((setInput, idx) => ({
@@ -977,12 +990,20 @@ function MemberDashboard() {
   };
 
   const handleQuickComplete = (item: any) => {
-    completeWorkoutMutation.mutate({
-      workoutItemId: item.id,
-      actualSets: item.sets,
-      actualReps: item.reps,
-      actualWeight: item.weight || undefined
-    });
+    if (item.exerciseType === 'cardio') {
+      completeWorkoutMutation.mutate({
+        workoutItemId: item.id,
+        actualDurationMinutes: item.durationMinutes,
+        actualDistanceKm: item.distanceKm || undefined
+      });
+    } else {
+      completeWorkoutMutation.mutate({
+        workoutItemId: item.id,
+        actualSets: item.sets,
+        actualReps: item.reps,
+        actualWeight: item.weight || undefined
+      });
+    }
   };
 
   if (showOnboarding) {
@@ -1132,7 +1153,16 @@ function MemberDashboard() {
                               {item.exerciseName}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {item.sets}x{item.reps} {item.weight ? `@ ${item.weight}` : ''}
+                              {item.exerciseType === 'cardio' ? (
+                                <>
+                                  {item.durationMinutes ? `${item.durationMinutes} min` : ''}
+                                  {item.distanceKm ? ` · ${item.distanceKm}` : ''}
+                                </>
+                              ) : (
+                                <>
+                                  {item.sets}x{item.reps} {item.weight ? `@ ${item.weight}` : ''}
+                                </>
+                              )}
                             </p>
                           </div>
 
@@ -1163,52 +1193,79 @@ function MemberDashboard() {
                               <>
                                 <p className="text-xs text-muted-foreground pt-2">Log your actual performance:</p>
                                 
-                                <div className="flex items-center justify-between py-2">
-                                  <span className="text-sm font-medium">Same for all sets</span>
-                                  <Switch 
-                                    checked={perSetInputs[item.id]?.sameForAll ?? true}
-                                    onCheckedChange={(value) => toggleSameForAll(item.id, value, item)}
-                                    data-testid={`switch-same-for-all-${item.id}`}
-                                  />
-                                </div>
-
-                                {(perSetInputs[item.id]?.sameForAll ?? true) ? (
-                                  <div className="grid grid-cols-3 gap-2">
+                                {item.exerciseType === 'cardio' ? (
+                                  <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                      <label className="text-xs text-muted-foreground mb-1 block">Sets</label>
+                                      <label className="text-xs text-muted-foreground mb-1 block">Duration (min)</label>
                                       <Input
                                         type="number"
-                                        placeholder={String(item.sets)}
-                                        value={inputs.sets || ''}
-                                        onChange={(e) => handleInputChange(item.id, 'sets', e.target.value)}
+                                        placeholder={item.durationMinutes ? String(item.durationMinutes) : '30'}
+                                        value={inputs.durationMinutes || ''}
+                                        onChange={(e) => handleInputChange(item.id, 'durationMinutes', e.target.value)}
                                         className="h-9"
-                                        data-testid={`input-sets-${item.id}`}
+                                        data-testid={`input-duration-${item.id}`}
                                       />
                                     </div>
                                     <div>
-                                      <label className="text-xs text-muted-foreground mb-1 block">Reps</label>
-                                      <Input
-                                        type="number"
-                                        placeholder={String(item.reps)}
-                                        value={inputs.reps || ''}
-                                        onChange={(e) => handleInputChange(item.id, 'reps', e.target.value)}
-                                        className="h-9"
-                                        data-testid={`input-reps-${item.id}`}
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="text-xs text-muted-foreground mb-1 block">Weight</label>
+                                      <label className="text-xs text-muted-foreground mb-1 block">Distance</label>
                                       <Input
                                         type="text"
-                                        placeholder={item.weight || '-'}
-                                        value={inputs.weight || ''}
-                                        onChange={(e) => handleInputChange(item.id, 'weight', e.target.value)}
+                                        placeholder={item.distanceKm || 'e.g., 5km'}
+                                        value={inputs.distanceKm || ''}
+                                        onChange={(e) => handleInputChange(item.id, 'distanceKm', e.target.value)}
                                         className="h-9"
-                                        data-testid={`input-weight-${item.id}`}
+                                        data-testid={`input-distance-${item.id}`}
                                       />
                                     </div>
                                   </div>
                                 ) : (
+                                  <>
+                                    <div className="flex items-center justify-between py-2">
+                                      <span className="text-sm font-medium">Same for all sets</span>
+                                      <Switch 
+                                        checked={perSetInputs[item.id]?.sameForAll ?? true}
+                                        onCheckedChange={(value) => toggleSameForAll(item.id, value, item)}
+                                        data-testid={`switch-same-for-all-${item.id}`}
+                                      />
+                                    </div>
+
+                                    {(perSetInputs[item.id]?.sameForAll ?? true) ? (
+                                      <div className="grid grid-cols-3 gap-2">
+                                        <div>
+                                          <label className="text-xs text-muted-foreground mb-1 block">Sets</label>
+                                          <Input
+                                            type="number"
+                                            placeholder={String(item.sets)}
+                                            value={inputs.sets || ''}
+                                            onChange={(e) => handleInputChange(item.id, 'sets', e.target.value)}
+                                            className="h-9"
+                                            data-testid={`input-sets-${item.id}`}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-xs text-muted-foreground mb-1 block">Reps</label>
+                                          <Input
+                                            type="number"
+                                            placeholder={String(item.reps)}
+                                            value={inputs.reps || ''}
+                                            onChange={(e) => handleInputChange(item.id, 'reps', e.target.value)}
+                                            className="h-9"
+                                            data-testid={`input-reps-${item.id}`}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-xs text-muted-foreground mb-1 block">Weight</label>
+                                          <Input
+                                            type="text"
+                                            placeholder={item.weight || '-'}
+                                            value={inputs.weight || ''}
+                                            onChange={(e) => handleInputChange(item.id, 'weight', e.target.value)}
+                                            className="h-9"
+                                            data-testid={`input-weight-${item.id}`}
+                                          />
+                                        </div>
+                                      </div>
+                                    ) : (
                                   <div className="space-y-2">
                                     <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground font-medium">
                                       <div className="col-span-2">Set</div>
@@ -1276,6 +1333,8 @@ function MemberDashboard() {
                                       </Button>
                                     </div>
                                   </div>
+                                )}
+                                  </>
                                 )}
 
                                 <Button
