@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus } from "lucide-react";
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
 import { HealthSummary } from "@/components/health-summary";
@@ -903,6 +903,41 @@ function MemberDashboard() {
     });
   };
 
+  const addSet = (itemId: number, item: any) => {
+    setPerSetInputs(prev => {
+      const current = prev[itemId];
+      if (!current) return prev;
+      const lastSet = current.setInputs[current.setInputs.length - 1];
+      const newSet: PerSetInput = {
+        reps: lastSet?.reps || String(item.reps),
+        weight: lastSet?.weight || item.weight || '',
+        targetReps: lastSet?.targetReps || item.reps,
+        targetWeight: lastSet?.targetWeight || item.weight || ''
+      };
+      return {
+        ...prev,
+        [itemId]: {
+          ...current,
+          setInputs: [...current.setInputs, newSet]
+        }
+      };
+    });
+  };
+
+  const removeSet = (itemId: number) => {
+    setPerSetInputs(prev => {
+      const current = prev[itemId];
+      if (!current || current.setInputs.length <= 1) return prev;
+      return {
+        ...prev,
+        [itemId]: {
+          ...current,
+          setInputs: current.setInputs.slice(0, -1)
+        }
+      };
+    });
+  };
+
   // Helper to get local date in YYYY-MM-DD format (same as hooks use)
   const getLocalDate = () => {
     const now = new Date();
@@ -1210,6 +1245,36 @@ function MemberDashboard() {
                                         </div>
                                       </div>
                                     ))}
+                                    
+                                    {/* Add/Remove Set Buttons */}
+                                    <div className="flex items-center justify-center gap-3 pt-2 border-t border-border/50 mt-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => removeSet(item.id)}
+                                        disabled={(perSetInputs[item.id]?.setInputs?.length || 0) <= 1}
+                                        className="h-8 px-3"
+                                        data-testid={`button-remove-set-${item.id}`}
+                                      >
+                                        <Minus className="w-4 h-4 mr-1" />
+                                        Remove Set
+                                      </Button>
+                                      <span className="text-sm text-muted-foreground">
+                                        {perSetInputs[item.id]?.setInputs?.length || 0} sets
+                                      </span>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => addSet(item.id, item)}
+                                        className="h-8 px-3"
+                                        data-testid={`button-add-set-${item.id}`}
+                                      >
+                                        <Plus className="w-4 h-4 mr-1" />
+                                        Add Set
+                                      </Button>
+                                    </div>
                                   </div>
                                 )}
 
