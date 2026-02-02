@@ -12,7 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle, Dumbbell } from "lucide-react";
+import { Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle, Dumbbell, ExternalLink } from "lucide-react";
+import { isIOS, isNative } from "@/lib/capacitor-init";
+
+// Helper: Check if we're running on iOS native app (not web)
+const isIOSNativeApp = () => isNative() && isIOS();
 import ogymLogo from "@/assets/images/ogym-logo.png";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -528,7 +532,18 @@ export default function AuthPage() {
                 </CardHeader>
                 <CardContent className="px-0">
                   <Form {...registerForm}>
-                    <form onSubmit={registerForm.handleSubmit((d) => registerMutation.mutate(d))} className="space-y-4">
+                    <form onSubmit={registerForm.handleSubmit((d) => {
+                      // Guard: Block owner registration on iOS native app per Apple Guideline 3.1.1
+                      if (isIOSNativeApp() && d.role === "owner") {
+                        toast({
+                          title: "Registration unavailable",
+                          description: "Please register as a gym owner at app.ogym.fitness",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      registerMutation.mutate(d);
+                    })} className="space-y-4">
                       <FormField
                         control={registerForm.control}
                         name="username"
@@ -596,9 +611,25 @@ export default function AuthPage() {
                               <SelectContent>
                                 <SelectItem value="member">Member</SelectItem>
                                 <SelectItem value="trainer">Trainer</SelectItem>
-                                <SelectItem value="owner">Gym Owner</SelectItem>
+                                {/* Hide Gym Owner on iOS native app per Apple Guideline 3.1.1 */}
+                                {!isIOSNativeApp() && <SelectItem value="owner">Gym Owner</SelectItem>}
                               </SelectContent>
                             </Select>
+                            {/* Show info for gym owners on iOS native app */}
+                            {isIOSNativeApp() && (
+                              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                                <ExternalLink className="w-3 h-3" />
+                                Gym owners: Register at{" "}
+                                <a 
+                                  href="https://app.ogym.fitness" 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-primary underline"
+                                >
+                                  app.ogym.fitness
+                                </a>
+                              </p>
+                            )}
                             <FormMessage />
                           </FormItem>
                         )}

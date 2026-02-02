@@ -47,6 +47,7 @@ Preferred communication style: Simple, everyday language.
 - **Database Indexing:** Optimized for common queries.
 - **Deployment:** Same-origin deployment with Express serving API and static frontend.
 - **Fitness Device Integration:** Health tracking columns in `users` and a `health_data` table for fitness device data.
+- **iOS App Store Compliance (Guideline 3.1.1):** Gym owner registration is hidden on iOS native app to comply with Apple's in-app purchase requirements. Gym owners must register via web (app.ogym.fitness). Existing owners can still log in on iOS.
 
 ## External Dependencies
 
