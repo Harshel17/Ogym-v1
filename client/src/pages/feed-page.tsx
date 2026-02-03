@@ -4,9 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFeed, useFeedComments, useAddReaction, useRemoveReaction, useAddComment, useHidePost, useCreatePost, type FeedPost } from "@/hooks/use-social";
+import { useFeed, useFeedComments, useAddReaction, useRemoveReaction, useAddComment, useHidePost, useCreatePost, useReportPost, useBlockUser, useBlockedUsers, type FeedPost } from "@/hooks/use-social";
 import { useAuth } from "@/hooks/use-auth";
-import { Heart, Flame, Award, HandMetal, MessageCircle, MoreHorizontal, Send, Dumbbell, Trophy, UserPlus, Sparkles } from "lucide-react";
+import { Heart, Flame, Award, HandMetal, MessageCircle, MoreHorizontal, Send, Dumbbell, Trophy, UserPlus, Sparkles, Flag, UserX } from "lucide-react";
+import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -14,6 +15,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 
 const reactionIcons: Record<string, typeof Heart> = {
@@ -41,6 +45,8 @@ function PostCard({ post }: { post: FeedPost }) {
   const removeReaction = useRemoveReaction();
   const addComment = useAddComment();
   const hidePost = useHidePost();
+  const reportPost = useReportPost();
+  const blockUser = useBlockUser();
   
   const userReaction = post.reactions.find(r => r.userId === user?.id);
   const reactionCounts = post.reactions.reduce((acc, r) => {
@@ -104,7 +110,7 @@ function PostCard({ post }: { post: FeedPost }) {
             <PostIcon className="h-3 w-3" />
             {post.type.replace("_", " ")}
           </Badge>
-          {canModerate && (
+          {post.userId !== user?.id && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" data-testid={`button-post-menu-${post.id}`}>
@@ -112,8 +118,41 @@ function PostCard({ post }: { post: FeedPost }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => hidePost.mutate(post.id)} data-testid={`button-hide-post-${post.id}`}>
-                  Hide post
+                {canModerate && (
+                  <>
+                    <DropdownMenuItem onClick={() => hidePost.mutate(post.id)} data-testid={`button-hide-post-${post.id}`}>
+                      Hide post
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger data-testid={`button-report-post-${post.id}`}>
+                    <Flag className="h-4 w-4 mr-2" />
+                    Report post
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onClick={() => reportPost.mutate({ postId: post.id, reason: "inappropriate" })} data-testid={`button-report-inappropriate-${post.id}`}>
+                      Inappropriate content
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => reportPost.mutate({ postId: post.id, reason: "spam" })} data-testid={`button-report-spam-${post.id}`}>
+                      Spam
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => reportPost.mutate({ postId: post.id, reason: "harassment" })} data-testid={`button-report-harassment-${post.id}`}>
+                      Harassment
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => reportPost.mutate({ postId: post.id, reason: "other" })} data-testid={`button-report-other-${post.id}`}>
+                      Other
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuItem 
+                  onClick={() => blockUser.mutate(post.userId)} 
+                  data-testid={`button-block-user-${post.id}`}
+                  className="text-destructive"
+                >
+                  <UserX className="h-4 w-4 mr-2" />
+                  Block user
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -195,8 +234,12 @@ function PostCard({ post }: { post: FeedPost }) {
 
 export default function FeedPage() {
   const { data: posts, isLoading } = useFeed();
+  const { data: blockedUsers = [] } = useBlockedUsers();
   const [postContent, setPostContent] = useState("");
   const createPost = useCreatePost();
+  
+  // Filter out posts from blocked users
+  const filteredPosts = posts?.filter(post => !blockedUsers.includes(post.userId));
   
   const handleCreatePost = () => {
     if (!postContent.trim()) return;
@@ -241,7 +284,7 @@ export default function FeedPage() {
         </CardContent>
       </Card>
       
-      {(!posts || posts.length === 0) ? (
+      {(!filteredPosts || filteredPosts.length === 0) ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
@@ -250,7 +293,7 @@ export default function FeedPage() {
           </CardContent>
         </Card>
       ) : (
-        posts.map((post) => (
+        filteredPosts.map((post) => (
           <PostCard key={post.id} post={post} />
         ))
       )}

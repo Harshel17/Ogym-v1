@@ -51,6 +51,12 @@
         <string>OGym uses your photo library to let you upload profile pictures and workout photos</string>
         <key>NSPhotoLibraryAddUsageDescription</key>
         <string>OGym saves QR codes and workout progress images to your photo library</string>
+        <key>NSLocationWhenInUseUsageDescription</key>
+        <string>OGym uses your location to find healthy food options nearby.</string>
+        <key>NSHealthShareUsageDescription</key>
+        <string>OGym reads Health data to show your activity and fitness insights.</string>
+        <key>NSHealthUpdateUsageDescription</key>
+        <string>OGym can save workout activity to Apple Health when you choose.</string>
         <key>ITSAppUsesNonExemptEncryption</key>
         <false/>
 </dict>

@@ -48,6 +48,9 @@ Preferred communication style: Simple, everyday language.
 - **Deployment:** Same-origin deployment with Express serving API and static frontend.
 - **Fitness Device Integration:** Health tracking columns in `users` and a `health_data` table for fitness device data.
 - **iOS App Store Compliance (Guideline 3.1.1):** Gym owner registration is hidden on iOS native app to comply with Apple's in-app purchase requirements. Gym owners must register via web (app.ogym.fitness). Existing owners can still log in on iOS. The iOS app shows only informational text: "Gym owner accounts are created outside the app. Existing accounts can sign in." - no links, no URLs, no buttons.
+- **Account Deletion (App Store Guideline 5.1.1):** Users can delete their account from Profile > Settings. Implements comprehensive cascade deletion across 40+ related tables (workouts, payments, subscriptions, measurements, health data, social feed, etc.). Gym owners can only delete if their gym has no active members. DELETE /api/users/me endpoint with "delete" confirmation word required.
+- **UGC Moderation (App Store Guideline 1.2):** Social feed posts can be reported (inappropriate/spam/harassment/other) and users can be blocked. Blocked users' posts are filtered from feed display. Reports stored in `post_reports` table with pending/reviewed/dismissed status tracking. User blocks stored in `user_blocks` table with unique constraint. Owners/trainers can hide posts from their gym feed.
+- **Location & Health Permissions (iOS Info.plist):** NSLocationWhenInUseUsageDescription for "Find My Food" feature, NSHealthShareUsageDescription and NSHealthUpdateUsageDescription for Apple Health integration via capacitor-health plugin.
 
 ## External Dependencies
 

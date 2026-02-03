@@ -1,0 +1,59 @@
+We need a FULL App Store compliance patch (not feature work). 
+Do NOT add new features beyond what is required to pass Apple guidelines. 
+Do NOT change UI design. Focus only on compliance + stability.
+
+Implement these fixes in this exact order:
+
+=== BLOCKER #1: ACCOUNT DELETION (Guideline 5.1.1) ===
+Requirement: If the app supports account creation, the app must allow users to delete their account in-app.
+
+Frontend:
+- Add a “Delete Account” button in Profile/Settings (where logout exists).
+- On tap: show a confirmation modal with clear warning:
+  “This will permanently delete your account and data. This cannot be undone.”
+- If confirmed: call DELETE /api/users/me (or /api/users/delete-account).
+- On success: log user out, clear storage/session, and redirect to login screen.
+- On failure: show a user-friendly error.
+
+Backend:
+- Add authenticated endpoint to delete the current user and associated data.
+- Ensure cascade deletion for user-linked records (memberships, attendance, logs, posts, etc.) OR safely anonymize where needed.
+- Return 200 success.
+
+=== BLOCKER #2: LOCATION PERMISSION STRINGS (Guideline 5.1.1) ===
+Add to iOS Info.plist:
+- NSLocationWhenInUseUsageDescription
+  Value: “OGym uses your location to find healthy food options nearby.”
+
+Also verify:
+- If user denies location, Find My Food should not crash; show a message and allow manual search.
+
+=== BLOCKER #3: HEALTHKIT PERMISSION STRINGS (Guideline 5.1.1) ===
+If HealthKit integration is included in the iOS build:
+Add to Info.plist:
+- NSHealthShareUsageDescription
+  Value: “OGym reads Health data to show your activity and fitness insights.”
+- NSHealthUpdateUsageDescription
+  Value: “OGym can save workout activity to Apple Health when you choose.”
+
+If HealthKit is NOT required for App Store submission:
+- Ensure the Health integration screen is hidden/disabled on iOS until we are ready (minimal toggle), OR ensure it cannot be accessed during review.
+
+=== HIGH-RISK WARNING (Guideline 1.2 UGC) ===
+If the Social Feed/Comments are visible in the iOS app:
+- Add “Report Post” and “Block User” actions.
+- Report can be minimal: create a report record in DB OR send to admin endpoint.
+- Block can be minimal: store blocked user ids and hide their posts/comments in feed UI.
+
+=== OUTPUT REQUIRED ===
+After implementing, output:
+1) List of files changed
+2) The exact endpoint route + auth used for delete account
+3) The exact Info.plist keys added
+4) A short QA checklist for iOS reviewer flows:
+   - Create account → delete account works
+   - Find My Food works with location allowed/denied
+   - HealthKit screen behavior
+   - Feed report/block behavior (if present)
+
+DO NOT deploy unless I explicitly say “deploy”.

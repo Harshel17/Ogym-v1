@@ -3,7 +3,7 @@ import {
   gymHistory, starMembers, dietPlans, dietPlanMeals, transferRequests, announcements, userNotificationPreferences, announcementReads,
   membershipPlans, memberSubscriptions, paymentTransactions, workoutSessions, workoutSessionExercises,
   gymRequests, joinRequests, gymSubscriptions, workoutTemplates, workoutTemplateItems, bodyMeasurements, memberNotes,
-  workoutPlanSets, workoutLogs, workoutLogExercises, workoutLogSets, cycleDayActions, cycleScheduleOverrides,
+  workoutPlanSets, workoutLogs, workoutLogExercises, workoutLogSets, cycleDayActions, cycleScheduleOverrides, postReports, userBlocks,
   type User, type InsertUser, type Gym, type InsertGym,
   type Attendance, type InsertAttendance,
   type Payment, type InsertPayment,
@@ -60,7 +60,9 @@ import {
   calorieGoals, foodLogs, healthData,
   type CalorieGoal, type InsertCalorieGoal,
   type FoodLog, type InsertFoodLog,
-  type HealthData, type InsertHealthData
+  type HealthData, type InsertHealthData,
+  type PostReport, type InsertPostReport,
+  type UserBlock, type InsertUserBlock
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -774,6 +776,18 @@ export interface IStorage {
   getHealthDataByRange(userId: number, startDate: string, endDate: string): Promise<HealthData[]>;
   upsertHealthData(data: InsertHealthData): Promise<HealthData>;
   updateUserHealthConnection(userId: number, connected: boolean, source: 'apple_health' | 'google_fit' | null): Promise<void>;
+  
+  // Account Management
+  getGymByOwnerId(ownerId: number): Promise<Gym | undefined>;
+  getGymMemberCount(gymId: number): Promise<number>;
+  deleteUserAccount(userId: number): Promise<void>;
+  
+  // UGC Moderation (App Store compliance)
+  createPostReport(data: InsertPostReport): Promise<PostReport>;
+  blockUser(blockerId: number, blockedUserId: number): Promise<UserBlock>;
+  unblockUser(blockerId: number, blockedUserId: number): Promise<void>;
+  getBlockedUsers(blockerId: number): Promise<number[]>;
+  isUserBlocked(blockerId: number, blockedUserId: number): Promise<boolean>;
 }
 
 // Admin Types
@@ -8389,6 +8403,227 @@ export class DatabaseStorage implements IStorage {
         healthSource: source 
       })
       .where(eq(users.id, userId));
+  }
+
+  // === ACCOUNT MANAGEMENT ===
+  
+  async getGymByOwnerId(ownerId: number): Promise<Gym | undefined> {
+    const [gym] = await db.select().from(gyms).where(eq(gyms.ownerUserId, ownerId));
+    return gym;
+  }
+
+  async getGymMemberCount(gymId: number): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(and(eq(users.gymId, gymId), eq(users.role, "member")));
+    return result[0]?.count || 0;
+  }
+
+  async deleteUserAccount(userId: number): Promise<void> {
+    // Get user info first
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) return;
+
+    // Delete in proper order to respect foreign key constraints
+    // Start with the most dependent tables first
+
+    // Feed-related (comments depend on reactions)
+    await db.delete(feedComments).where(eq(feedComments.userId, userId));
+    await db.delete(feedReactions).where(eq(feedReactions.userId, userId));
+    await db.delete(feedPosts).where(eq(feedPosts.userId, userId));
+
+    // Tournament participation
+    await db.delete(tournamentParticipants).where(eq(tournamentParticipants.userId, userId));
+
+    // Announcement reads
+    await db.delete(announcementReads).where(eq(announcementReads.userId, userId));
+
+    // Workout-related (in dependency order)
+    await db.delete(workoutLogSets).where(
+      inArray(workoutLogSets.logExerciseId, 
+        db.select({ id: workoutLogExercises.id }).from(workoutLogExercises)
+          .innerJoin(workoutLogs, eq(workoutLogExercises.workoutLogId, workoutLogs.id))
+          .where(eq(workoutLogs.memberId, userId))
+      )
+    );
+    await db.delete(workoutLogExercises).where(
+      inArray(workoutLogExercises.workoutLogId,
+        db.select({ id: workoutLogs.id }).from(workoutLogs).where(eq(workoutLogs.memberId, userId))
+      )
+    );
+    await db.delete(workoutLogs).where(eq(workoutLogs.memberId, userId));
+    
+    await db.delete(workoutSessionExercises).where(
+      inArray(workoutSessionExercises.sessionId,
+        db.select({ id: workoutSessions.id }).from(workoutSessions).where(eq(workoutSessions.memberId, userId))
+      )
+    );
+    await db.delete(workoutSessions).where(eq(workoutSessions.memberId, userId));
+    
+    await db.delete(workoutCompletions).where(eq(workoutCompletions.memberId, userId));
+    await db.delete(workoutPlanSets).where(
+      inArray(workoutPlanSets.workoutItemId,
+        db.select({ id: workoutItems.id }).from(workoutItems)
+          .innerJoin(workoutCycles, eq(workoutItems.cycleId, workoutCycles.id))
+          .where(eq(workoutCycles.memberId, userId))
+      )
+    );
+    await db.delete(workoutItems).where(
+      inArray(workoutItems.cycleId,
+        db.select({ id: workoutCycles.id }).from(workoutCycles).where(eq(workoutCycles.memberId, userId))
+      )
+    );
+    await db.delete(cycleDayActions).where(eq(cycleDayActions.memberId, userId));
+    await db.delete(cycleScheduleOverrides).where(eq(cycleScheduleOverrides.memberId, userId));
+    await db.delete(memberRestDaySwaps).where(eq(memberRestDaySwaps.memberId, userId));
+    await db.delete(workoutCycles).where(eq(workoutCycles.memberId, userId));
+
+    // Payment and subscription data
+    await db.delete(paymentTransactions).where(eq(paymentTransactions.memberId, userId));
+    await db.delete(memberSubscriptions).where(eq(memberSubscriptions.memberId, userId));
+    await db.delete(payments).where(eq(payments.memberId, userId));
+    await db.delete(paymentConfirmations).where(eq(paymentConfirmations.memberId, userId));
+
+    // Body measurements
+    await db.delete(bodyMeasurements).where(eq(bodyMeasurements.memberId, userId));
+
+    // Trainer-member relationships
+    await db.delete(trainerMemberAssignments).where(or(
+      eq(trainerMemberAssignments.memberId, userId),
+      eq(trainerMemberAssignments.trainerId, userId)
+    ));
+    await db.delete(trainerMembers).where(or(
+      eq(trainerMembers.memberId, userId),
+      eq(trainerMembers.trainerId, userId)
+    ));
+
+    // Star member and diet plans
+    await db.delete(dietPlanMeals).where(
+      inArray(dietPlanMeals.planId,
+        db.select({ id: dietPlans.id }).from(dietPlans).where(eq(dietPlans.memberId, userId))
+      )
+    );
+    await db.delete(dietPlans).where(eq(dietPlans.memberId, userId));
+    await db.delete(starMembers).where(eq(starMembers.memberId, userId));
+
+    // Training phases and exercises
+    await db.delete(phaseExercises).where(
+      inArray(phaseExercises.phaseId,
+        db.select({ id: trainingPhases.id }).from(trainingPhases).where(eq(trainingPhases.memberId, userId))
+      )
+    );
+    await db.delete(trainingPhases).where(eq(trainingPhases.memberId, userId));
+
+    // Member notes (as target or trainer)
+    await db.delete(memberNotes).where(or(
+      eq(memberNotes.memberId, userId),
+      eq(memberNotes.trainerId, userId)
+    ));
+
+    // Member requests and transfers
+    await db.delete(memberRequests).where(eq(memberRequests.memberId, userId));
+    await db.delete(transferRequests).where(eq(transferRequests.memberId, userId));
+
+    // Gym history
+    await db.delete(gymHistory).where(eq(gymHistory.userId, userId));
+
+    // Join requests
+    await db.delete(joinRequests).where(eq(joinRequests.userId, userId));
+
+    // Attendance
+    await db.delete(attendance).where(eq(attendance.memberId, userId));
+
+    // Notification preferences
+    await db.delete(userNotificationPreferences).where(eq(userNotificationPreferences.userId, userId));
+
+    // User profile
+    await db.delete(userProfiles).where(eq(userProfiles.userId, userId));
+
+    // Calorie tracking
+    await db.delete(foodLogs).where(eq(foodLogs.userId, userId));
+    await db.delete(calorieGoals).where(eq(calorieGoals.userId, userId));
+
+    // Health data
+    await db.delete(healthData).where(eq(healthData.userId, userId));
+
+    // Gym requests (if owner)
+    await db.delete(gymRequests).where(eq(gymRequests.ownerUserId, userId));
+
+    // If owner with empty gym, delete the gym
+    if (user.role === "owner") {
+      const gym = await this.getGymByOwnerId(userId);
+      if (gym) {
+        // Delete gym-related data first
+        await db.delete(announcements).where(eq(announcements.gymId, gym.id));
+        await db.delete(membershipPlans).where(eq(membershipPlans.gymId, gym.id));
+        await db.delete(gymEmailSettings).where(eq(gymEmailSettings.gymId, gym.id));
+        await db.delete(gymSubscriptions).where(eq(gymSubscriptions.gymId, gym.id));
+        await db.delete(kioskSessions).where(eq(kioskSessions.gymId, gym.id));
+        await db.delete(walkInVisitors).where(eq(walkInVisitors.gymId, gym.id));
+        
+        // Delete workout templates owned by this gym
+        await db.delete(workoutTemplateItems).where(
+          inArray(workoutTemplateItems.templateId,
+            db.select({ id: workoutTemplates.id }).from(workoutTemplates).where(eq(workoutTemplates.gymId, gym.id))
+          )
+        );
+        await db.delete(workoutTemplates).where(eq(workoutTemplates.gymId, gym.id));
+        
+        // Delete tournaments
+        await db.delete(tournamentParticipants).where(
+          inArray(tournamentParticipants.tournamentId,
+            db.select({ id: tournaments.id }).from(tournaments).where(eq(tournaments.gymId, gym.id))
+          )
+        );
+        await db.delete(tournaments).where(eq(tournaments.gymId, gym.id));
+        
+        // Finally delete the gym
+        await db.delete(gyms).where(eq(gyms.id, gym.id));
+      }
+    }
+
+    // Finally delete the user
+    await db.delete(users).where(eq(users.id, userId));
+  }
+
+  // === UGC MODERATION (App Store compliance) ===
+
+  async createPostReport(data: InsertPostReport): Promise<PostReport> {
+    const [report] = await db.insert(postReports).values(data).returning();
+    return report;
+  }
+
+  async blockUser(blockerId: number, blockedUserId: number): Promise<UserBlock> {
+    const [block] = await db.insert(userBlocks)
+      .values({ blockerId, blockedUserId })
+      .onConflictDoNothing()
+      .returning();
+    
+    // If conflict, return existing block
+    if (!block) {
+      const [existing] = await db.select().from(userBlocks)
+        .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedUserId, blockedUserId)));
+      return existing;
+    }
+    return block;
+  }
+
+  async unblockUser(blockerId: number, blockedUserId: number): Promise<void> {
+    await db.delete(userBlocks)
+      .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedUserId, blockedUserId)));
+  }
+
+  async getBlockedUsers(blockerId: number): Promise<number[]> {
+    const blocks = await db.select({ blockedUserId: userBlocks.blockedUserId })
+      .from(userBlocks)
+      .where(eq(userBlocks.blockerId, blockerId));
+    return blocks.map(b => b.blockedUserId);
+  }
+
+  async isUserBlocked(blockerId: number, blockedUserId: number): Promise<boolean> {
+    const [block] = await db.select().from(userBlocks)
+      .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedUserId, blockedUserId)));
+    return !!block;
   }
 }
 

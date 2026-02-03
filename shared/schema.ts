@@ -906,6 +906,35 @@ export const healthData = pgTable("health_data", {
   userDateUnique: uniqueIndex("health_data_user_date_unique").on(table.userId, table.date),
 }));
 
+// Post Reports (UGC moderation for App Store compliance)
+export const postReports = pgTable("post_reports", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").references(() => feedPosts.id).notNull(),
+  reporterId: integer("reporter_id").references(() => users.id).notNull(),
+  reason: text("reason", { enum: ["inappropriate", "spam", "harassment", "other"] }).notNull(),
+  description: text("description"),
+  status: text("status", { enum: ["pending", "reviewed", "dismissed"] }).default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User Blocks (UGC moderation for App Store compliance)
+export const userBlocks = pgTable("user_blocks", {
+  id: serial("id").primaryKey(),
+  blockerId: integer("blocker_id").references(() => users.id).notNull(),
+  blockedUserId: integer("blocked_user_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueBlock: uniqueIndex("unique_user_block").on(table.blockerId, table.blockedUserId),
+}));
+
+export const insertPostReportSchema = createInsertSchema(postReports).omit({ id: true, createdAt: true, status: true });
+export type PostReport = typeof postReports.$inferSelect;
+export type InsertPostReport = typeof postReports.$inferInsert;
+
+export const insertUserBlockSchema = createInsertSchema(userBlocks).omit({ id: true, createdAt: true });
+export type UserBlock = typeof userBlocks.$inferSelect;
+export type InsertUserBlock = typeof userBlocks.$inferInsert;
+
 // === SCHEMAS ===
 
 export const insertCalorieGoalSchema = createInsertSchema(calorieGoals).omit({ id: true, createdAt: true, updatedAt: true });

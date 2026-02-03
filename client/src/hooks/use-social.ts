@@ -115,6 +115,63 @@ export function useHidePost() {
   });
 }
 
+export function useReportPost() {
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async ({ postId, reason, description }: { postId: number; reason: "inappropriate" | "spam" | "harassment" | "other"; description?: string }) => {
+      return apiRequest("POST", `/api/feed/${postId}/report`, { reason, description });
+    },
+    onSuccess: () => {
+      toast({ title: "Report submitted", description: "Thank you for helping keep our community safe." });
+    },
+    onError: () => {
+      toast({ title: "Failed to submit report", variant: "destructive" });
+    },
+  });
+}
+
+export function useBlockUser() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async (userId: number) => {
+      return apiRequest("POST", `/api/users/${userId}/block`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/feed'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/blocked'] });
+      toast({ title: "User blocked", description: "You will no longer see posts from this user." });
+    },
+    onError: () => {
+      toast({ title: "Failed to block user", variant: "destructive" });
+    },
+  });
+}
+
+export function useUnblockUser() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async (userId: number) => {
+      return apiRequest("DELETE", `/api/users/${userId}/block`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/feed'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/users/blocked'] });
+      toast({ title: "User unblocked" });
+    },
+  });
+}
+
+export function useBlockedUsers() {
+  return useQuery<number[]>({
+    queryKey: ['/api/users/blocked'],
+  });
+}
+
 export function useCreatePost() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

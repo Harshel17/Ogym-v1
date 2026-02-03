@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
-import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus, MapPin, AlertCircle, Clock, User, FileEdit, Send, Edit2, Lock, CreditCard, Copy } from "lucide-react";
+import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus, MapPin, AlertCircle, Clock, User, FileEdit, Send, Edit2, Lock, CreditCard, Copy, Trash2, LogOut } from "lucide-react";
 import { OwnerPaymentSettings, PaymentConfirmationsDashboard, MemberPaymentSheet } from "@/components/payment-settings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatDistanceToNow, format } from "date-fns";
@@ -457,6 +457,7 @@ function MemberProfileView() {
         <AutoPostSettingsCard />
         <DikaSettingsCard />
         <MyPostsCard />
+        <DeleteAccountCard />
       </div>
 
       {profile?.gym && (
@@ -779,6 +780,7 @@ function OwnerProfileView() {
         <OwnerPaymentSettings />
         <PaymentConfirmationsDashboard />
         <DikaSettingsCard />
+        <DeleteAccountCard />
       </div>
     </div>
   );
@@ -970,6 +972,7 @@ function TrainerProfileView() {
 
         <TransferGymCard />
         <DikaSettingsCard />
+        <DeleteAccountCard />
       </div>
     </div>
   );
@@ -1339,6 +1342,120 @@ function MyPostsCard() {
             ))}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DeleteAccountCard() {
+  const { logoutMutation } = useAuth();
+  const { toast } = useToast();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const navigate = useLocation()[1];
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", "/api/users/me");
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to delete account");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Account deleted", description: "Your account has been permanently deleted." });
+      navigate("/auth");
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Failed to delete account", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const handleDelete = () => {
+    if (confirmText.toLowerCase() === "delete") {
+      deleteMutation.mutate();
+    }
+  };
+
+  return (
+    <Card className="md:col-span-2 border-destructive/20">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-destructive">
+          <Trash2 className="w-5 h-5" />
+          Delete Account
+        </CardTitle>
+        <CardDescription>Permanently delete your account and all associated data</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between p-4 bg-destructive/5 rounded-lg border border-destructive/20">
+          <div>
+            <p className="font-medium">Danger Zone</p>
+            <p className="text-sm text-muted-foreground">
+              This action cannot be undone. All your data will be permanently deleted.
+            </p>
+          </div>
+          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive" data-testid="button-delete-account">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Account
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-destructive">
+                  <AlertCircle className="w-5 h-5" />
+                  Delete Your Account?
+                </DialogTitle>
+                <DialogDescription>
+                  This will permanently delete your account and all associated data. This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+                  <p className="text-sm font-medium text-destructive">Warning: This will delete:</p>
+                  <ul className="text-sm text-muted-foreground mt-2 space-y-1">
+                    <li>• Your profile and account information</li>
+                    <li>• All workout history and progress</li>
+                    <li>• Payment records and subscriptions</li>
+                    <li>• Posts, comments, and reactions</li>
+                    <li>• Body measurements and health data</li>
+                  </ul>
+                </div>
+                <div className="space-y-2">
+                  <Label>Type "delete" to confirm</Label>
+                  <Input
+                    value={confirmText}
+                    onChange={(e) => setConfirmText(e.target.value)}
+                    placeholder="delete"
+                    data-testid="input-confirm-delete"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+                <Button 
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={confirmText.toLowerCase() !== "delete" || deleteMutation.isPending}
+                  data-testid="button-confirm-delete"
+                >
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Trash2 className="w-4 h-4 mr-2" />
+                  )}
+                  Permanently Delete
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardContent>
     </Card>
   );

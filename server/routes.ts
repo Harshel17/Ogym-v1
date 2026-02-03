@@ -319,6 +319,50 @@ export async function registerRoutes(
     });
   });
 
+  // === ACCOUNT DELETION (Apple Guideline 5.1.1) ===
+  app.delete("/api/users/me", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    try {
+      // Owners cannot delete their account if they own a gym with active members
+      if (userRole === "owner") {
+        const gym = await storage.getGymByOwnerId(userId);
+        if (gym) {
+          const memberCount = await storage.getGymMemberCount(gym.id);
+          if (memberCount > 0) {
+            return res.status(400).json({ 
+              message: "Cannot delete account while you have active gym members. Please transfer or remove all members first." 
+            });
+          }
+        }
+      }
+
+      // Delete user and all associated data (cascade)
+      await storage.deleteUserAccount(userId);
+
+      // Log user out and destroy session
+      req.logout((err) => {
+        if (err) {
+          console.error("Logout error during account deletion:", err);
+        }
+        req.session.destroy((sessionErr) => {
+          if (sessionErr) {
+            console.error("Session destroy error:", sessionErr);
+          }
+          res.json({ message: "Account deleted successfully" });
+        });
+      });
+    } catch (error) {
+      console.error("Account deletion error:", error);
+      res.status(500).json({ message: "Failed to delete account. Please try again or contact support." });
+    }
+  });
+
   app.get("/api/auth/me", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const user = await storage.getUser(req.user!.id);
@@ -7487,6 +7531,67 @@ export async function registerRoutes(
     const postId = parseInt(req.params.postId);
     await storage.hideFeedPost(postId, req.user!.gymId);
     res.json({ success: true });
+  });
+
+  // === UGC MODERATION (App Store compliance) ===
+  
+  // Report a post
+  app.post("/api/feed/:postId/report", requireAuth, async (req, res) => {
+    try {
+      const postId = parseInt(req.params.postId);
+      const schema = z.object({
+        reason: z.enum(["inappropriate", "spam", "harassment", "other"]),
+        description: z.string().optional(),
+      });
+      const input = schema.parse(req.body);
+      
+      const report = await storage.createPostReport({
+        postId,
+        reporterId: req.user!.id,
+        reason: input.reason,
+        description: input.description || null,
+      });
+      
+      res.json({ success: true, reportId: report.id });
+    } catch (error) {
+      console.error("Report post error:", error);
+      res.status(400).json({ message: "Failed to report post" });
+    }
+  });
+
+  // Block a user
+  app.post("/api/users/:userId/block", requireAuth, async (req, res) => {
+    try {
+      const blockedUserId = parseInt(req.params.userId);
+      
+      if (blockedUserId === req.user!.id) {
+        return res.status(400).json({ message: "You cannot block yourself" });
+      }
+      
+      await storage.blockUser(req.user!.id, blockedUserId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Block user error:", error);
+      res.status(400).json({ message: "Failed to block user" });
+    }
+  });
+
+  // Unblock a user
+  app.delete("/api/users/:userId/block", requireAuth, async (req, res) => {
+    try {
+      const blockedUserId = parseInt(req.params.userId);
+      await storage.unblockUser(req.user!.id, blockedUserId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Unblock user error:", error);
+      res.status(400).json({ message: "Failed to unblock user" });
+    }
+  });
+
+  // Get blocked users list
+  app.get("/api/users/blocked", requireAuth, async (req, res) => {
+    const blockedUserIds = await storage.getBlockedUsers(req.user!.id);
+    res.json(blockedUserIds);
   });
   
   // ==================== TOURNAMENTS ====================
