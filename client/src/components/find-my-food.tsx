@@ -293,10 +293,11 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
 
           {step === 'results' && (
             <>
+              {console.log('[FindMyFood] Rendering results, restaurants count:', restaurants.length)}
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Utensils className="w-5 h-5 text-primary" />
-                  Food Options Near You
+                  Food Options Near You ({restaurants.length})
                 </DialogTitle>
               </DialogHeader>
 
