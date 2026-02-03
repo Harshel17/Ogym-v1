@@ -88,8 +88,8 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
         },
         { 
           enableHighAccuracy: false, // Use false first for faster response
-          timeout: isNative ? 30000 : 15000, // Longer timeout on native
-          maximumAge: 60000 // Allow cached position up to 1 minute old
+          timeout: 30000, // 30 second timeout for all platforms
+          maximumAge: 120000 // Allow cached position up to 2 minutes old
         }
       );
     });
