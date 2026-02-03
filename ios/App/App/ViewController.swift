@@ -22,6 +22,7 @@ class ViewController: CAPBridgeViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        print("✅ Custom ViewController loaded and active")
         view.backgroundColor = safeAreaColor
         configureWebViewBackground()
         

@@ -68,9 +68,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 webView.isOpaque = true
                 webView.backgroundColor = color
                 webView.scrollView.backgroundColor = color
-                
-                // Ensure content extends under safe areas
-                webView.scrollView.contentInsetAdjustmentBehavior = .never
             } else {
                 // Paint all intermediate views
                 subview.backgroundColor = color
