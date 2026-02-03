@@ -21,13 +21,12 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* App root - explicit safe area padding */
+/* App root - only top safe area (bottom handled by nav and content) */
 #root {
   min-height: 100dvh;
   background: #0b1220;
   overflow: hidden;
   padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
   display: flex;
   flex-direction: column;
 }
@@ -53,10 +52,10 @@ html.is-android #root {
   overscroll-behavior-x: none;
 }
 
-/* Mobile bottom safe area padding (accounts for tab bar) */
+/* Mobile bottom safe area padding (tab bar height only - nav handles its own safe area) */
 @media (max-width: 767px) {
   .pb-safe-bottom {
-    padding-bottom: calc(80px) !important;
+    padding-bottom: 72px !important; /* Tab bar height (64px) + small buffer (8px) */
   }
 }
 
