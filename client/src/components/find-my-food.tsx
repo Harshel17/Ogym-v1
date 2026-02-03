@@ -108,9 +108,17 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
     },
     onSuccess: (data) => {
       console.log('[FindMyFood] API success, restaurants:', data.restaurants?.length || 0);
-      setRestaurants(data.restaurants || []);
-      setDikaGeneralMessage(data.dikaMessage || "");
-      setStep('results');
+      console.log('[FindMyFood] Setting restaurants and step to results...');
+      const restaurantList = data.restaurants || [];
+      const message = data.dikaMessage || "";
+      // Use functional updates to ensure state changes are applied
+      setRestaurants(() => restaurantList);
+      setDikaGeneralMessage(() => message);
+      // Small delay to ensure state updates are flushed on iOS
+      setTimeout(() => {
+        console.log('[FindMyFood] Setting step to results now');
+        setStep('results');
+      }, 50);
     },
     onError: (error) => {
       console.error('[FindMyFood] API error:', error);
