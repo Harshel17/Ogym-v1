@@ -51,6 +51,7 @@ Preferred communication style: Simple, everyday language.
 - **Account Deletion (App Store Guideline 5.1.1):** Users can delete their account from Profile > Settings. Implements comprehensive cascade deletion across 40+ related tables (workouts, payments, subscriptions, measurements, health data, social feed, etc.). Gym owners can only delete if their gym has no active members. DELETE /api/users/me endpoint with "delete" confirmation word required.
 - **UGC Moderation (App Store Guideline 1.2):** Social feed posts can be reported (inappropriate/spam/harassment/other) and users can be blocked. Blocked users' posts are filtered from feed display. Reports stored in `post_reports` table with pending/reviewed/dismissed status tracking. User blocks stored in `user_blocks` table with unique constraint. Owners/trainers can hide posts from their gym feed.
 - **Location & Health Permissions (iOS Info.plist):** NSLocationWhenInUseUsageDescription for "Find My Food" feature, NSHealthShareUsageDescription and NSHealthUpdateUsageDescription for Apple Health integration via capacitor-health plugin.
+- **iOS Status Bar & Safe Area Handling:** Status bar uses `overlay: false` so iOS handles safe area automatically. Theme-aware status bar icons via `updateStatusBarForTheme()` - light theme shows dark icons, dark theme shows light icons. Mobile header uses simple 8px padding (28px Android), content offset is just header height (56px iOS, 76px Android). Dika drawer no longer adds redundant safe-area padding.
 
 ## External Dependencies
 
