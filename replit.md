@@ -52,6 +52,8 @@ Preferred communication style: Simple, everyday language.
 - **UGC Moderation (App Store Guideline 1.2):** Social feed posts can be reported (inappropriate/spam/harassment/other) and users can be blocked. Blocked users' posts are filtered from feed display. Reports stored in `post_reports` table with pending/reviewed/dismissed status tracking. User blocks stored in `user_blocks` table with unique constraint. Owners/trainers can hide posts from their gym feed.
 - **Location & Health Permissions (iOS Info.plist):** NSLocationWhenInUseUsageDescription for "Find My Food" feature, NSHealthShareUsageDescription and NSHealthUpdateUsageDescription for Apple Health integration via capacitor-health plugin.
 - **iOS Status Bar & Safe Area Handling:** Status bar uses `overlay: false` so iOS handles safe area automatically. Theme-aware status bar icons via `updateStatusBarForTheme()` - light theme shows dark icons, dark theme shows light icons. Mobile header uses simple 8px padding (28px Android), content offset is just header height (56px iOS, 76px Android). Dika drawer no longer adds redundant safe-area padding.
+- **iOS Rubber-Band Scroll Prevention:** Main content area uses `.app-main-scroll` class with `overscroll-behavior-y: contain` to prevent bounce scrolling gaps. Applied only to main scroll container to preserve nested scrolling in modals and sheets.
+- **Toast Positioning:** ToastViewport z-index 100001 (above header's 99999), positioned using CSS variable `--mobile-header-height: 56px` to ensure visibility below header.
 
 ## External Dependencies
 
