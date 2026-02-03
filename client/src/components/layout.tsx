@@ -538,7 +538,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Mobile Bottom Tab Bar */}
       <nav 
         className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}
       >
         <div className="flex justify-around items-center h-16">
           {primaryTabs.map((item) => {
