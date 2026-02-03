@@ -1,0 +1,108 @@
+Act as Apple App Store Review (human reviewer) and perform a full compliance audit for an iOS app submission.
+
+Goal:
+Try to reject the app by finding ANY App Store Guideline violations, not only 3.1.1.
+Be strict, skeptical, and specific.
+
+Scope:
+- iOS native behavior only (isNative() && isIOS())
+- Assume reviewer installs fresh and tests without any existing account
+- Also review App Store metadata risk (name/description/screenshots) if it contradicts actual behavior
+
+What to do:
+
+1) Reviewer Walkthrough (fresh install)
+- Launch app
+- Onboarding
+- Login/registration flows
+- Role selection
+- “Pending approval”, “Gym request”, any admin features
+- Settings/profile
+- Any network calls that fail
+- Any crash or broken navigation
+Document exact steps a reviewer would take.
+
+2) Privacy & Permissions Audit
+- List every permission the app requests or could request (location, camera, photos, notifications, contacts, Bluetooth, microphone)
+For each permission:
+  - Where it is requested (screen/flow)
+  - Whether it is REQUIRED for core functionality
+  - Whether there is user-facing explanation before the OS prompt
+  - Whether the app works if user denies it
+Flag missing/weak usage descriptions (Info.plist) as BLOCKERS.
+
+3) Accounts & Authentication Audit
+- Is login required to use the app?
+- If yes, does the app clearly explain why?
+- Is there a “Delete Account” option if required by policy?
+- Are there any misleading account creation paths on iOS?
+Flag issues per relevant guidelines.
+
+4) Payments / Subscriptions / External Purchase Audit
+- Check for any mentions or links to pricing, plans, subscriptions, upgrades, trials, Stripe, or external checkout
+- Confirm iOS does NOT steer users to web purchases
+- Confirm no digital goods are sold outside IAP inside the app
+Flag any issues with guideline references.
+
+5) Content & Safety Audit
+- Check for user-generated content (UGC): posts, comments, community, uploads
+If UGC exists, verify:
+  - Reporting mechanism
+  - Blocking users
+  - Moderation or filtering approach
+  - Contact info for abuse
+Flag as BLOCKERS if missing.
+
+6) Performance / Stability Audit
+- Identify pages most likely to crash (null values, missing env vars, offline)
+- Check for infinite loading states, broken API errors, blank screens
+- Confirm graceful error messages for network failures
+Flag crash/hard-fail as BLOCKERS.
+
+7) UI/UX Apple Review Standards
+- Check overlapping UI, clipped text, unreadable content, broken layouts on common iPhone sizes
+- Check dark/light mode consistency if used
+- Ensure buttons are tappable, navigation works, no placeholder text
+Flag severe UI issues as WARNINGS or BLOCKERS.
+
+8) Metadata Consistency Audit (App Store Connect risk)
+- Compare app description claims vs actual features in the build
+- Check if screenshots imply features not present
+- Check if app name, subtitle, keywords include trademarked terms
+Flag inconsistencies.
+
+Output Format (must follow exactly):
+
+=== FULL APP STORE REVIEW SIMULATION (iOS) ===
+
+A) BLOCKERS (would cause rejection)
+- [Guideline] - [Issue]
+  Steps to reproduce:
+  Expected vs Actual:
+  Suggested fix:
+
+B) WARNINGS (could delay approval / might be rejected)
+- [Guideline] - [Risk]
+  Where found:
+  How to reduce risk:
+
+C) MISSING REQUIREMENTS CHECKLIST (Yes/No)
+- Crashes during review: Yes/No
+- Business/org registration on iOS native: Yes/No
+- Any external purchase steering: Yes/No
+- UGC present: Yes/No
+  - If Yes: Report/block/moderation present: Yes/No
+- Permissions requested without clear reason: Yes/No
+- App works without optional permissions: Yes/No
+- Account deletion available (if account creation exists): Yes/No
+- Privacy Policy required and provided (if account/UGC/data collection): Yes/No
+- Misleading metadata/screenshots: Yes/No
+
+D) Final Verdict
+- APPROVE / REJECT
+- 3–5 sentences like an Apple reviewer explaining why
+
+Rules:
+- Do NOT change code.
+- Do NOT suggest feature additions unless required by policy.
+- Be extremely specific and cite exact screens/routes/files when possible.
