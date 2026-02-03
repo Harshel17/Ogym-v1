@@ -20,31 +20,31 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Theme-aware backgrounds for safe areas */
+/* Theme-aware backgrounds for safe areas - !important needed to override Tailwind */
 html {
-  background: hsl(220 20% 97%); /* Light mode default */
+  background: hsl(220 20% 97%) !important; /* Light mode default */
 }
 
 html.dark {
-  background: #0b1220; /* Dark mode */
+  background: #0b1220 !important; /* Dark mode */
 }
 
 body {
-  background: inherit;
+  background: inherit !important;
 }
 
 /* App root - only top safe area (bottom handled by nav and content) */
 #root {
   min-height: 100dvh;
-  background: hsl(220 20% 97%); /* Light mode */
+  background: hsl(220 20% 97%) !important; /* Light mode */
   overflow: hidden;
   padding-top: env(safe-area-inset-top, 0px);
   display: flex;
   flex-direction: column;
 }
 
-.dark #root {
-  background: #0b1220; /* Dark mode */
+html.dark #root {
+  background: #0b1220 !important; /* Dark mode */
 }
 
 /* Android fallback for safe-top (env() not always supported) */
