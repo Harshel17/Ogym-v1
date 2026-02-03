@@ -21,11 +21,18 @@ export async function updateStatusBarForTheme(isDarkTheme: boolean) {
       style: isDarkTheme ? Style.Dark : Style.Light 
     });
     
-    if (Capacitor.getPlatform() === 'android') {
-      // Set background color based on theme
-      const bgColor = isDarkTheme ? '#0b1220' : '#ffffff';
+    // Set background color based on theme for both Android and iOS
+    // On iOS with overlay=false, this helps ensure proper background behind status bar
+    const platform = Capacitor.getPlatform();
+    if (platform === 'android') {
+      const bgColor = isDarkTheme ? '#0b1220' : '#f5f7fa';
       await StatusBar.setBackgroundColor({ color: bgColor });
     }
+    // Note: iOS doesn't have setBackgroundColor, but with overlay=false
+    // the status bar area takes the color of the content behind it
+    // So we rely on the header background color in CSS
+    
+    console.log(`StatusBar updated: isDark=${isDarkTheme}, style=${isDarkTheme ? 'Dark' : 'Light'}`);
   } catch (error) {
     console.error('Failed to update StatusBar style:', error);
   }

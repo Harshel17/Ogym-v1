@@ -404,7 +404,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const secondaryBadgeCount = secondaryTabs.reduce((sum, item) => sum + (item.badge || 0), 0);
 
   return (
-    <div className="min-h-screen bg-secondary/30 flex">
+    <div className="h-screen h-[100dvh] bg-secondary/30 flex overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 bg-sidebar border-r border-sidebar-border hidden md:flex flex-col sticky top-0 h-screen z-10">
         <div className="p-4 border-b border-sidebar-border">
@@ -531,8 +531,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 min-w-0 overflow-auto app-main-scroll">
+      {/* Main Content - Single scroll container with proper height calculation */}
+      <main className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden app-main-scroll">
         <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-safe-bottom md:pb-8 mobile-content-offset">
           {children}
         </div>

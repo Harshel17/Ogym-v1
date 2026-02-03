@@ -4,17 +4,23 @@
 @tailwind components;
 @tailwind utilities;
 
-/* iOS Safe Area - Prevent white bars */
+/* iOS Safe Area - Prevent white bars and lock body scroll */
 html, body {
   height: 100%;
   margin: 0;
+  padding: 0;
   background: #0b1220;
+  overflow: hidden; /* Lock body scroll - let only inner containers scroll */
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 #root {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100%;
+  height: 100dvh;
   background: #0b1220;
+  overflow: hidden;
+  /* No min-height to avoid extra scroll range */
 }
 
 /* CSS variable for mobile header height - used by content offset and toast positioning */
@@ -27,6 +33,14 @@ html, body {
 .app-main-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+}
+
+/* Prevent scroll bounce on iOS */
+@supports (-webkit-touch-callout: none) {
+  .app-main-scroll {
+    overscroll-behavior: none;
+  }
 }
 
 /* Mobile bottom safe area padding (accounts for tab bar + home indicator) */
@@ -40,6 +54,23 @@ html, body {
 html:not(.dark) body,
 html:not(.dark) #root {
   background: hsl(220 20% 97%);
+}
+
+/* iOS status bar area - ensure solid background at very top of screen */
+/* This creates a pseudo-element that sits behind the status bar for safety */
+@supports (-webkit-touch-callout: none) {
+  html.capacitor-ios::before,
+  html.is-ios::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top, 44px);
+    background-color: hsl(var(--background));
+    z-index: 99998; /* Just below header */
+    pointer-events: none;
+  }
 }
 
 /* Safe area CSS variables */
@@ -58,8 +89,17 @@ html.is-android {
 }
 
 /* Mobile app header - minimal padding (safe area handled by iOS when overlay=false) */
+/* IMPORTANT: Must have solid background color that extends under status bar for iOS */
 .mobile-app-header {
   padding-top: 8px;
+  background-color: hsl(var(--background));
+}
+
+/* iOS-specific: Ensure header has solid background visible under status bar */
+html.capacitor-ios .mobile-app-header,
+html.is-ios .mobile-app-header {
+  /* iOS status bar area needs this solid background */
+  background-color: hsl(var(--background));
 }
 
 /* Android status bar spacer - adds extra padding for status bar */

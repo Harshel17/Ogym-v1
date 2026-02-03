@@ -1,0 +1,85 @@
+We have iOS native UI bugs in OGym (Capacitor iOS shell + web UI). NO feature work. UI-only. DO NOT deploy unless I explicitly say “deploy”.
+
+Bug A — iOS Light Theme Status Bar icons are invisible
+
+Issue: In Light theme on iOS, the status bar (time / network / wifi / battery) is not visible (wrong color blending with background).
+
+Fix required (must be dynamic by theme):
+
+Set iOS status bar style based on theme:
+
+Light theme → dark icons (barStyle = "dark-content")
+
+Dark theme → light icons (barStyle = "light-content")
+
+Ensure the top safe area / header background is NOT transparent:
+
+Light theme: set a solid light background behind status bar (white / light grey / light blue)
+
+Dark theme: set a solid dark background behind status bar
+
+Implementation (choose what matches our stack):
+
+If Capacitor StatusBar plugin is used:
+
+Use:
+
+Light theme → StatusBar.setStyle({ style: Style.Light }) (dark icons)
+
+Dark theme → StatusBar.setStyle({ style: Style.Dark }) (light icons)
+
+Also set background color:
+
+Light theme → light color
+
+Dark theme → dark color
+
+Confirm on real iPhone that time/network/wifi/battery are clearly visible in both themes.
+
+If we are not using the plugin (pure web inside Capacitor):
+
+Make sure the header/safe-area background is solid and reaches the top (no transparency).
+
+Ensure the app is NOT drawing under the status bar unintentionally.
+
+Bug B — Bottom “gap / moving up” showing empty space near tab bar
+
+Issue: On iOS, when scrolling, the bottom area sometimes shifts and shows a small empty space (looks like bounce/overscroll or wrong safe-area padding).
+
+Fix required:
+
+Ensure only ONE scroll container exists (avoid body + inner scrolling together).
+
+Make the main page container height stable and account for iOS safe area:
+
+Use a single .pageContainer with:
+
+height: 100% / min-height: 100vh
+
+overflow-y: auto
+
+overscroll-behavior: none
+
+Lock body:
+
+html, body { height: 100%; overflow: hidden; }
+
+Fix bottom safe-area padding so content does not “float” above tab bar and doesn’t create extra scroll range:
+
+Add padding-bottom: env(safe-area-inset-bottom) (or a small + tab height if needed)
+
+Ensure the tab bar is fixed and the scroll area ends cleanly above it.
+
+Deliverables
+
+Tell me EXACTLY which files you changed
+
+Show before/after screenshots on a real iPhone for:
+
+Light theme status bar visible (time/network/wifi/battery)
+
+Dark theme still correct
+
+Bottom gap issue gone (no weird empty space when scrolling)
+
+DO NOT deploy unless I say “deploy”.
