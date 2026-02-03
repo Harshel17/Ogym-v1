@@ -32,7 +32,7 @@ export async function updateStatusBarForTheme(isDarkTheme: boolean) {
     // the status bar area takes the color of the content behind it
     // So we rely on the header background color in CSS
     
-    console.log(`StatusBar updated: isDark=${isDarkTheme}, style=${isDarkTheme ? 'Dark' : 'Light'}`);
+    console.log(`StatusBar updated: isDark=${isDarkTheme}, style=${isDarkTheme ? 'Light (white icons)' : 'Dark (black icons)'}`);
   } catch (error) {
     console.error('Failed to update StatusBar style:', error);
   }
