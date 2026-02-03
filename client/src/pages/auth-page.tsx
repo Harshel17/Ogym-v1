@@ -275,10 +275,25 @@ export default function AuthPage() {
 
   if (pendingVerification) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center p-6 bg-background">
-        <div className="absolute right-4 top-4">
+      <div 
+        className="flex-1 flex flex-col bg-background relative"
+        style={{ height: '100%', maxHeight: '100%', overflow: 'hidden' }}
+      >
+        <div className="absolute right-6 z-10" style={{ top: 'max(16px, env(safe-area-inset-top, 16px))' }}>
           <ThemeToggle />
         </div>
+        {/* Scrollable container with safe-area padding */}
+        <div 
+          className="flex-1 flex flex-col items-center w-full overflow-y-auto overflow-x-hidden"
+          style={{ 
+            paddingTop: 'max(24px, env(safe-area-inset-top, 24px))',
+            paddingBottom: 'max(24px, env(safe-area-inset-bottom, 24px))',
+            paddingLeft: '24px',
+            paddingRight: '24px'
+          }}
+        >
+        {/* Top spacer for centering */}
+        <div className="flex-1 min-h-0" />
         <div className="w-full max-w-md">
           <Card className="border shadow-lg">
             <CardHeader className="text-center space-y-4">
@@ -377,12 +392,15 @@ export default function AuthPage() {
             </CardContent>
           </Card>
         </div>
+        {/* Bottom spacer for centering */}
+        <div className="flex-1 min-h-0" />
+        </div>{/* Close scrollable container */}
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] grid lg:grid-cols-2 bg-background">
+    <div className="flex-1 grid lg:grid-cols-2 bg-background" style={{ minHeight: '100%' }}>
       <div className="relative hidden lg:flex flex-col justify-between p-12 bg-zinc-900 text-white overflow-hidden">
         <div className="absolute inset-0 magic-gradient-bg" />
         <div className="absolute inset-0">
@@ -424,15 +442,31 @@ export default function AuthPage() {
         </div>
       </div>
 
-      <div className="flex items-start lg:items-center justify-center p-6 bg-background relative overflow-y-auto overflow-x-hidden" style={{ maxHeight: '100dvh' }}>
+      <div 
+        className="flex flex-col bg-background relative" 
+        style={{ height: '100%', maxHeight: '100%', overflow: 'hidden' }}
+      >
         <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-50 dark:opacity-30">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl" />
           <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl" />
         </div>
         
-        <div className="absolute right-4 top-4 z-10">
+        <div className="absolute right-6 z-10" style={{ top: 'max(16px, env(safe-area-inset-top, 16px))' }}>
           <ThemeToggle />
         </div>
+        
+        {/* Scrollable content wrapper with safe-area padding - uses items-start to prevent clipping */}
+        <div 
+          className="flex-1 flex flex-col items-center w-full overflow-y-auto overflow-x-hidden"
+          style={{
+            paddingTop: 'max(24px, env(safe-area-inset-top, 24px))',
+            paddingBottom: 'max(24px, env(safe-area-inset-bottom, 24px))',
+            paddingLeft: '24px',
+            paddingRight: '24px'
+          }}
+        >
+        {/* Spacer for vertical centering when content fits */}
+        <div className="flex-1 min-h-0" />
         <div className="w-full max-w-md space-y-8 relative z-10">
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8 animate-slide-in-up">
             <div className="w-10 h-10 rounded-xl shadow-lg shadow-primary/25 overflow-hidden">
@@ -714,6 +748,9 @@ export default function AuthPage() {
             </div>
           </div>
         </div>
+        {/* Bottom spacer for centering */}
+        <div className="flex-1 min-h-0" />
+        </div>{/* Close scrollable content wrapper */}
       </div>
 
       <Dialog open={forgotPasswordOpen} onOpenChange={(open) => {

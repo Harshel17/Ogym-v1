@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import WebKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -9,8 +10,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
         
-        // Set window and root view background colors after a delay to ensure they're loaded
+        // Set background colors immediately and after delay for safety
+        setBackgroundColors()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.setBackgroundColors()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.setBackgroundColors()
         }
         
@@ -18,6 +23,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     private func setBackgroundColors() {
+        // Dark theme background color matching app
         let darkColor = UIColor(red: 11/255, green: 18/255, blue: 32/255, alpha: 1.0) // #0b1220
         
         // Set window background
@@ -27,6 +33,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             // Set root view controller's view background
             if let rootVC = window.rootViewController {
                 rootVC.view.backgroundColor = darkColor
+                
+                // Find and configure the WKWebView to be transparent
+                configureWebView(in: rootVC.view, backgroundColor: darkColor)
             }
         }
         
@@ -36,9 +45,30 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 if let windowScene = scene as? UIWindowScene {
                     for window in windowScene.windows {
                         window.backgroundColor = darkColor
-                        window.rootViewController?.view.backgroundColor = darkColor
+                        if let rootVC = window.rootViewController {
+                            rootVC.view.backgroundColor = darkColor
+                            configureWebView(in: rootVC.view, backgroundColor: darkColor)
+                        }
                     }
                 }
+            }
+        }
+    }
+    
+    private func configureWebView(in view: UIView, backgroundColor: UIColor) {
+        // Recursively find WKWebView and configure it
+        for subview in view.subviews {
+            if let webView = subview as? WKWebView {
+                webView.isOpaque = false
+                webView.backgroundColor = .clear
+                webView.scrollView.backgroundColor = .clear
+                
+                // Also set the scroll view content inset adjustment
+                webView.scrollView.contentInsetAdjustmentBehavior = .never
+            } else {
+                // Set background on all intermediate views
+                subview.backgroundColor = backgroundColor
+                configureWebView(in: subview, backgroundColor: backgroundColor)
             }
         }
     }

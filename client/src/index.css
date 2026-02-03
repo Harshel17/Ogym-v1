@@ -5,24 +5,20 @@
 @tailwind utilities;
 
 /* 
- * LAYOUT ARCHITECTURE (overlaysWebView: true)
- * - WebView extends under status bar
- * - Safe areas handled explicitly via env() CSS
- * - No magic offsets or double-padding
+ * LAYOUT ARCHITECTURE - Production iOS Safe Area Handling
+ * - Uses height: 100% chain (avoids 100vh/100dvh iOS issues)
+ * - WKWebView set to transparent so native background shows through
+ * - Background colors set on html/body AND native iOS layer
+ * - Safe area padding applied to CONTENT, not containers
  */
 
-html, body {
+/* Height chain: html -> body -> #root all use 100% */
+html {
   height: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Theme-aware backgrounds for safe areas - !important needed to override Tailwind */
-html {
-  background: hsl(220 20% 97%) !important; /* Light mode default */
+  background: hsl(220 20% 97%) !important; /* Light mode */
 }
 
 html.dark {
@@ -30,17 +26,38 @@ html.dark {
 }
 
 body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
   background: inherit !important;
 }
 
-/* iOS safe area bottom fill - covers the home indicator area */
+/* App root - flex container filling entire viewport */
+#root {
+  height: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: hsl(220 20% 97%) !important; /* Light mode */
+}
+
+html.dark #root {
+  background: #0b1220 !important; /* Dark mode */
+}
+
+/* Web-layer safe-area fallback - fills bottom safe area when native transparency unavailable */
+/* This is a safety net for older iOS or before JS hydration */
 html::after {
   content: '';
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: env(safe-area-inset-bottom, 34px);
+  height: env(safe-area-inset-bottom, 0px);
   background: hsl(220 20% 97%);
   z-index: 99998;
   pointer-events: none;
@@ -49,21 +66,6 @@ html::after {
 html.dark::after {
   background: #0b1220;
 }
-
-/* App root - full screen, no safe area padding */
-#root {
-  min-height: 100dvh;
-  background: hsl(220 20% 97%) !important; /* Light mode */
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-html.dark #root {
-  background: #0b1220 !important; /* Dark mode */
-}
-
-/* Android fallback removed - using full screen */
 
 /* CSS variables */
 :root {
