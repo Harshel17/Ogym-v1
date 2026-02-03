@@ -50,12 +50,17 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
     console.log(`[FindMyFood] ${eventName}`, data);
   };
 
-  const requestLocation = useCallback(() => {
+  const requestLocation = useCallback(async () => {
+    // Use web geolocation API (works on both web and iOS WKWebView)
     return new Promise<{ lat: number; lon: number }>((resolve, reject) => {
       if (!navigator.geolocation) {
-        reject(new Error("Geolocation is not supported by your browser"));
+        reject(new Error("Geolocation is not supported"));
         return;
       }
+
+      // Check if running on native iOS
+      const isNative = typeof (window as any).Capacitor !== 'undefined' && 
+                       (window as any).Capacitor.isNativePlatform?.();
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -65,21 +70,27 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
           });
         },
         (error) => {
+          let message = "Failed to get location";
           switch (error.code) {
             case error.PERMISSION_DENIED:
-              reject(new Error("Location permission denied. Please enable location access in your browser settings."));
+              message = isNative 
+                ? "Location permission denied. Go to Settings > OGym > Location to enable."
+                : "Location permission denied. Please allow location access.";
               break;
             case error.POSITION_UNAVAILABLE:
-              reject(new Error("Location information is unavailable."));
+              message = "Location unavailable. Make sure GPS/Location is enabled.";
               break;
             case error.TIMEOUT:
-              reject(new Error("Location request timed out."));
+              message = "Location request timed out. Please try again.";
               break;
-            default:
-              reject(new Error("An unknown error occurred."));
           }
+          reject(new Error(message));
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { 
+          enableHighAccuracy: false, // Use false first for faster response
+          timeout: isNative ? 30000 : 15000, // Longer timeout on native
+          maximumAge: 60000 // Allow cached position up to 1 minute old
+        }
       );
     });
   }, []);
