@@ -3950,22 +3950,44 @@ export async function registerRoutes(
         out body;
       `;
 
-      const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
-      
-      const response = await fetch(overpassUrl, {
-        headers: {
-          'User-Agent': 'OGym-FitnessApp/1.0 (contact@ogym.fitness)'
+      // Multiple Overpass API servers for fallback
+      const overpassServers = [
+        'https://overpass-api.de/api/interpreter',
+        'https://lz4.overpass-api.de/api/interpreter',
+        'https://overpass.kumi.systems/api/interpreter'
+      ];
+
+      let data: any = null;
+      let lastError: Error | null = null;
+
+      for (const server of overpassServers) {
+        try {
+          const overpassUrl = `${server}?data=${encodeURIComponent(overpassQuery)}`;
+          console.log(`Trying Overpass server: ${server}`);
+          
+          const response = await fetch(overpassUrl, {
+            headers: {
+              'User-Agent': 'OGym-FitnessApp/1.0 (contact@ogym.fitness)'
+            }
+          });
+          
+          if (response.ok) {
+            data = await response.json();
+            console.log(`Successfully fetched from: ${server}`);
+            break;
+          } else {
+            console.warn(`Overpass server ${server} returned ${response.status}, trying next...`);
+            lastError = new Error(`${server} returned ${response.status}`);
+          }
+        } catch (err) {
+          console.warn(`Overpass server ${server} failed:`, err);
+          lastError = err as Error;
         }
-      });
-      
-      if (!response.ok) {
-        console.error(`Overpass API error: ${response.status} ${response.statusText}`);
-        const errorText = await response.text().catch(() => 'No error body');
-        console.error(`Overpass error body: ${errorText}`);
-        throw new Error(`Overpass API returned ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      if (!data) {
+        throw lastError || new Error('All Overpass API servers failed');
+      }
       const elements = data.elements || [];
 
       const toRad = (deg: number) => deg * Math.PI / 180;
