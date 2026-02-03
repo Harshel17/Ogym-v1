@@ -3952,9 +3952,17 @@ export async function registerRoutes(
 
       const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
       
-      const response = await fetch(overpassUrl);
+      const response = await fetch(overpassUrl, {
+        headers: {
+          'User-Agent': 'OGym-FitnessApp/1.0 (contact@ogym.fitness)'
+        }
+      });
+      
       if (!response.ok) {
-        throw new Error("Failed to fetch from Overpass API");
+        console.error(`Overpass API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text().catch(() => 'No error body');
+        console.error(`Overpass error body: ${errorText}`);
+        throw new Error(`Overpass API returned ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
