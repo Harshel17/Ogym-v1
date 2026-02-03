@@ -324,15 +324,23 @@ export async function getMemberUpcomingWorkout(memberId: number, gymId: number |
   
   const cycle = cycles[0];
   
-  // Calculate tomorrow's dayIndex
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowDate = tomorrow.toISOString().split('T')[0];
-  
-  const startDate = new Date(cycle.startDate + 'T00:00:00');
-  const targetDate = new Date(tomorrowDate + 'T00:00:00');
-  const daysSinceStart = Math.floor((targetDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  const dayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+  // Calculate next workout's dayIndex based on progression mode
+  let dayIndex: number;
+  if (cycle.progressionMode === "completion") {
+    // For completion mode, "next" is the current day (since it hasn't been done yet)
+    // or the next day if looking ahead
+    dayIndex = ((cycle.currentDayIndex ?? 0) + 1) % cycle.cycleLength;
+  } else {
+    // For calendar mode, calculate from tomorrow's date
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowDate = tomorrow.toISOString().split('T')[0];
+    
+    const startDate = new Date(cycle.startDate + 'T00:00:00');
+    const targetDate = new Date(tomorrowDate + 'T00:00:00');
+    const daysSinceStart = Math.floor((targetDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    dayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+  }
   
   const dayLabel = cycle.dayLabels?.[dayIndex] || `Day ${dayIndex + 1}`;
   
