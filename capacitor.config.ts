@@ -22,7 +22,7 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       style: 'light',
-      overlaysWebView: false,
+      overlaysWebView: true,
     },
     Keyboard: {
       resize: 'body',
