@@ -89,13 +89,14 @@ html.dark #root {
 
 /* Light mode already set as default above */
 
-/* Sticky mobile header - sits at top of content flow, no manual offset needed */
+/* Sticky mobile header - sits at top of content flow with safe area */
 .mobile-sticky-header {
   position: sticky;
   top: 0;
   z-index: 9999;
   background-color: hsl(var(--background));
   padding: 8px 12px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
   border-bottom: 1px solid hsl(var(--border));
 }
 
