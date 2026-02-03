@@ -33,6 +33,23 @@ body {
   background: inherit !important;
 }
 
+/* iOS safe area bottom fill - covers the home indicator area */
+html::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom, 34px);
+  background: hsl(220 20% 97%);
+  z-index: 99998;
+  pointer-events: none;
+}
+
+html.dark::after {
+  background: #0b1220;
+}
+
 /* App root - only top safe area (bottom handled by nav and content) */
 #root {
   min-height: 100dvh;
