@@ -6123,15 +6123,24 @@ export class DatabaseStorage implements IStorage {
     if (!cycle) {
       throw new Error("No active cycle found");
     }
-    console.log(`[markDayDone] Found cycle: id=${cycle.id}, startDate=${cycle.startDate}, cycleLength=${cycle.cycleLength}`);
+    console.log(`[markDayDone] Found cycle: id=${cycle.id}, startDate=${cycle.startDate}, cycleLength=${cycle.cycleLength}, progressionMode=${cycle.progressionMode}`);
     
-    // Calculate dayIndex for this date
-    const startDate = new Date(cycle.startDate + "T00:00:00");
-    const targetDate = new Date(date + "T00:00:00");
-    const daysSinceStart = Math.floor((targetDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const dayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+    // Calculate dayIndex based on progression mode
+    let dayIndex: number;
+    if (cycle.progressionMode === "completion") {
+      // For completion-based progression, use the current day index from the cycle
+      dayIndex = cycle.currentDayIndex ?? 0;
+      console.log(`[markDayDone] Using completion-based dayIndex: ${dayIndex}`);
+    } else {
+      // For calendar-based progression, calculate from start date
+      const startDate = new Date(cycle.startDate + "T00:00:00");
+      const targetDate = new Date(date + "T00:00:00");
+      const daysSinceStart = Math.floor((targetDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      dayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+      console.log(`[markDayDone] Using calendar-based dayIndex: ${dayIndex}`);
+    }
     const dayLabel = cycle.dayLabels?.[dayIndex] || `Day ${dayIndex + 1}`;
-    console.log(`[markDayDone] Calculated: daysSinceStart=${daysSinceStart}, dayIndex=${dayIndex}, dayLabel=${dayLabel}`);
+    console.log(`[markDayDone] dayIndex=${dayIndex}, dayLabel=${dayLabel}`);
     
     // Check for existing session
     let session = await this.getWorkoutSessionByMemberDate(gymId, memberId, date);
@@ -6194,6 +6203,13 @@ export class DatabaseStorage implements IStorage {
       }
     }
     console.log(`[markDayDone] Created ${createdCount} new completion records`);
+    
+    // For completion-based progression, advance to the next day
+    if (cycle.progressionMode === "completion") {
+      const newDayIndex = (dayIndex + 1) % cycle.cycleLength;
+      await this.updateCycleDayIndexAndLastWorkout(cycle.id, newDayIndex, date);
+      console.log(`[markDayDone] Advanced cycle from day ${dayIndex} to day ${newDayIndex}`);
+    }
     
     return { success: true, sessionId };
   }
