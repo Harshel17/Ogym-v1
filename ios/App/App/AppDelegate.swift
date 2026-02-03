@@ -8,6 +8,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        
+        // Set window background color to match app theme (dark mode default)
+        // This fills the safe area (home indicator region) with the correct color
+        if let window = self.window {
+            window.backgroundColor = UIColor(red: 11/255, green: 18/255, blue: 32/255, alpha: 1.0) // #0b1220
+        }
+        
         return true
     }
 
