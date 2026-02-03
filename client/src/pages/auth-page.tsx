@@ -424,7 +424,7 @@ export default function AuthPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-center p-6 bg-background relative overflow-hidden">
+      <div className="flex items-start lg:items-center justify-center p-6 bg-background relative overflow-y-auto overflow-x-hidden" style={{ maxHeight: '100dvh' }}>
         <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-50 dark:opacity-30">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full blur-3xl" />
           <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl" />
