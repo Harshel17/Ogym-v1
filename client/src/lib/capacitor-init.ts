@@ -15,24 +15,22 @@ export async function updateStatusBarForTheme(isDarkTheme: boolean) {
   if (!Capacitor.isNativePlatform()) return;
   
   try {
+    // Always ensure status bar is visible first
+    await StatusBar.show();
+    
     // Style.Light = light/white icons (use on DARK backgrounds)
     // Style.Dark = dark/black icons (use on LIGHT backgrounds)
-    await StatusBar.setStyle({ 
-      style: isDarkTheme ? Style.Light : Style.Dark 
-    });
+    const style = isDarkTheme ? Style.Light : Style.Dark;
+    await StatusBar.setStyle({ style });
     
-    // Set background color based on theme for both Android and iOS
-    // On iOS with overlay=false, this helps ensure proper background behind status bar
+    // Set background color based on theme for Android
     const platform = Capacitor.getPlatform();
     if (platform === 'android') {
       const bgColor = isDarkTheme ? '#0b1220' : '#f5f7fa';
       await StatusBar.setBackgroundColor({ color: bgColor });
     }
-    // Note: iOS doesn't have setBackgroundColor, but with overlay=false
-    // the status bar area takes the color of the content behind it
-    // So we rely on the header background color in CSS
     
-    console.log(`StatusBar updated: isDark=${isDarkTheme}, style=${isDarkTheme ? 'Light (white icons)' : 'Dark (black icons)'}`);
+    console.log(`StatusBar: show + style=${isDarkTheme ? 'Light (white icons)' : 'Dark (black icons)'}`);
   } catch (error) {
     console.error('Failed to update StatusBar style:', error);
   }

@@ -81,11 +81,11 @@ html.is-android {
   background-color: hsl(var(--background));
 }
 
-/* iOS-specific: Add safe-area padding to push header below status bar */
-/* Using 47px as iOS status bar height (44px) + extra padding */
+/* iOS-specific: With overlay=false, iOS handles safe area automatically */
+/* Only add small padding for visual spacing, not for status bar */
 html.capacitor-ios .mobile-app-header,
 html.is-ios .mobile-app-header {
-  padding-top: max(env(safe-area-inset-top, 47px), 47px) !important;
+  padding-top: 12px !important;
   background-color: hsl(var(--background));
 }
 
@@ -100,11 +100,10 @@ html.is-android .mobile-app-header {
   padding-top: 56px; /* Header height only */
 }
 
-/* iOS content offset includes safe area + header height */
-/* Using 103px = 47px (status bar) + 56px (header height) */
+/* iOS content offset - just header height since overlay=false handles safe area */
 html.capacitor-ios .mobile-content-offset,
 html.is-ios .mobile-content-offset {
-  padding-top: max(calc(env(safe-area-inset-top, 47px) + 56px), 103px) !important;
+  padding-top: 64px !important; /* Header height (56px) + spacing (8px) */
 }
 
 /* Push content down on Android to account for header + status bar */
