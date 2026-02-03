@@ -275,7 +275,7 @@ export default function AuthPage() {
 
   if (pendingVerification) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center p-6 bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      <div className="min-h-[100dvh] flex items-center justify-center p-6 bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="absolute right-4" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
           <ThemeToggle />
         </div>
@@ -382,7 +382,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] grid lg:grid-cols-2" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+    <div className="min-h-[100dvh] grid lg:grid-cols-2 bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="relative hidden lg:flex flex-col justify-between p-12 bg-zinc-900 text-white overflow-hidden">
         <div className="absolute inset-0 magic-gradient-bg" />
         <div className="absolute inset-0">
