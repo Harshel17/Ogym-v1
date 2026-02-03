@@ -107,11 +107,13 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
       return res.json();
     },
     onSuccess: (data) => {
+      console.log('[FindMyFood] API success, restaurants:', data.restaurants?.length || 0);
       setRestaurants(data.restaurants || []);
       setDikaGeneralMessage(data.dikaMessage || "");
       setStep('results');
     },
     onError: (error) => {
+      console.error('[FindMyFood] API error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to fetch nearby restaurants",
@@ -134,16 +136,25 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
     setStep('loading');
     setLocationError(null);
 
+    // Check if running on native iOS
+    const isNative = typeof (window as any).Capacitor !== 'undefined' && 
+                     (window as any).Capacitor.isNativePlatform?.();
+    console.log('[FindMyFood] Starting search, isNative:', isNative);
+
     try {
+      console.log('[FindMyFood] Requesting location...');
       const coords = await requestLocation();
+      console.log('[FindMyFood] Got location:', coords);
       setLocation(coords);
       
+      console.log('[FindMyFood] Fetching restaurants...');
       fetchNearbyRestaurants.mutate({
         lat: coords.lat,
         lon: coords.lon,
         radiusMiles: parseFloat(selectedRadius)
       });
     } catch (error) {
+      console.error('[FindMyFood] Error:', error);
       setLocationError(error instanceof Error ? error.message : "Failed to get location");
       setStep('radius');
     }
