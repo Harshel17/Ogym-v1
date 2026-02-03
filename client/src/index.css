@@ -15,20 +15,36 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: #0b1220;
   overflow: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
 }
 
+/* Theme-aware backgrounds for safe areas */
+html {
+  background: hsl(220 20% 97%); /* Light mode default */
+}
+
+html.dark {
+  background: #0b1220; /* Dark mode */
+}
+
+body {
+  background: inherit;
+}
+
 /* App root - only top safe area (bottom handled by nav and content) */
 #root {
   min-height: 100dvh;
-  background: #0b1220;
+  background: hsl(220 20% 97%); /* Light mode */
   overflow: hidden;
   padding-top: env(safe-area-inset-top, 0px);
   display: flex;
   flex-direction: column;
+}
+
+.dark #root {
+  background: #0b1220; /* Dark mode */
 }
 
 /* Android fallback for safe-top (env() not always supported) */
@@ -59,11 +75,7 @@ html.is-android #root {
   }
 }
 
-/* Light mode background override */
-html:not(.dark) body,
-html:not(.dark) #root {
-  background: hsl(220 20% 97%);
-}
+/* Light mode already set as default above */
 
 /* Sticky mobile header - sits at top of content flow, no manual offset needed */
 .mobile-sticky-header {
