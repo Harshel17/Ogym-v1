@@ -10,88 +10,11 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- Loading screen that shows while app loads -->
-    <div id="app-loading" style="position: fixed; inset: 0; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999;">
-      <div class="logo-wrapper">
-        <div class="speed-lines">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <div class="logo-container">
-          <img src="/ogym-icon.png" alt="OGym" class="logo-image" />
-        </div>
+    <!-- Minimal loading screen - matches native splash for seamless transition -->
+    <div id="app-loading" style="position: fixed; inset: 0; background: #0b1220; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999;">
+      <div style="width: 120px; height: 120px; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+        <img src="/ogym-icon.png" alt="OGym" style="width: 100%; height: 100%; object-fit: cover;" />
       </div>
-      <h1 style="color: white; font-family: system-ui, -apple-system, sans-serif; font-size: 36px; font-weight: 800; margin: 0 0 8px 0; letter-spacing: -0.5px; text-shadow: 0 2px 10px rgba(0,0,0,0.2);">OGym</h1>
-      <p style="color: rgba(255,255,255,0.9); font-family: system-ui, -apple-system, sans-serif; font-size: 14px; margin: 0 0 32px 0;">Your Fitness Journey</p>
-      <div class="loading-dots">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-      <style>
-        .logo-wrapper {
-          position: relative;
-          margin-bottom: 24px;
-        }
-        .logo-container {
-          width: 120px;
-          height: 120px;
-          overflow: hidden;
-          border-radius: 28px;
-          box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-          animation: runBounce 0.35s ease-in-out infinite;
-        }
-        .logo-image {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-        @keyframes runBounce {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          25% { transform: translateY(-4px) rotate(-1deg); }
-          75% { transform: translateY(-2px) rotate(1deg); }
-        }
-        .speed-lines {
-          position: absolute;
-          left: -30px;
-          top: 50%;
-          transform: translateY(-50%);
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .speed-lines span {
-          height: 3px;
-          background: rgba(255,255,255,0.8);
-          border-radius: 2px;
-          animation: speedLine 0.5s ease-in-out infinite;
-        }
-        .speed-lines span:nth-child(1) { width: 20px; animation-delay: 0s; }
-        .speed-lines span:nth-child(2) { width: 15px; animation-delay: 0.15s; }
-        .speed-lines span:nth-child(3) { width: 10px; animation-delay: 0.3s; }
-        @keyframes speedLine {
-          0%, 100% { opacity: 0.3; transform: translateX(0); }
-          50% { opacity: 1; transform: translateX(-8px); }
-        }
-        .loading-dots {
-          display: flex;
-          gap: 8px;
-        }
-        .loading-dots span {
-          width: 10px;
-          height: 10px;
-          background: white;
-          border-radius: 50%;
-          animation: dotPulse 1.2s ease-in-out infinite;
-        }
-        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
-        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes dotPulse {
-          0%, 100% { transform: scale(0.7); opacity: 0.5; }
-          50% { transform: scale(1); opacity: 1; }
-        }
-      </style>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
