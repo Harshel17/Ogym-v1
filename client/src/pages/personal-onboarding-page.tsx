@@ -83,8 +83,11 @@ export default function PersonalOnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 py-8 bg-background overflow-y-auto">
-      <div className="absolute top-4 right-4">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4 py-8 bg-background overflow-y-auto"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 32px)', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 32px)' }}
+    >
+      <div className="absolute right-4" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
         <ThemeToggle />
       </div>
       

@@ -90,7 +90,11 @@ function OnboardingCarousel({ slides, onComplete }: OnboardingCarouselProps) {
   const isLastSlide = currentIndex === slides.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col" data-testid="onboarding-carousel">
+    <div 
+      className="fixed inset-0 z-50 bg-background flex flex-col" 
+      data-testid="onboarding-carousel"
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
       <div 
         className="flex-1 flex flex-col items-center justify-center p-6"
         onTouchStart={onTouchStart}
@@ -122,7 +126,10 @@ function OnboardingCarousel({ slides, onComplete }: OnboardingCarouselProps) {
         </div>
       </div>
 
-      <div className="p-6 pb-8 flex items-center justify-between gap-4">
+      <div 
+        className="p-6 flex items-center justify-between gap-4"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
+      >
         <Button
           variant="ghost"
           size="icon"
@@ -169,7 +176,8 @@ function OnboardingCarousel({ slides, onComplete }: OnboardingCarouselProps) {
       <Button
         variant="ghost"
         onClick={onComplete}
-        className="absolute top-4 right-4 text-muted-foreground"
+        className="absolute right-4 text-muted-foreground"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
         data-testid="button-skip"
       >
         Skip

@@ -533,7 +533,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 overflow-auto app-main-scroll">
-        <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 md:pb-8 mobile-content-offset">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-safe-bottom md:pb-8 mobile-content-offset">
           {children}
         </div>
       </main>

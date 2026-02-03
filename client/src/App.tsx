@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,7 +7,8 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import { Layout } from "@/components/layout";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Loader2 } from "lucide-react";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { refreshStatusBar } from "@/lib/capacitor-init";
 
 import AuthPage from "@/pages/auth-page";
 import DashboardPage from "@/pages/dashboard-page";
@@ -171,8 +172,20 @@ function OnboardingRoute() {
   return <MemberOnboardingPage />;
 }
 
+function RouteChangeHandler() {
+  const [location] = useLocation();
+  
+  useEffect(() => {
+    refreshStatusBar();
+  }, [location]);
+  
+  return null;
+}
+
 function Router() {
   return (
+    <>
+    <RouteChangeHandler />
     <Switch>
       <Route path="/auth" component={AuthPage} />
       
@@ -371,6 +384,7 @@ function Router() {
 
       <Route component={NotFound} />
     </Switch>
+    </>
   );
 }
 

@@ -1,0 +1,44 @@
+iOS SAFE AREA FINAL FIXES (NO FEATURE WORK)
+
+We still have 3 iOS UI issues:
+
+1) Light theme status bar: time/network not visible
+- On some screens, I only see battery %, not time/network.
+Fix required:
+- Ensure status bar style is applied globally AND on every screen transition.
+- Light theme => dark-content
+- Dark theme => light-content
+- Also ensure top SafeArea/header background is explicitly set (not transparent) so iOS renders icons correctly.
+- If using Capacitor StatusBar plugin, apply setStyle() on theme change AND on route/screen change (some screens may override it).
+- Confirm on real iPhone: time + network + battery all visible in light theme.
+
+2) Bottom edge/gap / content behind home indicator
+- At bottom, content looks cut/has an edge because it’s not respecting the bottom safe area.
+Fix required:
+- Add bottom safe-area padding to the main page container and any scroll views:
+  paddingBottom = safeAreaBottom + (tabBarHeight if applicable)
+- Ensure last card/content never touches the home indicator area.
+- If we have a fixed bottom tab bar, the content container must have padding-bottom equal to tab bar height + safe area bottom.
+
+3) “Skip” button goes under the bottom nav bar (Onboarding/Carousel)
+Fix required:
+- Position Skip button above the bottom tab bar / home indicator.
+- Use safe area inset:
+  bottom = safeAreaBottom + tabBarHeight + 12px (or similar)
+- Ensure Skip is always visible and tappable on all iPhones.
+
+Implementation guidance:
+- Create a single reusable layout wrapper that reads safe area insets (top/bottom) and applies:
+  - header paddingTop = safeAreaTop
+  - screen content paddingBottom = safeAreaBottom (+ tab bar height if tabs exist)
+- Apply this wrapper consistently to Dashboard, Workouts, Onboarding/Carousel, and any full-screen pages.
+
+Output required:
+- Which files changed
+- How safeAreaBottom is calculated/handled
+- Proof screenshots (light theme) showing:
+  - time/network/battery visible
+  - bottom content not clipped
+  - Skip button not hidden
+
+DO NOT deploy unless I explicitly say “deploy”.

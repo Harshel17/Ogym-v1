@@ -20,12 +20,20 @@ html, body {
 /* CSS variable for mobile header height - used by content offset and toast positioning */
 :root {
   --mobile-header-height: 56px;
+  --mobile-tab-bar-height: 64px;
 }
 
 /* Main app scroll container - iOS rubber-band prevention */
 .app-main-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+}
+
+/* Mobile bottom safe area padding (accounts for tab bar + home indicator) */
+@media (max-width: 767px) {
+  .pb-safe-bottom {
+    padding-bottom: calc(var(--mobile-tab-bar-height, 64px) + env(safe-area-inset-bottom, 0px) + 16px) !important;
+  }
 }
 
 /* Light mode background override */

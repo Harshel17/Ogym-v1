@@ -10,6 +10,7 @@ function detectPlatformFromUserAgent(): 'android' | 'ios' | 'web' {
 }
 
 // Update status bar style based on current theme
+// Should be called on theme change AND on route/screen transitions
 export async function updateStatusBarForTheme(isDarkTheme: boolean) {
   if (!Capacitor.isNativePlatform()) return;
   
@@ -28,6 +29,14 @@ export async function updateStatusBarForTheme(isDarkTheme: boolean) {
   } catch (error) {
     console.error('Failed to update StatusBar style:', error);
   }
+}
+
+// Force refresh status bar - call on route changes to ensure visibility
+export async function refreshStatusBar() {
+  if (!Capacitor.isNativePlatform()) return;
+  
+  const isDark = document.documentElement.classList.contains('dark');
+  await updateStatusBarForTheme(isDark);
 }
 
 export async function initializeCapacitor() {
