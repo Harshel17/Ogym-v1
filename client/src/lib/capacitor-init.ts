@@ -70,14 +70,13 @@ export async function initializeCapacitor() {
   }
 
   try {
-    // Don't overlay - let content respect safe area naturally
-    await StatusBar.setOverlaysWebView({ overlay: false });
+    // Show status bar and set initial style based on current theme
+    await StatusBar.show();
     
-    // Check current theme and set appropriate style
     const isDark = document.documentElement.classList.contains('dark');
     await updateStatusBarForTheme(isDark);
     
-    console.log('Capacitor StatusBar configured successfully');
+    console.log('Capacitor StatusBar initialized');
   } catch (error) {
     console.error('Failed to configure StatusBar:', error);
   }
