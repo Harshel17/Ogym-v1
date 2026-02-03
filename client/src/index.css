@@ -50,12 +50,11 @@ html.dark::after {
   background: #0b1220;
 }
 
-/* App root - only top safe area (bottom handled by nav and content) */
+/* App root - full screen, no safe area padding */
 #root {
   min-height: 100dvh;
   background: hsl(220 20% 97%) !important; /* Light mode */
   overflow: hidden;
-  padding-top: env(safe-area-inset-top, 0px);
   display: flex;
   flex-direction: column;
 }
@@ -64,11 +63,7 @@ html.dark #root {
   background: #0b1220 !important; /* Dark mode */
 }
 
-/* Android fallback for safe-top (env() not always supported) */
-html.capacitor-android #root,
-html.is-android #root {
-  padding-top: 28px;
-}
+/* Android fallback removed - using full screen */
 
 /* CSS variables */
 :root {
