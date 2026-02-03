@@ -10,7 +10,9 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
-import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus, MapPin, AlertCircle, Clock, User, FileEdit, Send, Edit2, Lock, CreditCard, Copy, Trash2, LogOut } from "lucide-react";
+import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus, MapPin, AlertCircle, Clock, User, FileEdit, Send, Edit2, Lock, CreditCard, Copy, Trash2, LogOut, ExternalLink, Bell } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 import { OwnerPaymentSettings, PaymentConfirmationsDashboard, MemberPaymentSheet } from "@/components/payment-settings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatDistanceToNow, format } from "date-fns";
@@ -456,6 +458,8 @@ function MemberProfileView() {
         <TransferGymCard />
         <AutoPostSettingsCard />
         <DikaSettingsCard />
+        <NotificationSettingsCard />
+        <PrivacyPolicyCard />
         <MyPostsCard />
         <DeleteAccountCard />
       </div>
@@ -780,6 +784,8 @@ function OwnerProfileView() {
         <OwnerPaymentSettings />
         <PaymentConfirmationsDashboard />
         <DikaSettingsCard />
+        <NotificationSettingsCard />
+        <PrivacyPolicyCard />
         <DeleteAccountCard />
       </div>
     </div>
@@ -972,6 +978,8 @@ function TrainerProfileView() {
 
         <TransferGymCard />
         <DikaSettingsCard />
+        <NotificationSettingsCard />
+        <PrivacyPolicyCard />
         <DeleteAccountCard />
       </div>
     </div>
@@ -1455,6 +1463,123 @@ function DeleteAccountCard() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Privacy Policy link for App Store compliance
+function PrivacyPolicyCard() {
+  const handleOpenPrivacyPolicy = async () => {
+    const privacyUrl = "https://app.ogym.fitness/privacy";
+    
+    if (Capacitor.isNativePlatform()) {
+      await Browser.open({ url: privacyUrl });
+    } else {
+      window.open(privacyUrl, "_blank");
+    }
+  };
+
+  return (
+    <Card className="md:col-span-2" data-testid="card-privacy-policy">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ExternalLink className="w-5 h-5" />
+          Privacy & Legal
+        </CardTitle>
+        <CardDescription>View our privacy policy and terms of service</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button 
+          variant="outline" 
+          className="w-full justify-start gap-2"
+          onClick={handleOpenPrivacyPolicy}
+          data-testid="button-privacy-policy"
+        >
+          <ExternalLink className="w-4 h-4" />
+          Privacy Policy
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Notification settings with opt-in for push notifications (App Store compliant)
+function NotificationSettingsCard() {
+  const { toast } = useToast();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleToggleNotifications = async (enabled: boolean) => {
+    if (!Capacitor.isNativePlatform()) {
+      toast({ 
+        title: "Notifications", 
+        description: enabled ? "Browser notifications are not supported yet" : "Notifications disabled" 
+      });
+      setNotificationsEnabled(enabled);
+      return;
+    }
+
+    if (enabled) {
+      setIsLoading(true);
+      try {
+        // Dynamic import to avoid loading on web
+        const { PushNotifications } = await import("@capacitor/push-notifications");
+        
+        const permResult = await PushNotifications.requestPermissions();
+        
+        if (permResult.receive === "granted") {
+          await PushNotifications.register();
+          setNotificationsEnabled(true);
+          toast({ title: "Notifications enabled", description: "You'll receive updates about your gym activity" });
+        } else {
+          setNotificationsEnabled(false);
+          toast({ 
+            title: "Notifications denied", 
+            description: "You can enable notifications in your device settings",
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error("Failed to enable notifications:", error);
+        toast({ title: "Failed to enable notifications", variant: "destructive" });
+        setNotificationsEnabled(false);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setNotificationsEnabled(false);
+      toast({ title: "Notifications disabled" });
+    }
+  };
+
+  return (
+    <Card className="md:col-span-2" data-testid="card-notification-settings">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Bell className="w-5 h-5" />
+          Notifications
+        </CardTitle>
+        <CardDescription>Manage how you receive updates</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+          <div>
+            <p className="font-medium">Push Notifications</p>
+            <p className="text-sm text-muted-foreground">
+              Get notified about announcements, workout reminders, and gym updates
+            </p>
+          </div>
+          {isLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Switch
+              checked={notificationsEnabled}
+              onCheckedChange={handleToggleNotifications}
+              data-testid="switch-notifications"
+            />
+          )}
         </div>
       </CardContent>
     </Card>
