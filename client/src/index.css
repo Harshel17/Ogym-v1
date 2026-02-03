@@ -46,7 +46,7 @@ html, body {
 /* Mobile bottom safe area padding (accounts for tab bar + home indicator) */
 @media (max-width: 767px) {
   .pb-safe-bottom {
-    padding-bottom: calc(var(--mobile-tab-bar-height, 64px) + env(safe-area-inset-bottom, 0px) + 16px) !important;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 
@@ -82,10 +82,10 @@ html.is-android {
 }
 
 /* iOS-specific: With overlay=false, iOS handles safe area automatically */
-/* Only add small padding for visual spacing, not for status bar */
+/* Add padding for visual spacing */
 html.capacitor-ios .mobile-app-header,
 html.is-ios .mobile-app-header {
-  padding-top: 12px !important;
+  padding-top: 8px !important;
   background-color: hsl(var(--background));
 }
 
@@ -100,10 +100,10 @@ html.is-android .mobile-app-header {
   padding-top: 56px; /* Header height only */
 }
 
-/* iOS content offset - just header height since overlay=false handles safe area */
+/* iOS content offset - header height since overlay=false handles safe area */
 html.capacitor-ios .mobile-content-offset,
 html.is-ios .mobile-content-offset {
-  padding-top: 64px !important; /* Header height (56px) + spacing (8px) */
+  padding-top: 56px !important; /* Header height */
 }
 
 /* Push content down on Android to account for header + status bar */
