@@ -9,12 +9,31 @@ html, body {
   height: 100%;
   margin: 0;
   background: #0b1220;
+  overflow: hidden; /* Prevent body scroll - only containers scroll */
 }
 
 #root {
   min-height: 100vh;
   min-height: 100dvh;
+  height: 100%;
   background: #0b1220;
+  overflow: hidden;
+}
+
+/* iOS rubber-band scroll prevention */
+.ios-scroll-container {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
+/* Apply overscroll prevention to main scroll areas */
+.overflow-auto,
+.overflow-y-auto,
+.overflow-scroll,
+.overflow-y-scroll {
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
 }
 
 /* Light mode background override */

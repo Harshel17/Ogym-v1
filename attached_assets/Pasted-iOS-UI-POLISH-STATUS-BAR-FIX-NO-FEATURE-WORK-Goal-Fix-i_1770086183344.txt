@@ -1,0 +1,100 @@
+iOS UI POLISH & STATUS BAR FIX (NO FEATURE WORK)
+
+Goal:
+Fix iOS-native UI polish issues to meet Apple App Store quality standards.
+Do NOT add features. Do NOT change business logic.
+
+Issues to fix:
+
+------------------------------------------------
+1) iOS Light Theme Status Bar Visibility
+------------------------------------------------
+Problem:
+In Light theme on iOS native, the status bar icons (time/network/battery) are not visible because white icons are shown on a light background.
+
+Fix required:
+- Dynamically set iOS status bar style based on theme:
+  • Light theme → dark-content (black icons)
+  • Dark theme → light-content (white icons)
+
+- Ensure the top SafeArea/header background color is explicitly set (NOT transparent):
+  • Light theme: solid light background compatible with dark-content
+  • Dark theme: solid dark background compatible with light-content
+
+Implementation guidance (use correct approach for our stack):
+A) If React Native / Capacitor native shell:
+   - Update StatusBar usage:
+     <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+   - OR using Capacitor StatusBar plugin:
+     StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light });
+     (Note: Capacitor Light = dark icons, Dark = light icons — confirm mapping.)
+
+B) If CSS-based web UI inside Capacitor:
+   - Ensure iOS status bar overlay/background is handled via native config/plugin
+   - Avoid white icons on white backgrounds
+
+------------------------------------------------
+2) iOS Rubber-Band Scroll / Empty Gap
+------------------------------------------------
+Problem:
+When scrolling up/down, the screen bounces and shows empty space above or below content.
+
+Fix required:
+- Disable iOS bounce/overscroll for main screens (Dashboard, Workouts, Dika AI, etc.)
+
+If using React Native ScrollView:
+  bounces={false}
+  alwaysBounceVertical={false}
+  contentInsetAdjustmentBehavior="never"
+  overScrollMode="never" (Android-safe)
+
+If using Capacitor / web scroll containers:
+  - Ensure ONLY the page container scrolls (not body + inner)
+  - Apply:
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    .appRoot / .pageContainer {
+      height: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: none;
+    }
+  - Remove extra paddingTop / paddingBottom causing artificial scroll range
+
+Goal:
+Scrolling must stop exactly at content boundaries with NO blank space visible.
+
+------------------------------------------------
+3) Notification / Toast Hidden Under Top Bar
+------------------------------------------------
+Problem:
+Toast/notification appears under the header/safe area, making the close (X) button unreachable.
+
+Fix required:
+- Render toast ABOVE header with correct safe-area offset
+- Toast must be fixed/absolute with high z-index
+- Top offset must respect safe area inset:
+  • top = safeAreaTop (+ header height only if required)
+- Ensure toast close (X) is fully visible and tappable
+
+If using a toast library:
+- Configure topOffset / containerStyle specifically for iOS
+- Ensure z-index > header
+
+------------------------------------------------
+Final Verification Required:
+------------------------------------------------
+- Test on real iPhone (not simulator)
+- Verify:
+  • Light theme: status bar icons clearly visible
+  • Dark theme: unchanged and correct
+  • No scroll bounce gaps
+  • Toast close (X) visible and tappable
+- Provide:
+  1) List of files/screens changed
+  2) Short explanation of root cause
+  3) Confirmation all issues are resolved
+
+DO NOT deploy unless I explicitly say “deploy”.

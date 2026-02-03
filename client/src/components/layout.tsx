@@ -404,7 +404,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const secondaryBadgeCount = secondaryTabs.reduce((sum, item) => sum + (item.badge || 0), 0);
 
   return (
-    <div className="min-h-screen bg-secondary/30 flex">
+    <div className="h-screen h-[100dvh] bg-secondary/30 flex overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 bg-sidebar border-r border-sidebar-border hidden md:flex flex-col sticky top-0 h-screen z-10">
         <div className="p-4 border-b border-sidebar-border">
