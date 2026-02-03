@@ -15,10 +15,10 @@ export async function updateStatusBarForTheme(isDarkTheme: boolean) {
   if (!Capacitor.isNativePlatform()) return;
   
   try {
-    // Dark theme = light status bar icons (Style.Dark means dark background, light icons)
-    // Light theme = dark status bar icons (Style.Light means light background, dark icons)
+    // Style.Light = light/white icons (use on DARK backgrounds)
+    // Style.Dark = dark/black icons (use on LIGHT backgrounds)
     await StatusBar.setStyle({ 
-      style: isDarkTheme ? Style.Dark : Style.Light 
+      style: isDarkTheme ? Style.Light : Style.Dark 
     });
     
     // Set background color based on theme for both Android and iOS
