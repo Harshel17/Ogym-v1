@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { updateStatusBarForTheme } from "@/lib/capacitor-init";
 
 type Theme = "light" | "dark" | "system";
 
@@ -45,6 +46,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         root.classList.remove("dark");
       }
       setResolvedTheme(newTheme);
+      // Update iOS/Android status bar to match theme
+      updateStatusBarForTheme(newTheme === "dark");
     };
 
     if (theme === "system") {

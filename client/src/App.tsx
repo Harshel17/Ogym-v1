@@ -7,9 +7,7 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import { Layout } from "@/components/layout";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Loader2 } from "lucide-react";
-import { useEffect, lazy, Suspense } from "react";
-import { Capacitor } from "@capacitor/core";
-import { StatusBar, Style } from "@capacitor/status-bar";
+import { lazy, Suspense } from "react";
 
 import AuthPage from "@/pages/auth-page";
 import DashboardPage from "@/pages/dashboard-page";
@@ -377,23 +375,6 @@ function Router() {
 }
 
 function App() {
-  useEffect(() => {
-    const configureStatusBar = async () => {
-      if (Capacitor.isNativePlatform()) {
-        try {
-          await StatusBar.setOverlaysWebView({ overlay: true });
-          await StatusBar.setStyle({ style: Style.Dark });
-          if (Capacitor.getPlatform() === 'android') {
-            await StatusBar.setBackgroundColor({ color: '#00000000' });
-          }
-        } catch (error) {
-          console.log('StatusBar configuration error:', error);
-        }
-      }
-    };
-    configureStatusBar();
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

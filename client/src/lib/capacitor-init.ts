@@ -9,6 +9,27 @@ function detectPlatformFromUserAgent(): 'android' | 'ios' | 'web' {
   return 'web';
 }
 
+// Update status bar style based on current theme
+export async function updateStatusBarForTheme(isDarkTheme: boolean) {
+  if (!Capacitor.isNativePlatform()) return;
+  
+  try {
+    // Dark theme = light status bar icons (Style.Dark means dark background, light icons)
+    // Light theme = dark status bar icons (Style.Light means light background, dark icons)
+    await StatusBar.setStyle({ 
+      style: isDarkTheme ? Style.Dark : Style.Light 
+    });
+    
+    if (Capacitor.getPlatform() === 'android') {
+      // Set background color based on theme
+      const bgColor = isDarkTheme ? '#0b1220' : '#ffffff';
+      await StatusBar.setBackgroundColor({ color: bgColor });
+    }
+  } catch (error) {
+    console.error('Failed to update StatusBar style:', error);
+  }
+}
+
 export async function initializeCapacitor() {
   // Add platform classes to document for CSS targeting
   // Use both Capacitor detection AND user-agent detection
@@ -35,16 +56,12 @@ export async function initializeCapacitor() {
   }
 
   try {
-    // Disable status bar overlay so content doesn't go under it
+    // Don't overlay - let content respect safe area naturally
     await StatusBar.setOverlaysWebView({ overlay: false });
     
-    // Set status bar style - Light style for dark backgrounds (light icons on dark bg)
-    await StatusBar.setStyle({ style: Style.Light });
-    
-    // Set status bar background color (matching dark theme)
-    if (Capacitor.getPlatform() === 'android') {
-      await StatusBar.setBackgroundColor({ color: '#0b1220' });
-    }
+    // Check current theme and set appropriate style
+    const isDark = document.documentElement.classList.contains('dark');
+    await updateStatusBarForTheme(isDark);
     
     console.log('Capacitor StatusBar configured successfully');
   } catch (error) {
