@@ -9,13 +9,38 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
         
-        // Set window background color to match app theme (dark mode default)
-        // This fills the safe area (home indicator region) with the correct color
-        if let window = self.window {
-            window.backgroundColor = UIColor(red: 11/255, green: 18/255, blue: 32/255, alpha: 1.0) // #0b1220
+        // Set window and root view background colors after a delay to ensure they're loaded
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.setBackgroundColors()
         }
         
         return true
+    }
+    
+    private func setBackgroundColors() {
+        let darkColor = UIColor(red: 11/255, green: 18/255, blue: 32/255, alpha: 1.0) // #0b1220
+        
+        // Set window background
+        if let window = self.window {
+            window.backgroundColor = darkColor
+            
+            // Set root view controller's view background
+            if let rootVC = window.rootViewController {
+                rootVC.view.backgroundColor = darkColor
+            }
+        }
+        
+        // Also set all scene windows (iOS 13+)
+        if #available(iOS 13.0, *) {
+            for scene in UIApplication.shared.connectedScenes {
+                if let windowScene = scene as? UIWindowScene {
+                    for window in windowScene.windows {
+                        window.backgroundColor = darkColor
+                        window.rootViewController?.view.backgroundColor = darkColor
+                    }
+                }
+            }
+        }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
