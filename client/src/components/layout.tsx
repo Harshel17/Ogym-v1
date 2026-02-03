@@ -404,7 +404,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const secondaryBadgeCount = secondaryTabs.reduce((sum, item) => sum + (item.badge || 0), 0);
 
   return (
-    <div className="h-screen h-[100dvh] bg-secondary/30 flex overflow-hidden">
+    <div className="min-h-[100dvh] bg-secondary/30 flex flex-col md:flex-row overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 bg-sidebar border-r border-sidebar-border hidden md:flex flex-col sticky top-0 h-screen z-10">
         <div className="p-4 border-b border-sidebar-border">
@@ -500,12 +500,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile Fixed Header - Outside main to avoid stacking context issues */}
+      {/* Mobile Sticky Header - uses sticky positioning, no manual content offset needed */}
       <header 
-        className="mobile-app-header md:hidden flex items-center justify-between gap-2 fixed top-0 left-0 right-0 bg-background border-b border-border px-3 py-2"
-        style={{
-          zIndex: 99999,
-        }}
+        className="mobile-sticky-header md:hidden flex items-center justify-between gap-2"
       >
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg shadow-md shadow-primary/20 overflow-hidden flex items-center justify-center">
@@ -531,9 +528,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Main Content - Single scroll container with proper height calculation */}
-      <main className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden app-main-scroll">
-        <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-safe-bottom md:pb-8 mobile-content-offset">
+      {/* Main Content - Single scroll container, no manual offset needed with sticky header */}
+      <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden app-main-scroll">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-safe-bottom md:pb-8">
           {children}
         </div>
       </main>
