@@ -75,41 +75,41 @@ html.is-android {
 }
 
 /* Mobile app header - with safe area padding for status bar */
-/* IMPORTANT: Must have solid background color that extends under status bar */
+/* With overlaysWebView: true, content extends under status bar */
+/* Header needs padding-top for safe area + visual spacing */
 .mobile-app-header {
   padding-top: 8px;
   background-color: hsl(var(--background));
 }
 
-/* iOS-specific: With overlay=false, iOS handles safe area automatically */
-/* Add padding for visual spacing */
+/* iOS-specific: With overlay=true, add safe-area-inset-top to header */
 html.capacitor-ios .mobile-app-header,
 html.is-ios .mobile-app-header {
-  padding-top: 8px !important;
+  padding-top: calc(env(safe-area-inset-top, 47px) + 8px) !important;
   background-color: hsl(var(--background));
 }
 
 /* Android status bar spacer - adds extra padding for status bar */
 html.capacitor-android .mobile-app-header,
 html.is-android .mobile-app-header {
-  padding-top: 28px !important;
+  padding-top: 36px !important;
 }
 
-/* Content offset - header height + safe area for iOS */
+/* Content offset - header height for non-native */
 .mobile-content-offset {
-  padding-top: 56px; /* Header height only */
+  padding-top: 56px;
 }
 
-/* iOS content offset - header height since overlay=false handles safe area */
+/* iOS content offset - header height + safe area inset */
 html.capacitor-ios .mobile-content-offset,
 html.is-ios .mobile-content-offset {
-  padding-top: 56px !important; /* Header height */
+  padding-top: calc(env(safe-area-inset-top, 47px) + 56px) !important;
 }
 
 /* Push content down on Android to account for header + status bar */
 html.capacitor-android .mobile-content-offset,
 html.is-android .mobile-content-offset {
-  padding-top: 76px !important; /* Header (48px) + status bar (28px) */
+  padding-top: 84px !important;
 }
 
 /* Mobile fixed header */
