@@ -88,17 +88,17 @@ html.is-android {
   --safe-top: 28px;
 }
 
-/* Mobile app header - minimal padding (safe area handled by iOS when overlay=false) */
-/* IMPORTANT: Must have solid background color that extends under status bar for iOS */
+/* Mobile app header - with safe area padding for status bar */
+/* IMPORTANT: Must have solid background color that extends under status bar */
 .mobile-app-header {
   padding-top: 8px;
   background-color: hsl(var(--background));
 }
 
-/* iOS-specific: Ensure header has solid background visible under status bar */
+/* iOS-specific: Add safe-area padding to push header below status bar */
 html.capacitor-ios .mobile-app-header,
 html.is-ios .mobile-app-header {
-  /* iOS status bar area needs this solid background */
+  padding-top: calc(env(safe-area-inset-top, 44px) + 8px) !important;
   background-color: hsl(var(--background));
 }
 
@@ -108,9 +108,15 @@ html.is-android .mobile-app-header {
   padding-top: 28px !important;
 }
 
-/* Content offset - just header height, no safe area (iOS handles it) */
+/* Content offset - header height + safe area for iOS */
 .mobile-content-offset {
   padding-top: 56px; /* Header height only */
+}
+
+/* iOS content offset includes safe area */
+html.capacitor-ios .mobile-content-offset,
+html.is-ios .mobile-content-offset {
+  padding-top: calc(env(safe-area-inset-top, 44px) + 56px) !important;
 }
 
 /* Push content down on Android to account for header + status bar */
