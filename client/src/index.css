@@ -56,22 +56,8 @@ html:not(.dark) #root {
   background: hsl(220 20% 97%);
 }
 
-/* iOS status bar area - ensure solid background at very top of screen */
-/* This creates a pseudo-element that sits behind the status bar for safety */
-@supports (-webkit-touch-callout: none) {
-  html.capacitor-ios::before,
-  html.is-ios::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: env(safe-area-inset-top, 44px);
-    background-color: hsl(var(--background));
-    z-index: 99998; /* Just below header */
-    pointer-events: none;
-  }
-}
+/* iOS status bar - no pseudo-element needed, native status bar handles this */
+/* The header extends under the status bar with proper safe-area padding */
 
 /* Safe area CSS variables */
 :root {
