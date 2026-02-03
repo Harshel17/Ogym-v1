@@ -7,8 +7,9 @@
 /* 
  * LAYOUT ARCHITECTURE - Production iOS Safe Area Handling
  * - Uses height: 100% chain (avoids 100vh/100dvh iOS issues)
- * - WKWebView set to transparent so native background shows through
- * - Background colors set on html/body AND native iOS layer
+ * - Native iOS: WKWebView set to OPAQUE with #0b1220 background
+ * - Native iOS: ViewController.view.backgroundColor = #0b1220
+ * - Web fallback: html::after fills bottom safe area as safety net
  * - Safe area padding applied to CONTENT, not containers
  */
 
