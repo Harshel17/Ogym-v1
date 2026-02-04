@@ -1,0 +1,80 @@
+BUILD NOW — REMOVE EXTRA TOP/BOTTOM GAPS (SAFE-AREA DOUBLE COUNT FIX) + PUSH TAB ICONS TO CURVE
+
+We still have two visible issues (red-marked):
+
+Too much empty space at the top above the OGym header row
+
+Bottom tab icons are too high and there is still visible gap near the curved bottom
+
+This looks like safe-area is being applied twice in header/tabbar (height includes safe-area AND padding includes safe-area). Also tab icons are vertically centered instead of sitting near the bottom curve.
+
+A) Fix the TOP gap (remove double safe-area)
+
+In .mobile-fixed-header (or equivalent):
+
+Do NOT include safe-area in BOTH height and padding.
+Use ONE of these approaches:
+
+Preferred approach:
+
+height: var(--mobile-header-height);
+
+padding-top: env(safe-area-inset-top);
+
+Total visual height becomes: safe-area + header (correct)
+
+If currently using:
+height: calc(var(--mobile-header-height) + env(safe-area-inset-top))
+then set padding-top: 0 (not both).
+
+Result: the OGym row moves closer to the top like Apple Fitness.
+
+B) Fix the BOTTOM gap + push icons to the curve
+
+In .mobile-fixed-tabbar:
+
+Ensure the tabbar background covers ALL the way to screen bottom:
+
+position: fixed; left:0; right:0; bottom:0;
+
+total height should include safe-area only ONCE.
+
+Use:
+
+height: var(--mobile-tab-bar-height);
+
+padding-bottom: env(safe-area-inset-bottom);
+
+Then inside the tabbar, align icons toward the bottom:
+
+set container to display:flex; align-items:flex-end;
+
+add small padding so icons sit nicely:
+
+padding-bottom: 6px; (in addition to safe-area padding, but DO NOT duplicate it)
+
+Example structure:
+
+outer tabbar handles safe-area padding-bottom
+
+inner icon row is flex-end with a small 6px padding-bottom
+
+C) Remove the white curve area (background not filling)
+
+Ensure background is painted everywhere:
+
+html, body, #root { height: 100%; background: #0b1220; }
+
+.mobile-fixed-tabbar background must be opaque/translucent and cover its full height.
+
+D) After change, verify with screenshots
+
+Provide screenshots showing:
+
+top gap reduced (header near top)
+
+tab icons sit close to bottom curve
+
+no white curve area visible
+
+Do NOT change native iOS/Capacitor files.

@@ -72,12 +72,13 @@ html.dark::after {
 /* CSS variables */
 :root {
   --mobile-header-height: 56px;
-  --mobile-tab-bar-height: 64px;
+  --mobile-tab-bar-height: 56px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  /* Dynamic overlay heights - set by JS ResizeObserver, fallback to static values */
+  /* Dynamic overlay heights - set by JS ResizeObserver */
+  /* Fallback values: base height + safe-area + padding */
   --header-total-h: calc(var(--mobile-header-height) + env(safe-area-inset-top, 0px));
-  --tabbar-total-h: calc(var(--mobile-tab-bar-height) + env(safe-area-inset-bottom, 0px));
+  --tabbar-total-h: calc(var(--mobile-tab-bar-height) + env(safe-area-inset-bottom, 0px) + 10px);
 }
 
 /* Main app scroll container */
@@ -130,28 +131,37 @@ html.dark::after {
 }
 
 /* Fixed mobile header overlay with glass effect */
+/* Safe-area applied ONCE via padding-top only, height is base header height */
 .mobile-fixed-header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 9999;
-  height: calc(var(--mobile-header-height) + env(safe-area-inset-top, 0px));
+  height: auto;
+  min-height: var(--mobile-header-height);
   padding: 8px 12px;
   padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
   border-bottom: 1px solid hsla(var(--border) / 0.5);
+  display: flex;
+  align-items: center;
 }
 
 /* Fixed mobile tab bar overlay with glass effect */
+/* Safe-area applied ONCE via padding-bottom only, icons align to bottom */
 .mobile-fixed-tabbar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 9999;
-  height: calc(var(--mobile-tab-bar-height) + env(safe-area-inset-bottom, 0px));
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  height: auto;
+  min-height: var(--mobile-tab-bar-height);
+  padding-top: 4px;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
   border-top: 1px solid hsla(var(--border) / 0.5);
+  display: flex;
+  align-items: flex-end;
 }
 
 /* DEPRECATED - keeping for backwards compatibility */
