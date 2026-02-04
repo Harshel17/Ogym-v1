@@ -8,6 +8,8 @@ OGym is a multi-tenant B2B web application designed for comprehensive gym manage
 
 Preferred communication style: Simple, everyday language.
 
+**Future Discussion (in ~10 days):** Evaluate rebuilding the iOS app in Swift/SwiftUI or Flutter for a premium native feel (like Instagram/Spotify). The backend API and database would remain the same - only the mobile frontend would be rebuilt natively. This would solve the iOS spacing issues and provide true 100% native experience.
+
 ## System Architecture
 
 ### UI/UX Decisions
