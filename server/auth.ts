@@ -1,11 +1,52 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import jwt from "jsonwebtoken";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+
+const JWT_SECRET = process.env.SESSION_SECRET || "dev-only-secret-do-not-use-in-prod";
+
+// Generate JWT token for mobile apps
+export function generateMobileToken(userId: number): string {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "30d" });
+}
+
+// Verify JWT token
+export function verifyMobileToken(token: string): { userId: number } | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as { userId: number };
+  } catch {
+    return null;
+  }
+}
+
+// Middleware to authenticate mobile requests via Bearer token
+export async function mobileAuthMiddleware(req: Request, res: Response, next: NextFunction) {
+  // Skip if already authenticated via session
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    return next();
+  }
+  
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.substring(7);
+    const decoded = verifyMobileToken(token);
+    
+    if (decoded) {
+      const user = await storage.getUser(decoded.userId);
+      if (user) {
+        req.user = user;
+        return next();
+      }
+    }
+  }
+  
+  next();
+}
 
 const scryptAsync = promisify(scrypt);
 

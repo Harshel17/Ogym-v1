@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth, hashPassword, comparePasswords } from "./auth";
+import { setupAuth, hashPassword, comparePasswords, generateMobileToken, mobileAuthMiddleware } from "./auth";
 import { storage } from "./storage";
 import { z } from "zod";
 import { nanoid } from "nanoid";
@@ -80,6 +80,9 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   setupAuth(app);
+  
+  // Add mobile token authentication middleware (supports Bearer tokens for iOS/Android)
+  app.use(mobileAuthMiddleware);
 
   // === AUTH ROUTES ===
   
@@ -298,9 +301,14 @@ export async function registerRoutes(
           subscriptionStatus = await storage.checkGymSubscriptionStatus(fullUser.gymId);
         }
         
+        // Generate mobile token if requested via header
+        const isMobileApp = req.headers["x-mobile-app"] === "true";
+        const mobileToken = isMobileApp ? generateMobileToken(user.id) : undefined;
+        
         return res.status(200).json({
           ...fullUser,
-          subscriptionStatus
+          subscriptionStatus,
+          mobileToken
         });
       });
     } catch (err) {
