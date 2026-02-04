@@ -14,31 +14,20 @@
  */
 
 /* Height chain: html -> body -> #root all use 100% */
-/* iOS: Force dark background globally to prevent white bleed at edges/corners */
 html {
-  height: 100% !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: hidden !important;
-  background: #0b1220 !important;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 body {
-  height: 100% !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  padding-right: 0 !important;
-  padding-left: 0 !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  overflow: hidden !important;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
-  background: #0b1220 !important;
-  /* Prevent any library from modifying body position/size */
-  position: relative !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
 }
 
 /* App root - flex container filling entire viewport */
@@ -48,6 +37,28 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* NATIVE ONLY: Force dark background for iOS/Android to prevent white bleed */
+html.capacitor-native {
+  background: #0b1220 !important;
+}
+
+html.capacitor-native body {
+  background: #0b1220 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  overflow: hidden !important;
+  position: relative !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+html.capacitor-native #root {
   background: #0b1220 !important;
 }
 
