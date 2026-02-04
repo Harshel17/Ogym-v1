@@ -1,0 +1,50 @@
+ func fetchWorkoutCycles() {
+        let user = authViewModel.user
+        print("DEBUG - gymId: \(user?.gymId ?? -1), trainingMode: \(user?.trainingMode?.rawValue ?? "nil")")
+        let isPersonalOrSelfGuided = user?.gymId == nil || user?.trainingMode == .selfGuided
+        
+        if isPersonalOrSelfGuided {
+            // Personal mode - fetch cycles
+            guard let url = URL(string: "https://app.ogym.fitness/api/personal/cycles") else {
+                isLoading = false
+                return
+            }
+            let request = AuthViewModel.createAuthenticatedRequest(url: url)
+            
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                DispatchQueue.main.async {
+                    isLoading = false
+                    guard let data = data else { return }
+                    if let cycles = try? JSONDecoder().decode([WorkoutCycle].self, from: data) {
+                        self.workoutCycles = cycles
+                        print("Loaded \(cycles.count) personal cycles")
+                    }
+                }
+            }.resume()
+        } else {
+            // Gym member - fetch workout schedule
+            guard let url = URL(string: "https://app.ogym.fitness/api/member/workout/schedule") else {
+                isLoading = false
+                return
+            }
+            let request = AuthViewModel.createAuthenticatedRequest(url: url)
+            
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                DispatchQueue.main.async {
+                    isLoading = false
+                    guard let data = data else { return }
+                    
+                    // Debug
+                    if let json = String(data: data, encoding: .utf8) {
+                        print("Schedule response: \(json.prefix(500))")
+                    }
+                    
+                    if let schedule = try? JSONDecoder().decode(MemberWorkoutSchedule.self, from: data) {
+                        self.memberSchedule = schedule
+                        print("Loaded schedule: \(schedule.cycleName ?? "unnamed")")
+                    }
+                }
+            }.resume()
+        }
+    }
+}
