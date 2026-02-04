@@ -75,7 +75,7 @@ body {
 /* Mobile content padding to account for fixed overlays */
 @media (max-width: 767px) {
   .mobile-content-padding {
-    padding-top: calc(var(--header-total-h, 64px) + 8px);
+    padding-top: var(--header-total-h, 64px);
     /* Extra 16px buffer to ensure content not hidden behind tab bar */
     padding-bottom: calc(var(--tabbar-total-h, 90px) + 16px);
     min-height: 100%;
@@ -106,7 +106,7 @@ body {
   height: auto;
   min-height: 48px;
   padding: 6px 12px;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 4px);
+  padding-top: env(safe-area-inset-top, 0px);
   border-bottom: 1px solid hsla(var(--border) / 0.5);
   display: flex;
   align-items: center;
