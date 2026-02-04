@@ -474,6 +474,11 @@ export function DikaDrawer({
     { value: 'bat', icon: BatIcon, label: 'Bat' },
   ];
 
+  // Detect iOS native platform
+  const isIOS = typeof window !== 'undefined' && 
+    typeof (window as any).Capacitor !== 'undefined' && 
+    (window as any).Capacitor.getPlatform?.() === 'ios';
+
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent 
@@ -484,6 +489,7 @@ export function DikaDrawer({
           maxHeight: keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh',
           zIndex: 100000,
         }}
+        preventCloseOnInteractOutside={isIOS}
         data-testid="drawer-dika"
       >
         <SheetHeader 
