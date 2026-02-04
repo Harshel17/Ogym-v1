@@ -1,0 +1,68 @@
+//
+//  ContentView.swift
+//  OGym
+//
+
+import SwiftUI
+
+struct HomeView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
+    
+    var body: some View {
+        ZStack {
+            // Background
+            Color(red: 15/255, green: 23/255, blue: 42/255)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 24) {
+                Spacer()
+                
+                // Welcome
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 80))
+                    .foregroundColor(.green)
+                
+                Text("Welcome to OGym!")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                
+                if let user = authViewModel.user {
+                    Text(user.email)
+                        .foregroundColor(.gray)
+                    
+                    if let role = user.role {
+                        Text("Role: \(role.rawValue.capitalized)")
+                            .foregroundColor(.indigo)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.indigo.opacity(0.2))
+                            .cornerRadius(20)
+                    }
+                }
+                
+                Spacer()
+                
+                // Logout Button
+                Button(action: {
+                    authViewModel.logout()
+                }) {
+                    Text("Logout")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.red.opacity(0.2))
+                        .foregroundColor(.red)
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal, 40)
+                .padding(.bottom, 40)
+            }
+        }
+    }
+}
+
+#Preview {
+    HomeView()
+        .environmentObject(AuthViewModel())
+}
