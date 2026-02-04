@@ -47,12 +47,13 @@ body {
 
 /* CSS variables */
 :root {
-  --mobile-header-height: 56px;
+  --mobile-header-height: 48px;
   --mobile-tab-bar-height: 56px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  /* Tab bar total = 56px inner + safe-area */
+  /* Header total = 48px + safe-area-top */
   --header-total-h: calc(var(--mobile-header-height) + env(safe-area-inset-top, 0px));
+  /* Tab bar total = 56px inner + safe-area-bottom */
   --tabbar-total-h: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -103,9 +104,9 @@ body {
   right: 0;
   z-index: 9999;
   height: auto;
-  min-height: var(--mobile-header-height);
-  padding: 8px 12px;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+  min-height: 48px;
+  padding: 6px 12px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 4px);
   border-bottom: 1px solid hsla(var(--border) / 0.5);
   display: flex;
   align-items: center;

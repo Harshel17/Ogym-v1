@@ -632,11 +632,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* More Menu Drawer */}
       <Drawer open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
-        <DrawerContent style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}>
+        <DrawerContent className="bg-background" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
           <DrawerHeader>
             <DrawerTitle>More Options</DrawerTitle>
           </DrawerHeader>
-          <div className="px-4 pb-6 space-y-1 max-h-[60vh] overflow-y-auto">
+          <div className="px-4 pb-4 space-y-1 max-h-[60vh] overflow-y-auto">
             {secondaryTabs.map((item) => {
               const isActive = location === item.href || 
                 (item.href !== "/" && location.startsWith(item.href));

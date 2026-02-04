@@ -231,7 +231,16 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
       </p>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-md max-w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogContent className="sm:max-w-md max-w-[95vw] max-h-[85vh] flex flex-col p-4 sm:p-6">
+          {/* Close button */}
+          <button
+            onClick={() => setIsOpen(false)}
+            className="absolute right-3 top-3 rounded-full p-1.5 hover:bg-muted transition-colors z-10"
+            data-testid="button-close-find-food"
+          >
+            <X className="w-5 h-5 text-muted-foreground" />
+          </button>
+          
           {step === 'radius' && (
             <>
               <DialogHeader>
@@ -300,17 +309,16 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
           )}
 
           {step === 'results' && (
-            <>
-              {console.log('[FindMyFood] Rendering results, restaurants count:', restaurants.length)}
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+            <div className="flex flex-col h-full min-h-0">
+              <DialogHeader className="flex-shrink-0">
+                <DialogTitle className="flex items-center gap-2 pr-8">
                   <Utensils className="w-5 h-5 text-primary" />
                   Food Options Near You ({restaurants.length})
                 </DialogTitle>
               </DialogHeader>
 
               {dikaGeneralMessage && (
-                <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-200 dark:border-purple-800 rounded-lg p-2.5 sm:p-3 mt-2">
+                <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-200 dark:border-purple-800 rounded-lg p-2.5 sm:p-3 mt-2 flex-shrink-0">
                   <div className="flex items-start gap-2">
                     <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-500 mt-0.5 flex-shrink-0" />
                     <div>
@@ -321,7 +329,8 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
                 </div>
               )}
 
-              <div className="space-y-2 sm:space-y-3 mt-3 sm:mt-4 max-h-[55vh] overflow-y-auto -mx-1 px-1">
+              {/* Scrollable restaurant list */}
+              <div className="flex-1 min-h-0 overflow-y-auto mt-3 sm:mt-4 -mx-1 px-1 space-y-2 sm:space-y-3">
                 {restaurants.length === 0 ? (
                   <div className="text-center py-6 sm:py-8 text-muted-foreground">
                     <Utensils className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 opacity-50" />
@@ -365,15 +374,18 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
                 )}
               </div>
 
-              <Button 
-                variant="outline" 
-                className="w-full mt-3 sm:mt-4"
-                size="sm"
-                onClick={() => setStep('radius')}
-              >
-                Search Again
-              </Button>
-            </>
+              {/* Fixed search again button at bottom */}
+              <div className="flex-shrink-0 pt-3 sm:pt-4 border-t border-border mt-3">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  size="sm"
+                  onClick={() => setStep('radius')}
+                >
+                  Search Again
+                </Button>
+              </div>
+            </div>
           )}
 
           {step === 'log_prompt' && selectedRestaurant && (
