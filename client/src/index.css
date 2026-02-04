@@ -72,7 +72,7 @@ html.dark::after {
 /* CSS variables */
 :root {
   --mobile-header-height: 56px;
-  --mobile-tab-bar-height: 56px;
+  --mobile-tab-bar-height: 64px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -88,30 +88,29 @@ html.dark::after {
 /* Note: Header/tabbar heights ALREADY include safe-area, so we only add the base heights + buffer */
 @media (max-width: 767px) {
   .mobile-content-padding {
-    padding-top: calc(var(--mobile-header-height) + 16px);
-    padding-bottom: calc(var(--mobile-tab-bar-height) + 16px);
+    padding-top: calc(var(--mobile-header-height) + 8px);
+    padding-bottom: calc(var(--mobile-tab-bar-height) + 8px);
   }
   
   /* Deprecated - use mobile-content-padding instead */
   .pb-safe-bottom {
-    padding-bottom: calc(var(--mobile-tab-bar-height) + 16px) !important;
+    padding-bottom: calc(var(--mobile-tab-bar-height) + 8px) !important;
   }
 }
 
-/* Glass effect base - translucent with blur */
+/* Glass effect base - translucent with blur (iOS WebView compatible) */
 .glass-effect {
-  backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
+  /* Light mode: translucent light background */
+  background-color: hsla(220, 20%, 97%, 0.75);
+  border-color: hsla(220, 14%, 90%, 0.5);
 }
 
-/* Light mode glass */
-.glass-effect {
-  background-color: hsla(var(--background) / 0.75);
-  border-color: hsla(var(--border) / 0.5);
-}
-
-/* Dark mode glass */
+/* Dark mode glass - translucent dark background */
 .dark .glass-effect {
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
   background-color: rgba(11, 18, 32, 0.8);
   border-color: rgba(255, 255, 255, 0.1);
 }
