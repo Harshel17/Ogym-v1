@@ -12,11 +12,17 @@ class ViewController: CAPBridgeViewController {
         
         // Set view background immediately
         view.backgroundColor = safeAreaColor
+        
+        // Set window background for edge-to-edge coverage
+        if let window = view.window {
+            window.backgroundColor = safeAreaColor
+        }
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         view.backgroundColor = safeAreaColor
+        view.window?.backgroundColor = safeAreaColor
         configureWebViewBackground()
     }
     
@@ -24,6 +30,7 @@ class ViewController: CAPBridgeViewController {
         super.viewDidAppear(animated)
         print("✅ Custom ViewController loaded and active")
         view.backgroundColor = safeAreaColor
+        view.window?.backgroundColor = safeAreaColor
         configureWebViewBackground()
         
         // Delayed application to catch async WKWebView attachment
@@ -40,9 +47,15 @@ class ViewController: CAPBridgeViewController {
     private func configureWebViewBackground() {
         // Recursively find WKWebView in entire view hierarchy
         if let webView = findWKWebView(in: view) {
-            webView.isOpaque = true
-            webView.backgroundColor = safeAreaColor
-            webView.scrollView.backgroundColor = safeAreaColor
+            // Set to non-opaque with clear background so native dark shows through
+            webView.isOpaque = false
+            webView.backgroundColor = .clear
+            webView.scrollView.backgroundColor = .clear
+            
+            // Disable rubber-band bounce to prevent white flash
+            webView.scrollView.bounces = false
+            webView.scrollView.alwaysBounceVertical = false
+            webView.scrollView.alwaysBounceHorizontal = false
         }
     }
     

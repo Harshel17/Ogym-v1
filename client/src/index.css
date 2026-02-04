@@ -51,10 +51,9 @@ body {
   --mobile-tab-bar-height: 56px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  /* Dynamic overlay heights - set by JS ResizeObserver */
-  /* Fallback: base height + safe-area (no extra padding to avoid stacking) */
+  /* Tab bar total = 56px inner + safe-area */
   --header-total-h: calc(var(--mobile-header-height) + env(safe-area-inset-top, 0px));
-  --tabbar-total-h: calc(var(--mobile-tab-bar-height) + env(safe-area-inset-bottom, 0px));
+  --tabbar-total-h: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Main app scroll container */
@@ -89,26 +88,12 @@ body {
   }
 }
 
-/* Glass effect base - translucent with blur (iOS WebView compatible) */
+/* Glass effect base - dark mode only for iOS launch */
 .glass-effect {
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  backdrop-filter: blur(16px) saturate(180%);
-  /* Light mode: translucent light background */
-  background-color: hsla(220, 20%, 97%, 0.75);
-  border-color: hsla(220, 14%, 90%, 0.5);
-}
-
-/* Dark mode glass - translucent dark background */
-.dark .glass-effect {
   -webkit-backdrop-filter: blur(16px) saturate(180%);
   backdrop-filter: blur(16px) saturate(180%);
   background-color: rgba(11, 18, 32, 0.85);
   border-color: rgba(255, 255, 255, 0.1);
-}
-
-/* Tab bar glass needs higher opacity to fully cover safe-area */
-.mobile-fixed-tabbar.glass-effect {
-  background-color: rgba(11, 18, 32, 0.92);
 }
 
 /* Fixed mobile header overlay with glass effect */
@@ -128,23 +113,32 @@ body {
   align-items: center;
 }
 
-/* Fixed mobile tab bar overlay with glass effect */
-/* Height includes safe-area to fill bottom region completely */
+/* Fixed mobile tab bar - hard-anchored to viewport bottom */
+/* Height = 56px icons + safe-area background fill */
 .mobile-fixed-tabbar {
   position: fixed;
-  bottom: 0;
   left: 0;
   right: 0;
+  bottom: 0;
+  width: 100%;
   z-index: 9999;
-  height: calc(var(--mobile-tab-bar-height) + env(safe-area-inset-bottom, 0px));
-  padding-top: 4px;
+  height: calc(56px + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  border-top: 1px solid hsla(var(--border) / 0.5);
+  background: rgba(11, 18, 32, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
-/* Glass blur layer - non-interactive, sits behind tab content */
+/* Inner tab row - exactly 56px, contains icons */
+.mobile-tabbar-inner {
+  height: 56px;
+  flex-shrink: 0;
+}
+
+/* Glass blur layer - non-interactive, behind content */
 .mobile-fixed-tabbar::before {
   content: '';
   position: absolute;
@@ -153,7 +147,6 @@ body {
   pointer-events: none;
   -webkit-backdrop-filter: blur(16px) saturate(180%);
   backdrop-filter: blur(16px) saturate(180%);
-  background-color: rgba(11, 18, 32, 0.85);
 }
 
 /* DEPRECATED - keeping for backwards compatibility */

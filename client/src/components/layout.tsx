@@ -578,19 +578,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {/* Mobile Bottom Tab Bar - glass effect overlay */}
+      {/* Mobile Bottom Tab Bar - fixed to viewport bottom edge */}
       <nav 
         ref={tabbarRef}
-        className="mobile-fixed-tabbar glass-effect md:hidden flex justify-around items-center"
+        className="mobile-fixed-tabbar md:hidden"
+        style={{ transform: 'translateZ(0)' }}
       >
-        <div className="flex justify-around items-center w-full h-full">
+        {/* Inner tab row - exactly 56px, icons centered */}
+        <div className="mobile-tabbar-inner flex justify-around items-center w-full">
           {primaryTabs.map((item) => {
             const isActive = location === item.href || 
               (item.href !== "/" && location.startsWith(item.href));
             return (
               <Link key={item.href} href={item.href}>
                 <div 
-                  className={`relative flex flex-col items-center justify-center min-w-[56px] py-2 cursor-pointer transition-colors ${
+                  className={`relative flex flex-col items-center justify-center min-w-[56px] py-1.5 cursor-pointer transition-colors ${
                     isActive ? "text-primary" : "text-muted-foreground"
                   }`}
                   data-testid={`tab-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
@@ -603,14 +605,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       </span>
                     )}
                   </div>
-                  <span className={`text-[11px] mt-1 truncate max-w-[60px] ${isActive ? "font-semibold" : "font-medium"}`}>{item.label}</span>
+                  <span className={`text-[11px] mt-0.5 truncate max-w-[60px] ${isActive ? "font-semibold" : "font-medium"}`}>{item.label}</span>
                 </div>
               </Link>
             );
           })}
           {hasMoreMenu && (
             <div 
-              className={`relative flex flex-col items-center justify-center min-w-[56px] py-2 cursor-pointer transition-colors text-muted-foreground`}
+              className={`relative flex flex-col items-center justify-center min-w-[56px] py-1.5 cursor-pointer transition-colors text-muted-foreground`}
               onClick={() => setMoreMenuOpen(true)}
               data-testid="tab-more"
             >
@@ -622,7 +624,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </span>
                 )}
               </div>
-              <span className="text-[11px] mt-1 font-medium">More</span>
+              <span className="text-[11px] mt-0.5 font-medium">More</span>
             </div>
           )}
         </div>

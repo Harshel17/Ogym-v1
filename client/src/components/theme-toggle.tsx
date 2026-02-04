@@ -3,7 +3,12 @@ import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/use-theme";
 
 export function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme, isNativeIOS } = useTheme();
+
+  // iOS native: Hide theme toggle completely (dark mode only)
+  if (isNativeIOS) {
+    return null;
+  }
 
   // Simple toggle between light and dark
   const toggleTheme = () => {
