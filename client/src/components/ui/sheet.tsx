@@ -7,7 +7,28 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Sheet = SheetPrimitive.Root
+// Detect iOS native platform
+const isIOSNative = () => {
+  if (typeof window === 'undefined') return false;
+  const cap = (window as any).Capacitor;
+  return cap && cap.getPlatform?.() === 'ios';
+};
+
+// Custom Sheet that disables modal behavior on iOS to prevent body scroll lock
+// which causes layout shifts
+interface SheetProps extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Root> {
+  children: React.ReactNode;
+}
+
+const Sheet = ({ children, ...props }: SheetProps) => {
+  // On iOS native, disable modal to prevent body style manipulation
+  const modal = isIOSNative() ? false : true;
+  return (
+    <SheetPrimitive.Root modal={modal} {...props}>
+      {children}
+    </SheetPrimitive.Root>
+  );
+};
 
 const SheetTrigger = SheetPrimitive.Trigger
 
