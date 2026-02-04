@@ -1,0 +1,107 @@
+//
+//  User.swift
+//  OGym
+//
+
+import Foundation
+
+// MARK: - User Role
+enum UserRole: String, Codable {
+    case owner
+    case trainer
+    case member
+}
+
+// MARK: - Training Mode
+enum TrainingMode: String, Codable {
+    case trainerLed = "trainer_led"
+    case selfGuided = "self_guided"
+}
+
+// MARK: - User Model (matches backend API response)
+struct User: Codable, Identifiable {
+    let id: Int
+    let publicId: String?
+    let gymId: Int?
+    let username: String
+    let role: UserRole?
+    let isAdmin: Bool?
+    let email: String?
+    let emailVerified: Bool?
+    let phone: String?
+    let autoPostEnabled: Bool?
+    let onboardingCompleted: Bool?
+    let hideDika: Bool?
+    let dikaIconPreference: String?
+    let trainingMode: TrainingMode?
+    let healthConnected: Bool?
+    let healthSource: String?
+    let createdAt: String?
+    
+    // Backend returns camelCase - no mapping needed for most fields
+    // Only trainingMode needs special handling for its enum values
+}
+
+// MARK: - Gym Model (matches backend API response)
+struct Gym: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let code: String
+    let phone: String?
+    let address: String?
+    let city: String?
+    let state: String?
+    let country: String?
+    let currency: String?
+    let timezone: String?
+    let timings: String?
+    let gymType: String?
+    let facilities: String?
+    let dayPassPrice: Int?
+    let ownerUserId: Int?
+    let createdAt: String?
+}
+
+// MARK: - API Error
+struct APIError: Codable {
+    let message: String
+}
+
+// MARK: - Workout Cycle (The main workout plan)
+struct WorkoutCycle: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let gymId: Int?
+    let trainerId: Int?
+    let memberId: Int
+    let cycleLength: Int
+    let dayLabels: [String]?
+    let restDays: [Int]?
+    let startDate: String
+    let endDate: String
+    let progressionMode: String?
+    let currentDayIndex: Int?
+    let lastWorkoutDate: String?
+    let isActive: Bool?
+    let source: String?
+    let phaseNumber: Int?
+    let createdAt: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, source
+        case gymId = "gym_id"
+        case trainerId = "trainer_id"
+        case memberId = "member_id"
+        case cycleLength = "cycle_length"
+        case dayLabels = "day_labels"
+        case restDays = "rest_days"
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case progressionMode = "progression_mode"
+        case currentDayIndex = "current_day_index"
+        case lastWorkoutDate = "last_workout_date"
+        case isActive = "is_active"
+        case phaseNumber = "phase_number"
+        case createdAt = "created_at"
+    }
+}
