@@ -1,0 +1,163 @@
+
+//  Workout.swift
+//  OGym
+//
+
+import Foundation
+
+// MARK: - Workout Cycle (The main workout plan)
+struct WorkoutCycle: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let description: String?
+    let memberId: Int?
+    let gymId: Int?
+    let trainerId: Int?
+    let isActive: Bool?
+    let cycleType: String?
+    let lastWorkoutDate: String?
+    let createdAt: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, description
+        case memberId = "member_id"
+        case gymId = "gym_id"
+        case trainerId = "trainer_id"
+        case isActive = "is_active"
+        case cycleType = "cycle_type"
+        case lastWorkoutDate = "last_workout_date"
+        case createdAt = "created_at"
+    }
+}
+
+// MARK: - Workout Item (Exercise in a cycle)
+struct WorkoutItem: Codable, Identifiable {
+    let id: Int
+    let cycleId: Int
+    let dayNumber: Int
+    let dayName: String?
+    let exerciseName: String
+    let exerciseType: String?
+    let sets: Int?
+    let reps: String?
+    let weight: String?
+    let durationMinutes: Int?
+    let distanceKm: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case cycleId = "cycle_id"
+        case dayNumber = "day_number"
+        case dayName = "day_name"
+        case exerciseName = "exercise_name"
+        case exerciseType = "exercise_type"
+        case sets, reps, weight
+        case durationMinutes = "duration_minutes"
+        case distanceKm = "distance_km"
+    }
+}
+
+// MARK: - Workout Log (Session record)
+struct WorkoutLog: Codable, Identifiable {
+    let id: Int
+    let memberId: Int
+    let gymId: Int?
+    let cycleId: Int?
+    let workoutDate: String
+    let notes: String?
+    let createdAt: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case memberId = "member_id"
+        case gymId = "gym_id"
+        case cycleId = "cycle_id"
+        case workoutDate = "workout_date"
+        case notes
+        case createdAt = "created_at"
+    }
+}
+
+// MARK: - Workout Completion
+struct WorkoutCompletion: Codable, Identifiable {
+    let id: Int
+    let memberId: Int
+    let gymId: Int?
+    let workoutItemId: Int?
+    let completedDate: String
+    let setsCompleted: Int?
+    let repsCompleted: String?
+    let weightUsed: String?
+    let exerciseName: String?
+    let exerciseType: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case memberId = "member_id"
+        case gymId = "gym_id"
+        case workoutItemId = "workout_item_id"
+        case completedDate = "completed_date"
+        case setsCompleted = "sets_completed"
+        case repsCompleted = "reps_completed"
+        case weightUsed = "weight_used"
+        case exerciseName = "exercise_name"
+        case exerciseType = "exercise_type"
+    }
+}
+
+// MARK: - Training Phase (for gym members)
+struct TrainingPhase: Identifiable, Codable {
+    let id: Int
+    let gymId: Int
+    let memberId: Int
+    let trainerId: Int?
+    let name: String
+    let goalType: String
+    let startDate: String
+    let endDate: String
+    let cycleId: Int?
+    let dietPlanId: Int?
+    let autoAssignCycle: Bool?
+    let useCustomExercises: Bool?
+    let cycleLength: Int?
+    let dayLabels: [String]?
+    let restDays: [Int]?
+    let notes: String?
+    let createdAt: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, notes
+        case gymId = "gym_id"
+        case memberId = "member_id"
+        case trainerId = "trainer_id"
+        case goalType = "goal_type"
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case cycleId = "cycle_id"
+        case dietPlanId = "diet_plan_id"
+        case autoAssignCycle = "auto_assign_cycle"
+        case useCustomExercises = "use_custom_exercises"
+        case cycleLength = "cycle_length"
+        case dayLabels = "day_labels"
+        case restDays = "rest_days"
+        case createdAt = "created_at"
+    }
+}
+
+// MARK: - Member Workout Schedule (for gym members)
+struct MemberWorkoutSchedule: Codable {
+    let cycleId: Int?
+    let cycleName: String?
+    let cycleLength: Int
+    let startDate: String?
+    let endDate: String?
+    let schedule: [ScheduleDay]?
+    
+    struct ScheduleDay: Codable, Identifiable {
+        var id: String { date }
+        let date: String
+        let dayIndex: Int
+        let dayLabel: String
+        let status: String
+    }
+}
