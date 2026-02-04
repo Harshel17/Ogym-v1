@@ -1,0 +1,160 @@
+/
+//  LoginView.swift
+//  OGym
+//
+
+import SwiftUI
+
+struct LoginView: View {
+    @ObservedObject var authViewModel: AuthViewModel
+    @FocusState private var isEmailFocused: Bool
+    @FocusState private var isOTPFocused: Bool
+    
+    var body: some View {
+        ZStack {
+            // Background
+            Color(red: 15/255, green: 23/255, blue: 42/255)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 24) {
+                Spacer()
+                
+                // Logo
+                VStack(spacing: 8) {
+                    Image(systemName: "dumbbell.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.indigo)
+                    
+                    Text("OGym")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    Text("Fitness Management")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
+                .padding(.bottom, 40)
+                
+                // Login Card
+                VStack(spacing: 20) {
+                    if !authViewModel.otpSent {
+                        // Email Input
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Email")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            
+                            TextField("Enter your email", text: $authViewModel.email)
+                                .textFieldStyle(.plain)
+                                .padding()
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(12)
+                                .foregroundColor(.white)
+                                .keyboardType(.emailAddress)
+                                .autocapitalization(.none)
+                                .focused($isEmailFocused)
+                        }
+                        
+                        // Send OTP Button
+                        Button(action: {
+                            authViewModel.requestOTP()
+                        }) {
+                            HStack {
+                                if authViewModel.isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Text("Send OTP")
+                                        .fontWeight(.semibold)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.indigo)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                        }
+                        .disabled(authViewModel.isLoading)
+                        
+                    } else {
+                        // OTP Input
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Enter OTP")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                
+                                Spacer()
+                                
+                                Button("Change Email") {
+                                    authViewModel.resetOTPFlow()
+                                }
+                                .font(.caption)
+                                .foregroundColor(.indigo)
+                            }
+                            
+                            Text("Sent to \(authViewModel.email)")
+                                .font(.caption2)
+                                .foregroundColor(.gray)
+                            
+                            TextField("6-digit OTP", text: $authViewModel.otp)
+                                .textFieldStyle(.plain)
+                                .padding()
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(12)
+                                .foregroundColor(.white)
+                                .keyboardType(.numberPad)
+                                .focused($isOTPFocused)
+                                .onChange(of: authViewModel.otp) { newValue in
+                                    if newValue.count > 6 {
+                                        authViewModel.otp = String(newValue.prefix(6))
+                                    }
+                                }
+                        }
+                        
+                        // Verify Button
+                        Button(action: {
+                            authViewModel.verifyOTP()
+                        }) {
+                            HStack {
+                                if authViewModel.isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Text("Verify & Login")
+                                        .fontWeight(.semibold)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.indigo)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                        }
+                        .disabled(authViewModel.isLoading || authViewModel.otp.count != 6)
+                    }
+                    
+                    // Error Message
+                    if let error = authViewModel.errorMessage {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding(24)
+                .background(Color(red: 30/255, green: 41/255, blue: 59/255))
+                .cornerRadius(20)
+                .padding(.horizontal, 20)
+                
+                Spacer()
+                Spacer()
+            }
+        }
+    }
+}
+
+#Preview {
+    LoginView(authViewModel: AuthViewModel())
+}
