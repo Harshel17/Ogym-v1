@@ -1,0 +1,99 @@
+BUILD NOW — FIX CONTENT HIDING UNDER HEADER + LOGIN SAFE-AREA + CLIPPING (WEB-ONLY, NO NATIVE CHANGES)
+
+We still have two issues visible on iOS:
+
+Top content hidden under fixed OGym header
+Example: “Good evening, harshel” partially appears under the header.
+This means content padding-top is smaller than the actual rendered header height (safe-area + header + internal padding).
+
+White safe-area bands / missing content
+Login/Auth screens still show white bands at top/bottom, and some dashboard pages have content clipped or hidden near the edges.
+
+These must be fixed permanently using layout architecture, not guessed heights.
+
+🔹 A) Measure REAL header & tab bar heights (no guessing px)
+
+In client/src/components/layout.tsx:
+
+Add refs for the fixed header overlay and fixed tab bar overlay.
+
+On mount + resize/orientation change:
+
+Measure headerRef.current.offsetHeight
+
+Measure tabbarRef.current.offsetHeight
+
+Set CSS variables on document.documentElement:
+
+--header-total-h: ${headerHeight}px
+--tabbar-total-h: ${tabbarHeight}px
+
+Use ResizeObserver if available so this stays correct across devices.
+
+⚠️ IMPORTANT: Measure the outer fixed overlay container, not inner rows.
+
+🔹 B) Use measured values for content spacing (prevents hiding forever)
+
+In client/src/index.css, update the main scroll container:
+
+padding-top: calc(var(--header-total-h, 0px) + 8px);
+padding-bottom: calc(var(--tabbar-total-h, 0px) + 8px);
+
+
+scroll-padding-top: calc(var(--header-total-h, 0px) + 12px);
+scroll-padding-bottom: calc(var(--tabbar-total-h, 0px) + 12px);
+
+This guarantees:
+
+No headings hidden under header
+
+No buttons hidden under tab bar
+
+Inputs scroll into view correctly
+
+🔹 C) Fix Login/Auth white safe-area bands (edge-to-edge background)
+
+Auth uses a separate layout, so it must still:
+
+Always paint background behind everything:
+
+html, body, #root {
+  height: 100%;
+  background: #0b1220;
+}
+
+Apply safe-area padding only for content, not background:
+
+padding-top: calc(env(safe-area-inset-top) + 12px);
+padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
+
+Remove large margins/padding that create visible empty bands.
+
+Goal: Login should feel tight like Apple Fitness — no white top/bottom.
+
+🔹 D) Prevent clipping & missing parts
+
+Ensure only ONE scroll container:
+
+overflow-y: auto;
+-webkit-overflow-scrolling: touch;
+
+Remove overflow: hidden from parents that clip content.
+
+🔹 E) Verification screenshots required
+
+After build, provide screenshots of:
+
+Login screen — no white bands top/bottom
+
+Dashboard — “Good evening …” fully visible
+
+Long page (Progress/My Stats) — bottom content not hidden
+
+🚫 Do NOT modify:
+
+iOS native files
+
+Capacitor config
+
+Safe-area native handling

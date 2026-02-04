@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotificationCounts } from "@/hooks/use-notifications";
@@ -59,6 +59,48 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location, navigate] = useLocation();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const { data: notificationCounts } = useNotificationCounts();
+  
+  // Refs for measuring actual rendered heights of fixed overlays
+  const headerRef = useRef<HTMLElement>(null);
+  const tabbarRef = useRef<HTMLElement>(null);
+  
+  // Function to measure and set CSS variables for overlay heights
+  const updateOverlayHeights = useCallback(() => {
+    const root = document.documentElement;
+    if (headerRef.current) {
+      const headerHeight = headerRef.current.offsetHeight;
+      root.style.setProperty('--header-total-h', `${headerHeight}px`);
+    }
+    if (tabbarRef.current) {
+      const tabbarHeight = tabbarRef.current.offsetHeight;
+      root.style.setProperty('--tabbar-total-h', `${tabbarHeight}px`);
+    }
+  }, []);
+  
+  // Set up ResizeObserver to track overlay size changes
+  useEffect(() => {
+    updateOverlayHeights();
+    
+    // Use ResizeObserver if available for accurate tracking
+    if (typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(() => {
+        updateOverlayHeights();
+      });
+      
+      if (headerRef.current) resizeObserver.observe(headerRef.current);
+      if (tabbarRef.current) resizeObserver.observe(tabbarRef.current);
+      
+      return () => resizeObserver.disconnect();
+    } else {
+      // Fallback: listen to resize/orientation changes
+      window.addEventListener('resize', updateOverlayHeights);
+      window.addEventListener('orientationchange', updateOverlayHeights);
+      return () => {
+        window.removeEventListener('resize', updateOverlayHeights);
+        window.removeEventListener('orientationchange', updateOverlayHeights);
+      };
+    }
+  }, [updateOverlayHeights]);
 
   if (!user) return null;
 
@@ -502,6 +544,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile Fixed Header Overlay - glass effect */}
       <header 
+        ref={headerRef}
         className="mobile-fixed-header glass-effect md:hidden flex items-center justify-between gap-2"
       >
         <div className="flex items-center gap-2">
@@ -537,6 +580,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile Bottom Tab Bar - glass effect overlay */}
       <nav 
+        ref={tabbarRef}
         className="mobile-fixed-tabbar glass-effect md:hidden flex justify-around items-center"
       >
         <div className="flex justify-around items-center w-full h-full">

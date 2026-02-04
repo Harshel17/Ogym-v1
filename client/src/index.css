@@ -75,6 +75,9 @@ html.dark::after {
   --mobile-tab-bar-height: 64px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Dynamic overlay heights - set by JS ResizeObserver, fallback to static values */
+  --header-total-h: calc(var(--mobile-header-height) + env(safe-area-inset-top, 0px));
+  --tabbar-total-h: calc(var(--mobile-tab-bar-height) + env(safe-area-inset-bottom, 0px));
 }
 
 /* Main app scroll container */
@@ -84,17 +87,28 @@ html.dark::after {
   overscroll-behavior-x: none;
 }
 
+/* Scroll padding on main container for keyboard/focus behavior */
+@media (max-width: 767px) {
+  .app-main-scroll {
+    scroll-padding-top: calc(var(--header-total-h, 64px) + 12px);
+    scroll-padding-bottom: calc(var(--tabbar-total-h, 72px) + 12px);
+  }
+}
+
 /* Mobile content padding to account for fixed overlays */
-/* Note: Header/tabbar heights ALREADY include safe-area, so we only add the base heights + buffer */
+/* Uses dynamically measured overlay heights from JS ResizeObserver */
 @media (max-width: 767px) {
   .mobile-content-padding {
-    padding-top: calc(var(--mobile-header-height) + 8px);
-    padding-bottom: calc(var(--mobile-tab-bar-height) + 8px);
+    padding-top: calc(var(--header-total-h, 64px) + 8px);
+    padding-bottom: calc(var(--tabbar-total-h, 72px) + 8px);
+    /* Scroll padding ensures focused inputs scroll into view correctly */
+    scroll-padding-top: calc(var(--header-total-h, 64px) + 12px);
+    scroll-padding-bottom: calc(var(--tabbar-total-h, 72px) + 12px);
   }
   
   /* Deprecated - use mobile-content-padding instead */
   .pb-safe-bottom {
-    padding-bottom: calc(var(--mobile-tab-bar-height) + 8px) !important;
+    padding-bottom: calc(var(--tabbar-total-h, 72px) + 8px) !important;
   }
 }
 
