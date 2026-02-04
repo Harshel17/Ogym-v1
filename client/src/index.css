@@ -50,8 +50,9 @@ html.dark #root {
   background: #0b1220 !important; /* Dark mode */
 }
 
-/* Web-layer safe-area fallback - fills bottom safe area when native transparency unavailable */
-/* This is a safety net for older iOS or before JS hydration */
+/* Web-layer safe-area fallback - DISABLED when glass overlays are active */
+/* Glass overlays handle safe-area via their own heights and backgrounds */
+/* Kept at z-index below fixed overlays (9999) as safety net only */
 html::after {
   content: '';
   position: fixed;
@@ -60,7 +61,7 @@ html::after {
   right: 0;
   height: env(safe-area-inset-bottom, 0px);
   background: hsl(220 20% 97%);
-  z-index: 99998;
+  z-index: 50;
   pointer-events: none;
 }
 
@@ -71,7 +72,7 @@ html.dark::after {
 /* CSS variables */
 :root {
   --mobile-header-height: 56px;
-  --mobile-tab-bar-height: 64px;
+  --mobile-tab-bar-height: 56px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -83,16 +84,64 @@ html.dark::after {
   overscroll-behavior-x: none;
 }
 
-/* Mobile bottom safe area padding (tab bar height only - nav handles its own safe area) */
+/* Mobile content padding to account for fixed overlays */
+/* Note: Header/tabbar heights ALREADY include safe-area, so we only add the base heights + buffer */
 @media (max-width: 767px) {
+  .mobile-content-padding {
+    padding-top: calc(var(--mobile-header-height) + 16px);
+    padding-bottom: calc(var(--mobile-tab-bar-height) + 16px);
+  }
+  
+  /* Deprecated - use mobile-content-padding instead */
   .pb-safe-bottom {
-    padding-bottom: 72px !important; /* Tab bar height (64px) + small buffer (8px) */
+    padding-bottom: calc(var(--mobile-tab-bar-height) + 16px) !important;
   }
 }
 
-/* Light mode already set as default above */
+/* Glass effect base - translucent with blur */
+.glass-effect {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
 
-/* Sticky mobile header - sits at top of content flow with safe area */
+/* Light mode glass */
+.glass-effect {
+  background-color: hsla(var(--background) / 0.75);
+  border-color: hsla(var(--border) / 0.5);
+}
+
+/* Dark mode glass */
+.dark .glass-effect {
+  background-color: rgba(11, 18, 32, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Fixed mobile header overlay with glass effect */
+.mobile-fixed-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  height: calc(var(--mobile-header-height) + env(safe-area-inset-top, 0px));
+  padding: 8px 12px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+  border-bottom: 1px solid hsla(var(--border) / 0.5);
+}
+
+/* Fixed mobile tab bar overlay with glass effect */
+.mobile-fixed-tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  height: calc(var(--mobile-tab-bar-height) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-top: 1px solid hsla(var(--border) / 0.5);
+}
+
+/* DEPRECATED - keeping for backwards compatibility */
 .mobile-sticky-header {
   position: sticky;
   top: 0;
