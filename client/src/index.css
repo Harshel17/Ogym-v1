@@ -50,24 +50,7 @@ html.dark #root {
   background: #0b1220 !important; /* Dark mode */
 }
 
-/* Web-layer safe-area fallback - DISABLED when glass overlays are active */
-/* Glass overlays handle safe-area via their own heights and backgrounds */
-/* Kept at z-index below fixed overlays (9999) as safety net only */
-html::after {
-  content: '';
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-bottom, 0px);
-  background: hsl(220 20% 97%);
-  z-index: 50;
-  pointer-events: none;
-}
-
-html.dark::after {
-  background: #0b1220;
-}
+/* html::after safe-area fallback REMOVED - glass tab bar handles safe-area directly */
 
 /* CSS variables */
 :root {
@@ -76,9 +59,9 @@ html.dark::after {
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   /* Dynamic overlay heights - set by JS ResizeObserver */
-  /* Fallback values: base height + safe-area + padding */
+  /* Fallback: base height + safe-area (no extra padding to avoid stacking) */
   --header-total-h: calc(var(--mobile-header-height) + env(safe-area-inset-top, 0px));
-  --tabbar-total-h: calc(var(--mobile-tab-bar-height) + env(safe-area-inset-bottom, 0px) + 10px);
+  --tabbar-total-h: calc(var(--mobile-tab-bar-height) + env(safe-area-inset-bottom, 0px));
 }
 
 /* Main app scroll container */
@@ -101,15 +84,15 @@ html.dark::after {
 @media (max-width: 767px) {
   .mobile-content-padding {
     padding-top: calc(var(--header-total-h, 64px) + 8px);
-    padding-bottom: calc(var(--tabbar-total-h, 72px) + 8px);
+    padding-bottom: var(--tabbar-total-h, 72px);
     /* Scroll padding ensures focused inputs scroll into view correctly */
     scroll-padding-top: calc(var(--header-total-h, 64px) + 12px);
-    scroll-padding-bottom: calc(var(--tabbar-total-h, 72px) + 12px);
+    scroll-padding-bottom: calc(var(--tabbar-total-h, 72px) + 8px);
   }
   
   /* Deprecated - use mobile-content-padding instead */
   .pb-safe-bottom {
-    padding-bottom: calc(var(--tabbar-total-h, 72px) + 8px) !important;
+    padding-bottom: var(--tabbar-total-h, 72px) !important;
   }
 }
 
@@ -148,20 +131,19 @@ html.dark::after {
 }
 
 /* Fixed mobile tab bar overlay with glass effect */
-/* Safe-area applied ONCE via padding-bottom only, icons align to bottom */
+/* Safe-area applied ONCE via padding-bottom only */
 .mobile-fixed-tabbar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 9999;
-  height: auto;
-  min-height: var(--mobile-tab-bar-height);
+  height: var(--mobile-tab-bar-height);
   padding-top: 4px;
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   border-top: 1px solid hsla(var(--border) / 0.5);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
 }
 
 /* DEPRECATED - keeping for backwards compatibility */
