@@ -572,7 +572,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Main Content - Scroll container under fixed overlays */}
-      <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden app-main-scroll">
+      <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden app-main-scroll relative z-0">
         <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 mobile-content-padding md:pb-8 md:pt-0">
           {children}
         </div>

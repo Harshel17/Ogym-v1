@@ -17,7 +17,11 @@ const THEME_KEY = "ogym-theme";
 
 // Check if running as native iOS app
 function isNativeIOSApp(): boolean {
-  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
+  try {
+    return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
+  } catch {
+    return false;
+  }
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

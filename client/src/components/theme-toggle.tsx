@@ -1,19 +1,37 @@
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "@/hooks/use-theme";
+import { useContext } from "react";
+import { Capacitor } from "@capacitor/core";
+
+// Check if running as native iOS app
+function isNativeIOSApp(): boolean {
+  try {
+    return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
+  } catch {
+    return false;
+  }
+}
 
 export function ThemeToggle() {
-  const { resolvedTheme, setTheme, isNativeIOS } = useTheme();
-
   // iOS native: Hide theme toggle completely (dark mode only)
-  if (isNativeIOS) {
+  if (isNativeIOSApp()) {
     return null;
   }
 
   // Simple toggle between light and dark
   const toggleTheme = () => {
-    setTheme(resolvedTheme === "dark" ? "light" : "dark");
+    const root = document.documentElement;
+    const isDark = root.classList.contains("dark");
+    if (isDark) {
+      root.classList.remove("dark");
+      localStorage.setItem("ogym-theme", "light");
+    } else {
+      root.classList.add("dark");
+      localStorage.setItem("ogym-theme", "dark");
+    }
   };
+
+  const isDark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
 
   return (
     <Button 
