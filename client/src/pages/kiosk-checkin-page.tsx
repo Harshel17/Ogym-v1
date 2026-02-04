@@ -358,8 +358,8 @@ export default function KioskCheckinPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 overflow-y-auto">
-      <Card className="w-full max-w-md mx-auto my-4">
+    <div className="min-h-screen bg-background p-4 pb-20 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <Card className="w-full max-w-md mx-auto mb-8">
         <CardHeader className="text-center">
           <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
             <Building2 className="h-6 w-6 text-primary" />
