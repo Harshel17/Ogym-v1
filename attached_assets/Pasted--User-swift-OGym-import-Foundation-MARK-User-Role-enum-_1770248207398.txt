@@ -1,0 +1,93 @@
+//
+//  User.swift
+//  OGym
+//
+
+import Foundation
+
+// MARK: - User Role
+enum UserRole: String, Codable {
+    case owner
+    case trainer
+    case member
+}
+
+// MARK: - Training Mode
+enum TrainingMode: String, Codable {
+    case trainerLed = "trainer_led"
+    case selfGuided = "self_guided"
+}
+
+// MARK: - User Model (matches database exactly)
+struct User: Codable, Identifiable {
+    let id: Int
+    let publicId: String?
+    let gymId: Int?
+    let username: String
+    let role: UserRole?
+    let isAdmin: Bool?
+    let email: String?
+    let emailVerified: Bool?
+    let phone: String?
+    let autoPostEnabled: Bool?
+    let onboardingCompleted: Bool?
+    let hideDika: Bool?
+    let dikaIconPreference: String?
+    let trainingMode: TrainingMode?
+    let healthConnected: Bool?
+    let healthSource: String?
+    let createdAt: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case publicId = "public_id"
+        case gymId = "gym_id"
+        case username
+        case role
+        case isAdmin = "is_admin"
+        case email
+        case emailVerified = "email_verified"
+        case phone
+        case autoPostEnabled = "auto_post_enabled"
+        case onboardingCompleted = "onboarding_completed"
+        case hideDika = "hide_dika"
+        case dikaIconPreference = "dika_icon_preference"
+        case trainingMode = "training_mode"
+        case healthConnected = "health_connected"
+        case healthSource = "health_source"
+        case createdAt = "created_at"
+    }
+}
+
+// MARK: - Gym Model (matches database exactly)
+struct Gym: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let code: String
+    let phone: String?
+    let address: String?
+    let city: String?
+    let state: String?
+    let country: String?
+    let currency: String?
+    let timezone: String?
+    let timings: String?
+    let gymType: String?
+    let facilities: String?
+    let dayPassPrice: Int?
+    let ownerUserId: Int?
+    let createdAt: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, code, phone, address, city, state, country, currency, timezone, timings, facilities
+        case gymType = "gym_type"
+        case dayPassPrice = "day_pass_price"
+        case ownerUserId = "owner_user_id"
+        case createdAt = "created_at"
+    }
+}
+
+// MARK: - API Error
+struct APIError: Codable {
+    let message: String
+}
