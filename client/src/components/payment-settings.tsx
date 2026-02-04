@@ -600,11 +600,15 @@ export function MemberPaymentSheet({
 export function PaymentConfirmationsDashboard() {
   const { toast } = useToast();
 
-  const { data: confirmations = [], isLoading } = useQuery<any[]>({
+  const { data: confirmations = [], isLoading, isError } = useQuery<any[]>({
     queryKey: ["/api/owner/payment-confirmations", "pending"],
     queryFn: async () => {
       const res = await fetch("/api/owner/payment-confirmations?status=pending");
-      return res.json();
+      if (!res.ok) {
+        return []; // Return empty array on error instead of crashing
+      }
+      const data = await res.json();
+      return Array.isArray(data) ? data : []; // Ensure it's always an array
     },
   });
 
