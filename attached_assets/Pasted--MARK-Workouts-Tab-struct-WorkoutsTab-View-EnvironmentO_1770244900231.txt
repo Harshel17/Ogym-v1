@@ -1,0 +1,112 @@
+// MARK: - Workouts Tab
+struct WorkoutsTab: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @State private var workoutCycles: [WorkoutCycle] = []
+    @State private var isLoading = true
+    @State private var selectedDay = 0
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color(red: 15/255, green: 23/255, blue: 46/255)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // Header
+                    HStack {
+                        Text("Workouts")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        Spacer()
+                        
+                        Button(action: {}) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.indigo)
+                        }
+                    }
+                    .padding()
+                    
+                    if isLoading {
+                        Spacer()
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        Spacer()
+                    } else if workoutCycles.isEmpty {
+                        // Empty State
+                        Spacer()
+                        VStack(spacing: 16) {
+                            Image(systemName: "dumbbell.fill")
+                                .font(.system(size: 60))
+                                .foregroundColor(.gray.opacity(0.5))
+                            
+                            Text("No Workout Plans")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                            
+                            Text("Create your first workout cycle to get started")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                            
+                            Button(action: {}) {
+                                HStack {
+                                    Image(systemName: "plus")
+                                    Text("Create Workout Plan")
+                                }
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.indigo)
+                                .cornerRadius(12)
+                            }
+                            .padding(.top, 8)
+                        }
+                        .padding()
+                        Spacer()
+                    } else {
+                        // Workout Cycles List
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                ForEach(workoutCycles) { cycle in
+                                    WorkoutCycleCard(cycle: cycle)
+                                }
+                            }
+                            .padding()
+                        }
+                    }
+                }
+            }
+            .navigationBarHidden(true)
+            .onAppear {
+                fetchWorkoutCycles()
+            }
+        }
+    }
+    
+    func fetchWorkoutCycles() {
+        let urlString = "https://app.ogym.fitness/api/workout-cycles"
+        guard let url = URL(string: urlString) else {
+            isLoading = false
+            return
+        }
+        
+        let request = AuthViewModel.createAuthenticatedRequest(url: url)
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                isLoading = false
+                
+                if let data = data {
+                    do {
+                        let cycles = try JSONDecoder().decode([WorkoutCycle].self, from: data)
+                        self.workoutCycles = cycles
+                    } catch {
+                        print("Decode error: \(error)")
+                    }
+                }
+            }
+        }.resume()
+    }
+}
