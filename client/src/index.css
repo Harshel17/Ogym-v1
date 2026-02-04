@@ -14,16 +14,13 @@
  */
 
 /* Height chain: html -> body -> #root all use 100% */
+/* iOS: Force dark background globally to prevent white bleed at edges/corners */
 html {
   height: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: hsl(220 20% 97%) !important; /* Light mode */
-}
-
-html.dark {
-  background: #0b1220 !important; /* Dark mode */
+  background: #0b1220 !important;
 }
 
 body {
@@ -33,7 +30,7 @@ body {
   overflow: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
-  background: inherit !important;
+  background: #0b1220 !important;
 }
 
 /* App root - flex container filling entire viewport */
@@ -43,11 +40,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: hsl(220 20% 97%) !important; /* Light mode */
-}
-
-html.dark #root {
-  background: #0b1220 !important; /* Dark mode */
+  background: #0b1220 !important;
 }
 
 /* html::after safe-area fallback REMOVED - glass tab bar handles safe-area directly */
@@ -109,8 +102,13 @@ html.dark #root {
 .dark .glass-effect {
   -webkit-backdrop-filter: blur(16px) saturate(180%);
   backdrop-filter: blur(16px) saturate(180%);
-  background-color: rgba(11, 18, 32, 0.8);
+  background-color: rgba(11, 18, 32, 0.85);
   border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Tab bar glass needs higher opacity to fully cover safe-area */
+.mobile-fixed-tabbar.glass-effect {
+  background-color: rgba(11, 18, 32, 0.92);
 }
 
 /* Fixed mobile header overlay with glass effect */
@@ -131,19 +129,31 @@ html.dark #root {
 }
 
 /* Fixed mobile tab bar overlay with glass effect */
-/* Safe-area applied ONCE via padding-bottom only */
+/* Height includes safe-area to fill bottom region completely */
 .mobile-fixed-tabbar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 9999;
-  height: var(--mobile-tab-bar-height);
+  height: calc(var(--mobile-tab-bar-height) + env(safe-area-inset-bottom, 0px));
   padding-top: 4px;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   border-top: 1px solid hsla(var(--border) / 0.5);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+}
+
+/* Glass blur layer - non-interactive, sits behind tab content */
+.mobile-fixed-tabbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(16px) saturate(180%);
+  background-color: rgba(11, 18, 32, 0.85);
 }
 
 /* DEPRECATED - keeping for backwards compatibility */
