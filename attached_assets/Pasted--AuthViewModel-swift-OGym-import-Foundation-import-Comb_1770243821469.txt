@@ -1,0 +1,79 @@
+
+//  AuthViewModel.swift
+//  OGym
+//
+
+import Foundation
+import Combine
+
+class AuthViewModel: ObservableObject {
+    @Published var email: String = ""
+    @Published var password: String = ""
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String?
+    @Published var isLoggedIn: Bool = false
+    @Published var user: User?
+    
+    private let baseURL = "https://app.ogym.fitness/api"
+    
+    func login() {
+        guard !email.isEmpty, !password.isEmpty else {
+            errorMessage = "Please enter email and password"
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        guard let url = URL(string: "\(baseURL)/auth/login") else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: String] = ["email": email, "password": password]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                
+                if let error = error {
+                    self?.errorMessage = error.localizedDescription
+                    return
+                }
+                
+                guard let data = data,
+                      let httpResponse = response as? HTTPURLResponse else {
+                    self?.errorMessage = "No response from server"
+                    return
+                }
+                
+                if httpResponse.statusCode == 200 {
+                    do {
+                        let user = try JSONDecoder().decode(User.self, from: data)
+                        self?.user = user
+                        self?.isLoggedIn = true
+                    } catch {
+                        self?.errorMessage = "Failed to parse response"
+                    }
+                } else {
+                    // Try to get error message
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let message = json["message"] as? String {
+                        self?.errorMessage = message
+                    } else {
+                        self?.errorMessage = "Login failed"
+                    }
+                }
+            }
+        }.resume()
+    }
+    
+    func logout() {
+        isLoggedIn = false
+        user = nil
+        email = ""
+        password = ""
+    }
+}
