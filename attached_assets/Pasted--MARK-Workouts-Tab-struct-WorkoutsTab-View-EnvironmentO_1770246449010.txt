@@ -1,0 +1,139 @@
+// MARK: - Workouts Tab
+struct WorkoutsTab: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @State private var workoutCycles: [WorkoutCycle] = []
+    @State private var isLoading = true
+    @State private var selectedDay = 0
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color(red: 15/255, green: 23/255, blue: 46/255)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // Header
+                    HStack {
+                        Text("Workouts")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        Spacer()
+                        
+                        Button(action: {}) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.indigo)
+                        }
+                    }
+                    .padding()
+                    
+                    if isLoading {
+                        Spacer()
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        Spacer()
+                    } else if workoutCycles.isEmpty {
+                        // Empty State
+                            Spacer()
+                            VStack(spacing: 16) {
+                                Image(systemName: "dumbbell.fill")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.gray.opacity(0.5))
+                                
+                                // Different message for gym members vs personal
+                                if authViewModel.user?.gymId != nil && authViewModel.user?.trainingMode != .selfGuided {
+                                    Text("Trainer-Led Workouts")
+                                        .font(.title2)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                    
+                                    Text("Your workouts are managed by your trainer. Check the web app for full details.")
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                        .multilineTextAlignment(.center)
+                                } else {
+                                    Text("No Workout Plans")
+                                        .font(.title2)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                    
+                                    Text("Create your first workout cycle to get started")
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                        .multilineTextAlignment(.center)
+                                    
+                                    Button(action: {}) {
+                                        HStack {
+                                            Image(systemName: "plus")
+                                            Text("Create Workout Plan")
+                                        }
+                                        .foregroundColor(.white)
+                                        .padding()
+                                        .background(Color.indigo)
+                                        .cornerRadius(12)
+                                    }
+                                    .padding(.top, 8)
+                                }
+                            }
+                        .padding()
+                        Spacer()
+                    } else {
+                        // Workout Cycles List
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                ForEach(workoutCycles) { cycle in
+                                    WorkoutCycleCard(cycle: cycle)
+                                }
+                            }
+                            .padding()
+                        }
+                    }
+                }
+            }
+            .navigationBarHidden(true)
+            .onAppear {
+                fetchWorkoutCycles()
+            }
+        }
+    }
+    
+    func fetchWorkoutCycles() {
+        let user = authViewModel.user
+        
+        // Check if personal mode (no gym) or self-guided
+        let isPersonalOrSelfGuided = user?.gymId == nil || user?.trainingMode == .selfGuided
+        
+        if !isPersonalOrSelfGuided {
+            // Gym member with trainer-led mode - show different UI
+            isLoading = false
+            // For now, gym members see their workouts via web app
+            // We can add this later with proper TrainingPhase model
+            print("Gym member - using trainer-led workouts")
+            return
+        }
+        
+        // Personal mode - fetch from /api/personal/cycles
+        let urlString = "https://app.ogym.fitness/api/personal/cycles"
+        
+        guard let url = URL(string: urlString) else {
+            isLoading = false
+            return
+        }
+        
+        let request = AuthViewModel.createAuthenticatedRequest(url: url)
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                isLoading = false
+                
+                guard let data = data else { return }
+                
+                if let cycles = try? JSONDecoder().decode([WorkoutCycle].self, from: data) {
+                    self.workoutCycles = cycles
+                    print("Loaded \(cycles.count) personal cycles")
+                }
+            }
+        }.resume()
+    }
+}
