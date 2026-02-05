@@ -78,6 +78,7 @@ class StarMember {
   final String? dietPlan;
   final String? specialNotes;
   final int? workoutAdherence;
+  final int? nutritionAdherence;
   final DateTime? lastContact;
 
   StarMember({
@@ -89,6 +90,7 @@ class StarMember {
     this.dietPlan,
     this.specialNotes,
     this.workoutAdherence,
+    this.nutritionAdherence,
     this.lastContact,
   });
 
@@ -102,6 +104,7 @@ class StarMember {
       dietPlan: json['dietPlan'] as String?,
       specialNotes: json['specialNotes'] as String?,
       workoutAdherence: json['workoutAdherence'] as int?,
+      nutritionAdherence: json['nutritionAdherence'] as int?,
       lastContact: json['lastContact'] != null 
           ? DateTime.parse(json['lastContact'] as String) 
           : null,
