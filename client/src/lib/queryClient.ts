@@ -96,10 +96,10 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      refetchOnWindowFocus: true,
+      staleTime: 2 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
       retry: (failureCount, error) => {
-        // Retry up to 2 times for timeout/network errors
         if (failureCount >= 2) return false;
         const message = (error as Error).message || '';
         return message.includes('timeout') || message.includes('connect') || message.includes('network');

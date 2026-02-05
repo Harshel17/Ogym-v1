@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotificationCounts } from "@/hooks/use-notifications";
@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dika } from "@/components/dika";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { usePullRefresh } from "@/hooks/use-pull-refresh";
+import { queryClient } from "@/lib/queryClient";
 import ogymLogo from "@/assets/images/ogym-logo.png";
 import { 
   Drawer,
@@ -59,6 +61,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location, navigate] = useLocation();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const { data: notificationCounts } = useNotificationCounts();
+  const mainRef = useRef<HTMLElement | null>(null);
+  
+  const handlePullRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries();
+  }, []);
+  
+  const { setScrollElement, PullIndicator } = usePullRefresh({
+    onRefresh: handlePullRefresh,
+    threshold: 70,
+  });
+  
+  const mainRefCallback = useCallback((el: HTMLElement | null) => {
+    mainRef.current = el;
+    setScrollElement(el);
+  }, [setScrollElement]);
   
   // Refs for header/tabbar elements (no longer used for dynamic height measurement)
   // CSS variables --header-total-h and --tabbar-total-h are set in index.css using fixed calculations
@@ -533,8 +550,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Main Content - Scroll container under fixed overlays */}
-      <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden app-main-scroll relative z-0">
-        <div className="p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 mobile-content-padding md:pb-8 md:pt-0">
+      <main ref={mainRefCallback} className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden app-main-scroll relative z-0">
+        <PullIndicator />
+        <div className="p-4 md:p-8 max-w-7xl mx-auto page-fade-scale mobile-content-padding md:pb-8 md:pt-0" key={location}>
           {children}
         </div>
       </main>

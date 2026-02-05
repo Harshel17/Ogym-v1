@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity } from "lucide-react";
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
+import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
 import { HealthSummary } from "@/components/health-summary";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
@@ -150,7 +151,7 @@ function OwnerDashboard() {
     return `${year}-${month}-${day}`;
   };
 
-  const { data: dashboardMetrics } = useQuery<{
+  const { data: dashboardMetrics, isLoading: metricsLoading } = useQuery<{
     totalMembers: number;
     checkedInToday: number;
     checkedInYesterday: number;
@@ -211,6 +212,10 @@ function OwnerDashboard() {
 
   if (showOnboarding) {
     return <OwnerOnboarding onComplete={completeOnboarding} />;
+  }
+
+  if (metricsLoading && !dashboardMetrics) {
+    return <OwnerDashboardSkeleton />;
   }
 
   return (
@@ -408,7 +413,7 @@ function TrainerDashboard() {
     setShowOnboarding(false);
   };
 
-  const { data: dashboardData } = useQuery<TrainerDashboardData>({
+  const { data: dashboardData, isLoading: trainerLoading } = useQuery<TrainerDashboardData>({
     queryKey: ["/api/trainer/dashboard"],
   });
 
@@ -424,6 +429,10 @@ function TrainerDashboard() {
 
   if (showOnboarding) {
     return <TrainerOnboarding onComplete={completeOnboarding} />;
+  }
+
+  if (trainerLoading && !dashboardData) {
+    return <TrainerDashboardSkeleton />;
   }
 
   return (
@@ -1021,6 +1030,10 @@ function MemberDashboard() {
     return isPersonalMode 
       ? <PersonalModeOnboarding onComplete={completeOnboarding} />
       : <MemberOnboarding onComplete={completeOnboarding} />;
+  }
+
+  if (workoutLoading && !todayWorkout && !stats) {
+    return <MemberDashboardSkeleton />;
   }
 
   return (
