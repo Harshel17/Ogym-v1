@@ -42,6 +42,7 @@ Preferred communication style: Simple, everyday language.
 - **Communication:** Announcements for owner-to-member/trainer communication.
 - **Member Engagement:** Trainer-member assignment history, "Star Members" with diet plans, social feed with activity, tournaments, and daily points based on workout completions.
 - **Walk-in Visitors:** Tracking day passes, trials, and inquiries with a self-check-in kiosk, including external payment links and payment verification.
+- **Mobile Performance Optimizations (Capacitor):** Premium native-like experience through: (1) CSS touch optimizations removing tap delays, adding touch-action, scroll momentum, hardware-accelerated animations; (2) iOS-style page transitions via `page-fade-scale` CSS class; (3) Pull-to-refresh with Capacitor haptic feedback (`usePullRefresh` hook in `client/src/hooks/use-pull-refresh.tsx`); (4) Smart API caching with 2-minute staleTime, 10-minute gcTime, background refetch; (5) Premium skeleton loading screens for all dashboard types (`client/src/components/dashboard-skeleton.tsx`).
 - **Personal Mode:** Allows members to use the app without joining a gym for self-managed workout tracking, with data isolation and optional body measurement onboarding.
 - **AI Import Workouts:** Enables importing workouts from AI assistants via paste or screenshot, using regex parsing and client-side OCR (Tesseract.js).
 - **Training Mode:** Configurable for gym members as "Trainer-Led" or "Self-Guided," providing flexible workout management options within the gym context.
