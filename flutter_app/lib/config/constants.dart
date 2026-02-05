@@ -8,7 +8,7 @@ class ApiConstants {
   static const String register = '$apiUrl/auth/register';
   static const String currentUser = '$apiUrl/auth/user';
   
-  // Member endpoints
+  // Member/Workout endpoints
   static const String memberWorkouts = '$apiUrl/workouts/cycles/my';
   static const String todayWorkout = '$apiUrl/workouts/today';
   static const String workoutLogSets = '$apiUrl/workouts/log-sets';
@@ -16,28 +16,24 @@ class ApiConstants {
   // Nutrition endpoints  
   static const String nutritionToday = '$apiUrl/nutrition/today';
   static const String nutritionLog = '$apiUrl/nutrition/log';
+  static const String calorieGoals = '$apiUrl/nutrition/goals';
   
   // Measurements
   static const String measurements = '$apiUrl/measurements';
   static const String measurementsLatest = '$apiUrl/measurements/latest';
   
   // Owner endpoints
-  static const String ownerDashboard = '$apiUrl/owner/dashboard';
+  static const String ownerDashboard = '$apiUrl/owner/dashboard-metrics';
   static const String ownerMembers = '$apiUrl/owner/members';
   static const String ownerPayments = '$apiUrl/owner/payments';
-  static const String ownerAnnouncements = '$apiUrl/owner/announcements';
-  static const String ownerWalkins = '$apiUrl/owner/walkins';
-  static const String ownerInsights = '$apiUrl/owner/ai-insights';
+  static const String ownerAnnouncements = '$apiUrl/announcements';
+  static const String ownerWalkins = '$apiUrl/walkins';
+  static const String ownerInsights = '$apiUrl/dika/insights';
   
   // Trainer endpoints
   static const String trainerDashboard = '$apiUrl/trainer/dashboard';
   static const String trainerMembers = '$apiUrl/trainer/members';
   static const String trainerStarMembers = '$apiUrl/trainer/star-members';
-  
-  // Nutrition endpoints
-  static const String nutritionLog = '$apiUrl/nutrition/log';
-  static const String nutritionToday = '$apiUrl/nutrition/today';
-  static const String calorieGoals = '$apiUrl/nutrition/goals';
   
   // AI endpoints
   static const String dikaChat = '$apiUrl/dika/chat';
