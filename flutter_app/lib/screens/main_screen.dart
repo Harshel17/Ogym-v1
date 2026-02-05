@@ -57,43 +57,43 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildMemberBody() {
     switch (_currentIndex) {
       case 0:
-        return const MemberHomeTab();
+        return MemberHomeTab();
       case 1:
-        return const MemberWorkoutsTab();
+        return MemberWorkoutsTab();
       case 2:
-        return const MemberNutritionTab();
+        return MemberNutritionTab();
       case 3:
-        return const MemberProfileTab();
+        return MemberProfileTab();
       default:
-        return const MemberHomeTab();
+        return MemberHomeTab();
     }
   }
 
   Widget _buildOwnerBody() {
     switch (_currentIndex) {
       case 0:
-        return const OwnerHomeTab();
+        return OwnerHomeTab();
       case 1:
-        return const OwnerMembersTab();
+        return OwnerMembersTab();
       case 2:
-        return const OwnerPaymentsTab();
+        return OwnerPaymentsTab();
       case 3:
-        return const OwnerProfileTab();
+        return OwnerProfileTab();
       default:
-        return const OwnerHomeTab();
+        return OwnerHomeTab();
     }
   }
 
   Widget _buildTrainerBody() {
     switch (_currentIndex) {
       case 0:
-        return const TrainerHomeTab();
+        return TrainerHomeTab();
       case 1:
-        return const TrainerMembersTab();
+        return TrainerMembersTab();
       case 2:
-        return const TrainerProfileTab();
+        return TrainerProfileTab();
       default:
-        return const TrainerHomeTab();
+        return TrainerHomeTab();
     }
   }
 
