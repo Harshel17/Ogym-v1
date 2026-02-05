@@ -43,10 +43,11 @@ class ApiService {
       final response = await http.get(
         Uri.parse(endpoint),
         headers: headers,
-      );
+      ).timeout(const Duration(seconds: 30));
       return _handleResponse(response);
     } catch (e) {
-      throw ApiException('Network error: ${e.toString()}');
+      if (e is ApiException) rethrow;
+      throw ApiException('Connection failed. Check your internet connection.');
     }
   }
 
@@ -60,10 +61,11 @@ class ApiService {
         Uri.parse(endpoint),
         headers: baseHeaders,
         body: body != null ? jsonEncode(body) : null,
-      );
+      ).timeout(const Duration(seconds: 30));
       return _handleResponse(response);
     } catch (e) {
-      throw ApiException('Network error: ${e.toString()}');
+      if (e is ApiException) rethrow;
+      throw ApiException('Connection failed. Check your internet connection.');
     }
   }
 
@@ -119,12 +121,6 @@ class ApiService {
       } catch (e) {
         return response.body;
       }
-    } else if (response.statusCode == 401) {
-      throw ApiException('Unauthorized. Please login again.', statusCode: 401);
-    } else if (response.statusCode == 403) {
-      throw ApiException('Access denied.', statusCode: 403);
-    } else if (response.statusCode == 404) {
-      throw ApiException('Resource not found.', statusCode: 404);
     } else {
       String message = 'Server error';
       try {
@@ -133,7 +129,23 @@ class ApiService {
       } catch (e) {
         message = response.body.isNotEmpty ? response.body : 'Server error';
       }
-      throw ApiException(message, statusCode: response.statusCode);
+      
+      // Provide better error messages
+      if (response.statusCode == 401) {
+        throw ApiException(message.isNotEmpty && message != 'Server error' 
+            ? message 
+            : 'Session expired. Please login again.', statusCode: 401);
+      } else if (response.statusCode == 403) {
+        throw ApiException(message.isNotEmpty && message != 'Server error' 
+            ? message 
+            : 'Access denied.', statusCode: 403);
+      } else if (response.statusCode == 404) {
+        throw ApiException(message.isNotEmpty && message != 'Server error' 
+            ? message 
+            : 'Resource not found.', statusCode: 404);
+      } else {
+        throw ApiException(message, statusCode: response.statusCode);
+      }
     }
   }
 }
