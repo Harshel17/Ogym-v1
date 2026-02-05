@@ -25,44 +25,43 @@ class _MemberWorkoutsTabState extends State<MemberWorkoutsTab> {
   }
 
   Future<void> _fetchData() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
+    // Fetch workout data with error handling for each call
+    Map<String, dynamic>? todayWorkout;
+    Map<String, dynamic>? activeCycle;
+    
     try {
-      // Fetch workout data with error handling for each call
-      Map<String, dynamic>? todayWorkout;
-      Map<String, dynamic>? activeCycle;
-      
-      try {
-        final result = await _api.get(ApiConstants.todayWorkout);
-        todayWorkout = result is Map<String, dynamic> ? result : null;
-      } catch (_) {
-        todayWorkout = null;
-      }
-      
-      try {
-        final result = await _api.get(ApiConstants.memberWorkouts);
-        activeCycle = result is Map<String, dynamic> ? result : null;
-      } catch (_) {
-        activeCycle = null;
-      }
-
-      setState(() {
-        _todayWorkout = todayWorkout;
-        _activeCycle = activeCycle;
-        _isLoading = false;
-        _error = null;
-      });
-    } catch (e) {
-      setState(() {
-        _todayWorkout = null;
-        _activeCycle = null;
-        _isLoading = false;
-        _error = null; // Show empty state instead of error
-      });
+      final result = await _api.get(ApiConstants.todayWorkout);
+      todayWorkout = result is Map<String, dynamic> ? result : null;
+    } catch (_) {
+      todayWorkout = null;
     }
+    
+    try {
+      final result = await _api.get(ApiConstants.memberWorkouts);
+      if (result is Map<String, dynamic>) {
+        activeCycle = result;
+      } else if (result is List && result.isNotEmpty) {
+        activeCycle = result.first is Map<String, dynamic> ? result.first : null;
+      }
+    } catch (_) {
+      activeCycle = null;
+    }
+
+    if (!mounted) return;
+    
+    setState(() {
+      _todayWorkout = todayWorkout;
+      _activeCycle = activeCycle;
+      _isLoading = false;
+      _error = null; // Never show error, just show empty state
+    });
   }
 
   @override

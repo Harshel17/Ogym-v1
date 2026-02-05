@@ -28,44 +28,39 @@ class _MemberHomeTabState extends State<MemberHomeTab> {
   }
 
   Future<void> _fetchData() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
+    // Fetch today's workout data
+    Map<String, dynamic>? todayResult;
     try {
-      // Fetch today's workout data
-      Map<String, dynamic>? todayResult;
-      try {
-        final result = await _api.get(ApiConstants.todayWorkout);
-        todayResult = result is Map<String, dynamic> ? result : null;
-      } catch (_) {
-        todayResult = null;
-      }
-      
-      // Fetch nutrition summary for today
-      Map<String, dynamic>? nutritionResult;
-      try {
-        final result = await _api.get('${ApiConstants.nutritionSummary}?date=${DateTime.now().toIso8601String().split('T')[0]}');
-        nutritionResult = result is Map<String, dynamic> ? result : null;
-      } catch (_) {
-        nutritionResult = null;
-      }
-
-      setState(() {
-        _todayData = todayResult;
-        _nutritionData = nutritionResult;
-        _isLoading = false;
-        _error = null;
-      });
-    } catch (e) {
-      setState(() {
-        _todayData = null;
-        _nutritionData = null;
-        _isLoading = false;
-        _error = null; // Don't show error, just show empty state
-      });
+      final result = await _api.get(ApiConstants.todayWorkout);
+      todayResult = result is Map<String, dynamic> ? result : null;
+    } catch (_) {
+      todayResult = null;
     }
+    
+    // Fetch nutrition summary for today
+    Map<String, dynamic>? nutritionResult;
+    try {
+      final result = await _api.get('${ApiConstants.nutritionSummary}?date=${DateTime.now().toIso8601String().split('T')[0]}');
+      nutritionResult = result is Map<String, dynamic> ? result : null;
+    } catch (_) {
+      nutritionResult = null;
+    }
+
+    if (!mounted) return;
+    
+    setState(() {
+      _todayData = todayResult;
+      _nutritionData = nutritionResult;
+      _isLoading = false;
+      _error = null; // Never show error, just show empty state
+    });
   }
 
   String _getGreeting() {
