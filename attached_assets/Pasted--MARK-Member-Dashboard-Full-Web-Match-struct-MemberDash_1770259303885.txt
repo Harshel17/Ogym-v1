@@ -1,0 +1,111 @@
+// MARK: - Member Dashboard (Full Web Match)
+struct MemberDashboardContent: View {
+    let workoutSummary: WorkoutSummary?
+    let todayWorkout: TodayWorkout?
+    let isLoading: Bool
+    let onStartWorkout: () -> Void
+    
+    @State private var isWorkoutExpanded = false
+    @State private var completedExercises: Set<Int> = []
+    @State private var selectedCalendarDate: Date? = nil
+    @State private var showDayDetail = false
+    @State private var currentMonth = Date()
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            if isLoading {
+                ProgressView()
+                    .frame(height: 200)
+            } else {
+                // 1. Today's Workout Card (TOP - Expandable)
+                TodayWorkoutExpandable(
+                    todayWorkout: todayWorkout,
+                    isExpanded: $isWorkoutExpanded,
+                    completedExercises: $completedExercises,
+                    onStartWorkout: onStartWorkout
+                )
+                
+                }
+                // 2. Circular Stats Row (Day Streak + Today's Calories)
+                HStack(spacing: 16) {
+                    // Day Streak Circle
+                    VStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.orange.opacity(0.15))
+                                .frame(width: 100, height: 100)
+                            VStack(spacing: 4) {
+                                Image(systemName: "flame.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.orange)
+                                Text("\(workoutSummary?.streak ?? 0)")
+                                    .font(.system(size: 32, weight: .bold))
+                            }
+                        }
+                        Text("Day Streak")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(16)
+                    
+                    // Today's Calories
+                    VStack(spacing: 8) {
+                        VStack(spacing: 4) {
+                            Text("0")
+                                .font(.system(size: 32, weight: .bold))
+                            Text("kcal")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Text("Today's Calories")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(16)
+                }
+                .padding(.horizontal)
+                
+                // 3. This Week Progress
+                ThisWeekProgress(workoutSummary: workoutSummary)
+                
+                // 4. Workout Calendar
+                WorkoutCalendar(
+                    currentMonth: $currentMonth,
+                    selectedDate: $selectedCalendarDate,
+                    showDayDetail: $showDayDetail,
+                    workoutSummary: workoutSummary
+                )
+                
+                // 5. Today's Nutrition
+            // 5. Today's Nutrition
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Today's Nutrition")
+                    .font(.headline)
+                    .padding(.horizontal)
+                
+                HStack(spacing: 16) {
+                    NutritionStatCard(value: "0", label: "Calories")
+                    NutritionStatCard(value: "0g", label: "Protein")
+                    NutritionStatCard(value: "0g", label: "Carbs")
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+                .padding(.horizontal)
+            }
+        }
+    }
+    .sheet(isPresented: $showDayDetail) {
+        if let date = selectedCalendarDate {
+            WorkoutDayDetailView(date: date)
+        }
+    }
+}
+}// End of MemberDashboardContent
+// MARK: - Today's Workout Expandable Car
