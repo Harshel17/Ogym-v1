@@ -1,0 +1,365 @@
+//
+//  HomeTab.swift
+//  OGym
+//
+
+import SwiftUI
+
+struct HomeTab: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @State private var workoutSummary: WorkoutSummary?
+    @State private var todayWorkout: TodayWorkout?
+    @State private var isLoading = true
+    @State private var showActiveWorkout = false
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Welcome Header
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(greetingText)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Text(authViewModel.user?.username ?? "User")
+                                .font(.title2.bold())
+                        }
+                        Spacer()
+                        if let role = authViewModel.user?.role {
+                            Text(role.rawValue.capitalized)
+                                .font(.caption)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(roleColor(role))
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    // Role-Specific Dashboard
+                    switch authViewModel.user?.role {
+                    case .owner:
+                        OwnerDashboardContent()
+                    case .trainer:
+                        TrainerDashboardContent()
+                    case .member:
+                        MemberDashboardContent(
+                            workoutSummary: workoutSummary,
+                            todayWorkout: todayWorkout,
+                            isLoading: isLoading,
+                            onStartWorkout: { showActiveWorkout = true }
+                        )
+                    default:
+                        MemberDashboardContent(
+                            workoutSummary: workoutSummary,
+                            todayWorkout: todayWorkout,
+                            isLoading: isLoading,
+                            onStartWorkout: { showActiveWorkout = true }
+                        )
+                    }
+                    
+                    Spacer(minLength: 50)
+                }
+                .padding(.vertical)
+            }
+            .navigationBarHidden(true)
+            .refreshable { await fetchData() }
+            .onAppear { Task { await fetchData() } }
+            .fullScreenCover(isPresented: $showActiveWorkout) {
+                if let workout = todayWorkout, let items = workout.items {
+                    ActiveWorkoutView(
+                        dayLabel: workout.dayLabel ?? "Workout",
+                        exercises: items,
+                        onComplete: {
+                            showActiveWorkout = false
+                            Task { await fetchData() }
+                        }
+                    )
+                }
+            }
+        }
+    }
+    
+    func roleColor(_ role: UserRole) -> Color {
+        switch role {
+        case .owner: return .purple
+        case .trainer: return .orange
+        case .member: return .indigo
+        }
+    }
+    
+    var greetingText: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour < 12 { return "Good morning," }
+        else if hour < 17 { return "Good afternoon," }
+        else { return "Good evening," }
+    }
+    
+    func fetchData() async {
+        isLoading = true
+        
+        if let url = URL(string: "https://app.ogym.fitness/api/workouts/today") {
+            let request = AuthViewModel.createAuthenticatedRequest(url: url)
+            if let (data, _) = try? await URLSession.shared.data(for: request),
+               let workout = try? JSONDecoder().decode(TodayWorkout.self, from: data) {
+                await MainActor.run { self.todayWorkout = workout }
+            }
+        }
+        
+        if let url = URL(string: "https://app.ogym.fitness/api/member/workout/summary") {
+            let request = AuthViewModel.createAuthenticatedRequest(url: url)
+            if let (data, _) = try? await URLSession.shared.data(for: request),
+               let summary = try? JSONDecoder().decode(WorkoutSummary.self, from: data) {
+                await MainActor.run { self.workoutSummary = summary }
+            }
+        }
+        
+        await MainActor.run { isLoading = false }
+    }
+}
+
+// MARK: - Owner Dashboard
+struct OwnerDashboardContent: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                QuickStatCard(icon: "person.3.fill", value: "0", label: "Members", color: .indigo)
+                QuickStatCard(icon: "figure.run", value: "0", label: "Trainers", color: .orange)
+                QuickStatCard(icon: "indianrupeesign.circle.fill", value: "₹0", label: "Revenue", color: .green)
+                QuickStatCard(icon: "checkmark.circle.fill", value: "0", label: "Attendance", color: .blue)
+            }
+            .padding(.horizontal)
+            
+            // Quick Actions
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Quick Actions")
+                    .font(.headline)
+                    .padding(.horizontal)
+                
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    QuickActionCard(icon: "person.badge.plus", title: "Add Member", color: .indigo)
+                    QuickActionCard(icon: "checkmark.circle", title: "Attendance", color: .green)
+                    QuickActionCard(icon: "creditcard.fill", title: "Payments", color: .orange)
+                    QuickActionCard(icon: "megaphone.fill", title: "Announce", color: .purple)
+                }
+                .padding(.horizontal)
+            }
+            
+            // Recent Activity Placeholder
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Recent Activity")
+                    .font(.headline)
+                    .padding(.horizontal)
+                
+                Text("No recent activity")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+            }
+        }
+    }
+}
+
+// MARK: - Trainer Dashboard
+struct TrainerDashboardContent: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                QuickStatCard(icon: "person.2.fill", value: "0", label: "My Members", color: .indigo)
+                QuickStatCard(icon: "calendar", value: "0", label: "Sessions Today", color: .orange)
+                QuickStatCard(icon: "chart.bar.fill", value: "0", label: "This Week", color: .green)
+                QuickStatCard(icon: "clock.fill", value: "0", label: "Pending", color: .purple)
+            }
+            .padding(.horizontal)
+            
+            // Today's Schedule
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Today's Schedule")
+                    .font(.headline)
+                    .padding(.horizontal)
+                
+                VStack {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.largeTitle)
+                        .foregroundColor(.orange.opacity(0.5))
+                    Text("No sessions scheduled")
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+                .padding(.horizontal)
+            }
+        }
+    }
+}
+
+// MARK: - Member Dashboard
+struct MemberDashboardContent: View {
+    let workoutSummary: WorkoutSummary?
+    let todayWorkout: TodayWorkout?
+    let isLoading: Bool
+    let onStartWorkout: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            if isLoading {
+                ProgressView()
+                    .frame(height: 200)
+            } else {
+                // Stats Grid
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    QuickStatCard(icon: "flame.fill", value: "\(workoutSummary?.totalWorkouts ?? 0)", label: "Workouts", color: .orange)
+                    QuickStatCard(icon: "bolt.fill", value: "0", label: "Calories", color: .green)
+                    QuickStatCard(icon: "calendar", value: "\(workoutSummary?.streak ?? 0) days", label: "Streak", color: .blue)
+                    QuickStatCard(icon: "scalemass.fill", value: "--", label: "Weight", color: .pink)
+                }
+                .padding(.horizontal)
+                
+                // Today's Workout
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Today's Workout")
+                        .font(.headline)
+                        .padding(.horizontal)
+                    
+                    if let workout = todayWorkout, let items = workout.items, !items.isEmpty {
+                        Button(action: onStartWorkout) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text(workout.dayLabel ?? "Workout")
+                                        .font(.headline)
+                                    Spacer()
+                                    Text("\(items.count) exercises")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                ForEach(items.prefix(2)) { item in
+                                    HStack {
+                                        Text(item.exerciseName)
+                                            .font(.subheadline)
+                                        Spacer()
+                                        if let sets = item.sets, let reps = item.reps {
+                                            Text("\(sets) × \(reps)")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                                if items.count > 2 {
+                                    Text("+ \(items.count - 2) more")
+                                        .font(.caption)
+                                        .foregroundColor(.indigo)
+                                }
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal)
+                    } else {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.indigo)
+                            Text("Start a workout")
+                            Spacer()
+                        }
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                    }
+                }
+                
+                // Today's Nutrition
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Today's Nutrition")
+                        .font(.headline)
+                        .padding(.horizontal)
+                    
+                    HStack(spacing: 16) {
+                        NutritionStatCard(value: "0", label: "Calories")
+                        NutritionStatCard(value: "0g", label: "Protein")
+                        NutritionStatCard(value: "0g", label: "Carbs")
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Quick Action Card
+struct QuickActionCard: View {
+    let icon: String
+    let title: String
+    let color: Color
+    
+    var body: some View {
+        Button(action: {}) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(color)
+                Text(title)
+                    .font(.subheadline)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Quick Stat Card
+struct QuickStatCard: View {
+    let icon: String
+    let value: String
+    let label: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(color)
+            Text(value)
+                .font(.title2.bold())
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Nutrition Stat Card
+struct NutritionStatCard: View {
+    let value: String
+    let label: String
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.title3.bold())
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
