@@ -29,8 +29,11 @@ class ApiService {
 
     if (withAuth) {
       final token = await _storage.getToken();
-      if (token != null) {
+      if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
+        print('[API] Token found: ${token.substring(0, 20)}...'); // Debug
+      } else {
+        print('[API] No token available'); // Debug
       }
     }
 
@@ -114,6 +117,8 @@ class ApiService {
   }
 
   dynamic _handleResponse(http.Response response) {
+    print('[API] Response status: ${response.statusCode}'); // Debug
+    
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (response.body.isEmpty) return null;
       try {
@@ -129,6 +134,8 @@ class ApiService {
       } catch (e) {
         message = response.body.isNotEmpty ? response.body : 'Server error';
       }
+      
+      print('[API] Error: $message'); // Debug
       
       // Provide better error messages
       if (response.statusCode == 401) {
