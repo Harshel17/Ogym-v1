@@ -57,6 +57,8 @@ class ApiConstants {
   static const String ownerSubscriptionAlerts = '$apiUrl/owner/subscription-alerts';
   static const String ownerMembersNeedSubscription = '$apiUrl/owner/members-need-subscription';
   static const String ownerRevenue = '$apiUrl/owner/revenue';
+  static const String ownerPayments = '$apiUrl/payments/gym';
+  static const String ownerInsights = '$apiUrl/owner/ai-insights';
   
   // Payments
   static const String paymentsGym = '$apiUrl/payments/gym';
