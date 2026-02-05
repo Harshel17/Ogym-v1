@@ -1,0 +1,254 @@
+//
+//  HomeTab.swift
+//  OGym
+//
+
+import SwiftUI
+
+struct HomeTab: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @State private var workoutSummary: WorkoutSummary?
+    @State private var todayWorkout: TodayWorkout?
+    @State private var isLoading = true
+    @State private var showActiveWorkout = false
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Welcome Header
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(greetingText)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Text(authViewModel.currentUser?.username ?? "User")
+                                .font(.title2.bold())
+                        }
+                        Spacer()
+                        Text(authViewModel.currentUser?.role?.capitalized ?? "Member")
+                            .font(.caption)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.indigo)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    
+                    if isLoading {
+                        ProgressView()
+                            .frame(height: 200)
+                    } else {
+                        // Stats Grid
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                            QuickStatCard(icon: "flame.fill", value: "\(workoutSummary?.displayTotal ?? 0)", label: "Workouts", color: .orange)
+                            QuickStatCard(icon: "bolt.fill", value: "0", label: "Calories", color: .green)
+                            QuickStatCard(icon: "calendar", value: "\(workoutSummary?.displayStreak ?? 0) days", label: "Streak", color: .blue)
+                            QuickStatCard(icon: "scalemass.fill", value: "--", label: "Weight", color: .pink)
+                        }
+                        .padding(.horizontal)
+                        
+                        // Today's Workout
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Today's Workout")
+                                .font(.headline)
+                                .padding(.horizontal)
+                            
+                            todayWorkoutCard
+                        }
+                        
+                        // Today's Nutrition
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Today's Nutrition")
+                                .font(.headline)
+                                .padding(.horizontal)
+                            
+                            HStack(spacing: 16) {
+                                NutritionStatCard(value: "0", label: "Calories")
+                                NutritionStatCard(value: "0g", label: "Protein")
+                                NutritionStatCard(value: "0g", label: "Carbs")
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                            .padding(.horizontal)
+                        }
+                    }
+                    
+                    Spacer(minLength: 50)
+                }
+                .padding(.vertical)
+            }
+            .navigationBarHidden(true)
+            .refreshable { await fetchData() }
+            .onAppear { Task { await fetchData() } }
+            .fullScreenCover(isPresented: $showActiveWorkout) {
+                if let workout = todayWorkout, let items = workout.items {
+                    ActiveWorkoutView(
+                        dayLabel: workout.dayLabel ?? "Workout",
+                        exercises: items,
+                        onComplete: {
+                            showActiveWorkout = false
+                            Task { await fetchData() }
+                        }
+                    )
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    var todayWorkoutCard: some View {
+        if let workout = todayWorkout {
+            if workout.isRestDay == true {
+                HStack {
+                    Image(systemName: "moon.zzz.fill")
+                        .font(.title2)
+                        .foregroundColor(.indigo)
+                    VStack(alignment: .leading) {
+                        Text("Rest Day")
+                            .font(.headline)
+                        Text("Recovery is part of the process")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+                .padding(.horizontal)
+            } else if let items = workout.items, !items.isEmpty {
+                Button(action: { showActiveWorkout = true }) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(workout.dayLabel ?? "Workout")
+                                .font(.headline)
+                            Spacer()
+                            Text("\(items.count) exercises")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        ForEach(items.prefix(2)) { item in
+                            HStack {
+                                Text(item.exerciseName)
+                                    .font(.subheadline)
+                                Spacer()
+                                if let sets = item.sets, let reps = item.reps {
+                                    Text("\(sets) × \(reps)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        if items.count > 2 {
+                            Text("+ \(items.count - 2) more")
+                                .font(.caption)
+                                .foregroundColor(.indigo)
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal)
+            } else {
+                startWorkoutButton
+            }
+        } else {
+            startWorkoutButton
+        }
+    }
+    
+    var startWorkoutButton: some View {
+        Button(action: { }) {
+            HStack {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.indigo)
+                Text("Start a workout")
+                Spacer()
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal)
+    }
+    
+    var greetingText: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour < 12 { return "Good morning," }
+        else if hour < 17 { return "Good afternoon," }
+        else { return "Good evening," }
+    }
+    
+    func fetchData() async {
+        isLoading = true
+        
+        // Fetch today's workout
+        if let url = URL(string: "https://app.ogym.fitness/api/workouts/today") {
+            let request = AuthViewModel.createAuthenticatedRequest(url: url)
+            if let (data, _) = try? await URLSession.shared.data(for: request),
+               let workout = try? JSONDecoder().decode(TodayWorkout.self, from: data) {
+                await MainActor.run { self.todayWorkout = workout }
+            }
+        }
+        
+        // Fetch workout summary
+        if let url = URL(string: "https://app.ogym.fitness/api/member/workout/summary") {
+            let request = AuthViewModel.createAuthenticatedRequest(url: url)
+            if let (data, _) = try? await URLSession.shared.data(for: request),
+               let summary = try? JSONDecoder().decode(WorkoutSummary.self, from: data) {
+                await MainActor.run { self.workoutSummary = summary }
+            }
+        }
+        
+        await MainActor.run { isLoading = false }
+    }
+}
+
+// MARK: - Quick Stat Card
+struct QuickStatCard: View {
+    let icon: String
+    let value: String
+    let label: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(color)
+            Text(value)
+                .font(.title2.bold())
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Nutrition Stat Card
+struct NutritionStatCard: View {
+    let value: String
+    let label: String
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.title3.bold())
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
