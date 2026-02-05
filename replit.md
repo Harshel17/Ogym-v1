@@ -10,6 +10,13 @@ Preferred communication style: Simple, everyday language.
 
 **Future Discussion (in ~10 days):** Evaluate rebuilding the iOS app in Swift/SwiftUI or Flutter for a premium native feel (like Instagram/Spotify). The backend API and database would remain the same - only the mobile frontend would be rebuilt natively. This would solve the iOS spacing issues and provide true 100% native experience.
 
+**Flutter App (flutter_app/):** Native mobile app built with Flutter for cross-platform iOS/Android. Connects to existing backend at app.ogym.fitness via JWT authentication. All API endpoints verified to match server routes.ts with camelCase responses. Key API patterns:
+- Owner dashboard: `/api/owner/dashboard-metrics` → totalMembers, checkedInToday, checkedInYesterday, newEnrollmentsLast30Days, pendingPayments, totalRevenue
+- Trainer dashboard: `/api/trainer/dashboard` → totalMembers, activeWorkouts, starMembers, recentActivity, memberProgress
+- Nutrition: `/api/nutrition/summary?date=YYYY-MM-DD` for daily data, `/api/nutrition/logs` for logging meals
+- Dika AI: `/api/dika/ask` for chat, `/api/dika/suggestions` for chips (no insights endpoint)
+- Authentication: JWT mobileToken with 30-day expiry, Bearer token + X-Mobile-App header required
+
 ## System Architecture
 
 ### UI/UX Decisions
