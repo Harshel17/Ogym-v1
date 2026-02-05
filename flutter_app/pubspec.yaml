@@ -1,0 +1,61 @@
+name: ogym_app
+description: OGym - Multi-Gym Management Platform
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # HTTP Client
+  http: ^1.2.0
+  
+  # Local Storage
+  shared_preferences: ^2.2.2
+  
+  # Charts
+  fl_chart: ^0.66.0
+  
+  # Image Caching
+  cached_network_image: ^3.3.1
+  
+  # Icons
+  flutter_svg: ^2.0.9
+  
+  # URL Launcher
+  url_launcher: ^6.2.2
+  
+  # QR Code
+  qr_flutter: ^4.1.0
+  
+  # Location (for Find My Food)
+  geolocator: ^11.0.0
+  
+  # Intl for date formatting
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  
+  # Assets (add your images here)
+  # assets:
+  #   - assets/images/
+  
+  # Fonts (optional - using system fonts for now)
+  # fonts:
+  #   - family: Inter
+  #     fonts:
+  #       - asset: fonts/Inter-Regular.ttf
+  #       - asset: fonts/Inter-Bold.ttf
+  #         weight: 700
