@@ -31,7 +31,8 @@ class _MemberNutritionTabState extends State<MemberNutritionTab> {
     });
 
     try {
-      final response = await _api.get(ApiConstants.nutritionToday);
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      final response = await _api.get('${ApiConstants.nutritionSummary}?date=$today');
       
       if (response != null) {
         setState(() {
@@ -535,7 +536,7 @@ class _AddMealSheetState extends State<AddMealSheet> {
 
     try {
       await _api.post(
-        ApiConstants.nutritionLog,
+        ApiConstants.nutritionLogs,
         body: {
           'name': _nameController.text.trim(),
           'mealType': _selectedMealType,
