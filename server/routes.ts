@@ -499,12 +499,15 @@ export async function registerRoutes(
 
   // === MIDDLEWARE ===
   const requireAuth = (req: any, res: any, next: any) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    // Support both session auth and JWT auth (for mobile apps)
+    if (!req.isAuthenticated() && !req.user) return res.sendStatus(401);
     next();
   };
 
   const requireRole = (roles: string[]) => (req: any, res: any, next: any) => {
-    if (!req.isAuthenticated() || !roles.includes(req.user.role)) return res.sendStatus(403);
+    // Support both session auth and JWT auth (for mobile apps)
+    const isAuthenticated = req.isAuthenticated() || !!req.user;
+    if (!isAuthenticated || !req.user || !roles.includes(req.user.role)) return res.sendStatus(403);
     next();
   };
 
