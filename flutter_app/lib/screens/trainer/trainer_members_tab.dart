@@ -443,7 +443,7 @@ class _StarMemberCard extends StatelessWidget {
                   Expanded(
                     child: _ProgressStat(
                       label: 'Workout',
-                      value: member.workoutAdherence,
+                      value: member.workoutAdherence ?? 0,
                       color: AppColors.primary,
                     ),
                   ),
@@ -451,7 +451,7 @@ class _StarMemberCard extends StatelessWidget {
                   Expanded(
                     child: _ProgressStat(
                       label: 'Nutrition',
-                      value: member.nutritionAdherence,
+                      value: member.nutritionAdherence ?? 0,
                       color: AppColors.success,
                     ),
                   ),
