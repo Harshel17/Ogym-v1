@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
-import '../auth/login_screen.dart';
 
 class MemberProfileTab extends StatelessWidget {
   const MemberProfileTab({super.key});
@@ -194,24 +193,19 @@ class MemberProfileTab extends StatelessWidget {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Log Out'),
         content: const Text('Are you sure you want to log out?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
+              // Just call logout - main.dart handles navigation automatically
               await context.read<AuthProvider>().logout();
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
@@ -228,7 +222,7 @@ class MemberProfileTab extends StatelessWidget {
     
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Account'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -253,13 +247,13 @@ class MemberProfileTab extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
               if (controller.text.toLowerCase() != 'delete') {
-                ScaffoldMessenger.of(context).showSnackBar(
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
                   const SnackBar(
                     content: Text('Please type "delete" to confirm'),
                     backgroundColor: AppColors.error,
@@ -268,16 +262,9 @@ class MemberProfileTab extends StatelessWidget {
                 return;
               }
 
-              Navigator.pop(context);
-              
-              final success = await context.read<AuthProvider>().deleteAccount('delete');
-              
-              if (success && context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
+              Navigator.pop(dialogContext);
+              // Just call deleteAccount - main.dart handles navigation automatically
+              await context.read<AuthProvider>().deleteAccount('delete');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
