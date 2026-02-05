@@ -2,13 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../config/constants.dart';
-import '../../models/workout.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
-import '../../widgets/today_workout_card.dart';
 import '../../widgets/stats_card.dart';
-import '../../widgets/week_progress.dart';
-import '../../widgets/workout_calendar.dart';
 
 class MemberHomeTab extends StatefulWidget {
   const MemberHomeTab({super.key});
@@ -20,8 +16,8 @@ class MemberHomeTab extends StatefulWidget {
 class _MemberHomeTabState extends State<MemberHomeTab> {
   final ApiService _api = ApiService();
   
-  WorkoutSummary? _workoutSummary;
-  TodayWorkout? _todayWorkout;
+  Map<String, dynamic>? _todayData;
+  Map<String, dynamic>? _nutritionData;
   bool _isLoading = true;
   String? _error;
 
@@ -38,18 +34,20 @@ class _MemberHomeTabState extends State<MemberHomeTab> {
     });
 
     try {
-      final results = await Future.wait([
-        _api.get(ApiConstants.workoutSummary),
-        _api.get(ApiConstants.todayWorkout),
-      ]);
+      // Fetch today's workout data
+      final todayResult = await _api.get(ApiConstants.todayWorkout);
+      
+      // Try to fetch nutrition data (may not exist)
+      Map<String, dynamic>? nutritionResult;
+      try {
+        nutritionResult = await _api.get(ApiConstants.nutritionToday) as Map<String, dynamic>?;
+      } catch (_) {
+        nutritionResult = null;
+      }
 
       setState(() {
-        _workoutSummary = results[0] != null 
-            ? WorkoutSummary.fromJson(results[0] as Map<String, dynamic>)
-            : null;
-        _todayWorkout = results[1] != null 
-            ? TodayWorkout.fromJson(results[1] as Map<String, dynamic>)
-            : null;
+        _todayData = todayResult is Map<String, dynamic> ? todayResult : null;
+        _nutritionData = nutritionResult;
         _isLoading = false;
       });
     } catch (e) {
@@ -105,6 +103,11 @@ class _MemberHomeTabState extends State<MemberHomeTab> {
   }
 
   Widget _buildContent(String userName, bool isDark) {
+    final items = _todayData?['items'] as List<dynamic>? ?? [];
+    final cycleName = _todayData?['cycleName'] as String?;
+    final dayLabel = _todayData?['dayLabel'] as String?;
+    final isRestDay = _todayData?['isRestDay'] as bool? ?? false;
+    
     return CustomScrollView(
       slivers: [
         // Header
@@ -138,16 +141,13 @@ class _MemberHomeTabState extends State<MemberHomeTab> {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: TodayWorkoutCard(
-              workout: _todayWorkout,
-              onRefresh: _fetchData,
-            ),
+            child: _buildTodayWorkoutCard(isDark, items, cycleName, dayLabel, isRestDay),
           ),
         ),
 
         const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-        // Stats Row (Streak + Calories)
+        // Stats Row
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -155,10 +155,10 @@ class _MemberHomeTabState extends State<MemberHomeTab> {
               children: [
                 Expanded(
                   child: StatsCard(
-                    icon: Icons.local_fire_department,
-                    iconColor: AppColors.orange,
-                    value: '${_workoutSummary?.streak ?? 0}',
-                    label: 'Day Streak',
+                    icon: Icons.fitness_center,
+                    iconColor: AppColors.primary,
+                    value: '${items.length}',
+                    label: 'Exercises Today',
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -166,33 +166,13 @@ class _MemberHomeTabState extends State<MemberHomeTab> {
                   child: StatsCard(
                     icon: Icons.restaurant,
                     iconColor: AppColors.teal,
-                    value: '0',
+                    value: '${_nutritionData?['totalCalories'] ?? 0}',
                     unit: 'kcal',
                     label: "Today's Calories",
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-
-        const SliverToBoxAdapter(child: SizedBox(height: 20)),
-
-        // This Week Progress
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: WeekProgress(summary: _workoutSummary),
-          ),
-        ),
-
-        const SliverToBoxAdapter(child: SizedBox(height: 20)),
-
-        // Workout Calendar
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: WorkoutCalendar(summary: _workoutSummary),
           ),
         ),
 
@@ -208,6 +188,62 @@ class _MemberHomeTabState extends State<MemberHomeTab> {
 
         const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
+    );
+  }
+
+  Widget _buildTodayWorkoutCard(bool isDark, List<dynamic> items, String? cycleName, String? dayLabel, bool isRestDay) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.fitness_center, color: Colors.white, size: 24),
+              const SizedBox(width: 8),
+              Text(
+                dayLabel ?? "Today's Workout",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          if (cycleName != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              cycleName,
+              style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
+            ),
+          ],
+          const SizedBox(height: 16),
+          if (isRestDay)
+            const Text(
+              'Rest Day - Take it easy!',
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            )
+          else if (items.isEmpty)
+            const Text(
+              'No workouts scheduled',
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            )
+          else
+            Text(
+              '${items.length} exercises to complete',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+        ],
+      ),
     );
   }
 

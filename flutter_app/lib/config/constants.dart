@@ -9,17 +9,17 @@ class ApiConstants {
   static const String currentUser = '$apiUrl/auth/user';
   
   // Member endpoints
-  static const String memberDashboard = '$apiUrl/member/dashboard';
-  static const String memberWorkouts = '$apiUrl/member/workouts';
-  static const String memberNutrition = '$apiUrl/member/nutrition';
-  static const String memberMeasurements = '$apiUrl/member/measurements';
-  static const String todayWorkout = '$apiUrl/member/today-workout';
-  static const String workoutSummary = '$apiUrl/member/workout-summary';
+  static const String memberWorkouts = '$apiUrl/workouts/cycles/my';
+  static const String todayWorkout = '$apiUrl/workouts/today';
+  static const String workoutLogSets = '$apiUrl/workouts/log-sets';
   
-  // Workout endpoints
-  static const String workoutComplete = '$apiUrl/workouts/complete';
-  static const String workoutReorder = '$apiUrl/workouts/reorder';
-  static const String availableDays = '$apiUrl/workouts/available-days';
+  // Nutrition endpoints  
+  static const String nutritionToday = '$apiUrl/nutrition/today';
+  static const String nutritionLog = '$apiUrl/nutrition/log';
+  
+  // Measurements
+  static const String measurements = '$apiUrl/measurements';
+  static const String measurementsLatest = '$apiUrl/measurements/latest';
   
   // Owner endpoints
   static const String ownerDashboard = '$apiUrl/owner/dashboard';
