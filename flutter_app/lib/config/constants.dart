@@ -6,7 +6,7 @@ class ApiConstants {
   static const String login = '$apiUrl/auth/login';
   static const String logout = '$apiUrl/auth/logout';
   static const String register = '$apiUrl/auth/register';
-  static const String currentUser = '$apiUrl/auth/user';
+  static const String currentUser = '$apiUrl/auth/me';
   
   // Member/Workout endpoints
   static const String memberWorkouts = '$apiUrl/workouts/cycles/my';
