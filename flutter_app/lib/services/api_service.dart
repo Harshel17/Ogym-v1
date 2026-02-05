@@ -49,12 +49,15 @@ class ApiService {
     }
   }
 
-  Future<dynamic> post(String endpoint, {Map<String, dynamic>? body, bool withAuth = true}) async {
+  Future<dynamic> post(String endpoint, {Map<String, dynamic>? body, bool withAuth = true, Map<String, String>? headers}) async {
     try {
-      final headers = await _getHeaders(withAuth: withAuth);
+      final baseHeaders = await _getHeaders(withAuth: withAuth);
+      if (headers != null) {
+        baseHeaders.addAll(headers);
+      }
       final response = await http.post(
         Uri.parse(endpoint),
-        headers: headers,
+        headers: baseHeaders,
         body: body != null ? jsonEncode(body) : null,
       );
       return _handleResponse(response);

@@ -16,21 +16,21 @@ class AuthService {
       ApiConstants.login,
       body: {'email': email, 'password': password},
       withAuth: false,
+      headers: {'X-Mobile-App': 'true'},
     );
 
     if (response == null) {
       throw Exception('Invalid response from server');
     }
 
-    final token = response['token'] as String?;
-    final userData = response['user'] as Map<String, dynamic>?;
-
-    if (token == null || userData == null) {
-      throw Exception('Invalid login response');
+    // Server returns user object directly with mobileToken
+    final token = response['mobileToken'] as String?;
+    
+    if (token != null) {
+      await _storage.saveToken(token);
     }
-
-    await _storage.saveToken(token);
-    final user = User.fromJson(userData);
+    
+    final user = User.fromJson(response as Map<String, dynamic>);
     await _storage.saveUser(user);
 
     return user;
