@@ -6,16 +6,40 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fira+Code:wght@300..700&family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Outfit:wght@100..900&family=Oxanium:wght@200..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&family=Roboto:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Space+Grotesk:wght@300..700&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fira+Code:wght@300..700&family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Outfit:wght@100..900&family=Oxanium:wght@200..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&family=Roboto:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Space+Grotesk:wght@300..700&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   </head>
   <body>
     <div id="root"></div>
-    <!-- Minimal loading screen - matches native splash for seamless transition -->
     <div id="app-loading" style="position: fixed; inset: 0; background: #0b1220; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999;">
       <div style="width: 120px; height: 120px; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
-        <img src="/ogym-icon.png" alt="OGym" style="width: 100%; height: 100%; object-fit: cover;" />
+        <img src="/ogym-icon.png" alt="OGym" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'" />
       </div>
+      <p style="color: #8892a4; font-family: -apple-system, sans-serif; font-size: 14px; margin-top: 16px;">Loading OGym...</p>
     </div>
+    <script>
+      window.__ogym_errors = [];
+      window.onerror = function(msg, src, line, col, err) {
+        window.__ogym_errors.push(msg + ' at ' + src + ':' + line);
+        return false;
+      };
+      window.addEventListener('unhandledrejection', function(e) {
+        window.__ogym_errors.push('Promise: ' + (e.reason && e.reason.message || e.reason || 'unknown'));
+      });
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && (!root.innerHTML || root.innerHTML.trim() === '')) {
+          var d = document.createElement('div');
+          d.style.cssText = 'position:fixed;inset:0;background:#0b1220;color:#fff;padding:40px 20px;font-family:-apple-system,sans-serif;font-size:13px;z-index:99999;overflow:auto;';
+          d.innerHTML = '<h3 style="color:#f87171;margin-bottom:12px;">App failed to load</h3>' +
+            '<p style="color:#8892a4;margin-bottom:8px;">Origin: ' + location.origin + '</p>' +
+            '<p style="color:#8892a4;margin-bottom:8px;">URL: ' + location.href + '</p>' +
+            '<p style="color:#8892a4;margin-bottom:8px;">UA: ' + navigator.userAgent.substring(0,80) + '</p>' +
+            '<p style="color:#8892a4;margin-bottom:8px;">Errors (' + window.__ogym_errors.length + '):</p>' +
+            '<pre style="color:#fbbf24;white-space:pre-wrap;font-size:11px;">' + (window.__ogym_errors.join('\n') || 'No JS errors caught') + '</pre>';
+          document.body.appendChild(d);
+        }
+      }, 8000);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
