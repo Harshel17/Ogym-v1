@@ -31,20 +31,36 @@ class _MemberWorkoutsTabState extends State<MemberWorkoutsTab> {
     });
 
     try {
-      final results = await Future.wait([
-        _api.get(ApiConstants.todayWorkout),
-        _api.get(ApiConstants.memberWorkouts),
-      ]);
+      // Fetch workout data with error handling for each call
+      Map<String, dynamic>? todayWorkout;
+      Map<String, dynamic>? activeCycle;
+      
+      try {
+        final result = await _api.get(ApiConstants.todayWorkout);
+        todayWorkout = result is Map<String, dynamic> ? result : null;
+      } catch (_) {
+        todayWorkout = null;
+      }
+      
+      try {
+        final result = await _api.get(ApiConstants.memberWorkouts);
+        activeCycle = result is Map<String, dynamic> ? result : null;
+      } catch (_) {
+        activeCycle = null;
+      }
 
       setState(() {
-        _todayWorkout = results[0] is Map<String, dynamic> ? results[0] as Map<String, dynamic> : null;
-        _activeCycle = results[1] is Map<String, dynamic> ? results[1] as Map<String, dynamic> : null;
+        _todayWorkout = todayWorkout;
+        _activeCycle = activeCycle;
         _isLoading = false;
+        _error = null;
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _todayWorkout = null;
+        _activeCycle = null;
         _isLoading = false;
+        _error = null; // Show empty state instead of error
       });
     }
   }

@@ -34,12 +34,13 @@ class _MemberNutritionTabState extends State<MemberNutritionTab> {
       final today = DateTime.now().toIso8601String().split('T')[0];
       final response = await _api.get('${ApiConstants.nutritionSummary}?date=$today');
       
-      if (response != null) {
+      if (response != null && response is Map<String, dynamic>) {
         setState(() {
-          _nutrition = NutritionSummary.fromJson(response as Map<String, dynamic>);
+          _nutrition = NutritionSummary.fromJson(response);
           _isLoading = false;
         });
       } else {
+        // No data or invalid response - show empty state
         setState(() {
           _nutrition = NutritionSummary(
             totalCalories: 0,
@@ -54,8 +55,17 @@ class _MemberNutritionTabState extends State<MemberNutritionTab> {
         });
       }
     } catch (e) {
+      // On error, show empty nutrition state instead of error
       setState(() {
-        _error = e.toString();
+        _nutrition = NutritionSummary(
+          totalCalories: 0,
+          totalProtein: 0,
+          totalCarbs: 0,
+          totalFat: 0,
+          targetCalories: 2000,
+          targetProtein: 150,
+          meals: [],
+        );
         _isLoading = false;
       });
     }

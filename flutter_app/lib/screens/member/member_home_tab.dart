@@ -35,25 +35,35 @@ class _MemberHomeTabState extends State<MemberHomeTab> {
 
     try {
       // Fetch today's workout data
-      final todayResult = await _api.get(ApiConstants.todayWorkout);
+      Map<String, dynamic>? todayResult;
+      try {
+        final result = await _api.get(ApiConstants.todayWorkout);
+        todayResult = result is Map<String, dynamic> ? result : null;
+      } catch (_) {
+        todayResult = null;
+      }
       
       // Fetch nutrition summary for today
       Map<String, dynamic>? nutritionResult;
       try {
-        nutritionResult = await _api.get('${ApiConstants.nutritionSummary}?date=${DateTime.now().toIso8601String().split('T')[0]}') as Map<String, dynamic>?;
+        final result = await _api.get('${ApiConstants.nutritionSummary}?date=${DateTime.now().toIso8601String().split('T')[0]}');
+        nutritionResult = result is Map<String, dynamic> ? result : null;
       } catch (_) {
         nutritionResult = null;
       }
 
       setState(() {
-        _todayData = todayResult is Map<String, dynamic> ? todayResult : null;
+        _todayData = todayResult;
         _nutritionData = nutritionResult;
         _isLoading = false;
+        _error = null;
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _todayData = null;
+        _nutritionData = null;
         _isLoading = false;
+        _error = null; // Don't show error, just show empty state
       });
     }
   }
