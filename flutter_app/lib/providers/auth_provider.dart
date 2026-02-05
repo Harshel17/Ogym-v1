@@ -39,20 +39,16 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // First check stored user
+      // Check stored token and user
+      final token = await _storageService.getToken();
       _user = await _authService.getStoredUser();
       
-      if (_user != null) {
-        // Verify with server
-        final serverUser = await _authService.getCurrentUser();
-        if (serverUser != null) {
-          _user = serverUser;
-          _status = AuthStatus.authenticated;
-        } else {
-          _user = null;
-          _status = AuthStatus.unauthenticated;
-        }
+      if (_user != null && token != null) {
+        // User and token exist - consider authenticated
+        // Token validity will be checked on first API call
+        _status = AuthStatus.authenticated;
       } else {
+        _user = null;
         _status = AuthStatus.unauthenticated;
       }
     } catch (e) {

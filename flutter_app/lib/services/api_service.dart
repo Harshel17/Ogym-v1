@@ -24,6 +24,7 @@ class ApiService {
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'X-Mobile-App': 'true',
     };
 
     if (withAuth) {
