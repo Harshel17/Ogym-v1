@@ -3,10 +3,10 @@ class ApiConstants {
   static const String apiUrl = '$baseUrl/api';
   
   // Auth endpoints
-  static const String login = '$apiUrl/login';
-  static const String logout = '$apiUrl/logout';
-  static const String register = '$apiUrl/register';
-  static const String currentUser = '$apiUrl/user';
+  static const String login = '$apiUrl/auth/login';
+  static const String logout = '$apiUrl/auth/logout';
+  static const String register = '$apiUrl/auth/register';
+  static const String currentUser = '$apiUrl/auth/user';
   
   // Member endpoints
   static const String memberDashboard = '$apiUrl/member/dashboard';
