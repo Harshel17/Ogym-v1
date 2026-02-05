@@ -37,10 +37,10 @@ class _MemberHomeTabState extends State<MemberHomeTab> {
       // Fetch today's workout data
       final todayResult = await _api.get(ApiConstants.todayWorkout);
       
-      // Try to fetch nutrition data (may not exist)
+      // Fetch nutrition summary for today
       Map<String, dynamic>? nutritionResult;
       try {
-        nutritionResult = await _api.get(ApiConstants.nutritionToday) as Map<String, dynamic>?;
+        nutritionResult = await _api.get('${ApiConstants.nutritionSummary}?date=${DateTime.now().toIso8601String().split('T')[0]}') as Map<String, dynamic>?;
       } catch (_) {
         nutritionResult = null;
       }
@@ -166,7 +166,7 @@ class _MemberHomeTabState extends State<MemberHomeTab> {
                   child: StatsCard(
                     icon: Icons.restaurant,
                     iconColor: AppColors.teal,
-                    value: '${_nutritionData?['totalCalories'] ?? 0}',
+                    value: '${(_nutritionData?['summary']?['totalCalories'] ?? _nutritionData?['totalCalories']) ?? 0}',
                     unit: 'kcal',
                     label: "Today's Calories",
                   ),
