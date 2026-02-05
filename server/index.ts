@@ -27,34 +27,50 @@ declare module "http" {
   }
 }
 
+app.use((req, res, next) => {
+  const isMobileApp = req.headers['x-mobile-app'] === 'true' || 
+    req.headers['origin']?.includes('capacitor://') ||
+    req.headers['user-agent']?.includes('OGym');
+  if (isMobileApp) {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Mobile-App');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+  }
+  next();
+});
+
 app.use(helmet({
   contentSecurityPolicy: isProduction ? {
     directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"], // No unsafe-eval in production
+      defaultSrc: ["'self'", "capacitor://localhost", "https://localhost"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "capacitor://localhost", "https://localhost"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "blob:"],
+      imgSrc: ["'self'", "data:", "blob:", "capacitor://localhost", "https://localhost"],
       fontSrc: ["'self'", "data:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "capacitor://localhost", "https://localhost", "https://app.ogym.fitness"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
-      baseUri: ["'self'"],
+      baseUri: ["'self'", "capacitor://localhost", "https://localhost"],
     },
   } : {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Vite HMR needs eval in dev
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "blob:"],
       fontSrc: ["'self'", "data:"],
-      connectSrc: ["'self'", "ws:", "wss:"], // WebSocket for Vite HMR
+      connectSrc: ["'self'", "ws:", "wss:"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
     },
   },
   crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: { policy: "same-origin" },
+  crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 
 const mutationRateLimiter = rateLimit({
