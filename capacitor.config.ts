@@ -7,8 +7,6 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
     iosScheme: 'https',
-    // Production server URL
-    url: 'https://app.ogym.fitness',
     cleartext: true,
   },
   plugins: {

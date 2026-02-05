@@ -28,13 +28,15 @@ declare module "http" {
 }
 
 app.use((req, res, next) => {
+  const origin = req.headers.origin || '';
   const isMobileApp = req.headers['x-mobile-app'] === 'true' || 
-    req.headers['origin']?.includes('capacitor://') ||
+    origin.includes('capacitor://') ||
+    origin.includes('localhost') ||
     req.headers['user-agent']?.includes('OGym');
-  if (isMobileApp) {
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  if (isMobileApp && origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Mobile-App');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Mobile-App, X-Timezone, X-Timezone-Offset');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);
@@ -48,9 +50,9 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'", "capacitor://localhost", "https://localhost"],
       scriptSrc: ["'self'", "'unsafe-inline'", "capacitor://localhost", "https://localhost"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "blob:", "capacitor://localhost", "https://localhost"],
-      fontSrc: ["'self'", "data:"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "blob:", "capacitor://localhost", "https://localhost", "https://*.unsplash.com"],
+      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
       connectSrc: ["'self'", "capacitor://localhost", "https://localhost", "https://app.ogym.fitness"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
@@ -60,9 +62,9 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "blob:"],
-      fontSrc: ["'self'", "data:"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
+      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
       connectSrc: ["'self'", "ws:", "wss:"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
