@@ -1,0 +1,161 @@
+// MARK: - Today's Workout Expandable Card
+struct TodayWorkoutExpandable: View {
+    let todayWorkout: TodayWorkout?
+    @Binding var isExpanded: Bool
+    @Binding var completedExercises: Set<Int>
+    let onStartWorkout: () -> Void
+    
+    var exercises: [WorkoutItem] {
+        todayWorkout?.items ?? []
+    }
+    
+    var completedCount: Int {
+        completedExercises.count
+    }
+    
+    var totalCount: Int {
+        exercises.count
+    }
+    
+    var isAllCompleted: Bool {
+        completedCount == totalCount && totalCount > 0
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            Button(action: { withAnimation { isExpanded.toggle() } }) {
+                HStack(spacing: 12) {
+                    // Dumbbell icon
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.indigo)
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "dumbbell.fill")
+                            .foregroundColor(.white)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Today's Workout")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        if let workout = todayWorkout, let label = workout.dayLabel {
+                            Text(label)
+                                .font(.headline)
+                        } else {
+                            Text("No workout scheduled")
+                                .font(.headline)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    if !exercises.isEmpty {
+                        // Done button
+                        Button(action: markAllDone) {
+                            Text(isAllCompleted ? "Done" : "Done")
+                                .font(.caption.bold())
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(isAllCompleted ? Color.green : Color.green)
+                                .foregroundColor(.white)
+                                .cornerRadius(16)
+                        }
+                        
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+            }
+            .buttonStyle(.plain)
+            
+            // Progress bar
+            if !exercises.isEmpty {
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("Progress")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("\(completedCount)/\(totalCount)")
+                            .font(.caption.bold())
+                            .foregroundColor(.green)
+                    }
+                    
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color(.systemGray5))
+                                .frame(height: 8)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.green)
+                                .frame(width: geometry.size.width * CGFloat(completedCount) / CGFloat(max(totalCount, 1)), height: 8)
+                        }
+                    }
+                    .frame(height: 8)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 12)
+            }
+            
+            // Expanded exercises list
+            if isExpanded && !exercises.isEmpty {
+                VStack(spacing: 8) {
+                    ForEach(Array(exercises.enumerated()), id: \.element.id) { index, exercise in
+                        ExerciseRowCheckable(
+                            exercise: exercise,
+                            isCompleted: completedExercises.contains(exercise.id),
+                            onToggle: { toggleExercise(exercise.id) }
+                        )
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 12)
+            }
+        }
+        .background(Color(.systemGray6))
+        .cornerRadius(16)
+        .padding(.horizontal)
+        .onAppear {
+            // DEBUG: Print what we're receiving
+            print("DEBUG: dayManuallyCompleted = \(todayWorkout?.dayManuallyCompleted ?? false)")
+            print("DEBUG: exercises count = \(exercises.count)")
+            for exercise in exercises {
+                print("DEBUG: \(exercise.exerciseName) - completed: \(exercise.completed ?? false)")
+            }
+            
+            if todayWorkout?.dayManuallyCompleted == true {
+                for exercise in exercises {
+                    completedExercises.insert(exercise.id)
+                }
+            } else {
+                for exercise in exercises {
+                    if exercise.completed == true {
+                        completedExercises.insert(exercise.id)
+                    }
+                }
+            }
+        }
+        
+    }
+    
+    private func markAllDone() {
+        if isAllCompleted {
+            completedExercises.removeAll()
+        } else {
+            for exercise in exercises {
+                completedExercises.insert(exercise.id)
+            }
+        }
+        // TODO: Call API to mark workout complete
+    }
+    
+    private func toggleExercise(_ id: Int) {
+        if completedExercises.contains(id) {
+            completedExercises.remove(id)
+        } else {
+            completedExercises.insert(id)
+        }
+    }
+}
