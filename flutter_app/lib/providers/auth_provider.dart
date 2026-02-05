@@ -30,8 +30,15 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> _init() async {
-    await _storageService.init();
-    await checkAuthStatus();
+    try {
+      await _storageService.init();
+      await checkAuthStatus();
+    } catch (e) {
+      // If initialization fails, go to login screen
+      _user = null;
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+    }
   }
 
   Future<void> checkAuthStatus() async {
@@ -42,17 +49,21 @@ class AuthProvider extends ChangeNotifier {
       // Check stored token
       final token = await _storageService.getToken();
       
-      if (token != null) {
+      if (token != null && token.isNotEmpty) {
         // Token exists - verify with server using /api/auth/me
-        final serverUser = await _authService.getCurrentUser();
-        if (serverUser != null) {
-          _user = serverUser;
-          _status = AuthStatus.authenticated;
-        } else {
-          // Token invalid, clear storage
-          await _storageService.removeToken();
-          await _storageService.removeUser();
-          _user = null;
+        try {
+          final serverUser = await _authService.getCurrentUser();
+          if (serverUser != null) {
+            _user = serverUser;
+            _status = AuthStatus.authenticated;
+          } else {
+            // Token invalid, clear storage
+            await _clearAuthData();
+            _status = AuthStatus.unauthenticated;
+          }
+        } catch (e) {
+          // Network error or invalid token - clear and go to login
+          await _clearAuthData();
           _status = AuthStatus.unauthenticated;
         }
       } else {
@@ -65,6 +76,16 @@ class AuthProvider extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  Future<void> _clearAuthData() async {
+    try {
+      await _storageService.removeToken();
+      await _storageService.removeUser();
+    } catch (e) {
+      // Ignore storage errors during cleanup
+    }
+    _user = null;
   }
 
   Future<bool> login(String email, String password) async {
@@ -123,8 +144,13 @@ class AuthProvider extends ChangeNotifier {
     _status = AuthStatus.loading;
     notifyListeners();
 
-    await _authService.logout();
-    _user = null;
+    try {
+      await _authService.logout();
+    } catch (e) {
+      // Ignore logout errors - just clear local state
+    }
+    
+    await _clearAuthData();
     _status = AuthStatus.unauthenticated;
     notifyListeners();
   }
