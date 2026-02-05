@@ -76,7 +76,7 @@ class ApiConstants {
   static const String trainerNewMembers = '$apiUrl/trainer/new-members';
   static const String trainerCycles = '$apiUrl/trainer/cycles';
   static const String trainerActivePhases = '$apiUrl/trainer/active-phases';
-  static const String trainerStarMembers = '$apiUrl/star-members';
+  static const String trainerStarMembers = '$apiUrl/trainer/star-members';
   
   // Star Members
   static const String starMembers = '$apiUrl/star-members';
