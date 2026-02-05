@@ -1,97 +1,28 @@
 class OwnerDashboard {
   final int totalMembers;
-  final int activeMembers;
-  final int newMembersThisMonth;
-  final int todayCheckIns;
-  final double monthlyRevenue;
+  final int checkedInToday;
+  final int checkedInYesterday;
+  final int newEnrollmentsLast30Days;
   final int pendingPayments;
-  final int expiringSubscriptions;
-  final String? currency;
-  final List<RecentActivity> recentActivity;
+  final double totalRevenue;
 
   OwnerDashboard({
     required this.totalMembers,
-    required this.activeMembers,
-    required this.newMembersThisMonth,
-    required this.todayCheckIns,
-    required this.monthlyRevenue,
+    required this.checkedInToday,
+    required this.checkedInYesterday,
+    required this.newEnrollmentsLast30Days,
     required this.pendingPayments,
-    required this.expiringSubscriptions,
-    this.currency,
-    required this.recentActivity,
+    required this.totalRevenue,
   });
 
   factory OwnerDashboard.fromJson(Map<String, dynamic> json) {
     return OwnerDashboard(
-      totalMembers: json['totalMembers'] as int? ?? json['total_members'] as int? ?? 0,
-      activeMembers: json['activeMembers'] as int? ?? json['active_members'] as int? ?? 0,
-      newMembersThisMonth: json['newMembersThisMonth'] as int? ?? json['new_members_this_month'] as int? ?? 0,
-      todayCheckIns: json['todayCheckIns'] as int? ?? json['today_check_ins'] as int? ?? 0,
-      monthlyRevenue: (json['monthlyRevenue'] as num?)?.toDouble() ?? 
-          (json['monthly_revenue'] as num?)?.toDouble() ?? 0,
-      pendingPayments: json['pendingPayments'] as int? ?? json['pending_payments'] as int? ?? 0,
-      expiringSubscriptions: json['expiringSubscriptions'] as int? ?? json['expiring_subscriptions'] as int? ?? 0,
-      currency: json['currency'] as String?,
-      recentActivity: (json['recentActivity'] as List<dynamic>? ?? json['recent_activity'] as List<dynamic>? ?? [])
-          .map((e) => RecentActivity.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
-  }
-}
-
-class RecentActivity {
-  final String type;
-  final String message;
-  final DateTime timestamp;
-  final String? memberName;
-
-  RecentActivity({
-    required this.type,
-    required this.message,
-    required this.timestamp,
-    this.memberName,
-  });
-
-  factory RecentActivity.fromJson(Map<String, dynamic> json) {
-    return RecentActivity(
-      type: json['type'] as String? ?? 'info',
-      message: json['message'] as String? ?? '',
-      timestamp: json['timestamp'] != null 
-          ? DateTime.parse(json['timestamp'] as String) 
-          : DateTime.now(),
-      memberName: json['memberName'] as String? ?? json['member_name'] as String?,
-    );
-  }
-}
-
-class AIInsight {
-  final String id;
-  final String type;
-  final String title;
-  final String description;
-  final String priority; // high, medium, low
-  final String? actionText;
-  final Map<String, dynamic>? data;
-
-  AIInsight({
-    required this.id,
-    required this.type,
-    required this.title,
-    required this.description,
-    required this.priority,
-    this.actionText,
-    this.data,
-  });
-
-  factory AIInsight.fromJson(Map<String, dynamic> json) {
-    return AIInsight(
-      id: json['id']?.toString() ?? '',
-      type: json['type'] as String? ?? 'info',
-      title: json['title'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      priority: json['priority'] as String? ?? 'medium',
-      actionText: json['actionText'] as String? ?? json['action_text'] as String?,
-      data: json['data'] as Map<String, dynamic>?,
+      totalMembers: json['totalMembers'] as int? ?? 0,
+      checkedInToday: json['checkedInToday'] as int? ?? 0,
+      checkedInYesterday: json['checkedInYesterday'] as int? ?? 0,
+      newEnrollmentsLast30Days: json['newEnrollmentsLast30Days'] as int? ?? 0,
+      pendingPayments: json['pendingPayments'] as int? ?? 0,
+      totalRevenue: (json['totalRevenue'] as num?)?.toDouble() ?? 0,
     );
   }
 }
@@ -101,7 +32,7 @@ class WalkIn {
   final String name;
   final String? phone;
   final String? email;
-  final String type; // day_pass, trial, inquiry
+  final String type;
   final String status;
   final double? amount;
   final String? notes;
@@ -133,10 +64,8 @@ class WalkIn {
       notes: json['notes'] as String?,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'] as String) 
-          : json['created_at'] != null
-              ? DateTime.parse(json['created_at'] as String)
-              : DateTime.now(),
-      paymentVerified: json['paymentVerified'] as bool? ?? json['payment_verified'] as bool?,
+          : DateTime.now(),
+      paymentVerified: json['paymentVerified'] as bool?,
     );
   }
 
@@ -188,30 +117,26 @@ class GymMember {
   factory GymMember.fromJson(Map<String, dynamic> json) {
     return GymMember(
       id: json['id'] as int,
-      name: json['name'] as String? ?? '',
+      name: json['name'] as String? ?? json['username'] as String? ?? '',
       email: json['email'] as String? ?? '',
       phone: json['phone'] as String?,
-      profileImage: json['profileImage'] as String? ?? json['profile_image'] as String?,
+      profileImage: json['profileImage'] as String?,
       joinedAt: json['joinedAt'] != null 
           ? DateTime.parse(json['joinedAt'] as String) 
-          : json['joined_at'] != null
-              ? DateTime.parse(json['joined_at'] as String)
+          : json['createdAt'] != null
+              ? DateTime.parse(json['createdAt'] as String)
               : null,
-      subscriptionStatus: json['subscriptionStatus'] as String? ?? json['subscription_status'] as String? ?? 'inactive',
+      subscriptionStatus: json['subscriptionStatus'] as String? ?? 'inactive',
       subscriptionExpiry: json['subscriptionExpiry'] != null 
           ? DateTime.parse(json['subscriptionExpiry'] as String) 
-          : json['subscription_expiry'] != null
-              ? DateTime.parse(json['subscription_expiry'] as String)
-              : null,
-      trainerId: json['trainerId'] as int? ?? json['trainer_id'] as int?,
-      trainerName: json['trainerName'] as String? ?? json['trainer_name'] as String?,
-      isStarMember: json['isStarMember'] as bool? ?? json['is_star_member'] as bool?,
-      attendanceCount: json['attendanceCount'] as int? ?? json['attendance_count'] as int? ?? 0,
+          : null,
+      trainerId: json['trainerId'] as int?,
+      trainerName: json['trainerName'] as String?,
+      isStarMember: json['isStarMember'] as bool?,
+      attendanceCount: json['attendanceCount'] as int? ?? 0,
       lastCheckIn: json['lastCheckIn'] != null 
           ? DateTime.parse(json['lastCheckIn'] as String) 
-          : json['last_check_in'] != null
-              ? DateTime.parse(json['last_check_in'] as String)
-              : null,
+          : null,
     );
   }
 
@@ -230,7 +155,7 @@ class Payment {
   final String memberName;
   final double amount;
   final String currency;
-  final String status; // paid, pending, overdue
+  final String status;
   final String? type;
   final DateTime dueDate;
   final DateTime? paidAt;
@@ -252,22 +177,18 @@ class Payment {
   factory Payment.fromJson(Map<String, dynamic> json) {
     return Payment(
       id: json['id'] as int,
-      memberId: json['memberId'] as int? ?? json['member_id'] as int? ?? 0,
-      memberName: json['memberName'] as String? ?? json['member_name'] as String? ?? '',
+      memberId: json['memberId'] as int? ?? 0,
+      memberName: json['memberName'] as String? ?? '',
       amount: (json['amount'] as num?)?.toDouble() ?? 0,
       currency: json['currency'] as String? ?? 'USD',
       status: json['status'] as String? ?? 'pending',
       type: json['type'] as String?,
       dueDate: json['dueDate'] != null 
           ? DateTime.parse(json['dueDate'] as String) 
-          : json['due_date'] != null
-              ? DateTime.parse(json['due_date'] as String)
-              : DateTime.now(),
+          : DateTime.now(),
       paidAt: json['paidAt'] != null 
           ? DateTime.parse(json['paidAt'] as String) 
-          : json['paid_at'] != null
-              ? DateTime.parse(json['paid_at'] as String)
-              : null,
+          : null,
       notes: json['notes'] as String?,
     );
   }
@@ -279,7 +200,7 @@ class Announcement {
   final int id;
   final String title;
   final String content;
-  final String targetAudience; // all, members, trainers
+  final String targetAudience;
   final DateTime createdAt;
   final bool isActive;
 
@@ -297,13 +218,59 @@ class Announcement {
       id: json['id'] as int,
       title: json['title'] as String? ?? '',
       content: json['content'] as String? ?? '',
-      targetAudience: json['targetAudience'] as String? ?? json['target_audience'] as String? ?? 'all',
+      targetAudience: json['targetAudience'] as String? ?? 'all',
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'] as String) 
-          : json['created_at'] != null
-              ? DateTime.parse(json['created_at'] as String)
-              : DateTime.now(),
-      isActive: json['isActive'] as bool? ?? json['is_active'] as bool? ?? true,
+          : DateTime.now(),
+      isActive: json['isActive'] as bool? ?? true,
     );
   }
+}
+
+class MemberSubscription {
+  final int id;
+  final int memberId;
+  final String memberName;
+  final String? planName;
+  final double totalAmount;
+  final double paidAmount;
+  final String status;
+  final DateTime startDate;
+  final DateTime endDate;
+  final String paymentMode;
+
+  MemberSubscription({
+    required this.id,
+    required this.memberId,
+    required this.memberName,
+    this.planName,
+    required this.totalAmount,
+    required this.paidAmount,
+    required this.status,
+    required this.startDate,
+    required this.endDate,
+    required this.paymentMode,
+  });
+
+  factory MemberSubscription.fromJson(Map<String, dynamic> json) {
+    return MemberSubscription(
+      id: json['id'] as int,
+      memberId: json['memberId'] as int? ?? 0,
+      memberName: json['member']?['name'] as String? ?? json['memberName'] as String? ?? '',
+      planName: json['plan']?['name'] as String? ?? json['planName'] as String?,
+      totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0,
+      paidAmount: (json['totalPaid'] as num?)?.toDouble() ?? (json['paidAmount'] as num?)?.toDouble() ?? 0,
+      status: json['status'] as String? ?? 'active',
+      startDate: json['startDate'] != null 
+          ? DateTime.parse(json['startDate'] as String) 
+          : DateTime.now(),
+      endDate: json['endDate'] != null 
+          ? DateTime.parse(json['endDate'] as String) 
+          : DateTime.now(),
+      paymentMode: json['paymentMode'] as String? ?? 'full',
+    );
+  }
+
+  double get remainingAmount => totalAmount - paidAmount;
+  bool get isFullyPaid => remainingAmount <= 0;
 }

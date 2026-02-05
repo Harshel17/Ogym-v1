@@ -18,7 +18,6 @@ class _OwnerHomeTabState extends State<OwnerHomeTab> {
   final ApiService _api = ApiService();
   
   OwnerDashboard? _dashboard;
-  List<AIInsight>? _insights;
   bool _isLoading = true;
   String? _error;
 
@@ -35,25 +34,13 @@ class _OwnerHomeTabState extends State<OwnerHomeTab> {
     });
 
     try {
-      final results = await Future.wait([
-        _api.get(ApiConstants.ownerDashboard),
-        _api.get(ApiConstants.ownerInsights).catchError((_) => null),
-      ]);
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      final response = await _api.get('${ApiConstants.ownerDashboard}?clientToday=$today');
 
       setState(() {
-        _dashboard = results[0] != null 
-            ? OwnerDashboard.fromJson(results[0] as Map<String, dynamic>)
+        _dashboard = response != null 
+            ? OwnerDashboard.fromJson(response as Map<String, dynamic>)
             : null;
-        
-        if (results[1] != null) {
-          final insightsList = results[1] is List 
-              ? results[1] 
-              : (results[1] as Map<String, dynamic>)['insights'] ?? [];
-          _insights = (insightsList as List<dynamic>)
-              .map((e) => AIInsight.fromJson(e as Map<String, dynamic>))
-              .toList();
-        }
-        
         _isLoading = false;
       });
     } catch (e) {
@@ -153,7 +140,7 @@ class _OwnerHomeTabState extends State<OwnerHomeTab> {
                         icon: Icons.people,
                         iconColor: AppColors.primary,
                         value: '${dashboard?.totalMembers ?? 0}',
-                        label: 'Total Members',
+                        label: 'Active Members',
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -161,8 +148,30 @@ class _OwnerHomeTabState extends State<OwnerHomeTab> {
                       child: MiniStatsCard(
                         icon: Icons.login,
                         iconColor: AppColors.success,
-                        value: '${dashboard?.todayCheckIns ?? 0}',
+                        value: '${dashboard?.checkedInToday ?? 0}',
                         label: 'Today Check-ins',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: MiniStatsCard(
+                        icon: Icons.person_add,
+                        iconColor: AppColors.info,
+                        value: '${dashboard?.newEnrollmentsLast30Days ?? 0}',
+                        label: 'New (30 days)',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: MiniStatsCard(
+                        icon: Icons.pending_actions,
+                        iconColor: AppColors.warning,
+                        value: '${dashboard?.pendingPayments ?? 0}',
+                        label: 'Pending Payments',
                       ),
                     ),
                   ],
@@ -174,17 +183,17 @@ class _OwnerHomeTabState extends State<OwnerHomeTab> {
                       child: MiniStatsCard(
                         icon: Icons.attach_money,
                         iconColor: AppColors.success,
-                        value: '${dashboard?.currency ?? '\$'}${dashboard?.monthlyRevenue.toStringAsFixed(0) ?? '0'}',
-                        label: 'This Month',
+                        value: '\$${dashboard?.totalRevenue.toStringAsFixed(0) ?? '0'}',
+                        label: 'Total Revenue',
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: MiniStatsCard(
-                        icon: Icons.pending_actions,
-                        iconColor: AppColors.warning,
-                        value: '${dashboard?.pendingPayments ?? 0}',
-                        label: 'Pending',
+                        icon: Icons.trending_up,
+                        iconColor: AppColors.primary,
+                        value: _getChangeIndicator(dashboard),
+                        label: 'vs Yesterday',
                       ),
                     ),
                   ],
@@ -195,39 +204,6 @@ class _OwnerHomeTabState extends State<OwnerHomeTab> {
         ),
 
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-        // AI Insights Section
-        if (_insights != null && _insights!.isNotEmpty) ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  const Icon(Icons.auto_awesome, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'AI Insights',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                child: _InsightCard(insight: _insights![index]),
-              ),
-              childCount: _insights!.length.clamp(0, 3),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        ],
 
         // Quick Actions
         SliverToBoxAdapter(
@@ -281,132 +257,103 @@ class _OwnerHomeTabState extends State<OwnerHomeTab> {
 
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-        // Recent Activity
+        // Attendance Summary
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: const Text(
-              'Recent Activity',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.cardDark : AppColors.cardLight,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today, color: AppColors.primary, size: 20),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Attendance Overview',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              '${dashboard?.checkedInToday ?? 0}',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.success,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Today',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        height: 40,
+                        width: 1,
+                        color: isDark ? Colors.white24 : Colors.black12,
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              '${dashboard?.checkedInYesterday ?? 0}',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Yesterday',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-        if (dashboard?.recentActivity.isEmpty ?? true)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.history,
-                      size: 48,
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No recent activity',
-                      style: TextStyle(
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          )
-        else
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => _ActivityItem(
-                activity: dashboard!.recentActivity[index],
-              ),
-              childCount: dashboard!.recentActivity.length.clamp(0, 5),
-            ),
-          ),
 
         const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
   }
-}
 
-class _InsightCard extends StatelessWidget {
-  final AIInsight insight;
-
-  const _InsightCard({required this.insight});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    Color priorityColor;
-    switch (insight.priority) {
-      case 'high':
-        priorityColor = AppColors.error;
-        break;
-      case 'medium':
-        priorityColor = AppColors.warning;
-        break;
-      default:
-        priorityColor = AppColors.info;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: priorityColor.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: priorityColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.lightbulb_outline,
-              color: priorityColor,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  insight.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  insight.description,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  String _getChangeIndicator(OwnerDashboard? dashboard) {
+    if (dashboard == null) return '0';
+    final change = dashboard.checkedInToday - dashboard.checkedInYesterday;
+    if (change > 0) return '+$change';
+    if (change < 0) return '$change';
+    return '0';
   }
 }
 
@@ -459,67 +406,5 @@ class _ActionButton extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _ActivityItem extends StatelessWidget {
-  final RecentActivity activity;
-
-  const _ActivityItem({required this.activity});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    IconData icon;
-    Color iconColor;
-
-    switch (activity.type) {
-      case 'check_in':
-        icon = Icons.login;
-        iconColor = AppColors.success;
-        break;
-      case 'payment':
-        icon = Icons.payment;
-        iconColor = AppColors.primary;
-        break;
-      case 'new_member':
-        icon = Icons.person_add;
-        iconColor = AppColors.info;
-        break;
-      default:
-        icon = Icons.notifications;
-        iconColor = AppColors.secondary;
-    }
-
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: iconColor, size: 20),
-      ),
-      title: Text(activity.message),
-      subtitle: Text(
-        _formatTime(activity.timestamp),
-        style: TextStyle(
-          fontSize: 12,
-          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-        ),
-      ),
-    );
-  }
-
-  String _formatTime(DateTime timestamp) {
-    final now = DateTime.now();
-    final diff = now.difference(timestamp);
-
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
   }
 }

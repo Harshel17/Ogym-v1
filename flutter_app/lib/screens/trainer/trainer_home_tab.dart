@@ -18,6 +18,7 @@ class _TrainerHomeTabState extends State<TrainerHomeTab> {
   final ApiService _api = ApiService();
   
   TrainerDashboard? _dashboard;
+  List<AssignedMember>? _members;
   bool _isLoading = true;
   String? _error;
 
@@ -34,12 +35,22 @@ class _TrainerHomeTabState extends State<TrainerHomeTab> {
     });
 
     try {
-      final response = await _api.get(ApiConstants.trainerDashboard);
-      
+      final results = await Future.wait([
+        _api.get(ApiConstants.trainerDashboard),
+        _api.get(ApiConstants.trainerMembers).catchError((_) => []),
+      ]);
+
       setState(() {
-        _dashboard = response != null 
-            ? TrainerDashboard.fromJson(response as Map<String, dynamic>)
+        _dashboard = results[0] != null 
+            ? TrainerDashboard.fromJson(results[0] as Map<String, dynamic>)
             : null;
+        
+        if (results[1] != null && results[1] is List) {
+          _members = (results[1] as List<dynamic>)
+              .map((e) => AssignedMember.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+        
         _isLoading = false;
       });
     } catch (e) {
@@ -138,7 +149,7 @@ class _TrainerHomeTabState extends State<TrainerHomeTab> {
                       child: MiniStatsCard(
                         icon: Icons.people,
                         iconColor: AppColors.primary,
-                        value: '${dashboard?.totalAssignedMembers ?? 0}',
+                        value: '${dashboard?.totalMembers ?? 0}',
                         label: 'My Members',
                       ),
                     ),
@@ -158,21 +169,14 @@ class _TrainerHomeTabState extends State<TrainerHomeTab> {
                   children: [
                     Expanded(
                       child: MiniStatsCard(
-                        icon: Icons.calendar_today,
+                        icon: Icons.fitness_center,
                         iconColor: AppColors.success,
-                        value: '${dashboard?.todaySessions ?? 0}',
-                        label: 'Today Sessions',
+                        value: '${dashboard?.activeWorkouts ?? 0}',
+                        label: 'Active Workouts',
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: MiniStatsCard(
-                        icon: Icons.restaurant_menu,
-                        iconColor: AppColors.error,
-                        value: '${dashboard?.pendingDietPlans ?? 0}',
-                        label: 'Pending Diets',
-                      ),
-                    ),
+                    const Expanded(child: SizedBox()),
                   ],
                 ),
               ],
@@ -182,58 +186,7 @@ class _TrainerHomeTabState extends State<TrainerHomeTab> {
 
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-        // Today's Sessions
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: const Text(
-              "Today's Sessions",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-        if (dashboard?.todaySessions_.isEmpty ?? true)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.event_busy,
-                      size: 48,
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No sessions scheduled today',
-                      style: TextStyle(
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          )
-        else
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => _SessionCard(
-                session: dashboard!.todaySessions_[index],
-              ),
-              childCount: dashboard!.todaySessions_.length,
-            ),
-          ),
-
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-        // Recent Members
+        // My Members
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -248,9 +201,7 @@ class _TrainerHomeTabState extends State<TrainerHomeTab> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {
-                    // Navigate to members tab
-                  },
+                  onPressed: () {},
                   child: const Text('See All'),
                 ),
               ],
@@ -258,7 +209,7 @@ class _TrainerHomeTabState extends State<TrainerHomeTab> {
           ),
         ),
 
-        if (dashboard?.assignedMembers.isEmpty ?? true)
+        if (_members?.isEmpty ?? true)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(32),
@@ -286,104 +237,15 @@ class _TrainerHomeTabState extends State<TrainerHomeTab> {
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) => _MemberRow(
-                member: dashboard!.assignedMembers[index],
+                member: _members![index],
               ),
-              childCount: dashboard!.assignedMembers.length.clamp(0, 5),
+              childCount: (_members?.length ?? 0).clamp(0, 5),
             ),
           ),
 
         const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
-  }
-}
-
-class _SessionCard extends StatelessWidget {
-  final TodaySession session;
-
-  const _SessionCard({required this.session});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(
-                _formatTime(session.scheduledTime),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  session.memberName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  session.type,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: session.status == 'completed'
-                  ? AppColors.success.withOpacity(0.1)
-                  : AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              session.status.toUpperCase(),
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: session.status == 'completed'
-                    ? AppColors.success
-                    : AppColors.primary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatTime(DateTime time) {
-    final hour = time.hour > 12 ? time.hour - 12 : time.hour;
-    final period = time.hour >= 12 ? 'PM' : 'AM';
-    return '${hour}:${time.minute.toString().padLeft(2, '0')}\n$period';
   }
 }
 
@@ -439,39 +301,17 @@ class _MemberRow extends StatelessWidget {
         ],
       ),
       title: Text(member.name),
-      subtitle: Text(
-        '${member.workoutCompletion}% completion',
-        style: TextStyle(
-          fontSize: 12,
-          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
-        ),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!member.hasDietPlan && member.isStarMember)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+      subtitle: member.currentCycle != null
+          ? Text(
+              member.currentCycle!,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
               ),
-              child: const Text(
-                'Need Diet',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.warning,
-                ),
-              ),
-            ),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right),
-        ],
-      ),
-      onTap: () {
-        // Navigate to member details
-      },
+            )
+          : null,
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () {},
     );
   }
 }
