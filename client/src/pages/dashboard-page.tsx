@@ -1292,6 +1292,22 @@ function MemberDashboard() {
             <CardContent className="pt-0">
               {workoutLoading ? (
                 <p className="text-muted-foreground text-center py-4">Loading...</p>
+              ) : !workoutData?.cycleId ? (
+                <div className="text-center py-6">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                    <Dumbbell className="w-7 h-7 text-primary" />
+                  </div>
+                  <p className="font-medium mb-1">No Workout Cycle Yet</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Set up your workout plan to start tracking your exercises and progress.
+                  </p>
+                  <Link href="/my-workouts">
+                    <Button data-testid="button-setup-workout">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Set Up Workout
+                    </Button>
+                  </Link>
+                </div>
               ) : workoutItems.length === 0 ? (
                 <div className="text-center py-4">
                   <p className="text-muted-foreground mb-4">
