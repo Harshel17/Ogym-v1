@@ -211,18 +211,6 @@ export async function registerRoutes(
 
       await storage.verifyUserEmail(user.id);
 
-      const isMobileApp = req.headers["x-mobile-app"] === "true";
-      
-      if (isMobileApp) {
-        const mobileToken = generateMobileToken(user.id);
-        const fullUser = await storage.getUser(user.id);
-        return res.status(200).json({ 
-          message: "Email verified successfully",
-          user: fullUser,
-          mobileToken,
-        });
-      }
-
       req.login(user, async (err) => {
         if (err) {
           return res.status(500).json({ message: "Login failed after verification" });

@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { User, Gym } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import { API_BASE_URL, isNativeApp, getMobileToken, setMobileToken, clearMobileToken } from "@/lib/queryClient";
 
 type SubscriptionStatus = {
   isActive: boolean;
@@ -72,13 +71,11 @@ function useLoginMutation(setPendingVerification: (data: { email: string } | nul
 
   return useMutation({
     mutationFn: async (credentials: z.infer<typeof loginInput>) => {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (isNativeApp) headers["X-Mobile-App"] = "true";
-      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
-        credentials: isNativeApp ? "omit" : "include",
+        credentials: "include",
       });
       const data = await res.json();
       if (!res.ok) {
@@ -86,9 +83,6 @@ function useLoginMutation(setPendingVerification: (data: { email: string } | nul
           return { requiresVerification: true, email: data.email, message: data.message };
         }
         throw new Error(data.message || "Login failed");
-      }
-      if (isNativeApp && data.mobileToken) {
-        setMobileToken(data.mobileToken);
       }
       return data;
     },
@@ -122,13 +116,11 @@ function useRegisterMutation(setPendingVerification: (data: { email: string } | 
 
   return useMutation({
     mutationFn: async (data: z.infer<typeof registerInput>) => {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (isNativeApp) headers["X-Mobile-App"] = "true";
-      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: isNativeApp ? "omit" : "include",
+        credentials: "include",
       });
       const result = await res.json();
       if (!res.ok) {
@@ -161,15 +153,11 @@ function useVerifyEmailMutation(setPendingVerification: (data: { email: string }
 
   return useMutation({
     mutationFn: async (data: z.infer<typeof verifyEmailInput>) => {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (isNativeApp) headers["X-Mobile-App"] = "true";
-      const token = getMobileToken();
-      if (isNativeApp && token) headers["Authorization"] = `Bearer ${token}`;
-      const res = await fetch(`${API_BASE_URL}/api/auth/verify-email`, {
+      const res = await fetch("/api/auth/verify-email", {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: isNativeApp ? "omit" : "include",
+        credentials: "include",
       });
       const result = await res.json();
       if (!res.ok) {
@@ -179,9 +167,6 @@ function useVerifyEmailMutation(setPendingVerification: (data: { email: string }
     },
     onSuccess: (result) => {
       setPendingVerification(null);
-      if (isNativeApp && result.mobileToken) {
-        setMobileToken(result.mobileToken);
-      }
       if (result.user) {
         queryClient.setQueryData(["/api/auth/me"], result.user);
       }
@@ -205,11 +190,11 @@ function useResendCodeMutation() {
 
   return useMutation({
     mutationFn: async (data: z.infer<typeof resendCodeInput>) => {
-      const res = await fetch(`${API_BASE_URL}/api/auth/resend-code`, {
+      const res = await fetch("/api/auth/resend-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: isNativeApp ? "omit" : "include",
+        credentials: "include",
       });
       const result = await res.json();
       if (!res.ok) {
@@ -238,11 +223,11 @@ function useForgotPasswordMutation() {
 
   return useMutation({
     mutationFn: async (data: z.infer<typeof forgotPasswordInput>) => {
-      const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+      const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: isNativeApp ? "omit" : "include",
+        credentials: "include",
       });
       const result = await res.json();
       if (!res.ok) {
@@ -271,11 +256,11 @@ function useResetPasswordMutation(onSuccess?: () => void) {
 
   return useMutation({
     mutationFn: async (data: z.infer<typeof resetPasswordInput>) => {
-      const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+      const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: isNativeApp ? "omit" : "include",
+        credentials: "include",
       });
       const result = await res.json();
       if (!res.ok) {
@@ -306,18 +291,13 @@ function useLogoutMutation() {
 
   return useMutation({
     mutationFn: async () => {
-      const headers: Record<string, string> = {};
-      const token = getMobileToken();
-      if (isNativeApp && token) headers["Authorization"] = `Bearer ${token}`;
-      const res = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      const res = await fetch("/api/auth/logout", {
         method: "POST",
-        headers,
-        credentials: isNativeApp ? "omit" : "include",
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Logout failed");
     },
     onSuccess: () => {
-      if (isNativeApp) clearMobileToken();
       queryClient.clear();
       queryClient.setQueryData(["/api/auth/me"], null);
       toast({
@@ -345,17 +325,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } = useQuery({
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
-      const headers: Record<string, string> = {};
-      const token = getMobileToken();
-      if (isNativeApp && token) headers["Authorization"] = `Bearer ${token}`;
-      const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        headers,
-        credentials: isNativeApp ? "omit" : "include",
-      });
-      if (res.status === 401) {
-        if (isNativeApp) clearMobileToken();
-        return null;
-      }
+      const res = await fetch("/api/auth/me", { credentials: "include" });
+      if (res.status === 401) return null;
       if (!res.ok) throw new Error("Failed to fetch user");
       return res.json();
     },

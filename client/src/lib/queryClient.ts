@@ -1,52 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { Capacitor } from "@capacitor/core";
 import { getTimezoneHeaders } from "./timezone";
 
-const MOBILE_TOKEN_KEY = "ogym_mobile_token";
-
-export function getMobileToken(): string | null {
-  try {
-    return localStorage.getItem(MOBILE_TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function setMobileToken(token: string) {
-  try {
-    localStorage.setItem(MOBILE_TOKEN_KEY, token);
-  } catch {}
-}
-
-export function clearMobileToken() {
-  try {
-    localStorage.removeItem(MOBILE_TOKEN_KEY);
-  } catch {}
-}
-
-export const isNativeApp = (() => {
-  try {
-    return Capacitor.isNativePlatform();
-  } catch {
-    return false;
-  }
-})();
-
-export const API_BASE_URL = isNativeApp
-  ? "https://app.ogym.fitness"
-  : (import.meta.env.VITE_API_BASE_URL || "");
-
-function getMobileHeaders(): Record<string, string> {
-  if (!isNativeApp) return {};
-  const headers: Record<string, string> = {
-    "X-Mobile-App": "true",
-  };
-  const token = getMobileToken();
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  return headers;
-}
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 function getNetworkErrorMessage(error: unknown): string {
   if (error instanceof TypeError && error.message === "Failed to fetch") {
@@ -83,7 +38,6 @@ export async function apiRequest(
 ): Promise<Response> {
   const headers: Record<string, string> = {
     ...getTimezoneHeaders(),
-    ...getMobileHeaders(),
     ...(data ? { "Content-Type": "application/json" } : {})
   };
   
@@ -92,7 +46,7 @@ export async function apiRequest(
       method,
       headers,
       body: data ? JSON.stringify(data) : undefined,
-      credentials: isNativeApp ? "omit" : "include",
+      credentials: "include",
     });
 
     await throwIfResNotOk(res);
@@ -115,11 +69,8 @@ export const getQueryFn: <T>(options: {
       const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       const res = await fetch(url, {
-        credentials: isNativeApp ? "omit" : "include",
-        headers: {
-          ...getTimezoneHeaders(),
-          ...getMobileHeaders(),
-        },
+        credentials: "include",
+        headers: getTimezoneHeaders(),
         signal: controller.signal
       });
       
