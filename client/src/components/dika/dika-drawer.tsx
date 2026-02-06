@@ -474,10 +474,30 @@ export function DikaDrawer({
     { value: 'bat', icon: BatIcon, label: 'Bat' },
   ];
 
-  // Detect iOS native platform
   const isIOS = typeof window !== 'undefined' && 
     typeof (window as any).Capacitor !== 'undefined' && 
     (window as any).Capacitor.getPlatform?.() === 'ios';
+
+  useEffect(() => {
+    if (!isOpen && isIOS) {
+      const cleanup = () => {
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+        document.body.style.removeProperty('margin-right');
+        document.body.style.removeProperty('pointer-events');
+        document.body.style.removeProperty('position');
+        document.body.style.removeProperty('top');
+        document.body.style.removeProperty('width');
+        document.documentElement.style.removeProperty('overflow');
+        document.documentElement.removeAttribute('data-scroll-locked');
+      };
+      cleanup();
+      const t1 = setTimeout(cleanup, 50);
+      const t2 = setTimeout(cleanup, 150);
+      const t3 = setTimeout(cleanup, 300);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    }
+  }, [isOpen, isIOS]);
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -494,6 +514,7 @@ export function DikaDrawer({
       >
         <SheetHeader 
           className="px-4 py-4 flex-shrink-0 pr-12 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-600"
+          style={{ paddingTop: `calc(env(safe-area-inset-top, 0px) + 1rem)` }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -779,7 +800,7 @@ export function DikaDrawer({
         <form 
           onSubmit={handleSubmit} 
           className="p-4 border-t flex gap-2 flex-shrink-0 bg-background"
-          style={{ paddingBottom: `max(1rem, env(safe-area-inset-bottom))` }}
+          style={{ paddingBottom: keyboardHeight > 0 ? '0.5rem' : `max(1rem, env(safe-area-inset-bottom))` }}
         >
           <div className="flex-1 relative">
             <Input

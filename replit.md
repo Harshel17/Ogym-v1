@@ -66,7 +66,7 @@ Preferred communication style: Simple, everyday language.
 - **Toast Positioning:** ToastViewport z-index 100001 (above header's 99999), positioned using CSS variable `--mobile-header-height: 56px` to ensure visibility below header.
 - **Bottom Safe Area:** Main content uses `.pb-safe-bottom` class (mobile only) with `calc(tab-bar-height + safe-area-inset-bottom + 16px)` to prevent content from being clipped behind the home indicator and tab bar.
 - **Onboarding Safe Areas:** All onboarding pages (carousel, member-onboarding, personal-onboarding) have explicit safe area padding for both top and bottom insets. Skip button and ThemeToggle positioned below top safe area, bottom controls positioned above bottom safe area.
-- **Known Issue - iOS Dika Spacing:** After closing the Dika drawer on iOS, the navbar spacing may slightly increase. This is a cosmetic issue that doesn't affect functionality. Multiple fix attempts made (disabled modal mode, locked body styles with !important, removed dynamic measurements) but issue persists. Deferred for future investigation.
+- **iOS Dika Spacing Fix:** Dika drawer now has safe-area-inset-top padding on header and close button. Aggressive body/html style cleanup runs on close (at 0/50/150/300ms intervals) to remove any residual Radix Dialog styles (overflow, padding-right, pointer-events, data-scroll-locked). Scoped to iOS native only. Form bottom padding reduced when keyboard is open to avoid double safe-area.
 
 ## External Dependencies
 
