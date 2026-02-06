@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { Send, Loader2, Settings, Sparkles, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Bot, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -72,7 +72,7 @@ interface WorkoutPlanCardProps {
 function WorkoutPlanCard({ plan, onSave, isSaving, isSaved }: WorkoutPlanCardProps) {
   return (
     <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div className="px-3 py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white">
+      <div className="px-3 py-2 bg-gradient-to-r from-slate-700 to-slate-800 text-white">
         <h3 className="font-semibold text-sm">{plan.name}</h3>
         <p className="text-xs text-white/80">{plan.cycleLength} day cycle</p>
       </div>
@@ -120,7 +120,7 @@ function WorkoutPlanCard({ plan, onSave, isSaving, isSaved }: WorkoutPlanCardPro
               "w-full",
               isSaved 
                 ? "bg-green-500 hover:bg-green-500 text-white" 
-                : "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+                : "bg-gradient-to-br from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700"
             )}
             data-testid="button-save-workout-card"
           >
@@ -254,7 +254,7 @@ function parseInlineMarkdown(text: string): ReactNode[] {
             href={nextMatch.match[2]} 
             target="_blank" 
             rel="noopener noreferrer"
-            className="text-violet-400 hover:text-violet-300 underline underline-offset-2"
+            className="text-teal-500 hover:text-teal-400 underline underline-offset-2"
           >
             {nextMatch.match[1]}
           </a>
@@ -286,9 +286,9 @@ function MarkdownContent({ content }: { content: string }) {
 function TypingIndicator() {
   return (
     <div className="flex items-center gap-1 px-3 py-2">
-      <div className="w-2 h-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-      <div className="w-2 h-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-      <div className="w-2 h-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+      <div className="w-2 h-2 rounded-full bg-teal-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+      <div className="w-2 h-2 rounded-full bg-teal-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+      <div className="w-2 h-2 rounded-full bg-teal-500 animate-bounce" style={{ animationDelay: '300ms' }} />
     </div>
   );
 }
@@ -513,34 +513,30 @@ export function DikaDrawer({
         data-testid="drawer-dika"
       >
         <SheetHeader 
-          className="px-4 py-4 flex-shrink-0 pr-12 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-600"
-          style={{ paddingTop: `calc(env(safe-area-inset-top, 0px) + 1rem)` }}
+          className="px-4 py-3 flex-shrink-0 pr-12 bg-slate-900 dark:bg-slate-950 border-b border-teal-500/20"
+          style={{ paddingTop: `calc(env(safe-area-inset-top, 0px) + 0.75rem)` }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full relative">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-white/30 via-pink-300/30 to-white/30 p-[2px]">
-                  <div className="w-full h-full rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                    <span className="text-xl font-black text-white font-display drop-shadow-md">D</span>
-                  </div>
-                </div>
-                <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-yellow-300 drop-shadow-lg" />
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/20 relative">
+                <Bot className="w-5 h-5 text-white" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <SheetTitle className="text-lg font-semibold text-white">Dika AI</SheetTitle>
-                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-white/20 text-white/90 font-medium">
-                    Powered by AI
+                  <SheetTitle className="text-base font-semibold text-white">Dika AI</SheetTitle>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-teal-500/15 text-teal-400 font-mono font-medium tracking-wider uppercase border border-teal-500/20">
+                    v2.0
                   </span>
                 </div>
-                <p className="text-xs text-white/70">Your intelligent gym assistant</p>
+                <p className="text-xs text-slate-400">Gym intelligence assistant</p>
               </div>
             </div>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setShowSettings(!showSettings)}
-              className="text-white/80 hover:text-white hover:bg-white/10"
+              className="text-slate-400 hover:text-white hover:bg-white/5"
               data-testid="button-dika-settings"
             >
               <Settings className="w-4 h-4" />
@@ -592,67 +588,40 @@ export function DikaDrawer({
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-violet-50/50 to-transparent dark:from-violet-950/20 dark:to-transparent relative">
-          {/* Background Art */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900 relative">
+          {/* Background - subtle grid */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Floating circles */}
-            <div className="absolute top-10 left-4 w-20 h-20 rounded-full bg-gradient-to-br from-violet-200/30 to-pink-200/30 dark:from-violet-500/10 dark:to-pink-500/10 blur-xl" />
-            <div className="absolute top-1/3 right-6 w-16 h-16 rounded-full bg-gradient-to-br from-cyan-200/30 to-blue-200/30 dark:from-cyan-500/10 dark:to-blue-500/10 blur-xl" />
-            <div className="absolute bottom-1/4 left-8 w-24 h-24 rounded-full bg-gradient-to-br from-pink-200/20 to-orange-200/20 dark:from-pink-500/10 dark:to-orange-500/10 blur-2xl" />
-            <div className="absolute bottom-10 right-10 w-14 h-14 rounded-full bg-gradient-to-br from-purple-200/30 to-indigo-200/30 dark:from-purple-500/10 dark:to-indigo-500/10 blur-xl" />
-            
-            {/* Subtle grid pattern */}
-            <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.02]" style={{ 
-              backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)',
-              backgroundSize: '24px 24px'
+            <div className="absolute inset-0 opacity-[0.04] dark:opacity-[0.03]" style={{ 
+              backgroundImage: 'linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)',
+              backgroundSize: '32px 32px'
             }} />
-            
-            {/* Decorative shapes */}
-            <div className="absolute top-20 right-1/4 w-3 h-3 rounded-full bg-violet-300/40 dark:bg-violet-400/20 animate-pulse" style={{ animationDelay: '0s' }} />
-            <div className="absolute top-1/2 left-1/4 w-2 h-2 rounded-full bg-pink-300/40 dark:bg-pink-400/20 animate-pulse" style={{ animationDelay: '1s' }} />
-            <div className="absolute bottom-1/3 right-1/3 w-2.5 h-2.5 rounded-full bg-cyan-300/40 dark:bg-cyan-400/20 animate-pulse" style={{ animationDelay: '2s' }} />
-            
-            {/* Gradient lines */}
-            <div className="absolute top-0 left-1/2 w-px h-32 bg-gradient-to-b from-violet-200/50 to-transparent dark:from-violet-500/20" />
-            <div className="absolute bottom-0 right-1/3 w-px h-24 bg-gradient-to-t from-pink-200/50 to-transparent dark:from-pink-500/20" />
+            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-teal-500/5 to-transparent dark:from-teal-500/3" />
           </div>
           {messages.length === 0 && (
-            <div className="text-center py-8">
-              <div className="w-24 h-24 mx-auto mb-5 relative group">
-                {/* Outer glow ring */}
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-400 via-pink-400 to-cyan-400 opacity-30 blur-xl animate-pulse" />
-                {/* Animated gradient ring */}
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-400 via-pink-500 to-cyan-400 p-[3px]" style={{ animation: 'spin 8s linear infinite' }}>
-                  <div className="w-full h-full rounded-full bg-white dark:bg-gray-900" />
+            <div className="text-center py-8 relative">
+              <div className="w-20 h-20 mx-auto mb-5 relative">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-teal-500/20 to-cyan-500/20 blur-xl" />
+                <div className="relative w-full h-full rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-lg">
+                  <Bot className="w-9 h-9 text-teal-500 dark:text-teal-400" />
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-slate-50 dark:border-slate-800 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                  </div>
                 </div>
-                {/* Inner circle with D - light vibrant gradient */}
-                <div className="absolute inset-[6px] rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 shadow-xl shadow-pink-400/30 flex items-center justify-center overflow-hidden">
-                  {/* Shimmer overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-white/40 via-transparent to-white/20" />
-                  <span className="text-4xl font-black text-white font-display tracking-tight drop-shadow-lg relative z-10" style={{ textShadow: '0 2px 8px rgba(168, 85, 247, 0.4)' }}>D</span>
-                </div>
-                {/* Sparkle decorations */}
-                <Sparkles className="absolute -top-1 -right-1 w-6 h-6 text-yellow-400 drop-shadow-lg animate-pulse" />
-                <Sparkles className="absolute -bottom-2 -left-2 w-5 h-5 text-pink-400 drop-shadow-lg animate-pulse" style={{ animationDelay: '0.5s' }} />
-                <Sparkles className="absolute top-1/2 -right-3 w-4 h-4 text-cyan-400 drop-shadow-lg animate-pulse" style={{ animationDelay: '1s' }} />
-                {/* Floating dots */}
-                <div className="absolute -top-2 left-1/4 w-2 h-2 rounded-full bg-gradient-to-r from-yellow-300 to-orange-400 animate-bounce" style={{ animationDelay: '0.2s' }} />
-                <div className="absolute -bottom-1 right-1/4 w-1.5 h-1.5 rounded-full bg-gradient-to-r from-pink-300 to-rose-400 animate-bounce" style={{ animationDelay: '0.7s' }} />
               </div>
-              <h3 className="text-lg font-semibold mb-1 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 dark:from-violet-400 dark:via-purple-400 dark:to-indigo-400 bg-clip-text text-transparent">How can I help you today?</h3>
-              <p className="text-sm text-muted-foreground mb-6">
+              <h3 className="text-lg font-semibold mb-1 text-slate-800 dark:text-slate-100">How can I help you today?</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
                 Ask me about workouts, attendance, payments, and more
               </p>
               
               {suggestions.length > 0 && (
                 <div className="space-y-3">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Suggestions</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-mono">Suggestions</p>
                   <div className="flex flex-wrap gap-2 justify-center">
                     {suggestions.map((suggestion, i) => (
                       <Badge
                         key={i}
                         variant="outline"
-                        className="cursor-pointer hover-elevate bg-white dark:bg-gray-800 border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300"
+                        className="cursor-pointer hover-elevate bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
                         onClick={() => handleSuggestionClick(suggestion)}
                         data-testid={`chip-suggestion-${i}`}
                       >
@@ -674,21 +643,16 @@ export function DikaDrawer({
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full mr-2 flex-shrink-0 relative">
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 shadow-md shadow-pink-400/25" />
-                    <div className="absolute inset-0 bg-gradient-to-tr from-white/30 via-transparent to-white/10 rounded-full" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-sm font-black text-white font-display drop-shadow-sm">D</span>
-                    </div>
-                    <Sparkles className="absolute -top-0.5 -right-0.5 w-3 h-3 text-yellow-400 drop-shadow-sm" />
+                  <div className="w-7 h-7 rounded-lg mr-2 flex-shrink-0 bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-sm">
+                    <Bot className="w-4 h-4 text-white" />
                   </div>
                 )}
                 <div
                   className={cn(
                     "max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm shadow-sm group relative",
                     message.role === 'user'
-                      ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-br-md'
-                      : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-bl-md'
+                      ? 'bg-slate-800 dark:bg-slate-700 text-white rounded-br-md'
+                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-bl-md'
                   )}
                   data-testid={`message-${message.role}`}
                 >
@@ -734,7 +698,7 @@ export function DikaDrawer({
                             "text-xs flex items-center gap-1",
                             savedWorkoutIds.has(message.id) 
                               ? "text-green-500" 
-                              : "text-violet-500 hover:text-violet-600"
+                              : "text-teal-500 hover:text-teal-600"
                           )}
                           data-testid={`button-save-workout-${message.id}`}
                         >
@@ -766,7 +730,7 @@ export function DikaDrawer({
                     <Badge
                       key={i}
                       variant="outline"
-                      className="cursor-pointer hover-elevate text-xs bg-white dark:bg-gray-800 border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300"
+                      className="cursor-pointer hover-elevate text-xs bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
                       onClick={() => handleSuggestionClick(chip)}
                       data-testid={`chip-followup-${i}`}
                     >
@@ -780,15 +744,10 @@ export function DikaDrawer({
 
           {isLoading && (
             <div className="flex justify-start">
-              <div className="w-8 h-8 rounded-full mr-2 flex-shrink-0 relative">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 via-fuchsia-400 to-pink-400 shadow-md shadow-pink-400/25 animate-pulse" />
-                <div className="absolute inset-0 bg-gradient-to-tr from-white/30 via-transparent to-white/10 rounded-full" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-sm font-black text-white font-display drop-shadow-sm">D</span>
-                </div>
-                <Sparkles className="absolute -top-0.5 -right-0.5 w-3 h-3 text-yellow-400 drop-shadow-sm animate-pulse" />
+              <div className="w-7 h-7 rounded-lg mr-2 flex-shrink-0 bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-sm animate-pulse">
+                <Bot className="w-4 h-4 text-white" />
               </div>
-              <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl rounded-bl-md shadow-sm">
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl rounded-bl-md shadow-sm">
                 <TypingIndicator />
               </div>
             </div>
@@ -811,7 +770,7 @@ export function DikaDrawer({
               placeholder={isListening ? "Listening..." : "Ask Dika anything..."}
               disabled={isLoading}
               className={cn(
-                "pr-4 rounded-full border-gray-200 dark:border-gray-700 focus:border-violet-400 focus:ring-violet-400/20",
+                "pr-4 rounded-full border-slate-200 dark:border-slate-700 focus:border-teal-400 focus:ring-teal-400/20",
                 isListening && "border-red-400 animate-pulse"
               )}
               enterKeyHint="send"
@@ -840,7 +799,7 @@ export function DikaDrawer({
             type="submit"
             size="icon"
             disabled={!input.trim() || isLoading}
-            className="rounded-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg shadow-violet-500/25"
+            className="rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 shadow-lg shadow-teal-500/25"
             data-testid="button-dika-send"
           >
             <Send className="w-4 h-4" />

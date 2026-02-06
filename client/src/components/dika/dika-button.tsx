@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon } from './dika-icons';
+import { Bot } from 'lucide-react';
 
 interface DikaButtonProps {
   icon: DikaIcon;
@@ -155,14 +156,14 @@ export function DikaButton({
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       className={cn(
-        "fixed z-50 w-12 h-12 rounded-full",
-        "bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600",
-        "shadow-[0_0_20px_rgba(139,92,246,0.5)]",
+        "fixed z-50 w-12 h-12 rounded-xl",
+        "bg-gradient-to-br from-teal-500 to-cyan-600",
+        "shadow-lg shadow-teal-500/30",
         "flex items-center justify-center",
         "cursor-grab active:cursor-grabbing",
-        "transition-all duration-200 hover:scale-110 hover:shadow-[0_0_30px_rgba(139,92,246,0.7)]",
-        "ring-2 ring-white/20",
-        isDragging && "scale-110 opacity-90"
+        "transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-teal-500/40",
+        "border border-teal-400/30",
+        isDragging && "scale-105 opacity-90"
       )}
       style={{
         left: position.x,
@@ -171,10 +172,8 @@ export function DikaButton({
       }}
       aria-label="Ask Dika"
     >
-      {/* Pulse ring animation */}
-      <span className="absolute inset-0 rounded-full animate-ping bg-violet-400 opacity-30" style={{ animationDuration: '2s' }} />
-      <div className="absolute inset-0 rounded-full bg-gradient-to-t from-transparent to-white/20" />
-      {renderIcon()}
+      <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-transparent to-white/10" />
+      <Bot className="w-6 h-6 text-white relative z-10" />
     </button>
   );
 }
