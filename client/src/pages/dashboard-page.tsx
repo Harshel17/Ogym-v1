@@ -219,8 +219,8 @@ function OwnerDashboard() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+    <div className="space-y-3">
+      <div className="grid gap-2.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <StatCard 
           title="Total Members" 
           value={totalMembers} 
@@ -327,7 +327,7 @@ function OwnerDashboard() {
         </Card>
       )}
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-2.5 md:grid-cols-2">
         <Card className="border-0 bg-muted/30">
           <CardHeader className="pb-2 pt-3 px-3">
             <CardTitle className="text-sm font-semibold">Attendance (Last 7 days)</CardTitle>
@@ -436,8 +436,8 @@ function TrainerDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+    <div className="space-y-3">
+      <div className="grid gap-2.5 md:grid-cols-3">
         <StatCard 
           title="My Members" 
           value={totalMembers} 
@@ -503,7 +503,7 @@ function TrainerDashboard() {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-2.5 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="text-lg">Quick Actions</CardTitle>
