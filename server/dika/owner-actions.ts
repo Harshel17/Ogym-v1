@@ -263,23 +263,43 @@ IMPORTANT: You must respond in this exact JSON format:
 
 Set status to "needs_info" ONLY if name or email is missing. Set to "pending_confirmation" if we have both name and email.`;
   } else if (actionType === 'log_payment') {
-    actionInstructions = `The owner wants to log a payment for a member.
-To log a payment, we need:
-- memberName (required): Which member paid - must match someone in the gym
-- amount (required): Payment amount in the gym's currency (${gym.currency || 'INR'})
-- method (required): Payment method - one of: cash, upi, card, bank, other (default: cash). If the user says something like "venmo", "zelle", "gpay", "phonepe", or any other payment app/service, map it to "other" and include the original method name in the note field. NEVER reject a payment method - always accept it and map to the closest category or "other".
-- date (optional): Payment date in YYYY-MM-DD format (default: today)
-- note (optional): Reference note
+    const currencySymbol = (gym.currency || 'INR') === 'INR' ? '₹' : '$';
+    const planDetails = plans.map(p => `"${p.name}" - ${p.durationMonths} month(s) - ${currencySymbol}${(p.priceAmount / 100).toFixed(0)} (ID: ${p.id})`).join('\n  ');
+
+    actionInstructions = `The owner wants to add a subscription and log a payment for a member. This is a step-by-step conversation flow.
+
+CONVERSATION FLOW (follow this order):
+1. First, identify the MEMBER. Match the name against the gym's member list using fuzzy matching.
+2. Then ask which PLAN they want. Show the available plans with prices.
+3. Once the plan is chosen, tell them the total cost and ask: "Is [member] paying the full amount of ${currencySymbol}[price]?"
+4. If FULL payment: ask for payment METHOD, then confirm.
+5. If PARTIAL payment (e.g., "no, ${currencySymbol}60 now"): note the amount paid, ask for payment METHOD, then confirm. The balance will be tracked automatically.
+6. Ask for the START DATE (default: today). The end date will be calculated automatically from the plan duration.
+
+REQUIRED FIELDS:
+- memberId (required): Must match a gym member
+- memberName (required): The matched member's name
+- planId (required): Which membership plan
+- planName (required): Name of the selected plan
+- totalAmount (required): Full plan price in main currency units (NOT paise)
+- amountPaid (required): How much the member is paying now (could be full or partial)
+- paymentMode (required): "full" if paying entire amount, "partial" if paying less
+- method (required): Payment method - one of: cash, upi, card, bank, venmo, cashapp, zelle, paypal, other
+- startDate (optional): Start date in YYYY-MM-DD format (default: today ${new Date().toISOString().split('T')[0]})
 
 Current gym members: ${memberList || 'No members'}
-Currency: ${gym.currency || 'INR'}
+Currency: ${gym.currency || 'INR'} (${currencySymbol})
 
-Extract whatever info the owner provided from the ENTIRE conversation (including previous messages). The user may provide member name, amount, and method across multiple messages.
-The amount should be the raw number in the main currency unit (not paise). Parse amounts like "49$", "$49", "49 dollars", "49" as the number 49.
-Match the member name against the gym's member list using fuzzy matching. If the name is close but not exact (e.g., "varshel" for "Varshel"), still match it.
-If ambiguous (multiple matches), ask to clarify.
-If we can't match any member, let the owner know.
-CRITICAL: Once you have memberId, amount, and method, you MUST set status to "pending_confirmation" immediately. Do NOT ask for optional fields like date or note - proceed straight to confirmation.
+Available plans:
+  ${planDetails || 'No plans configured'}
+
+RULES:
+- Extract info from the ENTIRE conversation history. The user provides details across multiple messages.
+- Parse amounts like "49$", "$49", "49 dollars", "49" as the number 49.
+- If the user says "full" or "yes" to "paying full amount?", set amountPaid = totalAmount and paymentMode = "full".
+- If the user gives a partial amount less than the total, set amountPaid to that amount and paymentMode = "partial". Show the remaining balance in your message.
+- For payment method, accept anything. Map "gpay", "phonepe", "google pay" to "upi". Map unknown methods to "other".
+- CRITICAL: Once you have memberId, planId, amountPaid, and method, set status to "pending_confirmation" immediately.
 
 IMPORTANT: You must respond in this exact JSON format:
 {
@@ -287,13 +307,13 @@ IMPORTANT: You must respond in this exact JSON format:
   "action": {
     "actionType": "log_payment",
     "status": "pending_confirmation" or "needs_info",
-    "payload": { "memberId": number, "memberName": "...", "amount": number, "method": "cash", "date": "YYYY-MM-DD", "note": "..." },
-    "preview": "A human-readable summary of what will be done",
+    "payload": { "memberId": number, "memberName": "...", "planId": number, "planName": "...", "totalAmount": number, "amountPaid": number, "paymentMode": "full" or "partial", "method": "cash", "startDate": "YYYY-MM-DD" },
+    "preview": "A human-readable summary including plan, amount paid, balance if partial, and method",
     "missingFields": ["field1", "field2"]
   }
 }
 
-Set status to "needs_info" if member or amount is missing/ambiguous. Set to "pending_confirmation" if we have enough.`;
+Set status to "needs_info" if any required field is missing/ambiguous. Set to "pending_confirmation" when you have everything.`;
   } else if (actionType === 'assign_trainer') {
     actionInstructions = `The owner wants to assign a trainer to a member.
 To assign a trainer, we need:
@@ -495,10 +515,10 @@ async function executeLogPayment(
   payload: Record<string, any>
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const { memberId, amount, method, date, note } = payload;
+    const { memberId, memberName, planId, planName, totalAmount, amountPaid, paymentMode, method, startDate } = payload;
 
-    if (!memberId || !amount) {
-      return { success: false, message: "Member and amount are required to log a payment." };
+    if (!memberId || !planId || !amountPaid) {
+      return { success: false, message: "Member, plan, and payment amount are required." };
     }
 
     const [member] = await db.select({
@@ -511,41 +531,85 @@ async function executeLogPayment(
       return { success: false, message: "Member not found in your gym." };
     }
 
-    const subs = await db.select()
+    const [plan] = await db.select().from(membershipPlans).where(
+      and(eq(membershipPlans.id, planId), eq(membershipPlans.gymId, gymId))
+    );
+
+    if (!plan) {
+      return { success: false, message: "Selected plan not found." };
+    }
+
+    const existingSubs = await db.select()
       .from(memberSubscriptions)
       .where(and(
         eq(memberSubscriptions.memberId, memberId),
         eq(memberSubscriptions.gymId, gymId),
+        eq(memberSubscriptions.status, 'active')
       ))
-      .orderBy(desc(memberSubscriptions.createdAt))
       .limit(1);
 
-    if (subs.length === 0) {
-      return { success: false, message: "This member has no active subscription. Please create a subscription first before logging a payment." };
+    if (existingSubs.length > 0) {
+      const existingSub = existingSubs[0];
+      const existingPlan = existingSub.planId ? await db.select({ name: membershipPlans.name }).from(membershipPlans).where(eq(membershipPlans.id, existingSub.planId)).then(r => r[0]) : null;
+      return {
+        success: false,
+        message: `${memberName || 'This member'} already has an active subscription${existingPlan ? ` (${existingPlan.name})` : ''} running until ${existingSub.endDate}. Please end the existing subscription first or go to Payments to manage it.`,
+      };
     }
 
-    const subscription = subs[0];
-    const amountInPaise = Math.round(amount * 100);
-    const paidOn = date || new Date().toISOString().split('T')[0];
+    const subStartDate = startDate || new Date().toISOString().split('T')[0];
+    const endDateObj = new Date(subStartDate);
+    endDateObj.setMonth(endDateObj.getMonth() + plan.durationMonths);
+    const subEndDate = endDateObj.toISOString().split('T')[0];
+
+    const totalAmountPaise = plan.priceAmount;
+    let amountPaidPaise = Math.round(amountPaid * 100);
+    if (amountPaidPaise > totalAmountPaise) {
+      amountPaidPaise = totalAmountPaise;
+    }
+    const paidOn = new Date().toISOString().split('T')[0];
     const paymentMethod = method || 'cash';
+    const mode = paymentMode || (amountPaidPaise >= totalAmountPaise ? 'full' : 'partial');
+
+    const subscription = await storage.createMemberSubscription({
+      gymId,
+      memberId,
+      planId: plan.id,
+      startDate: subStartDate,
+      endDate: subEndDate,
+      totalAmount: totalAmountPaise,
+      paymentMode: mode,
+      status: 'active',
+    });
 
     await storage.addPaymentTransaction({
       subscriptionId: subscription.id,
       memberId,
       gymId,
-      amountPaid: amountInPaise,
+      amountPaid: amountPaidPaise,
       paidOn,
       method: paymentMethod,
-      referenceNote: note || `Logged via Dika assistant`,
+      referenceNote: `Logged via Dika assistant`,
     });
 
-    const [gym] = await db.select({ currency: gyms.currency }).from(gyms).where(eq(gyms.id, gymId));
-    const currencySymbol = (gym?.currency || 'INR') === 'INR' ? '\u20B9' : (gym?.currency || '');
+    const [gymData] = await db.select({ currency: gyms.currency }).from(gyms).where(eq(gyms.id, gymId));
+    const currencySymbol = (gymData?.currency || 'INR') === 'INR' ? '\u20B9' : '$';
+    const totalInCurrency = totalAmountPaise / 100;
+    const paidInCurrency = amountPaidPaise / 100;
+    const balanceInCurrency = (totalAmountPaise - amountPaidPaise) / 100;
 
-    return {
-      success: true,
-      message: `Payment of **${currencySymbol}${amount.toLocaleString()}** logged for **${payload.memberName || 'member'}** via ${paymentMethod}. Date: ${paidOn}.`,
-    };
+    let message = `**${planName || plan.name}** subscription created for **${memberName || 'member'}**!\n`;
+    message += `- Duration: ${subStartDate} → ${subEndDate}\n`;
+    message += `- Total: **${currencySymbol}${totalInCurrency.toLocaleString()}**\n`;
+    message += `- Paid: **${currencySymbol}${paidInCurrency.toLocaleString()}** via ${paymentMethod}\n`;
+
+    if (balanceInCurrency > 0) {
+      message += `- Balance: **${currencySymbol}${balanceInCurrency.toLocaleString()}** remaining`;
+    } else {
+      message += `- Status: **Fully paid**`;
+    }
+
+    return { success: true, message };
   } catch (error: any) {
     console.error('Execute log payment error:', error);
     return { success: false, message: `Failed to log payment: ${error.message || 'Unknown error'}` };

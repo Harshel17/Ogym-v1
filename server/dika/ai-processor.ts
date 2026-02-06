@@ -66,7 +66,10 @@ function detectPendingActionFromHistory(
       content.includes('payment method') ||
       content.includes('amount and method') ||
       (content.includes('payment') && content.includes('member')) ||
-      (content.includes('payment') && content.includes('amount'))
+      (content.includes('payment') && content.includes('amount')) ||
+      content.includes('membership plan') ||
+      content.includes('paying the full amount') ||
+      content.includes('full amount of')
     ) {
       return 'log_payment';
     }

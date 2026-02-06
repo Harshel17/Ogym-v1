@@ -393,12 +393,37 @@ function ActionCard({ action, onConfirm, onCancel, isExecuting, executionResult 
             .replace(/([A-Z])/g, ' $1')
             .replace(/^./, s => s.toUpperCase())
             .trim();
+
+          let displayValue = typeof value === 'number' ? value.toLocaleString() : String(value);
+          if (key === 'paymentMode') {
+            displayValue = value === 'full' ? 'Full Payment' : 'Partial Payment';
+          }
+          if (key === 'totalAmount' || key === 'amountPaid') {
+            displayValue = `$${Number(value).toLocaleString()}`;
+          }
+
+          const isBalance = key === 'paymentMode' && value === 'partial';
+          const balance = action.payload.totalAmount && action.payload.amountPaid 
+            ? Number(action.payload.totalAmount) - Number(action.payload.amountPaid)
+            : 0;
+
           return (
-            <div key={key} className="flex items-center justify-between text-xs">
-              <span className="text-gray-500 dark:text-gray-400">{displayKey}</span>
-              <span className="font-medium text-gray-800 dark:text-gray-200 text-right max-w-[60%] truncate">
-                {typeof value === 'number' ? value.toLocaleString() : String(value)}
-              </span>
+            <div key={key}>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500 dark:text-gray-400">{displayKey}</span>
+                <span className={cn(
+                  "font-medium text-right max-w-[60%] truncate",
+                  isBalance ? "text-amber-600 dark:text-amber-400" : "text-gray-800 dark:text-gray-200"
+                )}>
+                  {displayValue}
+                </span>
+              </div>
+              {isBalance && balance > 0 && (
+                <div className="flex items-center justify-between text-xs mt-1">
+                  <span className="text-gray-500 dark:text-gray-400">Balance Due</span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">${balance.toLocaleString()}</span>
+                </div>
+              )}
             </div>
           );
         })}
