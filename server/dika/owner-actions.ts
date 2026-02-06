@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { db } from "../db";
-import { users, userProfiles, gyms, memberSubscriptions, trainerMemberAssignments, membershipPlans } from "@shared/schema";
+import { users, userProfiles, gyms, memberSubscriptions, trainerMemberAssignments, membershipPlans, paymentTransactions } from "@shared/schema";
 import { eq, and, ilike, desc, sql } from "drizzle-orm";
 import { storage } from "../storage";
 
@@ -266,23 +266,76 @@ Set status to "needs_info" ONLY if name or email is missing. Set to "pending_con
     const currencySymbol = (gym.currency || 'INR') === 'INR' ? '₹' : '$';
     const planDetails = plans.map(p => `"${p.name}" - ${p.durationMonths} month(s) - ${currencySymbol}${(p.priceAmount / 100).toFixed(0)} (ID: ${p.id})`).join('\n  ');
 
-    actionInstructions = `The owner wants to add a subscription and log a payment for a member. This is a step-by-step conversation flow.
+    const activeSubsWithBalance = await db.select({
+      memberId: memberSubscriptions.memberId,
+      subscriptionId: memberSubscriptions.id,
+      totalAmount: memberSubscriptions.totalAmount,
+      endDate: memberSubscriptions.endDate,
+      planId: memberSubscriptions.planId,
+      planName: membershipPlans.name,
+      memberName: users.username,
+    })
+    .from(memberSubscriptions)
+    .innerJoin(users, eq(memberSubscriptions.memberId, users.id))
+    .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+    .where(and(
+      eq(memberSubscriptions.gymId, gymId),
+      eq(memberSubscriptions.status, 'active')
+    ));
 
-CONVERSATION FLOW (follow this order):
+    let membersWithBalance = '';
+    if (activeSubsWithBalance.length > 0) {
+      const subIds = activeSubsWithBalance.map(s => s.subscriptionId);
+      const paidAmounts = await db.select({
+        subscriptionId: paymentTransactions.subscriptionId,
+        totalPaid: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)`
+      })
+      .from(paymentTransactions)
+      .where(sql`${paymentTransactions.subscriptionId} IN (${sql.join(subIds.map(id => sql`${id}`), sql`, `)})`)
+      .groupBy(paymentTransactions.subscriptionId);
+
+      const paidMap = new Map(paidAmounts.map(p => [p.subscriptionId, Number(p.totalPaid)]));
+
+      const withBalance = activeSubsWithBalance.filter(s => {
+        const paid = paidMap.get(s.subscriptionId) || 0;
+        return paid < s.totalAmount;
+      }).map(s => {
+        const paid = paidMap.get(s.subscriptionId) || 0;
+        const balance = (s.totalAmount - paid) / 100;
+        return `${s.memberName} (ID: ${s.memberId}) - ${s.planName || 'Subscription'} - Outstanding: ${currencySymbol}${balance}`;
+      });
+
+      if (withBalance.length > 0) {
+        membersWithBalance = `\n\nMEMBERS WITH OUTSTANDING BALANCE (existing active subscriptions):\n  ${withBalance.join('\n  ')}`;
+      }
+    }
+
+    actionInstructions = `The owner wants to log a payment for a member. This handles TWO scenarios:
+
+SCENARIO A - Member has an EXISTING active subscription with outstanding balance:
+  Skip plan selection. Just ask for payment amount and method, then confirm. Use the existing subscription's plan info.
+  
+SCENARIO B - Member has NO active subscription (or fully paid):
+  Guide through full subscription creation: plan selection → full/partial amount → payment method → confirm.
+
+${membersWithBalance}
+
+CONVERSATION FLOW:
 1. First, identify the MEMBER. Match the name against the gym's member list using fuzzy matching.
-2. Then ask which PLAN they want. Show the available plans with prices.
-3. Once the plan is chosen, tell them the total cost and ask: "Is [member] paying the full amount of ${currencySymbol}[price]?"
+2. Check if the member appears in the "MEMBERS WITH OUTSTANDING BALANCE" list above.
+   - If YES (Scenario A): Tell the owner the outstanding balance and ask how much they want to pay now and by which method. Do NOT ask about plans.
+   - If NO (Scenario B): Ask which PLAN they want. Show available plans with prices.
+3. For Scenario B: Once plan is chosen, tell them the total cost and ask: "Is [member] paying the full amount of ${currencySymbol}[price]?"
 4. If FULL payment: ask for payment METHOD, then confirm.
-5. If PARTIAL payment (e.g., "no, ${currencySymbol}60 now"): note the amount paid, ask for payment METHOD, then confirm. The balance will be tracked automatically.
-6. Ask for the START DATE (default: today). The end date will be calculated automatically from the plan duration.
+5. If PARTIAL payment (e.g., "no, ${currencySymbol}60 now"): note the amount paid, ask for payment METHOD, then confirm.
 
 REQUIRED FIELDS:
 - memberId (required): Must match a gym member
 - memberName (required): The matched member's name
-- planId (required): Which membership plan
+- planId (required): Which membership plan (use existing plan ID for Scenario A)
 - planName (required): Name of the selected plan
-- totalAmount (required): Full plan price in main currency units (NOT paise)
-- amountPaid (required): How much the member is paying now (could be full or partial)
+- totalAmount (required): Full plan price in main currency units (NOT paise). For Scenario A, this is the original subscription total.
+- amountPaid (required): How much the member is paying now
 - paymentMode (required): "full" if paying entire amount, "partial" if paying less
 - method (required): Payment method - one of: cash, upi, card, bank, venmo, cashapp, zelle, paypal, other
 - startDate (optional): Start date in YYYY-MM-DD format (default: today ${new Date().toISOString().split('T')[0]})
@@ -513,7 +566,7 @@ async function executeLogPayment(
   ownerId: number,
   gymId: number,
   payload: Record<string, any>
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; data?: Record<string, any> }> {
   try {
     const { memberId, memberName, planId, planName, totalAmount, amountPaid, paymentMode, method, startDate } = payload;
 
@@ -551,9 +604,74 @@ async function executeLogPayment(
     if (existingSubs.length > 0) {
       const existingSub = existingSubs[0];
       const existingPlan = existingSub.planId ? await db.select({ name: membershipPlans.name }).from(membershipPlans).where(eq(membershipPlans.id, existingSub.planId)).then(r => r[0]) : null;
+
+      const existingPayments = await db.select({
+        totalPaid: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)`
+      })
+        .from(paymentTransactions)
+        .where(eq(paymentTransactions.subscriptionId, existingSub.id));
+      const totalPaidSoFar = Number(existingPayments[0]?.totalPaid || 0);
+      const outstandingBalance = existingSub.totalAmount - totalPaidSoFar;
+
+      if (outstandingBalance <= 0) {
+        return {
+          success: false,
+          message: `${memberName || 'This member'} already has a fully paid active subscription${existingPlan ? ` (${existingPlan.name})` : ''} running until ${existingSub.endDate}. Please end the existing subscription first or go to Payments to manage it.`,
+        };
+      }
+
+      const paidOn = new Date().toISOString().split('T')[0];
+      const paymentMethod = method || 'cash';
+      let amountPaidPaise = Math.round(amountPaid * 100);
+      if (amountPaidPaise > outstandingBalance) {
+        amountPaidPaise = outstandingBalance;
+      }
+
+      await storage.addPaymentTransaction({
+        subscriptionId: existingSub.id,
+        memberId,
+        gymId,
+        amountPaid: amountPaidPaise,
+        paidOn,
+        method: paymentMethod,
+        referenceNote: `Additional payment logged via Dika assistant`,
+      });
+
+      const newTotalPaid = totalPaidSoFar + amountPaidPaise;
+      const newBalance = existingSub.totalAmount - newTotalPaid;
+
+      if (newBalance <= 0) {
+        await db.update(memberSubscriptions)
+          .set({ paymentMode: 'full', updatedAt: new Date() })
+          .where(eq(memberSubscriptions.id, existingSub.id));
+      }
+
+      const [gymData] = await db.select({ currency: gyms.currency }).from(gyms).where(eq(gyms.id, gymId));
+      const currencySymbol = (gymData?.currency || 'INR') === 'INR' ? '\u20B9' : '$';
+      const paidInCurrency = amountPaidPaise / 100;
+      const newBalanceInCurrency = newBalance / 100;
+      const subPlanName = existingPlan?.name || planName || 'Subscription';
+
+      let message = `Additional payment logged for **${memberName || 'member'}**'s **${subPlanName}**!\n`;
+      message += `- Paid now: **${currencySymbol}${paidInCurrency.toLocaleString()}** via ${paymentMethod}\n`;
+      message += `- Total paid so far: **${currencySymbol}${(newTotalPaid / 100).toLocaleString()}** of **${currencySymbol}${(existingSub.totalAmount / 100).toLocaleString()}**\n`;
+      if (newBalance > 0) {
+        message += `- Remaining balance: **${currencySymbol}${newBalanceInCurrency.toLocaleString()}**\n`;
+      } else {
+        message += `- Subscription is now **fully paid**!\n`;
+      }
+
       return {
-        success: false,
-        message: `${memberName || 'This member'} already has an active subscription${existingPlan ? ` (${existingPlan.name})` : ''} running until ${existingSub.endDate}. Please end the existing subscription first or go to Payments to manage it.`,
+        success: true,
+        message,
+        data: {
+          subscriptionId: existingSub.id,
+          amountPaid: paidInCurrency,
+          totalPaid: newTotalPaid / 100,
+          totalAmount: existingSub.totalAmount / 100,
+          balance: newBalance > 0 ? newBalanceInCurrency : 0,
+          method: paymentMethod,
+        },
       };
     }
 
