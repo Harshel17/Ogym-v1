@@ -1,15 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getTimezoneHeaders } from "./timezone";
 
-function getApiBaseUrl(): string {
-  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
-  if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
-    return 'https://app.ogym.fitness';
-  }
-  return '';
-}
-
-export const API_BASE_URL = getApiBaseUrl();
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 function getNetworkErrorMessage(error: unknown): string {
   if (error instanceof TypeError && error.message === "Failed to fetch") {

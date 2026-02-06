@@ -1,12 +1,4 @@
-function getApiBaseUrl(): string {
-  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
-  if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
-    return 'https://app.ogym.fitness';
-  }
-  return '';
-}
-
-const API_BASE = getApiBaseUrl();
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 interface ApiOptions {
   method?: string;

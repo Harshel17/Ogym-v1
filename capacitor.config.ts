@@ -6,7 +6,9 @@ const config: CapacitorConfig = {
   webDir: 'dist/public',
   server: {
     androidScheme: 'https',
-    allowNavigation: ['app.ogym.fitness'],
+    iosScheme: 'https',
+    url: 'https://app.ogym.fitness',
+    cleartext: true,
   },
   plugins: {
     SplashScreen: {
@@ -18,8 +20,9 @@ const config: CapacitorConfig = {
       splashImmersive: true,
     },
     StatusBar: {
-      style: 'light',
-      overlaysWebView: false,
+      style: 'dark',
+      backgroundColor: '#00000000',
+      overlaysWebView: true,
     },
     Keyboard: {
       resize: 'body',
@@ -32,14 +35,12 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: false,
     captureInput: true,
-    webContentsDebuggingEnabled: true,
+    webContentsDebuggingEnabled: false,
   },
   ios: {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
     scrollEnabled: true,
-    backgroundColor: '#0b1220',
-    webContentsDebuggingEnabled: true,
   },
 };
 
