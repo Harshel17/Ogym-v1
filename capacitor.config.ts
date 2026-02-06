@@ -6,9 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist/public',
   server: {
     androidScheme: 'https',
-    iosScheme: 'https',
-    url: 'https://app.ogym.fitness',
-    cleartext: true,
+    allowNavigation: ['app.ogym.fitness'],
   },
   plugins: {
     SplashScreen: {
@@ -22,7 +20,7 @@ const config: CapacitorConfig = {
     StatusBar: {
       style: 'dark',
       backgroundColor: '#00000000',
-      overlaysWebView: true,
+      overlaysWebView: false,
     },
     Keyboard: {
       resize: 'body',
