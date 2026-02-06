@@ -48,15 +48,17 @@ app.use((req, res, next) => {
 app.use(helmet({
   contentSecurityPolicy: isProduction ? {
     directives: {
-      defaultSrc: ["'self'", "capacitor://localhost", "https://localhost"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "capacitor://localhost", "https://localhost"],
+      defaultSrc: ["'self'", "capacitor://localhost", "https://localhost", "https://app.ogym.fitness"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "capacitor://localhost", "https://localhost", "https://app.ogym.fitness"],
+      scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      imgSrc: ["'self'", "data:", "blob:", "capacitor://localhost", "https://localhost", "https://*.unsplash.com"],
+      imgSrc: ["'self'", "data:", "blob:", "capacitor://localhost", "https://localhost", "https://app.ogym.fitness", "https://*.unsplash.com"],
       fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
-      connectSrc: ["'self'", "capacitor://localhost", "https://localhost", "https://app.ogym.fitness"],
+      connectSrc: ["'self'", "capacitor://localhost", "https://localhost", "https://app.ogym.fitness", "https://*.overpass-api.de", "wss://app.ogym.fitness"],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
-      baseUri: ["'self'", "capacitor://localhost", "https://localhost"],
+      baseUri: ["'self'", "capacitor://localhost", "https://localhost", "https://app.ogym.fitness"],
+      upgradeInsecureRequests: null,
     },
   } : {
     directives: {
