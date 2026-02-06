@@ -19,6 +19,7 @@ import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
 import { detectWorkoutGenerationRequest, generateWorkoutPlan } from "./workout-generator";
 import { detectMealLogRequest, parseMealFromMessage, logMealForUser, getTodayNutritionSummary, formatMealLogResponse } from "./meal-logger";
+import { detectOwnerAction, processOwnerAction } from "./owner-actions";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
@@ -699,6 +700,17 @@ export async function processWithAI(
       console.error('Meal logging failed:', error);
     }
   }
+
+  if (role === 'owner' && gymId) {
+    const ownerAction = detectOwnerAction(message);
+    if (ownerAction) {
+      try {
+        return await processOwnerAction(userId, gymId, message, ownerAction);
+      } catch (error) {
+        console.error('Owner action processing failed:', error);
+      }
+    }
+  }
   
   const [user] = await db.select({
     username: users.username,
@@ -802,15 +814,15 @@ function generateFollowUpChips(role: UserRole, lastMessage: string, gymId: numbe
   
   if (role === 'owner') {
     if (lowerMessage.includes('payment') || lowerMessage.includes('paid') || lowerMessage.includes('revenue')) {
-      return ['Who checked in today?', 'Member retention'];
+      return ['Log a payment', 'Go to revenue', 'Who checked in today?'];
     }
     if (lowerMessage.includes('attendance') || lowerMessage.includes('check')) {
-      return ['Revenue this month', 'Expiring memberships'];
+      return ['Go to attendance', 'Revenue this month', 'Expiring memberships'];
     }
     if (lowerMessage.includes('member') || lowerMessage.includes('growth')) {
-      return ['How can we improve?', 'Payment status'];
+      return ['Add a new member', 'Assign a trainer', 'Go to members'];
     }
-    return ['Gym overview', 'How can we grow?'];
+    return ['Add a new member', 'Log a payment', 'Gym overview'];
   }
   
   if (role === 'trainer') {

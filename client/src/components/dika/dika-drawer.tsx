@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { useKeyboardHeight } from '@/hooks/use-keyboard';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'wouter';
 
 interface GeneratedWorkoutPlan {
   name: string;
@@ -283,6 +284,162 @@ function MealLoggedCard({ meal }: { meal: MealLogData }) {
   );
 }
 
+interface OwnerActionData {
+  actionType: 'navigate' | 'add_member' | 'log_payment' | 'assign_trainer';
+  status: 'pending_confirmation' | 'needs_info' | 'ready';
+  payload: Record<string, any>;
+  preview: string;
+  missingFields?: string[];
+}
+
+function extractActionFromContent(content: string): OwnerActionData | null {
+  const patterns = [
+    /<!-- DIKA_ACTION_DATA:([\s\S]+?) -->/,
+    /&lt;!-- DIKA_ACTION_DATA:([\s\S]+?) --&gt;/,
+  ];
+  for (const pattern of patterns) {
+    const match = content.match(pattern);
+    if (match) {
+      try {
+        return JSON.parse(match[1].trim());
+      } catch {
+        continue;
+      }
+    }
+  }
+  return null;
+}
+
+function stripActionTag(content: string): string {
+  return content
+    .replace(/\n?<!-- DIKA_ACTION_DATA:[\s\S]+? -->/g, '')
+    .replace(/\n?&lt;!-- DIKA_ACTION_DATA:[\s\S]+? --&gt;/g, '')
+    .trim();
+}
+
+const ACTION_ICONS: Record<string, typeof UserPlus> = {
+  add_member: UserPlus,
+  log_payment: CreditCard,
+  assign_trainer: Users,
+  navigate: Navigation,
+};
+
+const ACTION_LABELS: Record<string, string> = {
+  add_member: 'Add Member',
+  log_payment: 'Log Payment',
+  assign_trainer: 'Assign Trainer',
+  navigate: 'Navigate',
+};
+
+const ACTION_GRADIENTS: Record<string, string> = {
+  add_member: 'from-emerald-500 to-teal-600',
+  log_payment: 'from-blue-500 to-indigo-600',
+  assign_trainer: 'from-purple-500 to-violet-600',
+  navigate: 'from-amber-500 to-orange-600',
+};
+
+interface ActionCardProps {
+  action: OwnerActionData;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isExecuting: boolean;
+  executionResult: { success: boolean; message: string } | null;
+}
+
+function ActionCard({ action, onConfirm, onCancel, isExecuting, executionResult }: ActionCardProps) {
+  const Icon = ACTION_ICONS[action.actionType] || Cpu;
+  const label = ACTION_LABELS[action.actionType] || 'Action';
+  const gradient = ACTION_GRADIENTS[action.actionType] || 'from-gray-500 to-gray-600';
+
+  if (executionResult) {
+    return (
+      <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden" data-testid="card-action-result">
+        <div className={cn(
+          "px-3 py-2.5 text-white bg-gradient-to-r",
+          executionResult.success ? 'from-green-500 to-emerald-600' : 'from-red-500 to-rose-600'
+        )}>
+          <div className="flex items-center gap-2">
+            {executionResult.success ? <CheckCheck className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+            <h3 className="font-semibold text-sm">{executionResult.success ? 'Done' : 'Failed'}</h3>
+          </div>
+        </div>
+        <div className="px-3 py-3 text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+          {executionResult.message.split('\n').map((line, i) => {
+            const boldParsed = line.split(/\*\*(.+?)\*\*/).map((part, j) => 
+              j % 2 === 1 ? <strong key={j} className="font-semibold">{part}</strong> : part
+            );
+            return <span key={i} className="block">{boldParsed}</span>;
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden" data-testid="card-action-confirm">
+      <div className={cn("px-3 py-2.5 text-white bg-gradient-to-r", gradient)}>
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4" />
+          <h3 className="font-semibold text-sm">{label}</h3>
+        </div>
+      </div>
+
+      <div className="px-3 py-3 space-y-1.5">
+        {Object.entries(action.payload).filter(([key]) => 
+          !key.endsWith('Id') && key !== 'path'
+        ).map(([key, value]) => {
+          if (value === null || value === undefined || value === '') return null;
+          const displayKey = key
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, s => s.toUpperCase())
+            .trim();
+          return (
+            <div key={key} className="flex items-center justify-between text-xs">
+              <span className="text-gray-500 dark:text-gray-400">{displayKey}</span>
+              <span className="font-medium text-gray-800 dark:text-gray-200 text-right max-w-[60%] truncate">
+                {typeof value === 'number' ? value.toLocaleString() : String(value)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="px-3 py-2.5 border-t border-gray-100 dark:border-gray-700 flex gap-2">
+        <Button
+          onClick={onCancel}
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          disabled={isExecuting}
+          data-testid="button-action-cancel"
+        >
+          <X className="w-3.5 h-3.5 mr-1" />
+          Cancel
+        </Button>
+        <Button
+          onClick={onConfirm}
+          size="sm"
+          className={cn("flex-1 text-white bg-gradient-to-r", gradient)}
+          disabled={isExecuting}
+          data-testid="button-action-confirm"
+        >
+          {isExecuting ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+              Executing...
+            </>
+          ) : (
+            <>
+              <CheckCheck className="w-3.5 h-3.5 mr-1" />
+              Confirm
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function parseMarkdown(text: string): ReactNode[] {
   const lines = text.split('\n');
   const elements: ReactNode[] = [];
@@ -415,6 +572,8 @@ function MarkdownContent({ content }: { content: string }) {
       .replace(/&lt;!-- WORKOUT_PLAN_DATA:[\s\S]+? --&gt;/g, '')
       .replace(/<!-- MEAL_LOG_DATA:[\s\S]+? -->/g, '')
       .replace(/&lt;!-- MEAL_LOG_DATA:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- DIKA_ACTION_DATA:[\s\S]+? -->/g, '')
+      .replace(/&lt;!-- DIKA_ACTION_DATA:[\s\S]+? --&gt;/g, '')
       .trim();
     return parseMarkdown(cleanContent);
   }, [content]);
@@ -558,6 +717,64 @@ export function DikaDrawer({
       saveWorkoutMutation.mutate({ plan, messageId });
     }
   };
+
+  const [, setLocation] = useLocation();
+  const [actionResults, setActionResults] = useState<Record<string, { success: boolean; message: string }>>({});
+  const [executingActionId, setExecutingActionId] = useState<string | null>(null);
+  const [cancelledActions, setCancelledActions] = useState<Set<string>>(new Set());
+
+  const executeActionMutation = useMutation({
+    mutationFn: async ({ action, messageId }: { action: OwnerActionData; messageId: string }) => {
+      const res = await apiRequest('POST', '/api/dika/execute', {
+        actionType: action.actionType,
+        payload: action.payload,
+        preview: action.preview,
+      });
+      return { result: await res.json(), messageId };
+    },
+    onSuccess: ({ result, messageId }) => {
+      setActionResults(prev => ({ ...prev, [messageId]: result }));
+      setExecutingActionId(null);
+
+      if (result.success) {
+        if (['add_member', 'assign_trainer'].includes(
+          extractActionFromContent(messages.find(m => m.id === messageId)?.content || '')?.actionType || ''
+        )) {
+          queryClient.invalidateQueries({ queryKey: ['/api/owner/members'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/owner/trainers'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/owner/assignments'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/owner/dashboard-metrics'] });
+        }
+        if (extractActionFromContent(messages.find(m => m.id === messageId)?.content || '')?.actionType === 'log_payment') {
+          queryClient.invalidateQueries({ queryKey: ['/api/owner/transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/owner/subscriptions'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/owner/revenue'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/owner/dashboard-metrics'] });
+        }
+      }
+    },
+    onError: (_, { messageId }) => {
+      setActionResults(prev => ({
+        ...prev,
+        [messageId]: { success: false, message: 'Something went wrong. Please try again.' },
+      }));
+      setExecutingActionId(null);
+    },
+  });
+
+  const handleActionConfirm = useCallback((messageId: string, action: OwnerActionData) => {
+    if (action.actionType === 'navigate') {
+      setLocation(action.payload.path);
+      onClose();
+      return;
+    }
+    setExecutingActionId(messageId);
+    executeActionMutation.mutate({ action, messageId });
+  }, [executeActionMutation, setLocation, onClose]);
+
+  const handleActionCancel = useCallback((messageId: string) => {
+    setCancelledActions(prev => new Set(prev).add(messageId));
+  }, []);
   
   const handleVoiceTranscript = useCallback((text: string) => {
     setInput(prev => prev ? `${prev} ${text}` : text);
@@ -580,6 +797,19 @@ export function DikaDrawer({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role !== 'assistant') return;
+    const actionData = extractActionFromContent(lastMsg.content);
+    if (actionData && actionData.actionType === 'navigate' && actionData.status === 'ready') {
+      setTimeout(() => {
+        setLocation(actionData.payload.path);
+        onClose();
+      }, 600);
+    }
+  }, [messages, setLocation, onClose]);
 
   useEffect(() => {
     if (keyboardHeight > 0) {
@@ -798,11 +1028,25 @@ export function DikaDrawer({
                     <>
                       {(() => {
                         const mealLog = extractMealLogFromContent(message.content);
-                        const displayContent = mealLog ? stripMealLogTag(message.content) : message.content;
+                        const actionData = extractActionFromContent(message.content);
+                        const displayContent = mealLog 
+                          ? stripMealLogTag(message.content) 
+                          : actionData 
+                            ? stripActionTag(message.content) 
+                            : message.content;
                         return (
                           <>
                             <MarkdownContent content={displayContent} />
                             {mealLog && <MealLoggedCard meal={mealLog} />}
+                            {actionData && actionData.status === 'pending_confirmation' && !cancelledActions.has(message.id) && (
+                              <ActionCard
+                                action={actionData}
+                                onConfirm={() => handleActionConfirm(message.id, actionData)}
+                                onCancel={() => handleActionCancel(message.id)}
+                                isExecuting={executingActionId === message.id}
+                                executionResult={actionResults[message.id] || null}
+                              />
+                            )}
                           </>
                         );
                       })()}

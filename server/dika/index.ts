@@ -289,8 +289,9 @@ export function getSuggestionChips(role: UserRole, gymId: number | null): string
     case 'owner':
       return [
         "Who checked in today?",
-        "How many active members?",
-        "Who hasn't paid this month?",
+        "Add a new member",
+        "Log a payment",
+        "Go to payments",
       ];
       
     default:
