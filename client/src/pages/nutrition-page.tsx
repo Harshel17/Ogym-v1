@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format, addDays, subDays } from "date-fns";
+import { format, addDays, subDays, isToday } from "date-fns";
 import { Progress } from "@/components/ui/progress";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -362,54 +362,65 @@ export default function NutritionPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-2 sm:gap-4">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-          data-testid="button-prev-day"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </Button>
-        <span className="text-sm sm:text-lg font-medium min-w-[140px] sm:min-w-[160px] text-center">
-          {format(selectedDate, "EEE, MMM d, yyyy")}
-        </span>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-          data-testid="button-next-day"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </Button>
-        <div className="relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              const input = document.getElementById('nutrition-date-picker') as HTMLInputElement;
-              input?.showPicker?.();
-              input?.click();
-            }}
-            data-testid="button-calendar-picker"
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex items-center justify-center gap-2 sm:gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+            data-testid="button-prev-day"
           >
-            <Calendar className="w-4 h-4" />
+            <ChevronLeft className="w-5 h-5" />
           </Button>
-          <input
-            id="nutrition-date-picker"
-            type="date"
-            value={dateStr}
-            max={format(new Date(), "yyyy-MM-dd")}
-            onChange={(e) => {
-              if (e.target.value) {
-                const [year, month, day] = e.target.value.split('-').map(Number);
-                setSelectedDate(new Date(year, month - 1, day));
-              }
-            }}
-            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-            data-testid="input-date-picker"
-          />
+          <span className="text-sm sm:text-lg font-medium min-w-[140px] sm:min-w-[160px] text-center">
+            {format(selectedDate, "EEE, MMM d, yyyy")}
+          </span>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+            data-testid="button-next-day"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </Button>
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                const input = document.getElementById('nutrition-date-picker') as HTMLInputElement;
+                input?.showPicker?.();
+                input?.click();
+              }}
+              data-testid="button-calendar-picker"
+            >
+              <Calendar className="w-4 h-4" />
+            </Button>
+            <input
+              id="nutrition-date-picker"
+              type="date"
+              value={dateStr}
+              max={format(new Date(), "yyyy-MM-dd")}
+              onChange={(e) => {
+                if (e.target.value) {
+                  const [year, month, day] = e.target.value.split('-').map(Number);
+                  setSelectedDate(new Date(year, month - 1, day));
+                }
+              }}
+              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+              data-testid="input-date-picker"
+            />
+          </div>
         </div>
+        {!isToday(selectedDate) && (
+          <button
+            onClick={() => setSelectedDate(new Date())}
+            className="text-xs text-blue-500 dark:text-blue-400 font-medium hover:underline"
+            data-testid="button-go-to-today"
+          >
+            Go to Today
+          </button>
+        )}
       </div>
 
       <Card>
