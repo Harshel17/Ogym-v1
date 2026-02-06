@@ -382,6 +382,34 @@ export default function NutritionPage() {
         >
           <ChevronRight className="w-5 h-5" />
         </Button>
+        <div className="relative">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              const input = document.getElementById('nutrition-date-picker') as HTMLInputElement;
+              input?.showPicker?.();
+              input?.click();
+            }}
+            data-testid="button-calendar-picker"
+          >
+            <Calendar className="w-4 h-4" />
+          </Button>
+          <input
+            id="nutrition-date-picker"
+            type="date"
+            value={dateStr}
+            max={format(new Date(), "yyyy-MM-dd")}
+            onChange={(e) => {
+              if (e.target.value) {
+                const [year, month, day] = e.target.value.split('-').map(Number);
+                setSelectedDate(new Date(year, month - 1, day));
+              }
+            }}
+            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+            data-testid="input-date-picker"
+          />
+        </div>
       </div>
 
       <Card>
