@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Bot, Cpu } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -519,7 +519,7 @@ export function DikaDrawer({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/20 relative">
-                <Bot className="w-5 h-5 text-white" />
+                <span className="text-base font-black text-white font-mono leading-none">D</span>
                 <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900" />
               </div>
               <div>
@@ -602,7 +602,7 @@ export function DikaDrawer({
               <div className="w-20 h-20 mx-auto mb-5 relative">
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-teal-500/20 to-cyan-500/20 blur-xl" />
                 <div className="relative w-full h-full rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-lg">
-                  <Bot className="w-9 h-9 text-teal-500 dark:text-teal-400" />
+                  <span className="text-3xl font-black text-teal-500 dark:text-teal-400 font-mono leading-none">D</span>
                   <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-slate-50 dark:border-slate-800 flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full bg-white" />
                   </div>
@@ -644,7 +644,7 @@ export function DikaDrawer({
               >
                 {message.role === 'assistant' && (
                   <div className="w-7 h-7 rounded-lg mr-2 flex-shrink-0 bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-sm">
-                    <Bot className="w-4 h-4 text-white" />
+                    <span className="text-xs font-black text-white font-mono leading-none">D</span>
                   </div>
                 )}
                 <div
@@ -745,7 +745,7 @@ export function DikaDrawer({
           {isLoading && (
             <div className="flex justify-start">
               <div className="w-7 h-7 rounded-lg mr-2 flex-shrink-0 bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-sm animate-pulse">
-                <Bot className="w-4 h-4 text-white" />
+                <span className="text-xs font-black text-white font-mono leading-none">D</span>
               </div>
               <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl rounded-bl-md shadow-sm">
                 <TypingIndicator />
