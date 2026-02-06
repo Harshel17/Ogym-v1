@@ -95,8 +95,7 @@ html.capacitor-native #root {
 @media (max-width: 767px) {
   .mobile-content-padding {
     padding-top: var(--header-total-h, 64px);
-    /* Extra 16px buffer to ensure content not hidden behind tab bar */
-    padding-bottom: calc(var(--tabbar-total-h, 90px) + 16px);
+    padding-bottom: calc(var(--tabbar-total-h, 90px) + 4px);
     min-height: 100%;
   }
   
@@ -125,7 +124,7 @@ html.capacitor-native #root {
   height: auto;
   min-height: 48px;
   padding: 6px 12px;
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 6px);
   border-bottom: 1px solid hsla(var(--border) / 0.5);
   display: flex;
   align-items: center;
