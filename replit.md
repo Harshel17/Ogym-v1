@@ -49,7 +49,7 @@ Preferred communication style: Simple, everyday language.
 - **Calorie Analytics:** Weekly and monthly analytics for calorie tracking, including target vs. actual intake, adherence, and trainer-set goals.
 - **Enhanced Nutrition Page:** Features a global "+ Add Food" button, supports various meal types (Breakfast, Lunch, Dinner, Snack, Protein, Extra Meals), and tracks protein intake.
 - **Find My Food:** A location-based restaurant finder suggesting healthy meal options using OpenStreetMap Overpass API and an internal database of chains.
-- **Dika Assistant:** An AI-powered personal assistant using OpenAI GPT-4o-mini (via Replit AI Integrations) providing contextual, role-specific insights to owners, members, and trainers.
+- **Dika Assistant:** An AI-powered personal assistant using OpenAI GPT-4o-mini (via Replit AI Integrations) providing contextual, role-specific insights to owners, members, and trainers. Includes conversational meal logging: users can naturally describe what they ate (e.g., "I had 2 eggs and toast for breakfast") and Dika will parse the food items with AI, estimate calories/macros, log to the database, and display a MealLoggedCard with nutritional breakdown and daily progress. Dika's system prompt includes real-time nutrition context (today's calories, protein, goals, remaining calories).
 - **Automated Email Reminders:** System for sending subscription expiry reminders and weekly owner summaries using Resend API.
 - **Production Security:** Implemented with Helmet.js, secure session cookies, rate limiting, request body limits, and session cleanup.
 - **Error Handling:** React Error Boundary component for graceful UI error recovery.
