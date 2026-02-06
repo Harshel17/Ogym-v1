@@ -5769,6 +5769,67 @@ export async function registerRoutes(
     res.json(metrics);
   });
 
+  // Today's Activity Feed
+  app.get("/api/owner/today-activity", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const today = (req.query.clientToday as string) || getLocalDate(req);
+
+      const newMembersToday = await db.select({
+        id: users.id,
+        username: users.username,
+        createdAt: users.createdAt,
+      })
+        .from(users)
+        .where(and(
+          eq(users.gymId, gymId),
+          eq(users.role, 'member'),
+          sql`${users.createdAt} >= ${today}::date AND ${users.createdAt} < (${today}::date + interval '1 day')`
+        ));
+
+      const paymentsToday = await db.select({
+        id: paymentTransactions.id,
+        memberId: paymentTransactions.memberId,
+        amountPaid: paymentTransactions.amountPaid,
+        method: paymentTransactions.method,
+        paidOn: paymentTransactions.paidOn,
+        memberName: users.username,
+      })
+        .from(paymentTransactions)
+        .innerJoin(users, eq(paymentTransactions.memberId, users.id))
+        .where(and(
+          eq(paymentTransactions.gymId, gymId),
+          eq(paymentTransactions.paidOn, today)
+        ))
+        .orderBy(desc(paymentTransactions.createdAt));
+
+      const expiringToday = await db.select({
+        id: memberSubscriptions.id,
+        memberId: memberSubscriptions.memberId,
+        endDate: memberSubscriptions.endDate,
+        status: memberSubscriptions.status,
+        memberName: users.username,
+        planName: membershipPlans.name,
+      })
+        .from(memberSubscriptions)
+        .innerJoin(users, eq(memberSubscriptions.memberId, users.id))
+        .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+        .where(and(
+          eq(memberSubscriptions.gymId, gymId),
+          eq(memberSubscriptions.endDate, today),
+          sql`${memberSubscriptions.status} IN ('active', 'endingSoon')`
+        ));
+
+      res.json({
+        newMembers: newMembersToday,
+        payments: paymentsToday,
+        expiringSubscriptions: expiringToday,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Revenue Analytics
   app.get("/api/owner/revenue", requireRole(["owner"]), async (req, res) => {
     const month = (req.query.month as string) || getLocalDate(req).slice(0, 7);

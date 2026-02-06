@@ -125,6 +125,204 @@ function StatCard({ title, value, icon: Icon, description, onClick, color = "pri
   );
 }
 
+type TodayActivity = {
+  newMembers: { id: number; username: string; createdAt: string }[];
+  payments: { id: number; memberId: number; amountPaid: number; method: string; paidOn: string; memberName: string }[];
+  expiringSubscriptions: { id: number; memberId: number; endDate: string; status: string; memberName: string; planName: string | null }[];
+};
+
+function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => string }) {
+  const [, navigate] = useLocation();
+  const [expanded, setExpanded] = useState(false);
+
+  const getClientLocalDate = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+
+  const { data: activity, isLoading } = useQuery<TodayActivity>({
+    queryKey: ["/api/owner/today-activity", getClientLocalDate()],
+    queryFn: async () => {
+      const clientToday = getClientLocalDate();
+      const res = await fetch(`/api/owner/today-activity?clientToday=${clientToday}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch today activity');
+      return res.json();
+    }
+  });
+
+  const totalItems = (activity?.newMembers.length || 0) + (activity?.payments.length || 0) + (activity?.expiringSubscriptions.length || 0);
+
+  if (isLoading) {
+    return (
+      <Card className="border-0 bg-muted/30">
+        <CardContent className="py-6">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-xs">Loading today's activity...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!activity || totalItems === 0) {
+    return (
+      <Card className="border-0 bg-muted/30">
+        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <div className="p-1.5 rounded-lg bg-primary/15">
+              <Activity className="w-3.5 h-3.5 text-primary" />
+            </div>
+            Today's Activity
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0 pb-3 px-3">
+          <p className="text-xs text-muted-foreground text-center py-3">No activity yet today. Check back later!</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { newMembers, payments, expiringSubscriptions } = activity;
+  const totalPaymentAmount = payments.reduce((sum, p) => sum + p.amountPaid, 0);
+
+  return (
+    <Card className="border-0 bg-muted/30">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+          <div className="p-1.5 rounded-lg bg-primary/15">
+            <Activity className="w-3.5 h-3.5 text-primary" />
+          </div>
+          Today's Activity
+        </CardTitle>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={() => setExpanded(!expanded)}
+          data-testid="button-toggle-today-activity"
+        >
+          {expanded ? "Collapse" : "View All"}
+          {expanded ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
+        </Button>
+      </CardHeader>
+      <CardContent className="pt-0 pb-3 px-3">
+        <div className="flex gap-2 mb-2">
+          <div
+            className="flex-1 text-center p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 cursor-pointer hover-elevate"
+            onClick={() => navigate("/members")}
+            data-testid="stat-new-members-today"
+          >
+            <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{newMembers.length}</p>
+            <p className="text-xs font-medium text-muted-foreground">New Members</p>
+          </div>
+          <div
+            className="flex-1 text-center p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 cursor-pointer hover-elevate"
+            onClick={() => navigate("/payments")}
+            data-testid="stat-payments-today"
+          >
+            <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{payments.length}</p>
+            <p className="text-xs font-medium text-muted-foreground">Payments</p>
+          </div>
+          <div
+            className="flex-1 text-center p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 cursor-pointer hover-elevate"
+            onClick={() => navigate("/payments")}
+            data-testid="stat-expiring-today"
+          >
+            <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{expiringSubscriptions.length}</p>
+            <p className="text-xs font-medium text-muted-foreground">Expiring</p>
+          </div>
+        </div>
+
+        {expanded && (
+          <div className="space-y-2 mt-3">
+            {newMembers.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <UserPlus className="w-3 h-3" /> New Members
+                </p>
+                <div className="space-y-1">
+                  {newMembers.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex items-center gap-2.5 p-2 rounded-lg bg-background/50 cursor-pointer hover-elevate"
+                      onClick={() => navigate(`/members`)}
+                      data-testid={`activity-new-member-${m.id}`}
+                    >
+                      <div className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center text-xs font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+                        {m.username.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{m.username}</p>
+                        <p className="text-[10px] text-muted-foreground">Joined today</p>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px] h-5 shrink-0">New</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {payments.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <CreditCard className="w-3 h-3" /> Payments ({formatMoney(totalPaymentAmount)})
+                </p>
+                <div className="space-y-1">
+                  {payments.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center gap-2.5 p-2 rounded-lg bg-background/50 cursor-pointer hover-elevate"
+                      onClick={() => navigate("/payments")}
+                      data-testid={`activity-payment-${p.id}`}
+                    >
+                      <div className="w-7 h-7 rounded-full bg-blue-500/15 flex items-center justify-center text-xs font-semibold text-blue-600 dark:text-blue-400 shrink-0">
+                        {p.memberName.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{p.memberName}</p>
+                        <p className="text-[10px] text-muted-foreground capitalize">{p.method}</p>
+                      </div>
+                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">{formatMoney(p.amountPaid)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {expiringSubscriptions.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3 h-3" /> Expiring Today
+                </p>
+                <div className="space-y-1">
+                  {expiringSubscriptions.map((s) => (
+                    <div
+                      key={s.id}
+                      className="flex items-center gap-2.5 p-2 rounded-lg bg-background/50 cursor-pointer hover-elevate"
+                      onClick={() => navigate("/payments")}
+                      data-testid={`activity-expiring-${s.id}`}
+                    >
+                      <div className="w-7 h-7 rounded-full bg-amber-500/15 flex items-center justify-center text-xs font-semibold text-amber-600 dark:text-amber-400 shrink-0">
+                        {s.memberName.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{s.memberName}</p>
+                        <p className="text-[10px] text-muted-foreground">{s.planName || 'Subscription'}</p>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px] h-5 bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">Expires</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function OwnerDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -326,6 +524,8 @@ function OwnerDashboard() {
           </CardContent>
         </Card>
       )}
+
+      <TodayActivitySection formatMoney={formatMoney} />
 
       <div className="grid gap-2.5 md:grid-cols-2">
         <Card className="border-0 bg-muted/30">
