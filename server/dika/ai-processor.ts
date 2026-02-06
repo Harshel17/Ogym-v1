@@ -18,6 +18,7 @@ import {
 import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
 import { detectWorkoutGenerationRequest, generateWorkoutPlan } from "./workout-generator";
+import { detectMealLogRequest, parseMealFromMessage, logMealForUser, getTodayNutritionSummary, formatMealLogResponse } from "./meal-logger";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
@@ -57,6 +58,15 @@ interface MemberContext {
       avgHeartRate?: number;
       sleepMinutes?: number;
     } | null;
+  };
+  nutrition: {
+    totalCalories: number;
+    totalProtein: number;
+    totalCarbs: number;
+    totalFat: number;
+    calorieGoal: number | null;
+    proteinGoal: number | null;
+    mealsLogged: number;
   };
 }
 
@@ -242,7 +252,8 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
     },
     subscriptionStatus,
     subscriptionExpiryDate,
-    healthData: healthContext
+    healthData: healthContext,
+    nutrition: await getTodayNutritionSummary(userId)
   };
 }
 
@@ -557,11 +568,22 @@ BODY MEASUREMENTS:
 ${ctx.bodyMeasurements.previous ? `- Previous (${ctx.bodyMeasurements.previous.date}): ${ctx.bodyMeasurements.previous.weight ? `Weight: ${ctx.bodyMeasurements.previous.weight}kg` : ''}${ctx.bodyMeasurements.previous.bodyFat ? `, Body Fat: ${ctx.bodyMeasurements.previous.bodyFat}%` : ''}` : ''}
 ` : '- No body measurements recorded'}
 ${healthDataSection}
+NUTRITION TODAY:
+- Calories consumed: ${ctx.nutrition.totalCalories}${ctx.nutrition.calorieGoal ? ` / ${ctx.nutrition.calorieGoal} goal` : ''} (${ctx.nutrition.mealsLogged} items logged)
+- Protein: ${ctx.nutrition.totalProtein}g${ctx.nutrition.proteinGoal ? ` / ${ctx.nutrition.proteinGoal}g goal` : ''}
+- Carbs: ${ctx.nutrition.totalCarbs}g | Fat: ${ctx.nutrition.totalFat}g
+${ctx.nutrition.calorieGoal ? `- Remaining: ${Math.max(0, ctx.nutrition.calorieGoal - ctx.nutrition.totalCalories)} cal` : '- No calorie goal set'}
+
+IMPORTANT - MEAL LOGGING:
+- When the user tells you what they ate (e.g. "I had eggs and toast"), the system automatically detects and logs it. You do NOT need to handle meal logging yourself.
+- You CAN answer questions about their nutrition data shown above.
+
 You can help this member with:
 - Workout progress and consistency analysis
 - Attendance patterns
 - Body measurement trends and progress
 - Subscription status
+- Nutrition tracking and calorie analysis
 ${ctx.healthData.connected ? '- Fitness device data analysis (steps, calories burned, heart rate, sleep)' : ''}
 - Motivation and encouragement based on their data`;
   }
@@ -654,7 +676,27 @@ export async function processWithAI(
       return { answer: formattedResponse, followUpChips };
     } catch (error) {
       console.error('Workout generation failed:', error);
-      // Fall through to regular AI processing
+    }
+  }
+  
+  if (role === 'member' && detectMealLogRequest(message)) {
+    try {
+      const parsedMeal = await parseMealFromMessage(message);
+      if (parsedMeal && parsedMeal.items.length > 0) {
+        const { logged } = await logMealForUser(userId, parsedMeal);
+        if (logged) {
+          const nutritionSummary = await getTodayNutritionSummary(userId);
+          const answer = formatMealLogResponse(parsedMeal, nutritionSummary);
+          const followUpChips = [
+            'How many calories left today?',
+            'Log another meal',
+            'My nutrition summary'
+          ];
+          return { answer, followUpChips };
+        }
+      }
+    } catch (error) {
+      console.error('Meal logging failed:', error);
     }
   }
   
@@ -746,6 +788,9 @@ function generateFollowUpChips(role: UserRole, lastMessage: string, gymId: numbe
   const lowerMessage = lastMessage.toLowerCase();
   
   if (role === 'member') {
+    if (lowerMessage.includes('calorie') || lowerMessage.includes('nutrition') || lowerMessage.includes('protein') || lowerMessage.includes('ate') || lowerMessage.includes('eat')) {
+      return ['How many calories left today?', 'My workout progress'];
+    }
     if (lowerMessage.includes('workout') || lowerMessage.includes('train')) {
       return ['Show my body measurements', 'How is my attendance?'];
     }

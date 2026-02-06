@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -147,6 +147,142 @@ function WorkoutPlanCard({ plan, onSave, isSaving, isSaved }: WorkoutPlanCardPro
   );
 }
 
+interface MealLogData {
+  mealType: string;
+  mealLabel: string;
+  items: Array<{
+    foodName: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    servingSize: string;
+    servingQuantity: number;
+  }>;
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  dailyTotals: {
+    calories: number;
+    protein: number;
+    calorieGoal: number | null;
+    proteinGoal: number | null;
+  };
+}
+
+function extractMealLogFromContent(content: string): MealLogData | null {
+  const patterns = [
+    /<!-- MEAL_LOG_DATA:([\s\S]+?) -->/,
+    /&lt;!-- MEAL_LOG_DATA:([\s\S]+?) --&gt;/,
+  ];
+  for (const pattern of patterns) {
+    const match = content.match(pattern);
+    if (match) {
+      try {
+        return JSON.parse(match[1].trim());
+      } catch {
+        continue;
+      }
+    }
+  }
+  return null;
+}
+
+function stripMealLogTag(content: string): string {
+  return content
+    .replace(/\n?<!-- MEAL_LOG_DATA:[\s\S]+? -->/g, '')
+    .replace(/\n?&lt;!-- MEAL_LOG_DATA:[\s\S]+? --&gt;/g, '')
+    .trim();
+}
+
+function MealLoggedCard({ meal }: { meal: MealLogData }) {
+  const progressPercent = meal.dailyTotals.calorieGoal 
+    ? Math.min(100, Math.round((meal.dailyTotals.calories / meal.dailyTotals.calorieGoal) * 100))
+    : null;
+
+  return (
+    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-amber-200 dark:border-amber-800/40 overflow-hidden" data-testid="card-meal-logged">
+      <div className="px-3 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+        <div className="flex items-center gap-2">
+          <Utensils className="w-4 h-4" />
+          <h3 className="font-semibold text-sm">{meal.mealLabel} Logged</h3>
+        </div>
+      </div>
+
+      <div className="px-3 py-2 space-y-2">
+        {meal.items.map((item, i) => (
+          <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 dark:border-gray-700/50 last:border-0">
+            <span className="text-gray-700 dark:text-gray-300 font-medium">
+              {item.servingQuantity > 1 ? `${item.servingQuantity}x ` : ''}{item.foodName}
+            </span>
+            <span className="text-gray-500 dark:text-gray-400 tabular-nums">
+              {item.calories} cal
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-100 dark:border-gray-700/50">
+        <div className="grid grid-cols-4 gap-2 text-center">
+          <div>
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <Flame className="w-3 h-3 text-orange-500" />
+            </div>
+            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{meal.totalCalories}</span>
+            <span className="text-[10px] text-gray-400 block">cal</span>
+          </div>
+          <div>
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <Beef className="w-3 h-3 text-red-500" />
+            </div>
+            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{meal.totalProtein}g</span>
+            <span className="text-[10px] text-gray-400 block">protein</span>
+          </div>
+          <div>
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <Wheat className="w-3 h-3 text-amber-600" />
+            </div>
+            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{meal.totalCarbs}g</span>
+            <span className="text-[10px] text-gray-400 block">carbs</span>
+          </div>
+          <div>
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <Droplets className="w-3 h-3 text-blue-500" />
+            </div>
+            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{meal.totalFat}g</span>
+            <span className="text-[10px] text-gray-400 block">fat</span>
+          </div>
+        </div>
+      </div>
+
+      {progressPercent !== null && (
+        <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-700/50">
+          <div className="flex items-center justify-between text-xs mb-1">
+            <span className="text-gray-500 dark:text-gray-400">Daily progress</span>
+            <span className="font-medium text-gray-700 dark:text-gray-300">
+              {meal.dailyTotals.calories.toLocaleString()} / {meal.dailyTotals.calorieGoal!.toLocaleString()} cal
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+            <div 
+              className={cn(
+                "h-1.5 rounded-full transition-all",
+                progressPercent >= 100 
+                  ? "bg-red-500" 
+                  : progressPercent >= 80 
+                    ? "bg-amber-500" 
+                    : "bg-green-500"
+              )}
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function parseMarkdown(text: string): ReactNode[] {
   const lines = text.split('\n');
   const elements: ReactNode[] = [];
@@ -277,6 +413,8 @@ function MarkdownContent({ content }: { content: string }) {
     let cleanContent = content
       .replace(/<!-- WORKOUT_PLAN_DATA:[\s\S]+? -->/g, '')
       .replace(/&lt;!-- WORKOUT_PLAN_DATA:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- MEAL_LOG_DATA:[\s\S]+? -->/g, '')
+      .replace(/&lt;!-- MEAL_LOG_DATA:[\s\S]+? --&gt;/g, '')
       .trim();
     return parseMarkdown(cleanContent);
   }, [content]);
@@ -658,7 +796,16 @@ export function DikaDrawer({
                 >
                   {message.role === 'assistant' ? (
                     <>
-                      <MarkdownContent content={message.content} />
+                      {(() => {
+                        const mealLog = extractMealLogFromContent(message.content);
+                        const displayContent = mealLog ? stripMealLogTag(message.content) : message.content;
+                        return (
+                          <>
+                            <MarkdownContent content={displayContent} />
+                            {mealLog && <MealLoggedCard meal={mealLog} />}
+                          </>
+                        );
+                      })()}
                       {extractWorkoutPlanFromContent(message.content) && (
                         <WorkoutPlanCard 
                           plan={extractWorkoutPlanFromContent(message.content)!}

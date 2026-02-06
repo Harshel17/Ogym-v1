@@ -266,7 +266,7 @@ export function getSuggestionChips(role: UserRole, gymId: number | null): string
   if (!gymId) {
     return [
       "What did I train this week?",
-      "What is my current workout cycle?",
+      "How many calories today?",
       "How many days did I work out this month?",
     ];
   }
@@ -275,7 +275,7 @@ export function getSuggestionChips(role: UserRole, gymId: number | null): string
     case 'member':
       return [
         "My workouts this week",
-        "What is my current cycle?",
+        "How many calories today?",
         "How many workouts this month?",
       ];
       
