@@ -57,12 +57,13 @@ import {
   type KioskOtpCode, type InsertKioskOtpCode,
   type PaymentConfirmation, type InsertPaymentConfirmation,
   type GymEmailSettings, type InsertGymEmailSettings,
-  calorieGoals, foodLogs, healthData,
+  calorieGoals, foodLogs, healthData, waterLogs,
   type CalorieGoal, type InsertCalorieGoal,
   type FoodLog, type InsertFoodLog,
   type HealthData, type InsertHealthData,
   type PostReport, type InsertPostReport,
-  type UserBlock, type InsertUserBlock
+  type UserBlock, type InsertUserBlock,
+  type WaterLog, type InsertWaterLog, insertWaterLogSchema
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -770,6 +771,15 @@ export interface IStorage {
   deleteFoodLog(logId: number, userId: number): Promise<void>;
   getDailySummary(userId: number, date: string): Promise<{ calories: number; protein: number; carbs: number; fat: number }>;
   getCalorieAnalytics(userId: number, startDate: string, endDate: string): Promise<{ date: string; target: number; actual: number; protein: number; carbs: number; fat: number }[]>;
+
+  // Water Tracking
+  getWaterLogs(userId: number, date: string): Promise<WaterLog[]>;
+  getWaterTotal(userId: number, date: string): Promise<number>;
+  createWaterLog(data: InsertWaterLog): Promise<WaterLog>;
+  deleteWaterLog(logId: number, userId: number): Promise<void>;
+  
+  // Recent Foods
+  getRecentFoods(userId: number, limit?: number): Promise<FoodLog[]>;
   
   // Health Data (Fitness Devices)
   getHealthData(userId: number, date: string): Promise<HealthData | undefined>;
@@ -8372,6 +8382,42 @@ export class DatabaseStorage implements IStorage {
     }
     
     return result;
+  }
+
+  // Water Tracking
+  async getWaterLogs(userId: number, date: string): Promise<WaterLog[]> {
+    return db.select().from(waterLogs).where(
+      and(eq(waterLogs.userId, userId), eq(waterLogs.date, date))
+    ).orderBy(desc(waterLogs.createdAt));
+  }
+
+  async getWaterTotal(userId: number, date: string): Promise<number> {
+    const result = await db.select({ total: sql<number>`COALESCE(SUM(${waterLogs.amountOz}), 0)` })
+      .from(waterLogs)
+      .where(and(eq(waterLogs.userId, userId), eq(waterLogs.date, date)));
+    return result[0]?.total || 0;
+  }
+
+  async createWaterLog(data: InsertWaterLog): Promise<WaterLog> {
+    const [log] = await db.insert(waterLogs).values(data).returning();
+    return log;
+  }
+
+  async deleteWaterLog(logId: number, userId: number): Promise<void> {
+    await db.delete(waterLogs).where(
+      and(eq(waterLogs.id, logId), eq(waterLogs.userId, userId))
+    );
+  }
+
+  async getRecentFoods(userId: number, limit: number = 20): Promise<FoodLog[]> {
+    const result = await db.execute(sql`
+      SELECT DISTINCT ON (food_name, brand_name) *
+      FROM food_logs
+      WHERE user_id = ${userId}
+      ORDER BY food_name, brand_name, created_at DESC
+      LIMIT ${limit}
+    `);
+    return result.rows as FoodLog[];
   }
 
   // Health Data (Fitness Devices)

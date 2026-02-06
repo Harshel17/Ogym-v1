@@ -3939,6 +3939,102 @@ export async function registerRoutes(
     res.json(product);
   });
 
+  // Water tracking
+  app.get("/api/nutrition/water", requireRole(["member"]), async (req, res) => {
+    const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const logs = await storage.getWaterLogs(req.user!.id, date);
+    const totalOz = await storage.getWaterTotal(req.user!.id, date);
+    res.json({ logs, totalOz, totalCups: Math.round(totalOz / 8 * 10) / 10 });
+  });
+
+  app.post("/api/nutrition/water", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      date: z.string(),
+      amountOz: z.number().min(1).max(128),
+    });
+    const input = schema.parse(req.body);
+    const log = await storage.createWaterLog({ ...input, userId: req.user!.id });
+    res.status(201).json(log);
+  });
+
+  app.delete("/api/nutrition/water/:logId", requireRole(["member"]), async (req, res) => {
+    const logId = parseInt(req.params.logId);
+    await storage.deleteWaterLog(logId, req.user!.id);
+    res.status(204).end();
+  });
+
+  // Recent foods for quick re-logging
+  app.get("/api/nutrition/recent", requireRole(["member"]), async (req, res) => {
+    const recentFoods = await storage.getRecentFoods(req.user!.id, 20);
+    res.json(recentFoods);
+  });
+
+  // AI-powered nutrition estimation
+  app.post("/api/nutrition/food/estimate", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      description: z.string().min(2).max(200),
+      servingSize: z.string().optional(),
+    });
+    const input = schema.parse(req.body);
+    
+    try {
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI();
+      
+      const prompt = `Estimate the nutrition facts for this food item: "${input.description}"${input.servingSize ? ` (serving size: ${input.servingSize})` : ''}.
+      
+Return ONLY a JSON object with these fields (numbers only, no units):
+{
+  "name": "cleaned up food name",
+  "servingSize": "estimated serving size like '1 cup' or '1 plate'",
+  "calories": number,
+  "protein": number in grams,
+  "carbs": number in grams,
+  "fat": number in grams
+}
+
+Be accurate and use USDA or standard nutrition databases as reference. If it's a restaurant item, estimate based on typical restaurant portions. Return ONLY the JSON, no explanation.`;
+      
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.1,
+        max_tokens: 200,
+        response_format: { type: "json_object" },
+      });
+      
+      const responseText = completion.choices[0]?.message?.content?.trim() || '';
+      let estimated: any;
+      try {
+        estimated = JSON.parse(responseText);
+      } catch {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          return res.status(500).json({ message: "Could not parse AI response" });
+        }
+        estimated = JSON.parse(jsonMatch[0]);
+      }
+      res.json({
+        barcode: `ai-${Date.now()}`,
+        name: estimated.name || input.description,
+        brandName: "AI Estimate",
+        servingSize: estimated.servingSize || "1 serving",
+        nutrients: {
+          calories: Math.round(estimated.calories || 0),
+          protein: Math.round(estimated.protein || 0),
+          carbs: Math.round(estimated.carbs || 0),
+          fat: Math.round(estimated.fat || 0),
+          fiber: null
+        },
+        imageUrl: null,
+        isEstimate: true
+      });
+    } catch (error: any) {
+      console.error("AI estimation error:", error);
+      res.status(500).json({ message: "Failed to estimate nutrition" });
+    }
+  });
+
   app.post("/api/nutrition/find-nearby-restaurants", requireRole(["member"]), async (req, res) => {
     try {
       const schema = z.object({

@@ -872,6 +872,19 @@ export const foodLogs = pgTable("food_logs", {
   barcodeIdx: index("food_logs_barcode_idx").on(table.barcode),
 }));
 
+// Water intake tracking
+export const waterLogs = pgTable("water_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  date: text("date").notNull(),
+  amountOz: integer("amount_oz").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userDateIdx: index("water_logs_user_date_idx").on(table.userId, table.date),
+}));
+
+export const insertWaterLogSchema = createInsertSchema(waterLogs).omit({ id: true, createdAt: true });
+
 // Health data from fitness devices (Apple Health, Google Fit)
 export const healthData = pgTable("health_data", {
   id: serial("id").primaryKey(),
@@ -1145,3 +1158,6 @@ export type InsertFoodLog = z.infer<typeof insertFoodLogSchema>;
 
 export type HealthData = typeof healthData.$inferSelect;
 export type InsertHealthData = z.infer<typeof insertHealthDataSchema>;
+
+export type WaterLog = typeof waterLogs.$inferSelect;
+export type InsertWaterLog = z.infer<typeof insertWaterLogSchema>;

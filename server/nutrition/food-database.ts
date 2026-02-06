@@ -336,6 +336,118 @@ export const LOCAL_FOOD_DATABASE: LocalFood[] = [
   { id: "collagen-peptides", name: "Collagen Peptides", category: "Protein", servingSize: "1 scoop (11g)", calories: 40, protein: 10, carbs: 0, fat: 0 },
   { id: "mass-gainer", name: "Mass Gainer Shake", category: "Protein", servingSize: "1 scoop (75g)", calories: 300, protein: 15, carbs: 55, fat: 3 },
   { id: "whey-isolate", name: "Whey Protein Isolate", category: "Protein", servingSize: "1 scoop (30g)", calories: 110, protein: 27, carbs: 1, fat: 0.5 },
+
+  // McDonald's
+  { id: "mcdonalds-big-mac", name: "McDonald's Big Mac", category: "Fast Food", servingSize: "1 sandwich", calories: 550, protein: 25, carbs: 45, fat: 30 },
+  { id: "mcdonalds-quarter-pounder", name: "McDonald's Quarter Pounder with Cheese", category: "Fast Food", servingSize: "1 sandwich", calories: 520, protein: 30, carbs: 40, fat: 27 },
+  { id: "mcdonalds-mcchicken", name: "McDonald's McChicken", category: "Fast Food", servingSize: "1 sandwich", calories: 400, protein: 14, carbs: 40, fat: 21 },
+  { id: "mcdonalds-egg-mcmuffin", name: "McDonald's Egg McMuffin", category: "Fast Food", servingSize: "1 sandwich", calories: 300, protein: 17, carbs: 30, fat: 12 },
+  { id: "mcdonalds-sausage-mcmuffin", name: "McDonald's Sausage McMuffin", category: "Fast Food", servingSize: "1 sandwich", calories: 400, protein: 14, carbs: 29, fat: 26 },
+  { id: "mcdonalds-filet-o-fish", name: "McDonald's Filet-O-Fish", category: "Fast Food", servingSize: "1 sandwich", calories: 390, protein: 16, carbs: 39, fat: 19 },
+  { id: "mcdonalds-10pc-mcnuggets", name: "McDonald's 10pc McNuggets", category: "Fast Food", servingSize: "10 pieces", calories: 410, protein: 24, carbs: 26, fat: 24 },
+  { id: "mcdonalds-mcflurry-oreo", name: "McDonald's McFlurry Oreo", category: "Fast Food", servingSize: "1 regular", calories: 510, protein: 12, carbs: 72, fat: 20 },
+  { id: "mcdonalds-hash-brown", name: "McDonald's Hash Brown", category: "Fast Food", servingSize: "1 piece", calories: 140, protein: 1, carbs: 15, fat: 8 },
+  { id: "mcdonalds-apple-pie", name: "McDonald's Apple Pie", category: "Fast Food", servingSize: "1 pie", calories: 230, protein: 2, carbs: 32, fat: 11 },
+
+  // Chick-fil-A
+  { id: "cfa-chicken-sandwich", name: "Chick-fil-A Chicken Sandwich", category: "Fast Food", servingSize: "1 sandwich", calories: 440, protein: 28, carbs: 40, fat: 19 },
+  { id: "cfa-spicy-chicken-sandwich", name: "Chick-fil-A Spicy Chicken Sandwich", category: "Fast Food", servingSize: "1 sandwich", calories: 540, protein: 29, carbs: 44, fat: 26 },
+  { id: "cfa-nuggets-8pc", name: "Chick-fil-A Nuggets 8pc", category: "Fast Food", servingSize: "8 pieces", calories: 250, protein: 27, carbs: 11, fat: 11 },
+  { id: "cfa-waffle-fries", name: "Chick-fil-A Waffle Fries Medium", category: "Fast Food", servingSize: "1 medium", calories: 420, protein: 5, carbs: 44, fat: 24 },
+  { id: "cfa-chicken-biscuit", name: "Chick-fil-A Chicken Biscuit", category: "Fast Food", servingSize: "1 biscuit", calories: 440, protein: 18, carbs: 45, fat: 21 },
+  { id: "cfa-grilled-nuggets-8pc", name: "Chick-fil-A Grilled Nuggets 8pc", category: "Fast Food", servingSize: "8 pieces", calories: 130, protein: 25, carbs: 1, fat: 3 },
+  { id: "cfa-mac-cheese", name: "Chick-fil-A Mac & Cheese Side", category: "Fast Food", servingSize: "1 side", calories: 210, protein: 8, carbs: 26, fat: 8 },
+  { id: "cfa-chicken-cool-wrap", name: "Chick-fil-A Chicken Cool Wrap", category: "Fast Food", servingSize: "1 wrap", calories: 350, protein: 42, carbs: 29, fat: 13 },
+
+  // Chipotle
+  { id: "chipotle-chicken-bowl", name: "Chipotle Chicken Bowl", category: "Fast Food", servingSize: "1 bowl", calories: 730, protein: 40, carbs: 80, fat: 26 },
+  { id: "chipotle-steak-burrito", name: "Chipotle Steak Burrito", category: "Fast Food", servingSize: "1 burrito", calories: 1000, protein: 55, carbs: 100, fat: 40 },
+  { id: "chipotle-chicken-quesadilla", name: "Chipotle Chicken Quesadilla", category: "Fast Food", servingSize: "1 quesadilla", calories: 780, protein: 46, carbs: 50, fat: 42 },
+  { id: "chipotle-sofritas-bowl", name: "Chipotle Sofritas Bowl", category: "Fast Food", servingSize: "1 bowl", calories: 630, protein: 18, carbs: 85, fat: 22 },
+  { id: "chipotle-chips-guac", name: "Chipotle Chips & Guac", category: "Fast Food", servingSize: "1 serving", calories: 770, protein: 6, carbs: 62, fat: 56 },
+
+  // Subway
+  { id: "subway-turkey-breast", name: "Subway 6\" Turkey Breast Sub", category: "Fast Food", servingSize: "6 inch sub", calories: 250, protein: 18, carbs: 40, fat: 3.5 },
+  { id: "subway-italian-bmt", name: "Subway 6\" Italian BMT", category: "Fast Food", servingSize: "6 inch sub", calories: 360, protein: 16, carbs: 42, fat: 14 },
+  { id: "subway-meatball-marinara", name: "Subway 6\" Meatball Marinara", category: "Fast Food", servingSize: "6 inch sub", calories: 480, protein: 24, carbs: 54, fat: 18 },
+  { id: "subway-chicken-teriyaki", name: "Subway 6\" Chicken Teriyaki", category: "Fast Food", servingSize: "6 inch sub", calories: 330, protein: 26, carbs: 44, fat: 5 },
+
+  // Taco Bell
+  { id: "taco-bell-crunchy-taco", name: "Taco Bell Crunchy Taco", category: "Fast Food", servingSize: "1 taco", calories: 170, protein: 8, carbs: 13, fat: 10 },
+  { id: "taco-bell-chalupa-supreme", name: "Taco Bell Chalupa Supreme", category: "Fast Food", servingSize: "1 chalupa", calories: 350, protein: 14, carbs: 30, fat: 20 },
+  { id: "taco-bell-crunchwrap-supreme", name: "Taco Bell Crunchwrap Supreme", category: "Fast Food", servingSize: "1 crunchwrap", calories: 530, protein: 16, carbs: 54, fat: 28 },
+  { id: "taco-bell-mexican-pizza", name: "Taco Bell Mexican Pizza", category: "Fast Food", servingSize: "1 pizza", calories: 540, protein: 20, carbs: 46, fat: 30 },
+  { id: "taco-bell-cheesy-gordita-crunch", name: "Taco Bell Cheesy Gordita Crunch", category: "Fast Food", servingSize: "1 piece", calories: 490, protein: 20, carbs: 42, fat: 26 },
+
+  // Wendy's
+  { id: "wendys-daves-single", name: "Wendy's Dave's Single", category: "Fast Food", servingSize: "1 burger", calories: 590, protein: 30, carbs: 40, fat: 34 },
+  { id: "wendys-baconator", name: "Wendy's Baconator", category: "Fast Food", servingSize: "1 burger", calories: 960, protein: 58, carbs: 38, fat: 65 },
+  { id: "wendys-spicy-chicken-sandwich", name: "Wendy's Spicy Chicken Sandwich", category: "Fast Food", servingSize: "1 sandwich", calories: 500, protein: 28, carbs: 48, fat: 22 },
+  { id: "wendys-jr-bacon-cheeseburger", name: "Wendy's Jr. Bacon Cheeseburger", category: "Fast Food", servingSize: "1 burger", calories: 380, protein: 20, carbs: 26, fat: 22 },
+  { id: "wendys-chicken-nuggets-10pc", name: "Wendy's Chicken Nuggets 10pc", category: "Fast Food", servingSize: "10 pieces", calories: 430, protein: 24, carbs: 28, fat: 24 },
+
+  // Five Guys
+  { id: "five-guys-cheeseburger", name: "Five Guys Cheeseburger", category: "Fast Food", servingSize: "1 burger", calories: 840, protein: 47, carbs: 40, fat: 55 },
+  { id: "five-guys-little-hamburger", name: "Five Guys Little Hamburger", category: "Fast Food", servingSize: "1 burger", calories: 480, protein: 23, carbs: 39, fat: 26 },
+  { id: "five-guys-cajun-fries", name: "Five Guys Cajun Fries Regular", category: "Fast Food", servingSize: "1 regular", calories: 520, protein: 7, carbs: 54, fat: 30 },
+  { id: "five-guys-hot-dog", name: "Five Guys Hot Dog", category: "Fast Food", servingSize: "1 hot dog", calories: 540, protein: 18, carbs: 40, fat: 34 },
+
+  // Panda Express
+  { id: "panda-orange-chicken", name: "Panda Express Orange Chicken", category: "Fast Food", servingSize: "1 entree", calories: 490, protein: 25, carbs: 51, fat: 23 },
+  { id: "panda-beijing-beef", name: "Panda Express Beijing Beef", category: "Fast Food", servingSize: "1 entree", calories: 470, protein: 14, carbs: 50, fat: 26 },
+  { id: "panda-fried-rice", name: "Panda Express Fried Rice", category: "Fast Food", servingSize: "1 side", calories: 520, protein: 12, carbs: 85, fat: 16 },
+  { id: "panda-chow-mein", name: "Panda Express Chow Mein", category: "Fast Food", servingSize: "1 side", calories: 510, protein: 13, carbs: 80, fat: 16 },
+  { id: "panda-kung-pao-chicken", name: "Panda Express Kung Pao Chicken", category: "Fast Food", servingSize: "1 entree", calories: 290, protein: 16, carbs: 14, fat: 19 },
+
+  // Popeyes
+  { id: "popeyes-chicken-sandwich", name: "Popeyes Chicken Sandwich", category: "Fast Food", servingSize: "1 sandwich", calories: 700, protein: 28, carbs: 50, fat: 42 },
+  { id: "popeyes-chicken-tenders-3pc", name: "Popeyes 3pc Mild Chicken Tenders", category: "Fast Food", servingSize: "3 pieces", calories: 340, protein: 26, carbs: 14, fat: 20 },
+  { id: "popeyes-red-beans-rice", name: "Popeyes Red Beans & Rice Regular", category: "Fast Food", servingSize: "1 regular", calories: 230, protein: 9, carbs: 30, fat: 7 },
+
+  // Grocery Staples
+  { id: "whole-wheat-bread", name: "Whole Wheat Bread", category: "Grocery Staples", servingSize: "1 slice", calories: 70, protein: 3, carbs: 12, fat: 1 },
+  { id: "white-rice-cooked", name: "White Rice", category: "Grocery Staples", servingSize: "1 cup cooked", calories: 206, protein: 4, carbs: 45, fat: 0.5 },
+  { id: "brown-rice-cooked", name: "Brown Rice", category: "Grocery Staples", servingSize: "1 cup cooked", calories: 216, protein: 5, carbs: 45, fat: 1.8 },
+  { id: "quinoa-cooked", name: "Quinoa", category: "Grocery Staples", servingSize: "1 cup cooked", calories: 222, protein: 8, carbs: 39, fat: 3.5 },
+  { id: "sweet-potato-baked", name: "Sweet Potato", category: "Grocery Staples", servingSize: "1 medium baked", calories: 103, protein: 2, carbs: 24, fat: 0 },
+  { id: "broccoli-steamed", name: "Broccoli", category: "Grocery Staples", servingSize: "1 cup steamed", calories: 55, protein: 4, carbs: 11, fat: 0.5 },
+  { id: "spinach-raw", name: "Spinach", category: "Grocery Staples", servingSize: "1 cup raw", calories: 7, protein: 1, carbs: 1, fat: 0 },
+  { id: "avocado-half", name: "Avocado", category: "Grocery Staples", servingSize: "half", calories: 160, protein: 2, carbs: 9, fat: 15 },
+  { id: "peanut-butter", name: "Peanut Butter", category: "Grocery Staples", servingSize: "2 tbsp", calories: 190, protein: 7, carbs: 7, fat: 16 },
+  { id: "almond-butter", name: "Almond Butter", category: "Grocery Staples", servingSize: "2 tbsp", calories: 196, protein: 7, carbs: 6, fat: 18 },
+  { id: "almonds", name: "Almonds", category: "Grocery Staples", servingSize: "1 oz (23 almonds)", calories: 164, protein: 6, carbs: 6, fat: 14 },
+  { id: "oatmeal-cooked", name: "Oatmeal", category: "Grocery Staples", servingSize: "1 cup cooked", calories: 154, protein: 5, carbs: 27, fat: 3 },
+  { id: "cottage-cheese", name: "Cottage Cheese", category: "Grocery Staples", servingSize: "1/2 cup", calories: 110, protein: 13, carbs: 5, fat: 5 },
+  { id: "string-cheese", name: "String Cheese", category: "Grocery Staples", servingSize: "1 stick", calories: 80, protein: 7, carbs: 1, fat: 5 },
+  { id: "hummus", name: "Hummus", category: "Grocery Staples", servingSize: "2 tbsp", calories: 70, protein: 2, carbs: 4, fat: 5 },
+  { id: "tofu-firm", name: "Tofu", category: "Grocery Staples", servingSize: "1/2 cup firm", calories: 94, protein: 10, carbs: 2, fat: 6 },
+  { id: "salmon-grilled", name: "Salmon", category: "Grocery Staples", servingSize: "4 oz grilled", calories: 234, protein: 25, carbs: 0, fat: 14 },
+  { id: "tuna-canned", name: "Tuna", category: "Grocery Staples", servingSize: "1 can drained", calories: 100, protein: 22, carbs: 0, fat: 1 },
+  { id: "turkey-breast-deli", name: "Turkey Breast", category: "Grocery Staples", servingSize: "4 slices deli", calories: 60, protein: 12, carbs: 2, fat: 0.5 },
+  { id: "ground-beef-80-20", name: "Ground Beef 80/20", category: "Grocery Staples", servingSize: "4 oz cooked", calories: 287, protein: 19, carbs: 0, fat: 23 },
+  { id: "ground-turkey", name: "Ground Turkey", category: "Grocery Staples", servingSize: "4 oz cooked", calories: 170, protein: 22, carbs: 0, fat: 9 },
+  { id: "shrimp-cooked", name: "Shrimp", category: "Grocery Staples", servingSize: "4 oz cooked", calories: 120, protein: 24, carbs: 1, fat: 2 },
+
+  // Starbucks Drinks
+  { id: "starbucks-caramel-macchiato", name: "Starbucks Caramel Macchiato Grande", category: "Starbucks", servingSize: "16 oz grande", calories: 250, protein: 10, carbs: 34, fat: 8 },
+  { id: "starbucks-vanilla-latte", name: "Starbucks Vanilla Latte Grande", category: "Starbucks", servingSize: "16 oz grande", calories: 250, protein: 12, carbs: 37, fat: 6 },
+  { id: "starbucks-iced-white-mocha", name: "Starbucks Iced White Mocha Grande", category: "Starbucks", servingSize: "16 oz grande", calories: 420, protein: 11, carbs: 56, fat: 18 },
+  { id: "starbucks-cold-brew", name: "Starbucks Cold Brew Grande", category: "Starbucks", servingSize: "16 oz grande", calories: 5, protein: 0, carbs: 0, fat: 0 },
+  { id: "starbucks-pink-drink", name: "Starbucks Pink Drink Grande", category: "Starbucks", servingSize: "16 oz grande", calories: 140, protein: 1, carbs: 25, fat: 3 },
+  { id: "starbucks-pumpkin-spice-latte", name: "Starbucks Pumpkin Spice Latte Grande", category: "Starbucks", servingSize: "16 oz grande", calories: 380, protein: 14, carbs: 52, fat: 14 },
+  { id: "starbucks-chai-tea-latte", name: "Starbucks Chai Tea Latte Grande", category: "Starbucks", servingSize: "16 oz grande", calories: 240, protein: 8, carbs: 42, fat: 4 },
+  { id: "starbucks-matcha-latte", name: "Starbucks Matcha Latte Grande", category: "Starbucks", servingSize: "16 oz grande", calories: 240, protein: 12, carbs: 34, fat: 6 },
+
+  // Healthy / Meal Prep
+  { id: "overnight-oats", name: "Overnight Oats", category: "Healthy/Meal Prep", servingSize: "1 cup", calories: 300, protein: 10, carbs: 45, fat: 9 },
+  { id: "acai-bowl", name: "Acai Bowl", category: "Healthy/Meal Prep", servingSize: "1 bowl", calories: 450, protein: 8, carbs: 68, fat: 18 },
+  { id: "protein-pancakes", name: "Protein Pancakes", category: "Healthy/Meal Prep", servingSize: "3 pancakes", calories: 350, protein: 25, carbs: 40, fat: 10 },
+  { id: "egg-white-omelette", name: "Egg White Omelette", category: "Healthy/Meal Prep", servingSize: "3 whites", calories: 52, protein: 11, carbs: 0, fat: 0 },
+  { id: "turkey-lettuce-wrap", name: "Turkey Lettuce Wrap", category: "Healthy/Meal Prep", servingSize: "1 wrap", calories: 150, protein: 16, carbs: 6, fat: 8 },
+  { id: "cauliflower-rice", name: "Cauliflower Rice", category: "Healthy/Meal Prep", servingSize: "1 cup", calories: 25, protein: 2, carbs: 5, fat: 0 },
+  { id: "zucchini-noodles", name: "Zucchini Noodles", category: "Healthy/Meal Prep", servingSize: "1 cup", calories: 20, protein: 1, carbs: 4, fat: 0 },
+  { id: "protein-balls", name: "Protein Balls", category: "Healthy/Meal Prep", servingSize: "2 balls", calories: 200, protein: 8, carbs: 22, fat: 10 },
+  { id: "green-smoothie", name: "Green Smoothie", category: "Healthy/Meal Prep", servingSize: "16 oz", calories: 200, protein: 6, carbs: 42, fat: 2 },
 ];
 
 // Common spelling variations / aliases for food items
@@ -375,16 +487,30 @@ const FOOD_ALIASES: Record<string, string[]> = {
   'isolate': ['iso', 'issolate'],
   'bcaa': ['bca', 'amino'],
   'creatine': ['creataine', 'creatin'],
+  'mcdonald': ['mcdonalds', 'mcds', 'mickey ds', 'mcd'],
+  'chick-fil-a': ['chickfila', 'chic fil a', 'chik fil a', 'cfa'],
+  'chipotle': ['chipotlé', 'chipoltey'],
+  'subway': ['sub way'],
+  'taco bell': ['tacobell'],
+  'wendy': ['wendys', 'wendies'],
+  'five guys': ['fiveguys', '5 guys'],
+  'panda express': ['panda', 'pandaexpress'],
+  'popeyes': ['popeye', 'popeyees'],
+  'starbucks': ['sbux', 'sbucks'],
+  'big mac': ['bigmac'],
+  'nugget': ['nuggets', 'nugets'],
+  'acai': ['açaí', 'acaí'],
 };
 
 function normalizeQuery(query: string): string {
   let normalized = query.toLowerCase().trim();
   
-  // Replace aliases with canonical terms
+  // Replace aliases with canonical terms using word boundary matching
   for (const [canonical, aliases] of Object.entries(FOOD_ALIASES)) {
     for (const alias of aliases) {
-      if (normalized.includes(alias)) {
-        normalized = normalized.replace(alias, canonical);
+      const regex = new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+      if (regex.test(normalized)) {
+        normalized = normalized.replace(regex, canonical);
       }
     }
   }

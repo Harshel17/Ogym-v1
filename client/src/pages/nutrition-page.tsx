@@ -8,7 +8,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 import { 
   Flame, Apple, Beef, Wheat, Droplet, Plus, Search, Loader2, 
-  ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X, TrendingUp, Calendar, BarChart3, Watch
+  ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X, TrendingUp, Calendar, BarChart3, Watch,
+  Droplets, Clock, Sparkles
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -120,6 +121,7 @@ export default function NutritionPage() {
   const [manualEntry, setManualEntry] = useState({ name: "", calories: "", protein: "", carbs: "", fat: "" });
   const [showScanner, setShowScanner] = useState(false);
   const [isScanLookup, setIsScanLookup] = useState(false);
+  const [foodMode, setFoodMode] = useState<"search" | "recent">("search");
 
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
@@ -145,6 +147,22 @@ export default function NutritionPage() {
 
   const { data: healthStatus } = useHealthStatus();
   const { data: healthData } = useHealthDataToday();
+
+  const { data: waterData, isLoading: waterLoading } = useQuery<{ logs: any[], totalOz: number, totalCups: number }>({
+    queryKey: ["/api/nutrition/water", dateStr],
+    queryFn: async () => {
+      const res = await fetch(`/api/nutrition/water?date=${dateStr}`);
+      return res.json();
+    }
+  });
+
+  const { data: recentFoods = [] } = useQuery<any[]>({
+    queryKey: ["/api/nutrition/recent"],
+    queryFn: async () => {
+      const res = await fetch("/api/nutrition/recent");
+      return res.json();
+    }
+  });
 
   const createGoalMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -184,6 +202,27 @@ export default function NutritionPage() {
     }
   });
 
+  const addWaterMutation = useMutation({
+    mutationFn: async (amountOz: number) => {
+      const res = await apiRequest("POST", "/api/nutrition/water", { date: dateStr, amountOz });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/water", dateStr] });
+      toast({ title: "Water logged!" });
+    }
+  });
+
+  const deleteWaterMutation = useMutation({
+    mutationFn: async (logId: number) => {
+      await apiRequest("DELETE", `/api/nutrition/water/${logId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/water", dateStr] });
+      toast({ title: "Water entry removed" });
+    }
+  });
+
   const resetAddFood = () => {
     setSearchQuery("");
     setSearchResults([]);
@@ -192,6 +231,7 @@ export default function NutritionPage() {
     setManualEntry({ name: "", calories: "", protein: "", carbs: "", fat: "" });
     setAddFoodStep("category");
     setExtraMealLabel("");
+    setFoodMode("search");
   };
 
   const openAddFoodForMeal = (mealType: string) => {
@@ -502,6 +542,57 @@ export default function NutritionPage() {
         Add Food
       </Button>
 
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Droplets className="w-5 h-5 text-blue-500" />
+              Water
+            </CardTitle>
+            <span className="text-sm text-muted-foreground">
+              {waterData?.totalOz || 0}oz / 64oz
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Progress value={Math.min(((waterData?.totalOz || 0) / 64) * 100, 100)} className="h-2 mb-3" />
+          <div className="flex gap-2 flex-wrap">
+            {[{ oz: 8, label: "8oz" }, { oz: 12, label: "12oz" }, { oz: 16, label: "16oz" }, { oz: 24, label: "24oz" }].map(({ oz, label }) => (
+              <Button
+                key={oz}
+                variant="outline"
+                size="sm"
+                onClick={() => addWaterMutation.mutate(oz)}
+                disabled={addWaterMutation.isPending}
+                data-testid={`button-add-water-${oz}`}
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                {label}
+              </Button>
+            ))}
+          </div>
+          {waterData?.logs && waterData.logs.length > 0 && (
+            <div className="mt-3 space-y-1">
+              {waterData.logs.map((log: any) => (
+                <div key={log.id} className="flex items-center justify-between text-sm py-1">
+                  <span className="text-muted-foreground">
+                    {log.amountOz}oz ({(log.amountOz / 8).toFixed(1)} cups)
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteWaterMutation.mutate(log.id)}
+                    data-testid={`button-delete-water-${log.id}`}
+                  >
+                    <Trash2 className="w-3 h-3 text-muted-foreground" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <FindMyFood 
         remainingCalories={remaining}
         goalType={(goalData?.goalType as 'lose' | 'maintain' | 'gain') || 'maintain'}
@@ -724,9 +815,74 @@ export default function NutritionPage() {
             </div>
           ) : !selectedFood ? (
             <div className="space-y-3 sm:space-y-4">
+              <div className="flex gap-1 mb-3">
+                <Button
+                  variant={foodMode === "search" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFoodMode("search")}
+                  data-testid="button-food-mode-search"
+                >
+                  <Search className="w-3 h-3 mr-1" />
+                  Search
+                </Button>
+                <Button
+                  variant={foodMode === "recent" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFoodMode("recent")}
+                  data-testid="button-food-mode-recent"
+                >
+                  <Clock className="w-3 h-3 mr-1" />
+                  Recent
+                </Button>
+              </div>
+
+              {foodMode === "recent" ? (
+                <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                  {recentFoods.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No recent foods yet</p>
+                  ) : (
+                    recentFoods.map((food: any, i: number) => (
+                      <button
+                        key={`recent-${i}`}
+                        onClick={() => {
+                          logFoodMutation.mutate({
+                            date: dateStr,
+                            mealType: selectedMealType,
+                            mealLabel: selectedMealType === "extra" ? extraMealLabel.trim() : null,
+                            foodName: food.foodName || food.food_name,
+                            brandName: food.brandName || food.brand_name,
+                            servingSize: food.servingSize || food.serving_size,
+                            quantity: 1,
+                            calories: food.calories,
+                            protein: food.protein || null,
+                            carbs: food.carbs || null,
+                            fat: food.fat || null,
+                            barcode: food.barcode || null,
+                          });
+                        }}
+                        className="w-full px-3 py-2.5 text-left hover-elevate flex items-center justify-between gap-2 rounded-md border"
+                        data-testid={`button-recent-food-${i}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{food.foodName || food.food_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {food.servingSize || food.serving_size || "1 serving"}
+                            {(food.brandName || food.brand_name) && ` · ${food.brandName || food.brand_name}`}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-semibold text-sm">{food.calories}</p>
+                          <p className="text-xs text-muted-foreground">cal</p>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              ) : (
+              <>
               <div className="flex gap-2">
                 <Input
-                  placeholder="Search foods (e.g., dosa, biryani)..."
+                  placeholder="Search foods (e.g., chicken breast, Big Mac)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -774,6 +930,39 @@ export default function NutritionPage() {
                       </div>
                     </button>
                   ))}
+                </div>
+              )}
+
+              {searchQuery.length >= 2 && searchResults.length === 0 && !isSearching && (
+                <div className="text-center py-3">
+                  <p className="text-sm text-muted-foreground mb-2">No results found</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      setIsSearching(true);
+                      try {
+                        const res = await fetch("/api/nutrition/food/estimate", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ description: searchQuery }),
+                        });
+                        if (res.ok) {
+                          const estimated = await res.json();
+                          setSelectedFood(estimated);
+                        } else {
+                          toast({ title: "Could not estimate nutrition", variant: "destructive" });
+                        }
+                      } catch {
+                        toast({ title: "Estimation failed", variant: "destructive" });
+                      }
+                      setIsSearching(false);
+                    }}
+                    data-testid="button-ai-estimate"
+                  >
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    Estimate with AI
+                  </Button>
                 </div>
               )}
 
@@ -847,6 +1036,8 @@ export default function NutritionPage() {
                   </Button>
                 </div>
               </div>
+              </>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -855,7 +1046,12 @@ export default function NutritionPage() {
                   <img src={selectedFood.imageUrl} alt="" className="w-16 h-16 object-contain rounded" />
                 )}
                 <div className="flex-1">
-                  <p className="font-medium">{selectedFood.name}</p>
+                  <p className="font-medium">
+                    {selectedFood.name}
+                    {(selectedFood as any).isEstimate && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 font-medium ml-2">AI Estimate</span>
+                    )}
+                  </p>
                   <p className="text-sm text-muted-foreground">{selectedFood.brandName}</p>
                   <p className="text-sm mt-1">
                     Per {selectedFood.servingSize || "100g"}: {selectedFood.nutrients.calories} cal
