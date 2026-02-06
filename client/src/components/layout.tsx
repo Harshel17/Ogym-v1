@@ -5,6 +5,7 @@ import { useNotificationCounts } from "@/hooks/use-notifications";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dika } from "@/components/dika";
+import { RoboDIcon } from "@/components/dika/dika-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { usePullRefresh } from "@/hooks/use-pull-refresh";
 import { queryClient } from "@/lib/queryClient";
@@ -439,7 +440,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <h1 className="font-display font-bold text-lg leading-none magic-text">OGym</h1>
                   <div className="flex items-center gap-1 px-1.5 pr-2.5 py-1 rounded-md bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-sm border border-teal-500/20 shadow-sm">
                     <div className="w-5 h-5 rounded bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center">
-                      <span className="text-[10px] font-black text-white font-mono leading-none">D</span>
+                      <RoboDIcon className="w-3.5 h-3.5 text-white" />
                     </div>
                     <span className="text-[10px] font-mono font-bold tracking-wider text-teal-600 dark:text-teal-400 uppercase">AI</span>
                   </div>
@@ -528,7 +529,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <span className="font-bold font-display text-sm magic-text">OGym</span>
           <div className="flex items-center gap-1 px-1 pr-2 py-0.5 rounded-md bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-sm border border-teal-500/20 shadow-sm">
             <div className="w-4 h-4 rounded bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center">
-              <span className="text-[9px] font-black text-white font-mono leading-none">D</span>
+              <RoboDIcon className="w-3 h-3 text-white" />
             </div>
             <span className="text-[9px] font-mono font-bold tracking-wider text-teal-600 dark:text-teal-400 uppercase">AI</span>
           </div>

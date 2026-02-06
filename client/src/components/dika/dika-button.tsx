@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
-import { DikaCircleIcon, SunflowerIcon, BatIcon } from './dika-icons';
+import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
 
 interface DikaButtonProps {
   icon: DikaIcon;
@@ -172,7 +172,7 @@ export function DikaButton({
       aria-label="Ask Dika"
     >
       <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-transparent to-white/10" />
-      <span className="text-lg font-black text-white relative z-10 font-mono leading-none">D</span>
+      <RoboDIcon className="w-7 h-7 text-white relative z-10" />
     </button>
   );
 }

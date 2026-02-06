@@ -7,6 +7,51 @@ export function DikaCircleIcon({ className }: { className?: string }) {
   );
 }
 
+export function RoboDIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <line x1="12" y1="1" x2="12" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="12" cy="1" r="1.2" fill="currentColor" />
+
+      <rect x="4" y="5" width="16" height="15" rx="3.5" fill="currentColor" fillOpacity="0.12" stroke="currentColor" strokeWidth="1.5" />
+
+      <rect x="7" y="8" width="2.5" height="2.5" rx="0.6" fill="currentColor" fillOpacity="0.5" />
+      <rect x="14.5" y="8" width="2.5" height="2.5" rx="0.6" fill="currentColor" fillOpacity="0.5" />
+
+      <path
+        d="M8.5 9.5 L9 9 L9.5 9.5"
+        stroke="currentColor"
+        strokeWidth="0.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path
+        d="M15 9.5 L15.5 9 L16 9.5"
+        stroke="currentColor"
+        strokeWidth="0.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+
+      <text
+        x="12"
+        y="17.5"
+        textAnchor="middle"
+        fill="currentColor"
+        fontSize="8"
+        fontWeight="900"
+        fontFamily="monospace"
+        letterSpacing="0"
+      >D</text>
+
+      <line x1="1.5" y1="10" x2="4" y2="12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="22.5" y1="10" x2="20" y2="12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function SunflowerIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
