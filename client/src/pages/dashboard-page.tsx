@@ -47,7 +47,7 @@ export default function DashboardPage() {
   const greetingIcon = getGreetingIcon();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Greeting Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -55,7 +55,7 @@ export default function DashboardPage() {
             <Calendar className="w-3 h-3" />
             <span>{format(new Date(), 'EEE, MMM d')}</span>
           </div>
-          <h2 className="text-xl font-bold tracking-tight">
+          <h2 className="text-lg font-bold tracking-tight">
             {greeting}, <span className="text-primary">{user.username}</span>
           </h2>
         </div>
@@ -1439,7 +1439,7 @@ function MemberDashboard() {
 
       {workoutSummary && (
         <>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2.5">
             <Link href="/progress/workouts">
               <AnimatedStatCard
                 value={workoutSummary.streak}

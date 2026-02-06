@@ -79,11 +79,11 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
       onClick={onClick}
       data-testid={`stat-card-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
-      <CardContent className="flex flex-col items-center justify-center h-[140px] py-0">
-        <div className={cn("p-3 rounded-full text-white mb-2 shadow-sm", colors.iconBg)}>
-          <Icon className="w-6 h-6" />
+      <CardContent className="flex flex-col items-center justify-center h-[120px] py-0">
+        <div className={cn("p-2.5 rounded-full text-white mb-1.5 shadow-sm", colors.iconBg)}>
+          <Icon className="w-5 h-5" />
         </div>
-        <p className="text-3xl font-bold tabular-nums">{displayValue}</p>
+        <p className="text-2xl font-bold tabular-nums">{displayValue}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
       </CardContent>
     </Card>
@@ -144,7 +144,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center h-[140px] py-0">
+      <CardContent className="flex flex-col items-center justify-center h-[120px] py-0">
         {/* Dual Ring Progress */}
         <div className="relative">
           <svg
