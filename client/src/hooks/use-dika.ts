@@ -152,7 +152,11 @@ export function useDika(userId: number, hideDika: boolean) {
 
   const askMutation = useMutation({
     mutationFn: async (message: string) => {
-      const res = await apiRequest('POST', '/api/dika/ask', { message });
+      const history = messages.slice(-8).map(m => ({
+        role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
+        content: m.content,
+      }));
+      const res = await apiRequest('POST', '/api/dika/ask', { message, conversationHistory: history });
       return res.json();
     },
     onSuccess: (data, message) => {

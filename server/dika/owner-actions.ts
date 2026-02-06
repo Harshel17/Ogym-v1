@@ -66,6 +66,10 @@ const NAVIGATION_PATTERNS = [
 const ADD_MEMBER_PATTERNS = [
   /(?:add|create|register|enroll|sign\s+up|new)\s+(?:a\s+)?(?:new\s+)?member/i,
   /add\s+(?:a\s+)?(?:new\s+)?(?:person|user|student|client)\s+(?:to\s+(?:the\s+)?(?:gym|my\s+gym))/i,
+  /add\s+.+\s+as\s+(?:a\s+)?(?:new\s+)?member/i,
+  /(?:add|register|enroll)\s+\w+.+(?:@[\w.-]+\.\w+)/i,
+  /(?:add|register|enroll)\s+.+\s+to\s+(?:the\s+)?members/i,
+  /(?:register|enroll)\s+\w+.*\s+(?:for|in)\s+(?:a\s+)?membership/i,
 ];
 
 const LOG_PAYMENT_PATTERNS = [
@@ -141,13 +145,14 @@ export async function processOwnerAction(
   userId: number,
   gymId: number,
   message: string,
-  actionType: OwnerActionType
+  actionType: OwnerActionType,
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<{ answer: string; followUpChips: string[] }> {
   if (actionType === 'navigate') {
     return handleNavigation(message);
   }
 
-  return handleActionWithAI(userId, gymId, message, actionType);
+  return handleActionWithAI(userId, gymId, message, actionType, conversationHistory);
 }
 
 function handleNavigation(message: string): { answer: string; followUpChips: string[] } {
@@ -178,7 +183,8 @@ async function handleActionWithAI(
   userId: number,
   gymId: number,
   message: string,
-  actionType: OwnerActionType
+  actionType: OwnerActionType,
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<{ answer: string; followUpChips: string[] }> {
   const [gym] = await db.select({
     name: gyms.name,
@@ -233,14 +239,14 @@ To register a member, we need:
 - email (required): Their email address
 - phone (optional): Phone number
 - planId (optional): Membership plan ID
-- planDuration (optional): Duration in months (default from plan)
 
 Available membership plans: ${planList || 'No plans configured'}
 Gym code: ${gym.code}
 Currency: ${gym.currency || 'INR'}
 
-Extract whatever info the owner provided. If critical info is missing (name or email), ask for it naturally.
-If the owner provides enough info, generate a confirmation preview.
+Extract info from the ENTIRE conversation (including previous messages). The user may provide name and email across multiple messages.
+CRITICAL: Once you have both fullName AND email, you MUST set status to "pending_confirmation" immediately. Do NOT ask for optional fields - proceed straight to confirmation.
+Only set status to "needs_info" if fullName or email is still missing.
 
 IMPORTANT: You must respond in this exact JSON format:
 {
@@ -249,12 +255,12 @@ IMPORTANT: You must respond in this exact JSON format:
     "actionType": "add_member",
     "status": "pending_confirmation" or "needs_info",
     "payload": { "fullName": "...", "email": "...", "phone": "...", "planId": number or null, "planName": "..." },
-    "preview": "A human-readable summary of what will be done",
+    "preview": "Add [fullName] ([email]) as a new member",
     "missingFields": ["field1", "field2"]
   }
 }
 
-Set status to "needs_info" if name or email is missing. Set to "pending_confirmation" if we have enough to proceed.`;
+Set status to "needs_info" ONLY if name or email is missing. Set to "pending_confirmation" if we have both name and email.`;
   } else if (actionType === 'log_payment') {
     actionInstructions = `The owner wants to log a payment for a member.
 To log a payment, we need:
@@ -319,12 +325,29 @@ ${actionInstructions}
 Be concise and friendly. If info is missing, ask naturally in one short question. Don't be overly formal.`;
 
   try {
+    const historyMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    if (conversationHistory && conversationHistory.length > 0) {
+      const recentHistory = conversationHistory.slice(-8);
+      for (const msg of recentHistory) {
+        let cleanContent = msg.content
+          .replace(/<!--\s*DIKA_ACTION_DATA:[\s\S]*?-->/g, '')
+          .replace(/&lt;!--\s*DIKA_ACTION_DATA:[\s\S]*?--&gt;/g, '')
+          .trim();
+        if (cleanContent) {
+          historyMessages.push({ role: msg.role, content: cleanContent });
+        }
+      }
+    }
+
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: "system", content: systemPrompt },
+      ...historyMessages,
+      { role: "user", content: message },
+    ];
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: message },
-      ],
+      messages,
       max_completion_tokens: 500,
       response_format: { type: "json_object" },
     });

@@ -19,7 +19,67 @@ import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
 import { detectWorkoutGenerationRequest, generateWorkoutPlan } from "./workout-generator";
 import { detectMealLogRequest, parseMealFromMessage, logMealForUser, getTodayNutritionSummary, formatMealLogResponse } from "./meal-logger";
-import { detectOwnerAction, processOwnerAction } from "./owner-actions";
+import { detectOwnerAction, processOwnerAction, OwnerActionType } from "./owner-actions";
+
+function detectPendingActionFromHistory(
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+): OwnerActionType | null {
+  if (!conversationHistory || conversationHistory.length < 2) return null;
+
+  const recentMessages = conversationHistory.slice(-8);
+
+  for (const msg of recentMessages) {
+    if (msg.role === 'user') {
+      const action = detectOwnerAction(msg.content);
+      if (action && action !== 'navigate') {
+        const laterAssistantMsgs = recentMessages.slice(recentMessages.indexOf(msg) + 1).filter(m => m.role === 'assistant');
+        const hasConfirmation = laterAssistantMsgs.some(m => m.content.includes('DIKA_ACTION_DATA') && m.content.includes('pending_confirmation'));
+        if (!hasConfirmation) {
+          return action;
+        }
+      }
+    }
+  }
+
+  for (let i = recentMessages.length - 1; i >= 0; i--) {
+    const msg = recentMessages[i];
+    if (msg.role !== 'assistant') continue;
+    const content = msg.content.toLowerCase();
+
+    if (content.includes('dika_action_data') && content.includes('pending_confirmation')) {
+      return null;
+    }
+
+    if (
+      (content.includes('add') && content.includes('member')) ||
+      content.includes('full name') ||
+      content.includes('email address') ||
+      content.includes('new member') ||
+      content.includes('name and email')
+    ) {
+      return 'add_member';
+    }
+
+    if (
+      (content.includes('log') && content.includes('payment')) ||
+      content.includes('payment amount') ||
+      (content.includes('payment') && content.includes('member'))
+    ) {
+      return 'log_payment';
+    }
+
+    if (
+      (content.includes('assign') && content.includes('trainer')) ||
+      content.includes('which trainer')
+    ) {
+      return 'assign_trainer';
+    }
+
+    break;
+  }
+
+  return null;
+}
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
@@ -648,9 +708,9 @@ export async function processWithAI(
   userId: number,
   role: UserRole,
   gymId: number | null,
-  message: string
+  message: string,
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<{ answer: string; followUpChips: string[] }> {
-  // Check if this is an exercise question first
   const exerciseQuery = detectExerciseQuestion(message);
   if (exerciseQuery) {
     const exercise = findExercise(exerciseQuery);
@@ -665,7 +725,6 @@ export async function processWithAI(
     }
   }
   
-  // Check if this is a workout generation request
   if (detectWorkoutGenerationRequest(message)) {
     try {
       const { formattedResponse } = await generateWorkoutPlan(message);
@@ -705,9 +764,18 @@ export async function processWithAI(
     const ownerAction = detectOwnerAction(message);
     if (ownerAction) {
       try {
-        return await processOwnerAction(userId, gymId, message, ownerAction);
+        return await processOwnerAction(userId, gymId, message, ownerAction, conversationHistory);
       } catch (error) {
         console.error('Owner action processing failed:', error);
+      }
+    }
+
+    const pendingAction = detectPendingActionFromHistory(conversationHistory);
+    if (pendingAction) {
+      try {
+        return await processOwnerAction(userId, gymId, message, pendingAction, conversationHistory);
+      } catch (error) {
+        console.error('Owner action follow-up processing failed:', error);
       }
     }
   }

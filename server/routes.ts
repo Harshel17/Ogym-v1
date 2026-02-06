@@ -4486,6 +4486,10 @@ export async function registerRoutes(
   app.post("/api/dika/ask", requireAuth, async (req, res) => {
     const schema = z.object({
       message: z.string().min(1).max(500),
+      conversationHistory: z.array(z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string(),
+      })).optional(),
     });
     
     const input = schema.safeParse(req.body);
@@ -4501,7 +4505,8 @@ export async function registerRoutes(
         user.id,
         role,
         user.gymId || null,
-        input.data.message
+        input.data.message,
+        input.data.conversationHistory
       );
       
       res.json(response);

@@ -50,12 +50,13 @@ export async function handleDikaQuery(
   userId: number,
   role: UserRole,
   gymId: number | null,
-  message: string
+  message: string,
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<DikaResponse> {
   // Try AI-powered response first
   if (await isAIAvailable()) {
     try {
-      const { answer, followUpChips } = await processWithAI(userId, role, gymId, message);
+      const { answer, followUpChips } = await processWithAI(userId, role, gymId, message, conversationHistory);
       return {
         answer,
         confidence: 'high',
@@ -63,7 +64,6 @@ export async function handleDikaQuery(
       };
     } catch (error) {
       console.error('AI processing failed, falling back to pattern matching:', error);
-      // Fall through to pattern-matching fallback
     }
   }
   
