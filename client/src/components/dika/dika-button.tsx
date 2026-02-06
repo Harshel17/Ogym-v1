@@ -156,12 +156,12 @@ export function DikaButton({
       onTouchStart={handleTouchStart}
       className={cn(
         "fixed z-50 w-12 h-12 rounded-xl",
-        "bg-gradient-to-br from-teal-500 to-cyan-600",
-        "shadow-lg shadow-teal-500/30",
+        "bg-gradient-to-br from-amber-500 to-orange-600",
+        "shadow-lg shadow-amber-500/30",
         "flex items-center justify-center",
         "cursor-grab active:cursor-grabbing",
-        "transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-teal-500/40",
-        "border border-teal-400/30",
+        "transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-amber-500/40",
+        "border border-amber-400/30",
         isDragging && "scale-105 opacity-90"
       )}
       style={{

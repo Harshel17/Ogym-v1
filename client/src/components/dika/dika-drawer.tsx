@@ -120,7 +120,7 @@ function WorkoutPlanCard({ plan, onSave, isSaving, isSaved }: WorkoutPlanCardPro
               "w-full",
               isSaved 
                 ? "bg-green-500 hover:bg-green-500 text-white" 
-                : "bg-gradient-to-br from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700"
+                : "bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
             )}
             data-testid="button-save-workout-card"
           >
@@ -254,7 +254,7 @@ function parseInlineMarkdown(text: string): ReactNode[] {
             href={nextMatch.match[2]} 
             target="_blank" 
             rel="noopener noreferrer"
-            className="text-teal-500 hover:text-teal-400 underline underline-offset-2"
+            className="text-amber-500 hover:text-amber-400 underline underline-offset-2"
           >
             {nextMatch.match[1]}
           </a>
@@ -286,9 +286,9 @@ function MarkdownContent({ content }: { content: string }) {
 function TypingIndicator() {
   return (
     <div className="flex items-center gap-1 px-3 py-2">
-      <div className="w-2 h-2 rounded-full bg-teal-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-      <div className="w-2 h-2 rounded-full bg-teal-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-      <div className="w-2 h-2 rounded-full bg-teal-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+      <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+      <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+      <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '300ms' }} />
     </div>
   );
 }
@@ -513,19 +513,19 @@ export function DikaDrawer({
         data-testid="drawer-dika"
       >
         <SheetHeader 
-          className="px-4 py-3 flex-shrink-0 pr-12 bg-slate-900 dark:bg-slate-950 border-b border-teal-500/20"
+          className="px-4 py-3 flex-shrink-0 pr-12 bg-slate-900 dark:bg-slate-950 border-b border-amber-500/20"
           style={{ paddingTop: `calc(env(safe-area-inset-top, 0px) + 0.75rem)` }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/20 relative">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20 relative">
                 <RoboDIcon className="w-6 h-6 text-white" />
-                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-400 border-2 border-slate-900" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <SheetTitle className="text-base font-semibold text-white">Dika AI</SheetTitle>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-teal-500/15 text-teal-400 font-mono font-medium tracking-wider uppercase border border-teal-500/20">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-mono font-medium tracking-wider uppercase border border-amber-500/20">
                     v2.0
                   </span>
                 </div>
@@ -595,15 +595,15 @@ export function DikaDrawer({
               backgroundImage: 'linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)',
               backgroundSize: '32px 32px'
             }} />
-            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-teal-500/5 to-transparent dark:from-teal-500/3" />
+            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-amber-500/5 to-transparent dark:from-amber-500/3" />
           </div>
           {messages.length === 0 && (
             <div className="text-center py-8 relative">
               <div className="w-20 h-20 mx-auto mb-5 relative">
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-teal-500/20 to-cyan-500/20 blur-xl" />
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 blur-xl" />
                 <div className="relative w-full h-full rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-lg">
-                  <RoboDIcon className="w-10 h-10 text-teal-500 dark:text-teal-400" />
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-slate-50 dark:border-slate-800 flex items-center justify-center">
+                  <RoboDIcon className="w-10 h-10 text-amber-500 dark:text-amber-400" />
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-yellow-500 border-2 border-slate-50 dark:border-slate-800 flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full bg-white" />
                   </div>
                 </div>
@@ -643,7 +643,7 @@ export function DikaDrawer({
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-7 h-7 rounded-lg mr-2 flex-shrink-0 bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-sm">
+                  <div className="w-7 h-7 rounded-lg mr-2 flex-shrink-0 bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-sm">
                     <RoboDIcon className="w-4 h-4 text-white" />
                   </div>
                 )}
@@ -698,7 +698,7 @@ export function DikaDrawer({
                             "text-xs flex items-center gap-1",
                             savedWorkoutIds.has(message.id) 
                               ? "text-green-500" 
-                              : "text-teal-500 hover:text-teal-600"
+                              : "text-amber-500 hover:text-amber-600"
                           )}
                           data-testid={`button-save-workout-${message.id}`}
                         >
@@ -744,7 +744,7 @@ export function DikaDrawer({
 
           {isLoading && (
             <div className="flex justify-start">
-              <div className="w-7 h-7 rounded-lg mr-2 flex-shrink-0 bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-sm animate-pulse">
+              <div className="w-7 h-7 rounded-lg mr-2 flex-shrink-0 bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-sm animate-pulse">
                 <RoboDIcon className="w-4 h-4 text-white" />
               </div>
               <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl rounded-bl-md shadow-sm">
@@ -770,7 +770,7 @@ export function DikaDrawer({
               placeholder={isListening ? "Listening..." : "Ask Dika anything..."}
               disabled={isLoading}
               className={cn(
-                "pr-4 rounded-full border-slate-200 dark:border-slate-700 focus:border-teal-400 focus:ring-teal-400/20",
+                "pr-4 rounded-full border-slate-200 dark:border-slate-700 focus:border-amber-400 focus:ring-amber-400/20",
                 isListening && "border-red-400 animate-pulse"
               )}
               enterKeyHint="send"
@@ -799,7 +799,7 @@ export function DikaDrawer({
             type="submit"
             size="icon"
             disabled={!input.trim() || isLoading}
-            className="rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 shadow-lg shadow-teal-500/25"
+            className="rounded-full bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-lg shadow-amber-500/25"
             data-testid="button-dika-send"
           >
             <Send className="w-4 h-4" />
