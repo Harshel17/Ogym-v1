@@ -9,7 +9,7 @@ import { useState } from "react";
 import { 
   Flame, Apple, Beef, Wheat, Droplet, Plus, Search, Loader2, 
   ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X, TrendingUp, Calendar, BarChart3, Watch,
-  Droplets, Clock, Sparkles
+  Droplets, Clock, Sparkles, Undo2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -543,20 +543,18 @@ export default function NutritionPage() {
       </Button>
 
       <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-lg flex items-center gap-2">
+        <CardContent className="pt-4 pb-3">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
               <Droplets className="w-5 h-5 text-blue-500" />
-              Water
-            </CardTitle>
+              <span className="font-semibold">Water</span>
+            </div>
             <span className="text-sm text-muted-foreground">
               {waterData?.totalOz || 0}oz / 64oz
             </span>
           </div>
-        </CardHeader>
-        <CardContent>
           <Progress value={Math.min(((waterData?.totalOz || 0) / 64) * 100, 100)} className="h-2 mb-3" />
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             {[{ oz: 8, label: "8oz" }, { oz: 12, label: "12oz" }, { oz: 16, label: "16oz" }, { oz: 24, label: "24oz" }].map(({ oz, label }) => (
               <Button
                 key={oz}
@@ -570,26 +568,23 @@ export default function NutritionPage() {
                 {label}
               </Button>
             ))}
+            {waterData?.logs && waterData.logs.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto text-muted-foreground"
+                onClick={() => {
+                  const lastLog = waterData.logs[waterData.logs.length - 1];
+                  if (lastLog) deleteWaterMutation.mutate(lastLog.id);
+                }}
+                disabled={deleteWaterMutation.isPending}
+                data-testid="button-undo-water"
+              >
+                <Undo2 className="w-3 h-3 mr-1" />
+                Undo
+              </Button>
+            )}
           </div>
-          {waterData?.logs && waterData.logs.length > 0 && (
-            <div className="mt-3 space-y-1">
-              {waterData.logs.map((log: any) => (
-                <div key={log.id} className="flex items-center justify-between text-sm py-1">
-                  <span className="text-muted-foreground">
-                    {log.amountOz}oz ({(log.amountOz / 8).toFixed(1)} cups)
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteWaterMutation.mutate(log.id)}
-                    data-testid={`button-delete-water-${log.id}`}
-                  >
-                    <Trash2 className="w-3 h-3 text-muted-foreground" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
         </CardContent>
       </Card>
 
