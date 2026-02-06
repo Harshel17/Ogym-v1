@@ -4020,10 +4020,10 @@ Be accurate and use USDA or standard nutrition databases as reference. If it's a
         brandName: "AI Estimate",
         servingSize: estimated.servingSize || "1 serving",
         nutrients: {
-          calories: Math.round(estimated.calories || 0),
-          protein: Math.round(estimated.protein || 0),
-          carbs: Math.round(estimated.carbs || 0),
-          fat: Math.round(estimated.fat || 0),
+          calories: Math.max(0, Math.round(Number(estimated.calories) || 0)),
+          protein: Math.max(0, Math.round(Number(estimated.protein) || 0)),
+          carbs: Math.max(0, Math.round(Number(estimated.carbs) || 0)),
+          fat: Math.max(0, Math.round(Number(estimated.fat) || 0)),
           fiber: null
         },
         imageUrl: null,
