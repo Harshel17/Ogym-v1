@@ -107,10 +107,10 @@ html.capacitor-native #root {
 
 /* Glass effect base - dark mode only for iOS launch */
 .glass-effect {
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  backdrop-filter: blur(16px) saturate(180%);
-  background-color: rgba(11, 18, 32, 0.85);
-  border-color: rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  backdrop-filter: blur(20px) saturate(200%);
+  background-color: rgba(11, 18, 32, 0.88);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 /* Fixed mobile header overlay with glass effect */
@@ -140,14 +140,15 @@ html.capacitor-native #root {
   width: 100%;
   z-index: 9999;
   height: calc(56px + env(safe-area-inset-bottom, 0px));
-  background: #0b1220;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(11, 18, 32, 0.92);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  backdrop-filter: blur(24px) saturate(200%);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
 }
 
 /* Inner tab row - exactly 56px, contains icons */
@@ -305,7 +306,7 @@ html.capacitor-native #root {
   }
   
   .dashboard-card {
-    @apply bg-card rounded-xl border border-border shadow-sm hover:shadow-md transition-all duration-200;
+    @apply bg-card rounded-xl border border-border/80 shadow-sm hover:shadow-md transition-all duration-200;
   }
   
   .premium-gradient {
@@ -321,7 +322,7 @@ html.capacitor-native #root {
   }
   
   .workout-card {
-    @apply bg-gradient-to-br from-card via-card to-primary/5 dark:to-primary/10 rounded-xl border border-border shadow-sm;
+    @apply bg-gradient-to-br from-card via-card to-primary/5 dark:to-primary/10 rounded-xl border border-primary/10 dark:border-primary/15 shadow-sm shadow-primary/5;
   }
   
   .hover-elevate {
@@ -621,11 +622,11 @@ html.capacitor-native #root {
 @keyframes pageFadeScale {
   from {
     opacity: 0;
-    transform: scale(0.98);
+    transform: scale(0.97) translateY(4px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
   }
 }
 
@@ -634,7 +635,7 @@ html.capacitor-native #root {
 }
 
 .page-fade-scale {
-  animation: pageFadeScale 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation: pageFadeScale 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Pull-to-refresh styles */

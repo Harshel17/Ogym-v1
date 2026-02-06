@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useEffect } from "react";
+import { memo, useMemo, useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Flame, Target, Calendar, TrendingUp, Check, Apple } from "lucide-react";
@@ -25,33 +25,58 @@ const colorConfig = {
     iconBg: "bg-gradient-to-br from-amber-400 to-orange-500",
     hoverBg: "hover:bg-amber-50 dark:hover:bg-amber-950/20",
     activeBg: "active:bg-amber-100 dark:active:bg-amber-950/30",
+    glow: "shadow-orange-500/15 dark:shadow-orange-500/10",
   },
   blue: {
     iconBg: "bg-gradient-to-br from-sky-400 to-blue-500",
     hoverBg: "hover:bg-sky-50 dark:hover:bg-sky-950/20",
     activeBg: "active:bg-sky-100 dark:active:bg-sky-950/30",
+    glow: "shadow-blue-500/15 dark:shadow-blue-500/10",
   },
   green: {
     iconBg: "bg-gradient-to-br from-emerald-400 to-teal-500",
     hoverBg: "hover:bg-emerald-50 dark:hover:bg-emerald-950/20",
     activeBg: "active:bg-emerald-100 dark:active:bg-emerald-950/30",
+    glow: "shadow-emerald-500/15 dark:shadow-emerald-500/10",
   },
   purple: {
     iconBg: "bg-gradient-to-br from-violet-400 to-purple-500",
     hoverBg: "hover:bg-violet-50 dark:hover:bg-violet-950/20",
     activeBg: "active:bg-violet-100 dark:active:bg-violet-950/30",
+    glow: "shadow-purple-500/15 dark:shadow-purple-500/10",
   },
 };
 
-function useSimpleCounter(target: number, delay: number = 0): number {
+function useAnimatedCounter(target: number, delay: number = 0, duration: number = 600): number {
   const [value, setValue] = useState(0);
+  const rafRef = useRef<number>(0);
   
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setValue(target);
-    }, delay + 50);
-    return () => clearTimeout(timer);
-  }, [target, delay]);
+    cancelAnimationFrame(rafRef.current);
+    
+    if (target === 0) { setValue(0); return; }
+    
+    const timeout = setTimeout(() => {
+      const start = performance.now();
+      
+      const animate = (now: number) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setValue(Math.round(eased * target));
+        if (progress < 1) {
+          rafRef.current = requestAnimationFrame(animate);
+        }
+      };
+      
+      rafRef.current = requestAnimationFrame(animate);
+    }, delay);
+    
+    return () => {
+      clearTimeout(timeout);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [target, delay, duration]);
   
   return value;
 }
@@ -64,27 +89,28 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
   delay = 0,
   onClick,
 }: AnimatedStatCardProps) {
-  const displayValue = useSimpleCounter(value, delay);
+  const displayValue = useAnimatedCounter(value, delay);
   const Icon = iconMap[icon];
   const colors = colorConfig[color];
 
   return (
     <Card
       className={cn(
-        "cursor-pointer border transition-transform duration-150 ease-out",
+        "cursor-pointer border transition-all duration-200 ease-out shadow-md",
         "hover:scale-[1.02] active:scale-[0.98]",
         colors.hoverBg,
-        colors.activeBg
+        colors.activeBg,
+        colors.glow
       )}
       onClick={onClick}
       data-testid={`stat-card-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
       <CardContent className="flex flex-col items-center justify-center h-[120px] py-0">
-        <div className={cn("p-2.5 rounded-full text-white mb-1.5 shadow-sm", colors.iconBg)}>
+        <div className={cn("p-2.5 rounded-full text-white mb-1.5 shadow-lg", colors.iconBg)}>
           <Icon className="w-5 h-5" />
         </div>
         <p className="text-2xl font-bold tabular-nums">{displayValue}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">{label}</p>
       </CardContent>
     </Card>
   );
@@ -105,7 +131,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   targetProtein = 0,
   delay = 0,
 }: CalorieProgressCardProps) {
-  const displayValue = useSimpleCounter(current, delay);
+  const displayValue = useAnimatedCounter(current, delay);
   const effectiveTarget = target > 0 ? target : 2000;
   const caloriePercentage = Math.min((current / effectiveTarget) * 100, 100);
   const isCaloriesOver = current > effectiveTarget;
@@ -137,10 +163,11 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer border transition-transform duration-150 ease-out",
+        "cursor-pointer border transition-all duration-200 ease-out shadow-md",
         "hover:scale-[1.02] active:scale-[0.98]",
         "hover:bg-emerald-50 dark:hover:bg-emerald-950/20",
-        "active:bg-emerald-100 dark:active:bg-emerald-950/30"
+        "active:bg-emerald-100 dark:active:bg-emerald-950/30",
+        "shadow-emerald-500/15 dark:shadow-emerald-500/10"
       )}
       data-testid="stat-card-calories"
     >
@@ -395,7 +422,7 @@ interface StreakDisplayProps {
 }
 
 export const StreakDisplay = memo(function StreakDisplay({ streak, className }: StreakDisplayProps) {
-  const displayStreak = useSimpleCounter(streak, 200);
+  const displayStreak = useAnimatedCounter(streak, 200);
   const hasStreak = streak > 0;
 
   return (

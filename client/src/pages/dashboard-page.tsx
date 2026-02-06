@@ -51,15 +51,15 @@ export default function DashboardPage() {
       {/* Greeting Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/80 mb-0.5 font-medium tracking-wide uppercase">
             <Calendar className="w-3 h-3" />
             <span>{format(new Date(), 'EEE, MMM d')}</span>
           </div>
-          <h2 className="text-lg font-bold tracking-tight">
+          <h2 className="text-lg font-bold tracking-tight leading-tight">
             {greeting}, <span className="text-primary">{user.username}</span>
           </h2>
         </div>
-        <div className={`p-2.5 rounded-xl ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400/20 to-orange-500/20 text-amber-500' : 'bg-gradient-to-br from-indigo-400/20 to-purple-500/20 text-indigo-400'}`}>
+        <div className={`p-2 rounded-xl ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400/20 to-orange-500/20 text-amber-500' : 'bg-gradient-to-br from-indigo-400/20 to-purple-500/20 text-indigo-400'}`}>
           {greetingIcon === 'sun' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </div>
       </div>
@@ -108,7 +108,7 @@ function StatCard({ title, value, icon: Icon, description, onClick, color = "pri
       onClick={onClick}
     >
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3">
-        <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+        <CardTitle className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
           {title}
         </CardTitle>
         <div className={`p-1.5 rounded-lg ${colorConfig.icon}`}>
@@ -116,8 +116,8 @@ function StatCard({ title, value, icon: Icon, description, onClick, color = "pri
         </div>
       </CardHeader>
       <CardContent className="pt-0 pb-3 px-3">
-        <div className="text-2xl font-bold tracking-tight">{value}</div>
-        <p className="text-xs text-muted-foreground mt-0.5">
+        <div className="text-2xl font-bold tracking-tight tabular-nums">{value}</div>
+        <p className="text-[11px] text-muted-foreground/70 mt-0.5 font-medium">
           {description}
         </p>
       </CardContent>
