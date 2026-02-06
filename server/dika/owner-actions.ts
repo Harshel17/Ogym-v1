@@ -73,9 +73,10 @@ const ADD_MEMBER_PATTERNS = [
 ];
 
 const LOG_PAYMENT_PATTERNS = [
-  /(?:log|record|add|mark|enter)\s+(?:a\s+)?payment/i,
+  /(?:log|record|add|mark|enter)[.\s]+(?:a\s+)?payment/i,
   /(?:paid|received|got)\s+(?:payment|money|cash|amount|dues)/i,
   /(?:payment|fees?)\s+(?:from|by|for)\s+/i,
+  /(?:log|record|add|mark|enter)[.\s]+(?:a\s+)?payment\s+(?:for|to)\s+\w+/i,
 ];
 
 const ASSIGN_TRAINER_PATTERNS = [
@@ -266,16 +267,19 @@ Set status to "needs_info" ONLY if name or email is missing. Set to "pending_con
 To log a payment, we need:
 - memberName (required): Which member paid - must match someone in the gym
 - amount (required): Payment amount in the gym's currency (${gym.currency || 'INR'})
-- method (required): Payment method - one of: cash, upi, card, bank, other (default: cash)
+- method (required): Payment method - one of: cash, upi, card, bank, other (default: cash). If the user says something like "venmo", "zelle", "gpay", "phonepe", or any other payment app/service, map it to "other" and include the original method name in the note field. NEVER reject a payment method - always accept it and map to the closest category or "other".
 - date (optional): Payment date in YYYY-MM-DD format (default: today)
 - note (optional): Reference note
 
 Current gym members: ${memberList || 'No members'}
 Currency: ${gym.currency || 'INR'}
 
-Extract whatever info the owner provided. The amount should be the raw number in the main currency unit (not paise).
-Match the member name against the gym's member list. If ambiguous (multiple matches), ask to clarify.
+Extract whatever info the owner provided from the ENTIRE conversation (including previous messages). The user may provide member name, amount, and method across multiple messages.
+The amount should be the raw number in the main currency unit (not paise). Parse amounts like "49$", "$49", "49 dollars", "49" as the number 49.
+Match the member name against the gym's member list using fuzzy matching. If the name is close but not exact (e.g., "varshel" for "Varshel"), still match it.
+If ambiguous (multiple matches), ask to clarify.
 If we can't match any member, let the owner know.
+CRITICAL: Once you have memberId, amount, and method, you MUST set status to "pending_confirmation" immediately. Do NOT ask for optional fields like date or note - proceed straight to confirmation.
 
 IMPORTANT: You must respond in this exact JSON format:
 {

@@ -63,7 +63,10 @@ function detectPendingActionFromHistory(
     if (
       (content.includes('log') && content.includes('payment')) ||
       content.includes('payment amount') ||
-      (content.includes('payment') && content.includes('member'))
+      content.includes('payment method') ||
+      content.includes('amount and method') ||
+      (content.includes('payment') && content.includes('member')) ||
+      (content.includes('payment') && content.includes('amount'))
     ) {
       return 'log_payment';
     }
