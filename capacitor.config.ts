@@ -39,6 +39,7 @@ const config: CapacitorConfig = {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
     scrollEnabled: true,
+    webContentsDebuggingEnabled: true,
   },
 };
 
