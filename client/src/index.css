@@ -102,7 +102,7 @@ html.capacitor-native #root {
   
   /* Deprecated - use mobile-content-padding instead */
   .pb-safe-bottom {
-    padding-bottom: calc(var(--tabbar-total-h, 90px) + 16px) !important;
+    padding-bottom: calc(var(--tabbar-total-h, 90px) + 4px) !important;
   }
 }
 
