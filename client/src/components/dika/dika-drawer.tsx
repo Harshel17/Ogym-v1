@@ -906,13 +906,15 @@ export function DikaDrawer({
 
       let keyboardHideListener: any = null;
       if (isNativeIOS) {
-        Keyboard.addListener('keyboardDidHide', () => {
-          setTimeout(restoreViewport, 50);
-          setTimeout(restoreViewport, 200);
-          setTimeout(restoreViewport, 400);
-        }).then(handle => {
-          keyboardHideListener = handle;
-        });
+        try {
+          Keyboard.addListener('keyboardDidHide', () => {
+            setTimeout(restoreViewport, 50);
+            setTimeout(restoreViewport, 200);
+            setTimeout(restoreViewport, 400);
+          }).then(handle => {
+            keyboardHideListener = handle;
+          }).catch(() => {});
+        } catch {}
       }
 
       document.addEventListener('keydown', handleEsc);
