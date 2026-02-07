@@ -9,6 +9,7 @@ const config: CapacitorConfig = {
     iosScheme: 'https',
     url: 'https://app.ogym.fitness',
     cleartext: true,
+    allowNavigation: ['app.ogym.fitness', '*.ogym.fitness', 'ogym.fitness'],
   },
   plugins: {
     SplashScreen: {

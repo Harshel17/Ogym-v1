@@ -59,5 +59,10 @@
         <string>OGym can save workout activity to Apple Health when you choose.</string>
         <key>ITSAppUsesNonExemptEncryption</key>
         <false/>
+        <key>NSAppTransportSecurity</key>
+        <dict>
+                <key>NSAllowsArbitraryLoadsInWebContent</key>
+                <true/>
+        </dict>
 </dict>
 </plist>
