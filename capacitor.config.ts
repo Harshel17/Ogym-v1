@@ -14,10 +14,10 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 0,
       launchAutoHide: true,
-      backgroundColor: '#ffffff',
+      backgroundColor: '#0b1220',
       showSpinner: false,
-      splashFullScreen: false,
-      splashImmersive: false,
+      splashFullScreen: true,
+      splashImmersive: true,
     },
     StatusBar: {
       style: 'light',
@@ -40,7 +40,7 @@ const config: CapacitorConfig = {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
     scrollEnabled: true,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0b1220',
   },
 };
 
