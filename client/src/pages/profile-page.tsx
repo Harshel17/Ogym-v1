@@ -13,7 +13,6 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
 import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus, MapPin, AlertCircle, Clock, User, FileEdit, Send, Edit2, Lock, CreditCard, Copy, Trash2, LogOut, ExternalLink, Bell } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
-import { Browser } from "@capacitor/browser";
 import { OwnerPaymentSettings, PaymentConfirmationsDashboard, MemberPaymentSheet } from "@/components/payment-settings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatDistanceToNow, format } from "date-fns";
@@ -1476,7 +1475,10 @@ function PrivacyPolicyCard() {
     const privacyUrl = "https://app.ogym.fitness/privacy";
     
     if (Capacitor.isNativePlatform()) {
-      await Browser.open({ url: privacyUrl });
+      try {
+        const { Browser } = await import("@capacitor/browser");
+        await Browser.open({ url: privacyUrl });
+      } catch { window.open(privacyUrl, "_blank"); }
     } else {
       window.open(privacyUrl, "_blank");
     }

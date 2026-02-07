@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { X, Camera, Loader2, ImageIcon, Keyboard } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
-import { Camera as CapacitorCamera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from "@zxing/library";
 
 interface BarcodeScannerProps {
@@ -112,17 +111,18 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
     setError(null);
     setShowManualEntry(false);
     try {
-      const permission = await CapacitorCamera.requestPermissions({ permissions: ['camera'] });
+      const { Camera: CapCamera, CameraResultType: CRT, CameraSource: CS } = await import("@capacitor/camera");
+      const permission = await CapCamera.requestPermissions({ permissions: ['camera'] });
       if (permission.camera !== 'granted' && permission.camera !== 'limited') {
         setError("Camera permission denied. Please enable it in your device settings.");
         return;
       }
 
-      const photo = await CapacitorCamera.getPhoto({
+      const photo = await CapCamera.getPhoto({
         quality: 100,
         allowEditing: false,
-        resultType: CameraResultType.DataUrl,
-        source: CameraSource.Camera,
+        resultType: CRT.DataUrl,
+        source: CS.Camera,
         correctOrientation: true,
         width: 1920,
         height: 1080,
@@ -144,11 +144,12 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
     setError(null);
     setShowManualEntry(false);
     try {
-      const photo = await CapacitorCamera.getPhoto({
+      const { Camera: CapCamera, CameraResultType: CRT, CameraSource: CS } = await import("@capacitor/camera");
+      const photo = await CapCamera.getPhoto({
         quality: 100,
         allowEditing: false,
-        resultType: CameraResultType.DataUrl,
-        source: CameraSource.Photos,
+        resultType: CRT.DataUrl,
+        source: CS.Photos,
       });
 
       if (photo.dataUrl) {
