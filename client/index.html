@@ -14,10 +14,11 @@
       <div style="width: 120px; height: 120px; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
         <img src="/ogym-icon.png" alt="OGym" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'" />
       </div>
-      <p style="color: #8892a4; font-family: -apple-system, sans-serif; font-size: 14px; margin-top: 16px;">Loading OGym...</p>
+      <p id="loading-status" style="color: #8892a4; font-family: -apple-system, sans-serif; font-size: 14px; margin-top: 16px;">Loading OGym...</p>
     </div>
     <script>
       window.__ogym_errors = [];
+      window.__ogym_stage = 'init';
       window.onerror = function(msg, src, line, col, err) {
         window.__ogym_errors.push(msg + ' at ' + src + ':' + line);
         return false;
@@ -26,19 +27,25 @@
         window.__ogym_errors.push('Promise: ' + (e.reason && e.reason.message || e.reason || 'unknown'));
       });
       setTimeout(function() {
+        var s = document.getElementById('loading-status');
+        if (s) s.textContent = 'Still loading...';
+      }, 3000);
+      setTimeout(function() {
         var root = document.getElementById('root');
         if (root && (!root.innerHTML || root.innerHTML.trim() === '')) {
           var d = document.createElement('div');
-          d.style.cssText = 'position:fixed;inset:0;background:#0b1220;color:#fff;padding:40px 20px;font-family:-apple-system,sans-serif;font-size:13px;z-index:99999;overflow:auto;';
-          d.innerHTML = '<h3 style="color:#f87171;margin-bottom:12px;">App failed to load</h3>' +
-            '<p style="color:#8892a4;margin-bottom:8px;">Origin: ' + location.origin + '</p>' +
-            '<p style="color:#8892a4;margin-bottom:8px;">URL: ' + location.href + '</p>' +
-            '<p style="color:#8892a4;margin-bottom:8px;">UA: ' + navigator.userAgent.substring(0,80) + '</p>' +
-            '<p style="color:#8892a4;margin-bottom:8px;">Errors (' + window.__ogym_errors.length + '):</p>' +
-            '<pre style="color:#fbbf24;white-space:pre-wrap;font-size:11px;">' + (window.__ogym_errors.join('\n') || 'No JS errors caught') + '</pre>';
+          d.style.cssText = 'position:fixed;inset:0;background:#ffffff;color:#000;padding:60px 20px;font-family:-apple-system,sans-serif;font-size:14px;z-index:99999;overflow:auto;';
+          d.innerHTML = '<h2 style="color:#dc2626;margin-bottom:16px;">OGym - Debug Info</h2>' +
+            '<p style="margin-bottom:8px;"><b>Stage:</b> ' + window.__ogym_stage + '</p>' +
+            '<p style="margin-bottom:8px;"><b>Origin:</b> ' + location.origin + '</p>' +
+            '<p style="margin-bottom:8px;"><b>URL:</b> ' + location.href + '</p>' +
+            '<p style="margin-bottom:8px;"><b>UA:</b> ' + navigator.userAgent.substring(0,100) + '</p>' +
+            '<p style="margin-bottom:8px;"><b>Errors (' + window.__ogym_errors.length + '):</b></p>' +
+            '<pre style="color:#dc2626;white-space:pre-wrap;font-size:12px;background:#fee2e2;padding:12px;border-radius:8px;">' + (window.__ogym_errors.join('\n') || 'No JS errors caught') + '</pre>' +
+            '<p style="margin-top:16px;color:#666;">Screenshot this and send it.</p>';
           document.body.appendChild(d);
         }
-      }, 8000);
+      }, 5000);
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
