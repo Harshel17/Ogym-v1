@@ -24,8 +24,8 @@ const config: CapacitorConfig = {
       overlaysWebView: true,
     },
     Keyboard: {
-      resize: 'none',
-      resizeOnFullScreen: false,
+      resize: 'body',
+      resizeOnFullScreen: true,
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],
