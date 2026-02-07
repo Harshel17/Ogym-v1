@@ -4296,14 +4296,10 @@ export class DatabaseStorage implements IStorage {
         
         if (withinStart && withinEnd) {
           if (cycle.progressionMode === "completion") {
-            // Completion mode: no fixed date-based schedule
-            // Only today uses currentDayIndex; past/future dates have no scheduled workout
-            if (dateStr === today) {
-              dayIndex = cycle.currentDayIndex ?? 0;
-              isCycleActive = true;
-            }
-            // Past dates: don't set isCycleActive - completion mode has no date-based schedule
-            // If user worked out, completions will show it as "present"
+            // Completion mode: no fixed date-based schedule at all.
+            // The calendar only reflects actual completions (present/rest).
+            // The "Today's Workout" card handles showing what's next.
+            // Never set isCycleActive so no day shows "missed" exercises.
           } else {
             // Calendar mode: use date math
             dayIndex = daysDiff % cycle.cycleLength;
