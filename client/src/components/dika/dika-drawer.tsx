@@ -871,14 +871,9 @@ export function DikaDrawer({
 
   const drawerPanelRef = useRef<HTMLDivElement>(null);
   const isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
-  const [capturedHeight, setCapturedHeight] = useState<number>(0);
 
   useEffect(() => {
     if (isOpen) {
-      if (isNativeIOS) {
-        setCapturedHeight(window.innerHeight);
-      }
-
       if (!isNativeIOS) {
         setTimeout(() => {
           inputRef.current?.focus();
@@ -897,34 +892,12 @@ export function DikaDrawer({
         e.preventDefault();
       };
 
-      const restoreViewport = () => {
-        window.scrollTo(0, 1);
-        requestAnimationFrame(() => {
-          window.scrollTo(0, 0);
-        });
-      };
-
-      let keyboardHideListener: any = null;
-      if (isNativeIOS) {
-        Keyboard.addListener('keyboardDidHide', () => {
-          setTimeout(restoreViewport, 50);
-          setTimeout(restoreViewport, 200);
-          setTimeout(restoreViewport, 400);
-        }).then(handle => {
-          keyboardHideListener = handle;
-        });
-      }
-
       document.addEventListener('keydown', handleEsc);
       document.addEventListener('touchmove', handleTouchMove, { passive: false });
 
       return () => {
         document.removeEventListener('keydown', handleEsc);
         document.removeEventListener('touchmove', handleTouchMove);
-
-        if (keyboardHideListener) {
-          keyboardHideListener.remove();
-        }
 
         if (isNativeIOS) {
           if (document.activeElement instanceof HTMLElement) {
@@ -933,11 +906,6 @@ export function DikaDrawer({
           try {
             Keyboard.hide();
           } catch {}
-
-          setTimeout(restoreViewport, 50);
-          setTimeout(restoreViewport, 200);
-          setTimeout(restoreViewport, 400);
-          setTimeout(restoreViewport, 600);
         }
       };
     }
@@ -945,9 +913,7 @@ export function DikaDrawer({
 
   if (!isOpen) return null;
 
-  const drawerHeight = isNativeIOS
-    ? (keyboardHeight > 0 ? `${capturedHeight - keyboardHeight}px` : `${capturedHeight}px`)
-    : (keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh');
+  const drawerHeight = keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh';
 
   return (
     <>
