@@ -897,12 +897,34 @@ export function DikaDrawer({
         e.preventDefault();
       };
 
+      const restoreViewport = () => {
+        window.scrollTo(0, 1);
+        requestAnimationFrame(() => {
+          window.scrollTo(0, 0);
+        });
+      };
+
+      let keyboardHideListener: any = null;
+      if (isNativeIOS) {
+        Keyboard.addListener('keyboardDidHide', () => {
+          setTimeout(restoreViewport, 50);
+          setTimeout(restoreViewport, 200);
+          setTimeout(restoreViewport, 400);
+        }).then(handle => {
+          keyboardHideListener = handle;
+        });
+      }
+
       document.addEventListener('keydown', handleEsc);
       document.addEventListener('touchmove', handleTouchMove, { passive: false });
 
       return () => {
         document.removeEventListener('keydown', handleEsc);
         document.removeEventListener('touchmove', handleTouchMove);
+
+        if (keyboardHideListener) {
+          keyboardHideListener.remove();
+        }
 
         if (isNativeIOS) {
           if (document.activeElement instanceof HTMLElement) {
@@ -911,13 +933,6 @@ export function DikaDrawer({
           try {
             Keyboard.hide();
           } catch {}
-
-          const restoreViewport = () => {
-            window.scrollTo(0, 1);
-            requestAnimationFrame(() => {
-              window.scrollTo(0, 0);
-            });
-          };
 
           setTimeout(restoreViewport, 50);
           setTimeout(restoreViewport, 200);
