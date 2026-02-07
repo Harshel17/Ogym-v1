@@ -114,17 +114,16 @@ html.capacitor-native #root {
 }
 
 /* Fixed mobile header overlay with glass effect */
-/* Safe-area applied ONCE via padding-top only, height is base header height */
+/* Locked height: 48px content + safe-area-top. Never changes. */
 .mobile-fixed-header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 9999;
-  height: auto;
-  min-height: 48px;
-  padding: 6px 12px;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 6px);
+  height: calc(var(--mobile-header-height) + env(safe-area-inset-top, 0px));
+  padding: 0 12px;
+  padding-top: env(safe-area-inset-top, 0px);
   border-bottom: 1px solid hsla(var(--border) / 0.5);
   display: flex;
   align-items: center;
