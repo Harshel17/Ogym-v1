@@ -3,11 +3,10 @@ import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckC
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
-import { useKeyboardHeight, resetBodyStyles } from '@/hooks/use-keyboard';
+import { useKeyboardHeight } from '@/hooks/use-keyboard';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -868,38 +867,37 @@ export function DikaDrawer({
     { value: 'bat', icon: BatIcon, label: 'Bat' },
   ];
 
-  const isIOS = typeof window !== 'undefined' && 
-    typeof (window as any).Capacitor !== 'undefined' && 
-    (window as any).Capacitor.getPlatform?.() === 'ios';
-
   useEffect(() => {
-    if (!isOpen && isIOS) {
-      resetBodyStyles();
-      const t1 = setTimeout(resetBodyStyles, 50);
-      const t2 = setTimeout(resetBodyStyles, 150);
-      const t3 = setTimeout(resetBodyStyles, 300);
-      const t4 = setTimeout(resetBodyStyles, 600);
-      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+    if (isOpen) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 400);
+      const handleEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose();
+      };
+      document.addEventListener('keydown', handleEsc);
+      return () => document.removeEventListener('keydown', handleEsc);
     }
-  }, [isOpen, isIOS]);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const drawerHeight = keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh';
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent 
-        side="right" 
-        className="w-full sm:max-w-md flex flex-col p-0"
-        style={{ 
-          height: keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh',
-          maxHeight: keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh',
-          top: 0,
-          bottom: 'auto',
-          zIndex: 100000,
-        }}
-        preventCloseOnInteractOutside={isIOS}
+    <>
+      <div 
+        className="fixed inset-0 bg-black/60 z-[99999] transition-opacity duration-300"
+        onClick={onClose}
+        data-testid="overlay-dika"
+      />
+      <div 
+        className="fixed top-0 right-0 bottom-auto w-full sm:max-w-md flex flex-col p-0 bg-background shadow-2xl z-[100000] animate-in slide-in-from-right duration-300"
+        style={{ height: drawerHeight, maxHeight: drawerHeight }}
         data-testid="drawer-dika"
       >
-        <SheetHeader 
-          className="px-4 py-3 flex-shrink-0 pr-12 bg-slate-900 dark:bg-slate-950 border-b border-amber-500/20"
+        <div 
+          className="px-4 py-3 flex-shrink-0 bg-slate-900 dark:bg-slate-950 border-b border-amber-500/20"
           style={{ paddingTop: `calc(env(safe-area-inset-top, 0px) + 0.75rem)` }}
         >
           <div className="flex items-center justify-between">
@@ -910,7 +908,7 @@ export function DikaDrawer({
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <SheetTitle className="text-base font-semibold text-white">Dika AI</SheetTitle>
+                  <h2 className="text-base font-semibold text-white">Dika AI</h2>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-mono font-medium tracking-wider uppercase border border-amber-500/20">
                     v2.0
                   </span>
@@ -918,17 +916,28 @@ export function DikaDrawer({
                 <p className="text-xs text-slate-400">Gym intelligence assistant</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowSettings(!showSettings)}
-              className="text-slate-400 hover:text-white hover:bg-white/5"
-              data-testid="button-dika-settings"
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSettings(!showSettings)}
+                className="text-slate-400 hover:text-white hover:bg-white/5"
+                data-testid="button-dika-settings"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="text-slate-400 hover:text-white hover:bg-white/5"
+                data-testid="button-dika-close"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-        </SheetHeader>
+        </div>
 
         {showSettings && (
           <div className="px-4 py-3 border-b bg-muted/50 flex-shrink-0">
@@ -1216,7 +1225,7 @@ export function DikaDrawer({
             <Send className="w-4 h-4" />
           </Button>
         </form>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </>
   );
 }
