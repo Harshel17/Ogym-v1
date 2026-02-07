@@ -6,19 +6,18 @@ const config: CapacitorConfig = {
   webDir: 'dist/public',
   server: {
     androidScheme: 'https',
-    iosScheme: 'https',
     url: 'https://app.ogym.fitness',
     cleartext: true,
     allowNavigation: ['app.ogym.fitness', '*.ogym.fitness', 'ogym.fitness'],
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 500,
+      launchShowDuration: 0,
       launchAutoHide: true,
-      backgroundColor: '#0b1220',
+      backgroundColor: '#ffffff',
       showSpinner: false,
-      splashFullScreen: true,
-      splashImmersive: true,
+      splashFullScreen: false,
+      splashImmersive: false,
     },
     StatusBar: {
       style: 'light',
@@ -41,7 +40,7 @@ const config: CapacitorConfig = {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
     scrollEnabled: true,
-    backgroundColor: '#0b1220',
+    backgroundColor: '#ffffff',
   },
 };
 
