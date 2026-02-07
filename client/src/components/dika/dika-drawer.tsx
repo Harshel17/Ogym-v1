@@ -871,9 +871,14 @@ export function DikaDrawer({
 
   const drawerPanelRef = useRef<HTMLDivElement>(null);
   const isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+  const [capturedHeight, setCapturedHeight] = useState<number>(0);
 
   useEffect(() => {
     if (isOpen) {
+      if (isNativeIOS) {
+        setCapturedHeight(window.innerHeight);
+      }
+
       if (!isNativeIOS) {
         setTimeout(() => {
           inputRef.current?.focus();
@@ -906,12 +911,18 @@ export function DikaDrawer({
           try {
             Keyboard.hide();
           } catch {}
-          setTimeout(() => {
-            window.scrollTo(0, 0);
-          }, 50);
-          setTimeout(() => {
-            window.scrollTo(0, 0);
-          }, 150);
+
+          const restoreViewport = () => {
+            window.scrollTo(0, 1);
+            requestAnimationFrame(() => {
+              window.scrollTo(0, 0);
+            });
+          };
+
+          setTimeout(restoreViewport, 50);
+          setTimeout(restoreViewport, 200);
+          setTimeout(restoreViewport, 400);
+          setTimeout(restoreViewport, 600);
         }
       };
     }
@@ -919,7 +930,9 @@ export function DikaDrawer({
 
   if (!isOpen) return null;
 
-  const drawerHeight = keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh';
+  const drawerHeight = isNativeIOS
+    ? (keyboardHeight > 0 ? `${capturedHeight - keyboardHeight}px` : `${capturedHeight}px`)
+    : (keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh');
 
   return (
     <>
