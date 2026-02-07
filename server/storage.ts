@@ -2120,9 +2120,29 @@ export class DatabaseStorage implements IStorage {
     
     if (directCycle) {
       const cycleLength = directCycle.cycleLength;
-      const startDate = new Date(directCycle.startDate + 'T00:00:00');
-      const daysDiff = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
-      const dayIndex = daysDiff % cycleLength;
+      let dayIndex: number;
+      
+      if (directCycle.progressionMode === "completion") {
+        // Completion mode: day index only advances when workout is completed
+        // There is NO fixed schedule - user works out at their own pace
+        // For today: use currentDayIndex to determine what's next
+        // For past dates: can't use date math (it doesn't apply to completion mode)
+        //   - If user worked out that day, the completion records will show it as "present"
+        //   - If user didn't work out, it's NOT a missed day - they just didn't train
+        // For future dates: unplanned (no schedule)
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (dateStr === todayStr) {
+          dayIndex = directCycle.currentDayIndex ?? 0;
+        } else {
+          // Past and future dates in completion mode have no fixed schedule
+          return "unplanned";
+        }
+      } else {
+        // Calendar mode: use date math
+        const startDate = new Date(directCycle.startDate + 'T00:00:00');
+        const daysDiff = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+        dayIndex = daysDiff % cycleLength;
+      }
       
       // Check if this day is a rest day in the cycle
       const cycleRestDaysSet = cache.cycleRestDays.get(directCycle.id);
