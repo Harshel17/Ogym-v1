@@ -4291,15 +4291,24 @@ export class DatabaseStorage implements IStorage {
         const currentDate = new Date(dateStr);
         const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
         
-        // Only consider cycle active if:
-        // 1. Date is on or after cycle start date (no showing "missed" for pre-cycle dates)
-        // 2. Date is within cycle end date (if specified)
         const withinStart = dateStr >= cycle.startDate;
         const withinEnd = !cycleEndDate || dateStr <= cycleEndDate;
         
         if (withinStart && withinEnd) {
-          dayIndex = daysDiff % cycle.cycleLength;
-          isCycleActive = true;
+          if (cycle.progressionMode === "completion") {
+            // Completion mode: no fixed date-based schedule
+            // Only today uses currentDayIndex; past/future dates have no scheduled workout
+            if (dateStr === today) {
+              dayIndex = cycle.currentDayIndex ?? 0;
+              isCycleActive = true;
+            }
+            // Past dates: don't set isCycleActive - completion mode has no date-based schedule
+            // If user worked out, completions will show it as "present"
+          } else {
+            // Calendar mode: use date math
+            dayIndex = daysDiff % cycle.cycleLength;
+            isCycleActive = true;
+          }
         }
       }
 
@@ -4318,7 +4327,7 @@ export class DatabaseStorage implements IStorage {
         // Workout day: status based on whether any exercises were completed
         status = completed.length > 0 ? "present" : "absent";
       } else if (wasPresent || completed.length > 0) {
-        // Rest day with attendance or ad-hoc completions
+        // Had completions or attendance even without scheduled items
         status = "present";
       }
 
