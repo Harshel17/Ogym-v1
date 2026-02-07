@@ -23,27 +23,27 @@ const iconMap = {
 const colorConfig = {
   orange: {
     iconBg: "bg-gradient-to-br from-amber-400 to-orange-500",
-    hoverBg: "hover:bg-amber-50 dark:hover:bg-amber-950/20",
-    activeBg: "active:bg-amber-100 dark:active:bg-amber-950/30",
-    glow: "shadow-orange-500/15 dark:shadow-orange-500/10",
+    ringColor: "#f97316",
+    ringBgColor: "rgba(249, 115, 22, 0.12)",
+    glow: "shadow-orange-500/10",
   },
   blue: {
     iconBg: "bg-gradient-to-br from-sky-400 to-blue-500",
-    hoverBg: "hover:bg-sky-50 dark:hover:bg-sky-950/20",
-    activeBg: "active:bg-sky-100 dark:active:bg-sky-950/30",
-    glow: "shadow-blue-500/15 dark:shadow-blue-500/10",
+    ringColor: "#3b82f6",
+    ringBgColor: "rgba(59, 130, 246, 0.12)",
+    glow: "shadow-blue-500/10",
   },
   green: {
     iconBg: "bg-gradient-to-br from-emerald-400 to-teal-500",
-    hoverBg: "hover:bg-emerald-50 dark:hover:bg-emerald-950/20",
-    activeBg: "active:bg-emerald-100 dark:active:bg-emerald-950/30",
-    glow: "shadow-emerald-500/15 dark:shadow-emerald-500/10",
+    ringColor: "#10b981",
+    ringBgColor: "rgba(16, 185, 129, 0.12)",
+    glow: "shadow-emerald-500/10",
   },
   purple: {
     iconBg: "bg-gradient-to-br from-violet-400 to-purple-500",
-    hoverBg: "hover:bg-violet-50 dark:hover:bg-violet-950/20",
-    activeBg: "active:bg-violet-100 dark:active:bg-violet-950/30",
-    glow: "shadow-purple-500/15 dark:shadow-purple-500/10",
+    ringColor: "#8b5cf6",
+    ringBgColor: "rgba(139, 92, 246, 0.12)",
+    glow: "shadow-purple-500/10",
   },
 };
 
@@ -93,24 +93,56 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
   const Icon = iconMap[icon];
   const colors = colorConfig[color];
 
+  const size = 72;
+  const strokeWidth = 4;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const maxValue = icon === "flame" ? Math.max(value, 30) : Math.max(value, 7);
+  const percentage = Math.min((value / maxValue) * 100, 100);
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
   return (
     <Card
       className={cn(
-        "cursor-pointer border transition-all duration-200 ease-out shadow-md",
+        "cursor-pointer border-0 bg-card/60 backdrop-blur-sm transition-all duration-300 ease-out",
         "hover:scale-[1.02] active:scale-[0.98]",
-        colors.hoverBg,
-        colors.activeBg,
         colors.glow
       )}
       onClick={onClick}
       data-testid={`stat-card-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
-      <CardContent className="flex flex-col items-center justify-center h-[120px] py-0">
-        <div className={cn("p-2.5 rounded-full text-white mb-1.5 shadow-lg", colors.iconBg)}>
-          <Icon className="w-5 h-5" />
+      <CardContent className="flex flex-col items-center justify-center h-[130px] py-0">
+        <div className="relative mb-2">
+          <svg width={size} height={size} className="transform -rotate-90">
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={colors.ringBgColor}
+              strokeWidth={strokeWidth}
+            />
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={colors.ringColor}
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              className="transition-all duration-1000 ease-out"
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className={cn("p-2 rounded-full text-white", colors.iconBg)}>
+              <Icon className="w-4 h-4" />
+            </div>
+          </div>
         </div>
-        <p className="text-2xl font-bold tabular-nums">{displayValue}</p>
-        <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">{label}</p>
+        <p className="text-2xl font-bold tabular-nums leading-none">{displayValue}</p>
+        <p className="text-[11px] text-muted-foreground mt-1 font-medium">{label}</p>
       </CardContent>
     </Card>
   );
@@ -136,15 +168,13 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const caloriePercentage = Math.min((current / effectiveTarget) * 100, 100);
   const isCaloriesOver = current > effectiveTarget;
   
-  // Protein calculations - show ring if there's any protein data or a target set
   const effectiveProteinTarget = targetProtein > 0 ? targetProtein : (currentProtein > 0 ? 100 : 0);
   const showProteinRing = effectiveProteinTarget > 0 || currentProtein > 0;
   const proteinPercentage = effectiveProteinTarget > 0 ? Math.min((currentProtein / effectiveProteinTarget) * 100, 100) : 0;
   const isProteinOver = effectiveProteinTarget > 0 && currentProtein > effectiveProteinTarget;
   
-  // SVG circle calculations - dual ring layout (sized to match streak icon)
   const size = 72;
-  const outerStrokeWidth = 5;
+  const outerStrokeWidth = 4;
   const innerStrokeWidth = 3;
   const gap = 3;
   const outerRadius = (size - outerStrokeWidth) / 2;
@@ -156,40 +186,34 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const outerStrokeDashoffset = outerCircumference - (caloriePercentage / 100) * outerCircumference;
   const innerStrokeDashoffset = innerCircumference - (proteinPercentage / 100) * innerCircumference;
 
-  // Color scheme: Emerald for calories, Blue for protein
   const calorieColor = isCaloriesOver ? "#ef4444" : "#10b981";
   const proteinColor = isProteinOver ? "#ef4444" : "#3b82f6";
 
   return (
     <Card
       className={cn(
-        "cursor-pointer border transition-all duration-200 ease-out shadow-md",
+        "cursor-pointer border-0 bg-card/60 backdrop-blur-sm transition-all duration-300 ease-out",
         "hover:scale-[1.02] active:scale-[0.98]",
-        "hover:bg-emerald-50 dark:hover:bg-emerald-950/20",
-        "active:bg-emerald-100 dark:active:bg-emerald-950/30",
-        "shadow-emerald-500/15 dark:shadow-emerald-500/10"
+        "shadow-emerald-500/10"
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center h-[120px] py-0">
-        {/* Dual Ring Progress */}
-        <div className="relative">
+      <CardContent className="flex flex-col items-center justify-center h-[130px] py-0">
+        <div className="relative mb-2">
           <svg
             width={size}
             height={size}
             className="transform -rotate-90"
           >
-            {/* Outer ring background (calories) */}
             <circle
               cx={size / 2}
               cy={size / 2}
               r={outerRadius}
               fill="none"
               stroke="currentColor"
-              className="text-muted/30"
+              className="text-muted/20"
               strokeWidth={outerStrokeWidth}
             />
-            {/* Outer ring progress (calories) */}
             <circle
               cx={size / 2}
               cy={size / 2}
@@ -200,10 +224,9 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
               strokeLinecap="round"
               strokeDasharray={outerCircumference}
               strokeDashoffset={outerStrokeDashoffset}
-              className="transition-all duration-700 ease-out"
+              className="transition-all duration-1000 ease-out"
             />
             
-            {/* Inner ring background (protein) */}
             {showProteinRing && (
               <>
                 <circle
@@ -212,10 +235,9 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
                   r={innerRadius}
                   fill="none"
                   stroke="currentColor"
-                  className="text-muted/30"
+                  className="text-muted/20"
                   strokeWidth={innerStrokeWidth}
                 />
-                {/* Inner ring progress (protein) */}
                 <circle
                   cx={size / 2}
                   cy={size / 2}
@@ -226,12 +248,11 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
                   strokeLinecap="round"
                   strokeDasharray={innerCircumference}
                   strokeDashoffset={innerStrokeDashoffset}
-                  className="transition-all duration-700 ease-out"
+                  className="transition-all duration-1000 ease-out"
                 />
               </>
             )}
           </svg>
-          {/* Center content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className={cn(
               "text-sm font-bold tabular-nums leading-none",
@@ -243,15 +264,14 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
           </div>
         </div>
         
-        <p className="text-xs text-muted-foreground mt-1">Today's Calories</p>
+        <p className="text-[11px] text-muted-foreground font-medium">Today's Calories</p>
         
-        {/* Protein info */}
         {showProteinRing && (
           <p className={cn(
-            "text-xs tabular-nums",
+            "text-[10px] tabular-nums mt-0.5",
             isProteinOver ? "text-red-500" : "text-blue-500"
           )}>
-            Protein: {currentProtein}g / {effectiveProteinTarget}g
+            {currentProtein}g / {effectiveProteinTarget}g protein
           </p>
         )}
       </CardContent>
@@ -315,15 +335,20 @@ export const WorkoutProgressBar = memo(function WorkoutProgressBar({
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-muted-foreground">Progress</span>
-        <span className={cn("text-xs font-medium", isComplete ? "text-green-600" : "")}>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs text-muted-foreground font-medium">Progress</span>
+        <span className={cn("text-xs font-semibold tabular-nums", isComplete ? "text-green-500" : "text-foreground")}>
           {completed}/{total}
         </span>
       </div>
-      <div className="h-2 bg-muted rounded-full overflow-hidden">
+      <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
         <div
-          className={cn("h-full rounded-full", isComplete ? "bg-green-500" : "bg-primary")}
+          className={cn(
+            "h-full rounded-full transition-all duration-500 ease-out",
+            isComplete 
+              ? "bg-gradient-to-r from-green-400 to-emerald-500" 
+              : "bg-gradient-to-r from-primary/80 to-primary"
+          )}
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -375,13 +400,13 @@ export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], 
   }, [calendarDays]);
 
   return (
-    <Card className={cn("border", className)} data-testid="card-weekly-progress">
-      <CardContent className="py-4">
+    <Card className={cn("border-0 bg-card/60 backdrop-blur-sm", className)} data-testid="card-weekly-progress">
+      <CardContent className="py-4 px-4">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium">This Week</span>
-          <span className="text-xs text-muted-foreground">{completedCount}/{passedDaysCount} days</span>
+          <span className="text-sm font-semibold">This Week</span>
+          <span className="text-xs text-muted-foreground font-medium tabular-nums">{completedCount}/{passedDaysCount} days</span>
         </div>
-        <div className="flex items-center justify-between gap-1">
+        <div className="flex items-center justify-between gap-1.5">
           {weekDates.map((dateStr, index) => {
             const isPast = dateStr < todayStr;
             const isToday = dateStr === todayStr;
@@ -389,22 +414,22 @@ export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], 
             const isCompleted = completedDatesSet.has(dateStr);
 
             return (
-              <div key={dateStr} className="flex flex-col items-center gap-1 flex-1">
+              <div key={dateStr} className="flex flex-col items-center gap-1.5 flex-1">
                 <div
                   className={cn(
-                    "w-full aspect-square rounded-lg flex items-center justify-center text-xs font-medium",
+                    "w-full aspect-square rounded-xl flex items-center justify-center text-xs font-semibold transition-all duration-300",
                     isCompleted && !isFuture
-                      ? "bg-green-500 text-white"
+                      ? "bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-sm shadow-green-500/20"
                       : isToday
-                      ? "bg-primary/20 text-primary ring-2 ring-primary"
+                      ? "bg-primary/15 text-primary ring-2 ring-primary/50"
                       : isPast
-                      ? "bg-red-100 dark:bg-red-900/30 text-red-500"
-                      : "bg-muted text-muted-foreground"
+                      ? "bg-muted/60 text-muted-foreground/60"
+                      : "bg-muted/30 text-muted-foreground/40"
                   )}
                 >
-                  {isCompleted && !isFuture && <Check className="w-3.5 h-3.5" />}
+                  {isCompleted && !isFuture ? <Check className="w-3.5 h-3.5" /> : null}
                 </div>
-                <span className={cn("text-xs", isToday ? "font-bold text-primary" : "text-muted-foreground")}>
+                <span className={cn("text-[10px] font-medium", isToday ? "text-primary font-bold" : "text-muted-foreground/70")}>
                   {dayLabels[index]}
                 </span>
               </div>

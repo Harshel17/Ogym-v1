@@ -318,11 +318,11 @@ html.capacitor-native #root {
   }
   
   .stat-card {
-    @apply bg-card rounded-xl border border-border p-4 transition-all duration-200 hover:shadow-md hover:border-primary/20;
+    @apply bg-card/60 backdrop-blur-sm rounded-xl border-0 p-4 transition-all duration-200;
   }
   
   .workout-card {
-    @apply bg-gradient-to-br from-card via-card to-primary/5 dark:to-primary/10 rounded-xl border border-primary/10 dark:border-primary/15 shadow-sm shadow-primary/5;
+    @apply bg-card/60 backdrop-blur-sm rounded-xl border-0;
   }
   
   .hover-elevate {

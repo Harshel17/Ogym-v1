@@ -1239,15 +1239,15 @@ function MemberDashboard() {
   return (
     <div className="space-y-3">
       <Collapsible open={isWorkoutOpen} onOpenChange={setIsWorkoutOpen}>
-        <Card className="workout-card overflow-hidden" data-testid="card-today-workout">
+        <Card className="border-0 bg-card/60 backdrop-blur-sm overflow-hidden" data-testid="card-today-workout">
           <CollapsibleTrigger asChild>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer group">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer group pb-3">
               <div className="flex items-center gap-3">
-                <div className="premium-gradient p-2.5 rounded-xl shadow-lg shadow-primary/25">
+                <div className="bg-gradient-to-br from-primary to-primary/80 p-2.5 rounded-xl shadow-lg shadow-primary/20">
                   <Dumbbell className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Today's Workout</CardTitle>
+                  <CardTitle className="text-base font-semibold">Today's Workout</CardTitle>
                   {workoutItems.length > 0 && (
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {dayLabel ? (
@@ -1256,7 +1256,7 @@ function MemberDashboard() {
                         <span>Day {currentDayIndex + 1} of {cycleLength}</span>
                       )}
                       {muscleTypesDisplay && (
-                        <span className="ml-1 text-primary font-medium"> - {muscleTypesDisplay}</span>
+                        <span className="ml-1 text-primary/80 font-medium">{muscleTypesDisplay}</span>
                       )}
                     </div>
                   )}
@@ -1266,13 +1266,13 @@ function MemberDashboard() {
                 {workoutItems.length > 0 && (
                   <Badge 
                     variant={allCompleted ? "default" : "secondary"}
-                    className={allCompleted ? "bg-green-500 hover:bg-green-600 flex items-center gap-1" : ""}
+                    className={allCompleted ? "bg-gradient-to-r from-green-500 to-emerald-500 border-0 flex items-center gap-1 text-white" : "border-0 bg-muted/60"}
                   >
                     {allCompleted && <Sparkles className="w-3 h-3" />}
                     {allCompleted ? "Done" : `${completedCount}/${workoutItems.length}`}
                   </Badge>
                 )}
-                <div className="p-1.5 rounded-lg transition-colors group-hover:bg-muted">
+                <div className="p-1.5 rounded-lg transition-colors">
                   {isWorkoutOpen ? (
                     <ChevronUp className="w-4 h-4 text-muted-foreground" />
                   ) : (
@@ -1283,7 +1283,7 @@ function MemberDashboard() {
             </CardHeader>
           </CollapsibleTrigger>
           {workoutItems.length > 0 && !isWorkoutOpen && (
-            <div className="px-6 pb-4 -mt-2">
+            <div className="px-6 pb-4 -mt-1">
               <WorkoutProgressBar completed={completedCount} total={workoutItems.length} />
             </div>
           )}
@@ -1662,7 +1662,7 @@ function MemberDashboard() {
                 label="Day Streak"
                 icon="flame"
                 color="orange"
-                delay={0}
+                delay={100}
               />
             </Link>
             <Link href="/nutrition">
@@ -1671,7 +1671,7 @@ function MemberDashboard() {
                 target={calorieData?.goal?.dailyCalorieTarget || 0}
                 currentProtein={calorieData?.summary?.protein || 0}
                 targetProtein={calorieData?.goal?.dailyProteinTarget || 0}
-                delay={100}
+                delay={200}
               />
             </Link>
           </div>
@@ -1683,28 +1683,28 @@ function MemberDashboard() {
       <MemberCalendarWidget />
 
       {memberProfile && (memberProfile.trainerName || memberProfile.cycleEndDate) && (
-        <Card className="border-2 border-primary/10 bg-gradient-to-r from-primary/5 to-accent/5">
-          <CardContent className="pt-6">
+        <Card className="border-0 bg-card/60 backdrop-blur-sm">
+          <CardContent className="pt-5 pb-4">
             <div className="flex items-center justify-between flex-wrap gap-4">
               {memberProfile.trainerName && (
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-full text-primary">
-                    <User2 className="w-5 h-5" />
+                  <div className="p-2 bg-gradient-to-br from-primary/15 to-primary/5 rounded-xl text-primary">
+                    <User2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Your Trainer</p>
-                    <p className="font-semibold text-foreground">{memberProfile.trainerName}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Your Trainer</p>
+                    <p className="font-semibold text-sm text-foreground">{memberProfile.trainerName}</p>
                   </div>
                 </div>
               )}
               {memberProfile.cycleEndDate && (
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-full text-primary">
-                    <Clock className="w-5 h-5" />
+                  <div className="p-2 bg-gradient-to-br from-primary/15 to-primary/5 rounded-xl text-primary">
+                    <Clock className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Cycle Ends</p>
-                    <p className="font-semibold text-foreground">{memberProfile.cycleEndDate}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Cycle Ends</p>
+                    <p className="font-semibold text-sm text-foreground">{memberProfile.cycleEndDate}</p>
                   </div>
                 </div>
               )}
@@ -1713,19 +1713,33 @@ function MemberDashboard() {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <StatCard 
-          title="My Attendance" 
-          value={attendedCount} 
-          icon={CalendarCheck} 
-          description="Total sessions logged"
-        />
-        <StatCard 
-          title="Last Payment" 
-          value={lastPayment ? `$${((lastPayment.amountPaid || 0) / 100).toFixed(2)}` : 'N/A'} 
-          icon={CreditCard} 
-          description={lastPayment ? `Status: ${lastPayment.status}` : 'No payment history'}
-        />
+      <div className="grid gap-2.5 grid-cols-2">
+        <Card className="border-0 bg-card/60 backdrop-blur-sm" data-testid="stat-card-attendance">
+          <CardContent className="py-4 px-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-blue-400/15 to-blue-500/5 rounded-xl">
+                <CalendarCheck className="w-4 h-4 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-lg font-bold tabular-nums">{attendedCount}</p>
+                <p className="text-[10px] text-muted-foreground font-medium">Sessions</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-0 bg-card/60 backdrop-blur-sm" data-testid="stat-card-payment">
+          <CardContent className="py-4 px-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-purple-400/15 to-purple-500/5 rounded-xl">
+                <CreditCard className="w-4 h-4 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-lg font-bold tabular-nums">{lastPayment ? `$${((lastPayment.amountPaid || 0) / 100).toFixed(2)}` : 'N/A'}</p>
+                <p className="text-[10px] text-muted-foreground font-medium">{lastPayment ? lastPayment.status : 'No payments'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={showMarkDoneDialog} onOpenChange={setShowMarkDoneDialog}>
@@ -2080,20 +2094,20 @@ function MemberCalendarWidget() {
   };
 
   const getStatusStyles = (status: string, isTodayDate: boolean) => {
-    const baseStyles = "p-2 text-sm rounded-md transition-colors relative";
-    const todayRing = isTodayDate ? "ring-2 ring-primary" : "";
+    const baseStyles = "p-2 text-sm rounded-xl transition-all duration-200 relative font-medium";
+    const todayRing = isTodayDate ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : "";
     
     switch (status) {
       case "present":
-        return `${baseStyles} bg-green-500/20 text-green-700 dark:text-green-400 cursor-pointer hover:bg-green-500/30 ${todayRing}`;
+        return `${baseStyles} bg-green-500/15 text-green-700 dark:text-green-400 cursor-pointer hover:bg-green-500/25 ${todayRing}`;
       case "absent":
-        return `${baseStyles} bg-red-500/20 text-red-700 dark:text-red-400 cursor-pointer hover:bg-red-500/30 ${todayRing}`;
+        return `${baseStyles} bg-red-500/15 text-red-700 dark:text-red-400 cursor-pointer hover:bg-red-500/25 ${todayRing}`;
       case "rest":
-        return `${baseStyles} bg-blue-500/10 text-blue-700 dark:text-blue-400 cursor-pointer hover:bg-blue-500/20 ${todayRing}`;
+        return `${baseStyles} bg-blue-500/10 text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-500/15 ${todayRing}`;
       case "future":
-        return `${baseStyles} text-muted-foreground/50 cursor-default ${todayRing}`;
+        return `${baseStyles} text-muted-foreground/40 cursor-default ${todayRing}`;
       default:
-        return `${baseStyles} text-muted-foreground ${todayRing}`;
+        return `${baseStyles} text-muted-foreground/60 ${todayRing}`;
     }
   };
 
@@ -2116,18 +2130,20 @@ function MemberCalendarWidget() {
   };
 
   return (
-    <Card data-testid="card-calendar">
+    <Card className="border-0 bg-card/60 backdrop-blur-sm" data-testid="card-calendar">
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Calendar className="w-5 h-5" />
-          Workout Calendar
+        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <div className="p-1.5 bg-gradient-to-br from-primary/15 to-primary/5 rounded-lg">
+            <Calendar className="w-3.5 h-3.5 text-primary" />
+          </div>
+          Calendar
         </CardTitle>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <Button variant="ghost" size="icon" onClick={prevMonth} data-testid="button-prev-month">
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="text-sm font-medium min-w-[100px] text-center">
-            {format(currentMonth, "MMMM yyyy")}
+          <span className="text-xs font-semibold min-w-[90px] text-center tabular-nums">
+            {format(currentMonth, "MMM yyyy")}
           </span>
           <Button variant="ghost" size="icon" onClick={nextMonth} data-testid="button-next-month">
             <ChevronRight className="w-4 h-4" />
@@ -2135,23 +2151,23 @@ function MemberCalendarWidget() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-center gap-4 mb-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-center gap-4 mb-3">
+          <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 bg-green-500 rounded-full" />
-            <span>Present</span>
+            <span className="text-[10px] text-muted-foreground font-medium">Done</span>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-red-500 rounded-full" />
-            <span>Missed</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 bg-red-400 rounded-full" />
+            <span className="text-[10px] text-muted-foreground font-medium">Missed</span>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-blue-500 rounded-full" />
-            <span>Rest</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 bg-blue-400 rounded-full" />
+            <span className="text-[10px] text-muted-foreground font-medium">Rest</span>
           </div>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-center mb-2">
-          {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(day => (
-            <div key={day} className="text-xs text-muted-foreground font-medium py-1">
+        <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
+          {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
+            <div key={`${day}-${i}`} className="text-[10px] text-muted-foreground/60 font-semibold py-1 uppercase tracking-wider">
               {day}
             </div>
           ))}
