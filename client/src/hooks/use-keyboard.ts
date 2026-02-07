@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { Keyboard } from '@capacitor/keyboard';
 
 export function useKeyboardHeight() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -26,17 +25,22 @@ export function useKeyboardHeight() {
       };
     }
 
-    const showListener = Keyboard.addListener('keyboardWillShow', (info) => {
-      setKeyboardHeight(info.keyboardHeight);
-    });
+    let showHandle: any;
+    let hideHandle: any;
 
-    const hideListener = Keyboard.addListener('keyboardWillHide', () => {
-      setKeyboardHeight(0);
-    });
+    import('@capacitor/keyboard').then(({ Keyboard }) => {
+      Keyboard.addListener('keyboardWillShow', (info) => {
+        setKeyboardHeight(info.keyboardHeight);
+      }).then(h => { showHandle = h; });
+
+      Keyboard.addListener('keyboardWillHide', () => {
+        setKeyboardHeight(0);
+      }).then(h => { hideHandle = h; });
+    }).catch(() => {});
 
     return () => {
-      showListener.then(handle => handle.remove());
-      hideListener.then(handle => handle.remove());
+      if (showHandle) showHandle.remove();
+      if (hideHandle) hideHandle.remove();
     };
   }, []);
 
