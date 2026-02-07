@@ -16,37 +16,6 @@
       </div>
       <p id="loading-status" style="color: #8892a4; font-family: -apple-system, sans-serif; font-size: 14px; margin-top: 16px;">Loading OGym...</p>
     </div>
-    <script>
-      window.__ogym_errors = [];
-      window.__ogym_stage = 'init';
-      window.onerror = function(msg, src, line, col, err) {
-        window.__ogym_errors.push(msg + ' at ' + src + ':' + line);
-        return false;
-      };
-      window.addEventListener('unhandledrejection', function(e) {
-        window.__ogym_errors.push('Promise: ' + (e.reason && e.reason.message || e.reason || 'unknown'));
-      });
-      setTimeout(function() {
-        var s = document.getElementById('loading-status');
-        if (s) s.textContent = 'Still loading...';
-      }, 3000);
-      setTimeout(function() {
-        var root = document.getElementById('root');
-        if (root && (!root.innerHTML || root.innerHTML.trim() === '')) {
-          var d = document.createElement('div');
-          d.style.cssText = 'position:fixed;inset:0;background:#ffffff;color:#000;padding:60px 20px;font-family:-apple-system,sans-serif;font-size:14px;z-index:99999;overflow:auto;';
-          d.innerHTML = '<h2 style="color:#dc2626;margin-bottom:16px;">OGym - Debug Info</h2>' +
-            '<p style="margin-bottom:8px;"><b>Stage:</b> ' + window.__ogym_stage + '</p>' +
-            '<p style="margin-bottom:8px;"><b>Origin:</b> ' + location.origin + '</p>' +
-            '<p style="margin-bottom:8px;"><b>URL:</b> ' + location.href + '</p>' +
-            '<p style="margin-bottom:8px;"><b>UA:</b> ' + navigator.userAgent.substring(0,100) + '</p>' +
-            '<p style="margin-bottom:8px;"><b>Errors (' + window.__ogym_errors.length + '):</b></p>' +
-            '<pre style="color:#dc2626;white-space:pre-wrap;font-size:12px;background:#fee2e2;padding:12px;border-radius:8px;">' + (window.__ogym_errors.join('\n') || 'No JS errors caught') + '</pre>' +
-            '<p style="margin-top:16px;color:#666;">Screenshot this and send it.</p>';
-          document.body.appendChild(d);
-        }
-      }, 5000);
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
