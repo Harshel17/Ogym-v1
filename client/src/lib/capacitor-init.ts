@@ -1,7 +1,3 @@
-import { Capacitor } from '@capacitor/core';
-import { StatusBar, Style } from '@capacitor/status-bar';
-
-// Detect platform from user agent as fallback
 function detectPlatformFromUserAgent(): 'android' | 'ios' | 'web' {
   const ua = navigator.userAgent.toLowerCase();
   if (ua.includes('android')) return 'android';
@@ -9,48 +5,51 @@ function detectPlatformFromUserAgent(): 'android' | 'ios' | 'web' {
   return 'web';
 }
 
-// Update status bar style based on current theme
-// Should be called on theme change AND on route/screen transitions
-export async function updateStatusBarForTheme(isDarkTheme: boolean) {
-  if (!Capacitor.isNativePlatform()) return;
-  
+function isNativePlatform(): boolean {
   try {
-    // Always ensure status bar is visible first
+    const w = window as any;
+    return !!(w.Capacitor && w.Capacitor.isNativePlatform && w.Capacitor.isNativePlatform());
+  } catch {
+    return false;
+  }
+}
+
+function getPlatform(): string {
+  try {
+    const w = window as any;
+    if (w.Capacitor && w.Capacitor.getPlatform) return w.Capacitor.getPlatform();
+  } catch {}
+  return detectPlatformFromUserAgent();
+}
+
+export async function updateStatusBarForTheme(isDarkTheme: boolean) {
+  if (!isNativePlatform()) return;
+
+  try {
+    const { StatusBar, Style } = await import('@capacitor/status-bar');
     await StatusBar.show();
-    
-    // Style.Light = light/white icons (use on DARK backgrounds)
-    // Style.Dark = dark/black icons (use on LIGHT backgrounds)
     const style = isDarkTheme ? Style.Light : Style.Dark;
     await StatusBar.setStyle({ style });
-    
-    // Set background color based on theme for Android
-    const platform = Capacitor.getPlatform();
-    if (platform === 'android') {
+
+    if (getPlatform() === 'android') {
       const bgColor = isDarkTheme ? '#0b1220' : '#f5f7fa';
       await StatusBar.setBackgroundColor({ color: bgColor });
     }
-    
-    console.log(`StatusBar: show + style=${isDarkTheme ? 'Light (white icons)' : 'Dark (black icons)'}`);
   } catch (error) {
     console.error('Failed to update StatusBar style:', error);
   }
 }
 
-// Force refresh status bar - call on route changes to ensure visibility
 export async function refreshStatusBar() {
-  if (!Capacitor.isNativePlatform()) return;
-  
+  if (!isNativePlatform()) return;
   const isDark = document.documentElement.classList.contains('dark');
   await updateStatusBarForTheme(isDark);
 }
 
 export async function initializeCapacitor() {
-  // Add platform classes to document for CSS targeting
-  // Use both Capacitor detection AND user-agent detection
-  const isNative = Capacitor.isNativePlatform();
-  const platform = isNative ? Capacitor.getPlatform() : detectPlatformFromUserAgent();
-  
-  // Always add platform class for CSS targeting (works in browser too)
+  const native = isNativePlatform();
+  const platform = native ? getPlatform() : detectPlatformFromUserAgent();
+
   if (platform === 'android') {
     document.documentElement.classList.add('capacitor-android');
     document.documentElement.classList.add('is-android');
@@ -58,39 +57,34 @@ export async function initializeCapacitor() {
     document.documentElement.classList.add('capacitor-ios');
     document.documentElement.classList.add('is-ios');
   }
-  
-  if (isNative) {
+
+  if (native) {
     document.documentElement.classList.add('capacitor-native');
   }
 
-  console.log(`Platform detected: ${platform}, isNative: ${isNative}`);
+  console.log(`Platform detected: ${platform}, isNative: ${native}`);
 
-  if (!isNative) {
-    return;
-  }
+  if (!native) return;
 
   try {
-    // Show status bar and set initial style based on current theme
+    const { StatusBar } = await import('@capacitor/status-bar');
     await StatusBar.show();
-    
     const isDark = document.documentElement.classList.contains('dark');
     await updateStatusBarForTheme(isDark);
-    
     console.log('Capacitor StatusBar initialized');
   } catch (error) {
     console.error('Failed to configure StatusBar:', error);
   }
 }
 
-// Export helper to check platform
 export function isAndroid(): boolean {
-  return Capacitor.getPlatform() === 'android';
+  return getPlatform() === 'android';
 }
 
 export function isIOS(): boolean {
-  return Capacitor.getPlatform() === 'ios';
+  return getPlatform() === 'ios';
 }
 
 export function isNative(): boolean {
-  return Capacitor.isNativePlatform();
+  return isNativePlatform();
 }

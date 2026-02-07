@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Capacitor } from '@capacitor/core';
+
+function isNativePlatform(): boolean {
+  try {
+    const w = window as any;
+    return !!(w.Capacitor && w.Capacitor.isNativePlatform && w.Capacitor.isNativePlatform());
+  } catch {
+    return false;
+  }
+}
 
 export function useKeyboardHeight() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) {
+    if (!isNativePlatform()) {
       const viewport = window.visualViewport;
       if (!viewport) return;
 
