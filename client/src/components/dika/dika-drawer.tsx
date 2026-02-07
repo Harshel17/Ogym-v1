@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
-import { useKeyboardHeight } from '@/hooks/use-keyboard';
+import { useKeyboardHeight, resetBodyStyles } from '@/hooks/use-keyboard';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -869,6 +869,12 @@ export function DikaDrawer({
 
   useEffect(() => {
     if (isOpen) {
+      const mainEl = document.querySelector('.app-main-scroll') as HTMLElement | null;
+      if (mainEl) {
+        mainEl.style.overflow = 'hidden';
+        mainEl.style.touchAction = 'none';
+      }
+
       setTimeout(() => {
         inputRef.current?.focus();
       }, 400);
@@ -876,7 +882,14 @@ export function DikaDrawer({
         if (e.key === 'Escape') onClose();
       };
       document.addEventListener('keydown', handleEsc);
-      return () => document.removeEventListener('keydown', handleEsc);
+      return () => {
+        document.removeEventListener('keydown', handleEsc);
+        if (mainEl) {
+          mainEl.style.overflow = '';
+          mainEl.style.touchAction = '';
+        }
+        resetBodyStyles();
+      };
     }
   }, [isOpen, onClose]);
 
@@ -889,6 +902,7 @@ export function DikaDrawer({
       <div 
         className="fixed inset-0 bg-black/60 z-[99999] transition-opacity duration-300"
         onClick={onClose}
+        onTouchMove={(e) => e.preventDefault()}
         data-testid="overlay-dika"
       />
       <div 
