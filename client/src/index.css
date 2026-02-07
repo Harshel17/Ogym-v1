@@ -127,6 +127,11 @@ html.capacitor-native #root {
   border-bottom: 1px solid hsla(var(--border) / 0.5);
   display: flex;
   align-items: center;
+  transform: translateZ(0);
+  will-change: transform;
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* Fixed mobile tab bar - hard-anchored to viewport bottom */

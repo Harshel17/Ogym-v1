@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
-import { useKeyboardHeight, resetBodyStyles } from '@/hooks/use-keyboard';
+import { useKeyboardHeight } from '@/hooks/use-keyboard';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -867,28 +867,32 @@ export function DikaDrawer({
     { value: 'bat', icon: BatIcon, label: 'Bat' },
   ];
 
+  const drawerPanelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (isOpen) {
-      const mainEl = document.querySelector('.app-main-scroll') as HTMLElement | null;
-      if (mainEl) {
-        mainEl.style.overflow = 'hidden';
-        mainEl.style.touchAction = 'none';
-      }
-
       setTimeout(() => {
         inputRef.current?.focus();
       }, 400);
+
       const handleEsc = (e: KeyboardEvent) => {
         if (e.key === 'Escape') onClose();
       };
+
+      const handleTouchMove = (e: TouchEvent) => {
+        const panel = drawerPanelRef.current;
+        if (panel && panel.contains(e.target as Node)) {
+          return;
+        }
+        e.preventDefault();
+      };
+
       document.addEventListener('keydown', handleEsc);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+
       return () => {
         document.removeEventListener('keydown', handleEsc);
-        if (mainEl) {
-          mainEl.style.overflow = '';
-          mainEl.style.touchAction = '';
-        }
-        resetBodyStyles();
+        document.removeEventListener('touchmove', handleTouchMove);
       };
     }
   }, [isOpen, onClose]);
@@ -906,6 +910,7 @@ export function DikaDrawer({
         data-testid="overlay-dika"
       />
       <div 
+        ref={drawerPanelRef}
         className="fixed top-0 right-0 bottom-auto w-full sm:max-w-md flex flex-col p-0 bg-background shadow-2xl z-[100000] animate-in slide-in-from-right duration-300"
         style={{ height: drawerHeight, maxHeight: drawerHeight }}
         data-testid="drawer-dika"
