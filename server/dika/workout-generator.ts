@@ -30,34 +30,44 @@ export interface GeneratedWorkoutPlan {
 
 export function detectWorkoutGenerationRequest(message: string): boolean {
   const patterns = [
-    /create\s+(a\s+)?(\d+[\s-]?day\s+)?workout/i,
-    /generate\s+(a\s+)?(\d+[\s-]?day\s+)?workout/i,
+    /create\s+(me\s+)?(a\s+)?(\d+[\s-]?day\s+)?workout/i,
+    /generate\s+(me\s+)?(a\s+)?(\d+[\s-]?day\s+)?workout/i,
     /make\s+(me\s+)?(a\s+)?(\d+[\s-]?day\s+)?workout/i,
     /build\s+(me\s+)?(a\s+)?(\d+[\s-]?day\s+)?workout/i,
-    /design\s+(a\s+)?(\d+[\s-]?day\s+)?workout/i,
+    /design\s+(me\s+)?(a\s+)?(\d+[\s-]?day\s+)?workout/i,
     /give\s+me\s+(a\s+)?(\d+[\s-]?day\s+)?workout/i,
     /i\s+need\s+(a\s+)?(\d+[\s-]?day\s+)?workout/i,
     /i\s+want\s+(a\s+)?(\d+[\s-]?day\s+)?workout/i,
     /suggest\s+(me\s+)?(a\s+)?workout/i,
     /recommend\s+(me\s+)?(a\s+)?workout/i,
-    /workout\s+plan\s+for/i,
-    /workout\s+plan\s+which/i,
-    /workout\s+plan\s+to/i,
-    /training\s+plan\s+for/i,
-    /exercise\s+routine\s+for/i,
+    /set\s+up\s+(me\s+)?(a\s+)?workout/i,
+    /start\s+(me\s+)?(a\s+)?workout/i,
+    /plan\s+(me\s+)?(a\s+)?workout/i,
+    /can\s+you\s+(create|make|build|generate|give\s+me|design)\s+(me\s+)?(a\s+)?workout/i,
+    /help\s+me\s+(create|make|build|plan|start)\s+(a\s+)?workout/i,
+    /workout\s+plan\s+(for|which|to|that)/i,
+    /workout\s+plan$/i,
+    /training\s+plan\s+(for|to|that)/i,
+    /training\s+plan$/i,
+    /exercise\s+(routine|plan)\s+(for|to)/i,
+    /exercise\s+(routine|plan)$/i,
     /gym\s+program/i,
+    /gym\s+plan/i,
     /split\s+routine/i,
     /ppl\s+(split|routine|program)/i,
     /push\s*pull\s*legs/i,
-    /upper\s*lower\s+split/i,
-    /full\s+body\s+(routine|program|workout)/i,
+    /upper\s*[\/-]?\s*lower\s+(split|routine|program|workout)/i,
+    /full\s+body\s+(routine|program|workout|split)/i,
     /bro\s+split/i,
     /abs?\s+workout/i,
     /6[\s-]?pack\s+workout/i,
     /six[\s-]?pack\s+(workout|plan|routine)/i,
-    /workout\s+for\s+(abs|6[\s-]?pack|six[\s-]?pack)/i,
-    /plan\s+for\s+(abs|6[\s-]?pack|six[\s-]?pack|muscle|strength|weight\s+loss)/i,
-    /workout\s+.*\s+(abs|chest|back|legs|arms|shoulders)/i,
+    /workout\s+for\s+(abs|6[\s-]?pack|six[\s-]?pack|beginners?|weight\s+(loss|gain)|muscle|strength|bulking|cutting|toning)/i,
+    /plan\s+for\s+(abs|6[\s-]?pack|six[\s-]?pack|muscle|strength|weight\s+(loss|gain)|bulking|cutting|toning|beginners?)/i,
+    /workout\s+.*\s+(abs|chest|back|legs|arms|shoulders|biceps|triceps|glutes|core)/i,
+    /(\d+)\s*day\s+(split|program|routine|plan|workout)/i,
+    /new\s+workout\s+(plan|routine|program|cycle)/i,
+    /workout\s+cycle/i,
   ];
   
   return patterns.some(pattern => pattern.test(message));
@@ -138,7 +148,7 @@ Respond with ONLY valid JSON in this exact format:
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage }
       ],
-      max_completion_tokens: 2000,
+      max_completion_tokens: 4000,
       response_format: { type: "json_object" },
     });
     
@@ -157,9 +167,8 @@ Respond with ONLY valid JSON in this exact format:
           e.aliases.some((a: string) => a.toLowerCase() === ex.exerciseName.toLowerCase())
         );
         if (found) {
-          ex.exerciseName = found.name; // Use canonical name
+          ex.exerciseName = found.name;
           ex.muscleType = found.primaryMuscles[0] || ex.muscleType;
-          // Determine body part from primary muscles
           const lowerMuscles = ['quadriceps', 'hamstrings', 'glutes', 'calves', 'hip flexors', 'abductors', 'adductors'];
           const coreMuscles = ['abdominals', 'obliques', 'lower back', 'core'];
           const primaryLower = found.primaryMuscles[0]?.toLowerCase() || '';
@@ -170,6 +179,16 @@ Respond with ONLY valid JSON in this exact format:
         return !!found;
       });
     });
+    
+    // Remove days with no valid exercises after filtering
+    plan.days = plan.days.filter(day => day.exercises.length > 0);
+    
+    if (plan.days.length === 0) {
+      throw new Error("No valid exercises found in generated plan");
+    }
+    
+    // Update cycleLength to match actual days
+    plan.cycleLength = plan.days.length;
     
     const formattedResponse = formatWorkoutPlanResponse(plan);
     

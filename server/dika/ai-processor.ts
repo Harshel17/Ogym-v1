@@ -744,6 +744,14 @@ export async function processWithAI(
       return { answer: formattedResponse, followUpChips };
     } catch (error) {
       console.error('Workout generation failed:', error);
+      return {
+        answer: "I tried to generate a workout plan but ran into an issue. Could you try rephrasing your request? For example: \"Create me a 4 day workout plan for muscle building\"",
+        followUpChips: [
+          'Create a 4 day workout',
+          'Make me a push pull legs plan',
+          'Build me a beginner workout'
+        ]
+      };
     }
   }
   
