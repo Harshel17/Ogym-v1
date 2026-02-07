@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
 import { useKeyboardHeight } from '@/hooks/use-keyboard';
+import { Capacitor } from '@capacitor/core';
+import { Keyboard } from '@capacitor/keyboard';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -868,12 +870,15 @@ export function DikaDrawer({
   ];
 
   const drawerPanelRef = useRef<HTMLDivElement>(null);
+  const isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 400);
+      if (!isNativeIOS) {
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 400);
+      }
 
       const handleEsc = (e: KeyboardEvent) => {
         if (e.key === 'Escape') onClose();
@@ -893,9 +898,24 @@ export function DikaDrawer({
       return () => {
         document.removeEventListener('keydown', handleEsc);
         document.removeEventListener('touchmove', handleTouchMove);
+
+        if (isNativeIOS) {
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+          try {
+            Keyboard.hide();
+          } catch {}
+          setTimeout(() => {
+            window.scrollTo(0, 0);
+          }, 50);
+          setTimeout(() => {
+            window.scrollTo(0, 0);
+          }, 150);
+        }
       };
     }
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isNativeIOS]);
 
   if (!isOpen) return null;
 
