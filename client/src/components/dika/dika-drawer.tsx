@@ -7,8 +7,6 @@ import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
 import { useKeyboardHeight } from '@/hooks/use-keyboard';
-import { Capacitor } from '@capacitor/core';
-import { Keyboard } from '@capacitor/keyboard';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -870,20 +868,12 @@ export function DikaDrawer({
   ];
 
   const drawerPanelRef = useRef<HTMLDivElement>(null);
-  const isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
-  const [capturedHeight, setCapturedHeight] = useState<number>(0);
 
   useEffect(() => {
     if (isOpen) {
-      if (isNativeIOS) {
-        setCapturedHeight(window.innerHeight);
-      }
-
-      if (!isNativeIOS) {
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 400);
-      }
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 400);
 
       const handleEsc = (e: KeyboardEvent) => {
         if (e.key === 'Escape') onClose();
@@ -897,59 +887,19 @@ export function DikaDrawer({
         e.preventDefault();
       };
 
-      const restoreViewport = () => {
-        window.scrollTo(0, 1);
-        requestAnimationFrame(() => {
-          window.scrollTo(0, 0);
-        });
-      };
-
-      let keyboardHideListener: any = null;
-      if (isNativeIOS) {
-        try {
-          Keyboard.addListener('keyboardDidHide', () => {
-            setTimeout(restoreViewport, 50);
-            setTimeout(restoreViewport, 200);
-            setTimeout(restoreViewport, 400);
-          }).then(handle => {
-            keyboardHideListener = handle;
-          }).catch(() => {});
-        } catch {}
-      }
-
       document.addEventListener('keydown', handleEsc);
       document.addEventListener('touchmove', handleTouchMove, { passive: false });
 
       return () => {
         document.removeEventListener('keydown', handleEsc);
         document.removeEventListener('touchmove', handleTouchMove);
-
-        if (keyboardHideListener) {
-          keyboardHideListener.remove();
-        }
-
-        if (isNativeIOS) {
-          if (document.activeElement instanceof HTMLElement) {
-            document.activeElement.blur();
-          }
-          try {
-            Keyboard.hide();
-          } catch {}
-
-          setTimeout(restoreViewport, 50);
-          setTimeout(restoreViewport, 200);
-          setTimeout(restoreViewport, 400);
-          setTimeout(restoreViewport, 600);
-        }
       };
     }
-  }, [isOpen, onClose, isNativeIOS]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const drawerHeight = isNativeIOS
-    ? (keyboardHeight > 0 ? `${capturedHeight - keyboardHeight}px` : `${capturedHeight}px`)
-    : (keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh');
+  const drawerHeight = keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh';
 
   return (
     <>

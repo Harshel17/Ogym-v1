@@ -5,7 +5,6 @@ import { useNotificationCounts } from "@/hooks/use-notifications";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dika } from "@/components/dika";
-import { DebugOverlay } from "@/components/debug-overlay";
 import { RoboDIcon } from "@/components/dika/dika-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { usePullRefresh } from "@/hooks/use-pull-refresh";
@@ -649,7 +648,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </Drawer>
       
       <Dika />
-      <DebugOverlay />
     </div>
   );
 }
