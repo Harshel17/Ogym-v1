@@ -21,7 +21,6 @@ interface SheetProps extends React.ComponentPropsWithoutRef<typeof SheetPrimitiv
 }
 
 const Sheet = ({ children, ...props }: SheetProps) => {
-  // On iOS native, disable modal to prevent body style manipulation
   const modal = isIOSNative() ? false : true;
   return (
     <SheetPrimitive.Root modal={modal} {...props}>

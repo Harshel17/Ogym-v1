@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
 
@@ -41,6 +41,16 @@ export function useKeyboardHeight() {
   }, []);
 
   return keyboardHeight;
+}
+
+export function resetBodyStyles() {
+  const props = ['overflow', 'padding-right', 'margin-right', 'pointer-events', 'position', 'top', 'width', 'height', 'max-height'];
+  props.forEach(p => {
+    document.body.style.removeProperty(p);
+    document.documentElement.style.removeProperty(p);
+  });
+  document.documentElement.removeAttribute('data-scroll-locked');
+  document.body.removeAttribute('data-scroll-locked');
 }
 
 export function useKeyboardAwareScroll() {

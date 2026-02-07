@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
-import { useKeyboardHeight } from '@/hooks/use-keyboard';
+import { useKeyboardHeight, resetBodyStyles } from '@/hooks/use-keyboard';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -838,16 +838,17 @@ export function DikaDrawer({
 
   useEffect(() => {
     if (keyboardHeight > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
     }
   }, [keyboardHeight]);
 
-  const handleInputFocus = () => {
-    // Scroll input into view when keyboard opens on mobile
-    setTimeout(() => {
-      inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 300);
-  };
+  const handleInputFocus = useCallback(() => {
+    requestAnimationFrame(() => {
+      inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -873,22 +874,12 @@ export function DikaDrawer({
 
   useEffect(() => {
     if (!isOpen && isIOS) {
-      const cleanup = () => {
-        document.body.style.removeProperty('overflow');
-        document.body.style.removeProperty('padding-right');
-        document.body.style.removeProperty('margin-right');
-        document.body.style.removeProperty('pointer-events');
-        document.body.style.removeProperty('position');
-        document.body.style.removeProperty('top');
-        document.body.style.removeProperty('width');
-        document.documentElement.style.removeProperty('overflow');
-        document.documentElement.removeAttribute('data-scroll-locked');
-      };
-      cleanup();
-      const t1 = setTimeout(cleanup, 50);
-      const t2 = setTimeout(cleanup, 150);
-      const t3 = setTimeout(cleanup, 300);
-      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+      resetBodyStyles();
+      const t1 = setTimeout(resetBodyStyles, 50);
+      const t2 = setTimeout(resetBodyStyles, 150);
+      const t3 = setTimeout(resetBodyStyles, 300);
+      const t4 = setTimeout(resetBodyStyles, 600);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
     }
   }, [isOpen, isIOS]);
 
@@ -900,6 +891,8 @@ export function DikaDrawer({
         style={{ 
           height: keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh',
           maxHeight: keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh',
+          top: 0,
+          bottom: 'auto',
           zIndex: 100000,
         }}
         preventCloseOnInteractOutside={isIOS}
@@ -1189,6 +1182,8 @@ export function DikaDrawer({
                 "pr-4 rounded-full border-slate-200 dark:border-slate-700 focus:border-amber-400 focus:ring-amber-400/20",
                 isListening && "border-red-400 animate-pulse"
               )}
+              inputMode="text"
+              autoComplete="off"
               enterKeyHint="send"
               data-testid="input-dika-message"
             />
