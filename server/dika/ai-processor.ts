@@ -20,6 +20,7 @@ import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./
 import { detectWorkoutGenerationRequest, generateWorkoutPlan } from "./workout-generator";
 import { detectMealLogRequest, parseMealFromMessage, logMealForUser, getTodayNutritionSummary, formatMealLogResponse } from "./meal-logger";
 import { detectOwnerAction, processOwnerAction, OwnerActionType } from "./owner-actions";
+import { detectWeeklyReportRequest, generateWeeklyReport, formatWeeklyReportResponse } from "./weekly-report";
 
 function detectPendingActionFromHistory(
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
@@ -773,6 +774,21 @@ export async function processWithAI(
       }
     } catch (error) {
       console.error('Meal logging failed:', error);
+    }
+  }
+
+  if (detectWeeklyReportRequest(message)) {
+    try {
+      const { token, report, rangeStart, rangeEnd } = await generateWeeklyReport(userId, gymId);
+      const answer = formatWeeklyReportResponse(token, report, rangeStart, rangeEnd);
+      const followUpChips = [
+        'My workouts this week',
+        'How many calories today?',
+        'How am I doing?'
+      ];
+      return { answer, followUpChips };
+    } catch (error) {
+      console.error('Weekly report generation failed:', error);
     }
   }
 

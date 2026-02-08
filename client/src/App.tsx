@@ -56,6 +56,7 @@ import HelpPage from "@/pages/help-page";
 import TermsPage from "@/pages/terms-page";
 import PrivacyPage from "@/pages/privacy-page";
 import SubscriptionExpiredPage from "@/pages/subscription-expired-page";
+import WeeklyReportPage from "@/pages/weekly-report-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 import { SwipeNavigationProvider } from "@/hooks/use-swipe-navigation";
@@ -378,6 +379,8 @@ function Router() {
           <AdminDashboardPage />
         </Suspense>
       </Route>
+
+      <Route path="/report/:token" component={WeeklyReportPage} />
 
       <Route path="/terms" component={TermsPage} />
       <Route path="/privacy" component={PrivacyPage} />

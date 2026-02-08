@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -464,6 +464,175 @@ function ActionCard({ action, onConfirm, onCancel, isExecuting, executionResult 
   );
 }
 
+interface WeeklyReportData {
+  token: string;
+  rangeStart: string;
+  rangeEnd: string;
+  overallGrade: string;
+  workoutDays: number;
+  avgDailyCalories: number;
+  avgDailyProtein: number;
+  attendanceDays: number;
+}
+
+function extractWeeklyReportFromContent(content: string): WeeklyReportData | null {
+  const patterns = [
+    /<!-- WEEKLY_REPORT_DATA:([\s\S]+?) -->/,
+    /&lt;!-- WEEKLY_REPORT_DATA:([\s\S]+?) --&gt;/,
+  ];
+  for (const pattern of patterns) {
+    const match = content.match(pattern);
+    if (match) {
+      try {
+        return JSON.parse(match[1].trim());
+      } catch {
+        continue;
+      }
+    }
+  }
+  return null;
+}
+
+function stripWeeklyReportTag(content: string): string {
+  return content
+    .replace(/\n?<!-- WEEKLY_REPORT_DATA:[\s\S]+? -->/g, '')
+    .replace(/\n?&lt;!-- WEEKLY_REPORT_DATA:[\s\S]+? --&gt;/g, '')
+    .trim();
+}
+
+function WeeklyReportCard({ report }: { report: WeeklyReportData }) {
+  const [emailing, setEmailing] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const gradeColor = (() => {
+    const g = report.overallGrade.charAt(0);
+    if (g === 'A') return 'text-emerald-600 dark:text-emerald-400';
+    if (g === 'B') return 'text-blue-600 dark:text-blue-400';
+    if (g === 'C') return 'text-amber-600 dark:text-amber-400';
+    return 'text-red-600 dark:text-red-400';
+  })();
+
+  const gradeBg = (() => {
+    const g = report.overallGrade.charAt(0);
+    if (g === 'A') return 'from-emerald-500 to-teal-600';
+    if (g === 'B') return 'from-blue-500 to-indigo-600';
+    if (g === 'C') return 'from-amber-500 to-orange-600';
+    return 'from-red-500 to-rose-600';
+  })();
+
+  const handleEmail = async () => {
+    setEmailing(true);
+    try {
+      const res = await apiRequest('POST', `/api/reports/${report.token}/email`);
+      const data = await res.json();
+      if (data.success) {
+        setEmailSent(true);
+        toast({ title: "Report Sent!", description: data.message });
+      } else {
+        toast({ title: "Failed to send", description: data.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Could not send report email.", variant: "destructive" });
+    } finally {
+      setEmailing(false);
+    }
+  };
+
+  const handleView = () => {
+    setLocation(`/report/${report.token}`);
+  };
+
+  const formatDate = (d: string) => {
+    const date = new Date(d + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-indigo-200 dark:border-indigo-800/40 overflow-hidden" data-testid="card-weekly-report">
+      <div className={cn("px-3 py-2.5 bg-gradient-to-r text-white", gradeBg)}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            <h3 className="font-semibold text-sm">Weekly Report</h3>
+          </div>
+          <span className="text-xs opacity-90">{formatDate(report.rangeStart)} - {formatDate(report.rangeEnd)}</span>
+        </div>
+      </div>
+
+      <div className="px-3 py-2.5">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Overall Grade</span>
+          <span className={cn("text-xl font-bold", gradeColor)}>{report.overallGrade}</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 text-center mb-3">
+          <div className="bg-gray-50 dark:bg-gray-900/40 rounded-md py-1.5 px-1">
+            <div className="flex items-center justify-center mb-0.5">
+              <Dumbbell className="w-3 h-3 text-indigo-500" />
+            </div>
+            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{report.workoutDays}</span>
+            <span className="text-[10px] text-gray-400 block">workouts</span>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-900/40 rounded-md py-1.5 px-1">
+            <div className="flex items-center justify-center mb-0.5">
+              <Flame className="w-3 h-3 text-orange-500" />
+            </div>
+            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{report.avgDailyCalories}</span>
+            <span className="text-[10px] text-gray-400 block">avg cal/day</span>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-900/40 rounded-md py-1.5 px-1">
+            <div className="flex items-center justify-center mb-0.5">
+              <Beef className="w-3 h-3 text-red-500" />
+            </div>
+            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{report.avgDailyProtein}g</span>
+            <span className="text-[10px] text-gray-400 block">avg protein</span>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleView}
+            className="flex-1 text-xs"
+            data-testid="button-view-report"
+          >
+            <ExternalLink className="w-3 h-3 mr-1" />
+            View Full Report
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleEmail}
+            disabled={emailing || emailSent}
+            className="flex-1 text-xs"
+            data-testid="button-email-report"
+          >
+            {emailSent ? (
+              <>
+                <Check className="w-3 h-3 mr-1 text-green-500" />
+                Sent!
+              </>
+            ) : emailing ? (
+              <>
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Mail className="w-3 h-3 mr-1" />
+                Email Report
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function parseMarkdown(text: string): ReactNode[] {
   const lines = text.split('\n');
   const elements: ReactNode[] = [];
@@ -598,6 +767,8 @@ function MarkdownContent({ content }: { content: string }) {
       .replace(/&lt;!-- MEAL_LOG_DATA:[\s\S]+? --&gt;/g, '')
       .replace(/<!-- DIKA_ACTION_DATA:[\s\S]+? -->/g, '')
       .replace(/&lt;!-- DIKA_ACTION_DATA:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- WEEKLY_REPORT_DATA:[\s\S]+? -->/g, '')
+      .replace(/&lt;!-- WEEKLY_REPORT_DATA:[\s\S]+? --&gt;/g, '')
       .trim();
     return parseMarkdown(cleanContent);
   }, [content]);
@@ -1073,15 +1244,16 @@ export function DikaDrawer({
                       {(() => {
                         const mealLog = extractMealLogFromContent(message.content);
                         const actionData = extractActionFromContent(message.content);
-                        const displayContent = mealLog 
-                          ? stripMealLogTag(message.content) 
-                          : actionData 
-                            ? stripActionTag(message.content) 
-                            : message.content;
+                        const weeklyReport = extractWeeklyReportFromContent(message.content);
+                        let displayContent = message.content;
+                        if (mealLog) displayContent = stripMealLogTag(displayContent);
+                        if (actionData) displayContent = stripActionTag(displayContent);
+                        if (weeklyReport) displayContent = stripWeeklyReportTag(displayContent);
                         return (
                           <>
                             <MarkdownContent content={displayContent} />
                             {mealLog && <MealLoggedCard meal={mealLog} />}
+                            {weeklyReport && <WeeklyReportCard report={weeklyReport} />}
                             {actionData && actionData.status === 'pending_confirmation' && !cancelledActions.has(message.id) && (
                               <ActionCard
                                 action={actionData}

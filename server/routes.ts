@@ -10,7 +10,7 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users } from "@shared/schema";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms } from "@shared/schema";
 import { eq, and, isNotNull, inArray, sql, desc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips } from "./dika";
@@ -4672,6 +4672,98 @@ Be accurate and use USDA or standard nutrition databases as reference. If it's a
     }
   });
   
+  app.get("/api/reports/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const [report] = await db.select().from(weeklyReports).where(eq(weeklyReports.token, token)).limit(1);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      const [user] = await db.select({ username: users.username }).from(users).where(eq(users.id, report.userId));
+      const [profile] = await db.select({ fullName: userProfiles.fullName }).from(userProfiles).where(eq(userProfiles.userId, report.userId));
+      let gymName: string | null = null;
+      if (report.gymId) {
+        const [gym] = await db.select({ name: gyms.name }).from(gyms).where(eq(gyms.id, report.gymId));
+        gymName = gym?.name || null;
+      }
+      res.json({
+        report: report.reportData,
+        rangeStart: report.rangeStart,
+        rangeEnd: report.rangeEnd,
+        userName: profile?.fullName || user?.username || "User",
+        gymName,
+        createdAt: report.createdAt,
+      });
+    } catch (error) {
+      console.error("Report fetch error:", error);
+      res.status(500).json({ message: "Failed to load report" });
+    }
+  });
+
+  app.post("/api/reports/:token/email", requireAuth, async (req, res) => {
+    try {
+      const { token } = req.params;
+      const [report] = await db.select().from(weeklyReports).where(eq(weeklyReports.token, token)).limit(1);
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      if (report.userId !== req.user!.id) {
+        return res.status(403).json({ message: "You can only email your own reports" });
+      }
+      const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, req.user!.id));
+      if (!user?.email) {
+        return res.status(400).json({ message: "No email address on your account" });
+      }
+      const [profile] = await db.select({ fullName: userProfiles.fullName }).from(userProfiles).where(eq(userProfiles.userId, req.user!.id));
+      const reportData = report.reportData as any;
+      const userName = profile?.fullName || "User";
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const reportUrl = `${baseUrl}/report/${token}`;
+
+      const htmlSections = (reportData.sections || []).map((s: any) => `
+        <div style="margin-bottom: 16px;">
+          <h3 style="color: #4f46e5; margin: 0 0 4px;">${s.title}${s.grade ? ` (${s.grade})` : ""}</h3>
+          <p style="margin: 0; color: #374151;">${s.content}</p>
+        </div>
+      `).join("");
+
+      const sent = await sendEmail({
+        to: user.email,
+        subject: `Your Weekly Fitness Report (${report.rangeStart} - ${report.rangeEnd})`,
+        text: `${reportData.greeting}\n\nOverall Grade: ${reportData.overallGrade}\n${reportData.overallSummary}\n\nView full report: ${reportUrl}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 24px; border-radius: 12px; color: white; text-align: center; margin-bottom: 24px;">
+              <h1 style="margin: 0 0 8px; font-size: 24px;">Weekly Fitness Report</h1>
+              <p style="margin: 0; opacity: 0.9;">${report.rangeStart} to ${report.rangeEnd}</p>
+            </div>
+            <p style="color: #374151; font-size: 16px;">${reportData.greeting}</p>
+            <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center; margin: 16px 0;">
+              <span style="font-size: 36px; font-weight: bold; color: #4f46e5;">${reportData.overallGrade}</span>
+              <p style="margin: 8px 0 0; color: #6b7280;">${reportData.overallSummary}</p>
+            </div>
+            ${htmlSections}
+            <p style="color: #4f46e5; font-style: italic; margin-top: 16px;">${reportData.motivation}</p>
+            <div style="text-align: center; margin-top: 24px;">
+              <a href="${reportUrl}" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">View Full Report</a>
+            </div>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+            <p style="color: #9ca3af; font-size: 12px; text-align: center;">Powered by OGym - Your Fitness Companion</p>
+          </div>
+        `,
+      });
+
+      if (sent) {
+        res.json({ success: true, message: `Report sent to ${user.email}` });
+      } else {
+        res.status(500).json({ success: false, message: "Failed to send email" });
+      }
+    } catch (error) {
+      console.error("Report email error:", error);
+      res.status(500).json({ message: "Failed to send report email" });
+    }
+  });
+
   // Save AI-generated workout plan
   app.post("/api/dika/save-workout", requireAuth, async (req, res) => {
     // Only members can save workout plans
