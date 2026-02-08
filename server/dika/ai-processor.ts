@@ -779,7 +779,9 @@ export async function processWithAI(
 
   if (detectWeeklyReportRequest(message)) {
     try {
+      console.log('[Dika] Weekly report request detected for user', userId);
       const { token, report, rangeStart, rangeEnd } = await generateWeeklyReport(userId, gymId);
+      console.log('[Dika] Weekly report generated successfully, token:', token);
       const answer = formatWeeklyReportResponse(token, report, rangeStart, rangeEnd);
       const followUpChips = [
         'My workouts this week',
@@ -787,8 +789,13 @@ export async function processWithAI(
         'How am I doing?'
       ];
       return { answer, followUpChips };
-    } catch (error) {
-      console.error('Weekly report generation failed:', error);
+    } catch (error: any) {
+      console.error('[Dika] Weekly report generation failed:', error?.message || error);
+      console.error('[Dika] Weekly report error stack:', error?.stack);
+      return {
+        answer: "I tried to generate your weekly report but ran into an issue. Please try again in a moment.",
+        followUpChips: ['Weekly report', 'My workout progress', 'How am I doing?']
+      };
     }
   }
 
