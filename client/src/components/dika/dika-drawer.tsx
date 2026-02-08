@@ -900,7 +900,6 @@ export function DikaDrawer({
   if (!isOpen) return null;
 
   const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
-  const drawerHeight = (!isNative && keyboardHeight > 0) ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh';
 
   return (
     <>
@@ -912,8 +911,8 @@ export function DikaDrawer({
       />
       <div 
         ref={drawerPanelRef}
-        className="fixed top-0 right-0 bottom-auto w-full sm:max-w-md flex flex-col p-0 bg-background shadow-2xl z-[100000] animate-in slide-in-from-right duration-300"
-        style={{ height: drawerHeight, maxHeight: drawerHeight }}
+        className="fixed top-0 right-0 left-0 w-full sm:max-w-md flex flex-col p-0 bg-background shadow-2xl z-[100000] animate-in slide-in-from-right duration-300"
+        style={{ bottom: (!isNative && keyboardHeight > 0) ? `${keyboardHeight}px` : '0px' }}
         data-testid="drawer-dika"
       >
         <div 
