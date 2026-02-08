@@ -49,21 +49,10 @@ const NativeDialogContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => {
-  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const innerRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
-    const body = document.body;
-    const html = document.documentElement;
-    body.style.setProperty('overflow', 'visible', 'important');
-    html.style.setProperty('overflow', 'visible', 'important');
-    return () => {
-      body.style.setProperty('overflow', 'hidden', 'important');
-      html.style.setProperty('overflow', 'hidden', 'important');
-    };
-  }, []);
-
-  React.useEffect(() => {
-    const el = scrollRef.current;
+    const el = innerRef.current;
     if (!el) return;
     let startY = 0;
     const onTouchStart = (e: TouchEvent) => {
@@ -74,13 +63,13 @@ const NativeDialogContent = React.forwardRef<
       const deltaY = startY - currentY;
       const { scrollTop, scrollHeight, clientHeight } = el;
       if (deltaY > 0 && scrollTop + clientHeight >= scrollHeight) {
-        e.preventDefault();
+        return;
       } else if (deltaY < 0 && scrollTop <= 0) {
-        e.preventDefault();
+        return;
       }
     };
     el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: true });
     return () => {
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchmove', onTouchMove);
@@ -88,37 +77,32 @@ const NativeDialogContent = React.forwardRef<
   }, []);
 
   return (
-    <DialogPrimitive.Portal forceMount>
-      <DialogPrimitive.Overlay asChild forceMount>
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="fixed inset-0 z-[9999] bg-black/80" />
+      <DialogPrimitive.Content
+        ref={ref}
+        className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
+        style={{ touchAction: 'auto' }}
+        onPointerDownOutside={(e) => {
+          props.onPointerDownOutside?.(e);
+        }}
+        onInteractOutside={(e) => {
+          props.onInteractOutside?.(e);
+        }}
+      >
         <div
-          className="fixed inset-0 z-[9999] bg-black/80"
-          style={{ pointerEvents: 'none' }}
-        />
-      </DialogPrimitive.Overlay>
-      <DialogPrimitive.Content asChild forceMount>
-        <div
-          ref={(node) => {
-            scrollRef.current = node;
-            if (typeof ref === 'function') ref(node);
-            else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
-          }}
+          ref={innerRef}
           className={cn(
-            "fixed z-[10000] border bg-background shadow-lg rounded-lg p-6 gap-4",
+            "relative w-full max-w-lg border bg-background shadow-lg rounded-lg p-6",
             className
           )}
           style={{
-            top: '50%',
-            left: '50%',
-            width: '92vw',
-            maxWidth: '32rem',
             maxHeight: '85vh',
-            transform: 'translate(-50%, -50%)',
-            overflowY: 'scroll',
+            overflowY: 'auto',
             WebkitOverflowScrolling: 'touch',
-            touchAction: 'auto',
+            touchAction: 'pan-y',
             overscrollBehavior: 'contain',
           } as React.CSSProperties}
-          {...props}
         >
           {children}
           <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
