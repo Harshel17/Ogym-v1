@@ -34,7 +34,8 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: false,
     captureInput: true,
-    webContentsDebuggingEnabled: false,
+    webContentsDebuggingEnabled: true,
+    backgroundColor: '#0b1220',
   },
   ios: {
     contentInset: 'automatic',
