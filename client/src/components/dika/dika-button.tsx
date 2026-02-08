@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
@@ -20,137 +20,133 @@ export function DikaButton({
   onClick,
   onLongPress 
 }: DikaButtonProps) {
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
-  const hasMoved = useRef(false);
-  const startPos = useRef({ x: 0, y: 0 });
+  const posRef = useRef(position);
+  posRef.current = position;
 
-  const constrainPosition = (x: number, y: number) => {
+  const onClickRef = useRef(onClick);
+  onClickRef.current = onClick;
+  const onPositionChangeRef = useRef(onPositionChange);
+  onPositionChangeRef.current = onPositionChange;
+  const onLongPressRef = useRef(onLongPress);
+  onLongPressRef.current = onLongPress;
+
+  const constrainPosition = useCallback((x: number, y: number) => {
     const buttonSize = 44;
     const margin = 10;
     const bottomNavHeight = 80;
-    
     return {
       x: Math.max(margin, Math.min(window.innerWidth - buttonSize - margin, x)),
       y: Math.max(margin, Math.min(window.innerHeight - buttonSize - margin - bottomNavHeight, y)),
     };
-  };
+  }, []);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    
-    hasMoved.current = false;
-    startPos.current = { x: e.clientX, y: e.clientY };
-    const rect = buttonRef.current?.getBoundingClientRect();
-    if (rect) {
-      setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      });
-    }
-    setIsDragging(true);
-    
-    if (onLongPress) {
-      longPressTimer.current = setTimeout(() => {
-        if (!hasMoved.current) {
-          onLongPress();
-        }
-      }, 500);
-    }
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    hasMoved.current = false;
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
     const touch = e.touches[0];
-    startPos.current = { x: touch.clientX, y: touch.clientY };
+    const startX = touch.clientX;
+    const startY = touch.clientY;
+    let hasMoved = false;
+
     const rect = buttonRef.current?.getBoundingClientRect();
-    if (rect) {
-      setDragOffset({
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top,
-      });
-    }
-    setIsDragging(true);
-    
-    if (onLongPress) {
+    const offsetX = rect ? touch.clientX - rect.left : 0;
+    const offsetY = rect ? touch.clientY - rect.top : 0;
+
+    if (onLongPressRef.current) {
       longPressTimer.current = setTimeout(() => {
-        if (!hasMoved.current) {
-          onLongPress();
+        if (!hasMoved) {
+          onLongPressRef.current?.();
         }
       }, 500);
     }
-  };
 
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - startPos.current.x;
-      const dy = e.clientY - startPos.current.y;
+    const handleTouchMove = (ev: TouchEvent) => {
+      const t = ev.touches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      if (distance < DRAG_THRESHOLD && !hasMoved.current) return;
-      
-      hasMoved.current = true;
+
+      if (distance < DRAG_THRESHOLD && !hasMoved) return;
+
+      hasMoved = true;
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
       }
-      
-      const newPos = constrainPosition(
-        e.clientX - dragOffset.x,
-        e.clientY - dragOffset.y
-      );
-      onPositionChange(newPos);
+
+      const newPos = constrainPosition(t.clientX - offsetX, t.clientY - offsetY);
+      onPositionChangeRef.current(newPos);
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
-      const touch = e.touches[0];
-      const dx = touch.clientX - startPos.current.x;
-      const dy = touch.clientY - startPos.current.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      if (distance < DRAG_THRESHOLD && !hasMoved.current) return;
-      
-      hasMoved.current = true;
+    const handleTouchEnd = () => {
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
       }
-      
-      const newPos = constrainPosition(
-        touch.clientX - dragOffset.x,
-        touch.clientY - dragOffset.y
-      );
-      onPositionChange(newPos);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+
+      if (!hasMoved) {
+        onClickRef.current();
+      }
     };
 
-    const handleEnd = () => {
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd);
+  }, [constrainPosition]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let hasMoved = false;
+
+    const rect = buttonRef.current?.getBoundingClientRect();
+    const offsetX = rect ? e.clientX - rect.left : 0;
+    const offsetY = rect ? e.clientY - rect.top : 0;
+
+    if (onLongPressRef.current) {
+      longPressTimer.current = setTimeout(() => {
+        if (!hasMoved) {
+          onLongPressRef.current?.();
+        }
+      }, 500);
+    }
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < DRAG_THRESHOLD && !hasMoved) return;
+
+      hasMoved = true;
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
       }
-      setIsDragging(false);
-      
-      if (!hasMoved.current) {
-        onClick();
+
+      const newPos = constrainPosition(ev.clientX - offsetX, ev.clientY - offsetY);
+      onPositionChangeRef.current(newPos);
+    };
+
+    const handleMouseUp = () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+
+      if (!hasMoved) {
+        onClickRef.current();
       }
     };
 
     document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleEnd);
-    document.addEventListener('touchmove', handleTouchMove, { passive: true });
-    document.addEventListener('touchend', handleEnd);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleEnd);
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('touchend', handleEnd);
-    };
-  }, [isDragging, dragOffset, onClick, onPositionChange]);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [constrainPosition]);
 
   return (
     <button
@@ -166,7 +162,6 @@ export function DikaButton({
         "cursor-grab active:cursor-grabbing",
         "transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-amber-500/40",
         "border border-amber-400/30",
-        isDragging && "scale-105 opacity-90"
       )}
       style={{
         left: position.x,
