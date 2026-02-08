@@ -804,8 +804,9 @@ export async function processWithAI(
     if (ownerAction) {
       try {
         return await processOwnerAction(userId, gymId, message, ownerAction, conversationHistory);
-      } catch (error) {
-        console.error('Owner action processing failed:', error);
+      } catch (error: any) {
+        console.error(`Owner action '${ownerAction}' processing failed:`, error?.message || error);
+        console.error('Stack:', error?.stack);
       }
     }
 

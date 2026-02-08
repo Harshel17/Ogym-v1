@@ -552,14 +552,14 @@ async function handleMemberLookup(
     let score = 0;
     if (fullName === normalizedSearch || username === normalizedSearch) {
       score = 100;
-    } else if (fullName.includes(normalizedSearch) || username.includes(normalizedSearch)) {
+    } else if ((fullName && fullName.includes(normalizedSearch)) || username.includes(normalizedSearch)) {
       score = 80;
-    } else if (normalizedSearch.includes(fullName) || normalizedSearch.includes(username)) {
+    } else if ((fullName && normalizedSearch.includes(fullName)) || (username.length >= 3 && normalizedSearch.includes(username))) {
       score = 60;
     } else {
       const searchWords = normalizedSearch.split(/\s+/);
-      const nameWords = [...fullName.split(/\s+/), ...username.split(/\s+/)];
-      const matchedWords = searchWords.filter(sw => nameWords.some(nw => nw.includes(sw) || sw.includes(nw)));
+      const nameWords = [...(fullName ? fullName.split(/\s+/) : []), ...username.split(/\s+/)].filter(w => w.length >= 2);
+      const matchedWords = searchWords.filter(sw => sw.length >= 2 && nameWords.some(nw => nw.includes(sw) || sw.includes(nw)));
       if (matchedWords.length > 0) {
         score = 40 + (matchedWords.length / searchWords.length) * 30;
       }
@@ -571,7 +571,7 @@ async function handleMemberLookup(
     }
   }
 
-  if (!bestMatch || bestScore < 30) {
+  if (!bestMatch || bestScore < 50) {
     return {
       answer: `I couldn't find a member matching "${searchName}" in your gym. Double-check the name and try again.`,
       followUpChips: ['Show my members', 'Add a new member'],
