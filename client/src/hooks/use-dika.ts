@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
+import { resetBodyStyles } from '@/hooks/use-keyboard';
 
 export type DikaIcon = 'circle' | 'sunflower' | 'bat';
 
@@ -219,8 +220,19 @@ export function useDika(userId: number, hideDika: boolean) {
   }, []);
 
   const closeDrawer = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    try {
+      import('@capacitor/keyboard').then(({ Keyboard }) => {
+        Keyboard.hide().catch(() => {});
+      }).catch(() => {});
+    } catch {}
     setIsOpen(false);
-    // Don't clear messages - they're persisted now
+    resetBodyStyles();
+    setTimeout(() => resetBodyStyles(), 50);
+    setTimeout(() => resetBodyStyles(), 150);
+    setTimeout(() => resetBodyStyles(), 300);
   }, []);
 
   const clearHistory = useCallback(() => {
