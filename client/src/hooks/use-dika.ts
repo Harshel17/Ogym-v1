@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { resetBodyStyles } from '@/hooks/use-keyboard';
@@ -55,7 +55,6 @@ function loadLocalSettings(userId: number): DikaLocalSettings {
       const parsed = JSON.parse(stored);
       let position = parsed.position || defaultPos;
       
-      // Ensure position is within visible bounds
       const bottomNavHeight = 80;
       const maxY = window.innerHeight - 44 - 10 - bottomNavHeight;
       const maxX = window.innerWidth - 44 - 10;
@@ -88,7 +87,7 @@ function getHistoryKey(userId: number): string {
   return `${HISTORY_KEY_PREFIX}${userId}`;
 }
 
-function loadConversationHistory(userId: number): DikaMessage[] {
+function loadLocalHistory(userId: number): DikaMessage[] {
   try {
     const stored = localStorage.getItem(getHistoryKey(userId));
     if (stored) {
@@ -104,7 +103,7 @@ function loadConversationHistory(userId: number): DikaMessage[] {
   return [];
 }
 
-function saveConversationHistory(userId: number, messages: DikaMessage[]): void {
+function saveLocalHistory(userId: number, messages: DikaMessage[]): void {
   try {
     const toStore: StoredMessage[] = messages.slice(-MAX_HISTORY_MESSAGES).map(m => ({
       ...m,
@@ -116,7 +115,7 @@ function saveConversationHistory(userId: number, messages: DikaMessage[]): void 
   }
 }
 
-function clearConversationHistory(userId: number): void {
+function clearLocalHistory(userId: number): void {
   try {
     localStorage.removeItem(getHistoryKey(userId));
   } catch (e) {
@@ -124,27 +123,121 @@ function clearConversationHistory(userId: number): void {
   }
 }
 
+function messagesToStored(messages: DikaMessage[]): StoredMessage[] {
+  return messages.slice(-MAX_HISTORY_MESSAGES).map(m => ({
+    ...m,
+    timestamp: m.timestamp.toISOString(),
+  }));
+}
+
+function storedToMessages(stored: StoredMessage[]): DikaMessage[] {
+  return stored.map(m => ({
+    ...m,
+    timestamp: new Date(m.timestamp),
+  }));
+}
+
 export function useDika(userId: number, hideDika: boolean) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<DikaMessage[]>(() => 
-    loadConversationHistory(userId)
+    loadLocalHistory(userId)
   );
   const [localSettings, setLocalSettings] = useState<DikaLocalSettings>(() => 
     loadLocalSettings(userId)
   );
+  const [serverLoaded, setServerLoaded] = useState(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingMessagesRef = useRef<DikaMessage[] | null>(null);
+
+  const syncToServer = useCallback((msgs: DikaMessage[]) => {
+    const stored = messagesToStored(msgs);
+    pendingMessagesRef.current = null;
+    apiRequest('PUT', '/api/dika/conversations', { messages: stored }).catch(err => {
+      console.error('Failed to sync dika to server:', err);
+    });
+  }, []);
+
+  const { data: serverConvo } = useQuery<{ messages: StoredMessage[] }>({
+    queryKey: ['/api/dika/conversations'],
+    enabled: !serverLoaded,
+    staleTime: 0,
+  });
+
+  useEffect(() => {
+    if (serverConvo && !serverLoaded) {
+      setServerLoaded(true);
+      const serverMessages = storedToMessages(serverConvo.messages || []);
+      const localMessages = loadLocalHistory(userId);
+      
+      if (serverMessages.length === 0 && localMessages.length === 0) {
+        return;
+      }
+      
+      if (serverMessages.length === 0 && localMessages.length > 0) {
+        setMessages(localMessages);
+        syncToServer(localMessages);
+      } else if (serverMessages.length > 0 && localMessages.length === 0) {
+        setMessages(serverMessages);
+        saveLocalHistory(userId, serverMessages);
+      } else {
+        const serverLatest = new Date(serverMessages[serverMessages.length - 1].timestamp).getTime();
+        const localLatest = new Date(localMessages[localMessages.length - 1].timestamp).getTime();
+        
+        if (serverLatest >= localLatest) {
+          setMessages(serverMessages);
+          saveLocalHistory(userId, serverMessages);
+        } else {
+          setMessages(localMessages);
+          syncToServer(localMessages);
+        }
+      }
+    }
+  }, [serverConvo, serverLoaded, userId, syncToServer]);
 
   useEffect(() => {
     setLocalSettings(loadLocalSettings(userId));
-    setMessages(loadConversationHistory(userId));
+    setMessages(loadLocalHistory(userId));
+    setServerLoaded(false);
   }, [userId]);
 
-  // Save messages whenever they change
   useEffect(() => {
     if (messages.length > 0) {
-      saveConversationHistory(userId, messages);
+      saveLocalHistory(userId, messages);
+      pendingMessagesRef.current = messages;
+      
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        syncToServer(messages);
+      }, 1000);
     }
-  }, [messages, userId]);
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [messages, userId, syncToServer]);
+
+  useEffect(() => {
+    const flushPending = () => {
+      if (pendingMessagesRef.current && pendingMessagesRef.current.length > 0) {
+        const stored = messagesToStored(pendingMessagesRef.current);
+        const blob = new Blob([JSON.stringify({ messages: stored })], { type: 'application/json' });
+        navigator.sendBeacon('/api/dika/conversations-beacon', blob);
+      }
+    };
+    window.addEventListener('beforeunload', flushPending);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        flushPending();
+      }
+    });
+    return () => {
+      window.removeEventListener('beforeunload', flushPending);
+    };
+  }, []);
 
   const { data: suggestionsData } = useQuery<{ suggestions: string[] }>({
     queryKey: ['/api/dika/suggestions'],
@@ -244,7 +337,10 @@ export function useDika(userId: number, hideDika: boolean) {
 
   const clearHistory = useCallback(() => {
     setMessages([]);
-    clearConversationHistory(userId);
+    clearLocalHistory(userId);
+    apiRequest('DELETE', '/api/dika/conversations').catch(err => {
+      console.error('Failed to clear server dika history:', err);
+    });
   }, [userId]);
 
   const hideDikaButton = useCallback(() => {

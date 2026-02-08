@@ -10,7 +10,7 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms } from "@shared/schema";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations } from "@shared/schema";
 import { eq, and, isNotNull, inArray, sql, desc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips } from "./dika";
@@ -4634,6 +4634,88 @@ Be accurate and use USDA or standard nutrition databases as reference. If it's a
     }
     
     res.json({ success: true });
+  });
+
+  app.get("/api/dika/conversations", requireAuth, async (req, res) => {
+    try {
+      const result = await db.select().from(dikaConversations).where(eq(dikaConversations.userId, req.user!.id)).limit(1);
+      if (result.length > 0) {
+        res.json({ messages: result[0].messages });
+      } else {
+        res.json({ messages: [] });
+      }
+    } catch (error) {
+      console.error('Failed to load dika conversation:', error);
+      res.status(500).json({ message: "Failed to load conversation" });
+    }
+  });
+
+  app.put("/api/dika/conversations", requireAuth, async (req, res) => {
+    const schema = z.object({
+      messages: z.array(z.object({
+        id: z.string(),
+        role: z.enum(['user', 'assistant']),
+        content: z.string(),
+        timestamp: z.string(),
+        followUpChips: z.array(z.string()).optional(),
+      })),
+    });
+    const input = schema.safeParse(req.body);
+    if (!input.success) {
+      return res.status(400).json({ message: "Invalid request" });
+    }
+    try {
+      const trimmed = input.data.messages.slice(-50);
+      await db.insert(dikaConversations)
+        .values({ userId: req.user!.id, messages: trimmed, updatedAt: new Date() })
+        .onConflictDoUpdate({
+          target: dikaConversations.userId,
+          set: { messages: trimmed, updatedAt: new Date() },
+        });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Failed to save dika conversation:', error);
+      res.status(500).json({ message: "Failed to save conversation" });
+    }
+  });
+
+  app.post("/api/dika/conversations-beacon", requireAuth, async (req, res) => {
+    const schema = z.object({
+      messages: z.array(z.object({
+        id: z.string(),
+        role: z.enum(['user', 'assistant']),
+        content: z.string(),
+        timestamp: z.string(),
+        followUpChips: z.array(z.string()).optional(),
+      })),
+    });
+    const input = schema.safeParse(req.body);
+    if (!input.success) {
+      return res.status(400).json({ message: "Invalid request" });
+    }
+    try {
+      const trimmed = input.data.messages.slice(-50);
+      await db.insert(dikaConversations)
+        .values({ userId: req.user!.id, messages: trimmed, updatedAt: new Date() })
+        .onConflictDoUpdate({
+          target: dikaConversations.userId,
+          set: { messages: trimmed, updatedAt: new Date() },
+        });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Failed to save dika conversation (beacon):', error);
+      res.status(500).json({ message: "Failed to save conversation" });
+    }
+  });
+
+  app.delete("/api/dika/conversations", requireAuth, async (req, res) => {
+    try {
+      await db.delete(dikaConversations).where(eq(dikaConversations.userId, req.user!.id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Failed to clear dika conversation:', error);
+      res.status(500).json({ message: "Failed to clear conversation" });
+    }
   });
 
   app.post("/api/dika/execute", requireAuth, async (req, res) => {
