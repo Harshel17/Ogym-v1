@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
     url: 'https://app.ogym.fitness',
-    cleartext: true,
+    cleartext: false,
     allowNavigation: ['app.ogym.fitness', '*.ogym.fitness', 'ogym.fitness'],
   },
   plugins: {
@@ -34,7 +34,7 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: false,
     captureInput: true,
-    webContentsDebuggingEnabled: true,
+    webContentsDebuggingEnabled: false,
     backgroundColor: '#0b1220',
   },
   ios: {
