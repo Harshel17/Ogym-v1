@@ -942,6 +942,169 @@ function generateFollowUpChips(role: UserRole, lastMessage: string, gymId: numbe
   return [];
 }
 
+export async function generateOwnerBriefing(gymId: number, ownerName: string): Promise<{ answer: string; followUpChips: string[] }> {
+  const dates = getDateRanges();
+
+  const [totalMembers] = await db.select({ count: sql<number>`count(*)` })
+    .from(users)
+    .where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+
+  const [checkedIn] = await db.select({ count: sql<number>`count(distinct ${attendance.memberId})` })
+    .from(attendance)
+    .where(and(eq(attendance.gymId, gymId), eq(attendance.date, dates.today)));
+
+  const memberIds = await db.select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+  const memberIdList = memberIds.map(m => m.id);
+
+  let unpaidCount = 0;
+  let unpaidNames: string[] = [];
+  if (memberIdList.length > 0) {
+    const activeSubs = await db.select({
+      memberId: memberSubscriptions.memberId,
+      subscriptionId: memberSubscriptions.id,
+      totalAmount: memberSubscriptions.totalAmount,
+    })
+    .from(memberSubscriptions)
+    .where(and(
+      eq(memberSubscriptions.gymId, gymId),
+      eq(memberSubscriptions.status, 'active')
+    ));
+
+    if (activeSubs.length > 0) {
+      const subIds = activeSubs.map(s => s.subscriptionId);
+      const paidAmounts = await db.select({
+        subscriptionId: paymentTransactions.subscriptionId,
+        totalPaid: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)`
+      })
+      .from(paymentTransactions)
+      .where(sql`${paymentTransactions.subscriptionId} IN (${sql.join(subIds.map(id => sql`${id}`), sql`, `)})`)
+      .groupBy(paymentTransactions.subscriptionId);
+
+      const paidMap = new Map(paidAmounts.map(p => [p.subscriptionId, Number(p.totalPaid)]));
+      const unpaidMemberIds: number[] = [];
+      for (const sub of activeSubs) {
+        const paid = paidMap.get(sub.subscriptionId) || 0;
+        if (paid < sub.totalAmount) {
+          unpaidMemberIds.push(sub.memberId);
+        }
+      }
+      unpaidCount = unpaidMemberIds.length;
+
+      if (unpaidMemberIds.length > 0) {
+        const profiles = await db.select({ userId: userProfiles.userId, fullName: userProfiles.fullName })
+          .from(userProfiles)
+          .where(inArray(userProfiles.userId, unpaidMemberIds.slice(0, 5)));
+        const unames = await db.select({ id: users.id, username: users.username })
+          .from(users)
+          .where(inArray(users.id, unpaidMemberIds.slice(0, 5)));
+        const pmap = new Map(profiles.map(p => [p.userId, p.fullName]));
+        unpaidNames = unames.map(u => pmap.get(u.id) || u.username);
+      }
+    }
+  }
+
+  const [expiringResult] = await db.select({
+    count: sql<number>`count(distinct ${memberSubscriptions.memberId})`
+  })
+  .from(memberSubscriptions)
+  .where(and(
+    eq(memberSubscriptions.gymId, gymId),
+    sql`${memberSubscriptions.endDate}::date >= CURRENT_DATE`,
+    sql`${memberSubscriptions.endDate}::date <= CURRENT_DATE + INTERVAL '7 days'`
+  ));
+
+  const [revenueResult] = await db.select({
+    total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)`
+  })
+  .from(paymentTransactions)
+  .where(and(
+    eq(paymentTransactions.gymId, gymId),
+    sql`${paymentTransactions.paidOn}::date >= ${dates.monthStart}::date`,
+    sql`${paymentTransactions.paidOn}::date <= ${dates.monthEnd}::date`
+  ));
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+  let inactiveMemberNames: string[] = [];
+  if (memberIdList.length > 0) {
+    const recentlyActive = await db.select({ memberId: attendance.memberId })
+      .from(attendance)
+      .where(and(
+        eq(attendance.gymId, gymId),
+        gte(attendance.date, sevenDaysAgoStr),
+        inArray(attendance.memberId, memberIdList)
+      ));
+    const activeSet = new Set(recentlyActive.map(r => r.memberId));
+    const inactiveIds = memberIdList.filter(id => !activeSet.has(id)).slice(0, 5);
+
+    if (inactiveIds.length > 0) {
+      const profiles = await db.select({ userId: userProfiles.userId, fullName: userProfiles.fullName })
+        .from(userProfiles)
+        .where(inArray(userProfiles.userId, inactiveIds));
+      const unames = await db.select({ id: users.id, username: users.username })
+        .from(users)
+        .where(inArray(users.id, inactiveIds));
+      const pmap = new Map(profiles.map(p => [p.userId, p.fullName]));
+      inactiveMemberNames = unames.map(u => pmap.get(u.id) || u.username);
+    }
+  }
+
+  const [gym] = await db.select({ currency: gyms.currency }).from(gyms).where(eq(gyms.id, gymId));
+  const currencySymbol = (gym?.currency || 'INR') === 'INR' ? '₹' : '$';
+  const revenue = (revenueResult?.total || 0) / 100;
+  const total = totalMembers?.count || 0;
+  const checked = checkedIn?.count || 0;
+  const expiring = expiringResult?.count || 0;
+
+  const lines: string[] = [];
+  const firstName = ownerName.split(' ')[0];
+
+  const hour = new Date().getHours();
+  let greeting = 'Good morning';
+  if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
+  else if (hour >= 17) greeting = 'Good evening';
+
+  lines.push(`${greeting}, ${firstName}! Here's your gym update:`);
+  lines.push('');
+
+  lines.push(`**Today**: ${checked}/${total} members checked in`);
+
+  if (expiring > 0) {
+    lines.push(`**Expiring this week**: ${expiring} membership${expiring > 1 ? 's' : ''}`);
+  }
+
+  if (unpaidCount > 0) {
+    lines.push(`**Outstanding payments**: ${unpaidCount} member${unpaidCount > 1 ? 's' : ''}`);
+    if (unpaidNames.length > 0) {
+      lines.push(`  ${unpaidNames.join(', ')}${unpaidCount > 5 ? ` +${unpaidCount - 5} more` : ''}`);
+    }
+  }
+
+  lines.push(`**Revenue this month**: ${currencySymbol}${revenue.toLocaleString()}`);
+
+  if (inactiveMemberNames.length > 0) {
+    const inactiveTotal = memberIdList.length - (new Set(inactiveMemberNames).size);
+    lines.push('');
+    lines.push(`**Needs attention**: ${inactiveMemberNames.length} member${inactiveMemberNames.length > 1 ? 's' : ''} haven't visited in 7+ days`);
+    lines.push(`  ${inactiveMemberNames.join(', ')}`);
+  }
+
+  const chips: string[] = [];
+  if (unpaidCount > 0) chips.push('Who hasn\'t paid?');
+  if (expiring > 0) chips.push('Expiring memberships');
+  if (inactiveMemberNames.length > 0) chips.push(`Tell me about ${inactiveMemberNames[0]}`);
+  chips.push('Gym overview');
+
+  return {
+    answer: lines.join('\n'),
+    followUpChips: chips.slice(0, 4),
+  };
+}
+
 export async function isAIAvailable(): Promise<boolean> {
   const hasApiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
   return !!hasApiKey;

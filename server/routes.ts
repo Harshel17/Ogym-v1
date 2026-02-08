@@ -13,7 +13,7 @@ import { db } from "./db";
 import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations } from "@shared/schema";
 import { eq, and, isNotNull, inArray, sql, desc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
-import { handleDikaQuery, getSuggestionChips } from "./dika";
+import { handleDikaQuery, getSuggestionChips, generateOwnerBriefing } from "./dika";
 import { executeOwnerAction, type ActionData } from "./dika/owner-actions";
 import { searchFoodByName, lookupByBarcode, FoodProduct } from "./nutrition/open-food-facts";
 import { searchLocalFoods } from "./nutrition/food-database";
@@ -4617,6 +4617,24 @@ Be accurate and use USDA or standard nutrition databases as reference. If it's a
     const role = user.role as 'member' | 'trainer' | 'owner';
     const suggestions = getSuggestionChips(role, user.gymId || null);
     res.json({ suggestions });
+  });
+
+  app.get("/api/dika/briefing", requireAuth, async (req, res) => {
+    const user = req.user!;
+    if (user.role !== 'owner' || !user.gymId) {
+      return res.json({ answer: null });
+    }
+    try {
+      const [profile] = await db.select({ fullName: userProfiles.fullName })
+        .from(userProfiles)
+        .where(eq(userProfiles.userId, user.id));
+      const ownerName = profile?.fullName || user.username || 'there';
+      const briefing = await generateOwnerBriefing(user.gymId, ownerName);
+      res.json(briefing);
+    } catch (error) {
+      console.error('Briefing error:', error);
+      res.status(500).json({ answer: null });
+    }
   });
   
   app.patch("/api/dika/settings", requireAuth, async (req, res) => {

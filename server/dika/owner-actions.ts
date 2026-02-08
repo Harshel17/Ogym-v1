@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { db } from "../db";
-import { users, userProfiles, gyms, memberSubscriptions, trainerMemberAssignments, membershipPlans, paymentTransactions } from "@shared/schema";
-import { eq, and, ilike, desc, sql } from "drizzle-orm";
+import { users, userProfiles, gyms, memberSubscriptions, trainerMemberAssignments, membershipPlans, paymentTransactions, attendance, workoutCompletions, bodyMeasurements } from "@shared/schema";
+import { eq, and, ilike, desc, sql, gte, inArray } from "drizzle-orm";
 import { storage } from "../storage";
 
 const openai = new OpenAI({
@@ -11,6 +11,7 @@ const openai = new OpenAI({
 
 export type OwnerActionType = 
   | 'navigate'
+  | 'member_lookup'
   | 'add_member'
   | 'log_payment'
   | 'assign_trainer';
@@ -63,6 +64,16 @@ const NAVIGATION_PATTERNS = [
   /(?:i\s+want\s+to\s+(?:see|view|check|go\s+to))\s+(?:the\s+)?(.+)/i,
 ];
 
+const MEMBER_LOOKUP_PATTERNS = [
+  /(?:tell\s+me\s+about|info\s+(?:on|about)|details?\s+(?:on|about|for)|who\s+is|how\s+is)\s+(.+)/i,
+  /(?:check|look\s+up|find|search)\s+(?:on\s+)?(.+?)(?:'s)?\s*(?:details?|info|profile|status|data)?$/i,
+  /(.+?)(?:'s)?\s+(?:profile|details?|info|status|attendance|progress|overview)/i,
+  /(?:what\s+(?:do\s+(?:you|we)\s+know|can\s+you\s+tell\s+me)\s+about)\s+(.+)/i,
+  /(?:how\s+is|how's)\s+(.+?)\s+doing/i,
+  /(?:show\s+me|pull\s+up|get\s+me)\s+(.+?)(?:'s)?\s+(?:details?|info|profile|data|record)/i,
+  /(?:member)\s+(?:details?|info|lookup|search)\s+(?:for\s+)?(.+)/i,
+];
+
 const ADD_MEMBER_PATTERNS = [
   /(?:add|create|register|enroll|sign\s+up|new)\s+(?:a\s+)?(?:new\s+)?member/i,
   /add\s+(?:a\s+)?(?:new\s+)?(?:person|user|student|client)\s+(?:to\s+(?:the\s+)?(?:gym|my\s+gym))/i,
@@ -86,12 +97,36 @@ const ASSIGN_TRAINER_PATTERNS = [
   /(?:give|put)\s+\w+\s+(?:to|under|with)\s+(?:trainer\s+)?\w+/i,
 ];
 
+export function extractMemberNameFromLookup(message: string): string | null {
+  for (const pattern of MEMBER_LOOKUP_PATTERNS) {
+    const match = message.match(pattern);
+    if (match) {
+      const name = (match[1] || '').trim()
+        .replace(/^(a |the |my |our )/i, '')
+        .replace(/\?$/, '')
+        .trim();
+      if (name.length >= 2 && !isPageKeyword(name)) {
+        return name;
+      }
+    }
+  }
+  return null;
+}
+
+function isPageKeyword(name: string): boolean {
+  const pageKeywords = [
+    'dashboard', 'home', 'members', 'trainers', 'attendance', 'payments',
+    'workouts', 'revenue', 'analytics', 'announcements', 'walk-ins', 'walkins',
+    'visitors', 'kiosk', 'insights', 'emails', 'feed', 'social', 'tournaments',
+    'profile', 'settings', 'support', 'requests', 'follow ups', 'followups',
+    'gym overview', 'gym', 'my gym', 'member analytics',
+  ];
+  const lower = name.toLowerCase();
+  return pageKeywords.some(kw => lower === kw || lower === kw + 's');
+}
+
 export function detectOwnerAction(message: string): OwnerActionType | null {
   const lower = message.toLowerCase().trim();
-
-  for (const pattern of NAVIGATION_PATTERNS) {
-    if (pattern.test(lower)) return 'navigate';
-  }
 
   for (const pattern of ADD_MEMBER_PATTERNS) {
     if (pattern.test(lower)) return 'add_member';
@@ -103,6 +138,13 @@ export function detectOwnerAction(message: string): OwnerActionType | null {
 
   for (const pattern of ASSIGN_TRAINER_PATTERNS) {
     if (pattern.test(lower)) return 'assign_trainer';
+  }
+
+  const lookupName = extractMemberNameFromLookup(message);
+  if (lookupName) return 'member_lookup';
+
+  for (const pattern of NAVIGATION_PATTERNS) {
+    if (pattern.test(lower)) return 'navigate';
   }
 
   return null;
@@ -151,6 +193,10 @@ export async function processOwnerAction(
 ): Promise<{ answer: string; followUpChips: string[] }> {
   if (actionType === 'navigate') {
     return handleNavigation(message);
+  }
+
+  if (actionType === 'member_lookup') {
+    return handleMemberLookup(gymId, message);
   }
 
   return handleActionWithAI(userId, gymId, message, actionType, conversationHistory);
@@ -460,6 +506,270 @@ Be concise and friendly. If info is missing, ask naturally in one short question
       followUpChips: [],
     };
   }
+}
+
+async function handleMemberLookup(
+  gymId: number,
+  message: string,
+): Promise<{ answer: string; followUpChips: string[] }> {
+  const searchName = extractMemberNameFromLookup(message);
+  if (!searchName) {
+    return {
+      answer: "I couldn't figure out which member you're asking about. Try saying something like \"tell me about John\" or \"how is Sarah doing?\"",
+      followUpChips: ['Who checked in today?', 'Show my members'],
+    };
+  }
+
+  const normalizedSearch = searchName.toLowerCase().replace(/[_\-\.]/g, ' ').trim();
+
+  const allMembers = await db.select({
+    id: users.id,
+    username: users.username,
+    createdAt: users.createdAt,
+  })
+  .from(users)
+  .where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+
+  const allProfiles = await db.select({
+    userId: userProfiles.userId,
+    fullName: userProfiles.fullName,
+    phone: userProfiles.phone,
+    gender: userProfiles.gender,
+  })
+  .from(userProfiles)
+  .where(inArray(userProfiles.userId, allMembers.map(m => m.id)));
+
+  const profileMap = new Map(allProfiles.map(p => [p.userId, p]));
+
+  let bestMatch: { id: number; username: string; createdAt: Date | null; profile: typeof allProfiles[0] | undefined } | null = null;
+  let bestScore = 0;
+
+  for (const member of allMembers) {
+    const profile = profileMap.get(member.id);
+    const fullName = (profile?.fullName || '').toLowerCase();
+    const username = member.username.toLowerCase().replace(/[_\-\.]/g, ' ');
+
+    let score = 0;
+    if (fullName === normalizedSearch || username === normalizedSearch) {
+      score = 100;
+    } else if (fullName.includes(normalizedSearch) || username.includes(normalizedSearch)) {
+      score = 80;
+    } else if (normalizedSearch.includes(fullName) || normalizedSearch.includes(username)) {
+      score = 60;
+    } else {
+      const searchWords = normalizedSearch.split(/\s+/);
+      const nameWords = [...fullName.split(/\s+/), ...username.split(/\s+/)];
+      const matchedWords = searchWords.filter(sw => nameWords.some(nw => nw.includes(sw) || sw.includes(nw)));
+      if (matchedWords.length > 0) {
+        score = 40 + (matchedWords.length / searchWords.length) * 30;
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = { ...member, profile };
+    }
+  }
+
+  if (!bestMatch || bestScore < 30) {
+    return {
+      answer: `I couldn't find a member matching "${searchName}" in your gym. Double-check the name and try again.`,
+      followUpChips: ['Show my members', 'Add a new member'],
+    };
+  }
+
+  const memberId = bestMatch.id;
+  const memberName = bestMatch.profile?.fullName || bestMatch.username;
+  const today = new Date().toISOString().split('T')[0];
+
+  const [gym] = await db.select({ currency: gyms.currency }).from(gyms).where(eq(gyms.id, gymId));
+  const currencySymbol = (gym?.currency || 'INR') === 'INR' ? '₹' : '$';
+
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0];
+
+  const [attendanceLast30] = await db.select({
+    count: sql<number>`count(*)`
+  })
+  .from(attendance)
+  .where(and(
+    eq(attendance.memberId, memberId),
+    eq(attendance.gymId, gymId),
+    gte(attendance.date, thirtyDaysAgoStr),
+    eq(attendance.status, 'present')
+  ));
+
+  const lastCheckIn = await db.select({ date: attendance.date })
+    .from(attendance)
+    .where(and(
+      eq(attendance.memberId, memberId),
+      eq(attendance.gymId, gymId),
+      eq(attendance.status, 'present')
+    ))
+    .orderBy(desc(attendance.date))
+    .limit(1);
+
+  const [workoutsLast30] = await db.select({
+    count: sql<number>`count(distinct ${workoutCompletions.completedDate})`
+  })
+  .from(workoutCompletions)
+  .where(and(
+    eq(workoutCompletions.memberId, memberId),
+    gte(workoutCompletions.completedDate, thirtyDaysAgoStr)
+  ));
+
+  const activeSub = await db.select({
+    id: memberSubscriptions.id,
+    planId: memberSubscriptions.planId,
+    startDate: memberSubscriptions.startDate,
+    endDate: memberSubscriptions.endDate,
+    totalAmount: memberSubscriptions.totalAmount,
+    status: memberSubscriptions.status,
+  })
+  .from(memberSubscriptions)
+  .where(and(
+    eq(memberSubscriptions.memberId, memberId),
+    eq(memberSubscriptions.gymId, gymId),
+  ))
+  .orderBy(desc(memberSubscriptions.startDate))
+  .limit(1);
+
+  let subInfo = 'No active subscription';
+  let balanceInfo = '';
+  if (activeSub.length > 0) {
+    const sub = activeSub[0];
+    let plan: { name: string } | undefined;
+    if (sub.planId) {
+      [plan] = await db.select({ name: membershipPlans.name })
+        .from(membershipPlans)
+        .where(eq(membershipPlans.id, sub.planId));
+    }
+
+    const [paidResult] = await db.select({
+      total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)`
+    })
+    .from(paymentTransactions)
+    .where(eq(paymentTransactions.subscriptionId, sub.id));
+
+    const totalPaid = Number(paidResult?.total || 0);
+    const remaining = (sub.totalAmount || 0) - totalPaid;
+
+    const endDate = new Date(sub.endDate + 'T00:00:00');
+    const daysLeft = Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+    subInfo = `${plan?.name || 'Plan'} (${sub.status})`;
+    if (daysLeft > 0) {
+      subInfo += ` - ${daysLeft} days left (expires ${sub.endDate})`;
+    } else {
+      subInfo += ` - Expired on ${sub.endDate}`;
+    }
+    if (remaining > 0) {
+      balanceInfo = `Outstanding balance: ${currencySymbol}${(remaining / 100).toFixed(0)}`;
+    } else {
+      balanceInfo = 'Fully paid';
+    }
+  }
+
+  const latestMeasurement = await db.select({
+    weight: bodyMeasurements.weight,
+    bodyFat: bodyMeasurements.bodyFat,
+    recordedDate: bodyMeasurements.recordedDate,
+  })
+  .from(bodyMeasurements)
+  .where(eq(bodyMeasurements.memberId, memberId))
+  .orderBy(desc(bodyMeasurements.recordedDate))
+  .limit(1);
+
+  const trainerAssignment = await db.select({
+    trainerId: trainerMemberAssignments.trainerId,
+  })
+  .from(trainerMemberAssignments)
+  .where(and(
+    eq(trainerMemberAssignments.memberId, memberId),
+    eq(trainerMemberAssignments.gymId, gymId),
+    sql`${trainerMemberAssignments.endedAt} IS NULL`
+  ))
+  .limit(1);
+
+  let trainerName = 'None assigned';
+  if (trainerAssignment.length > 0) {
+    const [trainer] = await db.select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, trainerAssignment[0].trainerId));
+    const [trainerProfile] = await db.select({ fullName: userProfiles.fullName })
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, trainerAssignment[0].trainerId));
+    trainerName = trainerProfile?.fullName || trainer?.username || 'Unknown';
+  }
+
+  const lastCheckInDate = lastCheckIn[0]?.date || 'Never';
+  let daysSinceCheckIn = '';
+  if (lastCheckIn[0]?.date) {
+    const lastDate = new Date(lastCheckIn[0].date + 'T00:00:00');
+    const diff = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff === 0) daysSinceCheckIn = '(today)';
+    else if (diff === 1) daysSinceCheckIn = '(yesterday)';
+    else daysSinceCheckIn = `(${diff} days ago)`;
+  }
+
+  const joinedDate = bestMatch.createdAt ? new Date(bestMatch.createdAt).toISOString().split('T')[0] : 'Unknown';
+
+  let lines = [
+    `**${memberName}**`,
+    '',
+    `**Attendance** (last 30 days): ${attendanceLast30?.count || 0} check-ins`,
+    `**Last check-in**: ${lastCheckInDate} ${daysSinceCheckIn}`,
+    `**Workouts** (last 30 days): ${workoutsLast30?.count || 0} days`,
+    '',
+    `**Subscription**: ${subInfo}`,
+  ];
+
+  if (balanceInfo) {
+    lines.push(`**Payment**: ${balanceInfo}`);
+  }
+
+  lines.push(`**Trainer**: ${trainerName}`);
+
+  if (latestMeasurement.length > 0) {
+    const m = latestMeasurement[0];
+    const parts = [];
+    if (m.weight) parts.push(`${m.weight}kg`);
+    if (m.bodyFat) parts.push(`${m.bodyFat}% body fat`);
+    if (parts.length > 0) {
+      lines.push(`**Body**: ${parts.join(', ')} (as of ${m.recordedDate})`);
+    }
+  }
+
+  lines.push(`**Joined**: ${joinedDate}`);
+
+  let riskFlag = '';
+  if (lastCheckIn[0]?.date) {
+    const lastDate = new Date(lastCheckIn[0].date + 'T00:00:00');
+    const diff = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff >= 14) {
+      riskFlag = `\n\n**Attention**: ${memberName} hasn't visited in ${diff} days. Consider reaching out to keep them engaged.`;
+    } else if (diff >= 7) {
+      riskFlag = `\n\n**Note**: ${memberName} hasn't checked in for ${diff} days.`;
+    }
+  } else if (attendanceLast30?.count === 0) {
+    riskFlag = `\n\n**Attention**: ${memberName} has no check-ins in the last 30 days. They may need a follow-up.`;
+  }
+
+  const answer = lines.join('\n') + riskFlag;
+
+  return {
+    answer,
+    followUpChips: [
+      `Log a payment for ${memberName.split(' ')[0]}`,
+      `Assign a trainer to ${memberName.split(' ')[0]}`,
+      'Who checked in today?',
+    ],
+  };
 }
 
 export async function executeOwnerAction(

@@ -32,7 +32,9 @@ import {
   getOwnerActiveMemberships,
   getOwnerExpiringMemberships,
 } from './queries';
-import { processWithAI, isAIAvailable } from './ai-processor';
+import { processWithAI, isAIAvailable, generateOwnerBriefing } from './ai-processor';
+
+export { generateOwnerBriefing };
 
 export interface DikaRequest {
   message: string;

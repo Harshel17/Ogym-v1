@@ -199,6 +199,7 @@ export function useDika(userId: number, hideDika: boolean) {
     setLocalSettings(loadLocalSettings(userId));
     setMessages(loadLocalHistory(userId));
     setServerLoaded(false);
+    briefingFetchedRef.current = false;
   }, [userId]);
 
   useEffect(() => {
@@ -243,6 +244,28 @@ export function useDika(userId: number, hideDika: boolean) {
     queryKey: ['/api/dika/suggestions'],
     enabled: isOpen,
   });
+
+  const briefingFetchedRef = useRef(false);
+  useEffect(() => {
+    if (isOpen && messages.length === 0 && serverLoaded && !briefingFetchedRef.current) {
+      briefingFetchedRef.current = true;
+      apiRequest('GET', '/api/dika/briefing')
+        .then(res => res.json())
+        .then(data => {
+          if (data.answer) {
+            const briefingMsg: DikaMessage = {
+              id: `briefing-${Date.now()}`,
+              role: 'assistant',
+              content: data.answer,
+              timestamp: new Date(),
+              followUpChips: data.followUpChips || [],
+            };
+            setMessages([briefingMsg]);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen, messages.length, serverLoaded]);
 
   const askMutation = useMutation({
     mutationFn: async (message: string) => {
@@ -338,6 +361,7 @@ export function useDika(userId: number, hideDika: boolean) {
   const clearHistory = useCallback(() => {
     setMessages([]);
     clearLocalHistory(userId);
+    briefingFetchedRef.current = false;
     apiRequest('DELETE', '/api/dika/conversations').catch(err => {
       console.error('Failed to clear server dika history:', err);
     });
