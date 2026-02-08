@@ -62,6 +62,21 @@ html.capacitor-native #root {
   background: #0b1220 !important;
 }
 
+/* NATIVE: Fix dialog/modal scroll on iOS WKWebView */
+html.capacitor-native [data-radix-dialog-content],
+html.capacitor-native [role="dialog"] {
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  overscroll-behavior: contain !important;
+}
+
+html.capacitor-native [data-radix-dialog-content] .overflow-y-auto,
+html.capacitor-native [role="dialog"] .overflow-y-auto {
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  overscroll-behavior: contain !important;
+}
+
 /* html::after safe-area fallback REMOVED - glass tab bar handles safe-area directly */
 
 /* CSS variables */

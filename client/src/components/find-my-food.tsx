@@ -330,7 +330,7 @@ export function FindMyFood({ remainingCalories, goalType, onLogFood }: FindMyFoo
               )}
 
               {/* Scrollable restaurant list */}
-              <div className="flex-1 min-h-0 overflow-y-auto mt-3 sm:mt-4 -mx-1 px-1 space-y-2 sm:space-y-3">
+              <div className="flex-1 min-h-0 overflow-y-auto mt-3 sm:mt-4 -mx-1 px-1 space-y-2 sm:space-y-3" style={{ WebkitOverflowScrolling: 'touch' as any, touchAction: 'pan-y' }}>
                 {restaurants.length === 0 ? (
                   <div className="text-center py-6 sm:py-8 text-muted-foreground">
                     <Utensils className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 opacity-50" />
