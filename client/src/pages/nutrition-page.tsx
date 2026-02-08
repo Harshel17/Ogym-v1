@@ -377,17 +377,17 @@ export default function NutritionPage() {
   }
 
   return (
-    <div className="p-3 sm:p-4 space-y-4 sm:space-y-6 pb-24">
+    <div className="space-y-3 pb-24">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl sm:text-2xl font-bold">Nutrition</h1>
-        <div className="flex items-center gap-2">
-          <Dialog open={isGoalDialogOpen} onOpenChange={setIsGoalDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" data-testid="button-set-goal">
-                <Target className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Set Goal</span>
-              </Button>
-            </DialogTrigger>
+        <div>
+          <h1 className="text-lg font-bold tracking-tight">Nutrition</h1>
+        </div>
+        <Dialog open={isGoalDialogOpen} onOpenChange={setIsGoalDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="icon" data-testid="button-set-goal">
+              <Target className="w-4 h-4" />
+            </Button>
+          </DialogTrigger>
           <DialogContent className="max-w-[95vw] sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Set Daily Goals</DialogTitle>
@@ -399,29 +399,40 @@ export default function NutritionPage() {
             />
           </DialogContent>
         </Dialog>
-        </div>
       </div>
 
-      <div className="flex flex-col items-center gap-1">
-        <div className="flex items-center justify-center gap-2 sm:gap-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-            data-testid="button-prev-day"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <span className="text-sm sm:text-lg font-medium min-w-[140px] sm:min-w-[160px] text-center">
+      <div className="flex items-center justify-between gap-1 rounded-lg bg-muted/30 px-1 py-1">
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+          data-testid="button-prev-day"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-medium">
             {format(selectedDate, "EEE, MMM d, yyyy")}
           </span>
+          {!isToday(selectedDate) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedDate(new Date())}
+              data-testid="button-go-to-today"
+            >
+              Today
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-0.5">
           <Button 
             variant="ghost" 
-            size="icon" 
+            size="icon"
             onClick={() => setSelectedDate(addDays(selectedDate, 1))}
             data-testid="button-next-day"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-4 h-4" />
           </Button>
           <div className="relative">
             <Button
@@ -434,7 +445,7 @@ export default function NutritionPage() {
               }}
               data-testid="button-calendar-picker"
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3.5 h-3.5" />
             </Button>
             <input
               id="nutrition-date-picker"
@@ -452,25 +463,16 @@ export default function NutritionPage() {
             />
           </div>
         </div>
-        {!isToday(selectedDate) && (
-          <button
-            onClick={() => setSelectedDate(new Date())}
-            className="text-xs text-blue-500 dark:text-blue-400 font-medium hover:underline"
-            data-testid="button-go-to-today"
-          >
-            Go to Today
-          </button>
-        )}
       </div>
 
-      <Card>
-        <CardContent className="pt-4 sm:pt-6">
-          <div className="flex items-center justify-between mb-4 gap-2">
+      <Card className="border-0 bg-card/60">
+        <CardContent className="pt-3 pb-3">
+          <div className="flex items-center justify-between mb-3 gap-2">
             <div className="text-center flex-1">
-              <div className="text-2xl sm:text-3xl font-bold">{summary.calories}</div>
-              <div className="text-xs sm:text-sm text-muted-foreground">Eaten</div>
+              <div className="text-xl font-bold">{summary.calories}</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Eaten</div>
             </div>
-            <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0">
+            <div className="relative w-16 h-16 flex-shrink-0">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 96 96">
                 <circle
                   cx="48" cy="48" r="42"
@@ -485,26 +487,27 @@ export default function NutritionPage() {
                   strokeWidth="8"
                   fill="none"
                   strokeDasharray={`${(caloriePercent / 100) * 264} 264`}
+                  strokeLinecap="round"
                   className={remaining >= 0 ? "text-primary" : "text-destructive"}
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
+                <Flame className="w-4 h-4 text-orange-500" />
               </div>
             </div>
             <div className="text-center flex-1">
-              <div className={`text-2xl sm:text-3xl font-bold ${remaining < 0 ? "text-destructive" : ""}`}>
+              <div className={`text-xl font-bold ${remaining < 0 ? "text-destructive" : ""}`}>
                 {Math.abs(remaining)}
               </div>
-              <div className="text-xs sm:text-sm text-muted-foreground">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
                 {remaining >= 0 ? "Remaining" : "Over"}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-red-50 dark:bg-red-950/30 rounded-lg">
-            <Beef className="w-4 h-4 text-red-500" />
-            <span className="text-sm font-medium">
+          <div className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-gradient-to-r from-red-500/5 to-red-500/10 rounded-md">
+            <Beef className="w-3.5 h-3.5 text-red-500" />
+            <span className="text-xs font-medium">
               Protein: <span className="text-red-500">{totalProteinToday}g</span>
               {goalData?.dailyProteinTarget && (
                 <span className="text-muted-foreground"> / {proteinGoal}g</span>
@@ -513,9 +516,9 @@ export default function NutritionPage() {
           </div>
 
           {healthStatus?.connected && healthData?.caloriesBurned && (
-            <div className="flex items-center justify-center gap-2 mt-2 py-2 px-3 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/30 rounded-lg">
-              <Watch className="w-4 h-4 text-orange-500" />
-              <span className="text-sm font-medium">
+            <div className="flex items-center justify-center gap-1.5 mt-1.5 py-1.5 px-2 bg-gradient-to-r from-orange-500/5 to-orange-500/10 rounded-md">
+              <Watch className="w-3.5 h-3.5 text-orange-500" />
+              <span className="text-xs font-medium">
                 Burned: <span className="text-orange-500">{healthData.caloriesBurned.toLocaleString()} cal</span>
                 <span className="text-muted-foreground ml-1">
                   (Net: {(summary.calories - healthData.caloriesBurned).toLocaleString()} cal)
@@ -524,7 +527,7 @@ export default function NutritionPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-4 sm:mt-6">
+          <div className="grid grid-cols-3 gap-2 mt-3">
             <MacroProgress label="Protein" value={summary.protein} goal={proteinGoal} percent={proteinPercent} icon={Beef} color="text-red-500" />
             <MacroProgress label="Carbs" value={summary.carbs} goal={carbsGoal} percent={carbsPercent} icon={Wheat} color="text-amber-500" />
             <MacroProgress label="Fat" value={summary.fat} goal={fatGoal} percent={fatPercent} icon={Droplet} color="text-blue-500" />
@@ -535,26 +538,27 @@ export default function NutritionPage() {
       <Button 
         onClick={openGlobalAddFood}
         className="w-full"
-        size="lg"
         data-testid="button-global-add-food"
       >
-        <Plus className="w-5 h-5 mr-2" />
+        <Plus className="w-4 h-4 mr-1.5" />
         Add Food
       </Button>
 
-      <Card>
-        <CardContent className="pt-4 pb-3">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
-              <Droplets className="w-5 h-5 text-blue-500" />
-              <span className="font-semibold">Water</span>
+      <Card className="border-0 bg-card/60">
+        <CardContent className="pt-3 pb-3">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <div className="p-1 rounded-md bg-blue-500/15">
+                <Droplets className="w-3.5 h-3.5 text-blue-500" />
+              </div>
+              <span className="text-sm font-semibold">Water</span>
             </div>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {waterData?.totalOz || 0}oz / 64oz
             </span>
           </div>
-          <Progress value={Math.min(((waterData?.totalOz || 0) / 64) * 100, 100)} className="h-2 mb-3" />
-          <div className="flex items-center gap-2 flex-wrap">
+          <Progress value={Math.min(((waterData?.totalOz || 0) / 64) * 100, 100)} className="h-1.5 mb-2" />
+          <div className="flex items-center gap-1.5 flex-wrap">
             {[{ oz: 8, label: "8oz" }, { oz: 12, label: "12oz" }, { oz: 16, label: "16oz" }, { oz: 24, label: "24oz" }].map(({ oz, label }) => (
               <Button
                 key={oz}
@@ -564,7 +568,7 @@ export default function NutritionPage() {
                 disabled={addWaterMutation.isPending}
                 data-testid={`button-add-water-${oz}`}
               >
-                <Plus className="w-3 h-3 mr-1" />
+                <Plus className="w-3 h-3 mr-0.5" />
                 {label}
               </Button>
             ))}
@@ -580,7 +584,7 @@ export default function NutritionPage() {
                 disabled={deleteWaterMutation.isPending}
                 data-testid="button-undo-water"
               >
-                <Undo2 className="w-3 h-3 mr-1" />
+                <Undo2 className="w-3 h-3 mr-0.5" />
                 Undo
               </Button>
             )}
@@ -599,46 +603,45 @@ export default function NutritionPage() {
       />
 
       {MEAL_TYPES.map((meal) => (
-        <Card key={meal}>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">{MEAL_LABELS[meal]}</CardTitle>
+        <Card key={meal} className="border-0 bg-card/60">
+          <CardHeader className="pb-1 pt-3 px-3">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-sm font-semibold">{MEAL_LABELS[meal]}</CardTitle>
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={() => openAddFoodForMeal(meal)}
                 data-testid={`button-add-${meal}`}
               >
-                <Plus className="w-4 h-4 mr-1" />
+                <Plus className="w-3.5 h-3.5 mr-0.5" />
                 Add
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 pb-3">
             {groupedLogs[meal].length === 0 ? (
-              <p className="text-sm text-muted-foreground">No food logged</p>
+              <p className="text-xs text-muted-foreground">No food logged</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-0.5">
                 {groupedLogs[meal].map((log) => (
-                  <div key={log.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <div key={log.id} className="flex items-center justify-between py-1.5 border-b last:border-0 border-border/50">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{log.foodName}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm font-medium truncate">{log.foodName}</p>
+                      <p className="text-xs text-muted-foreground">
                         {log.quantity > 1 && `${log.quantity}x `}
                         {log.servingSize || "1 serving"}
                         {log.brandName && ` · ${log.brandName}`}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium">{log.calories} cal</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium">{log.calories} cal</span>
                       <Button 
                         variant="ghost" 
                         size="icon"
-                        className="h-8 w-8"
                         onClick={() => deleteFoodMutation.mutate(log.id)}
                         data-testid={`button-delete-food-${log.id}`}
                       >
-                        <Trash2 className="w-4 h-4 text-muted-foreground" />
+                        <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
                       </Button>
                     </div>
                   </div>
@@ -649,49 +652,50 @@ export default function NutritionPage() {
         </Card>
       ))}
 
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Beef className="w-5 h-5 text-red-500" />
-              Protein
-            </CardTitle>
+      <Card className="border-0 bg-card/60">
+        <CardHeader className="pb-1 pt-3 px-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <div className="p-1 rounded-md bg-red-500/15">
+                <Beef className="w-3.5 h-3.5 text-red-500" />
+              </div>
+              <CardTitle className="text-sm font-semibold">Protein</CardTitle>
+            </div>
             <Button 
               variant="ghost" 
               size="sm"
               onClick={() => openAddFoodForMeal("protein")}
               data-testid="button-add-protein"
             >
-              <Plus className="w-4 h-4 mr-1" />
+              <Plus className="w-3.5 h-3.5 mr-0.5" />
               Add
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">Track shakes, bars & supplements</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5 ml-7">Shakes, bars & supplements</p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 pb-3">
           {proteinLogs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No protein logged</p>
+            <p className="text-xs text-muted-foreground">No protein logged</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-0.5">
               {proteinLogs.map((log) => (
-                <div key={log.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                <div key={log.id} className="flex items-center justify-between py-1.5 border-b last:border-0 border-border/50">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{log.foodName}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm font-medium truncate">{log.foodName}</p>
+                    <p className="text-xs text-muted-foreground">
                       {log.protein}g protein
                       {log.calories ? ` · ${log.calories} cal` : ""}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-red-500">{log.protein}g</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-red-500">{log.protein}g</span>
                     <Button 
                       variant="ghost" 
                       size="icon"
-                      className="h-8 w-8"
                       onClick={() => deleteFoodMutation.mutate(log.id)}
                       data-testid={`button-delete-protein-${log.id}`}
                     >
-                      <Trash2 className="w-4 h-4 text-muted-foreground" />
+                      <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
                     </Button>
                   </div>
                 </div>
@@ -702,34 +706,33 @@ export default function NutritionPage() {
       </Card>
 
       {Object.keys(extraMealsByLabel).length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Extra Meals</CardTitle>
+        <Card className="border-0 bg-card/60">
+          <CardHeader className="pb-1 pt-3 px-3">
+            <CardTitle className="text-sm font-semibold">Extra Meals</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 pb-3">
             {Object.entries(extraMealsByLabel).map(([label, logs]) => (
-              <div key={label} className="mb-4 last:mb-0">
-                <p className="text-sm font-medium text-muted-foreground mb-2">{label}</p>
-                <div className="space-y-2">
+              <div key={label} className="mb-3 last:mb-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
+                <div className="space-y-0.5">
                   {logs.map((log) => (
-                    <div key={log.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div key={log.id} className="flex items-center justify-between py-1.5 border-b last:border-0 border-border/50">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{log.foodName}</p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm font-medium truncate">{log.foodName}</p>
+                        <p className="text-xs text-muted-foreground">
                           {log.quantity > 1 && `${log.quantity}x `}
                           {log.servingSize || "1 serving"}
                         </p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium">{log.calories} cal</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium">{log.calories} cal</span>
                         <Button 
                           variant="ghost" 
                           size="icon"
-                          className="h-8 w-8"
                           onClick={() => deleteFoodMutation.mutate(log.id)}
                           data-testid={`button-delete-extra-${log.id}`}
                         >
-                          <Trash2 className="w-4 h-4 text-muted-foreground" />
+                          <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
                         </Button>
                       </div>
                     </div>
@@ -1128,10 +1131,10 @@ function CalorieAnalytics() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      <Card className="border-0 bg-card/60">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         </CardContent>
       </Card>
@@ -1150,16 +1153,18 @@ function CalorieAnalytics() {
                          analytics.summary.adherencePercent >= 70 ? "text-yellow-500" : "text-red-500";
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
+    <Card className="border-0 bg-card/60">
+      <CardHeader className="pb-1 pt-3 px-3">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <BarChart3 className="w-5 h-5" />
-            Calorie Analytics
-          </CardTitle>
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1.5">
+            <div className="p-1 rounded-md bg-primary/15">
+              <BarChart3 className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <CardTitle className="text-sm font-semibold">Calorie Analytics</CardTitle>
+          </div>
+          <div className="flex gap-0.5">
             <Button 
-              variant={period === "week" ? "default" : "outline"} 
+              variant={period === "week" ? "default" : "ghost"} 
               size="sm"
               onClick={() => setPeriod("week")}
               data-testid="button-analytics-week"
@@ -1167,7 +1172,7 @@ function CalorieAnalytics() {
               Week
             </Button>
             <Button 
-              variant={period === "month" ? "default" : "outline"} 
+              variant={period === "month" ? "default" : "ghost"} 
               size="sm"
               onClick={() => setPeriod("month")}
               data-testid="button-analytics-month"
@@ -1177,73 +1182,73 @@ function CalorieAnalytics() {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
-          <div className="text-center p-2 sm:p-3 bg-muted rounded-lg">
-            <div className="text-lg sm:text-xl font-bold">{analytics.summary.avgCalories}</div>
-            <div className="text-xs text-muted-foreground">Avg Daily</div>
+      <CardContent className="px-3 pb-3">
+        <div className="grid grid-cols-3 gap-1.5 mb-3">
+          <div className="text-center p-1.5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-md">
+            <div className="text-sm font-bold">{analytics.summary.avgCalories}</div>
+            <div className="text-[10px] text-muted-foreground">Avg Daily</div>
           </div>
-          <div className="text-center p-2 sm:p-3 bg-muted rounded-lg">
-            <div className={`text-lg sm:text-xl font-bold ${adherenceColor}`}>
+          <div className="text-center p-1.5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-md">
+            <div className={`text-sm font-bold ${adherenceColor}`}>
               {analytics.summary.adherencePercent}%
             </div>
-            <div className="text-xs text-muted-foreground">Adherence</div>
+            <div className="text-[10px] text-muted-foreground">Adherence</div>
           </div>
-          <div className="text-center p-2 sm:p-3 bg-muted rounded-lg">
-            <div className="text-lg sm:text-xl font-bold">{analytics.summary.daysLogged}</div>
-            <div className="text-xs text-muted-foreground">Days Logged</div>
+          <div className="text-center p-1.5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-md">
+            <div className="text-sm font-bold">{analytics.summary.daysLogged}</div>
+            <div className="text-[10px] text-muted-foreground">Days Logged</div>
           </div>
         </div>
 
         {analytics.goal && (
-          <div className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
-            <Target className="w-4 h-4" />
-            Daily Target: <span className="font-medium text-foreground">{analytics.summary.dailyTarget} cal</span>
+          <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+            <Target className="w-3 h-3" />
+            Target: <span className="font-medium text-foreground">{analytics.summary.dailyTarget} cal</span>
             {analytics.goal.setBy === "trainer" && (
-              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Set by Trainer</span>
+              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">Trainer</span>
             )}
           </div>
         )}
 
-        <div className="h-48 sm:h-56">
+        <div className="h-40">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} barCategoryGap="15%">
               <XAxis 
                 dataKey="date" 
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 10 }}
                 interval={period === "month" ? 4 : 0}
               />
               <YAxis 
-                tick={{ fontSize: 11 }}
-                width={40}
+                tick={{ fontSize: 10 }}
+                width={35}
               />
               <Tooltip 
                 formatter={(value: number, name: string) => [`${value} cal`, name === "target" ? "Target" : "Actual"]}
                 labelFormatter={(label) => `${label}`}
               />
               <Legend 
-                wrapperStyle={{ fontSize: 11 }}
+                wrapperStyle={{ fontSize: 10 }}
                 formatter={(value) => value === "target" ? "Target" : "Actual"}
               />
               <Bar 
                 dataKey="target" 
                 fill="hsl(var(--muted-foreground))" 
-                radius={[4, 4, 0, 0]}
+                radius={[3, 3, 0, 0]}
                 name="target"
                 opacity={0.4}
               />
               <Bar 
                 dataKey="actual" 
                 fill="hsl(var(--chart-1))" 
-                radius={[4, 4, 0, 0]}
+                radius={[3, 3, 0, 0]}
                 name="actual"
               />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="mt-4 text-xs text-muted-foreground text-center">
-          {period === "week" ? "Last 7 days" : "Last 30 days"} • Total: {analytics.summary.totalCalories.toLocaleString()} cal
+        <div className="mt-2 text-[10px] text-muted-foreground text-center">
+          {period === "week" ? "Last 7 days" : "Last 30 days"} · Total: {analytics.summary.totalCalories.toLocaleString()} cal
         </div>
       </CardContent>
     </Card>
@@ -1263,10 +1268,10 @@ function ProteinAnalytics() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      <Card className="border-0 bg-card/60">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         </CardContent>
       </Card>
@@ -1285,16 +1290,18 @@ function ProteinAnalytics() {
                          analytics.summary.proteinAdherencePercent >= 70 ? "text-yellow-500" : "text-red-500";
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
+    <Card className="border-0 bg-card/60">
+      <CardHeader className="pb-1 pt-3 px-3">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Beef className="w-5 h-5 text-red-500" />
-            Protein Analytics
-          </CardTitle>
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1.5">
+            <div className="p-1 rounded-md bg-red-500/15">
+              <Beef className="w-3.5 h-3.5 text-red-500" />
+            </div>
+            <CardTitle className="text-sm font-semibold">Protein Analytics</CardTitle>
+          </div>
+          <div className="flex gap-0.5">
             <Button 
-              variant={period === "week" ? "default" : "outline"} 
+              variant={period === "week" ? "default" : "ghost"} 
               size="sm"
               onClick={() => setPeriod("week")}
               data-testid="button-protein-analytics-week"
@@ -1302,7 +1309,7 @@ function ProteinAnalytics() {
               Week
             </Button>
             <Button 
-              variant={period === "month" ? "default" : "outline"} 
+              variant={period === "month" ? "default" : "ghost"} 
               size="sm"
               onClick={() => setPeriod("month")}
               data-testid="button-protein-analytics-month"
@@ -1312,68 +1319,68 @@ function ProteinAnalytics() {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
-          <div className="text-center p-2 sm:p-3 bg-red-50 dark:bg-red-950/30 rounded-lg">
-            <div className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">{analytics.summary.avgProtein}g</div>
-            <div className="text-xs text-muted-foreground">Avg Daily</div>
+      <CardContent className="px-3 pb-3">
+        <div className="grid grid-cols-3 gap-1.5 mb-3">
+          <div className="text-center p-1.5 bg-gradient-to-br from-red-500/5 to-red-500/10 rounded-md">
+            <div className="text-sm font-bold text-red-600 dark:text-red-400">{analytics.summary.avgProtein}g</div>
+            <div className="text-[10px] text-muted-foreground">Avg Daily</div>
           </div>
-          <div className="text-center p-2 sm:p-3 bg-muted rounded-lg">
-            <div className={`text-lg sm:text-xl font-bold ${adherenceColor}`}>
+          <div className="text-center p-1.5 bg-gradient-to-br from-red-500/5 to-red-500/10 rounded-md">
+            <div className={`text-sm font-bold ${adherenceColor}`}>
               {analytics.summary.proteinAdherencePercent}%
             </div>
-            <div className="text-xs text-muted-foreground">Adherence</div>
+            <div className="text-[10px] text-muted-foreground">Adherence</div>
           </div>
-          <div className="text-center p-2 sm:p-3 bg-muted rounded-lg">
-            <div className="text-lg sm:text-xl font-bold">{analytics.summary.daysWithProtein}</div>
-            <div className="text-xs text-muted-foreground">Days Logged</div>
+          <div className="text-center p-1.5 bg-gradient-to-br from-red-500/5 to-red-500/10 rounded-md">
+            <div className="text-sm font-bold">{analytics.summary.daysWithProtein}</div>
+            <div className="text-[10px] text-muted-foreground">Days Logged</div>
           </div>
         </div>
 
-        <div className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
-          <Target className="w-4 h-4" />
-          Daily Target: <span className="font-medium text-red-600 dark:text-red-400">{analytics.summary.proteinTarget}g</span>
+        <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+          <Target className="w-3 h-3" />
+          Target: <span className="font-medium text-red-600 dark:text-red-400">{analytics.summary.proteinTarget}g</span>
         </div>
 
-        <div className="h-48 sm:h-56">
+        <div className="h-40">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} barCategoryGap="15%">
               <XAxis 
                 dataKey="date" 
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 10 }}
                 interval={period === "month" ? 4 : 0}
               />
               <YAxis 
-                tick={{ fontSize: 11 }}
-                width={40}
+                tick={{ fontSize: 10 }}
+                width={35}
               />
               <Tooltip 
                 formatter={(value: number, name: string) => [`${value}g`, name === "target" ? "Target" : "Actual"]}
                 labelFormatter={(label) => `${label}`}
               />
               <Legend 
-                wrapperStyle={{ fontSize: 11 }}
+                wrapperStyle={{ fontSize: 10 }}
                 formatter={(value) => value === "target" ? "Target" : "Actual"}
               />
               <Bar 
                 dataKey="target" 
                 fill="hsl(var(--muted-foreground))" 
-                radius={[4, 4, 0, 0]}
+                radius={[3, 3, 0, 0]}
                 name="target"
                 opacity={0.4}
               />
               <Bar 
                 dataKey="actual" 
                 fill="#ef4444" 
-                radius={[4, 4, 0, 0]}
+                radius={[3, 3, 0, 0]}
                 name="actual"
               />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="mt-4 text-xs text-muted-foreground text-center">
-          {period === "week" ? "Last 7 days" : "Last 30 days"} • Total: {analytics.summary.totalProtein.toLocaleString()}g protein
+        <div className="mt-2 text-[10px] text-muted-foreground text-center">
+          {period === "week" ? "Last 7 days" : "Last 30 days"} · Total: {analytics.summary.totalProtein.toLocaleString()}g protein
         </div>
       </CardContent>
     </Card>
@@ -1390,10 +1397,10 @@ function MacroProgress({ label, value, goal, percent, icon: Icon, color }: {
 }) {
   return (
     <div className="text-center">
-      <Icon className={`w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 ${color}`} />
-      <Progress value={percent} className="h-1.5 sm:h-2 mb-1" />
-      <div className="text-xs sm:text-sm font-medium">{value}g</div>
-      <div className="text-xs text-muted-foreground">/ {goal}g</div>
+      <Icon className={`w-3.5 h-3.5 mx-auto mb-0.5 ${color}`} />
+      <Progress value={percent} className="h-1 mb-0.5" />
+      <div className="text-xs font-medium">{value}g</div>
+      <div className="text-[10px] text-muted-foreground">/ {goal}g</div>
     </div>
   );
 }
