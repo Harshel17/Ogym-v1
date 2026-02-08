@@ -56,13 +56,17 @@ export function useKeyboardHeight() {
 }
 
 export function resetBodyStyles() {
-  const props = ['overflow', 'padding-right', 'margin-right', 'pointer-events', 'position', 'top', 'width', 'height', 'max-height'];
+  const props = [
+    'overflow', 'padding-right', 'margin-right', 'padding-bottom', 'margin-bottom',
+    'pointer-events', 'position', 'top', 'width', 'height', 'max-height', 'min-height',
+  ];
   props.forEach(p => {
     document.body.style.removeProperty(p);
     document.documentElement.style.removeProperty(p);
   });
   document.documentElement.removeAttribute('data-scroll-locked');
   document.body.removeAttribute('data-scroll-locked');
+  document.body.style.removeProperty('height');
 }
 
 export function useKeyboardAwareScroll() {

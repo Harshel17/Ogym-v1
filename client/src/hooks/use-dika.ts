@@ -230,9 +230,16 @@ export function useDika(userId: number, hideDika: boolean) {
     } catch {}
     setIsOpen(false);
     resetBodyStyles();
-    setTimeout(() => resetBodyStyles(), 50);
-    setTimeout(() => resetBodyStyles(), 150);
-    setTimeout(() => resetBodyStyles(), 300);
+    const intervals = [50, 150, 300, 500, 800, 1200];
+    intervals.forEach(ms => setTimeout(() => resetBodyStyles(), ms));
+    const observer = new MutationObserver(() => {
+      const h = document.body.style.height;
+      if (h && h !== '100%' && h !== '') {
+        document.body.style.removeProperty('height');
+      }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['style'] });
+    setTimeout(() => observer.disconnect(), 2000);
   }, []);
 
   const clearHistory = useCallback(() => {
