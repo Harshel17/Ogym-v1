@@ -407,6 +407,23 @@ export default function MemberWorkoutPage() {
     }
   };
 
+  const handleQuickComplete = (item: any) => {
+    if (item.exerciseType === 'cardio') {
+      completeWorkoutMutation.mutate({
+        workoutItemId: item.id,
+        actualDurationMinutes: item.durationMinutes,
+        actualDistanceKm: item.distanceKm || undefined
+      });
+    } else {
+      completeWorkoutMutation.mutate({
+        workoutItemId: item.id,
+        actualSets: item.sets,
+        actualReps: item.reps,
+        actualWeight: item.weight || undefined
+      });
+    }
+  };
+
   const initializePerSetInputs = (
     itemId: number, 
     planSets: { reps: number; weight: string | null; setNumber: number }[],
@@ -545,59 +562,62 @@ export default function MemberWorkoutPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">My Workout</h2>
-        <p className="text-muted-foreground mt-1">Your personalized training program.</p>
+        <h2 className="text-lg font-bold tracking-tight">My Workout</h2>
+        <p className="text-xs text-muted-foreground">Your personalized training program</p>
       </div>
 
       {today?.wasAutoReset && (
-        <Alert data-testid="alert-auto-reset">
-          <RotateCcw className="h-4 w-4" />
-          <AlertTitle>Cycle Reset</AlertTitle>
-          <AlertDescription>
+        <Alert data-testid="alert-auto-reset" className="border-0 bg-amber-500/10">
+          <RotateCcw className="h-4 w-4 text-amber-500" />
+          <AlertTitle className="text-sm">Cycle Reset</AlertTitle>
+          <AlertDescription className="text-xs">
             Your workout cycle has been reset to Day 1 because you missed more than 3 consecutive days. Welcome back!
           </AlertDescription>
         </Alert>
       )}
 
       {!statsLoading && workoutSummary && (
-        <div className="grid grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-4">
-              <Flame className="w-8 h-8 text-orange-500 mb-2" />
-              <p className="text-2xl font-bold">{workoutSummary.streak}</p>
-              <p className="text-xs text-muted-foreground">Day Streak</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-4">
-              <Target className="w-8 h-8 text-blue-500 mb-2" />
-              <p className="text-2xl font-bold">{workoutSummary.totalWorkouts}</p>
-              <p className="text-xs text-muted-foreground">Total Sessions</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-4">
-              <Calendar className="w-8 h-8 text-green-500 mb-2" />
-              <p className="text-2xl font-bold">{workoutSummary.last7DaysCount}</p>
-              <p className="text-xs text-muted-foreground">Last 7 Days</p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="rounded-xl bg-gradient-to-br from-orange-500/5 to-orange-500/10 p-3 text-center">
+            <div className="w-8 h-8 rounded-lg bg-orange-500/15 flex items-center justify-center mx-auto mb-1.5">
+              <Flame className="w-4 h-4 text-orange-500" />
+            </div>
+            <p className="text-xl font-bold">{workoutSummary.streak}</p>
+            <p className="text-[10px] text-muted-foreground font-medium">Day Streak</p>
+          </div>
+          <div className="rounded-xl bg-gradient-to-br from-blue-500/5 to-blue-500/10 p-3 text-center">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center mx-auto mb-1.5">
+              <Target className="w-4 h-4 text-blue-500" />
+            </div>
+            <p className="text-xl font-bold">{workoutSummary.totalWorkouts}</p>
+            <p className="text-[10px] text-muted-foreground font-medium">Total Sessions</p>
+          </div>
+          <div className="rounded-xl bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 p-3 text-center">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center mx-auto mb-1.5">
+              <Calendar className="w-4 h-4 text-emerald-500" />
+            </div>
+            <p className="text-xl font-bold">{workoutSummary.last7DaysCount}</p>
+            <p className="text-[10px] text-muted-foreground font-medium">Last 7 Days</p>
+          </div>
         </div>
       )}
 
       {todayLoading ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">Loading today's workout...</p>
+        <Card className="border-0 bg-card/60">
+          <CardContent className="py-6 text-center">
+            <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Loading today's workout...</p>
           </CardContent>
         </Card>
       ) : today?.message ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <AlertCircle className="w-12 h-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">{today.message}</p>
+        <Card className="border-0 bg-card/60">
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <div className="w-12 h-12 rounded-2xl bg-muted/50 flex items-center justify-center mb-3">
+              <AlertCircle className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground">{today.message}</p>
             {canManageOwnWorkouts ? (
               <Button 
                 className="mt-4 gap-2" 
@@ -608,24 +628,26 @@ export default function MemberWorkoutPage() {
                 Create Workout Cycle
               </Button>
             ) : (
-              <p className="text-sm text-muted-foreground mt-2">Contact your trainer to get started.</p>
+              <p className="text-xs text-muted-foreground mt-2">Contact your trainer to get started.</p>
             )}
           </CardContent>
         </Card>
       ) : canManageOwnWorkouts && !today?.cycleId ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Dumbbell className="w-16 h-16 text-primary mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Start Your Fitness Journey</h3>
-            <p className="text-muted-foreground text-center mb-6 max-w-sm">
+        <Card className="border-0 bg-card/60">
+          <CardContent className="flex flex-col items-center justify-center py-8">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
+              <Dumbbell className="w-7 h-7 text-primary" />
+            </div>
+            <h3 className="text-base font-semibold mb-1">Start Your Fitness Journey</h3>
+            <p className="text-xs text-muted-foreground text-center mb-5 max-w-xs">
               {isSelfGuided 
-                ? "You're in self-guided mode! Create your own workout cycle to track your exercises and progress."
-                : "Create your own workout cycle to track your exercises and progress. You're in control!"}
+                ? "You're in self-guided mode! Create your own workout cycle to track progress."
+                : "Create your own workout cycle to track exercises and progress."}
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 flex-wrap justify-center">
+            <div className="flex flex-col gap-2 w-full max-w-xs">
               <Button 
                 variant="default"
-                className="gap-2" 
+                className="gap-2 w-full" 
                 onClick={() => setWizardOpen(true)}
                 data-testid="button-help-build-cycle"
               >
@@ -634,7 +656,7 @@ export default function MemberWorkoutPage() {
               </Button>
               <Button 
                 variant="outline"
-                className="gap-2" 
+                className="gap-2 w-full" 
                 onClick={() => setAiImportOpen(true)}
                 data-testid="button-import-ai"
               >
@@ -643,7 +665,7 @@ export default function MemberWorkoutPage() {
               </Button>
               <Button 
                 variant="outline"
-                className="gap-2" 
+                className="gap-2 w-full" 
                 onClick={() => setCreateCycleOpen(true)}
                 data-testid="button-create-cycle"
               >
@@ -654,177 +676,209 @@ export default function MemberWorkoutPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardHeader>
+        <Card className="border-0 bg-card/60 overflow-hidden">
+          <CardHeader className="pb-2">
             <div className="flex flex-row items-center justify-between gap-2">
-              <div>
-                <CardTitle>Today - {today?.dayLabel || `Day ${(today?.dayIndex ?? 0) + 1}`}</CardTitle>
-                {today?.cycleName && (
-                  <p className="text-sm text-muted-foreground">{today.cycleName}</p>
+              <div className="flex items-center gap-3">
+                <div className="bg-gradient-to-br from-primary to-primary/80 p-2.5 rounded-xl shadow-lg shadow-primary/20">
+                  <Dumbbell className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold">
+                    {today?.dayLabel || `Day ${(today?.dayIndex ?? 0) + 1}`}
+                  </CardTitle>
+                  {today?.cycleName && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{today.cycleName}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {todayPoints && todayPoints.plannedPoints > 0 && (
+                  <Badge variant="secondary" className="border-0 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 gap-1" data-testid="points-today">
+                    <Trophy className="w-3 h-3" />
+                    {todayPoints.earnedPoints}/{todayPoints.plannedPoints}
+                  </Badge>
+                )}
+                {today?.items?.length > 0 && (
+                  <Badge 
+                    variant="secondary"
+                    className={`border-0 ${
+                      today.items.every((i: any) => i.completed) 
+                        ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white" 
+                        : "bg-muted/60"
+                    }`}
+                  >
+                    {today.items.every((i: any) => i.completed) && <Sparkles className="w-3 h-3 mr-0.5" />}
+                    {today.items.filter((i: any) => i.completed).length}/{today.items.length}
+                  </Badge>
                 )}
               </div>
-              {todayPoints && todayPoints.plannedPoints > 0 && (
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-yellow-500" />
-                  <div className="text-right" data-testid="points-today">
-                    <p className="text-lg font-bold">
-                      {todayPoints.earnedPoints}/{todayPoints.plannedPoints}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Points</p>
-                  </div>
-                </div>
-              )}
             </div>
+            {today?.items?.length > 0 && (
+              <div className="mt-2">
+                <div className="w-full h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                  <div 
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-500"
+                    style={{ width: `${(today.items.filter((i: any) => i.completed).length / today.items.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
             {!today?.isRestDay && today?.items?.length > 0 && !today?.dayManuallyCompleted && (
-              <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t">
+              <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
                 <Button 
                   size="sm" 
-                  variant="outline"
+                  variant="ghost"
+                  className="h-7 text-xs px-2"
                   onClick={() => setRestTodayDialogOpen(true)}
                   data-testid="button-rest-today"
                 >
-                  <Moon className="w-4 h-4 mr-1" />
-                  Rest Today
+                  <Moon className="w-3.5 h-3.5 mr-1" />
+                  Rest
                 </Button>
                 <Button 
                   size="sm" 
-                  variant="outline"
+                  variant="ghost"
+                  className="h-7 text-xs px-2"
                   onClick={() => openReorderDialog(false)}
                   data-testid="button-do-another-workout"
                 >
-                  <Shuffle className="w-4 h-4 mr-1" />
-                  Different Workout
+                  <Shuffle className="w-3.5 h-3.5 mr-1" />
+                  Switch
                 </Button>
                 {today?.progressionMode === 'calendar' && (
                   <Button 
                     size="sm" 
-                    variant="outline"
+                    variant="ghost"
+                    className="h-7 text-xs px-2"
                     onClick={() => setRescheduleDialogOpen(true)}
                     data-testid="button-reschedule"
                   >
-                    <RotateCcw className="w-4 h-4 mr-1" />
+                    <RotateCcw className="w-3.5 h-3.5 mr-1" />
                     Reschedule
                   </Button>
                 )}
-                <p className="text-xs text-muted-foreground ml-auto">
-                  {today?.progressionMode === 'completion' 
-                    ? "Flex schedule - complete when ready" 
-                    : "Calendar schedule"}
-                </p>
+                <span className="text-[10px] text-muted-foreground ml-auto">
+                  {today?.progressionMode === 'completion' ? "Flex" : "Calendar"}
+                </span>
               </div>
             )}
           </CardHeader>
           <CardContent>
             {!today?.items || today.items.length === 0 ? (
-              <div className="text-center py-8 space-y-4" data-testid="rest-day-card">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center mx-auto">
-                  <Moon className="w-10 h-10 text-indigo-500" />
+              <div className="text-center py-6 space-y-3" data-testid="rest-day-card">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center mx-auto">
+                  <Moon className="w-7 h-7 text-indigo-500" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold flex items-center justify-center gap-2">
-                    <Sparkles className="w-5 h-5 text-yellow-500" />
-                    Recovery Day
-                    <Sparkles className="w-5 h-5 text-yellow-500" />
-                  </h3>
-                  <p className="text-muted-foreground mt-2">
-                    No workout scheduled today. Rest is essential for muscle growth and recovery.
+                  <h3 className="text-base font-semibold">Recovery Day</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Rest is essential for muscle growth and recovery.
                   </p>
                 </div>
                 
                 {today?.canSwapRestDay && (
-                  <div className="pt-4">
+                  <div className="pt-2">
                     <Button 
+                      size="sm"
                       onClick={() => swapRestDayMutation.mutate()}
                       disabled={swapRestDayMutation.isPending}
                       className="gap-2"
                       data-testid="button-swap-rest-day"
                     >
-                      <ArrowRight className="w-4 h-4" />
+                      <ArrowRight className="w-3.5 h-3.5" />
                       {swapRestDayMutation.isPending ? "Swapping..." : "Do Tomorrow's Workout Today"}
                     </Button>
-                    <p className="text-xs text-muted-foreground mt-2">
+                    <p className="text-[10px] text-muted-foreground mt-1.5">
                       Tomorrow will become your rest day instead
                     </p>
                   </div>
                 )}
                 
-                <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto pt-4">
-                  <div className="p-3 rounded-lg bg-muted/50">
-                    <p className="text-sm font-medium">Stay Hydrated</p>
-                    <p className="text-xs text-muted-foreground">Drink plenty of water</p>
+                <div className="grid grid-cols-2 gap-2.5 max-w-xs mx-auto pt-2">
+                  <div className="p-2.5 rounded-xl bg-muted/30">
+                    <p className="text-xs font-medium">Stay Hydrated</p>
+                    <p className="text-[10px] text-muted-foreground">Drink plenty of water</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/50">
-                    <p className="text-sm font-medium">Get Rest</p>
-                    <p className="text-xs text-muted-foreground">7-9 hours of sleep</p>
+                  <div className="p-2.5 rounded-xl bg-muted/30">
+                    <p className="text-xs font-medium">Get Rest</p>
+                    <p className="text-[10px] text-muted-foreground">7-9 hours of sleep</p>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground pt-2">
+                <p className="text-[10px] text-muted-foreground pt-1">
                   Your streak is safe on rest days!
                 </p>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-3">
                 {today?.swap && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20" data-testid="swap-active-banner">
-                    <ArrowRight className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Workout Swapped</p>
-                      <p className="text-xs text-muted-foreground">
-                        You moved tomorrow's workout to today. Tomorrow ({today.swap.targetDate}) will be your rest day.
+                  <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-green-500/10" data-testid="swap-active-banner">
+                    <div className="p-1.5 rounded-lg bg-green-500/15">
+                      <ArrowRight className="w-3.5 h-3.5 text-green-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium">Workout Swapped</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Tomorrow ({today.swap.targetDate}) will be rest day.
                       </p>
                     </div>
                     <Button 
                       size="sm" 
-                      variant="ghost" 
+                      variant="ghost"
+                      className="h-7 text-xs px-2"
                       onClick={() => undoSwapMutation.mutate(today.swap.id)}
                       disabled={undoSwapMutation.isPending}
                       data-testid="button-undo-swap"
                     >
-                      <Undo2 className="w-4 h-4 mr-1" />
+                      <Undo2 className="w-3.5 h-3.5 mr-1" />
                       Undo
                     </Button>
                   </div>
                 )}
                 {today?.isRestDay && !today?.swap && (
-                  <div className="p-4 rounded-lg bg-indigo-500/10 border border-indigo-500/20" data-testid="rest-day-banner">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Moon className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                  <div className="p-3 rounded-xl bg-indigo-500/10" data-testid="rest-day-banner">
+                    <div className="flex items-center gap-2.5 mb-2.5">
+                      <div className="p-1.5 rounded-lg bg-indigo-500/15">
+                        <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                      </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium">Scheduled Rest Day</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs font-medium">Scheduled Rest Day</p>
+                        <p className="text-[10px] text-muted-foreground">
                           {today?.progressionMode === 'completion' 
-                            ? "Take a break! Your next workout awaits when you're ready."
-                            : "Rest and recover. You can reschedule if needed."}
+                            ? "Your next workout awaits when you're ready."
+                            : "Rest and recover. Reschedule if needed."}
                         </p>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       <Button 
-                        size="sm" 
+                        size="sm"
+                        className="h-7 text-xs"
                         onClick={() => openReorderDialog(true)}
                         data-testid="button-workout-today"
                       >
-                        <Dumbbell className="w-4 h-4 mr-1" />
+                        <Dumbbell className="w-3.5 h-3.5 mr-1" />
                         Workout Today
                       </Button>
                       <Button 
                         size="sm" 
                         variant="outline"
+                        className="h-7 text-xs"
                         onClick={() => setTrainAnywayDialogOpen(true)}
                         data-testid="button-train-anyway"
                       >
-                        <Dumbbell className="w-4 h-4 mr-1" />
                         Train Anyway
                       </Button>
                       {today?.progressionMode === 'calendar' && (
                         <Button 
                           size="sm" 
                           variant="outline"
+                          className="h-7 text-xs"
                           onClick={() => setRescheduleDialogOpen(true)}
                           data-testid="button-swap-workout"
                         >
-                          <RotateCcw className="w-4 h-4 mr-1" />
-                          Swap with Workout Day
+                          <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                          Swap
                         </Button>
                       )}
                     </div>
@@ -832,13 +886,13 @@ export default function MemberWorkoutPage() {
                 )}
                 {Object.entries(groupedByBodyPart).map(([bodyPart, items]: [string, any]) => (
                   <div key={bodyPart}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Badge variant="secondary">{bodyPart}</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {items.filter((i: any) => i.completed).length}/{items.length} completed
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="secondary" className="text-[10px] border-0 bg-muted/60">{bodyPart}</Badge>
+                      <span className="text-[10px] text-muted-foreground">
+                        {items.filter((i: any) => i.completed).length}/{items.length}
                       </span>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {items.map((item: any) => {
                         const isExpanded = expandedExercise === item.id;
                         const inputs = getInputs(item.id, item);
@@ -846,58 +900,56 @@ export default function MemberWorkoutPage() {
                         return (
                           <div 
                             key={item.id} 
-                            className={`border rounded-lg overflow-hidden ${
+                            className={`rounded-lg transition-colors ${
                               item.completed 
-                                ? 'bg-green-500/10 border-green-500/30' 
-                                : 'border-border'
+                                ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' 
+                                : 'bg-muted/30 border border-transparent'
                             }`}
                             data-testid={`exercise-card-${item.id}`}
                           >
                             <div 
-                              className="flex items-center justify-between p-3 cursor-pointer"
+                              className="flex items-center gap-3 p-3 cursor-pointer"
                               onClick={() => !item.completed && handleExpandExercise(item)}
                             >
-                              <div className="flex items-center gap-3">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                              <button
+                                onClick={(e) => { e.stopPropagation(); !item.completed && handleQuickComplete(item); }}
+                                disabled={item.completed || completeWorkoutMutation.isPending}
+                                className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
                                   item.completed 
-                                    ? 'bg-green-500 text-white' 
+                                    ? 'bg-green-500 text-white cursor-default' 
                                     : 'bg-primary/10 text-primary'
-                                }`}>
-                                  {item.completed ? <CheckCircle2 className="w-4 h-4" /> : item.orderIndex + 1}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    {item.exerciseType === 'cardio' ? (
-                                      <Heart className="w-4 h-4 text-rose-500 flex-shrink-0" />
-                                    ) : (item.muscleType === 'Core' || item.muscleType === 'Abs') ? (
-                                      <Target className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                                    ) : (
-                                      <Dumbbell className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                                    )}
-                                    <h3 className={`font-semibold ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
-                                      {item.exerciseName}
-                                    </h3>
-                                    {item.muscleType && (
-                                      <Badge variant="outline" className="text-xs">{item.muscleType}</Badge>
-                                    )}
-                                    {item.completed && (
-                                      <Badge className="bg-green-500 text-white text-xs">Done</Badge>
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-muted-foreground ml-6">
-                                    {item.exerciseType === 'cardio' ? (
-                                      <>
-                                        {item.durationMinutes ? `${item.durationMinutes} min` : ''}
-                                        {item.distanceKm ? ` · ${item.distanceKm}` : ''}
-                                      </>
-                                    ) : (
-                                      <>
-                                        Target: {item.sets} sets x {item.reps} reps
-                                        {item.weight && ` @ ${item.weight}`}
-                                      </>
-                                    )}
+                                }`}
+                                data-testid={`button-quick-complete-${item.id}`}
+                              >
+                                {item.completed ? (
+                                  <CheckCircle2 className="w-4 h-4" />
+                                ) : (
+                                  <span className="text-xs font-semibold">{item.orderIndex + 1}</span>
+                                )}
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  {(() => {
+                                    if (item.exerciseType === 'cardio') return <Heart className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />;
+                                    if (item.muscleType === 'Core' || item.muscleType === 'Abs') return <Target className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />;
+                                    return <Dumbbell className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />;
+                                  })()}
+                                  <p className={`font-medium text-sm ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                    {item.exerciseName}
                                   </p>
                                 </div>
+                                <p className="text-xs text-muted-foreground ml-5">
+                                  {item.exerciseType === 'cardio' ? (
+                                    <>
+                                      {item.durationMinutes ? `${item.durationMinutes} min` : ''}
+                                      {item.distanceKm ? ` · ${item.distanceKm}` : ''}
+                                    </>
+                                  ) : (
+                                    <>
+                                      {item.sets}x{item.reps} {item.weight ? `@ ${item.weight}` : ''}
+                                    </>
+                                  )}
+                                </p>
                               </div>
                               {!item.completed && (
                                 <Button size="icon" variant="ghost">
@@ -907,7 +959,7 @@ export default function MemberWorkoutPage() {
                             </div>
                             
                             {isExpanded && !item.completed && (
-                              <div className="p-4 pt-0 border-t bg-muted/30">
+                              <div className="px-3 pb-3 pt-0 space-y-3 border-t border-border/50 mt-1">
                                 {loadingPlanSets === item.id ? (
                                   <div className="flex items-center justify-center py-4">
                                     <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -1067,80 +1119,85 @@ export default function MemberWorkoutPage() {
       )}
 
       {!cycleLoading && cycle && cycle.items && (
-        <Card>
-          <CardHeader>
+        <Card className="border-0 bg-card/60">
+          <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle>Workout Cycle</CardTitle>
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-primary/15">
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-semibold">Workout Cycle</CardTitle>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{cycle.name}</p>
+                </div>
+              </div>
               {canManageOwnWorkouts && (
                 <Button 
-                  variant="outline" 
+                  variant="ghost" 
                   size="sm"
+                  className="h-7 text-xs px-2"
                   onClick={() => setEndCycleDialogOpen(true)}
                   data-testid="button-end-cycle"
                 >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Start New Cycle
+                  <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                  New Cycle
                 </Button>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">{cycle.name} - {cycle.startDate} to {cycle.endDate}</p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <Tabs defaultValue="schedule" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="schedule" data-testid="tab-schedule">
-                  <Calendar className="w-4 h-4 mr-2" />
+              <TabsList className="grid w-full grid-cols-2 mb-3 h-8">
+                <TabsTrigger value="schedule" className="text-xs" data-testid="tab-schedule">
+                  <Calendar className="w-3.5 h-3.5 mr-1.5" />
                   Schedule
                 </TabsTrigger>
-                <TabsTrigger value="visual" data-testid="tab-visual">
-                  <User className="w-4 h-4 mr-2" />
+                <TabsTrigger value="visual" className="text-xs" data-testid="tab-visual">
+                  <User className="w-3.5 h-3.5 mr-1.5" />
                   Visual
                 </TabsTrigger>
               </TabsList>
               
               <TabsContent value="schedule">
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {Array.from({ length: cycle.cycleLength || 3 }, (_, idx) => {
                     const dayLabel = cycle.dayLabels?.[idx] || `Day ${idx + 1}`;
                     const dayItems = cycle.items.filter((w: any) => w.dayIndex === idx);
                     const muscleTypes = Array.from(new Set(dayItems.map((w: any) => w.muscleType).filter(Boolean)));
                     return (
-                      <div key={idx}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-sm">{dayLabel}</h3>
+                      <div key={idx} className="rounded-lg bg-muted/20 p-2.5">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <h3 className="font-medium text-xs">{dayLabel}</h3>
                           {muscleTypes.length > 0 && (
-                            <span className="text-xs text-muted-foreground">({muscleTypes.join(" + ")})</span>
+                            <span className="text-[10px] text-muted-foreground">({muscleTypes.join(" + ")})</span>
                           )}
                         </div>
                         {dayItems.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">No exercises assigned</p>
+                          <p className="text-[10px] text-muted-foreground italic">Rest Day</p>
                         ) : (
-                          <div className="space-y-1 text-sm">
+                          <div className="space-y-0.5">
                             {dayItems.map((w: any) => (
-                              <div key={w.id} className="flex items-center gap-2 text-muted-foreground">
+                              <div key={w.id} className="flex items-center gap-1.5 text-xs text-muted-foreground py-0.5">
                                 {w.exerciseType === 'cardio' ? (
-                                  <Heart className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
+                                  <Heart className="w-3 h-3 text-rose-500 flex-shrink-0" />
                                 ) : (w.muscleType === 'Core' || w.muscleType === 'Abs') ? (
-                                  <Target className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                                  <Target className="w-3 h-3 text-amber-500 flex-shrink-0" />
                                 ) : (
-                                  <Dumbbell className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                                  <Dumbbell className="w-3 h-3 text-blue-500 flex-shrink-0" />
                                 )}
-                                <span>{w.exerciseName}</span>
-                                <span>-</span>
-                                {w.exerciseType === 'cardio' ? (
-                                  <span>
-                                    {w.durationMinutes ? `${w.durationMinutes} min` : ''}
-                                    {w.distanceKm ? ` · ${w.distanceKm}` : ''}
-                                  </span>
-                                ) : (
-                                  <>
-                                    <span>{w.sets}x{w.reps}</span>
-                                    {w.weight && <span>@ {w.weight}</span>}
-                                  </>
-                                )}
-                                {w.muscleType && (
-                                  <Badge variant="outline" className="text-xs ml-auto">{w.muscleType}</Badge>
-                                )}
+                                <span className="flex-1 min-w-0 truncate">{w.exerciseName}</span>
+                                <span className="text-[10px] flex-shrink-0">
+                                  {w.exerciseType === 'cardio' ? (
+                                    <>
+                                      {w.durationMinutes ? `${w.durationMinutes}m` : ''}
+                                      {w.distanceKm ? ` ${w.distanceKm}` : ''}
+                                    </>
+                                  ) : (
+                                    <>
+                                      {w.sets}x{w.reps}{w.weight ? ` @ ${w.weight}` : ''}
+                                    </>
+                                  )}
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -1163,37 +1220,39 @@ export default function MemberWorkoutPage() {
         </Card>
       )}
 
-      {/* Cycle History Section */}
       {canManageOwnWorkouts && cycleHistory && cycleHistory.length > 1 && (
-        <Card>
+        <Card className="border-0 bg-card/60">
           <CardHeader 
-            className="cursor-pointer hover-elevate"
+            className="cursor-pointer pb-2"
             onClick={() => setHistoryOpen(!historyOpen)}
             data-testid="button-toggle-history"
           >
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <History className="w-5 h-5" />
-                Workout History
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">{cycleHistory.filter(c => !c.isActive).length} past phases</Badge>
-                {historyOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-muted/50">
+                  <History className="w-3.5 h-3.5 text-muted-foreground" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-semibold">Workout History</CardTitle>
+                  <CardDescription className="text-[10px] mt-0.5">
+                    {cycleHistory.filter((c: any) => !c.isActive).length} past phases
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="p-1.5 rounded-lg">
+                {historyOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
               </div>
             </div>
-            <CardDescription>
-              View your previous workout phases
-            </CardDescription>
           </CardHeader>
           
           {historyOpen && (
-            <CardContent className="space-y-4">
+            <CardContent className="pt-0 space-y-2.5">
               {cycleHistory
-                .filter(c => !c.isActive)
+                .filter((c: any) => !c.isActive)
                 .map((historyCycle: any) => (
                   <div 
                     key={historyCycle.id} 
-                    className="border rounded-lg p-4"
+                    className="rounded-lg bg-muted/20 p-3"
                     data-testid={`cycle-history-${historyCycle.id}`}
                   >
                     <div 
@@ -1201,16 +1260,15 @@ export default function MemberWorkoutPage() {
                       onClick={() => setExpandedHistoryCycle(expandedHistoryCycle === historyCycle.id ? null : historyCycle.id)}
                     >
                       <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium">{historyCycle.name}</h4>
-                          <Badge variant="outline" className="text-xs">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-medium text-sm">{historyCycle.name}</h4>
+                          <Badge variant="secondary" className="text-[10px] border-0 bg-muted/60">
                             Phase {historyCycle.phaseNumber || 1}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
                           <Clock className="w-3 h-3" />
                           <span>{historyCycle.startDate} - {historyCycle.endDate || "Ended"}</span>
-                          <span>•</span>
                           <span>{historyCycle.cycleLength} days</span>
                         </div>
                       </div>
@@ -1222,29 +1280,27 @@ export default function MemberWorkoutPage() {
                     </div>
                     
                     {expandedHistoryCycle === historyCycle.id && historyCycle.items && (
-                      <div className="mt-4 space-y-3 border-t pt-4">
+                      <div className="mt-2.5 space-y-2 border-t border-border/50 pt-2.5">
                         {Array.from({ length: historyCycle.cycleLength || 3 }, (_, idx) => {
                           const dayLabel = historyCycle.dayLabels?.[idx] || `Day ${idx + 1}`;
                           const dayItems = historyCycle.items.filter((w: any) => w.dayIndex === idx);
                           const muscleTypes = Array.from(new Set(dayItems.map((w: any) => w.muscleType).filter(Boolean)));
                           return (
                             <div key={idx}>
-                              <div className="flex items-center gap-2 mb-1">
-                                <h5 className="font-medium text-sm">{dayLabel}</h5>
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <h5 className="font-medium text-xs">{dayLabel}</h5>
                                 {muscleTypes.length > 0 && (
-                                  <span className="text-xs text-muted-foreground">({(muscleTypes as string[]).join(" + ")})</span>
+                                  <span className="text-[10px] text-muted-foreground">({(muscleTypes as string[]).join(" + ")})</span>
                                 )}
                               </div>
                               {dayItems.length === 0 ? (
-                                <p className="text-xs text-muted-foreground">No exercises</p>
+                                <p className="text-[10px] text-muted-foreground italic">Rest Day</p>
                               ) : (
-                                <div className="space-y-1 text-sm">
+                                <div className="space-y-0.5">
                                   {dayItems.map((w: any) => (
-                                    <div key={w.id} className="flex items-center gap-2 text-muted-foreground">
-                                      <span>{w.exerciseName}</span>
-                                      <span>-</span>
-                                      <span>{w.sets}x{w.reps}</span>
-                                      {w.weight && <span>@ {w.weight}</span>}
+                                    <div key={w.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                      <span className="flex-1 min-w-0 truncate">{w.exerciseName}</span>
+                                      <span className="text-[10px] flex-shrink-0">{w.sets}x{w.reps}{w.weight ? ` @ ${w.weight}` : ''}</span>
                                     </div>
                                   ))}
                                 </div>
