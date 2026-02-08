@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 function isNativePlatform(): boolean {
   try {
@@ -53,6 +53,64 @@ export function useKeyboardHeight() {
   }, []);
 
   return keyboardHeight;
+}
+
+export function useVisualViewportHeight() {
+  const [height, setHeight] = useState<number | null>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const native = isNativePlatform();
+
+    if (native) {
+      let showHandle: any;
+      let hideHandle: any;
+      
+      import('@capacitor/keyboard').then(({ Keyboard }) => {
+        Keyboard.addListener('keyboardWillShow', (info) => {
+          setKeyboardVisible(true);
+          const screenH = window.innerHeight || document.documentElement.clientHeight;
+          setHeight(screenH - info.keyboardHeight);
+        }).then(h => { showHandle = h; });
+
+        Keyboard.addListener('keyboardWillHide', () => {
+          setKeyboardVisible(false);
+          setHeight(null);
+        }).then(h => { hideHandle = h; });
+      }).catch(() => {});
+
+      return () => {
+        if (showHandle) showHandle.remove();
+        if (hideHandle) hideHandle.remove();
+      };
+    }
+
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const handleResize = () => {
+      const windowHeight = window.innerHeight;
+      const viewportHeight = viewport.height;
+      const diff = windowHeight - viewportHeight;
+      if (diff > 100) {
+        setKeyboardVisible(true);
+        setHeight(viewportHeight);
+      } else {
+        setKeyboardVisible(false);
+        setHeight(null);
+      }
+    };
+
+    viewport.addEventListener('resize', handleResize);
+    viewport.addEventListener('scroll', handleResize);
+    
+    return () => {
+      viewport.removeEventListener('resize', handleResize);
+      viewport.removeEventListener('scroll', handleResize);
+    };
+  }, []);
+
+  return { visualHeight: height, keyboardVisible };
 }
 
 export function resetBodyStyles() {

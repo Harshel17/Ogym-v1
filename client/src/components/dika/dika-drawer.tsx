@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
-import { useKeyboardHeight } from '@/hooks/use-keyboard';
+import { useVisualViewportHeight } from '@/hooks/use-keyboard';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -806,7 +806,7 @@ export function DikaDrawer({
   
   const { isListening, isSupported: voiceSupported, toggleListening } = useVoiceInput(handleVoiceTranscript);
   const inputRef = useRef<HTMLInputElement>(null);
-  const keyboardHeight = useKeyboardHeight();
+  const { visualHeight, keyboardVisible } = useVisualViewportHeight();
 
   const handleCopy = async (messageId: string, content: string) => {
     try {
@@ -836,12 +836,12 @@ export function DikaDrawer({
   }, [messages, setLocation, onClose]);
 
   useEffect(() => {
-    if (keyboardHeight > 0) {
+    if (keyboardVisible) {
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 50);
     }
-  }, [keyboardHeight]);
+  }, [keyboardVisible]);
 
   const handleInputFocus = useCallback(() => {
     requestAnimationFrame(() => {
@@ -910,7 +910,7 @@ export function DikaDrawer({
       <div 
         ref={drawerPanelRef}
         className="fixed top-0 right-0 left-0 w-full sm:max-w-md flex flex-col p-0 bg-background shadow-2xl z-[100000] animate-in slide-in-from-right duration-300"
-        style={{ bottom: keyboardHeight > 0 ? `${keyboardHeight}px` : '0px' }}
+        style={visualHeight ? { height: `${visualHeight}px`, bottom: 'auto' } : { bottom: '0px' }}
         data-testid="drawer-dika"
       >
         <div 
@@ -1194,7 +1194,7 @@ export function DikaDrawer({
         <form 
           onSubmit={handleSubmit} 
           className="p-4 border-t flex gap-2 flex-shrink-0 bg-background"
-          style={{ paddingBottom: keyboardHeight > 0 ? '0.5rem' : `max(1rem, env(safe-area-inset-bottom))` }}
+          style={{ paddingBottom: keyboardVisible ? '0.5rem' : `max(1rem, env(safe-area-inset-bottom))` }}
         >
           <div className="flex-1 relative">
             <Input
