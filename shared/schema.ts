@@ -901,6 +901,15 @@ export const weeklyReports = pgTable("weekly_reports", {
 
 export const insertWeeklyReportSchema = createInsertSchema(weeklyReports).omit({ id: true, createdAt: true });
 
+export const dikaConversations = pgTable("dika_conversations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull().unique(),
+  messages: jsonb("messages").notNull().default([]),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdx: uniqueIndex("dika_conversations_user_idx").on(table.userId),
+}));
+
 // Health data from fitness devices (Apple Health, Google Fit)
 export const healthData = pgTable("health_data", {
   id: serial("id").primaryKey(),
