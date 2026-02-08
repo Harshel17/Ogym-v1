@@ -63,20 +63,29 @@ html.capacitor-native #root {
 }
 
 /* NATIVE: Fix dialog/modal scroll on iOS WKWebView */
+/* 1. Overlay must not intercept touch events */
+html.capacitor-native [data-radix-dialog-overlay] {
+  pointer-events: none !important;
+}
+
+/* 2. Dialog content: no CSS transforms (breaks iOS scroll), force scroll */
 html.capacitor-native [data-radix-dialog-content],
 html.capacitor-native [role="dialog"] {
+  transform: none !important;
   -webkit-overflow-scrolling: touch !important;
   touch-action: auto !important;
   overflow-y: scroll !important;
   overscroll-behavior: contain !important;
+  pointer-events: auto !important;
 }
 
+/* 3. All children inside dialog must allow touch */
 html.capacitor-native [data-radix-dialog-content] *,
 html.capacitor-native [role="dialog"] * {
-  -webkit-overflow-scrolling: touch !important;
   touch-action: auto !important;
 }
 
+/* 4. Inner scrollable containers */
 html.capacitor-native [data-radix-dialog-content] .overflow-y-auto,
 html.capacitor-native [data-radix-dialog-content] .overflow-y-scroll,
 html.capacitor-native [role="dialog"] .overflow-y-auto,
@@ -87,15 +96,11 @@ html.capacitor-native [role="dialog"] .overflow-y-scroll {
   overscroll-behavior: contain !important;
 }
 
-/* NATIVE: Prevent body scroll lock from killing dialog scroll */
+/* 5. Prevent body scroll lock from killing dialog scroll */
 html.capacitor-native body[data-scroll-locked] {
   overflow: visible !important;
   touch-action: auto !important;
-}
-
-html.capacitor-native [data-radix-scroll-area-viewport] {
-  -webkit-overflow-scrolling: touch !important;
-  touch-action: auto !important;
+  position: static !important;
 }
 
 /* html::after safe-area fallback REMOVED - glass tab bar handles safe-area directly */

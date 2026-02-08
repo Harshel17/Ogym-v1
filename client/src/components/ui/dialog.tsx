@@ -40,39 +40,47 @@ const DialogOverlay = React.forwardRef<
       "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
+    style={isNativePlatform() ? { pointerEvents: 'none' } : undefined}
     {...props}
   />
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+const WEB_CONTENT_CLASSES =
+  "fixed left-[50%] top-[50%] z-50 grid w-[92vw] max-w-lg max-h-[90vh] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg";
+
+const NATIVE_CONTENT_CLASSES =
+  "fixed z-50 grid w-[92vw] max-w-lg max-h-[85vh] overflow-y-scroll gap-4 border bg-background p-6 shadow-lg rounded-lg";
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, style, ...props }, ref) => {
+  const native = isNativePlatform();
 
   React.useEffect(() => {
-    if (!isNativePlatform()) return;
-
+    if (!native) return;
     const body = document.body;
     const html = document.documentElement;
-
     body.style.setProperty('overflow', 'visible', 'important');
     html.style.setProperty('overflow', 'visible', 'important');
-
     return () => {
       body.style.setProperty('overflow', 'hidden', 'important');
       html.style.setProperty('overflow', 'hidden', 'important');
     };
-  }, []);
+  }, [native]);
 
-  const nativeStyle: React.CSSProperties = isNativePlatform()
+  const nativeStyle: React.CSSProperties | undefined = native
     ? {
+        top: '50%',
+        left: '50%',
+        marginTop: '-42.5vh',
+        marginLeft: '-46vw',
         WebkitOverflowScrolling: 'touch' as any,
         touchAction: 'auto',
-        overflowY: 'scroll' as const,
         ...style,
       }
-    : { ...style };
+    : style;
 
   return (
     <DialogPortal>
@@ -80,7 +88,7 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-[92vw] max-w-lg max-h-[90vh] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg",
+          native ? NATIVE_CONTENT_CLASSES : WEB_CONTENT_CLASSES,
           className
         )}
         style={nativeStyle}
