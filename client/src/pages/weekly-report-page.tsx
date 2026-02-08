@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRoute } from "wouter";
-import { Loader2, Dumbbell, Flame, Droplets, TrendingUp, Footprints, Moon, FileText } from "lucide-react";
+import { useRoute, useLocation } from "wouter";
+import { Loader2, Dumbbell, Flame, Droplets, TrendingUp, Footprints, Moon, FileText, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface ReportSection {
   title: string;
@@ -90,7 +91,7 @@ export default function WeeklyReportPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Loading your report...</p>
@@ -101,7 +102,7 @@ export default function WeeklyReportPage() {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
         <div className="text-center max-w-sm px-4">
           <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
           <h2 className="text-lg font-semibold mb-1">Report Not Found</h2>
@@ -113,6 +114,15 @@ export default function WeeklyReportPage() {
 
   const { report, rangeStart, rangeEnd, userName, gymName } = data;
   const wd = report.weeklyData;
+  const [, setLocation] = useLocation();
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      setLocation("/");
+    }
+  };
 
   const formatDate = (d: string) => {
     const date = new Date(d + 'T00:00:00');
@@ -120,8 +130,14 @@ export default function WeeklyReportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900" data-testid="page-weekly-report">
+    <div className="h-full overflow-y-auto bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900" data-testid="page-weekly-report">
       <div className="max-w-lg mx-auto px-4 py-8">
+        <div className="mb-4">
+          <Button variant="ghost" size="sm" onClick={handleBack} data-testid="button-back" className="text-slate-600 dark:text-slate-400">
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Back
+          </Button>
+        </div>
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-1.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-3 py-1 rounded-full text-xs font-medium mb-4">
             <FileText className="w-3 h-3" />
