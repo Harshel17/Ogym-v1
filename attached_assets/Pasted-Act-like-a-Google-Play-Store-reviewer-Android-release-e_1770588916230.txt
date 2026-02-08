@@ -1,0 +1,46 @@
+Act like a Google Play Store reviewer + Android release engineer.
+
+My app is a Capacitor (React/Next) app wrapped for Android. I want you to do a Play Store pre-audit to minimize rejection risk.
+
+1) Confirm release-readiness:
+- App launches without blank screen/crash on cold start
+- Login + core flows work offline/online gracefully
+- No debug banners, no dev endpoints, no console spam
+- Proper error handling for failed API calls (show user-friendly messages)
+
+2) Check security & secrets:
+- No API keys, tokens, Firebase config secrets, or admin creds hardcoded in the repo
+- No exposed .env in build output
+- Ensure network calls use HTTPS only
+- Confirm any WebView settings are safe (no mixed content if possible)
+
+3) Permissions audit:
+- List all Android permissions in AndroidManifest.xml
+- For each permission: explain why it exists, and whether it’s required
+- Recommend removing any unused permissions
+
+4) Privacy / Data Safety audit (Google Play):
+- List all data the app collects: account info, health/fitness, payments, location, identifiers, crash logs
+- For each: is it shared? is it required? is it encrypted in transit?
+- Draft the “Data safety” answers I should select in Play Console based on the app behavior
+
+5) Policy risk audit:
+- Health/Fitness policy: nutrition logging and workouts - confirm no medical claims
+- AI policy: Dika AI assistant - ensure we don’t claim diagnosis, and we have user controls
+- User-generated content (if any): confirm reporting/blocking/moderation rules
+- Payments/subscriptions: confirm compliance with Google Play Billing if selling digital subscriptions in-app
+
+6) Release build audit:
+- Confirm we’re generating AAB (Android App Bundle) signed release build
+- Ensure versionCode/versionName increments correctly
+- Confirm Proguard/R8 settings if used
+- Confirm app icon, splash screen, and package name are final
+
+7) Store listing audit:
+- Recommend screenshots set (4–6) and what each should show
+- Draft short description (80 chars) + full description
+- Identify any “risky wording” that could trigger rejection (e.g., “medical”, “diagnose”, “guaranteed results”)
+
+Output:
+- A table of: Issue / Risk Level / Evidence (file & line if possible) / Fix
+- A final “Go/No-Go” verdict for submission.
