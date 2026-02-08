@@ -22,11 +22,8 @@ export function DikaButton({
 }: DikaButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
-  const posRef = useRef(position);
-  posRef.current = position;
+  const draggedRef = useRef(false);
 
-  const onClickRef = useRef(onClick);
-  onClickRef.current = onClick;
   const onPositionChangeRef = useRef(onPositionChange);
   onPositionChangeRef.current = onPositionChange;
   const onLongPressRef = useRef(onLongPress);
@@ -43,11 +40,10 @@ export function DikaButton({
   }, []);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    e.preventDefault();
     const touch = e.touches[0];
     const startX = touch.clientX;
     const startY = touch.clientY;
-    let hasMoved = false;
+    draggedRef.current = false;
 
     const rect = buttonRef.current?.getBoundingClientRect();
     const offsetX = rect ? touch.clientX - rect.left : 0;
@@ -55,7 +51,7 @@ export function DikaButton({
 
     if (onLongPressRef.current) {
       longPressTimer.current = setTimeout(() => {
-        if (!hasMoved) {
+        if (!draggedRef.current) {
           onLongPressRef.current?.();
         }
       }, 500);
@@ -67,14 +63,17 @@ export function DikaButton({
       const dy = t.clientY - startY;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if (distance < DRAG_THRESHOLD && !hasMoved) return;
+      if (distance < DRAG_THRESHOLD && !draggedRef.current) return;
 
-      hasMoved = true;
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
+      if (!draggedRef.current) {
+        draggedRef.current = true;
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+        }
       }
 
+      ev.preventDefault();
       const newPos = constrainPosition(t.clientX - offsetX, t.clientY - offsetY);
       onPositionChangeRef.current(newPos);
     };
@@ -86,13 +85,9 @@ export function DikaButton({
       }
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleTouchEnd);
-
-      if (!hasMoved) {
-        onClickRef.current();
-      }
     };
 
-    document.addEventListener('touchmove', handleTouchMove, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd);
   }, [constrainPosition]);
 
@@ -100,7 +95,7 @@ export function DikaButton({
     if (e.button !== 0) return;
     const startX = e.clientX;
     const startY = e.clientY;
-    let hasMoved = false;
+    draggedRef.current = false;
 
     const rect = buttonRef.current?.getBoundingClientRect();
     const offsetX = rect ? e.clientX - rect.left : 0;
@@ -108,7 +103,7 @@ export function DikaButton({
 
     if (onLongPressRef.current) {
       longPressTimer.current = setTimeout(() => {
-        if (!hasMoved) {
+        if (!draggedRef.current) {
           onLongPressRef.current?.();
         }
       }, 500);
@@ -119,9 +114,9 @@ export function DikaButton({
       const dy = ev.clientY - startY;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if (distance < DRAG_THRESHOLD && !hasMoved) return;
+      if (distance < DRAG_THRESHOLD && !draggedRef.current) return;
 
-      hasMoved = true;
+      draggedRef.current = true;
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
@@ -138,20 +133,25 @@ export function DikaButton({
       }
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-
-      if (!hasMoved) {
-        onClickRef.current();
-      }
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   }, [constrainPosition]);
 
+  const handleClick = useCallback(() => {
+    if (draggedRef.current) {
+      draggedRef.current = false;
+      return;
+    }
+    onClick();
+  }, [onClick]);
+
   return (
     <button
       ref={buttonRef}
       data-testid="button-dika"
+      onClick={handleClick}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       className={cn(
@@ -166,7 +166,7 @@ export function DikaButton({
       style={{
         left: position.x,
         top: position.y,
-        touchAction: 'none',
+        touchAction: 'manipulation',
       }}
       aria-label="Ask Dika"
     >
