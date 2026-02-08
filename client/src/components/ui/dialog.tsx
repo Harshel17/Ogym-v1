@@ -6,18 +6,6 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-function isNativeIOS(): boolean {
-  try {
-    const w = window as any;
-    const isNative = !!(w.Capacitor && w.Capacitor.isNativePlatform && w.Capacitor.isNativePlatform());
-    if (!isNative) return false;
-    const platform = w.Capacitor?.getPlatform?.() || '';
-    return platform === 'ios';
-  } catch {
-    return false;
-  }
-}
-
 function isNativePlatform(): boolean {
   try {
     const w = window as any;
@@ -60,45 +48,42 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => {
-  const contentRef = React.useRef<HTMLDivElement | null>(null);
+>(({ className, children, style, ...props }, ref) => {
 
   React.useEffect(() => {
     if (!isNativePlatform()) return;
-    const el = contentRef.current;
-    if (!el) return;
 
-    const handleTouchMove = (e: TouchEvent) => {
-      const target = e.target as HTMLElement;
-      let scrollable = target.closest('[data-dialog-scroll]') || target.closest('.overflow-y-auto') || target.closest('.overflow-auto');
-      if (!scrollable) {
-        if (el.scrollHeight > el.clientHeight) {
-          scrollable = el;
-        }
-      }
-      if (scrollable) {
-        e.stopPropagation();
-      }
+    const body = document.body;
+    const html = document.documentElement;
+
+    body.style.setProperty('overflow', 'visible', 'important');
+    html.style.setProperty('overflow', 'visible', 'important');
+
+    return () => {
+      body.style.setProperty('overflow', 'hidden', 'important');
+      html.style.setProperty('overflow', 'hidden', 'important');
     };
-
-    el.addEventListener('touchmove', handleTouchMove, { passive: true });
-    return () => el.removeEventListener('touchmove', handleTouchMove);
   }, []);
+
+  const nativeStyle: React.CSSProperties = isNativePlatform()
+    ? {
+        WebkitOverflowScrolling: 'touch' as any,
+        touchAction: 'auto',
+        overflowY: 'scroll' as const,
+        ...style,
+      }
+    : { ...style };
 
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
-        ref={(node) => {
-          contentRef.current = node;
-          if (typeof ref === 'function') ref(node);
-          else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
-        }}
+        ref={ref}
         className={cn(
           "fixed left-[50%] top-[50%] z-50 grid w-[92vw] max-w-lg max-h-[90vh] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg",
           className
         )}
-        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+        style={nativeStyle}
         {...props}
       >
         {children}

@@ -66,15 +66,36 @@ html.capacitor-native #root {
 html.capacitor-native [data-radix-dialog-content],
 html.capacitor-native [role="dialog"] {
   -webkit-overflow-scrolling: touch !important;
-  touch-action: pan-y !important;
+  touch-action: auto !important;
+  overflow-y: scroll !important;
   overscroll-behavior: contain !important;
 }
 
-html.capacitor-native [data-radix-dialog-content] .overflow-y-auto,
-html.capacitor-native [role="dialog"] .overflow-y-auto {
+html.capacitor-native [data-radix-dialog-content] *,
+html.capacitor-native [role="dialog"] * {
   -webkit-overflow-scrolling: touch !important;
-  touch-action: pan-y !important;
+  touch-action: auto !important;
+}
+
+html.capacitor-native [data-radix-dialog-content] .overflow-y-auto,
+html.capacitor-native [data-radix-dialog-content] .overflow-y-scroll,
+html.capacitor-native [role="dialog"] .overflow-y-auto,
+html.capacitor-native [role="dialog"] .overflow-y-scroll {
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: auto !important;
+  overflow-y: scroll !important;
   overscroll-behavior: contain !important;
+}
+
+/* NATIVE: Prevent body scroll lock from killing dialog scroll */
+html.capacitor-native body[data-scroll-locked] {
+  overflow: visible !important;
+  touch-action: auto !important;
+}
+
+html.capacitor-native [data-radix-scroll-area-viewport] {
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: auto !important;
 }
 
 /* html::after safe-area fallback REMOVED - glass tab bar handles safe-area directly */
