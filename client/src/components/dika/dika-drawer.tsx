@@ -899,7 +899,8 @@ export function DikaDrawer({
 
   if (!isOpen) return null;
 
-  const drawerHeight = keyboardHeight > 0 ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh';
+  const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
+  const drawerHeight = (!isNative && keyboardHeight > 0) ? `calc(100dvh - ${keyboardHeight}px)` : '100dvh';
 
   return (
     <>
@@ -1196,7 +1197,7 @@ export function DikaDrawer({
         <form 
           onSubmit={handleSubmit} 
           className="p-4 border-t flex gap-2 flex-shrink-0 bg-background"
-          style={{ paddingBottom: keyboardHeight > 0 ? '0.5rem' : `max(1rem, env(safe-area-inset-bottom))` }}
+          style={{ paddingBottom: (!isNative && keyboardHeight > 0) ? '0.5rem' : `max(1rem, env(safe-area-inset-bottom))` }}
         >
           <div className="flex-1 relative">
             <Input
