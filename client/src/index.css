@@ -62,41 +62,7 @@ html.capacitor-native #root {
   background: #0b1220 !important;
 }
 
-/* NATIVE: Fix dialog/modal scroll on iOS WKWebView */
-/* 1. Overlay must not intercept touch events */
-html.capacitor-native [data-radix-dialog-overlay] {
-  pointer-events: none !important;
-}
-
-/* 2. Dialog content: no CSS transforms (breaks iOS scroll), force scroll */
-html.capacitor-native [data-radix-dialog-content],
-html.capacitor-native [role="dialog"] {
-  transform: none !important;
-  -webkit-overflow-scrolling: touch !important;
-  touch-action: auto !important;
-  overflow-y: scroll !important;
-  overscroll-behavior: contain !important;
-  pointer-events: auto !important;
-}
-
-/* 3. All children inside dialog must allow touch */
-html.capacitor-native [data-radix-dialog-content] *,
-html.capacitor-native [role="dialog"] * {
-  touch-action: auto !important;
-}
-
-/* 4. Inner scrollable containers */
-html.capacitor-native [data-radix-dialog-content] .overflow-y-auto,
-html.capacitor-native [data-radix-dialog-content] .overflow-y-scroll,
-html.capacitor-native [role="dialog"] .overflow-y-auto,
-html.capacitor-native [role="dialog"] .overflow-y-scroll {
-  -webkit-overflow-scrolling: touch !important;
-  touch-action: auto !important;
-  overflow-y: scroll !important;
-  overscroll-behavior: contain !important;
-}
-
-/* 5. Prevent body scroll lock from killing dialog scroll */
+/* NATIVE: Prevent body scroll lock from killing dialog/modal scroll */
 html.capacitor-native body[data-scroll-locked] {
   overflow: visible !important;
   touch-action: auto !important;
