@@ -885,6 +885,22 @@ export const waterLogs = pgTable("water_logs", {
 
 export const insertWaterLogSchema = createInsertSchema(waterLogs).omit({ id: true, createdAt: true });
 
+export const weeklyReports = pgTable("weekly_reports", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  gymId: integer("gym_id").references(() => gyms.id),
+  token: text("token").notNull().unique(),
+  rangeStart: text("range_start").notNull(),
+  rangeEnd: text("range_end").notNull(),
+  reportData: jsonb("report_data").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  tokenIdx: uniqueIndex("weekly_reports_token_idx").on(table.token),
+  userIdx: index("weekly_reports_user_idx").on(table.userId),
+}));
+
+export const insertWeeklyReportSchema = createInsertSchema(weeklyReports).omit({ id: true, createdAt: true });
+
 // Health data from fitness devices (Apple Health, Google Fit)
 export const healthData = pgTable("health_data", {
   id: serial("id").primaryKey(),
@@ -1161,3 +1177,6 @@ export type InsertHealthData = z.infer<typeof insertHealthDataSchema>;
 
 export type WaterLog = typeof waterLogs.$inferSelect;
 export type InsertWaterLog = z.infer<typeof insertWaterLogSchema>;
+
+export type WeeklyReport = typeof weeklyReports.$inferSelect;
+export type InsertWeeklyReport = z.infer<typeof insertWeeklyReportSchema>;
