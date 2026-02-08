@@ -83,6 +83,7 @@ function SectionGradeBadge({ grade }: { grade: string }) {
 export default function WeeklyReportPage() {
   const [, params] = useRoute("/report/:token");
   const token = params?.token;
+  const [, setLocation] = useLocation();
 
   const { data, isLoading, error } = useQuery<ReportResponse>({
     queryKey: ['/api/reports', token],
@@ -114,7 +115,6 @@ export default function WeeklyReportPage() {
 
   const { report, rangeStart, rangeEnd, userName, gymName } = data;
   const wd = report.weeklyData;
-  const [, setLocation] = useLocation();
 
   const handleBack = () => {
     if (window.history.length > 1) {
