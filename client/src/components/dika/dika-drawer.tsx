@@ -899,8 +899,6 @@ export function DikaDrawer({
 
   if (!isOpen) return null;
 
-  const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
-
   return (
     <>
       <div 
@@ -912,7 +910,7 @@ export function DikaDrawer({
       <div 
         ref={drawerPanelRef}
         className="fixed top-0 right-0 left-0 w-full sm:max-w-md flex flex-col p-0 bg-background shadow-2xl z-[100000] animate-in slide-in-from-right duration-300"
-        style={{ bottom: (!isNative && keyboardHeight > 0) ? `${keyboardHeight}px` : '0px' }}
+        style={{ bottom: keyboardHeight > 0 ? `${keyboardHeight}px` : '0px' }}
         data-testid="drawer-dika"
       >
         <div 
@@ -1196,7 +1194,7 @@ export function DikaDrawer({
         <form 
           onSubmit={handleSubmit} 
           className="p-4 border-t flex gap-2 flex-shrink-0 bg-background"
-          style={{ paddingBottom: (!isNative && keyboardHeight > 0) ? '0.5rem' : `max(1rem, env(safe-area-inset-bottom))` }}
+          style={{ paddingBottom: keyboardHeight > 0 ? '0.5rem' : `max(1rem, env(safe-area-inset-bottom))` }}
         >
           <div className="flex-1 relative">
             <Input
