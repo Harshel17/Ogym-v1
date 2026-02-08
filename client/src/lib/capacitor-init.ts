@@ -75,6 +75,14 @@ export async function initializeCapacitor() {
   } catch (error) {
     console.error('Failed to configure StatusBar:', error);
   }
+
+  try {
+    const { Keyboard } = await import('@capacitor/keyboard');
+    await Keyboard.setResizeMode({ mode: 'none' as any });
+    console.log('Capacitor Keyboard resize mode set to none');
+  } catch (error) {
+    console.error('Failed to configure Keyboard:', error);
+  }
 }
 
 export function isAndroid(): boolean {
