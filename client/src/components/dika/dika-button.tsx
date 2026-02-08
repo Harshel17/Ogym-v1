@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
 
+const DRAG_THRESHOLD = 8;
+
 interface DikaButtonProps {
   icon: DikaIcon;
   position: { x: number; y: number };
@@ -23,11 +25,12 @@ export function DikaButton({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const hasMoved = useRef(false);
+  const startPos = useRef({ x: 0, y: 0 });
 
   const constrainPosition = (x: number, y: number) => {
     const buttonSize = 44;
     const margin = 10;
-    const bottomNavHeight = 80; // Account for mobile bottom navigation
+    const bottomNavHeight = 80;
     
     return {
       x: Math.max(margin, Math.min(window.innerWidth - buttonSize - margin, x)),
@@ -39,6 +42,7 @@ export function DikaButton({
     if (e.button !== 0) return;
     
     hasMoved.current = false;
+    startPos.current = { x: e.clientX, y: e.clientY };
     const rect = buttonRef.current?.getBoundingClientRect();
     if (rect) {
       setDragOffset({
@@ -60,6 +64,7 @@ export function DikaButton({
   const handleTouchStart = (e: React.TouchEvent) => {
     hasMoved.current = false;
     const touch = e.touches[0];
+    startPos.current = { x: touch.clientX, y: touch.clientY };
     const rect = buttonRef.current?.getBoundingClientRect();
     if (rect) {
       setDragOffset({
@@ -82,6 +87,12 @@ export function DikaButton({
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - startPos.current.x;
+      const dy = e.clientY - startPos.current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < DRAG_THRESHOLD && !hasMoved.current) return;
+      
       hasMoved.current = true;
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
@@ -96,13 +107,19 @@ export function DikaButton({
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      const dx = touch.clientX - startPos.current.x;
+      const dy = touch.clientY - startPos.current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < DRAG_THRESHOLD && !hasMoved.current) return;
+      
       hasMoved.current = true;
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
       }
       
-      const touch = e.touches[0];
       const newPos = constrainPosition(
         touch.clientX - dragOffset.x,
         touch.clientY - dragOffset.y
@@ -124,7 +141,7 @@ export function DikaButton({
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleEnd);
-    document.addEventListener('touchmove', handleTouchMove);
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
     document.addEventListener('touchend', handleEnd);
 
     return () => {
@@ -134,19 +151,6 @@ export function DikaButton({
       document.removeEventListener('touchend', handleEnd);
     };
   }, [isDragging, dragOffset, onClick, onPositionChange]);
-
-  const renderIcon = () => {
-    const iconClass = "w-6 h-6 text-white";
-    switch (icon) {
-      case 'sunflower':
-        return <SunflowerIcon className={iconClass} />;
-      case 'bat':
-        return <BatIcon className={iconClass} />;
-      case 'circle':
-      default:
-        return <DikaCircleIcon className={iconClass} />;
-    }
-  };
 
   return (
     <button

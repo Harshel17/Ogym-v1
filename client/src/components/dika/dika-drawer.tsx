@@ -704,19 +704,13 @@ function parseInlineMarkdown(text: string): ReactNode[] {
 
   while (remaining.length > 0) {
     const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
-    const italicMatch = remaining.match(/(?<!\*)\*([^*]+)\*(?!\*)/);
     const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
     
-    let nextMatch: { type: 'bold' | 'italic' | 'link'; match: RegExpMatchArray } | null = null;
+    let nextMatch: { type: 'bold' | 'link'; match: RegExpMatchArray } | null = null;
     
     if (boldMatch && boldMatch.index !== undefined) {
       if (!nextMatch || boldMatch.index < (nextMatch.match.index ?? Infinity)) {
         nextMatch = { type: 'bold', match: boldMatch };
-      }
-    }
-    if (italicMatch && italicMatch.index !== undefined) {
-      if (!nextMatch || italicMatch.index < (nextMatch.match.index ?? Infinity)) {
-        nextMatch = { type: 'italic', match: italicMatch };
       }
     }
     if (linkMatch && linkMatch.index !== undefined) {
@@ -731,8 +725,6 @@ function parseInlineMarkdown(text: string): ReactNode[] {
       }
       if (nextMatch.type === 'bold') {
         parts.push(<strong key={`bold-${keyCounter++}`} className="font-semibold">{nextMatch.match[1]}</strong>);
-      } else if (nextMatch.type === 'italic') {
-        parts.push(<em key={`italic-${keyCounter++}`}>{nextMatch.match[1]}</em>);
       } else if (nextMatch.type === 'link') {
         parts.push(
           <a 
@@ -788,21 +780,24 @@ function TypingIndicator() {
 function useVoiceInput(onTranscript: (text: string) => void) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
-    setIsSupported(!!SpeechRecognition);
-    
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
+    try {
+      const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognitionClass) {
+        setIsSupported(false);
+        return;
+      }
+      
+      const recognition = new SpeechRecognitionClass();
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
       
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        const transcript = event.results[0][0].transcript;
-        onTranscript(transcript);
+      recognition.onresult = (event: any) => {
+        const transcript = event.results?.[0]?.[0]?.transcript;
+        if (transcript) onTranscript(transcript);
         setIsListening(false);
       };
       
@@ -815,24 +810,33 @@ function useVoiceInput(onTranscript: (text: string) => void) {
       };
       
       recognitionRef.current = recognition;
+      setIsSupported(true);
+    } catch {
+      setIsSupported(false);
     }
     
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.abort();
-      }
+      try {
+        if (recognitionRef.current) {
+          recognitionRef.current.abort();
+        }
+      } catch {}
     };
   }, [onTranscript]);
 
   const toggleListening = useCallback(() => {
     if (!recognitionRef.current) return;
     
-    if (isListening) {
-      recognitionRef.current.stop();
+    try {
+      if (isListening) {
+        recognitionRef.current.stop();
+        setIsListening(false);
+      } else {
+        recognitionRef.current.start();
+        setIsListening(true);
+      }
+    } catch {
       setIsListening(false);
-    } else {
-      recognitionRef.current.start();
-      setIsListening(true);
     }
   }, [isListening]);
 
