@@ -166,7 +166,9 @@ export default function NutritionPage() {
     queryFn: async () => {
       const res = await fetch(`/api/nutrition/page-data?date=${dateStr}`);
       return res.json();
-    }
+    },
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 10,
   });
 
   const summaryData = pageData ? { summary: pageData.summary, goal: pageData.goal } as NutritionSummary : undefined;
@@ -1389,7 +1391,9 @@ function NutritionAnalytics() {
     queryFn: async () => {
       const res = await fetch(`/api/nutrition/analytics?period=${period}`);
       return res.json();
-    }
+    },
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 15,
   });
 
   if (isLoading) {

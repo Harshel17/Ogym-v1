@@ -3805,6 +3805,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/nutrition/page-data", requireRole(["member"]), async (req, res) => {
+    const startTime = Date.now();
     const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
     const userId = req.user!.id;
 
@@ -3814,6 +3815,7 @@ export async function registerRoutes(
       db.select().from(waterLogs).where(and(eq(waterLogs.userId, userId), eq(waterLogs.date, date))).orderBy(desc(waterLogs.createdAt)),
       storage.getRecentFoods(userId, 20),
     ]);
+    const dbTime = Date.now() - startTime;
 
     const summary = logs.reduce((acc, log) => ({
       calories: acc.calories + (log.calories || 0),
@@ -3823,6 +3825,11 @@ export async function registerRoutes(
     }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
 
     const totalOz = waterLogsResult.reduce((sum, w) => sum + Number(w.amountOz || 0), 0);
+
+    const totalTime = Date.now() - startTime;
+    if (totalTime > 200) {
+      console.log(`[nutrition/page-data] Slow response: ${totalTime}ms (db: ${dbTime}ms) for user ${userId}`);
+    }
 
     res.json({
       logs,

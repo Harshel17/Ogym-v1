@@ -8436,10 +8436,13 @@ export class DatabaseStorage implements IStorage {
 
   async getRecentFoods(userId: number, limit: number = 20): Promise<FoodLog[]> {
     const result = await db.execute(sql`
-      SELECT DISTINCT ON (food_name, brand_name) *
-      FROM food_logs
-      WHERE user_id = ${userId}
-      ORDER BY food_name, brand_name, created_at DESC
+      SELECT * FROM (
+        SELECT DISTINCT ON (food_name, COALESCE(brand_name, '')) *
+        FROM food_logs
+        WHERE user_id = ${userId}
+        ORDER BY food_name, COALESCE(brand_name, ''), created_at DESC
+      ) sub
+      ORDER BY created_at DESC
       LIMIT ${limit}
     `);
     return result.rows as FoodLog[];
