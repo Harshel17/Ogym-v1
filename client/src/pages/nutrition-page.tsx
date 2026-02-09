@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { 
   Flame, Apple, Beef, Wheat, Droplet, Plus, Search, Loader2, 
   ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X, TrendingUp, Calendar, BarChart3, Watch,
@@ -17,7 +17,7 @@ import { format, addDays, subDays, isToday } from "date-fns";
 import { Progress } from "@/components/ui/progress";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend, Area, AreaChart, CartesianGrid } from "recharts";
 import { FindMyFood } from "@/components/find-my-food";
 import { useHealthStatus, useHealthDataToday } from "@/hooks/use-health-data";
 import { fuzzyMatchRestaurants, getRecentRestaurants, addRecentRestaurant } from "@/lib/restaurant-data";
@@ -1331,15 +1331,58 @@ export default function NutritionPage() {
         />
       )}
 
-      <CalorieAnalytics />
-      
-      <ProteinAnalytics />
+      <NutritionAnalytics />
     </div>
   );
 }
 
-function CalorieAnalytics() {
+function CircularProgress({ value, size = 56, strokeWidth = 5, color, children }: {
+  value: number;
+  size?: number;
+  strokeWidth?: number;
+  color: string;
+  children?: ReactNode;
+}) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const clampedValue = Math.min(Math.max(value, 0), 100);
+  const offset = circumference - (clampedValue / 100) * circumference;
+
+  return (
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          className="text-muted/30"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-700 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function NutritionAnalytics() {
   const [period, setPeriod] = useState<"week" | "month">("week");
+  const [activeTab, setActiveTab] = useState<"calories" | "protein">("calories");
 
   const { data: analytics, isLoading } = useQuery<AnalyticsData>({
     queryKey: ["/api/nutrition/analytics", period],
@@ -1352,8 +1395,8 @@ function CalorieAnalytics() {
   if (isLoading) {
     return (
       <Card className="border-0 bg-card/60">
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-center justify-center py-6">
+        <CardContent className="pt-6 pb-6">
+          <div className="flex items-center justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         </CardContent>
@@ -1363,244 +1406,241 @@ function CalorieAnalytics() {
 
   if (!analytics || !analytics.dailyData) return null;
 
-  const chartData = analytics.dailyData.map(d => ({
-    date: format(new Date(d.date), period === "week" ? "EEE" : "MMM d"),
-    actual: d.actual,
+  const calAdherence = analytics.summary.adherencePercent;
+  const protAdherence = analytics.summary.proteinAdherencePercent;
+
+  const calChartData = analytics.dailyData.map(d => ({
+    date: format(new Date(d.date + "T12:00:00"), period === "week" ? "EEE" : "MMM d"),
+    eaten: d.actual,
     target: d.target,
   }));
 
-  const adherenceColor = analytics.summary.adherencePercent >= 90 ? "text-green-500" : 
-                         analytics.summary.adherencePercent >= 70 ? "text-yellow-500" : "text-red-500";
+  const protChartData = analytics.dailyData.map(d => ({
+    date: format(new Date(d.date + "T12:00:00"), period === "week" ? "EEE" : "MMM d"),
+    eaten: d.protein,
+    target: analytics.summary.proteinTarget,
+  }));
+
+  const getAdherenceLabel = (pct: number) => {
+    if (pct >= 90) return { text: "Excellent", color: "text-emerald-500" };
+    if (pct >= 70) return { text: "Good", color: "text-amber-500" };
+    if (pct >= 50) return { text: "Fair", color: "text-orange-500" };
+    return { text: "Needs Work", color: "text-red-500" };
+  };
+
+  const getAdherenceRingColor = (pct: number) => {
+    if (pct >= 90) return "#10b981";
+    if (pct >= 70) return "#f59e0b";
+    if (pct >= 50) return "#f97316";
+    return "#ef4444";
+  };
+
+  const calLabel = getAdherenceLabel(calAdherence);
+  const protLabel = getAdherenceLabel(protAdherence);
+
+  const isCalories = activeTab === "calories";
+  const chartData = isCalories ? calChartData : protChartData;
+  const unit = isCalories ? "cal" : "g";
+  const accentColor = isCalories ? "hsl(var(--chart-1))" : "#ef4444";
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-popover border border-border rounded-lg px-3 py-2 shadow-lg">
+        <p className="text-xs font-medium text-foreground mb-1">{label}</p>
+        {payload.map((entry: any, i: number) => (
+          <p key={i} className="text-xs" style={{ color: entry.color }}>
+            {entry.name === "eaten" ? "Eaten" : "Target"}: {entry.value.toLocaleString()}{unit}
+          </p>
+        ))}
+      </div>
+    );
+  };
 
   return (
-    <Card className="border-0 bg-card/60">
-      <CardHeader className="pb-1 pt-3 px-3">
+    <Card className="border-0 bg-card/60" data-testid="card-nutrition-analytics">
+      <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            <div className="p-1 rounded-md bg-primary/15">
-              <BarChart3 className="w-3.5 h-3.5 text-primary" />
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10">
+              <TrendingUp className="w-4 h-4 text-primary" />
             </div>
-            <CardTitle className="text-sm font-semibold">Calorie Analytics</CardTitle>
+            <CardTitle className="text-sm font-semibold">Analytics</CardTitle>
           </div>
           <div className="flex gap-0.5">
-            <Button 
-              variant={period === "week" ? "default" : "ghost"} 
+            <Button
+              variant={period === "week" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => setPeriod("week")}
               data-testid="button-analytics-week"
             >
-              Week
+              7D
             </Button>
-            <Button 
-              variant={period === "month" ? "default" : "ghost"} 
+            <Button
+              variant={period === "month" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => setPeriod("month")}
               data-testid="button-analytics-month"
             >
-              Month
+              30D
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="px-3 pb-3">
-        <div className="grid grid-cols-3 gap-1.5 mb-3">
-          <div className="text-center p-1.5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-md">
-            <div className="text-sm font-bold">{analytics.summary.avgCalories}</div>
-            <div className="text-[10px] text-muted-foreground">Avg Daily</div>
-          </div>
-          <div className="text-center p-1.5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-md">
-            <div className={`text-sm font-bold ${adherenceColor}`}>
-              {analytics.summary.adherencePercent}%
-            </div>
-            <div className="text-[10px] text-muted-foreground">Adherence</div>
-          </div>
-          <div className="text-center p-1.5 bg-gradient-to-br from-primary/5 to-primary/10 rounded-md">
-            <div className="text-sm font-bold">{analytics.summary.daysLogged}</div>
-            <div className="text-[10px] text-muted-foreground">Days Logged</div>
-          </div>
+
+      <CardContent className="px-4 pb-4">
+        <div className="flex items-center gap-1 mb-4">
+          <Button
+            variant={activeTab === "calories" ? "secondary" : "ghost"}
+            size="sm"
+            className="flex-1"
+            onClick={() => setActiveTab("calories")}
+            data-testid="button-tab-calories"
+          >
+            <Flame className="w-3.5 h-3.5 mr-1.5" />
+            Calories
+          </Button>
+          <Button
+            variant={activeTab === "protein" ? "secondary" : "ghost"}
+            size="sm"
+            className="flex-1"
+            onClick={() => setActiveTab("protein")}
+            data-testid="button-tab-protein"
+          >
+            <Beef className="w-3.5 h-3.5 mr-1.5" />
+            Protein
+          </Button>
         </div>
 
+        {isCalories ? (
+          <div className="flex items-center gap-4 mb-4">
+            <CircularProgress 
+              value={calAdherence} 
+              size={72} 
+              strokeWidth={6}
+              color={getAdherenceRingColor(calAdherence)}
+            >
+              <div className="text-center">
+                <div className="text-sm font-bold leading-none">{calAdherence}%</div>
+                <div className="text-[9px] text-muted-foreground mt-0.5">Score</div>
+              </div>
+            </CircularProgress>
+
+            <div className="flex-1 grid grid-cols-3 gap-2">
+              <div className="text-center">
+                <div className="text-lg font-bold leading-tight" data-testid="text-cal-avg">{analytics.summary.avgCalories.toLocaleString()}</div>
+                <div className="text-[10px] text-muted-foreground">avg / day</div>
+              </div>
+              <div className="text-center">
+                <div className={`text-lg font-bold leading-tight ${calLabel.color}`} data-testid="text-cal-adherence">{calLabel.text}</div>
+                <div className="text-[10px] text-muted-foreground">adherence</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold leading-tight" data-testid="text-cal-days">{analytics.summary.daysLogged}</div>
+                <div className="text-[10px] text-muted-foreground">days logged</div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4 mb-4">
+            <CircularProgress 
+              value={protAdherence} 
+              size={72} 
+              strokeWidth={6}
+              color={getAdherenceRingColor(protAdherence)}
+            >
+              <div className="text-center">
+                <div className="text-sm font-bold leading-none">{protAdherence}%</div>
+                <div className="text-[9px] text-muted-foreground mt-0.5">Score</div>
+              </div>
+            </CircularProgress>
+
+            <div className="flex-1 grid grid-cols-3 gap-2">
+              <div className="text-center">
+                <div className="text-lg font-bold leading-tight" data-testid="text-prot-avg">{analytics.summary.avgProtein}g</div>
+                <div className="text-[10px] text-muted-foreground">avg / day</div>
+              </div>
+              <div className="text-center">
+                <div className={`text-lg font-bold leading-tight ${protLabel.color}`} data-testid="text-prot-adherence">{protLabel.text}</div>
+                <div className="text-[10px] text-muted-foreground">adherence</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold leading-tight" data-testid="text-prot-days">{analytics.summary.daysWithProtein}</div>
+                <div className="text-[10px] text-muted-foreground">days logged</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {analytics.goal && (
-          <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
-            <Target className="w-3 h-3" />
-            Target: <span className="font-medium text-foreground">{analytics.summary.dailyTarget} cal</span>
-            {analytics.goal.setBy === "trainer" && (
-              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">Trainer</span>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 px-1">
+            <Target className="w-3 h-3 shrink-0" />
+            <span>Daily target:</span>
+            <span className="font-semibold text-foreground">
+              {isCalories 
+                ? `${analytics.summary.dailyTarget.toLocaleString()} cal` 
+                : `${analytics.summary.proteinTarget}g`}
+            </span>
+            {isCalories && analytics.goal.setBy === "trainer" && (
+              <Badge variant="secondary" className="text-[9px] px-1.5 py-0">Set by trainer</Badge>
             )}
           </div>
         )}
 
-        <div className="h-40">
+        <div className="h-44 -mx-1">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} barCategoryGap="15%">
+            <BarChart data={chartData} barCategoryGap="20%" barGap={2}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.15)" />
               <XAxis 
                 dataKey="date" 
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
                 interval={period === "month" ? 4 : 0}
               />
               <YAxis 
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
                 width={35}
               />
-              <Tooltip 
-                formatter={(value: number, name: string) => [`${value} cal`, name === "target" ? "Target" : "Actual"]}
-                labelFormatter={(label) => `${label}`}
-              />
-              <Legend 
-                wrapperStyle={{ fontSize: 10 }}
-                formatter={(value) => value === "target" ? "Target" : "Actual"}
-              />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.3)", radius: 4 }} />
               <Bar 
                 dataKey="target" 
-                fill="hsl(var(--muted-foreground))" 
-                radius={[3, 3, 0, 0]}
+                fill="hsl(var(--muted-foreground) / 0.15)" 
+                radius={[4, 4, 0, 0]}
                 name="target"
-                opacity={0.4}
               />
               <Bar 
-                dataKey="actual" 
-                fill="hsl(var(--chart-1))" 
-                radius={[3, 3, 0, 0]}
-                name="actual"
+                dataKey="eaten" 
+                fill={accentColor}
+                radius={[4, 4, 0, 0]}
+                name="eaten"
               />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="mt-2 text-[10px] text-muted-foreground text-center">
-          {period === "week" ? "Last 7 days" : "Last 30 days"} · Total: {analytics.summary.totalCalories.toLocaleString()} cal
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ProteinAnalytics() {
-  const [period, setPeriod] = useState<"week" | "month">("week");
-
-  const { data: analytics, isLoading } = useQuery<AnalyticsData>({
-    queryKey: ["/api/nutrition/analytics", period],
-    queryFn: async () => {
-      const res = await fetch(`/api/nutrition/analytics?period=${period}`);
-      return res.json();
-    }
-  });
-
-  if (isLoading) {
-    return (
-      <Card className="border-0 bg-card/60">
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-center justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!analytics || !analytics.dailyData) return null;
-
-  const chartData = analytics.dailyData.map(d => ({
-    date: format(new Date(d.date), period === "week" ? "EEE" : "MMM d"),
-    actual: d.protein,
-    target: analytics.summary.proteinTarget,
-  }));
-
-  const adherenceColor = analytics.summary.proteinAdherencePercent >= 90 ? "text-green-500" : 
-                         analytics.summary.proteinAdherencePercent >= 70 ? "text-yellow-500" : "text-red-500";
-
-  return (
-    <Card className="border-0 bg-card/60">
-      <CardHeader className="pb-1 pt-3 px-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-center gap-4 mt-2">
           <div className="flex items-center gap-1.5">
-            <div className="p-1 rounded-md bg-red-500/15">
-              <Beef className="w-3.5 h-3.5 text-red-500" />
-            </div>
-            <CardTitle className="text-sm font-semibold">Protein Analytics</CardTitle>
+            <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: accentColor }} />
+            <span className="text-[10px] text-muted-foreground">Eaten</span>
           </div>
-          <div className="flex gap-0.5">
-            <Button 
-              variant={period === "week" ? "default" : "ghost"} 
-              size="sm"
-              onClick={() => setPeriod("week")}
-              data-testid="button-protein-analytics-week"
-            >
-              Week
-            </Button>
-            <Button 
-              variant={period === "month" ? "default" : "ghost"} 
-              size="sm"
-              onClick={() => setPeriod("month")}
-              data-testid="button-protein-analytics-month"
-            >
-              Month
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="px-3 pb-3">
-        <div className="grid grid-cols-3 gap-1.5 mb-3">
-          <div className="text-center p-1.5 bg-gradient-to-br from-red-500/5 to-red-500/10 rounded-md">
-            <div className="text-sm font-bold text-red-600 dark:text-red-400">{analytics.summary.avgProtein}g</div>
-            <div className="text-[10px] text-muted-foreground">Avg Daily</div>
-          </div>
-          <div className="text-center p-1.5 bg-gradient-to-br from-red-500/5 to-red-500/10 rounded-md">
-            <div className={`text-sm font-bold ${adherenceColor}`}>
-              {analytics.summary.proteinAdherencePercent}%
-            </div>
-            <div className="text-[10px] text-muted-foreground">Adherence</div>
-          </div>
-          <div className="text-center p-1.5 bg-gradient-to-br from-red-500/5 to-red-500/10 rounded-md">
-            <div className="text-sm font-bold">{analytics.summary.daysWithProtein}</div>
-            <div className="text-[10px] text-muted-foreground">Days Logged</div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-sm bg-muted-foreground/15" />
+            <span className="text-[10px] text-muted-foreground">Target</span>
           </div>
         </div>
 
-        <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
-          <Target className="w-3 h-3" />
-          Target: <span className="font-medium text-red-600 dark:text-red-400">{analytics.summary.proteinTarget}g</span>
-        </div>
-
-        <div className="h-40">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} barCategoryGap="15%">
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 10 }}
-                interval={period === "month" ? 4 : 0}
-              />
-              <YAxis 
-                tick={{ fontSize: 10 }}
-                width={35}
-              />
-              <Tooltip 
-                formatter={(value: number, name: string) => [`${value}g`, name === "target" ? "Target" : "Actual"]}
-                labelFormatter={(label) => `${label}`}
-              />
-              <Legend 
-                wrapperStyle={{ fontSize: 10 }}
-                formatter={(value) => value === "target" ? "Target" : "Actual"}
-              />
-              <Bar 
-                dataKey="target" 
-                fill="hsl(var(--muted-foreground))" 
-                radius={[3, 3, 0, 0]}
-                name="target"
-                opacity={0.4}
-              />
-              <Bar 
-                dataKey="actual" 
-                fill="#ef4444" 
-                radius={[3, 3, 0, 0]}
-                name="actual"
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="mt-2 text-[10px] text-muted-foreground text-center">
-          {period === "week" ? "Last 7 days" : "Last 30 days"} · Total: {analytics.summary.totalProtein.toLocaleString()}g protein
+        <div className="mt-3 pt-3 border-t border-border/50">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span data-testid="text-analytics-period">{period === "week" ? "Last 7 days" : "Last 30 days"}</span>
+            <span className="font-medium text-foreground" data-testid="text-analytics-total">
+              {isCalories 
+                ? `${analytics.summary.totalCalories.toLocaleString()} cal total`
+                : `${analytics.summary.totalProtein.toLocaleString()}g total`}
+            </span>
+          </div>
         </div>
       </CardContent>
     </Card>
