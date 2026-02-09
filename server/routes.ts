@@ -10,7 +10,7 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations } from "@shared/schema";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs } from "@shared/schema";
 import { eq, and, isNotNull, inArray, sql, desc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, generateOwnerBriefing } from "./dika";
@@ -3802,6 +3802,35 @@ export async function registerRoutes(
     const summary = await storage.getDailySummary(req.user!.id, date);
     const goal = await storage.getCalorieGoal(req.user!.id);
     res.json({ summary, goal });
+  });
+
+  app.get("/api/nutrition/page-data", requireRole(["member"]), async (req, res) => {
+    const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const userId = req.user!.id;
+
+    const [goal, logs, waterLogsResult, recentFoods] = await Promise.all([
+      storage.getCalorieGoal(userId),
+      storage.getFoodLogs(userId, date),
+      db.select().from(waterLogs).where(and(eq(waterLogs.userId, userId), eq(waterLogs.date, date))).orderBy(desc(waterLogs.createdAt)),
+      storage.getRecentFoods(userId, 20),
+    ]);
+
+    const summary = logs.reduce((acc, log) => ({
+      calories: acc.calories + (log.calories || 0),
+      protein: acc.protein + (log.protein || 0),
+      carbs: acc.carbs + (log.carbs || 0),
+      fat: acc.fat + (log.fat || 0),
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+    const totalOz = waterLogsResult.reduce((sum, w) => sum + Number(w.amountOz || 0), 0);
+
+    res.json({
+      logs,
+      summary,
+      goal: goal || null,
+      water: { logs: waterLogsResult, totalOz, totalCups: Math.round(totalOz / 8 * 10) / 10 },
+      recent: recentFoods,
+    });
   });
 
   // Weekly/Monthly calorie analytics

@@ -155,44 +155,31 @@ export default function NutritionPage() {
 
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
-  const { data: summaryData, isLoading: summaryLoading } = useQuery<NutritionSummary>({
-    queryKey: ["/api/nutrition/summary", dateStr],
+  const { data: pageData, isLoading: pageDataLoading } = useQuery<{
+    logs: FoodLog[];
+    summary: { calories: number; protein: number; carbs: number; fat: number };
+    goal: CalorieGoal | null;
+    water: { logs: any[]; totalOz: number; totalCups: number };
+    recent: any[];
+  }>({
+    queryKey: ["/api/nutrition/page-data", dateStr],
     queryFn: async () => {
-      const res = await fetch(`/api/nutrition/summary?date=${dateStr}`);
+      const res = await fetch(`/api/nutrition/page-data?date=${dateStr}`);
       return res.json();
     }
   });
 
-  const { data: foodLogs = [], isLoading: logsLoading } = useQuery<FoodLog[]>({
-    queryKey: ["/api/nutrition/logs", dateStr],
-    queryFn: async () => {
-      const res = await fetch(`/api/nutrition/logs?date=${dateStr}`);
-      return res.json();
-    }
-  });
-
-  const { data: goal } = useQuery<CalorieGoal | null>({
-    queryKey: ["/api/nutrition/goal"]
-  });
+  const summaryData = pageData ? { summary: pageData.summary, goal: pageData.goal } as NutritionSummary : undefined;
+  const summaryLoading = pageDataLoading;
+  const foodLogs = pageData?.logs || [];
+  const logsLoading = pageDataLoading;
+  const goal = pageData?.goal || null;
+  const waterData = pageData?.water;
+  const waterLoading = pageDataLoading;
+  const recentFoods = pageData?.recent || [];
 
   const { data: healthStatus } = useHealthStatus();
   const { data: healthData } = useHealthDataToday();
-
-  const { data: waterData, isLoading: waterLoading } = useQuery<{ logs: any[], totalOz: number, totalCups: number }>({
-    queryKey: ["/api/nutrition/water", dateStr],
-    queryFn: async () => {
-      const res = await fetch(`/api/nutrition/water?date=${dateStr}`);
-      return res.json();
-    }
-  });
-
-  const { data: recentFoods = [] } = useQuery<any[]>({
-    queryKey: ["/api/nutrition/recent"],
-    queryFn: async () => {
-      const res = await fetch("/api/nutrition/recent");
-      return res.json();
-    }
-  });
 
   const createGoalMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -200,8 +187,7 @@ export default function NutritionPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/goal"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/summary", dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/page-data", dateStr] });
       toast({ title: "Goal saved!" });
       setIsGoalDialogOpen(false);
     }
@@ -213,8 +199,7 @@ export default function NutritionPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/logs", dateStr] });
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/summary", dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/page-data", dateStr] });
       toast({ title: "Food logged!" });
       setIsAddFoodOpen(false);
       resetAddFood();
@@ -226,8 +211,7 @@ export default function NutritionPage() {
       await apiRequest("DELETE", `/api/nutrition/logs/${logId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/logs", dateStr] });
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/summary", dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/page-data", dateStr] });
       toast({ title: "Food removed" });
     }
   });
@@ -238,7 +222,7 @@ export default function NutritionPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/water", dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/page-data", dateStr] });
       toast({ title: "Water logged!" });
     }
   });
@@ -248,7 +232,7 @@ export default function NutritionPage() {
       await apiRequest("DELETE", `/api/nutrition/water/${logId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/water", dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/page-data", dateStr] });
       toast({ title: "Water entry removed" });
     }
   });

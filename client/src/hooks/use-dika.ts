@@ -287,8 +287,7 @@ export function useDika(userId: number, hideDika: boolean) {
       setMessages(prev => [...prev, assistantMessage]);
 
       if (data.answer?.includes('MEAL_LOG_DATA:')) {
-        queryClient.invalidateQueries({ queryKey: ['/api/nutrition/logs'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/nutrition/summary'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/nutrition/page-data'] });
         queryClient.invalidateQueries({ queryKey: ['/api/nutrition/analytics'] });
       }
     },
