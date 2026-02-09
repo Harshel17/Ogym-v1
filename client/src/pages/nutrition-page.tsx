@@ -1156,6 +1156,11 @@ export default function NutritionPage() {
                           }
                         }
                       }}
+                      onBlur={(e) => {
+                        setTimeout(() => {
+                          setShowRestaurantDropdown(false);
+                        }, 200);
+                      }}
                       className="text-sm"
                       data-testid="input-restaurant-name"
                     />
