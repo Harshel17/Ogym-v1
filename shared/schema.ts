@@ -866,6 +866,8 @@ export const foodLogs = pgTable("food_logs", {
   fat: integer("fat"), // in grams
   fiber: integer("fiber"), // in grams
   barcode: text("barcode"), // for quick re-logging
+  isEstimate: boolean("is_estimate").default(true),
+  sourceType: text("source_type", { enum: ["branded_database", "generic_database", "curated_database", "ai_estimated", "manual"] }),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   userDateIdx: index("food_logs_user_date_idx").on(table.userId, table.date),
