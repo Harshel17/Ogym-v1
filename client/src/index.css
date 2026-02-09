@@ -117,55 +117,7 @@ html.capacitor-native body[data-scroll-locked] {
   border-color: rgba(255, 255, 255, 0.06);
 }
 
-/* Fixed mobile header overlay with glass effect */
-/* Locked height: 48px content + safe-area-top. Never changes. */
-.mobile-fixed-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 9999;
-  height: calc(var(--mobile-header-height) + env(safe-area-inset-top, 0px));
-  padding: 0 12px;
-  padding-top: env(safe-area-inset-top, 0px);
-  border-bottom: 1px solid hsla(var(--border) / 0.5);
-  display: flex;
-  align-items: center;
-  transform: translateZ(0);
-  will-change: transform;
-  -webkit-transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-
-/* Fixed mobile tab bar - hard-anchored to viewport bottom */
-/* Height = 56px icons + safe-area background fill */
-.mobile-fixed-tabbar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  z-index: 9999;
-  height: calc(56px + env(safe-area-inset-bottom, 0px));
-  background: rgba(11, 18, 32, 0.92);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  display: flex;
-  flex-direction: column;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  -webkit-backdrop-filter: blur(24px) saturate(200%);
-  backdrop-filter: blur(24px) saturate(200%);
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
-}
-
-/* Inner tab row - exactly 56px, contains icons */
-.mobile-tabbar-inner {
-  height: 56px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
-}
+/* Mobile header and tab bar - no longer fixed, these classes are removed */
 
 /* DEPRECATED - keeping for backwards compatibility */
 .mobile-sticky-header {
