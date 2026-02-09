@@ -330,7 +330,13 @@ export function useDika(userId: number, hideDika: boolean) {
     });
   }, [userId]);
 
+  const savedScrollRef = useRef<{ el: Element | null; top: number }>({ el: null, top: 0 });
+
   const openDrawer = useCallback(() => {
+    const mainScroll = document.querySelector('.app-main-scroll');
+    if (mainScroll) {
+      savedScrollRef.current = { el: mainScroll, top: mainScroll.scrollTop };
+    }
     setIsOpen(true);
   }, []);
 
@@ -345,8 +351,17 @@ export function useDika(userId: number, hideDika: boolean) {
     } catch {}
     setIsOpen(false);
     resetBodyStyles();
+
+    const { el, top } = savedScrollRef.current;
+    const restoreScroll = () => {
+      resetBodyStyles();
+      if (el) {
+        el.scrollTop = top;
+      }
+      window.scrollTo(0, 0);
+    };
     const intervals = [50, 150, 300, 500, 800, 1200];
-    intervals.forEach(ms => setTimeout(() => resetBodyStyles(), ms));
+    intervals.forEach(ms => setTimeout(restoreScroll, ms));
     const observer = new MutationObserver(() => {
       const h = document.body.style.height;
       if (h && h !== '100%' && h !== '') {

@@ -709,9 +709,7 @@ function parseInlineMarkdown(text: string): ReactNode[] {
     let nextMatch: { type: 'bold' | 'link'; match: RegExpMatchArray } | null = null;
     
     if (boldMatch && boldMatch.index !== undefined) {
-      if (!nextMatch || boldMatch.index < (nextMatch.match.index ?? Infinity)) {
-        nextMatch = { type: 'bold', match: boldMatch };
-      }
+      nextMatch = { type: 'bold', match: boldMatch };
     }
     if (linkMatch && linkMatch.index !== undefined) {
       if (!nextMatch || linkMatch.index < (nextMatch.match.index ?? Infinity)) {
