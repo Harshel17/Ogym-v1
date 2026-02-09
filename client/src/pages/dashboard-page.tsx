@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap } from "lucide-react";
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
@@ -38,6 +38,18 @@ function getGreetingIcon() {
   return "moon";
 }
 
+function getMotivationalLine(streak: number, workoutsDone: boolean, caloriesLogged: number) {
+  if (workoutsDone && caloriesLogged > 0) return "Crushing it today";
+  if (workoutsDone) return "Workout complete";
+  if (streak >= 7) return "Unstoppable this week";
+  if (streak >= 3) return "Building momentum";
+  if (caloriesLogged > 0) return "Tracking on point";
+  const hour = new Date().getHours();
+  if (hour < 12) return "Let's make it count";
+  if (hour < 17) return "Stay focused";
+  return "Rest well tonight";
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   
@@ -48,25 +60,46 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-3">
-      {/* Premium Greeting Header */}
-      <div className="flex items-center justify-between">
+      {user.role === "owner" && (
+        <>
+          <GreetingBanner greeting={greeting} greetingIcon={greetingIcon} username={user.username} />
+          <OwnerDashboard />
+        </>
+      )}
+      {user.role === "trainer" && (
+        <>
+          <GreetingBanner greeting={greeting} greetingIcon={greetingIcon} username={user.username} />
+          <TrainerDashboard />
+        </>
+      )}
+      {user.role === "member" && <MemberDashboard greeting={greeting} greetingIcon={greetingIcon} username={user.username} />}
+    </div>
+  );
+}
+
+function GreetingBanner({ greeting, greetingIcon, username, motiveLine }: { greeting: string; greetingIcon: string; username: string; motiveLine?: string }) {
+  return (
+    <div className="greeting-banner" data-testid="greeting-banner">
+      <div className="relative z-10 flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 mb-1 font-semibold tracking-widest uppercase">
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 mb-1.5 font-semibold tracking-widest uppercase">
             <Calendar className="w-3 h-3" />
             <span>{format(new Date(), 'EEE, MMM d')}</span>
           </div>
-          <h2 className="text-xl font-bold tracking-tight leading-tight">
-            {greeting}, <span className="premium-gradient-text">{user.username}</span>
+          <h2 className="text-xl font-bold tracking-tight leading-tight mb-1" data-testid="text-greeting">
+            {greeting}, <span className="shimmer-text">{username}</span>
           </h2>
+          {motiveLine && (
+            <div className="flex items-center gap-2 mt-1.5">
+              <div className="pulse-dot" />
+              <span className="text-xs text-muted-foreground/80 font-medium italic" data-testid="text-motivational">{motiveLine}</span>
+            </div>
+          )}
         </div>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/20' : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20'}`}>
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/25' : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/25'}`}>
           {greetingIcon === 'sun' ? <Sun className="w-5 h-5 text-white" /> : <Moon className="w-5 h-5 text-white" />}
         </div>
       </div>
-
-      {user.role === "owner" && <OwnerDashboard />}
-      {user.role === "trainer" && <TrainerDashboard />}
-      {user.role === "member" && <MemberDashboard />}
     </div>
   );
 }
@@ -843,7 +876,7 @@ type WorkoutSummary = {
 
 type PerSetInput = { reps: string; weight: string; targetReps: number; targetWeight: string };
 
-function MemberDashboard() {
+function MemberDashboard({ greeting, greetingIcon, username }: { greeting: string; greetingIcon: string; username: string }) {
   const { user } = useAuth();
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
@@ -1256,8 +1289,15 @@ function MemberDashboard() {
     return <MemberDashboardSkeleton />;
   }
 
+  const streak = workoutSummary?.streak || 0;
+  const caloriesLogged = calorieData?.summary?.calories || 0;
+  const motiveLine = getMotivationalLine(streak, allCompleted, caloriesLogged);
+
   return (
     <div className="space-y-3 stagger-list">
+      {/* Greeting Banner */}
+      <GreetingBanner greeting={greeting} greetingIcon={greetingIcon} username={username} motiveLine={motiveLine} />
+
       {/* Today's Workout */}
       <Collapsible open={isWorkoutOpen} onOpenChange={setIsWorkoutOpen}>
         <Card className="border-0 overflow-hidden shadow-lg shadow-primary/5 relative" data-testid="card-today-workout">

@@ -272,6 +272,76 @@ html.capacitor-native body[data-scroll-locked] {
   .premium-gradient-text {
     @apply bg-gradient-to-r from-primary to-indigo-500 bg-clip-text text-transparent;
   }
+
+  .greeting-banner {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    padding: 1.25rem;
+  }
+
+  .greeting-banner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary) / 0.08) 0%,
+      hsl(var(--primary) / 0.04) 30%,
+      transparent 60%,
+      hsl(280 80% 60% / 0.06) 100%
+    );
+    z-index: 0;
+  }
+
+  .greeting-banner::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+      ellipse at 30% 50%,
+      hsl(var(--primary) / 0.06) 0%,
+      transparent 50%
+    );
+    animation: greetingGlow 8s ease-in-out infinite;
+    z-index: 0;
+  }
+
+  .shimmer-text {
+    position: relative;
+    background: linear-gradient(
+      90deg,
+      hsl(var(--primary)) 0%,
+      hsl(280 80% 65%) 40%,
+      hsl(var(--primary)) 80%,
+      hsl(280 80% 65%) 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: textShimmer 4s linear infinite;
+  }
+
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: hsl(var(--primary));
+    position: relative;
+  }
+
+  .pulse-dot::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: hsl(var(--primary) / 0.4);
+    animation: dotPulse 2s ease-in-out infinite;
+  }
   
   .stat-card {
     @apply bg-card/60 backdrop-blur-sm rounded-xl border-0 p-4 transition-all duration-200;
@@ -781,6 +851,21 @@ img {
 @keyframes breathe {
   0%, 100% { transform: scale(1); opacity: 0.8; }
   50% { transform: scale(1.05); opacity: 1; }
+}
+
+@keyframes greetingGlow {
+  0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+  50% { transform: translate(-50%, -50%) rotate(180deg); }
+}
+
+@keyframes textShimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes dotPulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.8); opacity: 0; }
 }
 
 /* Custom Scrollbar */
