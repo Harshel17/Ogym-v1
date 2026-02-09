@@ -547,13 +547,6 @@ html.capacitor-native body[data-scroll-locked] {
     opacity: 0.85;
   }
 
-  .mobile-fixed-tabbar .mobile-tabbar-inner > * {
-    transition: transform 0.1s ease;
-  }
-
-  .mobile-fixed-tabbar .mobile-tabbar-inner > *:active {
-    transform: scale(0.9);
-  }
 }
 
 /* Smooth page transition animations */
