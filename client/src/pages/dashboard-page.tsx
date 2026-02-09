@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
+import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments, useTrainingMode } from "@/hooks/use-gym";
 import { useMemberStats, useTodayWorkout, useCompleteAllWorkouts, useCompleteWorkout, useMemberProfile, useShareWorkout, useSwapRestDay, useUndoRestDaySwap, useLogWorkoutSets } from "@/hooks/use-workouts";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -918,6 +918,10 @@ type PerSetInput = { reps: string; weight: string; targetReps: number; targetWei
 
 function MemberDashboard({ greeting, greetingIcon, username }: { greeting: string; greetingIcon: string; username: string }) {
   const { user } = useAuth();
+  const { data: trainingModeData } = useTrainingMode();
+  const isPersonalMode = user?.role === 'member' && !user?.gymId;
+  const isSelfGuided = user?.gymId && trainingModeData?.trainingMode === 'self_guided';
+  const canManageOwnWorkouts = isPersonalMode || isSelfGuided;
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [exerciseInputs, setExerciseInputs] = useState<Record<number, { sets: string; reps: string; weight: string; durationMinutes?: string; distanceKm?: string }>>({});
@@ -934,8 +938,6 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const [reorderAction, setReorderAction] = useState<"swap" | "push">("swap");
   const [isRestDayReorder, setIsRestDayReorder] = useState(false);
   const { toast } = useToast();
-  
-  const isPersonalMode = user?.role === 'member' && !user?.gymId;
   
   // Onboarding state
   const onboardingKey = isPersonalMode ? 'ogym_personal_onboarding_seen' : 'ogym_member_onboarding_seen';
@@ -1413,16 +1415,27 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                   <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
                     <Dumbbell className="w-7 h-7 text-primary" />
                   </div>
-                  <p className="font-medium mb-1">No Workout Cycle Yet</p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Set up your workout plan to start tracking your exercises and progress.
-                  </p>
-                  <Link href="/my-workouts">
-                    <Button data-testid="button-setup-workout">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Set Up Workout
-                    </Button>
-                  </Link>
+                  {canManageOwnWorkouts ? (
+                    <>
+                      <p className="font-medium mb-1">No Workout Cycle Yet</p>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Set up your workout plan to start tracking your exercises and progress.
+                      </p>
+                      <Link href="/my-workouts">
+                        <Button data-testid="button-setup-workout">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Set Up Workout
+                        </Button>
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium mb-1">No Workout Cycle Assigned</p>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Your trainer hasn't assigned a workout cycle yet. Contact your trainer to get started.
+                      </p>
+                    </>
+                  )}
                 </div>
               ) : workoutItems.length === 0 ? (
                 <div className="text-center py-4">

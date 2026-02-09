@@ -11,6 +11,8 @@ import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
+import { useAuth } from '@/hooks/use-auth';
+import { useTrainingMode } from '@/hooks/use-gym';
 
 interface GeneratedWorkoutPlan {
   name: string;
@@ -880,6 +882,11 @@ export function DikaDrawer({
   const [savedWorkoutIds, setSavedWorkoutIds] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { data: trainingModeData } = useTrainingMode();
+  const isPersonalMode = user?.role === 'member' && !user?.gymId;
+  const isSelfGuided = user?.gymId && trainingModeData?.trainingMode === 'self_guided';
+  const canManageOwnWorkouts = isPersonalMode || isSelfGuided;
   
   const [savingMessageId, setSavingMessageId] = useState<string | null>(null);
   
@@ -1280,7 +1287,7 @@ export function DikaDrawer({
                           </>
                         );
                       })()}
-                      {extractWorkoutPlanFromContent(message.content) && (
+                      {canManageOwnWorkouts && extractWorkoutPlanFromContent(message.content) && (
                         <WorkoutPlanCard 
                           plan={extractWorkoutPlanFromContent(message.content)!}
                           onSave={() => handleSaveWorkout(message.id, message.content)}
@@ -1311,7 +1318,7 @@ export function DikaDrawer({
                           </>
                         )}
                       </button>
-                      {extractWorkoutPlanFromContent(message.content) && (
+                      {canManageOwnWorkouts && extractWorkoutPlanFromContent(message.content) && (
                         <button
                           onClick={() => handleSaveWorkout(message.id, message.content)}
                           disabled={savedWorkoutIds.has(message.id) || savingMessageId === message.id}

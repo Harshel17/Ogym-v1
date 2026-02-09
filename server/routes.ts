@@ -1367,7 +1367,7 @@ export async function registerRoutes(
     }
     
     // Use appropriate source based on whether user has a gym
-    const source = req.user!.gymId ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     if (!cycle) return res.json(null);
     const items = await storage.getWorkoutItems(cycle.id);
@@ -1477,7 +1477,7 @@ export async function registerRoutes(
     }
     
     // Use appropriate source based on whether user has a gym
-    const source = req.user!.gymId ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     if (!cycle) return res.json({ items: [], message: "No active workout cycle" });
     
@@ -1598,7 +1598,7 @@ export async function registerRoutes(
   // Advance day index for completion-based progression
   app.post("/api/workouts/advance-day", requireRole(["member"]), async (req, res) => {
     // Use appropriate source based on whether user has a gym
-    const source = req.user!.gymId ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     if (!cycle) return res.status(400).json({ message: "No active workout cycle" });
     
@@ -1615,7 +1615,7 @@ export async function registerRoutes(
 
   app.post("/api/workouts/rest-day-swap", requireRole(["member"]), async (req, res) => {
     // Use appropriate source based on whether user has a gym
-    const source = req.user!.gymId ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     if (!cycle) return res.status(400).json({ message: "No active workout cycle" });
     
@@ -1702,7 +1702,7 @@ export async function registerRoutes(
     
     const { adjustPlan, notes } = input.data;
     const todayStr = getLocalDate(req);
-    const source = req.user!.gymId ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     
     if (!cycle) {
@@ -2111,7 +2111,7 @@ export async function registerRoutes(
     }
     
     const todayStr = getLocalDate(req);
-    const source = req.user!.gymId ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     
     if (!cycle) {
@@ -2218,7 +2218,7 @@ export async function registerRoutes(
     }
     
     const todayStr = getLocalDate(req);
-    const source = req.user!.gymId ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     
     if (!cycle) {
@@ -2404,7 +2404,7 @@ export async function registerRoutes(
   // Get available workout days for "pick different day" in completion mode
   // Query param: forRestDay=true returns only workout days (not rest days) for rest day swaps
   app.get("/api/workouts/available-days", requireRole(["member"]), async (req, res) => {
-    const source = req.user!.gymId ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     const forRestDay = req.query.forRestDay === 'true';
     
@@ -2468,7 +2468,7 @@ export async function registerRoutes(
     const todayStr = getLocalDate(req);
     
     // Verify the cycle belongs to this user
-    const source = req.user!.gymId ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     
     if (!cycle || cycle.id !== cycleId) {
@@ -5031,6 +5031,10 @@ Return ONLY JSON.`
     // Only members can save workout plans
     if (req.user!.role !== 'member') {
       return res.status(403).json({ message: "Only members can save workout plans" });
+    }
+    // Trainer-led gym members cannot save their own workouts
+    if (req.user!.gymId && req.user!.trainingMode !== 'self_guided') {
+      return res.status(403).json({ message: "Trainer-led members cannot change their workout plans. Ask your trainer to update your cycle." });
     }
     
     const exerciseSchema = z.object({
