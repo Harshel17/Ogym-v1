@@ -14,7 +14,7 @@ export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 10000,
 });
 export const db = drizzle(pool, { schema });
 
@@ -22,4 +22,4 @@ pool.query('SELECT 1').catch(() => {});
 
 setInterval(() => {
   pool.query('SELECT 1').catch(() => {});
-}, 60000);
+}, 45000);
