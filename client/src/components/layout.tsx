@@ -609,7 +609,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <ThemeToggle />
             </div>
           </DrawerHeader>
-          <div className="px-4 pb-4 space-y-1 max-h-[60vh] overflow-y-auto">
+          <div className="px-4 space-y-1 max-h-[50vh] overflow-y-auto">
             {secondaryTabs.map((item) => {
               const isActive = location === item.href || 
                 (item.href !== "/" && location.startsWith(item.href));
@@ -642,18 +642,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </div>
               );
             })}
-            <div className="pt-2 border-t border-border/50 mt-2">
-              <div 
-                className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-destructive hover:bg-destructive/10 transition-colors"
-                onClick={() => {
-                  setMoreMenuOpen(false);
-                  logoutMutation.mutate();
-                }}
-                data-testid="more-sign-out"
-              >
-                <LogOut className="w-5 h-5" />
-                <span className="font-medium">Sign Out</span>
-              </div>
+          </div>
+          <div className="px-4 pt-3 pb-4 border-t border-border/50 mt-2 flex-shrink-0">
+            <div 
+              className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-destructive hover:bg-destructive/10 transition-colors"
+              onClick={() => {
+                setMoreMenuOpen(false);
+                logoutMutation.mutate();
+              }}
+              data-testid="more-sign-out"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="font-medium">Sign Out</span>
             </div>
           </div>
         </DrawerContent>
