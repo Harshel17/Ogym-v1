@@ -75,6 +75,7 @@ type FoodProduct = {
   imageUrl: string | null;
   isEstimate?: boolean;
   isRestaurantItem?: boolean;
+  sourceType?: 'branded_database' | 'generic_database' | 'curated_database' | 'ai_estimated';
   commonModifiers?: FoodModifier[];
 };
 
@@ -1039,9 +1040,9 @@ export default function NutritionPage() {
               {searchResults.length > 0 && (
                 <div className="space-y-0 max-h-[220px] sm:max-h-[300px] overflow-y-auto rounded-lg border bg-card">
                   {searchResults.map((product, index) => {
-                    const isVerified = product.isRestaurantItem && !product.isEstimate;
-                    const isEstimated = product.isEstimate;
-                    const isFromDatabase = !product.isEstimate && !product.isRestaurantItem && !product.barcode?.startsWith('ai-');
+                    const st = product.sourceType;
+                    const isVerified = st === 'branded_database' || st === 'curated_database';
+                    const isEstimated = st === 'ai_estimated' || st === 'generic_database' || product.isEstimate === true;
                     return (
                     <button
                       key={product.barcode || index}
@@ -1061,9 +1062,6 @@ export default function NutritionPage() {
                           )}
                           {isEstimated && (
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">Estimated</Badge>
-                          )}
-                          {isFromDatabase && product.barcode?.startsWith('local-') && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">Menu</Badge>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -1199,12 +1197,17 @@ export default function NutritionPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-medium">{selectedFood.name}</p>
-                    {selectedFood.isRestaurantItem && !selectedFood.isEstimate && (
-                      <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-emerald-600 dark:bg-emerald-700">Verified</Badge>
-                    )}
-                    {selectedFood.isEstimate && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Estimated</Badge>
-                    )}
+                    {(() => {
+                      const st = selectedFood.sourceType;
+                      const baseVerified = st === 'branded_database' || st === 'curated_database';
+                      const hasModifiers = selectedModifiers.size > 0;
+                      const isVerified = baseVerified && !hasModifiers;
+                      return isVerified ? (
+                        <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-emerald-600 dark:bg-emerald-700">Verified</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Estimated</Badge>
+                      );
+                    })()}
                   </div>
                   <p className="text-sm text-muted-foreground">{selectedFood.brandName}</p>
                   <p className="text-sm mt-1">

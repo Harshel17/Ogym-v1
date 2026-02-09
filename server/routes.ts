@@ -3876,7 +3876,6 @@ export async function registerRoutes(
     
     const includeExternal = req.query.external !== 'false';
     
-    // Search local curated database first (hotel menu style items)
     const localFoods = searchLocalFoods(query);
     const localProducts: FoodProduct[] = localFoods.map(food => ({
       barcode: `local-${food.id}`,
@@ -3890,7 +3889,10 @@ export async function registerRoutes(
         fat: food.fat,
         fiber: null
       },
-      imageUrl: null
+      imageUrl: null,
+      isEstimate: true,
+      isRestaurantItem: false,
+      sourceType: 'generic_database' as const,
     }));
     
     // If we have enough local results or external is disabled, return immediately
@@ -3910,7 +3912,13 @@ export async function registerRoutes(
       );
       
       const externalResults = await Promise.race([externalPromise, timeoutPromise]);
-      const combinedProducts = [...localProducts, ...externalResults.products].slice(0, 20);
+      const externalWithFlags = externalResults.products.map(p => ({
+        ...p,
+        isEstimate: false,
+        isRestaurantItem: false,
+        sourceType: 'branded_database' as const,
+      }));
+      const combinedProducts = [...localProducts, ...externalWithFlags].slice(0, 20);
       
       res.json({
         products: combinedProducts,
@@ -3936,7 +3944,12 @@ export async function registerRoutes(
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    res.json(product);
+    res.json({
+      ...product,
+      isEstimate: false,
+      isRestaurantItem: false,
+      sourceType: 'branded_database' as const,
+    });
   });
 
   // Water tracking
@@ -3999,7 +4012,7 @@ Return ONLY a JSON object with these fields (numbers only, no units):
   "protein": number in grams,
   "carbs": number in grams,
   "fat": number in grams,
-  "isVerified": ${input.restaurant ? 'true if using official restaurant nutrition data, false if estimating' : 'false'}
+  "isVerified": false
 }
 
 Return ONLY the JSON, no explanation.`;
@@ -4024,9 +4037,8 @@ Return ONLY the JSON, no explanation.`;
         estimated = JSON.parse(jsonMatch[0]);
       }
       const hasRestaurant = !!input.restaurant;
-      const isVerified = hasRestaurant && estimated.isVerified === true;
       const brandLabel = hasRestaurant 
-        ? `${input.restaurant}${isVerified ? '' : ' (est.)'}`
+        ? `${input.restaurant} (est.)`
         : "AI Estimate";
       res.json({
         barcode: `ai-${Date.now()}`,
@@ -4041,8 +4053,9 @@ Return ONLY the JSON, no explanation.`;
           fiber: null
         },
         imageUrl: null,
-        isEstimate: !isVerified,
+        isEstimate: true,
         isRestaurantItem: hasRestaurant,
+        sourceType: 'ai_estimated' as const,
       });
     } catch (error: any) {
       console.error("AI estimation error:", error);
@@ -4124,15 +4137,16 @@ Return ONLY JSON.`
           fiber: null
         },
         imageUrl: null,
-        isEstimate: false,
+        isEstimate: true,
         isRestaurantItem: true,
+        sourceType: 'ai_estimated' as const,
         commonModifiers: Array.isArray(item.commonModifiers) ? item.commonModifiers.map((m: any) => ({
           label: String(m.label || ''),
           calorieDelta: Math.round(Number(m.calorieDelta) || 0),
         })).filter((m: any) => m.label) : [],
       }));
       
-      const localWithFlags = localResults.map(r => ({ ...r, isEstimate: false, isRestaurantItem: true }));
+      const localWithFlags = localResults.map(r => ({ ...r, isEstimate: false, isRestaurantItem: true, sourceType: 'curated_database' as const }));
       const combined = [...localWithFlags, ...aiResults].slice(0, 10);
       res.json({ products: combined, source: "ai" });
     } catch (error: any) {

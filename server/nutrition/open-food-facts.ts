@@ -6,6 +6,8 @@ interface NutrientData {
   fiber: number | null;
 }
 
+export type SourceType = 'branded_database' | 'generic_database' | 'curated_database' | 'ai_estimated';
+
 export interface FoodProduct {
   barcode: string;
   name: string;
@@ -13,6 +15,9 @@ export interface FoodProduct {
   servingSize: string | null;
   nutrients: NutrientData;
   imageUrl: string | null;
+  isEstimate?: boolean;
+  isRestaurantItem?: boolean;
+  sourceType?: SourceType;
 }
 
 export interface FoodSearchResult {
