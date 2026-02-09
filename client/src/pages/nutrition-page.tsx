@@ -5,11 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react";
 import { 
   Flame, Apple, Beef, Wheat, Droplet, Plus, Search, Loader2, 
   ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X, TrendingUp, Calendar, BarChart3, Watch,
-  Droplets, Clock, Sparkles, Undo2
+  Droplets, Clock, Sparkles, Undo2, Zap, CheckCircle2, AlertTriangle
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -402,6 +402,18 @@ export default function NutritionPage() {
 
   const remaining = calorieGoal - summary.calories;
 
+  const calorieStatus = useMemo(() => {
+    if (summary.calories === 0) return { label: 'Start logging', color: 'text-muted-foreground', bg: 'bg-muted/40', icon: Zap, glow: false };
+    if (remaining < 0) return { label: 'Over budget', color: 'text-destructive', bg: 'bg-destructive/10', icon: AlertTriangle, glow: false };
+    if (caloriePercent >= 80) return { label: 'On track', color: 'text-emerald-500', bg: 'bg-emerald-500/10', icon: CheckCircle2, glow: true };
+    if (caloriePercent >= 50) return { label: 'Halfway there', color: 'text-amber-500', bg: 'bg-amber-500/10', icon: Zap, glow: false };
+    return { label: 'Keep going', color: 'text-primary', bg: 'bg-primary/10', icon: Flame, glow: false };
+  }, [summary.calories, remaining, caloriePercent]);
+
+  const allMealsLogged = useMemo(() => {
+    return MEAL_TYPES.every(meal => foodLogs.filter(log => log.mealType === meal).length > 0);
+  }, [foodLogs]);
+
   const groupedLogs = MEAL_TYPES.reduce((acc, meal) => {
     acc[meal] = foodLogs.filter(log => log.mealType === meal);
     return acc;
@@ -570,99 +582,156 @@ export default function NutritionPage() {
         </div>
       </div>
 
-      <Card className="border-0 bg-card/60">
-        <CardContent className="pt-3 pb-3">
-          <div className="flex items-center justify-between mb-3 gap-2">
-            <div className="text-center flex-1">
-              <div className="text-xl font-bold">{summary.calories}</div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Eaten</div>
+      <Card className={`border-0 overflow-hidden shadow-lg shadow-primary/5 relative ${allMealsLogged ? 'card-shine' : ''}`} data-testid="card-calorie-summary">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] via-transparent to-primary/[0.02] pointer-events-none" />
+        <CardContent className="pt-4 pb-4 relative">
+          <div className="flex items-center justify-between mb-3 gap-3">
+            <div className="text-center flex-1" style={{ animation: 'slideUp 0.5s ease-out' }}>
+              <div className="text-2xl font-bold tracking-tight" data-testid="text-calories-eaten">{summary.calories}</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Eaten</div>
             </div>
-            <div className="relative w-16 h-16 flex-shrink-0">
+            <div className="relative w-24 h-24 flex-shrink-0">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 96 96">
                 <circle
-                  cx="48" cy="48" r="42"
+                  cx="48" cy="48" r="40"
                   stroke="currentColor"
-                  strokeWidth="8"
+                  strokeWidth="5"
                   fill="none"
-                  className="text-muted"
+                  className="text-muted/30"
                 />
                 <circle
-                  cx="48" cy="48" r="42"
-                  stroke="currentColor"
-                  strokeWidth="8"
+                  cx="48" cy="48" r="40"
+                  strokeWidth="6"
                   fill="none"
-                  strokeDasharray={`${(caloriePercent / 100) * 264} 264`}
+                  strokeDasharray={`${(caloriePercent / 100) * 251} 251`}
                   strokeLinecap="round"
-                  className={remaining >= 0 ? "text-primary" : "text-destructive"}
+                  className="nutrition-ring-progress"
+                  style={{
+                    stroke: remaining >= 0 ? 'url(#calorieGradient)' : 'hsl(var(--destructive))',
+                    filter: remaining >= 0 
+                      ? `drop-shadow(0 0 ${caloriePercent > 60 ? 6 : 3}px hsl(var(--primary) / ${caloriePercent > 60 ? 0.5 : 0.3}))` 
+                      : 'drop-shadow(0 0 6px hsl(var(--destructive) / 0.5))',
+                    transition: 'stroke-dasharray 0.8s ease-out, filter 0.5s ease',
+                  }}
                 />
+                <defs>
+                  <linearGradient id="calorieGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" />
+                    <stop offset="50%" stopColor="hsl(var(--primary) / 0.8)" />
+                    <stop offset="100%" stopColor="hsl(var(--primary) / 0.5)" />
+                  </linearGradient>
+                </defs>
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <Flame className="w-4 h-4 text-orange-500" />
+                <div className="text-center">
+                  <div className="text-sm font-bold leading-none" data-testid="text-calorie-percent">
+                    {Math.round(caloriePercent)}%
+                  </div>
+                  <Flame 
+                    className={`w-3.5 h-3.5 mx-auto mt-0.5 text-orange-500 ${caloriePercent > 0 ? 'streak-flame' : ''}`}
+                  />
+                </div>
               </div>
             </div>
-            <div className="text-center flex-1">
-              <div className={`text-xl font-bold ${remaining < 0 ? "text-destructive" : ""}`}>
+            <div className="text-center flex-1" style={{ animation: 'slideUp 0.5s ease-out 0.15s both' }}>
+              <div className={`text-2xl font-bold tracking-tight ${remaining < 0 ? "text-destructive" : ""}`} data-testid="text-calories-remaining">
                 {Math.abs(remaining)}
               </div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
                 {remaining >= 0 ? "Remaining" : "Over"}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-gradient-to-r from-red-500/5 to-red-500/10 rounded-md">
-            <Beef className="w-3.5 h-3.5 text-red-500" />
-            <span className="text-xs font-medium">
+          {(() => {
+            const StatusIcon = calorieStatus.icon;
+            return (
+              <div 
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full ${calorieStatus.bg} mb-3`}
+                style={{ animation: 'fadeIn 0.6s ease-out 0.3s both' }}
+                data-testid="text-calorie-status"
+              >
+                <StatusIcon className={`w-3 h-3 ${calorieStatus.color}`} style={calorieStatus.glow ? { animation: 'breathe 2s ease-in-out infinite' } : undefined} />
+                <span className={`text-[11px] font-semibold ${calorieStatus.color}`}>{calorieStatus.label}</span>
+                {calorieStatus.glow && <span className="pulse-dot ml-1" />}
+              </div>
+            );
+          })()}
+
+          <div className="flex items-center justify-center gap-1.5 py-2 px-3 bg-gradient-to-r from-red-500/8 via-red-500/12 to-red-500/8 rounded-lg border border-red-500/10" style={{ animation: 'slideUp 0.5s ease-out 0.4s both' }}>
+            <div className="p-1 rounded-md bg-red-500/15">
+              <Beef className="w-3 h-3 text-red-500" />
+            </div>
+            <span className="text-xs font-semibold">
               Protein: <span className="text-red-500">{totalProteinToday}g</span>
               {goalData?.dailyProteinTarget && (
-                <span className="text-muted-foreground"> / {proteinGoal}g</span>
+                <span className="text-muted-foreground font-normal"> / {proteinGoal}g</span>
               )}
             </span>
+            {goalData?.dailyProteinTarget && totalProteinToday >= proteinGoal && (
+              <Badge variant="default" className="text-[9px] px-1.5 py-0 bg-emerald-600 dark:bg-emerald-700 no-default-hover-elevate no-default-active-elevate ml-auto" style={{ animation: 'checkPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' }}>Hit</Badge>
+            )}
           </div>
 
           {healthStatus?.connected && healthData?.caloriesBurned && (
-            <div className="flex items-center justify-center gap-1.5 mt-1.5 py-1.5 px-2 bg-gradient-to-r from-orange-500/5 to-orange-500/10 rounded-md">
-              <Watch className="w-3.5 h-3.5 text-orange-500" />
-              <span className="text-xs font-medium">
+            <div className="flex items-center justify-center gap-1.5 mt-2 py-2 px-3 bg-gradient-to-r from-orange-500/8 via-orange-500/12 to-orange-500/8 rounded-lg border border-orange-500/10">
+              <div className="p-1 rounded-md bg-orange-500/15">
+                <Watch className="w-3 h-3 text-orange-500" />
+              </div>
+              <span className="text-xs font-semibold">
                 Burned: <span className="text-orange-500">{healthData.caloriesBurned.toLocaleString()} cal</span>
-                <span className="text-muted-foreground ml-1">
+                <span className="text-muted-foreground font-normal ml-1">
                   (Net: {(summary.calories - healthData.caloriesBurned).toLocaleString()} cal)
                 </span>
               </span>
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-2 mt-3">
-            <MacroProgress label="Protein" value={summary.protein} goal={proteinGoal} percent={proteinPercent} icon={Beef} color="text-red-500" />
-            <MacroProgress label="Carbs" value={summary.carbs} goal={carbsGoal} percent={carbsPercent} icon={Wheat} color="text-amber-500" />
-            <MacroProgress label="Fat" value={summary.fat} goal={fatGoal} percent={fatPercent} icon={Droplet} color="text-blue-500" />
+          <div className="grid grid-cols-3 gap-3 mt-4" style={{ animation: 'slideUp 0.5s ease-out 0.5s both' }}>
+            <MacroProgress label="Protein" value={summary.protein} goal={proteinGoal} percent={proteinPercent} icon={Beef} color="text-red-500" bgColor="bg-red-500" />
+            <MacroProgress label="Carbs" value={summary.carbs} goal={carbsGoal} percent={carbsPercent} icon={Wheat} color="text-amber-500" bgColor="bg-amber-500" />
+            <MacroProgress label="Fat" value={summary.fat} goal={fatGoal} percent={fatPercent} icon={Droplet} color="text-blue-500" bgColor="bg-blue-500" />
           </div>
         </CardContent>
       </Card>
 
       <Button 
         onClick={openGlobalAddFood}
-        className="w-full"
+        className={`w-full bg-gradient-to-r from-primary to-primary/80 shadow-md shadow-primary/20 ${summary.calories === 0 ? 'nutrition-cta-pulse' : ''}`}
         data-testid="button-global-add-food"
       >
         <Plus className="w-4 h-4 mr-1.5" />
         Add Food
       </Button>
 
-      <Card className="border-0 bg-card/60">
-        <CardContent className="pt-3 pb-3">
-          <div className="flex items-center justify-between gap-2 mb-1.5">
+      <Card className="border-0 overflow-hidden shadow-sm relative" data-testid="card-water-tracker" style={{ animation: 'slideUp 0.4s ease-out 0.5s both' }}>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.03] to-transparent pointer-events-none" />
+        <CardContent className="pt-3 pb-3 relative">
+          <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-1.5">
-              <div className="p-1 rounded-md bg-blue-500/15">
-                <Droplets className="w-3.5 h-3.5 text-blue-500" />
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-400/10">
+                <Droplets className="w-3.5 h-3.5 text-blue-500" style={{ animation: (waterData?.totalOz || 0) > 0 ? 'breathe 3s ease-in-out infinite' : undefined }} />
               </div>
-              <span className="text-sm font-semibold">Water</span>
+              <span className="text-sm font-bold">Water</span>
             </div>
-            <span className="text-xs text-muted-foreground">
-              {waterData?.totalOz || 0}oz / 64oz
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold">
+                {waterData?.totalOz || 0}<span className="text-muted-foreground font-normal">oz / 64oz</span>
+              </span>
+              {(waterData?.totalOz || 0) >= 64 && (
+                <Badge variant="default" className="text-[9px] px-1.5 py-0 bg-blue-600 dark:bg-blue-700 no-default-hover-elevate no-default-active-elevate" style={{ animation: 'checkPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' }}>Full</Badge>
+              )}
+            </div>
           </div>
-          <Progress value={Math.min(((waterData?.totalOz || 0) / 64) * 100, 100)} className="h-1.5 mb-2" />
+          <div className="relative h-3 rounded-full bg-muted/30 overflow-hidden mb-2.5">
+            <div 
+              className="water-fill-bar absolute inset-y-0 left-0 rounded-full"
+              style={{ 
+                width: `${Math.min(((waterData?.totalOz || 0) / 64) * 100, 100)}%`,
+                transition: 'width 0.6s ease-out',
+              }}
+            />
+          </div>
           <div className="flex items-center gap-1.5 flex-wrap">
             {[{ oz: 8, label: "8oz" }, { oz: 12, label: "12oz" }, { oz: 16, label: "16oz" }, { oz: 24, label: "24oz" }].map(({ oz, label }) => (
               <Button
@@ -707,11 +776,31 @@ export default function NutritionPage() {
         }}
       />
 
-      {MEAL_TYPES.map((meal) => (
-        <Card key={meal} className="border-0 bg-card/60">
+      {MEAL_TYPES.map((meal, mealIndex) => {
+        const mealCalories = groupedLogs[meal].reduce((sum, log) => sum + log.calories, 0);
+        const mealIconConfig: Record<string, { icon: typeof Apple; color: string; bg: string }> = {
+          breakfast: { icon: Apple, color: 'text-amber-500', bg: 'bg-amber-500/15' },
+          lunch: { icon: Beef, color: 'text-green-500', bg: 'bg-green-500/15' },
+          dinner: { icon: Flame, color: 'text-orange-500', bg: 'bg-orange-500/15' },
+          snack: { icon: Wheat, color: 'text-purple-500', bg: 'bg-purple-500/15' },
+        };
+        const config = mealIconConfig[meal] || mealIconConfig.snack;
+        const MealIcon = config.icon;
+        const hasFood = groupedLogs[meal].length > 0;
+        return (
+        <Card key={meal} className="border-0 overflow-hidden shadow-sm relative" style={{ animation: `slideUp 0.4s ease-out ${0.1 * mealIndex}s both` }}>
+          {hasFood && <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${meal === 'breakfast' ? 'from-amber-500/60 to-amber-400/20' : meal === 'lunch' ? 'from-green-500/60 to-green-400/20' : meal === 'dinner' ? 'from-orange-500/60 to-orange-400/20' : 'from-purple-500/60 to-purple-400/20'}`} />}
           <CardHeader className="pb-1 pt-3 px-3">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-sm font-semibold">{MEAL_LABELS[meal]}</CardTitle>
+              <div className="flex items-center gap-1.5">
+                <div className={`p-1 rounded-md ${config.bg}`}>
+                  <MealIcon className={`w-3.5 h-3.5 ${config.color}`} />
+                </div>
+                <CardTitle className="text-sm font-bold">{MEAL_LABELS[meal]}</CardTitle>
+                {hasFood && (
+                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 no-default-hover-elevate no-default-active-elevate" data-testid={`text-meal-cal-${meal}`}>{mealCalories} cal</Badge>
+                )}
+              </div>
               <Button 
                 variant="ghost" 
                 size="sm"
@@ -725,7 +814,15 @@ export default function NutritionPage() {
           </CardHeader>
           <CardContent className="px-3 pb-3">
             {groupedLogs[meal].length === 0 ? (
-              <p className="text-xs text-muted-foreground">No food logged</p>
+              <Button 
+                variant="ghost"
+                onClick={() => openAddFoodForMeal(meal)}
+                className="w-full py-3 border border-dashed border-border/60 text-xs text-muted-foreground"
+                data-testid={`button-empty-${meal}`}
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Tap to add {MEAL_LABELS[meal].toLowerCase()}
+              </Button>
             ) : (
               <div className="space-y-0.5">
                 {groupedLogs[meal].map((log) => (
@@ -748,7 +845,7 @@ export default function NutritionPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium">{log.calories} cal</span>
+                      <span className="text-xs font-semibold">{log.calories} cal</span>
                       <Button 
                         variant="ghost" 
                         size="icon"
@@ -764,16 +861,17 @@ export default function NutritionPage() {
             )}
           </CardContent>
         </Card>
-      ))}
+        );
+      })}
 
-      <Card className="border-0 bg-card/60">
+      <Card className="border-0 overflow-hidden shadow-sm relative">
         <CardHeader className="pb-1 pt-3 px-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <div className="p-1 rounded-md bg-red-500/15">
                 <Beef className="w-3.5 h-3.5 text-red-500" />
               </div>
-              <CardTitle className="text-sm font-semibold">Protein</CardTitle>
+              <CardTitle className="text-sm font-bold">Protein</CardTitle>
             </div>
             <Button 
               variant="ghost" 
@@ -789,7 +887,15 @@ export default function NutritionPage() {
         </CardHeader>
         <CardContent className="px-3 pb-3">
           {proteinLogs.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No protein logged</p>
+            <Button 
+              variant="ghost"
+              onClick={() => openAddFoodForMeal("protein")}
+              className="w-full py-3 border border-dashed border-border/60 text-xs text-muted-foreground"
+              data-testid="button-empty-protein"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Tap to add protein
+            </Button>
           ) : (
             <div className="space-y-0.5">
               {proteinLogs.map((log) => (
@@ -1706,20 +1812,37 @@ function NutritionAnalytics() {
   );
 }
 
-function MacroProgress({ label, value, goal, percent, icon: Icon, color }: { 
+function MacroProgress({ label, value, goal, percent, icon: Icon, color, bgColor }: { 
   label: string; 
   value: number; 
   goal: number; 
   percent: number; 
   icon: any; 
   color: string;
+  bgColor: string;
 }) {
   return (
-    <div className="text-center">
-      <Icon className={`w-3.5 h-3.5 mx-auto mb-0.5 ${color}`} />
-      <Progress value={percent} className="h-1 mb-0.5" />
-      <div className="text-xs font-medium">{value}g</div>
-      <div className="text-[10px] text-muted-foreground">/ {goal}g</div>
+    <div className="text-center space-y-1.5 p-2 rounded-lg bg-muted/20">
+      <div className="flex items-center justify-center gap-1">
+        <div className={`p-0.5 rounded ${bgColor}/10`}>
+          <Icon className={`w-3 h-3 ${color}`} />
+        </div>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+      </div>
+      <div className="relative h-1.5 rounded-full bg-muted/50 overflow-hidden">
+        <div 
+          className={`absolute inset-y-0 left-0 rounded-full ${bgColor}`}
+          style={{ 
+            width: `${Math.min(percent, 100)}%`,
+            transition: 'width 0.8s ease-out',
+            opacity: 0.8,
+          }}
+        />
+      </div>
+      <div>
+        <span className="text-sm font-bold">{value}g</span>
+        <span className="text-[10px] text-muted-foreground"> / {goal}g</span>
+      </div>
     </div>
   );
 }

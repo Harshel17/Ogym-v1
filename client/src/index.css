@@ -961,6 +961,35 @@ img {
   50% { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
+.nutrition-ring-progress {
+  animation: nutritionRingDraw 1.2s ease-out;
+}
+
+@keyframes nutritionRingDraw {
+  from { stroke-dasharray: 0 251; }
+}
+
+.water-fill-bar {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6);
+  background-size: 200% 100%;
+  animation: waterShimmer 3s ease-in-out infinite;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+}
+
+@keyframes waterShimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.nutrition-cta-pulse {
+  animation: ctaPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes ctaPulse {
+  0%, 100% { box-shadow: 0 4px 14px -2px hsl(var(--primary) / 0.2); }
+  50% { box-shadow: 0 4px 20px -2px hsl(var(--primary) / 0.45); }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
