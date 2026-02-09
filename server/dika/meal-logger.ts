@@ -30,10 +30,12 @@ export interface ParsedMeal {
 const MEAL_LOG_PATTERNS = [
   /i (?:had|ate|just had|just ate|consumed|grabbed|took|drank|drink)\b/i,
   /(?:log|track|add|record|save)\s+(?:my\s+)?(?:meal|food|breakfast|lunch|dinner|snack|what i (?:had|ate))/i,
-  /(?:for\s+)?(?:breakfast|lunch|dinner|snack)\s+(?:i\s+)?(?:had|ate|was)/i,
-  /(?:breakfast|lunch|dinner|snack)\s*(?::|was|is)\s+/i,
+  /(?:for\s+)?(?:breakfast|lunch|dinner|snack|snak|brekfast|lnch)\s+(?:i\s+)?(?:had|ate|was)/i,
+  /(?:breakfast|lunch|dinner|snack|snak|brekfast|lnch)\s*(?::|was|is)\s+/i,
   /ate\s+(?:some|a|an|the|my)\s+/i,
   /my\s+(?:breakfast|lunch|dinner|snack)\s+was\s+/i,
+  /^(?!.*(?:saving|save|room|plan|ready|prepare|preparing|skip|wait))[\w\s]+\s+for\s+(?:my\s+)?(?:breakfast|lunch|dinner|snack|snak|brekfast|lnch|brunch|supper)$/i,
+  /^[\w\s]+\s+(?:half|full|quarter)\s+(?:plate|bowl|cup|piece|serving|glass|scoop)\b/i,
 ];
 
 export function detectMealLogRequest(message: string): boolean {
@@ -62,10 +64,11 @@ export function detectMealLogRequest(message: string): boolean {
 
 function guessMealType(message: string): "breakfast" | "lunch" | "dinner" | "snack" | "extra" {
   const lower = message.toLowerCase();
-  if (lower.includes('breakfast') || lower.includes('morning')) return 'breakfast';
-  if (lower.includes('lunch') || lower.includes('midday') || lower.includes('noon')) return 'lunch';
+  if (lower.includes('breakfast') || lower.includes('brekfast') || lower.includes('morning')) return 'breakfast';
+  if (lower.includes('lunch') || lower.includes('lnch') || lower.includes('midday') || lower.includes('noon')) return 'lunch';
   if (lower.includes('dinner') || lower.includes('supper') || lower.includes('evening')) return 'dinner';
-  if (lower.includes('snack') || lower.includes('snacking')) return 'snack';
+  if (lower.includes('snack') || lower.includes('snak') || lower.includes('snacking')) return 'snack';
+  if (lower.includes('brunch')) return 'breakfast';
 
   const hour = new Date().getHours();
   if (hour >= 5 && hour < 11) return 'breakfast';
@@ -82,6 +85,11 @@ const RESTAURANT_FOOD_KEYWORDS = [
   'chicken sandwich', 'fish sandwich', 'cheesesteak', 'gyro', 'shawarma',
   'bowl', 'nachos', 'loaded fries', 'onion rings', 'mozzarella sticks',
   'milkshake', 'smoothie', 'iced coffee', 'cold brew',
+  'paneer', 'butter chicken', 'tikka', 'masala', 'biryani', 'naan', 'tandoori',
+  'dal makhani', 'chole', 'palak', 'korma', 'vindaloo', 'curry',
+  'pad thai', 'fried rice', 'lo mein', 'chow mein', 'kung pao', 'orange chicken',
+  'sushi', 'ramen', 'pho', 'banh mi', 'dumplings', 'dim sum', 'spring roll',
+  'kebab', 'falafel', 'hummus plate', 'tikka masala', 'butter masala',
 ];
 
 const KNOWN_RESTAURANTS = [
