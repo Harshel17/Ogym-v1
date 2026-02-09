@@ -998,6 +998,14 @@ export function DikaDrawer({
   }, [messages]);
 
   useEffect(() => {
+    if (isOpen && messages.length > 0) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+      }, 50);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     if (messages.length === 0) return;
     const lastMsg = messages[messages.length - 1];
     if (lastMsg.role !== 'assistant') return;
