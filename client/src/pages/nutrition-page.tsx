@@ -1050,8 +1050,8 @@ export default function NutritionPage() {
               )}
             </div>
           ) : !selectedFood ? (
-            <div className="space-y-3 sm:space-y-4">
-              <div className="flex gap-1 mb-3">
+            <div className="space-y-4">
+              <div className="flex gap-1 mb-1">
                 <Button
                   variant={foodMode === "search" ? "default" : "outline"}
                   size="sm"
@@ -1205,7 +1205,7 @@ export default function NutritionPage() {
                   </p>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 mt-1">
                 <Input
                   placeholder={restaurantName.trim() ? `Search ${restaurantName.trim()} menu...` : "Search foods (e.g., chicken breast, Big Mac)..."}
                   value={searchQuery}
@@ -1306,8 +1306,8 @@ export default function NutritionPage() {
                 </div>
               )}
 
-              <div className="border-t pt-4">
-                <p className="text-sm font-medium mb-3">
+              <div className="border-t pt-4 mt-1">
+                <p className="text-sm font-medium mb-3 text-muted-foreground">
                   {selectedMealType === "protein" ? "Add protein item:" : "Or add manually:"}
                 </p>
                 <div className="space-y-3">
