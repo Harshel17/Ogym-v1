@@ -104,7 +104,7 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer border-0 bg-card/60 backdrop-blur-sm transition-all duration-300 ease-out",
+        "cursor-pointer border-0 bg-card/70 backdrop-blur-sm transition-all duration-300 ease-out",
         "hover:scale-[1.02] active:scale-[0.98]",
         colors.glow
       )}
@@ -133,16 +133,17 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
               className="transition-all duration-1000 ease-out"
+              style={{ filter: `drop-shadow(0 0 4px ${colors.ringColor}40)` }}
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className={cn("p-2 rounded-full text-white", colors.iconBg)}>
+            <div className={cn("p-2.5 rounded-xl text-white shadow-sm", colors.iconBg)}>
               <Icon className="w-4 h-4" />
             </div>
           </div>
         </div>
         <p className="text-2xl font-bold tabular-nums leading-none">{displayValue}</p>
-        <p className="text-[11px] text-muted-foreground mt-1 font-medium">{label}</p>
+        <p className="text-[10px] text-muted-foreground mt-1 font-semibold uppercase tracking-wider">{label}</p>
       </CardContent>
     </Card>
   );
@@ -192,7 +193,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer border-0 bg-card/60 backdrop-blur-sm transition-all duration-300 ease-out",
+        "cursor-pointer border-0 bg-card/70 backdrop-blur-sm transition-all duration-300 ease-out",
         "hover:scale-[1.02] active:scale-[0.98]",
         "shadow-emerald-500/10"
       )}
@@ -225,6 +226,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
               strokeDasharray={outerCircumference}
               strokeDashoffset={outerStrokeDashoffset}
               className="transition-all duration-1000 ease-out"
+              style={{ filter: `drop-shadow(0 0 4px ${calorieColor}40)` }}
             />
             
             {showProteinRing && (
@@ -249,6 +251,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
                   strokeDasharray={innerCircumference}
                   strokeDashoffset={innerStrokeDashoffset}
                   className="transition-all duration-1000 ease-out"
+                  style={{ filter: `drop-shadow(0 0 3px ${proteinColor}30)` }}
                 />
               </>
             )}
@@ -260,15 +263,15 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
             )}>
               {displayValue}
             </span>
-            <span className="text-[8px] text-muted-foreground mt-0.5">kcal</span>
+            <span className="text-[8px] text-muted-foreground mt-0.5 font-medium">kcal</span>
           </div>
         </div>
         
-        <p className="text-[11px] text-muted-foreground font-medium">Today's Calories</p>
+        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Today's Calories</p>
         
         {showProteinRing && (
           <p className={cn(
-            "text-[10px] tabular-nums mt-0.5",
+            "text-[10px] tabular-nums mt-0.5 font-medium",
             isProteinOver ? "text-red-500" : "text-blue-500"
           )}>
             {currentProtein}g / {effectiveProteinTarget}g protein
@@ -336,15 +339,15 @@ export const WorkoutProgressBar = memo(function WorkoutProgressBar({
   return (
     <div className={cn("w-full", className)}>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs text-muted-foreground font-medium">Progress</span>
-        <span className={cn("text-xs font-semibold tabular-nums", isComplete ? "text-green-500" : "text-foreground")}>
+        <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Progress</span>
+        <span className={cn("text-[10px] font-bold tabular-nums", isComplete ? "text-green-500" : "text-foreground")}>
           {completed}/{total}
         </span>
       </div>
-      <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
+      <div className="h-2 bg-muted/40 rounded-full overflow-hidden">
         <div
           className={cn(
-            "h-full rounded-full transition-all duration-500 ease-out",
+            "h-full rounded-full transition-all duration-700 ease-out",
             isComplete 
               ? "bg-gradient-to-r from-green-400 to-emerald-500" 
               : "bg-gradient-to-r from-primary/80 to-primary"
@@ -400,11 +403,11 @@ export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], 
   }, [calendarDays]);
 
   return (
-    <Card className={cn("border-0 bg-card/60 backdrop-blur-sm", className)} data-testid="card-weekly-progress">
+    <Card className={cn("border-0 bg-card/70 backdrop-blur-sm", className)} data-testid="card-weekly-progress">
       <CardContent className="py-4 px-4">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold">This Week</span>
-          <span className="text-xs text-muted-foreground font-medium tabular-nums">{completedCount}/{passedDaysCount} days</span>
+          <span className="text-sm font-bold">This Week</span>
+          <span className="text-[10px] text-muted-foreground font-semibold tabular-nums uppercase tracking-wider">{completedCount}/{passedDaysCount} days</span>
         </div>
         <div className="flex items-center justify-between gap-1.5">
           {weekDates.map((dateStr, index) => {
@@ -419,17 +422,17 @@ export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], 
                   className={cn(
                     "w-full aspect-square rounded-xl flex items-center justify-center text-xs font-semibold transition-all duration-300",
                     isCompleted && !isFuture
-                      ? "bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-sm shadow-green-500/20"
+                      ? "bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-sm shadow-green-500/25"
                       : isToday
-                      ? "bg-primary/15 text-primary ring-2 ring-primary/50"
+                      ? "bg-primary/15 text-primary ring-2 ring-primary/40"
                       : isPast
-                      ? "bg-muted/60 text-muted-foreground/60"
-                      : "bg-muted/30 text-muted-foreground/40"
+                      ? "bg-muted/50 text-muted-foreground/50"
+                      : "bg-muted/25 text-muted-foreground/30"
                   )}
                 >
                   {isCompleted && !isFuture ? <Check className="w-3.5 h-3.5" /> : null}
                 </div>
-                <span className={cn("text-[10px] font-medium", isToday ? "text-primary font-bold" : "text-muted-foreground/70")}>
+                <span className={cn("text-[10px] font-semibold", isToday ? "text-primary" : "text-muted-foreground/60")}>
                   {dayLabels[index]}
                 </span>
               </div>

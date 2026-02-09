@@ -1256,62 +1256,9 @@ function MemberDashboard() {
     return <MemberDashboardSkeleton />;
   }
 
-  const quickStats = [
-    { 
-      value: workoutSummary?.streak || 0, 
-      label: "Streak", 
-      icon: Flame, 
-      gradient: "from-amber-500 to-orange-600",
-      bg: "bg-amber-500/10",
-      color: "text-amber-500"
-    },
-    { 
-      value: workoutSummary?.last7DaysCount || 0, 
-      label: "This Week", 
-      icon: TrendingUp, 
-      gradient: "from-blue-500 to-cyan-600",
-      bg: "bg-blue-500/10",
-      color: "text-blue-500"
-    },
-    { 
-      value: calorieData?.summary?.calories || 0, 
-      label: "Calories", 
-      icon: Flame, 
-      gradient: "from-emerald-500 to-teal-600",
-      bg: "bg-emerald-500/10",
-      color: "text-emerald-500"
-    },
-    { 
-      value: calorieData?.summary?.protein || 0, 
-      label: "Protein", 
-      icon: Target, 
-      gradient: "from-violet-500 to-purple-600",
-      bg: "bg-violet-500/10",
-      color: "text-violet-500",
-      suffix: "g"
-    },
-  ];
-
   return (
     <div className="space-y-3 stagger-list">
-      {/* Quick Stats Strip */}
-      <div className="grid grid-cols-4 gap-2" data-testid="quick-stats-strip">
-        {quickStats.map((stat) => (
-          <div 
-            key={stat.label}
-            className="flex flex-col items-center py-2.5 px-1 rounded-xl bg-card/70 backdrop-blur-sm border border-border/30"
-            data-testid={`quick-stat-${stat.label.toLowerCase().replace(/\s+/g, '-')}`}
-          >
-            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${stat.gradient} flex items-center justify-center mb-1.5 shadow-sm`}>
-              <stat.icon className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-base font-bold tabular-nums leading-none" data-testid={`text-quick-stat-value-${stat.label.toLowerCase().replace(/\s+/g, '-')}`}>{stat.value}{stat.suffix || ''}</span>
-            <span className="text-[9px] text-muted-foreground font-medium mt-0.5 uppercase tracking-wider">{stat.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Today's Workout - Premium Card */}
+      {/* Today's Workout */}
       <Collapsible open={isWorkoutOpen} onOpenChange={setIsWorkoutOpen}>
         <Card className="border-0 overflow-hidden shadow-lg shadow-primary/5 relative" data-testid="card-today-workout">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent pointer-events-none" />
