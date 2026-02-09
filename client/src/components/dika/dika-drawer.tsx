@@ -999,9 +999,13 @@ export function DikaDrawer({
 
   useEffect(() => {
     if (isOpen && messages.length > 0) {
-      setTimeout(() => {
+      const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
-      }, 50);
+      };
+      scrollToBottom();
+      const t1 = setTimeout(scrollToBottom, 100);
+      const t2 = setTimeout(scrollToBottom, 300);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
     }
   }, [isOpen]);
 
