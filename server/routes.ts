@@ -3799,8 +3799,10 @@ export async function registerRoutes(
 
   app.get("/api/nutrition/summary", requireRole(["member"]), async (req, res) => {
     const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
-    const summary = await storage.getDailySummary(req.user!.id, date);
-    const goal = await storage.getCalorieGoal(req.user!.id);
+    const [summary, goal] = await Promise.all([
+      storage.getDailySummary(req.user!.id, date),
+      storage.getCalorieGoal(req.user!.id),
+    ]);
     res.json({ summary, goal });
   });
 
@@ -3809,13 +3811,13 @@ export async function registerRoutes(
     const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
     const userId = req.user!.id;
 
+    const t1 = Date.now();
     const [goal, logs, waterLogsResult, recentFoods] = await Promise.all([
-      storage.getCalorieGoal(userId),
-      storage.getFoodLogs(userId, date),
-      db.select().from(waterLogs).where(and(eq(waterLogs.userId, userId), eq(waterLogs.date, date))).orderBy(desc(waterLogs.createdAt)),
-      storage.getRecentFoods(userId, 20),
+      storage.getCalorieGoal(userId).then(r => { const d = Date.now() - t1; if (d > 100) console.log(`[nutrition] getCalorieGoal: ${d}ms`); return r; }),
+      storage.getFoodLogs(userId, date).then(r => { const d = Date.now() - t1; if (d > 100) console.log(`[nutrition] getFoodLogs: ${d}ms`); return r; }),
+      db.select().from(waterLogs).where(and(eq(waterLogs.userId, userId), eq(waterLogs.date, date))).orderBy(desc(waterLogs.createdAt)).then(r => { const d = Date.now() - t1; if (d > 100) console.log(`[nutrition] waterLogs: ${d}ms`); return r; }),
+      storage.getRecentFoods(userId, 20).then(r => { const d = Date.now() - t1; if (d > 100) console.log(`[nutrition] getRecentFoods: ${d}ms`); return r; }),
     ]);
-    const dbTime = Date.now() - startTime;
 
     const summary = logs.reduce((acc, log) => ({
       calories: acc.calories + (log.calories || 0),
@@ -3827,8 +3829,8 @@ export async function registerRoutes(
     const totalOz = waterLogsResult.reduce((sum, w) => sum + Number(w.amountOz || 0), 0);
 
     const totalTime = Date.now() - startTime;
-    if (totalTime > 200) {
-      console.log(`[nutrition/page-data] Slow response: ${totalTime}ms (db: ${dbTime}ms) for user ${userId}`);
+    if (totalTime > 150) {
+      console.log(`[nutrition/page-data] ${totalTime}ms for user ${userId}`);
     }
 
     res.json({

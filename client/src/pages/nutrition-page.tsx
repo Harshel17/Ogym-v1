@@ -22,6 +22,7 @@ import { FindMyFood } from "@/components/find-my-food";
 import { useHealthStatus, useHealthDataToday } from "@/hooks/use-health-data";
 import { fuzzyMatchRestaurants, getRecentRestaurants, addRecentRestaurant } from "@/lib/restaurant-data";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type CalorieGoal = {
   id: number;
@@ -420,8 +421,62 @@ export default function NutritionPage() {
 
   if (summaryLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      <div className="space-y-3 pb-24">
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-9 w-9 rounded-md" />
+        </div>
+        <div className="flex items-center justify-between gap-1 rounded-lg bg-muted/30 px-1 py-1">
+          <Skeleton className="h-9 w-9" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-9 w-9" />
+        </div>
+        <Card className="border-0 bg-card/60">
+          <CardContent className="pt-3 pb-3">
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <div className="text-center flex-1 space-y-1">
+                <Skeleton className="h-7 w-12 mx-auto" />
+                <Skeleton className="h-3 w-10 mx-auto" />
+              </div>
+              <Skeleton className="w-16 h-16 rounded-full flex-shrink-0" />
+              <div className="text-center flex-1 space-y-1">
+                <Skeleton className="h-7 w-12 mx-auto" />
+                <Skeleton className="h-3 w-10 mx-auto" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="text-center space-y-1">
+                  <Skeleton className="h-4 w-8 mx-auto" />
+                  <Skeleton className="h-1.5 w-full rounded-full" />
+                  <Skeleton className="h-3 w-12 mx-auto" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-0 bg-card/60">
+          <CardContent className="pt-3 pb-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <Skeleton className="h-2 w-full rounded-full" />
+          </CardContent>
+        </Card>
+        {["Breakfast", "Lunch", "Dinner", "Snack"].map(meal => (
+          <Card key={meal} className="border-0 bg-card/60">
+            <CardContent className="pt-3 pb-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+              <div className="space-y-1.5">
+                <Skeleton className="h-10 w-full rounded-md" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }

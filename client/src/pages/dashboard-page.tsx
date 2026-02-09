@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
@@ -897,6 +897,17 @@ function MemberDashboard() {
     },
     staleTime: 1000 * 60 * 2,
   });
+
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ["/api/nutrition/page-data", todayDateStr],
+      queryFn: async () => {
+        const res = await fetch(`/api/nutrition/page-data?date=${todayDateStr}`);
+        return res.json();
+      },
+      staleTime: 1000 * 60 * 2,
+    });
+  }, [todayDateStr]);
   
   const handleAskToShare = (achievements: { type: string; label: string; metadata: Record<string, unknown> }[]) => {
     if (achievements.length > 0) {
