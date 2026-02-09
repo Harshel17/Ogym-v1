@@ -4595,6 +4595,7 @@ Be accurate and use USDA or standard nutrition databases as reference. If it's a
     
     const user = req.user!;
     const role = user.role as 'member' | 'trainer' | 'owner';
+    const localDate = getLocalDate(req);
     
     try {
       const response = await handleDikaQuery(
@@ -4602,7 +4603,8 @@ Be accurate and use USDA or standard nutrition databases as reference. If it's a
         role,
         user.gymId || null,
         input.data.message,
-        input.data.conversationHistory
+        input.data.conversationHistory,
+        localDate
       );
       
       res.json(response);

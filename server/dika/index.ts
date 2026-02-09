@@ -53,12 +53,13 @@ export async function handleDikaQuery(
   role: UserRole,
   gymId: number | null,
   message: string,
-  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+  localDate?: string
 ): Promise<DikaResponse> {
   // Try AI-powered response first
   if (await isAIAvailable()) {
     try {
-      const { answer, followUpChips } = await processWithAI(userId, role, gymId, message, conversationHistory);
+      const { answer, followUpChips } = await processWithAI(userId, role, gymId, message, conversationHistory, localDate);
       return {
         answer,
         confidence: 'high',

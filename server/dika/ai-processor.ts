@@ -718,7 +718,8 @@ export async function processWithAI(
   role: UserRole,
   gymId: number | null,
   message: string,
-  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+  localDate?: string
 ): Promise<{ answer: string; followUpChips: string[] }> {
   const exerciseQuery = detectExerciseQuestion(message);
   if (exerciseQuery) {
@@ -760,9 +761,9 @@ export async function processWithAI(
     try {
       const parsedMeal = await parseMealFromMessage(message);
       if (parsedMeal && parsedMeal.items.length > 0) {
-        const { logged } = await logMealForUser(userId, parsedMeal);
+        const { logged } = await logMealForUser(userId, parsedMeal, localDate);
         if (logged) {
-          const nutritionSummary = await getTodayNutritionSummary(userId);
+          const nutritionSummary = await getTodayNutritionSummary(userId, localDate);
           const answer = formatMealLogResponse(parsedMeal, nutritionSummary);
           const followUpChips = [
             'How many calories left today?',

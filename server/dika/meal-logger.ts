@@ -170,8 +170,8 @@ RESPONSE FORMAT (pure JSON only):
   }
 }
 
-export async function logMealForUser(userId: number, meal: ParsedMeal): Promise<{ logged: boolean; logIds: number[] }> {
-  const today = new Date().toISOString().split('T')[0];
+export async function logMealForUser(userId: number, meal: ParsedMeal, localDate?: string): Promise<{ logged: boolean; logIds: number[] }> {
+  const today = localDate || new Date().toISOString().split('T')[0];
   const logIds: number[] = [];
 
   try {
@@ -199,7 +199,7 @@ export async function logMealForUser(userId: number, meal: ParsedMeal): Promise<
   }
 }
 
-export async function getTodayNutritionSummary(userId: number): Promise<{
+export async function getTodayNutritionSummary(userId: number, localDate?: string): Promise<{
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
@@ -208,7 +208,7 @@ export async function getTodayNutritionSummary(userId: number): Promise<{
   proteinGoal: number | null;
   mealsLogged: number;
 }> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate || new Date().toISOString().split('T')[0];
 
   const [summary] = await db.select({
     totalCalories: sql<number>`COALESCE(SUM(${foodLogs.calories}), 0)`,
