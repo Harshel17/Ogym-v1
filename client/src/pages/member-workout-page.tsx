@@ -63,12 +63,12 @@ export default function MemberWorkoutPage() {
   
   // Self-Guided Mode - check if gym member is in self-guided training mode
   const { data: trainingModeData } = useTrainingMode();
-  const isSelfGuided = user?.gymId && trainingModeData?.trainingMode === 'self_guided';
+  const isTrainerLed = user?.gymId && trainingModeData?.trainingMode === 'trainer_led';
   
-  // Personal Mode - check if user has no gym OR is in self-guided mode
-  // Both get the same workout creation experience
+  // Personal Mode - check if user has no gym
   const isPersonalMode = user?.role === 'member' && !user?.gymId;
-  const canManageOwnWorkouts = isPersonalMode || isSelfGuided;
+  const isSelfGuided = user?.gymId && !isTrainerLed;
+  const canManageOwnWorkouts = !isTrainerLed;
   
   // Onboarding state
   const onboardingKey = isPersonalMode ? 'ogym_personal_onboarding_seen' : 'ogym_member_onboarding_seen';

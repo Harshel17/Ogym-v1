@@ -1163,7 +1163,7 @@ function TrainingModeSettingsCard() {
     queryKey: ["/api/member/training-mode"]
   });
 
-  const isSelfGuided = trainingModeData?.trainingMode === 'self_guided';
+  const isTrainerLed = trainingModeData?.trainingMode === 'trainer_led';
 
   if (!user?.gymId) return null;
 
@@ -1180,20 +1180,20 @@ function TrainingModeSettingsCard() {
         <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
           <div>
             <p className="font-medium">
-              {isLoading ? "Loading..." : (isSelfGuided ? "Self-Guided Mode" : "Trainer-Led Mode")}
+              {isLoading ? "Loading..." : (isTrainerLed ? "Trainer-Led Mode" : "Self-Guided Mode")}
             </p>
             <p className="text-sm text-muted-foreground">
-              {isSelfGuided 
-                ? "You're managing your own workouts. Your trainer cannot see or modify them."
-                : "Your trainer manages your workout cycles and can track your progress."
+              {isTrainerLed 
+                ? "Your trainer manages your workout cycles and can track your progress."
+                : "You're managing your own workouts. Your trainer cannot see or modify them."
               }
             </p>
           </div>
-          <Badge variant={isSelfGuided ? "secondary" : "default"} data-testid="badge-training-mode">
-            {isSelfGuided ? "Self-Guided" : "Trainer-Led"}
+          <Badge variant={isTrainerLed ? "default" : "secondary"} data-testid="badge-training-mode">
+            {isTrainerLed ? "Trainer-Led" : "Self-Guided"}
           </Badge>
         </div>
-        {isSelfGuided && (
+        {!isTrainerLed && (
           <div className="p-3 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 rounded-lg text-sm">
             <strong>Note:</strong> While in self-guided mode, your trainer cannot assign workouts to you. 
             Your gym attendance and payments are still tracked normally.

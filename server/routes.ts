@@ -1367,7 +1367,7 @@ export async function registerRoutes(
     }
     
     // Use appropriate source based on whether user has a gym
-    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode === 'trainer_led') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     if (!cycle) return res.json(null);
     const items = await storage.getWorkoutItems(cycle.id);
@@ -1477,7 +1477,7 @@ export async function registerRoutes(
     }
     
     // Use appropriate source based on whether user has a gym
-    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode === 'trainer_led') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     if (!cycle) return res.json({ items: [], message: "No active workout cycle" });
     
@@ -1598,7 +1598,7 @@ export async function registerRoutes(
   // Advance day index for completion-based progression
   app.post("/api/workouts/advance-day", requireRole(["member"]), async (req, res) => {
     // Use appropriate source based on whether user has a gym
-    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode === 'trainer_led') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     if (!cycle) return res.status(400).json({ message: "No active workout cycle" });
     
@@ -1615,7 +1615,7 @@ export async function registerRoutes(
 
   app.post("/api/workouts/rest-day-swap", requireRole(["member"]), async (req, res) => {
     // Use appropriate source based on whether user has a gym
-    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode === 'trainer_led') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     if (!cycle) return res.status(400).json({ message: "No active workout cycle" });
     
@@ -1702,7 +1702,7 @@ export async function registerRoutes(
     
     const { adjustPlan, notes } = input.data;
     const todayStr = getLocalDate(req);
-    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode === 'trainer_led') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     
     if (!cycle) {
@@ -2111,7 +2111,7 @@ export async function registerRoutes(
     }
     
     const todayStr = getLocalDate(req);
-    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode === 'trainer_led') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     
     if (!cycle) {
@@ -2218,7 +2218,7 @@ export async function registerRoutes(
     }
     
     const todayStr = getLocalDate(req);
-    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode === 'trainer_led') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     
     if (!cycle) {
@@ -2404,7 +2404,7 @@ export async function registerRoutes(
   // Get available workout days for "pick different day" in completion mode
   // Query param: forRestDay=true returns only workout days (not rest days) for rest day swaps
   app.get("/api/workouts/available-days", requireRole(["member"]), async (req, res) => {
-    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode === 'trainer_led') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     const forRestDay = req.query.forRestDay === 'true';
     
@@ -2468,7 +2468,7 @@ export async function registerRoutes(
     const todayStr = getLocalDate(req);
     
     // Verify the cycle belongs to this user
-    const source = (req.user!.gymId && req.user!.trainingMode !== 'self_guided') ? 'trainer' : 'self';
+    const source = (req.user!.gymId && req.user!.trainingMode === 'trainer_led') ? 'trainer' : 'self';
     const cycle = await storage.getMemberCycle(req.user!.id, source);
     
     if (!cycle || cycle.id !== cycleId) {
@@ -3419,8 +3419,7 @@ export async function registerRoutes(
   // Create a personal workout cycle (for members without gym OR self-guided members)
   app.post("/api/personal/cycles", requireRole(["member"]), async (req, res) => {
     // Allow if user has no gym (Personal Mode) OR is in self-guided training mode
-    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
-    if (req.user!.gymId && !isSelfGuided) {
+    if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
       return res.status(403).json({ message: "Only Personal Mode or self-guided members can create their own cycles" });
     }
     
@@ -3461,8 +3460,7 @@ export async function registerRoutes(
   
   // Get all personal cycles
   app.get("/api/personal/cycles", requireRole(["member"]), async (req, res) => {
-    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
-    if (req.user!.gymId && !isSelfGuided) {
+    if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
       return res.status(403).json({ message: "Only Personal Mode or self-guided members can access their own cycles" });
     }
     // Only return personal workouts (source='self') - includes both active and inactive for history
@@ -3472,8 +3470,7 @@ export async function registerRoutes(
   
   // Get personal cycle history (inactive cycles with details)
   app.get("/api/personal/cycles/history", requireRole(["member"]), async (req, res) => {
-    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
-    if (req.user!.gymId && !isSelfGuided) {
+    if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
       return res.status(403).json({ message: "Only Personal Mode or self-guided members can access cycle history" });
     }
     // Get all personal cycles sorted by phase number descending
@@ -3494,8 +3491,7 @@ export async function registerRoutes(
   
   // Add workout item to personal cycle
   app.post("/api/personal/cycles/:cycleId/items", requireRole(["member"]), async (req, res) => {
-    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
-    if (req.user!.gymId && !isSelfGuided) {
+    if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
       return res.status(403).json({ message: "Only Personal Mode or self-guided members can manage their own cycles" });
     }
     
@@ -3533,8 +3529,7 @@ export async function registerRoutes(
   
   // Delete workout item from personal cycle
   app.delete("/api/personal/cycles/:cycleId/items/:itemId", requireRole(["member"]), async (req, res) => {
-    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
-    if (req.user!.gymId && !isSelfGuided) {
+    if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
       return res.status(403).json({ message: "Only Personal Mode or self-guided members can manage their own cycles" });
     }
     
@@ -3552,8 +3547,7 @@ export async function registerRoutes(
   
   // Update personal cycle structure (add/remove days)
   app.patch("/api/personal/cycles/:cycleId", requireRole(["member"]), async (req, res) => {
-    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
-    if (req.user!.gymId && !isSelfGuided) {
+    if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
       return res.status(403).json({ message: "Only Personal Mode or self-guided members can manage their own cycles" });
     }
     
@@ -3614,8 +3608,7 @@ export async function registerRoutes(
 
   // Parse AI-generated workout text for import
   app.post("/api/personal/workout/parse-import", requireRole(["member"]), async (req, res) => {
-    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
-    if (req.user!.gymId && !isSelfGuided) {
+    if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
       return res.status(403).json({ message: "Only Personal Mode or self-guided members can import workouts" });
     }
     
@@ -3652,8 +3645,7 @@ export async function registerRoutes(
 
   // Create cycle with items in bulk (for wizard)
   app.post("/api/personal/cycles/bulk", requireRole(["member"]), async (req, res) => {
-    const isSelfGuided = req.user!.gymId && req.user!.trainingMode === 'self_guided';
-    if (req.user!.gymId && !isSelfGuided) {
+    if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
       return res.status(403).json({ message: "Only Personal Mode or self-guided members can create their own cycles" });
     }
     
@@ -5033,7 +5025,7 @@ Return ONLY JSON.`
       return res.status(403).json({ message: "Only members can save workout plans" });
     }
     // Trainer-led gym members cannot save their own workouts
-    if (req.user!.gymId && req.user!.trainingMode !== 'self_guided') {
+    if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
       return res.status(403).json({ message: "Trainer-led members cannot change their workout plans. Ask your trainer to update your cycle." });
     }
     

@@ -920,8 +920,8 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const { user } = useAuth();
   const { data: trainingModeData } = useTrainingMode();
   const isPersonalMode = user?.role === 'member' && !user?.gymId;
-  const isSelfGuided = user?.gymId && trainingModeData?.trainingMode === 'self_guided';
-  const canManageOwnWorkouts = isPersonalMode || isSelfGuided;
+  const isTrainerLed = user?.gymId && trainingModeData?.trainingMode === 'trainer_led';
+  const canManageOwnWorkouts = !isTrainerLed;
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [exerciseInputs, setExerciseInputs] = useState<Record<number, { sets: string; reps: string; weight: string; durationMinutes?: string; distanceKm?: string }>>({});

@@ -884,9 +884,8 @@ export function DikaDrawer({
   const { toast } = useToast();
   const { user } = useAuth();
   const { data: trainingModeData } = useTrainingMode();
-  const isPersonalMode = user?.role === 'member' && !user?.gymId;
-  const isSelfGuided = user?.gymId && trainingModeData?.trainingMode === 'self_guided';
-  const canManageOwnWorkouts = isPersonalMode || isSelfGuided;
+  const isTrainerLed = user?.gymId && trainingModeData?.trainingMode === 'trainer_led';
+  const canManageOwnWorkouts = !isTrainerLed;
   
   const [savingMessageId, setSavingMessageId] = useState<string | null>(null);
   
