@@ -407,7 +407,7 @@ export default function NutritionPage() {
     if (remaining < 0) return { label: 'Over budget', color: 'text-destructive', bg: 'bg-destructive/10', icon: AlertTriangle, glow: false };
     if (caloriePercent >= 80) return { label: 'On track', color: 'text-emerald-500', bg: 'bg-emerald-500/10', icon: CheckCircle2, glow: true };
     if (caloriePercent >= 50) return { label: 'Halfway there', color: 'text-amber-500', bg: 'bg-amber-500/10', icon: Zap, glow: false };
-    return { label: 'Keep going', color: 'text-primary', bg: 'bg-primary/10', icon: Flame, glow: false };
+    return { label: 'Keep going', color: 'text-foreground', bg: 'bg-muted/40', icon: Flame, glow: false };
   }, [summary.calories, remaining, caloriePercent]);
 
   const allMealsLogged = useMemo(() => {
