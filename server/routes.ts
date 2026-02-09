@@ -1578,7 +1578,9 @@ export async function registerRoutes(
     const canSwapRestDay = isRestDay && !tomorrowIsRestDay && tomorrowItems.length > 0 && !activeSwap;
     
     res.json({ 
+      cycleId: cycle.id,
       cycleName: cycle.name, 
+      currentDayIndex: effectiveDayIndex,
       dayIndex: effectiveDayIndex, 
       cycleLength: cycle.cycleLength,
       dayLabel: activeSwap ? cycle.dayLabels?.[effectiveDayIndex] || null : dayLabel,
