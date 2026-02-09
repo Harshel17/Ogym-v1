@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments } from "@/hooks/use-gym";
@@ -23,6 +23,46 @@ import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { Link, useLocation } from "wouter";
+
+function ConfettiBurst({ trigger }: { trigger: boolean }) {
+  const [pieces, setPieces] = useState<Array<{ id: number; left: number; color: string; delay: number; size: number }>>([]);
+
+  useEffect(() => {
+    if (!trigger) return;
+    const colors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+    const newPieces = Array.from({ length: 40 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      delay: Math.random() * 0.8,
+      size: 6 + Math.random() * 6,
+    }));
+    setPieces(newPieces);
+    const timer = setTimeout(() => setPieces([]), 3000);
+    return () => clearTimeout(timer);
+  }, [trigger]);
+
+  if (pieces.length === 0) return null;
+
+  return (
+    <div className="confetti-container">
+      {pieces.map(p => (
+        <div
+          key={p.id}
+          className="confetti-piece"
+          style={{
+            left: `${p.left}%`,
+            backgroundColor: p.color,
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            animationDelay: `${p.delay}s`,
+            borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -1062,6 +1102,17 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const incompleteIds = workoutItems.filter((i: any) => !i.completed).map((i: any) => i.id);
   const completedCount = workoutItems.filter((i: any) => i.completed).length;
 
+  const [showConfetti, setShowConfetti] = useState(false);
+  const prevAllCompletedRef = useRef(false);
+  useEffect(() => {
+    if (allCompleted && !prevAllCompletedRef.current && workoutItems.length > 0) {
+      setShowConfetti(true);
+      const timer = setTimeout(() => setShowConfetti(false), 100);
+      return () => clearTimeout(timer);
+    }
+    prevAllCompletedRef.current = allCompleted;
+  }, [allCompleted, workoutItems.length]);
+
   const handleMarkAllDone = () => {
     if (incompleteIds.length > 0) {
       completeAllMutation.mutate({ workoutItemIds: incompleteIds });
@@ -1295,12 +1346,14 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
 
   return (
     <div className="space-y-3 stagger-list">
+      <ConfettiBurst trigger={showConfetti} />
+
       {/* Greeting Banner */}
       <GreetingBanner greeting={greeting} greetingIcon={greetingIcon} username={username} motiveLine={motiveLine} />
 
       {/* Today's Workout */}
       <Collapsible open={isWorkoutOpen} onOpenChange={setIsWorkoutOpen}>
-        <Card className="border-0 overflow-hidden shadow-lg shadow-primary/5 relative" data-testid="card-today-workout">
+        <Card className={`border-0 overflow-hidden shadow-lg shadow-primary/5 relative ${allCompleted ? 'card-shine' : ''}`} data-testid="card-today-workout">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent pointer-events-none" />
           <CollapsibleTrigger asChild>
             <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer group pb-3 relative">
@@ -1328,9 +1381,10 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                 {workoutItems.length > 0 && (
                   <Badge 
                     variant={allCompleted ? "default" : "secondary"}
-                    className={allCompleted ? "bg-gradient-to-r from-green-500 to-emerald-500 border-0 flex items-center gap-1 text-white shadow-sm shadow-green-500/20" : "border-0 bg-muted/60"}
+                    className={allCompleted ? "bg-gradient-to-r from-green-500 to-emerald-500 border-0 flex items-center gap-1 text-white shadow-md shadow-green-500/30 no-default-hover-elevate no-default-active-elevate" : "border-0 bg-muted/60"}
+                    style={allCompleted ? { animation: 'ringGlow 2.5s ease-in-out infinite' } : undefined}
                   >
-                    {allCompleted && <Sparkles className="w-3 h-3" />}
+                    {allCompleted && <Sparkles className="w-3 h-3" style={{ animation: 'flameFlicker 1.2s ease-in-out infinite' }} />}
                     {allCompleted ? "Done" : `${completedCount}/${workoutItems.length}`}
                   </Badge>
                 )}
@@ -1436,15 +1490,15 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                           <button
                             onClick={() => !item.completed && handleQuickComplete(item)}
                             disabled={item.completed || completeWorkoutMutation.isPending}
-                            className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                            className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
                               item.completed 
-                                ? 'bg-green-500 text-white cursor-default' 
+                                ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white cursor-default shadow-sm shadow-green-500/30' 
                                 : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'
                             }`}
                             data-testid={`button-quick-complete-${item.id}`}
                           >
                             {item.completed ? (
-                              <CheckCircle2 className="w-4 h-4" />
+                              <CheckCircle2 className="w-4 h-4 check-pop" />
                             ) : (
                               <span className="text-xs font-semibold">{index + 1}</span>
                             )}

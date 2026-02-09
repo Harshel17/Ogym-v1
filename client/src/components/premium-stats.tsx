@@ -138,7 +138,7 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
             <div className={cn("p-2.5 rounded-xl text-white shadow-sm", colors.iconBg)}>
-              <Icon className="w-4 h-4" />
+              <Icon className={cn("w-4 h-4", icon === "flame" && value > 0 && "streak-flame")} />
             </div>
           </div>
         </div>
