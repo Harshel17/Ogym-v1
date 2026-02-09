@@ -426,7 +426,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const secondaryBadgeCount = secondaryTabs.reduce((sum, item) => sum + (item.badge || 0), 0);
 
   return (
-    <div className="h-full bg-secondary/30 flex flex-col md:flex-row overflow-hidden">
+    <div className="min-h-[100dvh] bg-secondary/30 flex flex-col md:flex-row md:overflow-hidden">
       {/* Sidebar - Desktop only */}
       <aside className="w-64 bg-sidebar border-r border-sidebar-border hidden md:flex flex-col min-h-[100dvh] z-10">
         <div className="p-4 border-b border-sidebar-border">
@@ -518,9 +518,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile Fixed Header Overlay - glass effect */}
+      {/* Mobile Header - scrolls with content */}
       <header 
-        className="mobile-fixed-header glass-effect md:hidden flex items-center justify-between gap-2"
+        className="md:hidden flex items-center justify-between gap-2 px-3 py-2 border-b border-border/50 bg-background flex-shrink-0"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
       >
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg shadow-md shadow-primary/20 overflow-hidden flex items-center justify-center">
@@ -542,21 +543,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Main Content - Scroll container under fixed overlays */}
-      <main ref={mainRefCallback} className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden app-main-scroll relative z-0">
+      {/* Main Content - scrollable naturally */}
+      <main ref={mainRefCallback} className="flex-1 min-w-0 md:overflow-y-auto overflow-x-hidden app-main-scroll relative z-0">
         <PullIndicator />
-        <div className="p-4 md:p-8 max-w-7xl mx-auto page-fade-scale mobile-content-padding md:pb-8 md:pt-0" key={location}>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto page-fade-scale md:pb-8 md:pt-0" key={location}>
           {children}
         </div>
       </main>
 
-      {/* Mobile Bottom Tab Bar - fixed to viewport bottom edge */}
+      {/* Mobile Bottom Tab Bar - scrolls with content, not fixed */}
       <nav 
-        className="mobile-fixed-tabbar md:hidden"
-        style={{ transform: 'translateZ(0)' }}
+        className="md:hidden border-t border-border/50 bg-background flex-shrink-0"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        {/* Inner tab row - exactly 56px, icons centered */}
-        <div className="mobile-tabbar-inner flex justify-around items-center w-full">
+        <div className="flex justify-around items-center w-full h-14">
           {primaryTabs.map((item) => {
             const isActive = location === item.href || 
               (item.href !== "/" && location.startsWith(item.href));

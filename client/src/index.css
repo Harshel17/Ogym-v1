@@ -90,25 +90,22 @@ html.capacitor-native body[data-scroll-locked] {
   overscroll-behavior-x: none;
 }
 
-/* Scroll padding on main container for keyboard/focus behavior */
+/* Scroll padding - no longer needed for fixed overlays (removed) */
 @media (max-width: 767px) {
   .app-main-scroll {
-    scroll-padding-top: calc(var(--header-total-h, 64px) + 12px);
-    scroll-padding-bottom: calc(var(--tabbar-total-h, 72px) + 12px);
+    scroll-padding-top: 12px;
+    scroll-padding-bottom: 12px;
   }
 }
 
-/* Mobile content padding to account for fixed overlays */
+/* Legacy classes kept for backward compatibility */
 @media (max-width: 767px) {
   .mobile-content-padding {
-    padding-top: var(--header-total-h, 64px);
-    padding-bottom: calc(var(--tabbar-total-h, 90px) + 4px);
     min-height: 100%;
   }
   
-  /* Deprecated - use mobile-content-padding instead */
   .pb-safe-bottom {
-    padding-bottom: calc(var(--tabbar-total-h, 90px) + 4px) !important;
+    padding-bottom: 0 !important;
   }
 }
 
