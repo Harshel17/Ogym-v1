@@ -17,7 +17,7 @@ const ToastViewport = React.forwardRef<
       "fixed z-[100001] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
       className
     )}
-    style={{ top: 'calc(env(safe-area-inset-top, 0px) + var(--mobile-header-height, 56px) + 4px)' }}
+    style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
     {...props}
   />
 ))

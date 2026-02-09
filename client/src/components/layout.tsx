@@ -78,9 +78,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     setScrollElement(el);
   }, [setScrollElement]);
   
-  // Refs for header/tabbar elements (no longer used for dynamic height measurement)
-  // CSS variables --header-total-h and --tabbar-total-h are set in index.css using fixed calculations
-  // This prevents layout shifts when overlays (like Dika drawer) open/close
+  // Mobile header removed - branding/logout/theme toggle moved to More drawer
+  // CSS variable --tabbar-total-h is set in index.css for tab bar height
 
   if (!user) return null;
 
@@ -518,30 +517,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile Header - scrolls with content */}
-      <header 
-        className="md:hidden flex items-center justify-between gap-2 px-3 py-2 border-b border-border/50 bg-background flex-shrink-0"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg shadow-md shadow-primary/20 overflow-hidden flex items-center justify-center">
-            <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
-          </div>
-          <span className="font-bold font-display text-sm magic-text">OGym</span>
-          <div className="flex items-center gap-1 px-1 pr-2 py-0.5 rounded-md bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-sm border border-amber-500/20 shadow-sm">
-            <div className="w-4 h-4 rounded bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-              <RoboDIcon className="w-3 h-3 text-white" />
-            </div>
-            <span className="text-[9px] font-mono font-bold tracking-wider text-amber-600 dark:text-amber-400 uppercase">AI</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <ThemeToggle />
-          <Button variant="ghost" size="icon" onClick={() => logoutMutation.mutate()}>
-            <LogOut className="w-4 h-4" />
-          </Button>
-        </div>
-      </header>
+      {/* Mobile top safe area spacer - just fills the notch/status bar area */}
+      <div 
+        className="md:hidden bg-background flex-shrink-0"
+        style={{ height: 'env(safe-area-inset-top, 0px)' }}
+      />
 
       {/* Main Content - scrollable naturally */}
       <main ref={mainRefCallback} className="flex-1 min-w-0 md:overflow-y-auto overflow-x-hidden app-main-scroll relative z-0">
@@ -607,10 +587,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* More Menu Drawer */}
       <Drawer open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
         <DrawerContent className="bg-background" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}>
-          <DrawerHeader>
-            <DrawerTitle>More Options</DrawerTitle>
+          <DrawerHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl shadow-lg shadow-primary/25 overflow-hidden flex items-center justify-center">
+                  <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-display font-bold text-lg magic-text">OGym</span>
+                    <div className="flex items-center gap-1 px-1 pr-2 py-0.5 rounded-md bg-slate-100/80 dark:bg-slate-800/80 border border-amber-500/20">
+                      <div className="w-4 h-4 rounded bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                        <RoboDIcon className="w-3 h-3 text-white" />
+                      </div>
+                      <span className="text-[9px] font-mono font-bold tracking-wider text-amber-600 dark:text-amber-400 uppercase">AI</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{user.username} &middot; <span className="capitalize">{user.role}</span></p>
+                </div>
+              </div>
+              <ThemeToggle />
+            </div>
           </DrawerHeader>
-          <div className="px-4 pb-8 space-y-1 max-h-[60vh] overflow-y-auto">
+          <div className="px-4 pb-4 space-y-1 max-h-[60vh] overflow-y-auto">
             {secondaryTabs.map((item) => {
               const isActive = location === item.href || 
                 (item.href !== "/" && location.startsWith(item.href));
@@ -643,6 +642,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </div>
               );
             })}
+            <div className="pt-2 border-t border-border/50 mt-2">
+              <div 
+                className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-destructive hover:bg-destructive/10 transition-colors"
+                onClick={() => {
+                  setMoreMenuOpen(false);
+                  logoutMutation.mutate();
+                }}
+                data-testid="more-sign-out"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">Sign Out</span>
+              </div>
+            </div>
           </div>
         </DrawerContent>
       </Drawer>

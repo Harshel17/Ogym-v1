@@ -73,13 +73,9 @@ html.capacitor-native body[data-scroll-locked] {
 
 /* CSS variables */
 :root {
-  --mobile-header-height: 48px;
   --mobile-tab-bar-height: 56px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  /* Header total = 48px + safe-area-top */
-  --header-total-h: calc(var(--mobile-header-height) + env(safe-area-inset-top, 0px));
-  /* Tab bar total = 56px inner + safe-area-bottom */
   --tabbar-total-h: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
