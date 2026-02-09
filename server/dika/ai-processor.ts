@@ -18,9 +18,53 @@ import {
 import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
 import { detectWorkoutGenerationRequest, generateWorkoutPlan } from "./workout-generator";
-import { detectMealLogRequest, parseMealFromMessage, logMealForUser, getTodayNutritionSummary, formatMealLogResponse } from "./meal-logger";
+import { detectMealLogRequest, parseMealFromMessage, logMealForUser, getTodayNutritionSummary, formatMealLogResponse, detectRestaurantInMessage, looksLikeRestaurantFood } from "./meal-logger";
 import { detectOwnerAction, processOwnerAction, OwnerActionType } from "./owner-actions";
 import { detectWeeklyReportRequest, generateWeeklyReport, formatWeeklyReportResponse } from "./weekly-report";
+
+function detectPendingMealFromHistory(
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+): string | null {
+  if (!conversationHistory || conversationHistory.length < 2) return null;
+  
+  const recentMessages = conversationHistory.slice(-6);
+  
+  const lastMsg = recentMessages[recentMessages.length - 1];
+  if (lastMsg?.role !== 'user') return null;
+  
+  const secondLast = recentMessages[recentMessages.length - 2];
+  if (secondLast?.role !== 'assistant') return null;
+  
+  const isRestaurantQuestion = secondLast.content.includes('Which restaurant') || 
+    secondLast.content.includes('which restaurant') ||
+    secondLast.content.includes('extra sauces, toppings') ||
+    secondLast.content.includes('exact restaurant nutrition');
+  
+  if (!isRestaurantQuestion) return null;
+  
+  for (let j = recentMessages.length - 3; j >= 0; j--) {
+    const prevMsg = recentMessages[j];
+    if (prevMsg.role !== 'user') continue;
+    
+    const mealPatterns = [
+      /i (?:had|ate|just had|just ate|consumed|grabbed|got)\s+(?:a|an|some|the)?\s*(.+)/i,
+      /(?:had|ate|got)\s+(?:a|an|some|the)?\s*(.+)/i,
+      /log\s+(?:a|an|some|the)?\s*(.+)/i,
+      /(?:for\s+(?:breakfast|lunch|dinner|snack)[,:]?\s*)(.+)/i,
+    ];
+    for (const pattern of mealPatterns) {
+      const match = prevMsg.content.match(pattern);
+      if (match) {
+        return match[1]
+          .replace(/\s+for\s+(breakfast|lunch|dinner|snack).*$/i, '')
+          .replace(/\s+today.*$/i, '')
+          .trim();
+      }
+    }
+    return prevMsg.content;
+  }
+  return null;
+}
 
 function detectPendingActionFromHistory(
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
@@ -757,9 +801,61 @@ export async function processWithAI(
     }
   }
   
+  if (role === 'member') {
+    const pendingMealContext = detectPendingMealFromHistory(conversationHistory);
+    if (pendingMealContext) {
+      try {
+        let restaurantForParsing: string | undefined;
+        const restaurantFromReply = detectRestaurantInMessage(message);
+        if (restaurantFromReply) {
+          restaurantForParsing = restaurantFromReply;
+        } else if (!message.toLowerCase().includes('homemade') && !message.toLowerCase().includes('home made') && !message.toLowerCase().includes('just fine') && !message.toLowerCase().includes('no restaurant') && !message.toLowerCase().includes('generic')) {
+          const cleaned = message.replace(/^(at|from|it was|i got it from|it's from|it was from)\s+/i, '').replace(/[,.!].*$/, '').trim();
+          if (cleaned.length >= 3 && cleaned.length <= 40 && !cleaned.toLowerCase().startsWith('just ')) {
+            restaurantForParsing = cleaned;
+          }
+        }
+        
+        const modifications = message.match(/(?:no|extra|add|without|with|hold the|remove)\s+\w+/gi);
+        const modText = modifications ? `, ${modifications.join(', ')}` : '';
+        const messageToLog = `I ate ${pendingMealContext}${restaurantForParsing ? ` from ${restaurantForParsing}` : ''}${modText}`;
+        
+        const parsedMeal = await parseMealFromMessage(messageToLog, restaurantForParsing);
+        if (parsedMeal && parsedMeal.items.length > 0) {
+          const { logged } = await logMealForUser(userId, parsedMeal, localDate);
+          if (logged) {
+            const nutritionSummary = await getTodayNutritionSummary(userId, localDate);
+            const answer = formatMealLogResponse(parsedMeal, nutritionSummary);
+            const followUpChips = [
+              'How many calories left today?',
+              'Log another meal',
+              'My nutrition summary'
+            ];
+            return { answer, followUpChips };
+          }
+        }
+      } catch (error) {
+        console.error('Pending meal logging failed:', error);
+      }
+    }
+  }
+
   if (role === 'member' && detectMealLogRequest(message)) {
     try {
-      const parsedMeal = await parseMealFromMessage(message);
+      const detectedRestaurant = detectRestaurantInMessage(message);
+      const isRestaurantFood = looksLikeRestaurantFood(message);
+      
+      if (!detectedRestaurant && isRestaurantFood) {
+        const answer = `Before I log that, a quick question to get the calories right:\n\n**Which restaurant was this from?** And any extra sauces, toppings, or modifications?\n\nFor example: "Whataburger, no mayo" or "just homemade"\n\nThis helps me use the exact restaurant nutrition data instead of a generic estimate.`;
+        const followUpChips = [
+          'Just homemade',
+          'McDonald\'s',
+          'Chick-fil-A'
+        ];
+        return { answer, followUpChips };
+      }
+      
+      const parsedMeal = await parseMealFromMessage(message, detectedRestaurant || undefined);
       if (parsedMeal && parsedMeal.items.length > 0) {
         const { logged } = await logMealForUser(userId, parsedMeal, localDate);
         if (logged) {

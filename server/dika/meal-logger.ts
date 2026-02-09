@@ -74,30 +74,80 @@ function guessMealType(message: string): "breakfast" | "lunch" | "dinner" | "sna
   return 'dinner';
 }
 
-export async function parseMealFromMessage(message: string): Promise<ParsedMeal | null> {
+const RESTAURANT_FOOD_KEYWORDS = [
+  'sandwich', 'burger', 'fries', 'nuggets', 'wrap', 'sub', 'taco', 'burrito',
+  'quesadilla', 'pizza', 'wings', 'tenders', 'combo', 'meal deal', 'value meal',
+  'whopper', 'big mac', 'mcchicken', 'mcnuggets', 'chalupa', 'crunchwrap',
+  'baconator', 'frosty', 'blizzard', 'frappe', 'frappuccino', 'latte', 'macchiato',
+  'chicken sandwich', 'fish sandwich', 'cheesesteak', 'gyro', 'shawarma',
+  'bowl', 'nachos', 'loaded fries', 'onion rings', 'mozzarella sticks',
+  'milkshake', 'smoothie', 'iced coffee', 'cold brew',
+];
+
+const KNOWN_RESTAURANTS = [
+  'mcdonald', 'mcdonalds', 'burger king', 'wendy', 'wendys', 'chick-fil-a', 'chickfila',
+  'subway', 'taco bell', 'chipotle', 'five guys', 'popeyes', 'kfc',
+  'whataburger', 'in-n-out', 'sonic', 'jack in the box', 'arby', 'arbys',
+  'panda express', 'domino', 'papa john', 'pizza hut', 'little caesars',
+  'starbucks', 'dunkin', 'panera', 'chili', 'applebee', 'olive garden',
+  'red lobster', 'outback', 'ihop', 'denny', 'waffle house', 'shake shack',
+  'wingstop', 'buffalo wild wings', 'jersey mike', 'jimmy john', 'firehouse sub',
+  'zaxby', 'raising cane', 'culver', 'sweetgreen', 'cava', 'nando',
+];
+
+export function detectRestaurantInMessage(message: string): string | null {
+  const lower = message.toLowerCase();
+  for (const restaurant of KNOWN_RESTAURANTS) {
+    if (lower.includes(restaurant)) {
+      const words = restaurant.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1));
+      return words.join(' ');
+    }
+  }
+  const atPattern = /(?:at|from|@)\s+([a-zA-Z][a-zA-Z'\-\s]{2,25})/i;
+  const match = message.match(atPattern);
+  if (match) {
+    const name = match[1].trim();
+    if (!['home', 'a', 'the', 'my', 'our', 'work', 'school'].includes(name.toLowerCase())) {
+      return name;
+    }
+  }
+  return null;
+}
+
+export function looksLikeRestaurantFood(message: string): boolean {
+  const lower = message.toLowerCase();
+  return RESTAURANT_FOOD_KEYWORDS.some(keyword => lower.includes(keyword));
+}
+
+export async function parseMealFromMessage(message: string, restaurantName?: string): Promise<ParsedMeal | null> {
   try {
     const guessedMealType = guessMealType(message);
+    const detectedRestaurant = restaurantName || detectRestaurantInMessage(message);
+
+    const restaurantInstruction = detectedRestaurant
+      ? `IMPORTANT: This food is from "${detectedRestaurant}". Use the EXACT official nutrition data published by ${detectedRestaurant}. Be as accurate as possible to the actual restaurant menu item.`
+      : 'Estimate realistic calorie, protein, carb, and fat values per item. Use common serving sizes if not specified.';
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: `You are a nutrition data parser. Extract food items from the user's message and estimate nutritional values.
+          content: `You are a nutrition data parser. Extract food items from the user's message and provide nutritional values.
 
 RULES:
 1. Extract each food item mentioned separately
-2. Estimate realistic calorie, protein, carb, and fat values per item
-3. Use common serving sizes if not specified
-4. Be accurate with well-known foods, estimate conservatively for unknown ones
-5. Return a JSON object with the exact format below - NO markdown, NO code blocks, JUST the JSON
+2. ${restaurantInstruction}
+3. Be accurate with well-known foods, estimate conservatively for unknown ones
+4. Return a JSON object with the exact format below - NO markdown, NO code blocks, JUST the JSON
+${detectedRestaurant ? `5. Include "${detectedRestaurant}" in the food name for clarity` : ''}
 
 RESPONSE FORMAT (pure JSON only):
 {
   "mealType": "${guessedMealType}",
   "items": [
     {
-      "foodName": "Food Name",
+      "foodName": "Food Name${detectedRestaurant ? ` (${detectedRestaurant})` : ''}",
       "calories": 200,
       "protein": 10,
       "carbs": 25,

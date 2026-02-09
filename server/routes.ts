@@ -3974,6 +3974,7 @@ export async function registerRoutes(
     const schema = z.object({
       description: z.string().min(2).max(200),
       servingSize: z.string().optional(),
+      restaurant: z.string().max(100).optional(),
     });
     const input = schema.parse(req.body);
     
@@ -3981,19 +3982,27 @@ export async function registerRoutes(
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI();
       
-      const prompt = `Estimate the nutrition facts for this food item: "${input.description}"${input.servingSize ? ` (serving size: ${input.servingSize})` : ''}.
+      const restaurantContext = input.restaurant 
+        ? `This item is from "${input.restaurant}" restaurant. Use the EXACT official nutrition data published by ${input.restaurant} for this menu item. If ${input.restaurant} publishes nutrition facts on their website, use those exact numbers. Be as accurate as possible to the real restaurant menu item.`
+        : 'Be accurate and use USDA or standard nutrition databases as reference. If it seems like a restaurant item, estimate based on typical restaurant portions.';
       
+      const prompt = `Estimate the nutrition facts for this food item: "${input.description}"${input.servingSize ? ` (serving size: ${input.servingSize})` : ''}.
+
+${restaurantContext}
+
 Return ONLY a JSON object with these fields (numbers only, no units):
 {
-  "name": "cleaned up food name",
-  "servingSize": "estimated serving size like '1 cup' or '1 plate'",
+  "name": "cleaned up food name${input.restaurant ? ` (include restaurant name)` : ''}",
+  "restaurant": "${input.restaurant || ''}",
+  "servingSize": "estimated serving size like '1 sandwich' or '1 plate'",
   "calories": number,
   "protein": number in grams,
   "carbs": number in grams,
-  "fat": number in grams
+  "fat": number in grams,
+  "isVerified": ${input.restaurant ? 'true if using official restaurant nutrition data, false if estimating' : 'false'}
 }
 
-Be accurate and use USDA or standard nutrition databases as reference. If it's a restaurant item, estimate based on typical restaurant portions. Return ONLY the JSON, no explanation.`;
+Return ONLY the JSON, no explanation.`;
       
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -4014,10 +4023,15 @@ Be accurate and use USDA or standard nutrition databases as reference. If it's a
         }
         estimated = JSON.parse(jsonMatch[0]);
       }
+      const hasRestaurant = !!input.restaurant;
+      const isVerified = hasRestaurant && estimated.isVerified === true;
+      const brandLabel = hasRestaurant 
+        ? `${input.restaurant}${isVerified ? '' : ' (est.)'}`
+        : "AI Estimate";
       res.json({
         barcode: `ai-${Date.now()}`,
         name: estimated.name || input.description,
-        brandName: "AI Estimate",
+        brandName: brandLabel,
         servingSize: estimated.servingSize || "1 serving",
         nutrients: {
           calories: Math.max(0, Math.round(Number(estimated.calories) || 0)),
@@ -4027,11 +4041,90 @@ Be accurate and use USDA or standard nutrition databases as reference. If it's a
           fiber: null
         },
         imageUrl: null,
-        isEstimate: true
+        isEstimate: !isVerified,
+        isRestaurantItem: hasRestaurant,
       });
     } catch (error: any) {
       console.error("AI estimation error:", error);
       res.status(500).json({ message: "Failed to estimate nutrition" });
+    }
+  });
+
+  app.post("/api/nutrition/food/restaurant-search", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      restaurant: z.string().min(2).max(100),
+      query: z.string().min(2).max(200),
+    });
+    const input = schema.parse(req.body);
+    
+    try {
+      const localFoods = searchLocalFoods(`${input.restaurant} ${input.query}`);
+      const localResults: FoodProduct[] = localFoods.map(food => ({
+        barcode: `local-${food.id}`,
+        name: food.name,
+        brandName: food.category,
+        servingSize: food.servingSize,
+        nutrients: { calories: food.calories, protein: food.protein, carbs: food.carbs, fat: food.fat, fiber: null },
+        imageUrl: null
+      }));
+      
+      if (localResults.length >= 3) {
+        return res.json({ products: localResults.slice(0, 10), source: "database" });
+      }
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI();
+      
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{
+          role: "user",
+          content: `List the top menu items from "${input.restaurant}" that match "${input.query}". Use the EXACT official nutrition data published by ${input.restaurant}.
+
+Return a JSON object with this format:
+{
+  "items": [
+    {
+      "name": "Full item name",
+      "servingSize": "1 sandwich",
+      "calories": number,
+      "protein": number,
+      "carbs": number,
+      "fat": number
+    }
+  ]
+}
+
+Include up to 5 matching items. Use real published nutrition data. Return ONLY JSON.`
+        }],
+        temperature: 0.1,
+        max_tokens: 600,
+        response_format: { type: "json_object" },
+      });
+      
+      const responseText = completion.choices[0]?.message?.content?.trim() || '';
+      const parsed = JSON.parse(responseText);
+      
+      const aiResults: FoodProduct[] = (parsed.items || []).map((item: any, i: number) => ({
+        barcode: `restaurant-${Date.now()}-${i}`,
+        name: item.name,
+        brandName: input.restaurant,
+        servingSize: item.servingSize || "1 serving",
+        nutrients: {
+          calories: Math.max(0, Math.round(Number(item.calories) || 0)),
+          protein: Math.max(0, Math.round(Number(item.protein) || 0)),
+          carbs: Math.max(0, Math.round(Number(item.carbs) || 0)),
+          fat: Math.max(0, Math.round(Number(item.fat) || 0)),
+          fiber: null
+        },
+        imageUrl: null
+      }));
+      
+      const combined = [...localResults, ...aiResults].slice(0, 10);
+      res.json({ products: combined, source: "ai" });
+    } catch (error: any) {
+      console.error("Restaurant search error:", error);
+      res.status(500).json({ message: "Failed to search restaurant menu" });
     }
   });
 

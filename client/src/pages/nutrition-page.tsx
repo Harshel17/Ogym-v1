@@ -118,10 +118,11 @@ export default function NutritionPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFood, setSelectedFood] = useState<FoodProduct | null>(null);
   const [quantity, setQuantity] = useState("1");
-  const [manualEntry, setManualEntry] = useState({ name: "", calories: "", protein: "", carbs: "", fat: "" });
+  const [manualEntry, setManualEntry] = useState({ name: "", calories: "", protein: "", carbs: "", fat: "", restaurant: "" });
   const [showScanner, setShowScanner] = useState(false);
   const [isScanLookup, setIsScanLookup] = useState(false);
   const [foodMode, setFoodMode] = useState<"search" | "recent">("search");
+  const [restaurantName, setRestaurantName] = useState("");
 
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
@@ -228,10 +229,11 @@ export default function NutritionPage() {
     setSearchResults([]);
     setSelectedFood(null);
     setQuantity("1");
-    setManualEntry({ name: "", calories: "", protein: "", carbs: "", fat: "" });
+    setManualEntry({ name: "", calories: "", protein: "", carbs: "", fat: "", restaurant: "" });
     setAddFoodStep("category");
     setExtraMealLabel("");
     setFoodMode("search");
+    setRestaurantName("");
   };
 
   const openAddFoodForMeal = (mealType: string) => {
@@ -264,9 +266,19 @@ export default function NutritionPage() {
     if (searchQuery.length < 2) return;
     setIsSearching(true);
     try {
-      const res = await fetch(`/api/nutrition/food/search?q=${encodeURIComponent(searchQuery)}`);
-      const data = await res.json();
-      setSearchResults(data.products || []);
+      if (restaurantName.trim()) {
+        const res = await fetch("/api/nutrition/food/restaurant-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ restaurant: restaurantName.trim(), query: searchQuery }),
+        });
+        const data = await res.json();
+        setSearchResults(data.products || []);
+      } else {
+        const res = await fetch(`/api/nutrition/food/search?q=${encodeURIComponent(searchQuery)}`);
+        const data = await res.json();
+        setSearchResults(data.products || []);
+      }
     } catch {
       toast({ title: "Search failed", variant: "destructive" });
     }
@@ -878,9 +890,23 @@ export default function NutritionPage() {
                 </div>
               ) : (
               <>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Restaurant name (optional)"
+                  value={restaurantName}
+                  onChange={(e) => setRestaurantName(e.target.value)}
+                  className="text-sm"
+                  data-testid="input-restaurant-name"
+                />
+                {restaurantName.trim() && (
+                  <p className="text-xs text-primary">
+                    Searching {restaurantName.trim()} menu for exact nutrition data
+                  </p>
+                )}
+              </div>
               <div className="flex gap-2">
                 <Input
-                  placeholder="Search foods (e.g., chicken breast, Big Mac)..."
+                  placeholder={restaurantName.trim() ? `Search ${restaurantName.trim()} menu...` : "Search foods (e.g., chicken breast, Big Mac)..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -943,7 +969,10 @@ export default function NutritionPage() {
                         const res = await fetch("/api/nutrition/food/estimate", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ description: searchQuery }),
+                          body: JSON.stringify({ 
+                            description: searchQuery,
+                            restaurant: restaurantName.trim() || undefined,
+                          }),
                         });
                         if (res.ok) {
                           const estimated = await res.json();
@@ -959,7 +988,7 @@ export default function NutritionPage() {
                     data-testid="button-ai-estimate"
                   >
                     <Sparkles className="w-4 h-4 mr-1" />
-                    Estimate with AI
+                    {restaurantName.trim() ? `Look up at ${restaurantName.trim()}` : "Estimate with AI"}
                   </Button>
                 </div>
               )}
