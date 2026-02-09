@@ -517,10 +517,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile top safe area spacer - just fills the notch/status bar area */}
+      {/* Mobile top safe area spacer - uses cached value to prevent iOS recalculations */}
       <div 
         className="md:hidden bg-background flex-shrink-0"
-        style={{ height: 'env(safe-area-inset-top, 0px)' }}
+        style={{ height: 'var(--cached-safe-top, env(safe-area-inset-top, 0px))' }}
       />
 
       {/* Main Content - scrollable naturally */}

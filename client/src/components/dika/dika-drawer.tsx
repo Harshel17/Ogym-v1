@@ -1101,8 +1101,8 @@ export function DikaDrawer({
         data-testid="drawer-dika"
       >
         <div 
-          className="px-4 py-3 flex-shrink-0 bg-slate-900 dark:bg-slate-950 border-b border-amber-500/20"
-          style={{ paddingTop: `calc(env(safe-area-inset-top, 0px) + 0.75rem)` }}
+          className="flex-shrink-0 bg-slate-900 dark:bg-slate-950 border-b border-amber-500/20"
+          style={{ paddingTop: 'var(--cached-safe-top, 0px)', paddingLeft: '1rem', paddingRight: '1rem', paddingBottom: '0.75rem' }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
