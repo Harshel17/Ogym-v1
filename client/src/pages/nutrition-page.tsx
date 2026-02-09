@@ -52,6 +52,8 @@ type FoodLog = {
   carbs: number | null;
   fat: number | null;
   barcode: string | null;
+  isEstimate: boolean | null;
+  sourceType: string | null;
   createdAt: string;
 };
 
@@ -328,6 +330,12 @@ export default function NutritionPage() {
     const foodNameWithMods = modLabels.length > 0 
       ? `${selectedFood.name} (${modLabels.join(', ')})`
       : selectedFood.name;
+    const st = selectedFood.sourceType;
+    const baseVerified = st === 'branded_database' || st === 'curated_database';
+    const hasModifiers = selectedModifiers.size > 0;
+    const finalIsEstimate = !baseVerified || hasModifiers;
+    const finalSourceType = st || 'ai_estimated';
+
     logFoodMutation.mutate({
       date: dateStr,
       mealType: selectedMealType,
@@ -340,7 +348,9 @@ export default function NutritionPage() {
       protein: selectedFood.nutrients.protein ? Math.round(selectedFood.nutrients.protein * qty) : null,
       carbs: selectedFood.nutrients.carbs ? Math.round(selectedFood.nutrients.carbs * qty) : null,
       fat: selectedFood.nutrients.fat ? Math.round(selectedFood.nutrients.fat * qty) : null,
-      barcode: selectedFood.barcode || null
+      barcode: selectedFood.barcode || null,
+      isEstimate: finalIsEstimate,
+      sourceType: finalSourceType,
     });
   };
 
@@ -365,7 +375,9 @@ export default function NutritionPage() {
       calories: parseInt(manualEntry.calories) || 0,
       protein: manualEntry.protein ? parseInt(manualEntry.protein) : null,
       carbs: manualEntry.carbs ? parseInt(manualEntry.carbs) : null,
-      fat: manualEntry.fat ? parseInt(manualEntry.fat) : null
+      fat: manualEntry.fat ? parseInt(manualEntry.fat) : null,
+      isEstimate: true,
+      sourceType: 'manual',
     });
   };
 
@@ -678,7 +690,16 @@ export default function NutritionPage() {
                 {groupedLogs[meal].map((log) => (
                   <div key={log.id} className="flex items-center justify-between py-1.5 border-b last:border-0 border-border/50">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{log.foodName}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-medium truncate">{log.foodName}</p>
+                        {log.sourceType != null && (
+                          log.isEstimate === false ? (
+                            <Badge variant="default" className="text-[10px] px-1.5 py-0 shrink-0 bg-emerald-600 dark:bg-emerald-700 no-default-hover-elevate no-default-active-elevate" data-testid={`badge-verified-${log.id}`}>Verified</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0 no-default-hover-elevate no-default-active-elevate" data-testid={`badge-estimated-${log.id}`}>Estimated</Badge>
+                          )
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {log.quantity > 1 && `${log.quantity}x `}
                         {log.servingSize || "1 serving"}
@@ -733,7 +754,16 @@ export default function NutritionPage() {
               {proteinLogs.map((log) => (
                 <div key={log.id} className="flex items-center justify-between py-1.5 border-b last:border-0 border-border/50">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{log.foodName}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-medium truncate">{log.foodName}</p>
+                      {log.sourceType != null && (
+                        log.isEstimate === false ? (
+                          <Badge variant="default" className="text-[10px] px-1.5 py-0 shrink-0 bg-emerald-600 dark:bg-emerald-700 no-default-hover-elevate no-default-active-elevate" data-testid={`badge-verified-${log.id}`}>Verified</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0 no-default-hover-elevate no-default-active-elevate" data-testid={`badge-estimated-${log.id}`}>Estimated</Badge>
+                        )
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {log.protein}g protein
                       {log.calories ? ` · ${log.calories} cal` : ""}
@@ -770,7 +800,16 @@ export default function NutritionPage() {
                   {logs.map((log) => (
                     <div key={log.id} className="flex items-center justify-between py-1.5 border-b last:border-0 border-border/50">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{log.foodName}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-medium truncate">{log.foodName}</p>
+                          {log.sourceType != null && (
+                            log.isEstimate === false ? (
+                              <Badge variant="default" className="text-[10px] px-1.5 py-0 shrink-0 bg-emerald-600 dark:bg-emerald-700 no-default-hover-elevate no-default-active-elevate" data-testid={`badge-verified-${log.id}`}>Verified</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0 no-default-hover-elevate no-default-active-elevate" data-testid={`badge-estimated-${log.id}`}>Estimated</Badge>
+                            )
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           {log.quantity > 1 && `${log.quantity}x `}
                           {log.servingSize || "1 serving"}

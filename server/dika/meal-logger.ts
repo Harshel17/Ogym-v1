@@ -251,6 +251,8 @@ export async function logMealForUser(userId: number, meal: ParsedMeal, localDate
         protein: item.protein,
         carbs: item.carbs,
         fat: item.fat,
+        isEstimate: true,
+        sourceType: 'ai_estimated',
       }).returning({ id: foodLogs.id });
 
       if (log) logIds.push(log.id);
