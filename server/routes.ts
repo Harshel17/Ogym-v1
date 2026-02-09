@@ -4090,12 +4090,18 @@ Return a JSON object with this format:
       "calories": number,
       "protein": number,
       "carbs": number,
-      "fat": number
+      "fat": number,
+      "commonModifiers": [
+        {"label": "No Mayo", "calorieDelta": -90},
+        {"label": "Extra Cheese", "calorieDelta": 50}
+      ]
     }
   ]
 }
 
-Include up to 5 matching items. Use real published nutrition data. Return ONLY JSON.`
+Include up to 5 matching items. Use real published nutrition data.
+For commonModifiers, include 2-4 of the most common modifications people make (like removing or adding sauces, cheese, etc.) with approximate calorie changes.
+Return ONLY JSON.`
         }],
         temperature: 0.1,
         max_tokens: 600,
@@ -4105,7 +4111,7 @@ Include up to 5 matching items. Use real published nutrition data. Return ONLY J
       const responseText = completion.choices[0]?.message?.content?.trim() || '';
       const parsed = JSON.parse(responseText);
       
-      const aiResults: FoodProduct[] = (parsed.items || []).map((item: any, i: number) => ({
+      const aiResults = (parsed.items || []).map((item: any, i: number) => ({
         barcode: `restaurant-${Date.now()}-${i}`,
         name: item.name,
         brandName: input.restaurant,
@@ -4117,10 +4123,17 @@ Include up to 5 matching items. Use real published nutrition data. Return ONLY J
           fat: Math.max(0, Math.round(Number(item.fat) || 0)),
           fiber: null
         },
-        imageUrl: null
+        imageUrl: null,
+        isEstimate: false,
+        isRestaurantItem: true,
+        commonModifiers: Array.isArray(item.commonModifiers) ? item.commonModifiers.map((m: any) => ({
+          label: String(m.label || ''),
+          calorieDelta: Math.round(Number(m.calorieDelta) || 0),
+        })).filter((m: any) => m.label) : [],
       }));
       
-      const combined = [...localResults, ...aiResults].slice(0, 10);
+      const localWithFlags = localResults.map(r => ({ ...r, isEstimate: false, isRestaurantItem: true }));
+      const combined = [...localWithFlags, ...aiResults].slice(0, 10);
       res.json({ products: combined, source: "ai" });
     } catch (error: any) {
       console.error("Restaurant search error:", error);

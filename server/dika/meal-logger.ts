@@ -114,8 +114,22 @@ export function detectRestaurantInMessage(message: string): string | null {
   return null;
 }
 
+const GENERIC_FOOD_KEYWORDS = [
+  'egg', 'eggs', 'boiled egg', 'oats', 'oatmeal', 'rice', 'chicken breast',
+  'broccoli', 'banana', 'apple', 'orange', 'avocado', 'almonds', 'peanuts',
+  'yogurt', 'milk', 'bread', 'toast', 'cereal', 'protein shake', 'whey',
+  'salad', 'vegetables', 'veggies', 'fruit', 'berries', 'nuts', 'seeds',
+  'sweet potato', 'potato', 'salmon', 'tuna', 'steak', 'ground beef',
+  'pasta', 'noodles', 'soup', 'water', 'juice', 'tea', 'coffee',
+  'homemade', 'home made', 'cooked at home', 'made at home',
+];
+
 export function looksLikeRestaurantFood(message: string): boolean {
   const lower = message.toLowerCase();
+  if (GENERIC_FOOD_KEYWORDS.some(keyword => lower.includes(keyword))) {
+    const hasRestaurantKeyword = RESTAURANT_FOOD_KEYWORDS.some(keyword => lower.includes(keyword));
+    if (!hasRestaurantKeyword) return false;
+  }
   return RESTAURANT_FOOD_KEYWORDS.some(keyword => lower.includes(keyword));
 }
 

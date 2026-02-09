@@ -1,0 +1,117 @@
+1️⃣ Restaurant Name Dropdown (Autocomplete)
+
+When the user types in the Restaurant name (optional) field:
+
+Show a dropdown list of matching or near-matching restaurant names
+
+Match should be case-insensitive and fuzzy (e.g. “whataburger”, “what a burger”, “whatburger” → Whataburger)
+
+Use a predefined restaurant list + aliases
+
+Show top 5 closest matches
+
+Allow user to:
+
+tap a restaurant from the dropdown
+
+OR continue typing a custom restaurant name if not found
+
+2️⃣ Restaurant-Aware Food Search Dropdown
+
+Once a restaurant is selected or typed:
+
+When the user types in Search foods:
+
+Show a dropdown list of menu items from that restaurant
+
+Each dropdown item should display:
+
+Food name
+
+Calories
+
+Optional badge: Verified (exact menu data) or Estimated
+
+Ranking rules:
+
+Exact name match
+
+Partial / fuzzy match
+
+Popular items first
+
+3️⃣ Dika Conversational Flow (Chat Logging)
+
+When user says something like:
+
+“I ate a chicken sandwich”
+
+Dika should:
+
+Detect it as a restaurant-style food
+
+Ask:
+
+“Which restaurant was this from?”
+
+As the user types the restaurant name:
+
+Show restaurant dropdown suggestions in-chat
+
+After restaurant selection:
+
+Show food item dropdown with matched menu items
+
+If multiple matches exist:
+
+Ask user to select one
+
+If user says:
+
+“Grilled chicken sandwich from Whataburger with mayo”
+
+Skip restaurant question
+
+Directly match item + modifier
+
+4️⃣ Sauce & Modifier Handling
+
+If a menu item supports modifiers:
+
+Show quick selectable options:
+
+“No mayo”
+
+“Extra sauce”
+
+“Add cheese”
+
+Adjust calories if known
+
+If unknown, mark modifier adjustment as Estimated
+
+5️⃣ Confidence & Transparency
+
+Every logged food must store:
+
+source_type: verified | estimated
+
+restaurant_name (if any)
+
+modifiers (JSON)
+
+Display to user:
+
+Calories + macros
+
+Small badge: Verified or Estimated
+
+6️⃣ UX Rules (Important)
+
+Do NOT ask restaurant name for:
+
+Generic foods (eggs, oats, rice, chicken breast)
+
+Do NOT block logging if restaurant is not found
+
+Cache recent selections so next time logging is 1 tap

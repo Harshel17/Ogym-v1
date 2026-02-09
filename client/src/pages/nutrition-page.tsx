@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { 
   Flame, Apple, Beef, Wheat, Droplet, Plus, Search, Loader2, 
   ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X, TrendingUp, Calendar, BarChart3, Watch,
@@ -20,6 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from "recharts";
 import { FindMyFood } from "@/components/find-my-food";
 import { useHealthStatus, useHealthDataToday } from "@/hooks/use-health-data";
+import { fuzzyMatchRestaurants, getRecentRestaurants, addRecentRestaurant } from "@/lib/restaurant-data";
+import { Badge } from "@/components/ui/badge";
 
 type CalorieGoal = {
   id: number;
@@ -53,6 +55,11 @@ type FoodLog = {
   createdAt: string;
 };
 
+type FoodModifier = {
+  label: string;
+  calorieDelta: number;
+};
+
 type FoodProduct = {
   barcode: string;
   name: string;
@@ -66,6 +73,9 @@ type FoodProduct = {
     fiber: number | null;
   };
   imageUrl: string | null;
+  isEstimate?: boolean;
+  isRestaurantItem?: boolean;
+  commonModifiers?: FoodModifier[];
 };
 
 type NutritionSummary = {
@@ -123,6 +133,22 @@ export default function NutritionPage() {
   const [isScanLookup, setIsScanLookup] = useState(false);
   const [foodMode, setFoodMode] = useState<"search" | "recent">("search");
   const [restaurantName, setRestaurantName] = useState("");
+  const [showRestaurantDropdown, setShowRestaurantDropdown] = useState(false);
+  const [restaurantSuggestions, setRestaurantSuggestions] = useState<Array<{ name: string; category: string }>>([]);
+  const [selectedModifiers, setSelectedModifiers] = useState<Set<number>>(new Set());
+
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (searchQuery.length < 2) return;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      handleSearch();
+    }, 500);
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [searchQuery, restaurantName]);
 
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
@@ -234,6 +260,7 @@ export default function NutritionPage() {
     setExtraMealLabel("");
     setFoodMode("search");
     setRestaurantName("");
+    setSelectedModifiers(new Set());
   };
 
   const openAddFoodForMeal = (mealType: string) => {
@@ -288,15 +315,27 @@ export default function NutritionPage() {
   const handleLogSelectedFood = () => {
     if (!selectedFood) return;
     const qty = parseFloat(quantity) || 1;
+    if (restaurantName.trim()) {
+      addRecentRestaurant(restaurantName.trim());
+    }
+    const modCalories = selectedFood.commonModifiers 
+      ? Array.from(selectedModifiers).reduce((sum, idx) => sum + (selectedFood.commonModifiers![idx]?.calorieDelta || 0), 0)
+      : 0;
+    const modLabels = selectedFood.commonModifiers 
+      ? Array.from(selectedModifiers).map(idx => selectedFood.commonModifiers![idx]?.label).filter(Boolean)
+      : [];
+    const foodNameWithMods = modLabels.length > 0 
+      ? `${selectedFood.name} (${modLabels.join(', ')})`
+      : selectedFood.name;
     logFoodMutation.mutate({
       date: dateStr,
       mealType: selectedMealType,
       mealLabel: selectedMealType === "extra" ? extraMealLabel.trim() : null,
-      foodName: selectedFood.name,
-      brandName: selectedFood.brandName,
+      foodName: foodNameWithMods,
+      brandName: selectedFood.brandName || restaurantName.trim() || undefined,
       servingSize: selectedFood.servingSize,
       quantity: qty,
-      calories: Math.round(selectedFood.nutrients.calories * qty),
+      calories: Math.max(0, Math.round((selectedFood.nutrients.calories + modCalories) * qty)),
       protein: selectedFood.nutrients.protein ? Math.round(selectedFood.nutrients.protein * qty) : null,
       carbs: selectedFood.nutrients.carbs ? Math.round(selectedFood.nutrients.carbs * qty) : null,
       fat: selectedFood.nutrients.fat ? Math.round(selectedFood.nutrients.fat * qty) : null,
@@ -890,16 +929,86 @@ export default function NutritionPage() {
                 </div>
               ) : (
               <>
-              <div className="space-y-2">
-                <Input
-                  placeholder="Restaurant name (optional)"
-                  value={restaurantName}
-                  onChange={(e) => setRestaurantName(e.target.value)}
-                  className="text-sm"
-                  data-testid="input-restaurant-name"
-                />
+              <div className="relative">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      placeholder="Restaurant name (optional)"
+                      value={restaurantName}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setRestaurantName(val);
+                        if (val.trim().length >= 2) {
+                          const matches = fuzzyMatchRestaurants(val);
+                          setRestaurantSuggestions(matches.map(m => ({ name: m.name, category: m.category })));
+                          setShowRestaurantDropdown(matches.length > 0);
+                        } else if (val.trim().length === 0) {
+                          const recents = getRecentRestaurants();
+                          if (recents.length > 0) {
+                            setRestaurantSuggestions(recents.slice(0, 5).map(r => ({ name: r, category: "Recent" })));
+                            setShowRestaurantDropdown(true);
+                          } else {
+                            setShowRestaurantDropdown(false);
+                          }
+                        } else {
+                          setShowRestaurantDropdown(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (restaurantName.trim().length === 0) {
+                          const recents = getRecentRestaurants();
+                          if (recents.length > 0) {
+                            setRestaurantSuggestions(recents.slice(0, 5).map(r => ({ name: r, category: "Recent" })));
+                            setShowRestaurantDropdown(true);
+                          }
+                        } else if (restaurantName.trim().length >= 2) {
+                          const matches = fuzzyMatchRestaurants(restaurantName);
+                          if (matches.length > 0) {
+                            setRestaurantSuggestions(matches.map(m => ({ name: m.name, category: m.category })));
+                            setShowRestaurantDropdown(true);
+                          }
+                        }
+                      }}
+                      className="text-sm"
+                      data-testid="input-restaurant-name"
+                    />
+                    {showRestaurantDropdown && restaurantSuggestions.length > 0 && (
+                      <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-lg border bg-popover shadow-md max-h-[180px] overflow-y-auto">
+                        {restaurantSuggestions.map((s, i) => (
+                          <button
+                            key={`${s.name}-${i}`}
+                            className={`w-full px-3 py-2 text-left text-sm hover-elevate flex items-center justify-between gap-2 ${i !== restaurantSuggestions.length - 1 ? 'border-b' : ''}`}
+                            onClick={() => {
+                              setRestaurantName(s.name);
+                              setShowRestaurantDropdown(false);
+                              addRecentRestaurant(s.name);
+                            }}
+                            data-testid={`button-restaurant-${i}`}
+                          >
+                            <span className="font-medium">{s.name}</span>
+                            <Badge variant="secondary" className="text-xs shrink-0">{s.category}</Badge>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {restaurantName.trim() && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setRestaurantName("");
+                        setShowRestaurantDropdown(false);
+                        setSearchResults([]);
+                      }}
+                      data-testid="button-clear-restaurant"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
                 {restaurantName.trim() && (
-                  <p className="text-xs text-primary">
+                  <p className="text-xs text-primary mt-1">
                     Searching {restaurantName.trim()} menu for exact nutrition data
                   </p>
                 )}
@@ -928,19 +1037,33 @@ export default function NutritionPage() {
               </div>
 
               {searchResults.length > 0 && (
-                <div className="space-y-1.5 max-h-[220px] sm:max-h-[300px] overflow-y-auto rounded-lg border bg-card">
-                  {searchResults.map((product, index) => (
+                <div className="space-y-0 max-h-[220px] sm:max-h-[300px] overflow-y-auto rounded-lg border bg-card">
+                  {searchResults.map((product, index) => {
+                    const isVerified = product.isRestaurantItem && !product.isEstimate;
+                    const isEstimated = product.isEstimate;
+                    const isFromDatabase = !product.isEstimate && !product.isRestaurantItem && !product.barcode?.startsWith('ai-');
+                    return (
                     <button
-                      key={product.barcode}
-                      onClick={() => setSelectedFood(product)}
+                      key={product.barcode || index}
+                      onClick={() => {
+                        setSelectedFood(product);
+                        setSelectedModifiers(new Set());
+                        setShowRestaurantDropdown(false);
+                      }}
                       className={`w-full px-3 py-2.5 text-left hover-elevate flex items-center justify-between gap-2 ${index !== searchResults.length - 1 ? 'border-b' : ''}`}
-                      data-testid={`button-select-food-${product.barcode}`}
+                      data-testid={`button-select-food-${product.barcode || index}`}
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-sm sm:text-base">{product.name}</p>
-                          {product.barcode?.startsWith('local-') && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium shrink-0">MENU</span>
+                          {isVerified && (
+                            <Badge variant="default" className="text-[10px] px-1.5 py-0 shrink-0 bg-emerald-600 dark:bg-emerald-700">Verified</Badge>
+                          )}
+                          {isEstimated && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">Estimated</Badge>
+                          )}
+                          {isFromDatabase && product.barcode?.startsWith('local-') && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">Menu</Badge>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -953,7 +1076,8 @@ export default function NutritionPage() {
                         <p className="text-xs text-muted-foreground">cal</p>
                       </div>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -1073,12 +1197,15 @@ export default function NutritionPage() {
                   <img src={selectedFood.imageUrl} alt="" className="w-16 h-16 object-contain rounded" />
                 )}
                 <div className="flex-1">
-                  <p className="font-medium">
-                    {selectedFood.name}
-                    {(selectedFood as any).isEstimate && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 font-medium ml-2">AI Estimate</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium">{selectedFood.name}</p>
+                    {selectedFood.isRestaurantItem && !selectedFood.isEstimate && (
+                      <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-emerald-600 dark:bg-emerald-700">Verified</Badge>
                     )}
-                  </p>
+                    {selectedFood.isEstimate && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Estimated</Badge>
+                    )}
+                  </div>
                   <p className="text-sm text-muted-foreground">{selectedFood.brandName}</p>
                   <p className="text-sm mt-1">
                     Per {selectedFood.servingSize || "100g"}: {selectedFood.nutrients.calories} cal
@@ -1101,24 +1228,62 @@ export default function NutritionPage() {
                 />
               </div>
 
+              {selectedFood.commonModifiers && selectedFood.commonModifiers.length > 0 && (
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1.5 block">Modifications</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedFood.commonModifiers.map((mod, idx) => {
+                      const isSelected = selectedModifiers.has(idx);
+                      return (
+                        <Badge
+                          key={idx}
+                          variant={isSelected ? "default" : "outline"}
+                          className={`cursor-pointer text-xs toggle-elevate ${isSelected ? 'toggle-elevated' : ''}`}
+                          onClick={() => {
+                            const next = new Set(selectedModifiers);
+                            if (isSelected) next.delete(idx); else next.add(idx);
+                            setSelectedModifiers(next);
+                          }}
+                          data-testid={`button-modifier-${idx}`}
+                        >
+                          {mod.label}
+                          <span className="ml-1 opacity-70">
+                            {mod.calorieDelta >= 0 ? '+' : ''}{mod.calorieDelta} cal
+                          </span>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {(() => {
+                const qty = parseFloat(quantity) || 1;
+                const modCalories = selectedFood.commonModifiers 
+                  ? Array.from(selectedModifiers).reduce((sum, idx) => sum + (selectedFood.commonModifiers![idx]?.calorieDelta || 0), 0)
+                  : 0;
+                const adjustedCals = Math.max(0, Math.round((selectedFood.nutrients.calories + modCalories) * qty));
+                return (
               <div className="grid grid-cols-4 gap-2 text-center text-sm">
                 <div className="p-2 bg-muted rounded">
-                  <div className="font-medium">{Math.round(selectedFood.nutrients.calories * (parseFloat(quantity) || 1))}</div>
+                  <div className="font-medium">{adjustedCals}</div>
                   <div className="text-muted-foreground">Cal</div>
                 </div>
                 <div className="p-2 bg-muted rounded">
-                  <div className="font-medium">{Math.round((selectedFood.nutrients.protein || 0) * (parseFloat(quantity) || 1))}g</div>
+                  <div className="font-medium">{Math.round((selectedFood.nutrients.protein || 0) * qty)}g</div>
                   <div className="text-muted-foreground">Protein</div>
                 </div>
                 <div className="p-2 bg-muted rounded">
-                  <div className="font-medium">{Math.round((selectedFood.nutrients.carbs || 0) * (parseFloat(quantity) || 1))}g</div>
+                  <div className="font-medium">{Math.round((selectedFood.nutrients.carbs || 0) * qty)}g</div>
                   <div className="text-muted-foreground">Carbs</div>
                 </div>
                 <div className="p-2 bg-muted rounded">
-                  <div className="font-medium">{Math.round((selectedFood.nutrients.fat || 0) * (parseFloat(quantity) || 1))}g</div>
+                  <div className="font-medium">{Math.round((selectedFood.nutrients.fat || 0) * qty)}g</div>
                   <div className="text-muted-foreground">Fat</div>
                 </div>
               </div>
+                );
+              })()}
 
               <Button 
                 onClick={handleLogSelectedFood} 
