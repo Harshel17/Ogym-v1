@@ -680,7 +680,7 @@ export const supportTickets = pgTable("support_tickets", {
   gymId: integer("gym_id").references(() => gyms.id),
   contactEmailOrPhone: text("contact_email_or_phone").notNull(),
   issueType: text("issue_type", { 
-    enum: ["login", "otp", "password", "gym_code", "attendance", "payments", "profile_update", "trainer_assignment", "bug_report", "other"] 
+    enum: ["login", "otp", "password", "gym_code", "attendance", "payments", "profile_update", "trainer_assignment", "bug_report", "workout", "nutrition", "account", "subscription", "other"] 
   }).notNull(),
   priority: text("priority", { enum: ["low", "medium", "high"] }).notNull().default("medium"),
   description: text("description").notNull(),

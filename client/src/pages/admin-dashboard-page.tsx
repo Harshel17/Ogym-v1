@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import { 
   Shield, LogOut, Building2, Users, CreditCard, Check, X, Loader2, 
   Clock, CheckCircle, XCircle, Calendar, Search, ArrowLeft, UserCheck, Dumbbell,
-  HelpCircle, MessageSquare, AlertCircle, Send, FileText, History, Edit, Key, ArrowRightLeft, Crown
+  HelpCircle, MessageSquare, AlertCircle, Send, FileText, History, Edit, Key, ArrowRightLeft, Crown, User
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -1387,16 +1387,18 @@ function SupportTab() {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [newMessage, setNewMessage] = useState("");
 
   const { data: tickets = [], isLoading } = useQuery<SupportTicket[]>({
-    queryKey: ["/api/admin/support", statusFilter, priorityFilter],
+    queryKey: ["/api/admin/support", statusFilter, priorityFilter, sourceFilter],
     queryFn: () => {
       const params = new URLSearchParams();
       if (statusFilter !== "all") params.append("status", statusFilter);
       if (priorityFilter !== "all") params.append("priority", priorityFilter);
+      if (sourceFilter === "personal") params.append("personalMode", "true");
       return adminFetch(`/api/admin/support?${params.toString()}`);
     },
   });
@@ -1476,7 +1478,9 @@ function SupportTab() {
   const issueTypeLabels: Record<string, string> = {
     login: "Login Issue", otp: "OTP Issue", password: "Password Issue", gym_code: "Gym Code Issue",
     attendance: "Attendance Issue", payments: "Payment Issue", profile_update: "Profile Update",
-    trainer_assignment: "Trainer Assignment", bug_report: "Bug Report", other: "Other",
+    trainer_assignment: "Trainer Assignment", bug_report: "Bug Report", workout: "Workout Issue",
+    nutrition: "Nutrition / Calorie Tracking", account: "Account Issue", subscription: "Subscription / Billing",
+    other: "Other",
   };
 
   if (isLoading) {
@@ -1492,6 +1496,15 @@ function SupportTab() {
             <CardDescription>Manage user support requests</CardDescription>
           </div>
           <div className="flex gap-2 flex-wrap">
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-[160px]" data-testid="select-source-filter">
+                <SelectValue placeholder="Source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Tickets</SelectItem>
+                <SelectItem value="personal">Personal Mode</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
                 <SelectValue placeholder="Status" />
@@ -1544,10 +1557,16 @@ function SupportTab() {
                       )}
                     </div>
                   )}
-                  {!ticket.gymName && ticket.gymId === null && (
+                  {!ticket.gymName && ticket.gymId === null && ticket.userId && (
+                    <div className="flex items-center gap-2 mb-2 text-xs">
+                      <User className="w-3 h-3 text-muted-foreground" />
+                      <Badge variant="secondary" className="text-xs">Personal Mode</Badge>
+                    </div>
+                  )}
+                  {!ticket.gymName && ticket.gymId === null && !ticket.userId && (
                     <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
-                      <Building2 className="w-3 h-3" />
-                      <span>Unknown Gym</span>
+                      <HelpCircle className="w-3 h-3" />
+                      <span>Guest User</span>
                     </div>
                   )}
                   <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">

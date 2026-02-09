@@ -8405,7 +8405,7 @@ Return ONLY JSON.`
       const user = req.user as any;
       
       const schema = z.object({
-        issueType: z.enum(["attendance", "payments", "profile_update", "trainer_assignment", "bug_report", "other"]),
+        issueType: z.enum(["attendance", "payments", "profile_update", "trainer_assignment", "bug_report", "workout", "nutrition", "account", "subscription", "other"]),
         priority: z.enum(["low", "medium", "high"]).default("medium"),
         description: z.string().min(10, "Description must be at least 10 characters"),
         attachmentUrl: z.string().optional(),
@@ -8515,7 +8515,7 @@ Return ONLY JSON.`
   // Admin: Get all support tickets with filters (enriched with gym/user info)
   app.get("/api/admin/support", requireAdmin, async (req, res) => {
     try {
-      const filters: { status?: string; priority?: string; issueType?: string; gymId?: number } = {};
+      const filters: { status?: string; priority?: string; issueType?: string; gymId?: number; personalMode?: boolean } = {};
       
       if (req.query.status && typeof req.query.status === 'string') {
         filters.status = req.query.status;
@@ -8528,6 +8528,9 @@ Return ONLY JSON.`
       }
       if (req.query.gymId && typeof req.query.gymId === 'string') {
         filters.gymId = parseInt(req.query.gymId);
+      }
+      if (req.query.personalMode === 'true') {
+        filters.personalMode = true;
       }
       
       const tickets = await storage.getAdminSupportTickets(filters);

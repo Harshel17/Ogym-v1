@@ -745,7 +745,7 @@ export interface IStorage {
   getSupportMessages(ticketId: number): Promise<SupportMessage[]>;
   
   // Admin Support (enriched with gym/user info)
-  getAdminSupportTickets(filters?: { status?: string; priority?: string; issueType?: string; gymId?: number }): Promise<AdminSupportTicket[]>;
+  getAdminSupportTickets(filters?: { status?: string; priority?: string; issueType?: string; gymId?: number; personalMode?: boolean }): Promise<AdminSupportTicket[]>;
   getAdminSupportTicket(ticketId: number): Promise<AdminSupportTicketDetail | null>;
   
   // Admin User Management
@@ -7437,7 +7437,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Admin Support (enriched with gym/user info)
-  async getAdminSupportTickets(filters?: { status?: string; priority?: string; issueType?: string; gymId?: number }): Promise<AdminSupportTicket[]> {
+  async getAdminSupportTickets(filters?: { status?: string; priority?: string; issueType?: string; gymId?: number; personalMode?: boolean }): Promise<AdminSupportTicket[]> {
     const conditions = [];
     if (filters?.status) {
       conditions.push(eq(supportTickets.status, filters.status as any));
@@ -7450,6 +7450,9 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters?.gymId) {
       conditions.push(eq(supportTickets.gymId, filters.gymId));
+    }
+    if (filters?.personalMode) {
+      conditions.push(isNull(supportTickets.gymId));
     }
     
     const baseQuery = db.select({
