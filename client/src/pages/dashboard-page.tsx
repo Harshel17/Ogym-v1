@@ -48,19 +48,19 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-3">
-      {/* Greeting Header */}
+      {/* Premium Greeting Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/80 mb-0.5 font-medium tracking-wide uppercase">
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 mb-1 font-semibold tracking-widest uppercase">
             <Calendar className="w-3 h-3" />
             <span>{format(new Date(), 'EEE, MMM d')}</span>
           </div>
-          <h2 className="text-lg font-bold tracking-tight leading-tight">
-            {greeting}, <span className="text-primary">{user.username}</span>
+          <h2 className="text-xl font-bold tracking-tight leading-tight">
+            {greeting}, <span className="premium-gradient-text">{user.username}</span>
           </h2>
         </div>
-        <div className={`p-2 rounded-xl ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400/20 to-orange-500/20 text-amber-500' : 'bg-gradient-to-br from-indigo-400/20 to-purple-500/20 text-indigo-400'}`}>
-          {greetingIcon === 'sun' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/20' : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20'}`}>
+          {greetingIcon === 'sun' ? <Sun className="w-5 h-5 text-white" /> : <Moon className="w-5 h-5 text-white" />}
         </div>
       </div>
 
@@ -1256,14 +1256,69 @@ function MemberDashboard() {
     return <MemberDashboardSkeleton />;
   }
 
+  const quickStats = [
+    { 
+      value: workoutSummary?.streak || 0, 
+      label: "Streak", 
+      icon: Flame, 
+      gradient: "from-amber-500 to-orange-600",
+      bg: "bg-amber-500/10",
+      color: "text-amber-500"
+    },
+    { 
+      value: workoutSummary?.last7DaysCount || 0, 
+      label: "This Week", 
+      icon: TrendingUp, 
+      gradient: "from-blue-500 to-cyan-600",
+      bg: "bg-blue-500/10",
+      color: "text-blue-500"
+    },
+    { 
+      value: calorieData?.summary?.calories || 0, 
+      label: "Calories", 
+      icon: Flame, 
+      gradient: "from-emerald-500 to-teal-600",
+      bg: "bg-emerald-500/10",
+      color: "text-emerald-500"
+    },
+    { 
+      value: calorieData?.summary?.protein || 0, 
+      label: "Protein", 
+      icon: Target, 
+      gradient: "from-violet-500 to-purple-600",
+      bg: "bg-violet-500/10",
+      color: "text-violet-500",
+      suffix: "g"
+    },
+  ];
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 stagger-list">
+      {/* Quick Stats Strip */}
+      <div className="grid grid-cols-4 gap-2" data-testid="quick-stats-strip">
+        {quickStats.map((stat) => (
+          <div 
+            key={stat.label}
+            className="flex flex-col items-center py-2.5 px-1 rounded-xl bg-card/70 backdrop-blur-sm border border-border/30"
+            data-testid={`quick-stat-${stat.label.toLowerCase().replace(/\s+/g, '-')}`}
+          >
+            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${stat.gradient} flex items-center justify-center mb-1.5 shadow-sm`}>
+              <stat.icon className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-base font-bold tabular-nums leading-none" data-testid={`text-quick-stat-value-${stat.label.toLowerCase().replace(/\s+/g, '-')}`}>{stat.value}{stat.suffix || ''}</span>
+            <span className="text-[9px] text-muted-foreground font-medium mt-0.5 uppercase tracking-wider">{stat.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Today's Workout - Premium Card */}
       <Collapsible open={isWorkoutOpen} onOpenChange={setIsWorkoutOpen}>
-        <Card className="border-0 bg-card/60 backdrop-blur-sm overflow-hidden" data-testid="card-today-workout">
+        <Card className="border-0 overflow-hidden shadow-lg shadow-primary/5 relative" data-testid="card-today-workout">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent pointer-events-none" />
           <CollapsibleTrigger asChild>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer group pb-3">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer group pb-3 relative">
               <div className="flex items-center gap-3">
-                <div className="bg-gradient-to-br from-primary to-primary/80 p-2.5 rounded-xl shadow-lg shadow-primary/20">
+                <div className="bg-gradient-to-br from-primary to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-primary/25">
                   <Dumbbell className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -1286,7 +1341,7 @@ function MemberDashboard() {
                 {workoutItems.length > 0 && (
                   <Badge 
                     variant={allCompleted ? "default" : "secondary"}
-                    className={allCompleted ? "bg-gradient-to-r from-green-500 to-emerald-500 border-0 flex items-center gap-1 text-white" : "border-0 bg-muted/60"}
+                    className={allCompleted ? "bg-gradient-to-r from-green-500 to-emerald-500 border-0 flex items-center gap-1 text-white shadow-sm shadow-green-500/20" : "border-0 bg-muted/60"}
                   >
                     {allCompleted && <Sparkles className="w-3 h-3" />}
                     {allCompleted ? "Done" : `${completedCount}/${workoutItems.length}`}
@@ -1673,6 +1728,7 @@ function MemberDashboard() {
 
       <HealthSummary />
 
+      {/* Calorie & Streak Ring Cards */}
       {workoutSummary && (
         <>
           <div className="grid grid-cols-2 gap-2.5">
@@ -1696,35 +1752,38 @@ function MemberDashboard() {
             </Link>
           </div>
 
+          {/* Weekly Progress */}
           <WeeklyProgress calendarDays={workoutSummary.calendarDays} />
         </>
       )}
 
+      {/* Calendar */}
       <MemberCalendarWidget />
 
+      {/* Trainer & Membership Info */}
       {memberProfile && (memberProfile.trainerName || memberProfile.cycleEndDate) && (
-        <Card className="border-0 bg-card/60 backdrop-blur-sm">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center justify-between flex-wrap gap-4">
+        <Card className="border-0 bg-card/70 backdrop-blur-sm">
+          <CardContent className="pt-4 pb-4">
+            <div className="grid grid-cols-2 gap-3">
               {memberProfile.trainerName && (
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-primary/15 to-primary/5 rounded-xl text-primary">
-                    <User2 className="w-4 h-4" />
+                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gradient-to-br from-primary/[0.06] to-transparent">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center shadow-sm">
+                    <User2 className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Your Trainer</p>
-                    <p className="font-semibold text-sm text-foreground">{memberProfile.trainerName}</p>
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Trainer</p>
+                    <p className="font-bold text-sm text-foreground leading-tight">{memberProfile.trainerName}</p>
                   </div>
                 </div>
               )}
               {memberProfile.cycleEndDate && (
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-primary/15 to-primary/5 rounded-xl text-primary">
-                    <Clock className="w-4 h-4" />
+                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gradient-to-br from-amber-500/[0.06] to-transparent">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-sm">
+                    <Clock className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Cycle Ends</p>
-                    <p className="font-semibold text-sm text-foreground">{memberProfile.cycleEndDate}</p>
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Cycle Ends</p>
+                    <p className="font-bold text-sm text-foreground leading-tight">{memberProfile.cycleEndDate}</p>
                   </div>
                 </div>
               )}
@@ -1733,29 +1792,30 @@ function MemberDashboard() {
         </Card>
       )}
 
+      {/* Sessions & Payments */}
       <div className="grid gap-2.5 grid-cols-2">
-        <Card className="border-0 bg-card/60 backdrop-blur-sm" data-testid="stat-card-attendance">
-          <CardContent className="py-4 px-4">
+        <Card className="border-0 bg-card/70 backdrop-blur-sm" data-testid="stat-card-attendance">
+          <CardContent className="py-3.5 px-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-blue-400/15 to-blue-500/5 rounded-xl">
-                <CalendarCheck className="w-4 h-4 text-blue-500" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-sm shadow-blue-500/20">
+                <CalendarCheck className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-lg font-bold tabular-nums">{attendedCount}</p>
-                <p className="text-[10px] text-muted-foreground font-medium">Sessions</p>
+                <p className="text-xl font-bold tabular-nums leading-none">{attendedCount}</p>
+                <p className="text-[10px] text-muted-foreground font-semibold mt-0.5 uppercase tracking-wider">Sessions</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-card/60 backdrop-blur-sm" data-testid="stat-card-payment">
-          <CardContent className="py-4 px-4">
+        <Card className="border-0 bg-card/70 backdrop-blur-sm" data-testid="stat-card-payment">
+          <CardContent className="py-3.5 px-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-purple-400/15 to-purple-500/5 rounded-xl">
-                <CreditCard className="w-4 h-4 text-purple-500" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm shadow-violet-500/20">
+                <CreditCard className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-lg font-bold tabular-nums">{lastPayment ? `$${((lastPayment.amountPaid || 0) / 100).toFixed(2)}` : 'N/A'}</p>
-                <p className="text-[10px] text-muted-foreground font-medium">{lastPayment ? lastPayment.status : 'No payments'}</p>
+                <p className="text-xl font-bold tabular-nums leading-none">{lastPayment ? `$${((lastPayment.amountPaid || 0) / 100).toFixed(2)}` : 'N/A'}</p>
+                <p className="text-[10px] text-muted-foreground font-semibold mt-0.5 uppercase tracking-wider">{lastPayment ? lastPayment.status : 'No payments'}</p>
               </div>
             </div>
           </CardContent>
