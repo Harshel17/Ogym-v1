@@ -14,7 +14,8 @@ export type OwnerActionType =
   | 'member_lookup'
   | 'add_member'
   | 'log_payment'
-  | 'assign_trainer';
+  | 'assign_trainer'
+  | 'create_support_ticket';
 
 export interface ActionData {
   actionType: OwnerActionType;
@@ -102,6 +103,17 @@ const ASSIGN_TRAINER_PATTERNS = [
   /(?:give|put)\s+\w+\s+(?:to|under|with)\s+(?:trainer\s+)?\w+/i,
 ];
 
+const SUPPORT_TICKET_PATTERNS = [
+  /(?:report|submit|file|create|open|raise)\s+(?:a\s+)?(?:support\s+)?(?:ticket|issue|problem|bug|complaint|request)/i,
+  /(?:i\s+(?:have|got|need|want)\s+(?:a\s+)?(?:an?\s+)?)?(?:issue|problem|bug|complaint|concern)\s+(?:with|about|regarding)/i,
+  /(?:something\s+is\s+(?:wrong|broken|not\s+working)|(?:it|this|that)\s+(?:doesn't|does\s+not|isn't|is\s+not)\s+work)/i,
+  /(?:need|want)\s+(?:to\s+)?(?:report|submit|file)\s+(?:a\s+)?(?:support|issue|problem|bug)/i,
+  /(?:i\s+need|i\s+want)\s+(?:help|support|assistance)\s+(?:with|about|regarding|for)/i,
+  /(?:can\s+you\s+)?(?:help\s+me\s+)?(?:report|submit|file|create)\s+(?:a\s+)?(?:ticket|issue|bug)/i,
+  /(?:raise|open)\s+(?:a\s+)?(?:support\s+)?(?:request|case|ticket)/i,
+  /(?:contact|reach)\s+(?:support|help|customer\s+service)/i,
+];
+
 export function extractMemberNameFromLookup(message: string): string | null {
   for (const pattern of MEMBER_LOOKUP_PATTERNS) {
     const match = message.match(pattern);
@@ -130,6 +142,14 @@ function isPageKeyword(name: string): boolean {
   return pageKeywords.some(kw => lower === kw || lower === kw + 's');
 }
 
+export function detectSupportTicketRequest(message: string): boolean {
+  const lower = message.toLowerCase().trim();
+  for (const pattern of SUPPORT_TICKET_PATTERNS) {
+    if (pattern.test(lower)) return true;
+  }
+  return false;
+}
+
 export function detectOwnerAction(message: string): OwnerActionType | null {
   const lower = message.toLowerCase().trim();
 
@@ -144,6 +164,8 @@ export function detectOwnerAction(message: string): OwnerActionType | null {
   for (const pattern of ASSIGN_TRAINER_PATTERNS) {
     if (pattern.test(lower)) return 'assign_trainer';
   }
+
+  if (detectSupportTicketRequest(message)) return 'create_support_ticket';
 
   const lookupName = extractMemberNameFromLookup(message);
   if (lookupName) return 'member_lookup';
@@ -1098,7 +1120,179 @@ function getActionFollowUpChips(actionType: OwnerActionType): string[] {
       return ['Log another payment', 'Go to payments', 'Revenue overview'];
     case 'assign_trainer':
       return ['Assign another trainer', 'Go to trainers', 'Go to members'];
+    case 'create_support_ticket':
+      return ['Go to support', 'Report another issue'];
     default:
       return ['Gym overview', 'Go to dashboard'];
+  }
+}
+
+export async function processSupportTicketAction(
+  userId: number,
+  role: string,
+  gymId: number | null,
+  message: string,
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+): Promise<{ answer: string; followUpChips: string[] }> {
+  const isPersonalMode = role === 'member' && !gymId;
+
+  const validIssueTypes = isPersonalMode
+    ? ['workout', 'nutrition', 'account', 'subscription', 'bug_report', 'other']
+    : role === 'owner'
+      ? ['attendance', 'payments', 'profile_update', 'bug_report', 'other']
+      : role === 'trainer'
+        ? ['attendance', 'payments', 'trainer_assignment', 'bug_report', 'other']
+        : ['attendance', 'payments', 'profile_update', 'trainer_assignment', 'bug_report', 'workout', 'nutrition', 'account', 'subscription', 'other'];
+
+  const issueTypeLabels: Record<string, string> = {
+    attendance: 'Attendance Issue',
+    payments: 'Payment Issue',
+    profile_update: 'Profile Update',
+    trainer_assignment: 'Trainer Assignment',
+    bug_report: 'Bug Report',
+    workout: 'Workout Issue',
+    nutrition: 'Nutrition / Calorie Tracking',
+    account: 'Account Issue',
+    subscription: 'Subscription / Billing',
+    other: 'Other',
+  };
+
+  const availableTypes = validIssueTypes.map(t => `${t} (${issueTypeLabels[t] || t})`).join(', ');
+
+  const historyContext = conversationHistory
+    ? conversationHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n')
+    : '';
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are a support ticket helper for OGym fitness app. Your job is to extract support ticket details from the user's message.
+
+The user is a ${role}${isPersonalMode ? ' in personal mode (no gym)' : gymId ? ' at a gym' : ''}.
+
+Available issue types: ${availableTypes}
+
+Extract the following from the conversation:
+1. issueType: One of [${validIssueTypes.join(', ')}]. Pick the most appropriate based on what they describe.
+2. priority: One of [low, medium, high]. Default to medium unless they indicate urgency.
+3. description: A clear summary of their issue (at least 10 characters).
+
+If you can determine all three fields from the message, respond with a JSON block in this exact format:
+<!-- SUPPORT_TICKET_DATA:{"issueType":"...","priority":"...","description":"..."} -->
+
+Then add a friendly confirmation message asking the user to confirm the ticket details.
+
+If the user's message is too vague to determine the issue, ask them to describe their problem in more detail. Do NOT output the JSON block in that case.`
+        },
+        ...(historyContext ? [{ role: "user" as const, content: `Previous conversation:\n${historyContext}` }] : []),
+        { role: "user", content: message }
+      ],
+      max_completion_tokens: 400,
+    });
+
+    const content = response.choices[0]?.message?.content || '';
+
+    const ticketMatch = content.match(/<!-- SUPPORT_TICKET_DATA:([\s\S]+?) -->/);
+    if (ticketMatch) {
+      try {
+        const ticketData = JSON.parse(ticketMatch[1].trim());
+        const issueType = validIssueTypes.includes(ticketData.issueType) ? ticketData.issueType : 'other';
+        const priority = ['low', 'medium', 'high'].includes(ticketData.priority) ? ticketData.priority : 'medium';
+        const description = ticketData.description?.trim() || message;
+
+        const actionData: ActionData = {
+          actionType: 'create_support_ticket',
+          status: 'pending_confirmation',
+          payload: {
+            issueType,
+            issueTypeLabel: issueTypeLabels[issueType] || issueType,
+            priority,
+            description,
+          },
+          preview: `Create support ticket: ${issueTypeLabels[issueType] || issueType}`,
+        };
+
+        const cleanContent = content
+          .replace(/<!-- SUPPORT_TICKET_DATA:[\s\S]+? -->/g, '')
+          .trim();
+
+        const answer = `${cleanContent || `I'll create a support ticket for you. Here are the details:`}\n<!-- DIKA_ACTION_DATA:${JSON.stringify(actionData)} -->`;
+
+        return {
+          answer,
+          followUpChips: ['Go to support', 'Report another issue'],
+        };
+      } catch {
+        // JSON parse failed, fall through
+      }
+    }
+
+    const cleanAnswer = content.replace(/<!-- SUPPORT_TICKET_DATA:[\s\S]+? -->/g, '').trim();
+    return {
+      answer: cleanAnswer || "Could you describe your issue in a bit more detail? For example, what's not working or what problem you're experiencing?",
+      followUpChips: ['Report a bug', 'Payment issue', 'Account problem'],
+    };
+  } catch (error) {
+    console.error('Support ticket AI processing error:', error);
+    return {
+      answer: "I'd be happy to help you create a support ticket. Could you describe what issue you're experiencing?",
+      followUpChips: ['Report a bug', 'Payment issue', 'Account problem'],
+    };
+  }
+}
+
+export async function executeSupportTicket(
+  userId: number,
+  role: string,
+  gymId: number | null,
+  payload: Record<string, any>
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const { issueType, priority, description } = payload;
+
+    if (!description || description.length < 10) {
+      return { success: false, message: "Description must be at least 10 characters." };
+    }
+
+    const [user] = await db.select({
+      email: users.email,
+      phone: users.phone,
+    }).from(users).where(eq(users.id, userId));
+
+    const ticket = await storage.createSupportTicket({
+      userId,
+      userRole: role as 'owner' | 'member' | 'trainer',
+      gymId: gymId || null,
+      contactEmailOrPhone: user?.email || user?.phone || `user_${userId}`,
+      issueType: issueType || 'other',
+      priority: priority || 'medium',
+      description,
+      attachmentUrl: null,
+      status: 'open',
+    });
+
+    const issueTypeLabels: Record<string, string> = {
+      attendance: 'Attendance Issue',
+      payments: 'Payment Issue',
+      profile_update: 'Profile Update',
+      trainer_assignment: 'Trainer Assignment',
+      bug_report: 'Bug Report',
+      workout: 'Workout Issue',
+      nutrition: 'Nutrition / Calorie Tracking',
+      account: 'Account Issue',
+      subscription: 'Subscription / Billing',
+      other: 'Other',
+    };
+
+    return {
+      success: true,
+      message: `Your support ticket has been created!\n- **Ticket #${ticket.id}**\n- **Type**: ${issueTypeLabels[issueType] || issueType}\n- **Priority**: ${(priority || 'medium').toUpperCase()}\n\nOur team will review your request and get back to you. You can track your ticket status in the Support page.`,
+    };
+  } catch (error: any) {
+    console.error('Execute support ticket error:', error);
+    return { success: false, message: `Failed to create support ticket: ${error.message || 'Unknown error'}` };
   }
 }

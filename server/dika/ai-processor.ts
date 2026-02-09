@@ -19,7 +19,7 @@ import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
 import { detectWorkoutGenerationRequest, generateWorkoutPlan } from "./workout-generator";
 import { detectMealLogRequest, parseMealFromMessage, logMealForUser, getTodayNutritionSummary, formatMealLogResponse, detectRestaurantInMessage, looksLikeRestaurantFood } from "./meal-logger";
-import { detectOwnerAction, processOwnerAction, OwnerActionType } from "./owner-actions";
+import { detectOwnerAction, processOwnerAction, OwnerActionType, detectSupportTicketRequest, processSupportTicketAction } from "./owner-actions";
 import { detectWeeklyReportRequest, generateWeeklyReport, formatWeeklyReportResponse } from "./weekly-report";
 
 function detectPendingMealFromHistory(
@@ -723,7 +723,8 @@ You can help this member with:
 - Subscription status
 - Nutrition tracking and calorie analysis
 ${ctx.healthData.connected ? '- Fitness device data analysis (steps, calories burned, heart rate, sleep)' : ''}
-- Motivation and encouragement based on their data`;
+- Motivation and encouragement based on their data
+- Creating support tickets to report issues or request help`;
   }
   
   if (userContext.role === 'owner') {
@@ -760,7 +761,8 @@ You can help this owner with:
 - Attendance trends
 - Strategic recommendations for gym growth
 - Identifying members at risk of churning
-- Suggestions to improve member engagement`;
+- Suggestions to improve member engagement
+- Creating support tickets to report issues or request help`;
   }
   
   if (userContext.role === 'trainer') {
@@ -775,7 +777,8 @@ You can help this trainer with:
 - Member progress tracking
 - Identifying members who need attention
 - Workout consistency of their assigned members
-- Training schedule optimization`;
+- Training schedule optimization
+- Creating support tickets to report issues or request help`;
   }
   
   return basePrompt;
@@ -920,9 +923,17 @@ export async function processWithAI(
     }
   }
 
+  if (detectSupportTicketRequest(message)) {
+    try {
+      return await processSupportTicketAction(userId, role, gymId, message, conversationHistory);
+    } catch (error: any) {
+      console.error('Support ticket processing failed:', error?.message || error);
+    }
+  }
+
   if (role === 'owner' && gymId) {
     const ownerAction = detectOwnerAction(message);
-    if (ownerAction) {
+    if (ownerAction && ownerAction !== 'create_support_ticket') {
       try {
         return await processOwnerAction(userId, gymId, message, ownerAction, conversationHistory);
       } catch (error: any) {
@@ -932,7 +943,7 @@ export async function processWithAI(
     }
 
     const pendingAction = detectPendingActionFromHistory(conversationHistory);
-    if (pendingAction) {
+    if (pendingAction && pendingAction !== 'create_support_ticket') {
       try {
         return await processOwnerAction(userId, gymId, message, pendingAction, conversationHistory);
       } catch (error) {
@@ -1037,6 +1048,9 @@ function generateFollowUpChips(role: UserRole, lastMessage: string, gymId: numbe
     }
     if (lowerMessage.includes('weight') || lowerMessage.includes('body') || lowerMessage.includes('progress')) {
       return ['My workouts this week', 'Am I being consistent?'];
+    }
+    if (lowerMessage.includes('support') || lowerMessage.includes('issue') || lowerMessage.includes('problem') || lowerMessage.includes('report') || lowerMessage.includes('bug')) {
+      return ['Report a bug', 'Go to support'];
     }
     return ['My workout progress', 'How am I doing?'];
   }

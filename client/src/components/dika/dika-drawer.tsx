@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -286,7 +286,7 @@ function MealLoggedCard({ meal }: { meal: MealLogData }) {
 }
 
 interface OwnerActionData {
-  actionType: 'navigate' | 'add_member' | 'log_payment' | 'assign_trainer';
+  actionType: 'navigate' | 'add_member' | 'log_payment' | 'assign_trainer' | 'create_support_ticket';
   status: 'pending_confirmation' | 'needs_info' | 'ready';
   payload: Record<string, any>;
   preview: string;
@@ -323,6 +323,7 @@ const ACTION_ICONS: Record<string, typeof UserPlus> = {
   log_payment: CreditCard,
   assign_trainer: Users,
   navigate: Navigation,
+  create_support_ticket: LifeBuoy,
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -330,6 +331,7 @@ const ACTION_LABELS: Record<string, string> = {
   log_payment: 'Log Payment',
   assign_trainer: 'Assign Trainer',
   navigate: 'Navigate',
+  create_support_ticket: 'Support Ticket',
 };
 
 const ACTION_GRADIENTS: Record<string, string> = {
@@ -337,6 +339,7 @@ const ACTION_GRADIENTS: Record<string, string> = {
   log_payment: 'from-blue-500 to-indigo-600',
   assign_trainer: 'from-purple-500 to-violet-600',
   navigate: 'from-amber-500 to-orange-600',
+  create_support_ticket: 'from-rose-500 to-pink-600',
 };
 
 interface ActionCardProps {
@@ -387,7 +390,7 @@ function ActionCard({ action, onConfirm, onCancel, isExecuting, executionResult 
 
       <div className="px-3 py-3 space-y-1.5">
         {Object.entries(action.payload).filter(([key]) => 
-          !key.endsWith('Id') && key !== 'path'
+          !key.endsWith('Id') && key !== 'path' && key !== 'issueType'
         ).map(([key, value]) => {
           if (value === null || value === undefined || value === '') return null;
           const displayKey = key
@@ -401,6 +404,9 @@ function ActionCard({ action, onConfirm, onCancel, isExecuting, executionResult 
           }
           if (key === 'totalAmount' || key === 'amountPaid') {
             displayValue = `$${Number(value).toLocaleString()}`;
+          }
+          if (key === 'priority') {
+            displayValue = String(value).toUpperCase();
           }
 
           const isBalance = key === 'paymentMode' && value === 'partial';
@@ -953,6 +959,9 @@ export function DikaDrawer({
           queryClient.invalidateQueries({ queryKey: ['/api/owner/subscriptions'] });
           queryClient.invalidateQueries({ queryKey: ['/api/owner/revenue'] });
           queryClient.invalidateQueries({ queryKey: ['/api/owner/dashboard-metrics'] });
+        }
+        if (extractActionFromContent(messages.find(m => m.id === messageId)?.content || '')?.actionType === 'create_support_ticket') {
+          queryClient.invalidateQueries({ queryKey: ['/api/support/my-tickets'] });
         }
       }
     },

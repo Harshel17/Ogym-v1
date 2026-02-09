@@ -14,7 +14,7 @@ import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, memb
 import { eq, and, isNotNull, inArray, sql, desc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, generateOwnerBriefing } from "./dika";
-import { executeOwnerAction, type ActionData } from "./dika/owner-actions";
+import { executeOwnerAction, executeSupportTicket, type ActionData } from "./dika/owner-actions";
 import { searchFoodByName, lookupByBarcode, FoodProduct } from "./nutrition/open-food-facts";
 import { searchLocalFoods } from "./nutrition/food-database";
 import { findRestaurantSuggestion, getSuggestionForGoal, getGeneralDikaMessage, GoalType } from "./nutrition/restaurant-suggestions";
@@ -4891,16 +4891,8 @@ Return ONLY JSON.`
   });
 
   app.post("/api/dika/execute", requireAuth, async (req, res) => {
-    if (req.user!.role !== 'owner') {
-      return res.status(403).json({ message: "Only gym owners can execute actions" });
-    }
-    
-    if (!req.user!.gymId) {
-      return res.status(400).json({ message: "No gym associated with your account" });
-    }
-    
     const schema = z.object({
-      actionType: z.enum(['add_member', 'log_payment', 'assign_trainer']),
+      actionType: z.enum(['add_member', 'log_payment', 'assign_trainer', 'create_support_ticket']),
       payload: z.record(z.any()),
       preview: z.string(),
     });
@@ -4908,6 +4900,29 @@ Return ONLY JSON.`
     const input = schema.safeParse(req.body);
     if (!input.success) {
       return res.status(400).json({ message: "Invalid action data", errors: input.error.errors });
+    }
+
+    if (input.data.actionType === 'create_support_ticket') {
+      try {
+        const result = await executeSupportTicket(
+          req.user!.id,
+          req.user!.role,
+          req.user!.gymId || null,
+          input.data.payload
+        );
+        return res.json(result);
+      } catch (error) {
+        console.error('Dika support ticket execute error:', error);
+        return res.status(500).json({ success: false, message: "Failed to create support ticket. Please try again." });
+      }
+    }
+
+    if (req.user!.role !== 'owner') {
+      return res.status(403).json({ message: "Only gym owners can execute this action" });
+    }
+    
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "No gym associated with your account" });
     }
     
     try {
