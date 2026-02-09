@@ -115,6 +115,29 @@ function detectPendingActionFromHistory(
     }
 
     if (
+      (content.includes('log') && content.includes('payment')) ||
+      content.includes('payment amount') ||
+      content.includes('payment method') ||
+      content.includes('amount and method') ||
+      (content.includes('payment') && content.includes('member')) ||
+      (content.includes('payment') && content.includes('amount')) ||
+      content.includes('membership plan') ||
+      content.includes('subscription plan') ||
+      content.includes('select a plan') ||
+      content.includes('choose a plan') ||
+      content.includes('available plan') ||
+      content.includes('which plan') ||
+      (content.includes('subscription') && content.includes('plan')) ||
+      (content.includes('membership') && (content.includes('month') || content.includes('$') || content.includes('₹'))) ||
+      content.includes('paying the full amount') ||
+      content.includes('full amount of') ||
+      content.includes('outstanding balance') ||
+      (content.includes('how much') && content.includes('pay'))
+    ) {
+      return 'log_payment';
+    }
+
+    if (
       (content.includes('add') && content.includes('member')) ||
       content.includes('full name') ||
       content.includes('email address') ||
@@ -125,29 +148,11 @@ function detectPendingActionFromHistory(
     }
 
     if (
-      (content.includes('log') && content.includes('payment')) ||
-      content.includes('payment amount') ||
-      content.includes('payment method') ||
-      content.includes('amount and method') ||
-      (content.includes('payment') && content.includes('member')) ||
-      (content.includes('payment') && content.includes('amount')) ||
-      content.includes('membership plan') ||
-      content.includes('paying the full amount') ||
-      content.includes('full amount of') ||
-      content.includes('outstanding balance') ||
-      content.includes('how much') && content.includes('pay')
-    ) {
-      return 'log_payment';
-    }
-
-    if (
       (content.includes('assign') && content.includes('trainer')) ||
       content.includes('which trainer')
     ) {
       return 'assign_trainer';
     }
-
-    break;
   }
 
   return null;

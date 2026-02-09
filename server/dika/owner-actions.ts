@@ -88,6 +88,11 @@ const LOG_PAYMENT_PATTERNS = [
   /(?:paid|received|got)\s+(?:payment|money|cash|amount|dues)/i,
   /(?:payment|fees?)\s+(?:from|by|for)\s+/i,
   /(?:log|record|add|mark|enter)[.\s]+(?:a\s+)?payment\s+(?:for|to)\s+\w+/i,
+  /(?:assign|set|give|add|create|start)\s+(?:a\s+)?(?:an?\s+)?(?:subscription|membership)\s*(?:plan)?/i,
+  /(?:assign|set|give|add|create|start)\s+(?:a\s+)?(?:an?\s+)?plan/i,
+  /(?:subscription|membership)\s+(?:plan\s+)?(?:for|to)\s+/i,
+  /(?:subscribe|enroll)\s+(?:\w+\s+)?(?:to|in|for)\s+(?:a\s+)?(?:plan|membership|subscription)/i,
+  /(?:renew|extend)\s+(?:the\s+)?(?:subscription|membership|plan)/i,
 ];
 
 const ASSIGN_TRAINER_PATTERNS = [
