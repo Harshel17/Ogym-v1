@@ -147,7 +147,8 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
       const res = await fetch(`/api/owner/today-activity?clientToday=${clientToday}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch today activity');
       return res.json();
-    }
+    },
+    staleTime: 1000 * 60 * 2,
   });
 
   const totalItems = (activity?.newMembers.length || 0) + (activity?.payments.length || 0) + (activity?.expiringSubscriptions.length || 0);
@@ -363,7 +364,8 @@ function OwnerDashboard() {
       const res = await fetch(`/api/owner/dashboard-metrics?clientToday=${clientToday}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch dashboard metrics');
       return res.json();
-    }
+    },
+    staleTime: 1000 * 60 * 2,
   });
 
   // AI Insights
@@ -372,7 +374,8 @@ function OwnerDashboard() {
     followUpReminders: { count: number; items: { type: string; memberId: number; name: string; message: string; priority: string }[] };
     memberInsights: { totalActive: number; newThisMonth: number; atRiskCount: number };
   }>({
-    queryKey: [`/api/owner/ai-insights/${getClientLocalDate()}`]
+    queryKey: [`/api/owner/ai-insights/${getClientLocalDate()}`],
+    staleTime: 1000 * 60 * 10,
   });
 
   // Walk-in visitor stats
@@ -383,7 +386,8 @@ function OwnerDashboard() {
     todayRevenue: number;
     conversionRate: number;
   }>({
-    queryKey: ["/api/owner/walk-in-visitors/stats"]
+    queryKey: ["/api/owner/walk-in-visitors/stats"],
+    staleTime: 1000 * 60 * 2,
   });
 
   const attendanceList = attendance as any[];
@@ -615,14 +619,17 @@ function TrainerDashboard() {
 
   const { data: dashboardData, isLoading: trainerLoading } = useQuery<TrainerDashboardData>({
     queryKey: ["/api/trainer/dashboard"],
+    staleTime: 1000 * 60 * 2,
   });
 
   const { data: members = [] } = useQuery<any[]>({
     queryKey: ["/api/trainer/members"],
+    staleTime: 1000 * 60 * 2,
   });
 
   const { data: newMembers = [] } = useQuery<any[]>({
     queryKey: ["/api/trainer/new-members"],
+    staleTime: 1000 * 60 * 2,
   });
 
   const totalMembers = dashboardData?.totalMembers || members.length || 0;
@@ -873,6 +880,7 @@ function MemberDashboard() {
   const { data: stats } = useMemberStats();
   const { data: workoutSummary } = useQuery<WorkoutSummary>({
     queryKey: ["/api/member/workout/summary"],
+    staleTime: 1000 * 60 * 2,
   });
   const { data: todayWorkout, isLoading: workoutLoading } = useTodayWorkout();
   const { data: profile } = useMemberProfile();
@@ -886,7 +894,8 @@ function MemberDashboard() {
     queryFn: async () => {
       const res = await fetch(`/api/nutrition/summary?date=${todayDateStr}`);
       return res.json();
-    }
+    },
+    staleTime: 1000 * 60 * 2,
   });
   
   const handleAskToShare = (achievements: { type: string; label: string; metadata: Record<string, unknown> }[]) => {
@@ -2059,6 +2068,7 @@ function MemberCalendarWidget() {
   
   const { data: calendarData = [] } = useQuery<CalendarDayData[]>({
     queryKey: [`/api/me/calendar/enhanced?month=${monthStr}&today=${clientToday}`],
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: dailyAnalytics, isLoading: analyticsLoading } = useQuery<DailyAnalytics>({

@@ -144,24 +144,28 @@ export function useUndoRestDaySwap() {
 export function useMemberCycle() {
   return useQuery({
     queryKey: ['/api/workouts/cycles/my'],
+    staleTime: 1000 * 60 * 5,
   });
 }
 
 export function useTodayWorkout() {
   return useQuery({
     queryKey: ['/api/workouts/today'],
+    staleTime: 1000 * 60 * 2,
   });
 }
 
 export function useMemberStats() {
   return useQuery({
     queryKey: ['/api/workouts/stats/my'],
+    staleTime: 1000 * 60 * 5,
   });
 }
 
 export function useMemberHistory() {
   return useQuery({
     queryKey: ['/api/workouts/history/my'],
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -282,12 +286,14 @@ export function useCompleteAllWorkouts(onAskToShare?: (achievements: ShareableAc
 export function useMemberProfile() {
   return useQuery({
     queryKey: ['/api/member/profile'],
+    staleTime: 1000 * 60 * 5,
   });
 }
 
 export function useMemberProgress() {
   return useQuery({
     queryKey: ['/api/member/progress'],
+    staleTime: 1000 * 60 * 5,
   });
 }
 

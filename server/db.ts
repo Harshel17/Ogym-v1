@@ -19,3 +19,7 @@ export const pool = new Pool({
 export const db = drizzle(pool, { schema });
 
 pool.query('SELECT 1').catch(() => {});
+
+setInterval(() => {
+  pool.query('SELECT 1').catch(() => {});
+}, 60000);

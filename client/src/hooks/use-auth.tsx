@@ -331,6 +331,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return res.json();
     },
     retry: false,
+    staleTime: 1000 * 60 * 5,
   });
 
   const loginMutation = useLoginMutation(setPendingVerification);

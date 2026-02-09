@@ -74,6 +74,7 @@ export function useAttendance() {
 export function useMemberAttendance() {
   return useQuery({
     queryKey: ['/api/attendance/my'],
+    staleTime: 1000 * 60 * 2,
   });
 }
 
@@ -114,6 +115,7 @@ export function usePayments() {
 export function useMemberPayments() {
   return useQuery({
     queryKey: ['/api/payments/my'],
+    staleTime: 1000 * 60 * 5,
   });
 }
 
