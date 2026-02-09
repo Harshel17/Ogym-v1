@@ -25,31 +25,50 @@ import { detectWeeklyReportRequest, generateWeeklyReport, formatWeeklyReportResp
 function detectPendingMealFromHistory(
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
 ): string | null {
-  if (!conversationHistory || conversationHistory.length < 2) return null;
+  if (!conversationHistory || conversationHistory.length < 1) return null;
   
   const recentMessages = conversationHistory.slice(-6);
   
   const lastMsg = recentMessages[recentMessages.length - 1];
-  if (lastMsg?.role !== 'user') return null;
   
-  const secondLast = recentMessages[recentMessages.length - 2];
-  if (secondLast?.role !== 'assistant') return null;
+  let restaurantQuestionMsg: { role: string; content: string } | null = null;
+  let searchStartIndex: number;
   
-  const isRestaurantQuestion = secondLast.content.includes('Which restaurant') || 
-    secondLast.content.includes('which restaurant') ||
-    secondLast.content.includes('extra sauces, toppings') ||
-    secondLast.content.includes('exact restaurant nutrition');
+  if (lastMsg?.role === 'assistant') {
+    const isRestaurantQuestion = lastMsg.content.includes('Which restaurant') || 
+      lastMsg.content.includes('which restaurant') ||
+      lastMsg.content.includes('extra sauces, toppings') ||
+      lastMsg.content.includes('exact restaurant nutrition');
+    if (isRestaurantQuestion) {
+      restaurantQuestionMsg = lastMsg;
+      searchStartIndex = recentMessages.length - 2;
+    } else {
+      return null;
+    }
+  } else if (lastMsg?.role === 'user') {
+    const secondLast = recentMessages[recentMessages.length - 2];
+    if (secondLast?.role !== 'assistant') return null;
+    const isRestaurantQuestion = secondLast.content.includes('Which restaurant') || 
+      secondLast.content.includes('which restaurant') ||
+      secondLast.content.includes('extra sauces, toppings') ||
+      secondLast.content.includes('exact restaurant nutrition');
+    if (!isRestaurantQuestion) return null;
+    restaurantQuestionMsg = secondLast;
+    searchStartIndex = recentMessages.length - 3;
+  } else {
+    return null;
+  }
   
-  if (!isRestaurantQuestion) return null;
+  if (!restaurantQuestionMsg) return null;
   
-  for (let j = recentMessages.length - 3; j >= 0; j--) {
+  for (let j = searchStartIndex; j >= 0; j--) {
     const prevMsg = recentMessages[j];
     if (prevMsg.role !== 'user') continue;
     
     const mealPatterns = [
-      /i (?:had|ate|just had|just ate|consumed|grabbed|got)\s+(?:a|an|some|the)?\s*(.+)/i,
-      /(?:had|ate|got)\s+(?:a|an|some|the)?\s*(.+)/i,
-      /log\s+(?:a|an|some|the)?\s*(.+)/i,
+      /\bi (?:had|ate|just had|just ate|consumed|grabbed|got)\s+(?:a|an|some|the)?\s*(.+)/i,
+      /\b(?:had|ate|got)\s+(?:a|an|some|the)?\s*(.+)/i,
+      /\blog\s+(?:a|an|some|the)?\s*(.+)/i,
       /(?:for\s+(?:breakfast|lunch|dinner|snack)[,:]?\s*)(.+)/i,
     ];
     for (const pattern of mealPatterns) {
