@@ -716,64 +716,78 @@ export default function NutritionPage() {
         Add Food
       </Button>
 
-      <Card className="overflow-hidden shadow-sm relative" data-testid="card-water-tracker" style={{ animation: 'slideUp 0.4s ease-out 0.5s both' }}>
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.03] to-transparent pointer-events-none" />
+      <Card className="shadow-sm relative" data-testid="card-water-tracker" style={{ animation: 'slideUp 0.4s ease-out 0.5s both' }}>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.03] to-transparent pointer-events-none rounded-md" />
         <CardContent className="pt-3 pb-3 relative">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-1.5">
-              <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-400/10">
-                <Droplets className="w-3.5 h-3.5 text-blue-500" style={{ animation: (waterData?.totalOz || 0) > 0 ? 'breathe 3s ease-in-out infinite' : undefined }} />
+          <div className="flex items-center gap-3">
+            {(() => {
+              const waterOz = waterData?.totalOz || 0;
+              const waterGoal = 64;
+              const waterPercent = Math.min((waterOz / waterGoal) * 100, 100);
+              const wSize = 60;
+              const wStroke = 4.5;
+              const wRadius = (wSize - wStroke) / 2;
+              const wCircumference = 2 * Math.PI * wRadius;
+              const wOffset = wCircumference - (waterPercent / 100) * wCircumference;
+              const isFull = waterOz >= waterGoal;
+              const waterColor = isFull ? "#10b981" : "#3b82f6";
+              return (
+                <div className="relative flex-shrink-0" style={{ width: wSize, height: wSize }}>
+                  <svg width={wSize} height={wSize} className="-rotate-90">
+                    <circle cx={wSize / 2} cy={wSize / 2} r={wRadius} fill="none" stroke="currentColor" strokeWidth={wStroke} className="text-muted/30" />
+                    <circle cx={wSize / 2} cy={wSize / 2} r={wRadius} fill="none" stroke={waterColor} strokeWidth={wStroke} strokeDasharray={wCircumference} strokeDashoffset={wOffset} strokeLinecap="round" className="transition-all duration-1000 ease-out" style={{ filter: `drop-shadow(0 0 3px ${waterColor}40)` }} />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <Droplets className="w-3.5 h-3.5 text-blue-500" style={{ animation: waterOz > 0 ? 'breathe 3s ease-in-out infinite' : undefined }} />
+                    <span className="text-[8px] font-bold mt-0.5 tabular-nums" data-testid="text-water-ring-percent">{Math.round(waterPercent)}%</span>
+                  </div>
+                </div>
+              );
+            })()}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-sm font-bold">Water</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold">
+                    {waterData?.totalOz || 0}<span className="text-muted-foreground font-normal">oz / 64oz</span>
+                  </span>
+                  {(waterData?.totalOz || 0) >= 64 && (
+                    <Badge variant="default" className="text-[9px] px-1.5 py-0 bg-blue-600 dark:bg-blue-700 no-default-hover-elevate no-default-active-elevate" style={{ animation: 'checkPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' }}>Full</Badge>
+                  )}
+                </div>
               </div>
-              <span className="text-sm font-bold">Water</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[{ oz: 8, label: "8oz" }, { oz: 12, label: "12oz" }, { oz: 16, label: "16oz" }, { oz: 24, label: "24oz" }].map(({ oz, label }) => (
+                  <Button
+                    key={oz}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addWaterMutation.mutate(oz)}
+                    disabled={addWaterMutation.isPending}
+                    data-testid={`button-add-water-${oz}`}
+                  >
+                    <Plus className="w-3 h-3 mr-0.5" />
+                    {label}
+                  </Button>
+                ))}
+                {waterData?.logs && waterData.logs.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto text-muted-foreground"
+                    onClick={() => {
+                      const lastLog = waterData.logs[waterData.logs.length - 1];
+                      if (lastLog) deleteWaterMutation.mutate(lastLog.id);
+                    }}
+                    disabled={deleteWaterMutation.isPending}
+                    data-testid="button-undo-water"
+                  >
+                    <Undo2 className="w-3 h-3 mr-0.5" />
+                    Undo
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold">
-                {waterData?.totalOz || 0}<span className="text-muted-foreground font-normal">oz / 64oz</span>
-              </span>
-              {(waterData?.totalOz || 0) >= 64 && (
-                <Badge variant="default" className="text-[9px] px-1.5 py-0 bg-blue-600 dark:bg-blue-700 no-default-hover-elevate no-default-active-elevate" style={{ animation: 'checkPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' }}>Full</Badge>
-              )}
-            </div>
-          </div>
-          <div className="relative h-3 rounded-full bg-muted/30 overflow-hidden mb-2.5">
-            <div 
-              className="water-fill-bar absolute inset-y-0 left-0 rounded-full"
-              style={{ 
-                width: `${Math.min(((waterData?.totalOz || 0) / 64) * 100, 100)}%`,
-                transition: 'width 0.6s ease-out',
-              }}
-            />
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {[{ oz: 8, label: "8oz" }, { oz: 12, label: "12oz" }, { oz: 16, label: "16oz" }, { oz: 24, label: "24oz" }].map(({ oz, label }) => (
-              <Button
-                key={oz}
-                variant="outline"
-                size="sm"
-                onClick={() => addWaterMutation.mutate(oz)}
-                disabled={addWaterMutation.isPending}
-                data-testid={`button-add-water-${oz}`}
-              >
-                <Plus className="w-3 h-3 mr-0.5" />
-                {label}
-              </Button>
-            ))}
-            {waterData?.logs && waterData.logs.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-auto text-muted-foreground"
-                onClick={() => {
-                  const lastLog = waterData.logs[waterData.logs.length - 1];
-                  if (lastLog) deleteWaterMutation.mutate(lastLog.id);
-                }}
-                disabled={deleteWaterMutation.isPending}
-                data-testid="button-undo-water"
-              >
-                <Undo2 className="w-3 h-3 mr-0.5" />
-                Undo
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -1860,27 +1874,57 @@ function MacroProgress({ label, value, goal, percent, icon: Icon, color, bgColor
   color: string;
   bgColor: string;
 }) {
+  const size = 64;
+  const strokeWidth = 4.5;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const clampedPercent = Math.min(Math.max(percent, 0), 100);
+  const offset = circumference - (clampedPercent / 100) * circumference;
+  const isOver = value > goal && goal > 0;
+
+  const colorMap: Record<string, string> = {
+    "text-red-500": "#ef4444",
+    "text-amber-500": "#f59e0b",
+    "text-blue-500": "#3b82f6",
+  };
+  const strokeColor = isOver ? "#ef4444" : (colorMap[color] || "#10b981");
+
   return (
-    <div className="text-center space-y-1.5 p-2 rounded-lg bg-muted/20">
-      <div className="flex items-center justify-center gap-1">
-        <div className={`p-0.5 rounded ${bgColor}/10`}>
-          <Icon className={`w-3 h-3 ${color}`} />
+    <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-muted/20" data-testid={`macro-ring-${label.toLowerCase()}`}>
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="-rotate-90">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            className="text-muted/30"
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className="transition-all duration-1000 ease-out"
+            style={{ filter: `drop-shadow(0 0 3px ${strokeColor}40)` }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <Icon className={`w-3.5 h-3.5 ${isOver ? "text-red-500" : color}`} />
+          <span className={`text-[9px] font-bold mt-0.5 tabular-nums ${isOver ? "text-red-500" : ""}`} data-testid={`text-macro-ring-${label.toLowerCase()}-percent`}>{Math.round(clampedPercent)}%</span>
         </div>
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
       </div>
-      <div className="relative h-1.5 rounded-full bg-muted/50 overflow-hidden">
-        <div 
-          className={`absolute inset-y-0 left-0 rounded-full ${bgColor}`}
-          style={{ 
-            width: `${Math.min(percent, 100)}%`,
-            transition: 'width 0.8s ease-out',
-            opacity: 0.8,
-          }}
-        />
-      </div>
-      <div>
-        <span className="text-sm font-bold">{value}g</span>
-        <span className="text-[10px] text-muted-foreground"> / {goal}g</span>
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="leading-none">
+        <span className={`text-xs font-bold tabular-nums ${isOver ? "text-red-500" : ""}`}>{value}g</span>
+        <span className="text-[9px] text-muted-foreground"> / {goal}g</span>
       </div>
     </div>
   );

@@ -333,27 +333,57 @@ export const WorkoutProgressBar = memo(function WorkoutProgressBar({
   total,
   className,
 }: WorkoutProgressBarProps) {
-  const percentage = total > 0 ? (completed / total) * 100 : 0;
+  const rawPercentage = total > 0 ? (completed / total) * 100 : 0;
+  const percentage = Math.min(Math.max(rawPercentage, 0), 100);
   const isComplete = completed === total && total > 0;
 
+  const size = 52;
+  const strokeWidth = 4;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percentage / 100) * circumference;
+  const strokeColor = isComplete ? "#10b981" : "hsl(var(--primary))";
+
   return (
-    <div className={cn("w-full", className)}>
-      <div className="flex items-center justify-between mb-1.5">
+    <div className={cn("flex items-center gap-3", className)} data-testid="workout-progress-ring">
+      <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="-rotate-90">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            className="text-muted/30"
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className="transition-all duration-1000 ease-out"
+            style={{ filter: isComplete ? `drop-shadow(0 0 4px #10b98140)` : undefined }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          {isComplete ? (
+            <Check className="w-4 h-4 text-green-500" />
+          ) : (
+            <span className="text-[11px] font-bold tabular-nums" data-testid="text-workout-progress-percent">{Math.round(percentage)}%</span>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col">
         <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Progress</span>
-        <span className={cn("text-[10px] font-bold tabular-nums", isComplete ? "text-green-500" : "text-foreground")}>
+        <span className={cn("text-sm font-bold tabular-nums", isComplete ? "text-green-500" : "text-foreground")}>
           {completed}/{total}
         </span>
-      </div>
-      <div className="h-2 bg-muted/40 rounded-full overflow-hidden">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all duration-700 ease-out",
-            isComplete 
-              ? "bg-gradient-to-r from-green-400 to-emerald-500" 
-              : "bg-gradient-to-r from-primary/80 to-primary"
-          )}
-          style={{ width: `${percentage}%` }}
-        />
       </div>
     </div>
   );
