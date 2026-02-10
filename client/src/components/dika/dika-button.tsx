@@ -1,10 +1,9 @@
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
 
 const DRAG_THRESHOLD = 8;
-const DEBUG_TOUCH = true;
 
 interface DikaButtonProps {
   icon: DikaIcon;
@@ -12,6 +11,16 @@ interface DikaButtonProps {
   onPositionChange: (pos: { x: number; y: number }) => void;
   onClick: () => void;
   onLongPress?: () => void;
+}
+
+function sendDebug(events: string[]) {
+  try {
+    fetch('/api/debug-touch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ events, ua: navigator.userAgent, time: new Date().toISOString() }),
+    }).catch(() => {});
+  } catch {}
 }
 
 export function DikaButton({ 
@@ -26,14 +35,6 @@ export function DikaButton({
   const draggedRef = useRef(false);
   const isDraggingRef = useRef(false);
   const posRef = useRef({ x: position.x, y: position.y });
-  const [debugLog, setDebugLog] = useState<string[]>([]);
-
-  const addDebug = useCallback((msg: string) => {
-    if (!DEBUG_TOUCH) return;
-    const t = new Date();
-    const ts = `${t.getHours().toString().padStart(2,'0')}:${t.getMinutes().toString().padStart(2,'0')}:${t.getSeconds().toString().padStart(2,'0')}`;
-    setDebugLog(prev => [...prev, `${ts}: ${msg}`].slice(-10));
-  }, []);
 
   const onPositionChangeRef = useRef(onPositionChange);
   onPositionChangeRef.current = onPositionChange;
@@ -41,8 +42,6 @@ export function DikaButton({
   onLongPressRef.current = onLongPress;
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
-  const addDebugRef = useRef(addDebug);
-  addDebugRef.current = addDebug;
 
   const applyPosition = useCallback((x: number, y: number) => {
     const btn = buttonRef.current;
@@ -90,7 +89,8 @@ export function DikaButton({
       const offsetX = touch.clientX - currentPos.x;
       const offsetY = touch.clientY - currentPos.y;
 
-      addDebugRef.current(`TSTART x=${Math.round(startX)} y=${Math.round(startY)} btnX=${Math.round(currentPos.x)} btnY=${Math.round(currentPos.y)}`);
+      const debugEvents: string[] = [];
+      debugEvents.push(`TSTART sx=${Math.round(startX)} sy=${Math.round(startY)} bx=${Math.round(currentPos.x)} by=${Math.round(currentPos.y)}`);
 
       if (onLongPressRef.current) {
         longPressTimer.current = setTimeout(() => {
@@ -117,7 +117,7 @@ export function DikaButton({
         if (!draggedRef.current) {
           draggedRef.current = true;
           isDraggingRef.current = true;
-          addDebugRef.current(`DRAG_START`);
+          debugEvents.push(`DRAG_START at move #${moveCount}`);
           if (longPressTimer.current) {
             clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
@@ -128,8 +128,8 @@ export function DikaButton({
         posRef.current = newPos;
         button.style.transform = `translate3d(${newPos.x}px, ${newPos.y}px, 0)`;
 
-        if (moveCount <= 3 || moveCount % 20 === 0) {
-          addDebugRef.current(`MOVE #${moveCount} -> ${Math.round(newPos.x)},${Math.round(newPos.y)}`);
+        if (moveCount <= 3 || moveCount % 50 === 0) {
+          debugEvents.push(`MOVE #${moveCount} -> ${Math.round(newPos.x)},${Math.round(newPos.y)} (dx=${Math.round(dx)} dy=${Math.round(dy)})`);
         }
       };
 
@@ -146,18 +146,21 @@ export function DikaButton({
         document.removeEventListener('touchend', handleTouchEnd);
         document.removeEventListener('touchcancel', handleTouchEnd);
 
-        addDebugRef.current(`TEND moves=${moveCount} dragged=${draggedRef.current} pos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)}`);
+        debugEvents.push(`TEND moves=${moveCount} dragged=${draggedRef.current} finalPos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)} transform=${button.style.transform}`);
 
         if (!draggedRef.current) {
           isDraggingRef.current = false;
-          addDebugRef.current(`TAP -> open`);
+          debugEvents.push(`TAP -> open drawer`);
           onClickRef.current();
         } else {
           const finalPos = posRef.current;
           isDraggingRef.current = false;
           onPositionChangeRef.current(finalPos);
+          debugEvents.push(`DRAG_END -> saved pos ${Math.round(finalPos.x)},${Math.round(finalPos.y)}`);
         }
         draggedRef.current = false;
+
+        sendDebug(debugEvents);
       };
 
       document.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -166,6 +169,7 @@ export function DikaButton({
     };
 
     button.addEventListener('touchstart', handleTouchStart, { passive: false });
+    sendDebug([`INIT listener attached, pos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)}`]);
 
     return () => {
       button.removeEventListener('touchstart', handleTouchStart);
@@ -234,60 +238,32 @@ export function DikaButton({
   }, [onClick]);
 
   return (
-    <>
-      <button
-        ref={buttonRef}
-        data-testid="button-dika"
-        onClick={handleClick}
-        onMouseDown={handleMouseDown}
-        className={cn(
-          "fixed z-50 w-12 h-12 rounded-xl",
-          "bg-gradient-to-br from-amber-500 to-orange-600",
-          "shadow-lg shadow-amber-500/30",
-          "flex items-center justify-center",
-          "cursor-grab active:cursor-grabbing",
-          "border border-amber-400/30",
-        )}
-        style={{
-          left: 0,
-          top: 0,
-          willChange: 'transform',
-          touchAction: 'none',
-          WebkitUserSelect: 'none',
-          userSelect: 'none',
-          WebkitTouchCallout: 'none',
-        }}
-        aria-label="Ask Dika"
-      >
-        <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-transparent to-white/10" />
-        <RoboDIcon className="w-7 h-7 text-white relative z-10" />
-      </button>
-
-      {DEBUG_TOUCH && debugLog.length > 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 50,
-            left: 8,
-            right: 8,
-            zIndex: 99999,
-            background: 'rgba(0,0,0,0.85)',
-            color: '#0f0',
-            fontSize: '11px',
-            fontFamily: 'monospace',
-            padding: '8px',
-            borderRadius: '8px',
-            pointerEvents: 'none',
-            lineHeight: '1.4',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-          }}
-        >
-          {debugLog.map((line, i) => (
-            <div key={i}>{line}</div>
-          ))}
-        </div>
+    <button
+      ref={buttonRef}
+      data-testid="button-dika"
+      onClick={handleClick}
+      onMouseDown={handleMouseDown}
+      className={cn(
+        "fixed z-50 w-12 h-12 rounded-xl",
+        "bg-gradient-to-br from-amber-500 to-orange-600",
+        "shadow-lg shadow-amber-500/30",
+        "flex items-center justify-center",
+        "cursor-grab active:cursor-grabbing",
+        "border border-amber-400/30",
       )}
-    </>
+      style={{
+        left: 0,
+        top: 0,
+        willChange: 'transform',
+        touchAction: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        WebkitTouchCallout: 'none',
+      }}
+      aria-label="Ask Dika"
+    >
+      <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-transparent to-white/10" />
+      <RoboDIcon className="w-7 h-7 text-white relative z-10" />
+    </button>
   );
 }

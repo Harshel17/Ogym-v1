@@ -110,6 +110,16 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: Date.now() });
 });
 
+const touchDebugLogs: Array<{ ts: number; data: any }> = [];
+app.post("/api/debug-touch", (req, res) => {
+  touchDebugLogs.push({ ts: Date.now(), data: req.body });
+  if (touchDebugLogs.length > 50) touchDebugLogs.splice(0, touchDebugLogs.length - 50);
+  res.json({ ok: true });
+});
+app.get("/api/debug-touch", (_req, res) => {
+  res.json(touchDebugLogs);
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
