@@ -4,6 +4,8 @@ import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 // Global error handlers to prevent crashes
 process.on('uncaughtException', (err) => {
@@ -110,14 +112,19 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: Date.now() });
 });
 
-const touchDebugLogs: Array<{ ts: number; data: any }> = [];
-app.post("/api/debug-touch", (req, res) => {
-  touchDebugLogs.push({ ts: Date.now(), data: req.body });
-  if (touchDebugLogs.length > 50) touchDebugLogs.splice(0, touchDebugLogs.length - 50);
+app.post("/api/debug-touch", async (req, res) => {
+  try {
+    await db.execute(sql`INSERT INTO debug_touch_logs (data) VALUES (${JSON.stringify({ ts: Date.now(), ...req.body })}::jsonb)`);
+  } catch {}
   res.json({ ok: true });
 });
-app.get("/api/debug-touch", (_req, res) => {
-  res.json(touchDebugLogs);
+app.get("/api/debug-touch", async (_req, res) => {
+  try {
+    const rows = await db.execute(sql`SELECT data, created_at FROM debug_touch_logs ORDER BY id DESC LIMIT 50`);
+    res.json(rows.rows);
+  } catch (e: any) {
+    res.json({ error: e.message });
+  }
 });
 
 export function log(message: string, source = "express") {
