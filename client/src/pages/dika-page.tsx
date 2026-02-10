@@ -424,7 +424,9 @@ function DikaPageInner({ userId }: { userId: number }) {
   const [savingMessageId, setSavingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { visualHeight, keyboardVisible } = useVisualViewportHeight();
   const [, setLocation] = useLocation();
 
   const [actionResults, setActionResults] = useState<Record<string, { success: boolean; message: string }>>({});
@@ -511,6 +513,14 @@ function DikaPageInner({ userId }: { userId: number }) {
   }, [messages]);
 
   useEffect(() => {
+    if (keyboardVisible) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+    }
+  }, [keyboardVisible]);
+
+  useEffect(() => {
     if (messages.length === 0) return;
     const lastMsg = messages[messages.length - 1];
     if (lastMsg.role !== 'assistant') return;
@@ -534,7 +544,12 @@ function DikaPageInner({ userId }: { userId: number }) {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-var(--cached-safe-top,0px)-3.5rem-env(safe-area-inset-bottom,0px))] -m-4 md:-m-8" data-testid="page-dika">
+    <div
+      ref={containerRef}
+      className="flex flex-col -m-4 md:-m-8"
+      style={{ height: visualHeight ? `${visualHeight - 56}px` : 'calc(100dvh - var(--cached-safe-top,0px) - 3.5rem - env(safe-area-inset-bottom,0px))' }}
+      data-testid="page-dika"
+    >
       <div className="flex-shrink-0 bg-slate-900 dark:bg-slate-950 border-b border-amber-500/20 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
