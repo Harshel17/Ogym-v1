@@ -2236,7 +2236,7 @@ function MemberCalendarWidget() {
   };
 
   const getStatusStyles = (status: string, isTodayDate: boolean) => {
-    const baseStyles = "p-2 text-sm rounded-xl transition-all duration-200 relative font-medium";
+    const baseStyles = "p-2 text-sm rounded-2xl transition-all duration-200 relative font-medium";
     const todayRing = isTodayDate ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : "";
     
     switch (status) {
@@ -2272,10 +2272,13 @@ function MemberCalendarWidget() {
   };
 
   return (
-    <Card className="bg-card/60 backdrop-blur-sm" data-testid="card-calendar">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+    <Card className="overflow-hidden backdrop-blur-sm relative" data-testid="card-calendar">
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at 10% 0%, hsl(var(--primary) / 0.06) 0%, transparent 50%), radial-gradient(ellipse at 90% 100%, hsl(var(--primary) / 0.03) 0%, transparent 40%)'
+      }} />
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 relative z-10">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <div className="p-1.5 bg-gradient-to-br from-primary/15 to-primary/5 rounded-lg">
+          <div className="p-1.5 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg shadow-sm" style={{ boxShadow: '0 2px 8px hsl(var(--primary) / 0.15)' }}>
             <Calendar className="w-3.5 h-3.5 text-primary" />
           </div>
           Calendar

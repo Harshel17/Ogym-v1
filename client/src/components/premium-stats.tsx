@@ -104,14 +104,20 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer bg-card/70 backdrop-blur-sm transition-all duration-300 ease-out",
+        "cursor-pointer overflow-hidden backdrop-blur-sm transition-all duration-300 ease-out relative",
         "hover:scale-[1.02] active:scale-[0.98]",
         colors.glow
       )}
       onClick={onClick}
       data-testid={`stat-card-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
-      <CardContent className="flex flex-col items-center justify-center h-[130px] py-0">
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: `radial-gradient(ellipse at 30% 0%, ${colors.ringColor}12 0%, transparent 60%), radial-gradient(ellipse at 80% 100%, ${colors.ringColor}08 0%, transparent 50%)`
+      }} />
+      <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full pointer-events-none" style={{
+        background: `radial-gradient(circle, ${colors.ringColor}10 0%, transparent 70%)`
+      }} />
+      <CardContent className="flex flex-col items-center justify-center h-[130px] py-0 relative z-10">
         <div className="relative mb-2">
           <svg width={size} height={size} className="transform -rotate-90">
             <circle
@@ -133,11 +139,11 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
               className="transition-all duration-1000 ease-out"
-              style={{ filter: `drop-shadow(0 0 4px ${colors.ringColor}40)` }}
+              style={{ filter: `drop-shadow(0 0 6px ${colors.ringColor}50)` }}
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className={cn("p-2.5 rounded-xl text-white shadow-sm", colors.iconBg)}>
+            <div className={cn("p-2.5 rounded-xl text-white shadow-lg", colors.iconBg)} style={{ boxShadow: `0 4px 12px ${colors.ringColor}30` }}>
               <Icon className={cn("w-4 h-4", icon === "flame" && value > 0 && "streak-flame")} />
             </div>
           </div>
@@ -193,13 +199,19 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer bg-card/70 backdrop-blur-sm transition-all duration-300 ease-out",
+        "cursor-pointer overflow-hidden backdrop-blur-sm transition-all duration-300 ease-out relative",
         "hover:scale-[1.02] active:scale-[0.98]",
         "shadow-emerald-500/10"
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center h-[130px] py-0">
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: `radial-gradient(ellipse at 30% 0%, ${calorieColor}12 0%, transparent 60%), radial-gradient(ellipse at 80% 100%, ${calorieColor}08 0%, transparent 50%)`
+      }} />
+      <div className="absolute -bottom-6 -left-6 w-20 h-20 rounded-full pointer-events-none" style={{
+        background: `radial-gradient(circle, ${calorieColor}10 0%, transparent 70%)`
+      }} />
+      <CardContent className="flex flex-col items-center justify-center h-[130px] py-0 relative z-10">
         <div className="relative mb-2">
           <svg
             width={size}
@@ -226,7 +238,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
               strokeDasharray={outerCircumference}
               strokeDashoffset={outerStrokeDashoffset}
               className="transition-all duration-1000 ease-out"
-              style={{ filter: `drop-shadow(0 0 4px ${calorieColor}40)` }}
+              style={{ filter: `drop-shadow(0 0 6px ${calorieColor}50)` }}
             />
             
             {showProteinRing && (
@@ -251,7 +263,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
                   strokeDasharray={innerCircumference}
                   strokeDashoffset={innerStrokeDashoffset}
                   className="transition-all duration-1000 ease-out"
-                  style={{ filter: `drop-shadow(0 0 3px ${proteinColor}30)` }}
+                  style={{ filter: `drop-shadow(0 0 4px ${proteinColor}40)` }}
                 />
               </>
             )}
@@ -432,12 +444,30 @@ export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], 
     return { weekDates: dates, todayStr: todayString, completedDatesSet: completedSet, completedCount: completed, passedDaysCount: passed };
   }, [calendarDays]);
 
+  const weekPercentage = passedDaysCount > 0 ? Math.round((completedCount / passedDaysCount) * 100) : 0;
+
   return (
-    <Card className={cn("bg-card/70 backdrop-blur-sm", className)} data-testid="card-weekly-progress">
-      <CardContent className="py-4 px-4">
+    <Card className={cn("overflow-hidden backdrop-blur-sm relative", className)} data-testid="card-weekly-progress">
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at 20% 0%, rgba(16, 185, 129, 0.06) 0%, transparent 50%), radial-gradient(ellipse at 80% 100%, rgba(59, 130, 246, 0.04) 0%, transparent 50%)'
+      }} />
+      <CardContent className="py-4 px-4 relative z-10">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-bold">This Week</span>
-          <span className="text-[10px] text-muted-foreground font-semibold tabular-nums uppercase tracking-wider">{completedCount}/{passedDaysCount} days</span>
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-400/10">
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+            </div>
+            <span className="text-sm font-bold">This Week</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground font-semibold tabular-nums uppercase tracking-wider">{completedCount}/{passedDaysCount} days</span>
+            {weekPercentage > 0 && (
+              <span className={cn(
+                "text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums",
+                weekPercentage >= 80 ? "bg-emerald-500/15 text-emerald-500" : weekPercentage >= 50 ? "bg-amber-500/15 text-amber-500" : "bg-muted/40 text-muted-foreground"
+              )}>{weekPercentage}%</span>
+            )}
+          </div>
         </div>
         <div className="flex items-center justify-between gap-1.5">
           {weekDates.map((dateStr, index) => {
@@ -450,15 +480,16 @@ export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], 
               <div key={dateStr} className="flex flex-col items-center gap-1.5 flex-1">
                 <div
                   className={cn(
-                    "w-full aspect-square rounded-xl flex items-center justify-center text-xs font-semibold transition-all duration-300",
+                    "w-full aspect-square rounded-2xl flex items-center justify-center text-xs font-semibold transition-all duration-300",
                     isCompleted && !isFuture
-                      ? "bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-sm shadow-green-500/25"
+                      ? "bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-md shadow-green-500/30"
                       : isToday
                       ? "bg-primary/15 text-primary ring-2 ring-primary/40"
                       : isPast
                       ? "bg-muted/50 text-muted-foreground/50"
                       : "bg-muted/25 text-muted-foreground/30"
                   )}
+                  style={isCompleted && !isFuture ? { filter: 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.3))' } : undefined}
                 >
                   {isCompleted && !isFuture ? <Check className="w-3.5 h-3.5" /> : null}
                 </div>
