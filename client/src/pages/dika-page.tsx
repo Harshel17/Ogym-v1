@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { RoboDIcon } from '@/components/dika/dika-icons';
-import { useVisualViewportHeight } from '@/hooks/use-keyboard';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -426,7 +425,6 @@ function DikaPageInner({ userId }: { userId: number }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const { visualHeight, keyboardVisible } = useVisualViewportHeight();
   const [, setLocation] = useLocation();
 
   const [actionResults, setActionResults] = useState<Record<string, { success: boolean; message: string }>>({});
@@ -513,12 +511,37 @@ function DikaPageInner({ userId }: { userId: number }) {
   }, [messages]);
 
   useEffect(() => {
-    if (keyboardVisible) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 150);
-    }
-  }, [keyboardVisible]);
+    const container = containerRef.current;
+    if (!container) return;
+
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const syncHeight = () => {
+      if (!containerRef.current) return;
+      containerRef.current.style.height = `${viewport.height}px`;
+    };
+
+    syncHeight();
+
+    viewport.addEventListener('resize', syncHeight);
+    viewport.addEventListener('scroll', syncHeight);
+
+    const rafSync = () => {
+      syncHeight();
+      requestAnimationFrame(rafSync);
+    };
+    const rafId = requestAnimationFrame(rafSync);
+
+    const stopRaf = setTimeout(() => cancelAnimationFrame(rafId), 2000);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(stopRaf);
+      viewport.removeEventListener('resize', syncHeight);
+      viewport.removeEventListener('scroll', syncHeight);
+    };
+  }, []);
 
   useEffect(() => {
     if (messages.length === 0) return;
@@ -547,7 +570,6 @@ function DikaPageInner({ userId }: { userId: number }) {
     <div
       ref={containerRef}
       className="flex flex-col -m-4 md:-m-8 dika-full-height-kb"
-      style={visualHeight ? { height: `${visualHeight}px` } : undefined}
       data-testid="page-dika"
     >
       <div className="flex-shrink-0 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 border-b border-white/[0.06] px-4 py-3 backdrop-blur-xl" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4px)' }}>
