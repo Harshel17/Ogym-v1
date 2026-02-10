@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
@@ -28,6 +28,8 @@ export function DikaButton({
   onPositionChangeRef.current = onPositionChange;
   const onLongPressRef = useRef(onLongPress);
   onLongPressRef.current = onLongPress;
+  const onClickRef = useRef(onClick);
+  onClickRef.current = onClick;
 
   const constrainPosition = useCallback((x: number, y: number) => {
     const buttonSize = 44;
@@ -39,56 +41,83 @@ export function DikaButton({
     };
   }, []);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    const startX = touch.clientX;
-    const startY = touch.clientY;
-    draggedRef.current = false;
+  useEffect(() => {
+    const button = buttonRef.current;
+    if (!button) return;
 
-    const rect = buttonRef.current?.getBoundingClientRect();
-    const offsetX = rect ? touch.clientX - rect.left : 0;
-    const offsetY = rect ? touch.clientY - rect.top : 0;
+    const handleTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-    if (onLongPressRef.current) {
-      longPressTimer.current = setTimeout(() => {
+      const touch = e.touches[0];
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+      draggedRef.current = false;
+
+      const rect = button.getBoundingClientRect();
+      const offsetX = touch.clientX - rect.left;
+      const offsetY = touch.clientY - rect.top;
+
+      if (onLongPressRef.current) {
+        longPressTimer.current = setTimeout(() => {
+          if (!draggedRef.current) {
+            onLongPressRef.current?.();
+          }
+        }, 500);
+      }
+
+      const handleTouchMove = (ev: TouchEvent) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        const t = ev.touches[0];
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < DRAG_THRESHOLD && !draggedRef.current) return;
+
         if (!draggedRef.current) {
-          onLongPressRef.current?.();
+          draggedRef.current = true;
+          if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+          }
         }
-      }, 500);
-    }
 
-    const handleTouchMove = (ev: TouchEvent) => {
-      const t = ev.touches[0];
-      const dx = t.clientX - startX;
-      const dy = t.clientY - startY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+        const newPos = constrainPosition(t.clientX - offsetX, t.clientY - offsetY);
+        onPositionChangeRef.current(newPos);
+      };
 
-      if (distance < DRAG_THRESHOLD && !draggedRef.current) return;
+      const handleTouchEnd = (ev: TouchEvent) => {
+        ev.preventDefault();
+        ev.stopPropagation();
 
-      if (!draggedRef.current) {
-        draggedRef.current = true;
         if (longPressTimer.current) {
           clearTimeout(longPressTimer.current);
           longPressTimer.current = null;
         }
-      }
 
-      ev.preventDefault();
-      const newPos = constrainPosition(t.clientX - offsetX, t.clientY - offsetY);
-      onPositionChangeRef.current(newPos);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+        document.removeEventListener('touchcancel', handleTouchEnd);
+
+        if (!draggedRef.current) {
+          onClickRef.current();
+        }
+        draggedRef.current = false;
+      };
+
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd, { passive: false });
+      document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
     };
 
-    const handleTouchEnd = () => {
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
-      }
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('touchend', handleTouchEnd);
-    };
+    button.addEventListener('touchstart', handleTouchStart, { passive: false });
 
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      button.removeEventListener('touchstart', handleTouchStart);
+    };
   }, [constrainPosition]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -153,7 +182,6 @@ export function DikaButton({
       data-testid="button-dika"
       onClick={handleClick}
       onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
       className={cn(
         "fixed z-50 w-12 h-12 rounded-xl",
         "bg-gradient-to-br from-amber-500 to-orange-600",
@@ -167,6 +195,9 @@ export function DikaButton({
         left: position.x,
         top: position.y,
         touchAction: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        WebkitTouchCallout: 'none',
       }}
       aria-label="Ask Dika"
     >
