@@ -317,6 +317,7 @@ export function DikaButton({
     >
       <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-transparent to-white/10" />
       <RoboDIcon className="w-7 h-7 text-white relative z-10" />
+      <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[6px] font-bold rounded-full w-3 h-3 flex items-center justify-center z-20">4</span>
     </button>
   );
 }

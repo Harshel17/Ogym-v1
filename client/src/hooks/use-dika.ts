@@ -350,10 +350,17 @@ export function useDika(userId: number, hideDika: boolean) {
       }).catch(() => {});
     } catch {}
     setIsOpen(false);
+
+    document.body.style.overflow = '';
+    document.body.style.touchAction = '';
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('touch-action');
     resetBodyStyles();
 
     const { el, top } = savedScrollRef.current;
     const restoreScroll = () => {
+      document.body.style.removeProperty('overflow');
+      document.body.style.removeProperty('touch-action');
       resetBodyStyles();
       if (el) {
         el.scrollTop = top;
