@@ -166,7 +166,7 @@ export function DikaButton({
       style={{
         left: position.x,
         top: position.y,
-        touchAction: 'manipulation',
+        touchAction: 'none',
       }}
       aria-label="Ask Dika"
     >
