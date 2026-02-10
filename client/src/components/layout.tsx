@@ -541,16 +541,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Main Content - scrollable naturally */}
       <main ref={mainRefCallback} className="flex-1 min-w-0 md:overflow-y-auto overflow-x-hidden app-main-scroll relative z-0">
         <PullIndicator />
-        <div className="p-4 md:p-8 max-w-7xl mx-auto page-fade-scale md:pb-8 md:pt-0 mobile-safe-top" key={location}>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto page-fade-scale md:pb-8 md:pt-0 mobile-safe-top mobile-content-bottom" key={location}>
           {children}
         </div>
       </main>
 
-      {/* Mobile Bottom Tab Bar - scrolls with content, not fixed */}
+      {/* Mobile Bottom Tab Bar - fixed at bottom */}
       <nav 
-        className="md:hidden border-t border-border/50 bg-background flex-shrink-0 mobile-safe-bottom"
+        className="md:hidden border-t border-border/50 bg-background fixed bottom-0 left-0 right-0 z-50"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        <div className="flex justify-around items-end w-full pt-2 pb-1.5">
+        <div className="flex justify-around items-center w-full h-14">
           {primaryTabs.map((item) => {
             const isActive = location === item.href || 
               (item.href !== "/" && location.startsWith(item.href));

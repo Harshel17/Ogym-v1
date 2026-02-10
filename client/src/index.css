@@ -87,6 +87,9 @@ html.capacitor-native body[data-scroll-locked] {
   .mobile-safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px) !important;
   }
+  .mobile-content-bottom {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px) !important;
+  }
   .dika-full-height {
     height: calc(100dvh - var(--tabbar-total-h, 3.5rem));
     margin-top: calc(-1 * env(safe-area-inset-top, 0px) - 8px) !important;
