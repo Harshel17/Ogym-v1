@@ -541,7 +541,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Main Content - scrollable naturally */}
       <main ref={mainRefCallback} className="flex-1 min-w-0 md:overflow-y-auto overflow-x-hidden app-main-scroll relative z-0">
         <PullIndicator />
-        <div className="p-4 md:p-8 max-w-7xl mx-auto page-fade-scale md:pb-8 md:pt-0 mobile-safe-top mobile-content-bottom" key={location}>
+        <div className={`p-4 md:p-8 max-w-7xl mx-auto page-fade-scale md:pb-8 md:pt-0 mobile-content-bottom ${location === '/dika' ? '' : 'mobile-safe-top'}`} key={location}>
           {children}
         </div>
       </main>
