@@ -105,8 +105,12 @@ export function DikaButton({
       }
 
       let moveCount = 0;
+      let cancelledCount = 0;
 
       const handleTouchMove = (ev: TouchEvent) => {
+        if (ev.defaultPrevented) {
+          cancelledCount++;
+        }
         ev.preventDefault();
         ev.stopPropagation();
 
@@ -165,7 +169,7 @@ export function DikaButton({
         button.style.transform = finalT;
         (button.style as any).webkitTransform = finalT;
 
-        debugEvents.push(`TEND moves=${moveCount} dragged=${draggedRef.current} finalPos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)} transform=${button.style.transform}`);
+        debugEvents.push(`TEND moves=${moveCount} cancelled=${cancelledCount} dragged=${draggedRef.current} finalPos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)} transform=${button.style.transform} btnInDOM=${document.body.contains(button)} btnDisplay=${getComputedStyle(button).display} btnVis=${getComputedStyle(button).visibility} btnPointer=${getComputedStyle(button).pointerEvents}`);
 
         if (!draggedRef.current) {
           isDraggingRef.current = false;
@@ -188,7 +192,8 @@ export function DikaButton({
     };
 
     button.addEventListener('touchstart', handleTouchStart, { passive: false });
-    sendDebug([`INIT listener attached, pos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)}`]);
+    const styles = getComputedStyle(button);
+    sendDebug([`INIT listener attached, pos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)} transform=${button.style.transform} display=${styles.display} vis=${styles.visibility} pointer=${styles.pointerEvents} zIndex=${styles.zIndex} touchAction=${styles.touchAction}`]);
 
     return () => {
       button.removeEventListener('touchstart', handleTouchStart);
