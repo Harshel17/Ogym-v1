@@ -517,9 +517,14 @@ function DikaPageInner({ userId }: { userId: number }) {
     const viewport = window.visualViewport;
     if (!viewport) return;
 
+    let lastH = 0;
     const syncHeight = () => {
       if (!containerRef.current) return;
-      containerRef.current.style.height = `${viewport.height}px`;
+      const h = viewport.height;
+      if (h !== lastH && h > 0) {
+        lastH = h;
+        containerRef.current.style.height = `${h}px`;
+      }
     };
 
     syncHeight();
@@ -527,19 +532,27 @@ function DikaPageInner({ userId }: { userId: number }) {
     viewport.addEventListener('resize', syncHeight);
     viewport.addEventListener('scroll', syncHeight);
 
-    const rafSync = () => {
-      syncHeight();
-      requestAnimationFrame(rafSync);
-    };
-    const rafId = requestAnimationFrame(rafSync);
+    const poll = setInterval(syncHeight, 100);
 
-    const stopRaf = setTimeout(() => cancelAnimationFrame(rafId), 2000);
+    const handleFocus = () => {
+      syncHeight();
+      let frames = 0;
+      const burst = () => {
+        syncHeight();
+        if (++frames < 60) requestAnimationFrame(burst);
+      };
+      requestAnimationFrame(burst);
+    };
+
+    document.addEventListener('focusin', handleFocus);
+    document.addEventListener('focusout', handleFocus);
 
     return () => {
-      cancelAnimationFrame(rafId);
-      clearTimeout(stopRaf);
+      clearInterval(poll);
       viewport.removeEventListener('resize', syncHeight);
       viewport.removeEventListener('scroll', syncHeight);
+      document.removeEventListener('focusin', handleFocus);
+      document.removeEventListener('focusout', handleFocus);
     };
   }, []);
 
