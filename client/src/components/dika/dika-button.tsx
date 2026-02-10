@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
@@ -23,6 +23,8 @@ export function DikaButton({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const draggedRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const onPositionChangeRef = useRef(onPositionChange);
   onPositionChangeRef.current = onPositionChange;
@@ -30,8 +32,8 @@ export function DikaButton({
   onLongPressRef.current = onLongPress;
 
   const constrainPosition = useCallback((x: number, y: number) => {
-    const buttonSize = 44;
-    const margin = 10;
+    const buttonSize = 48;
+    const margin = 8;
     const bottomNavHeight = 80;
     return {
       x: Math.max(margin, Math.min(window.innerWidth - buttonSize - margin, x)),
@@ -40,10 +42,12 @@ export function DikaButton({
   }, []);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation();
     const touch = e.touches[0];
     const startX = touch.clientX;
     const startY = touch.clientY;
     draggedRef.current = false;
+    isDraggingRef.current = false;
 
     const rect = buttonRef.current?.getBoundingClientRect();
     const offsetX = rect ? touch.clientX - rect.left : 0;
@@ -67,6 +71,8 @@ export function DikaButton({
 
       if (!draggedRef.current) {
         draggedRef.current = true;
+        isDraggingRef.current = true;
+        setIsDragging(true);
         if (longPressTimer.current) {
           clearTimeout(longPressTimer.current);
           longPressTimer.current = null;
@@ -74,21 +80,27 @@ export function DikaButton({
       }
 
       ev.preventDefault();
+      ev.stopPropagation();
       const newPos = constrainPosition(t.clientX - offsetX, t.clientY - offsetY);
       onPositionChangeRef.current(newPos);
     };
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (ev: TouchEvent) => {
+      ev.stopPropagation();
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
       }
+      isDraggingRef.current = false;
+      setIsDragging(false);
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleTouchEnd);
+      document.removeEventListener('touchcancel', handleTouchEnd);
     };
 
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd);
+    document.addEventListener('touchcancel', handleTouchEnd);
   }, [constrainPosition]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -139,8 +151,10 @@ export function DikaButton({
     document.addEventListener('mouseup', handleMouseUp);
   }, [constrainPosition]);
 
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
     if (draggedRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
       draggedRef.current = false;
       return;
     }
@@ -155,18 +169,22 @@ export function DikaButton({
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       className={cn(
-        "fixed z-50 w-12 h-12 rounded-xl",
+        "fixed z-[9999] w-12 h-12 rounded-xl",
         "bg-gradient-to-br from-amber-500 to-orange-600",
         "shadow-lg shadow-amber-500/30",
         "flex items-center justify-center",
         "cursor-grab active:cursor-grabbing",
-        "transition-all duration-200 hover:scale-105 hover:shadow-xl hover:shadow-amber-500/40",
         "border border-amber-400/30",
+        "select-none",
+        isDragging ? "scale-110 shadow-xl shadow-amber-500/40" : "",
       )}
       style={{
-        left: position.x,
-        top: position.y,
-        touchAction: 'manipulation',
+        transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
+        willChange: isDragging ? 'transform' : 'auto',
+        touchAction: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        transition: isDragging ? 'none' : 'box-shadow 0.2s ease, transform 0.15s ease',
       }}
       aria-label="Ask Dika"
     >

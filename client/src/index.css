@@ -84,6 +84,26 @@ html.capacitor-native body[data-scroll-locked] {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   overscroll-behavior-x: none;
+  -webkit-transform: translateZ(0);
+}
+
+/* iOS GPU acceleration for fixed/animated elements */
+.capacitor-native .fixed,
+.capacitor-native [class*="animate-"] {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Smoother iOS tap response */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS smooth transitions for page content */
+.capacitor-native .app-main-scroll > * {
+  -webkit-transform: translateZ(0);
 }
 
 /* Scroll padding - no longer needed for fixed overlays (removed) */
@@ -675,11 +695,11 @@ html.capacitor-native body[data-scroll-locked] {
 @keyframes pageSlideIn {
   from {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translate3d(20px, 0, 0);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -697,11 +717,11 @@ html.capacitor-native body[data-scroll-locked] {
 @keyframes pageFadeScale {
   from {
     opacity: 0;
-    transform: scale(0.97) translateY(4px);
+    transform: scale(0.97) translate3d(0, 4px, 0);
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: scale(1) translate3d(0, 0, 0);
   }
 }
 
