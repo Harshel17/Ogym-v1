@@ -17,6 +17,7 @@ import { handleDikaQuery, getSuggestionChips, generateOwnerBriefing } from "./di
 import { executeOwnerAction, executeSupportTicket, type ActionData } from "./dika/owner-actions";
 import { searchFoodByName, lookupByBarcode, FoodProduct } from "./nutrition/open-food-facts";
 import { searchLocalFoods } from "./nutrition/food-database";
+import { lookupBarcodeLocal } from "./nutrition/barcode-database";
 import { findRestaurantSuggestion, getSuggestionForGoal, getGeneralDikaMessage, GoalType } from "./nutrition/restaurant-suggestions";
 import { insertFoodLogSchema, insertCalorieGoalSchema } from "@shared/schema";
 
@@ -3972,16 +3973,44 @@ export async function registerRoutes(
     if (!barcode) {
       return res.status(400).json({ message: "Barcode required" });
     }
-    const product = await lookupByBarcode(barcode);
-    if (!product) {
+
+    const localProduct = lookupBarcodeLocal(barcode);
+    if (localProduct) {
+      return res.json({
+        barcode: localProduct.barcode,
+        name: localProduct.name,
+        brandName: localProduct.brand,
+        servingSize: localProduct.servingSize,
+        nutrients: {
+          calories: localProduct.calories,
+          protein: localProduct.protein,
+          carbs: localProduct.carbs,
+          fat: localProduct.fat,
+          fiber: null,
+        },
+        imageUrl: null,
+        isEstimate: false,
+        isRestaurantItem: false,
+        sourceType: 'branded_database' as const,
+      });
+    }
+
+    try {
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000));
+      const lookupPromise = lookupByBarcode(barcode);
+      const product = await Promise.race([lookupPromise, timeoutPromise]);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      res.json({
+        ...product,
+        isEstimate: false,
+        isRestaurantItem: false,
+        sourceType: 'branded_database' as const,
+      });
+    } catch {
       return res.status(404).json({ message: "Product not found" });
     }
-    res.json({
-      ...product,
-      isEstimate: false,
-      isRestaurantItem: false,
-      sourceType: 'branded_database' as const,
-    });
   });
 
   // Water tracking

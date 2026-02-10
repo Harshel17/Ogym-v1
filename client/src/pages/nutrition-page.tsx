@@ -245,6 +245,7 @@ export default function NutritionPage() {
     setSearchResults([]);
     setSelectedFood(null);
     setQuantity("1");
+    setScanNotFound(null);
     setManualEntry({ name: "", calories: "", protein: "", carbs: "", fat: "", restaurant: "" });
     setAddFoodStep("category");
     setExtraMealLabel("");
@@ -368,21 +369,32 @@ export default function NutritionPage() {
     });
   };
 
+  const [scanNotFound, setScanNotFound] = useState<string | null>(null);
+
   const handleBarcodeScan = async (barcode: string) => {
     setShowScanner(false);
     setIsScanLookup(true);
+    setScanNotFound(null);
     try {
-      const res = await fetch(`/api/nutrition/food/barcode/${barcode}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(`/api/nutrition/food/barcode/${barcode}`, { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const product = await res.json();
         setSelectedFood(product);
         setIsAddFoodOpen(true);
       } else {
-        toast({ title: "Product not found", description: "Try searching manually instead", variant: "destructive" });
+        setScanNotFound(barcode);
         setIsAddFoodOpen(true);
       }
-    } catch {
-      toast({ title: "Lookup failed", variant: "destructive" });
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        setScanNotFound(barcode);
+        setIsAddFoodOpen(true);
+      } else {
+        toast({ title: "Lookup failed", description: "Check your connection and try again", variant: "destructive" });
+      }
     }
     setIsScanLookup(false);
   };
@@ -1051,6 +1063,28 @@ export default function NutritionPage() {
             </div>
           ) : !selectedFood ? (
             <div className="space-y-4">
+              {scanNotFound && (
+                <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30 px-3 py-2.5" data-testid="banner-scan-not-found">
+                  <div className="flex items-start gap-2">
+                    <ScanLine className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Product not found</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                        Barcode {scanNotFound} not in our database. Search by name or add manually below.
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-amber-600 dark:text-amber-400"
+                      onClick={() => setScanNotFound(null)}
+                      data-testid="button-dismiss-scan-not-found"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div className="flex gap-1 mb-1">
                 <Button
                   variant={foodMode === "search" ? "default" : "outline"}
