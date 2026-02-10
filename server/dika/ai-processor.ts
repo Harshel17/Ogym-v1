@@ -724,7 +724,14 @@ You can help this member with:
 - Nutrition tracking and calorie analysis
 ${ctx.healthData.connected ? '- Fitness device data analysis (steps, calories burned, heart rate, sleep)' : ''}
 - Motivation and encouragement based on their data
-- Creating support tickets to report issues or request help`;
+- Creating support tickets to report issues or request help
+
+IMPORTANT - ISSUE DETECTION:
+When the user describes a problem, complaint, bug, or something that isn't working correctly (e.g. "my workouts are not showing", "there is a mismatch in my data", "something is wrong with my calories"), you should:
+1. Briefly acknowledge what they described
+2. Offer to create a support ticket so the team can look into it. Say something like: "Would you like me to report this to our team? I can create a support ticket and they'll look into it for you."
+3. Include "Report this issue" as a follow-up chip
+Do NOT try to solve technical issues yourself - offer to report them instead.`;
   }
   
   if (userContext.role === 'owner') {
@@ -762,7 +769,14 @@ You can help this owner with:
 - Strategic recommendations for gym growth
 - Identifying members at risk of churning
 - Suggestions to improve member engagement
-- Creating support tickets to report issues or request help`;
+- Creating support tickets to report issues or request help
+
+IMPORTANT - ISSUE DETECTION:
+When the user describes a problem, complaint, bug, or something that isn't working correctly (e.g. "members are not showing up", "there is a mismatch", "payments are not recording"), you should:
+1. Briefly acknowledge what they described
+2. Offer to create a support ticket so the team can look into it. Say something like: "Would you like me to report this to our team? I can create a support ticket and they'll look into it for you."
+3. Include "Report this issue" as a follow-up chip
+Do NOT try to solve technical issues yourself - offer to report them instead.`;
   }
   
   if (userContext.role === 'trainer') {
@@ -778,7 +792,14 @@ You can help this trainer with:
 - Identifying members who need attention
 - Workout consistency of their assigned members
 - Training schedule optimization
-- Creating support tickets to report issues or request help`;
+- Creating support tickets to report issues or request help
+
+IMPORTANT - ISSUE DETECTION:
+When the user describes a problem, complaint, bug, or something that isn't working correctly (e.g. "member data is wrong", "workouts not syncing"), you should:
+1. Briefly acknowledge what they described
+2. Offer to create a support ticket so the team can look into it. Say something like: "Would you like me to report this to our team? I can create a support ticket and they'll look into it for you."
+3. Include "Report this issue" as a follow-up chip
+Do NOT try to solve technical issues yourself - offer to report them instead.`;
   }
   
   return basePrompt;
@@ -792,6 +813,14 @@ export async function processWithAI(
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
   localDate?: string
 ): Promise<{ answer: string; followUpChips: string[] }> {
+  if (detectOngoingSupportTicketFlow(conversationHistory)) {
+    try {
+      return await processSupportTicketAction(userId, role, gymId, message, conversationHistory);
+    } catch (error: any) {
+      console.error('Support ticket flow follow-up failed:', error?.message || error);
+    }
+  }
+
   const exerciseQuery = detectExerciseQuestion(message);
   if (exerciseQuery) {
     const exercise = findExercise(exerciseQuery);
@@ -1049,8 +1078,8 @@ function generateFollowUpChips(role: UserRole, lastMessage: string, gymId: numbe
     if (lowerMessage.includes('weight') || lowerMessage.includes('body') || lowerMessage.includes('progress')) {
       return ['My workouts this week', 'Am I being consistent?'];
     }
-    if (lowerMessage.includes('support') || lowerMessage.includes('issue') || lowerMessage.includes('problem') || lowerMessage.includes('report') || lowerMessage.includes('bug')) {
-      return ['Report a bug', 'Go to support'];
+    if (lowerMessage.includes('support') || lowerMessage.includes('issue') || lowerMessage.includes('problem') || lowerMessage.includes('report') || lowerMessage.includes('bug') || lowerMessage.includes('mismatch') || lowerMessage.includes('wrong') || lowerMessage.includes('broken') || lowerMessage.includes('not working') || lowerMessage.includes('not showing') || lowerMessage.includes('disappear')) {
+      return ['Report this issue', 'Go to support'];
     }
     return ['My workout progress', 'How am I doing?'];
   }
@@ -1065,12 +1094,18 @@ function generateFollowUpChips(role: UserRole, lastMessage: string, gymId: numbe
     if (lowerMessage.includes('member') || lowerMessage.includes('growth')) {
       return ['Add a new member', 'Assign a trainer', 'Go to members'];
     }
+    if (lowerMessage.includes('issue') || lowerMessage.includes('problem') || lowerMessage.includes('mismatch') || lowerMessage.includes('wrong') || lowerMessage.includes('broken') || lowerMessage.includes('not working') || lowerMessage.includes('not showing')) {
+      return ['Report this issue', 'Go to support'];
+    }
     return ['Add a new member', 'Log a payment', 'Gym overview'];
   }
   
   if (role === 'trainer') {
     if (lowerMessage.includes('skip') || lowerMessage.includes('miss')) {
       return ['Who checked in today?', 'Member progress'];
+    }
+    if (lowerMessage.includes('issue') || lowerMessage.includes('problem') || lowerMessage.includes('mismatch') || lowerMessage.includes('wrong') || lowerMessage.includes('broken') || lowerMessage.includes('not working')) {
+      return ['Report this issue', 'Go to support'];
     }
     return ['Who needs attention?', 'Today\'s check-ins'];
   }

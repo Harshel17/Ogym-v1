@@ -1246,7 +1246,7 @@ export function DikaDrawer({
             </div>
           )}
 
-          {messages.map((message) => (
+          {messages.map((message, index) => (
             <div key={message.id} className={cn("space-y-2", message.role === 'assistant' && "mb-6")}>
               <div
                 className={cn(
@@ -1360,7 +1360,7 @@ export function DikaDrawer({
                   )}
                 </div>
               </div>
-              {message.role === 'assistant' && message.followUpChips && message.followUpChips.length > 0 && (
+              {message.role === 'assistant' && message.followUpChips && message.followUpChips.length > 0 && !messages.slice(index + 1).some(m => m.role === 'assistant') && (
                 <div className="flex flex-wrap gap-1.5 pl-9">
                   {message.followUpChips.map((chip, i) => (
                     <Badge
