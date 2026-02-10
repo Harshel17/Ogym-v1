@@ -18,11 +18,18 @@ safeInitCapacitor();
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);pointer-events:none;visibility:hidden;';
   document.body.appendChild(el);
-  requestAnimationFrame(() => {
+  let attempts = 0;
+  function measure() {
     const h = el.getBoundingClientRect().height;
     document.documentElement.style.setProperty('--cached-safe-top', h + 'px');
-    el.remove();
-  });
+    if (h === 0 && attempts < 15) {
+      attempts++;
+      setTimeout(measure, attempts < 5 ? 100 : 300);
+    } else {
+      el.remove();
+    }
+  }
+  requestAnimationFrame(measure);
 })();
 
 const hideLoadingScreen = () => {

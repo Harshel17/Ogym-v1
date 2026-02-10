@@ -547,7 +547,7 @@ function DikaPageInner({ userId }: { userId: number }) {
     <div
       ref={containerRef}
       className="flex flex-col -m-4 md:-m-8"
-      style={{ height: visualHeight ? `${visualHeight - 56}px` : 'calc(100dvh - var(--cached-safe-top,0px) - 3.5rem - env(safe-area-inset-bottom,0px))' }}
+      style={{ height: visualHeight ? `${visualHeight - 56}px` : 'calc(100dvh - var(--cached-safe-top, env(safe-area-inset-top, 0px)) - var(--tabbar-total-h, 3.5rem))' }}
       data-testid="page-dika"
     >
       <div className="flex-shrink-0 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 border-b border-white/[0.06] px-4 py-3 backdrop-blur-xl">

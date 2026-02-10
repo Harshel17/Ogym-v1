@@ -538,10 +538,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile top safe area spacer - uses cached value to prevent iOS recalculations */}
+      {/* Mobile top safe area spacer - uses cached value with env() fallback for iOS */}
       <div 
         className="md:hidden bg-background flex-shrink-0"
-        style={{ height: 'var(--cached-safe-top, 0px)' }}
+        style={{ height: 'var(--cached-safe-top, env(safe-area-inset-top, 0px))' }}
       />
 
       {/* Main Content - scrollable naturally */}
@@ -557,20 +557,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="md:hidden border-t border-border/50 bg-background flex-shrink-0"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        <div className="flex justify-around items-center w-full h-14">
+        <div className="flex justify-around items-end w-full pt-2 pb-1">
           {primaryTabs.map((item) => {
             const isActive = location === item.href || 
               (item.href !== "/" && location.startsWith(item.href));
             return (
               <Link key={item.href} href={item.href}>
                 <div 
-                  className={`relative flex flex-col items-center justify-center min-w-[56px] py-1.5 cursor-pointer transition-all duration-200 ${
+                  className={`relative flex flex-col items-center gap-1 min-w-[56px] cursor-pointer transition-all duration-200 ${
                     isActive ? "text-primary" : "text-muted-foreground"
                   }`}
                   data-testid={`tab-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   {isActive && (
-                    <div className="absolute -top-0.5 w-5 h-[3px] rounded-full bg-primary transition-all duration-200" />
+                    <div className="absolute -top-2 w-5 h-[3px] rounded-full bg-primary transition-all duration-200" />
                   )}
                   <div className="relative">
                     <item.icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? "stroke-[2.5] scale-105" : ""}`} />
@@ -580,14 +580,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       </span>
                     )}
                   </div>
-                  <span className={`text-[11px] mt-0.5 truncate max-w-[60px] ${isActive ? "font-semibold" : "font-medium"}`}>{item.label}</span>
+                  <span className={`text-[10px] leading-tight truncate max-w-[60px] ${isActive ? "font-semibold" : "font-normal opacity-70"}`}>{item.label}</span>
                 </div>
               </Link>
             );
           })}
           {hasMoreMenu && (
             <div 
-              className={`relative flex flex-col items-center justify-center min-w-[56px] py-1.5 cursor-pointer transition-colors text-muted-foreground`}
+              className={`relative flex flex-col items-center gap-1 min-w-[56px] cursor-pointer transition-colors text-muted-foreground`}
               onClick={() => setMoreMenuOpen(true)}
               data-testid="tab-more"
             >
@@ -599,7 +599,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </span>
                 )}
               </div>
-              <span className="text-[11px] mt-0.5 font-medium">More</span>
+              <span className="text-[10px] leading-tight font-normal opacity-70">More</span>
             </div>
           )}
         </div>
