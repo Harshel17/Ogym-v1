@@ -86,16 +86,6 @@ html.capacitor-native body[data-scroll-locked] {
   overscroll-behavior-x: none;
 }
 
-/* iOS GPU acceleration for animations only - NOT fixed elements (breaks touch hit-testing after overlay removal) */
-.capacitor-native [class*="animate-"] {
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-
-/* Smoother iOS tap response */
-* {
-  -webkit-tap-highlight-color: transparent;
-}
 
 /* Scroll padding - no longer needed for fixed overlays (removed) */
 @media (max-width: 767px) {
