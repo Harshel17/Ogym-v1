@@ -796,8 +796,14 @@ img {
   .animate-shimmer,
   .animate-pulse-subtle,
   .magic-gradient-bg,
-  .magic-text {
+  .magic-text,
+  .dika-typing-dot {
     animation: none !important;
+  }
+  
+  .dika-msg-enter,
+  .dika-suggestion-enter {
+    animation-duration: 0.01ms !important;
   }
   
   .magic-card::before {
@@ -1046,6 +1052,45 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
+}
+
+/* Dika AI premium animations */
+@keyframes dikaMessageIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes dikaPulseRing {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1.15); opacity: 0; }
+  100% { transform: scale(0.95); opacity: 0; }
+}
+
+@keyframes dikaGlow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes dikaTypingDot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+@keyframes dikaSuggestionIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dika-msg-enter {
+  animation: dikaMessageIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.dika-suggestion-enter {
+  animation: dikaSuggestionIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.dika-typing-dot {
+  animation: dikaTypingDot 1.4s ease-in-out infinite;
 }
 
 /* Fix for iOS Safari and Firefox */

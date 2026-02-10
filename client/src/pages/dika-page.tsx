@@ -357,10 +357,10 @@ function MarkdownContent({ content }: { content: string }) {
 
 function TypingIndicator() {
   return (
-    <div className="flex items-center gap-1 px-3 py-2">
-      <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-      <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-      <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+    <div className="flex items-center gap-1.5 px-4 py-3">
+      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 dika-typing-dot" style={{ animationDelay: '0ms' }} />
+      <div className="w-1.5 h-1.5 rounded-full bg-amber-400 dika-typing-dot" style={{ animationDelay: '200ms' }} />
+      <div className="w-1.5 h-1.5 rounded-full bg-orange-400 dika-typing-dot" style={{ animationDelay: '400ms' }} />
     </div>
   );
 }
@@ -550,26 +550,31 @@ function DikaPageInner({ userId }: { userId: number }) {
       style={{ height: visualHeight ? `${visualHeight - 56}px` : 'calc(100dvh - var(--cached-safe-top,0px) - 3.5rem - env(safe-area-inset-bottom,0px))' }}
       data-testid="page-dika"
     >
-      <div className="flex-shrink-0 bg-slate-900 dark:bg-slate-950 border-b border-amber-500/20 px-4 py-3">
+      <div className="flex-shrink-0 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 border-b border-white/[0.06] px-4 py-3 backdrop-blur-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20 relative">
-              <RoboDIcon className="w-6 h-6 text-white" />
-              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-400 border-2 border-slate-900" />
+            <div className="relative">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 blur-md opacity-40" style={{ animation: 'dikaGlow 3s ease-in-out infinite' }} />
+              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                <RoboDIcon className="w-6 h-6 text-white drop-shadow-sm" />
+              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900 dark:border-slate-950">
+                <div className="absolute inset-0 rounded-full bg-emerald-400" style={{ animation: 'dikaPulseRing 2s ease-out infinite' }} />
+              </div>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-white">Dika AI</h2>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-mono font-medium tracking-wider uppercase border border-amber-500/20">v2.0</span>
+                <h2 className="text-[15px] font-semibold text-white tracking-tight">Dika AI</h2>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 font-medium tracking-wider uppercase border border-amber-400/20 backdrop-blur-sm">v2.0</span>
               </div>
-              <p className="text-xs text-slate-400">Your fitness intelligence assistant</p>
+              <p className="text-[11px] text-slate-400/80 font-medium">Your fitness intelligence assistant</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
             {messages.length > 0 && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-slate-400" data-testid="button-clear-history">
+                  <Button variant="ghost" size="icon" className="text-slate-400/70 rounded-xl" data-testid="button-clear-history">
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </AlertDialogTrigger>
@@ -591,30 +596,27 @@ function DikaPageInner({ userId }: { userId: number }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900 relative">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-slate-50 via-slate-50 to-white dark:from-slate-900 dark:via-slate-900/95 dark:to-slate-950 relative">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute inset-0 opacity-[0.04] dark:opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-amber-500/5 to-transparent dark:from-amber-500/3" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full bg-gradient-to-br from-amber-500/[0.04] via-orange-500/[0.02] to-transparent dark:from-amber-500/[0.03] dark:via-orange-500/[0.01] blur-3xl" />
         </div>
         {messages.length === 0 && (
-          <div className="text-center py-8 relative">
-            <div className="w-20 h-20 mx-auto mb-5 relative">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 blur-xl" />
-              <div className="relative w-full h-full rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-lg">
+          <div className="text-center py-10 relative">
+            <div className="w-20 h-20 mx-auto mb-6 relative">
+              <div className="absolute inset-[-8px] rounded-3xl bg-gradient-to-br from-amber-400/25 to-orange-500/15 blur-2xl" style={{ animation: 'dikaGlow 4s ease-in-out infinite' }} />
+              <div className="absolute inset-[-4px] rounded-2xl bg-gradient-to-br from-amber-400/10 to-orange-500/10" style={{ animation: 'dikaPulseRing 3s ease-out infinite' }} />
+              <div className="relative w-full h-full rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center shadow-xl shadow-amber-500/10">
                 <RoboDIcon className="w-10 h-10 text-amber-500 dark:text-amber-400" />
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-yellow-500 border-2 border-slate-50 dark:border-slate-800 flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-white" />
-                </div>
               </div>
             </div>
-            <h3 className="text-lg font-semibold mb-1 text-slate-800 dark:text-slate-100">How can I help you today?</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Ask me about workouts, nutrition, attendance, payments, and more</p>
+            <h3 className="text-lg font-semibold mb-1.5 text-slate-800 dark:text-slate-100 tracking-tight">How can I help you today?</h3>
+            <p className="text-[13px] text-slate-400 dark:text-slate-500 mb-8 max-w-[260px] mx-auto leading-relaxed">Workouts, nutrition, attendance, payments and more</p>
             {suggestions.length > 0 && (
               <div className="space-y-3">
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-mono">Suggestions</p>
-                <div className="flex flex-wrap gap-2 justify-center">
+                <p className="text-[10px] text-slate-400/70 dark:text-slate-500/70 uppercase tracking-[0.15em] font-medium">Try asking</p>
+                <div className="flex flex-wrap gap-2 justify-center max-w-[320px] mx-auto">
                   {suggestions.map((suggestion: string, i: number) => (
-                    <Badge key={i} variant="outline" className="cursor-pointer hover-elevate bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300" onClick={() => handleSuggestionClick(suggestion)} data-testid={`chip-suggestion-${i}`}>
+                    <Badge key={i} variant="outline" className="dika-suggestion-enter cursor-pointer hover-elevate bg-white/80 dark:bg-slate-800/80 border-slate-200/60 dark:border-slate-700/50 text-slate-600 dark:text-slate-300 text-xs backdrop-blur-sm shadow-sm" style={{ animationDelay: `${i * 80}ms`, opacity: 0 }} onClick={() => handleSuggestionClick(suggestion)} data-testid={`chip-suggestion-${i}`}>
                       {suggestion}
                     </Badge>
                   ))}
@@ -625,14 +627,19 @@ function DikaPageInner({ userId }: { userId: number }) {
         )}
 
         {messages.map((message: DikaMessage, index: number) => (
-          <div key={message.id} className={cn("space-y-2", message.role === 'assistant' && "mb-6")}>
+          <div key={message.id} className={cn("space-y-2 dika-msg-enter", message.role === 'assistant' && "mb-5")}>
             <div className={cn("flex", message.role === 'user' ? 'justify-end' : 'justify-start')}>
               {message.role === 'assistant' && (
-                <div className="w-7 h-7 rounded-lg mr-2 flex-shrink-0 bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-sm">
+                <div className="w-7 h-7 rounded-xl mr-2 flex-shrink-0 bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 flex items-center justify-center shadow-md shadow-amber-500/20">
                   <RoboDIcon className="w-4 h-4 text-white" />
                 </div>
               )}
-              <div className={cn("max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm shadow-sm group relative", message.role === 'user' ? 'bg-slate-800 dark:bg-slate-700 text-white rounded-br-md' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-bl-md')} data-testid={`message-${message.role}`}>
+              <div className={cn(
+                "max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm group relative transition-shadow duration-200",
+                message.role === 'user'
+                  ? 'bg-gradient-to-br from-slate-700 to-slate-800 dark:from-slate-600 dark:to-slate-700 text-white rounded-br-sm shadow-md shadow-slate-900/10'
+                  : 'bg-white/90 dark:bg-slate-800/90 border border-slate-200/50 dark:border-slate-700/50 rounded-bl-sm shadow-md shadow-slate-200/50 dark:shadow-slate-900/30 backdrop-blur-sm'
+              )} data-testid={`message-${message.role}`}>
                 {message.role === 'assistant' ? (
                   <>
                     {(() => {
@@ -673,7 +680,7 @@ function DikaPageInner({ userId }: { userId: number }) {
             {message.role === 'assistant' && message.followUpChips && message.followUpChips.length > 0 && !messages.slice(index + 1).some((m: DikaMessage) => m.role === 'assistant') && (
               <div className="flex flex-wrap gap-1.5 pl-9">
                 {message.followUpChips.map((chip: string, i: number) => (
-                  <Badge key={i} variant="outline" className="cursor-pointer hover-elevate text-xs bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300" onClick={() => handleSuggestionClick(chip)} data-testid={`chip-followup-${i}`}>
+                  <Badge key={i} variant="outline" className="dika-suggestion-enter cursor-pointer hover-elevate text-xs bg-white/80 dark:bg-slate-800/80 border-slate-200/50 dark:border-slate-700/50 text-slate-600 dark:text-slate-300 backdrop-blur-sm shadow-sm" style={{ animationDelay: `${i * 60}ms`, opacity: 0 }} onClick={() => handleSuggestionClick(chip)} data-testid={`chip-followup-${i}`}>
                     {chip}
                   </Badge>
                 ))}
@@ -683,11 +690,11 @@ function DikaPageInner({ userId }: { userId: number }) {
         ))}
 
         {isLoading && (
-          <div className="flex justify-start">
-            <div className="w-7 h-7 rounded-lg mr-2 flex-shrink-0 bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-sm animate-pulse">
-              <RoboDIcon className="w-4 h-4 text-white" />
+          <div className="flex justify-start dika-msg-enter">
+            <div className="w-7 h-7 rounded-xl mr-2 flex-shrink-0 bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 flex items-center justify-center shadow-md shadow-amber-500/20">
+              <RoboDIcon className="w-4 h-4 text-white animate-pulse" />
             </div>
-            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl rounded-bl-md shadow-sm">
+            <div className="bg-white/90 dark:bg-slate-800/90 border border-slate-200/50 dark:border-slate-700/50 rounded-2xl rounded-bl-sm shadow-md shadow-slate-200/50 dark:shadow-slate-900/30 backdrop-blur-sm">
               <TypingIndicator />
             </div>
           </div>
@@ -695,17 +702,17 @@ function DikaPageInner({ userId }: { userId: number }) {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t flex gap-2 flex-shrink-0 bg-background">
+      <form onSubmit={handleSubmit} className="px-4 py-3 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center gap-2 flex-shrink-0 bg-gradient-to-t from-white via-white to-slate-50/80 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80 backdrop-blur-xl">
         <div className="flex-1 relative">
-          <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder={isListening ? "Listening..." : "Ask Dika anything..."} disabled={isLoading} className={cn("pr-4 rounded-full border-slate-200 dark:border-slate-700 focus:border-amber-400 focus:ring-amber-400/20", isListening && "border-red-400 animate-pulse")} inputMode="text" autoComplete="off" enterKeyHint="send" data-testid="input-dika-message" />
+          <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder={isListening ? "Listening..." : "Ask Dika anything..."} disabled={isLoading} className={cn("pr-4 rounded-full bg-slate-100/80 dark:bg-slate-800/60 border-slate-200/60 dark:border-slate-700/40 focus:border-amber-400/60 focus:ring-amber-400/15 placeholder:text-slate-400/60 shadow-inner shadow-slate-200/30 dark:shadow-slate-900/20 transition-all duration-200", isListening && "border-red-400/60 animate-pulse")} inputMode="text" autoComplete="off" enterKeyHint="send" data-testid="input-dika-message" />
         </div>
         {voiceSupported && (
-          <Button type="button" size="icon" variant={isListening ? "destructive" : "outline"} onClick={toggleListening} disabled={isLoading} className={cn("rounded-full", isListening && "animate-pulse")} data-testid="button-dika-voice">
+          <Button type="button" size="icon" variant={isListening ? "destructive" : "ghost"} onClick={toggleListening} disabled={isLoading} className={cn("rounded-full text-slate-400", isListening && "animate-pulse")} data-testid="button-dika-voice">
             {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </Button>
         )}
-        <Button type="submit" size="icon" disabled={!input.trim() || isLoading} className="rounded-full bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/25" data-testid="button-dika-send">
-          <Send className="w-4 h-4" />
+        <Button type="submit" size="icon" disabled={!input.trim() || isLoading} className="rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 shadow-lg shadow-amber-500/30 transition-all duration-200 disabled:shadow-none disabled:opacity-40" data-testid="button-dika-send">
+          <Send className="w-4 h-4 text-white" />
         </Button>
       </form>
     </div>
