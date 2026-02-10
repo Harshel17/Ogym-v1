@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useNotificationCounts } from "@/hooks/use-notifications";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dika } from "@/components/dika";
 import { RoboDIcon } from "@/components/dika/dika-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { usePullRefresh } from "@/hooks/use-pull-refresh";
@@ -96,6 +95,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Dashboard", 
       href: "/", 
       icon: LayoutDashboard,
+      visible: hasGym || isPersonalMode,
+      badge: 0
+    },
+    { 
+      label: "Dika AI", 
+      href: "/dika", 
+      icon: Sparkles,
       visible: hasGym || isPersonalMode,
       badge: 0
     },
@@ -317,10 +323,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         primary: [
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Members", href: "/members", icon: Users },
-          { label: "Attendance", href: "/owner/attendance", icon: CalendarCheck },
+          { label: "Dika AI", href: "/dika", icon: Sparkles },
           { label: "Payments", href: "/payments", icon: CreditCard },
         ],
         secondary: [
+          { label: "Attendance", href: "/owner/attendance", icon: CalendarCheck },
           { label: "Trainers", href: "/trainers", icon: Users },
           { label: "Transfers", href: "/transfers", icon: ArrowRightLeft, badge: notificationCounts?.pendingTransfers || 0 },
           { label: "Announcements", href: "/owner/announcements", icon: Megaphone },
@@ -355,10 +362,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         primary: [
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Workouts", href: "/workouts", icon: Dumbbell },
+          { label: "Dika AI", href: "/dika", icon: Sparkles },
           { label: "Members", href: "/members", icon: Users },
-          { label: "Requests", href: "/requests", icon: MessageSquare, badge: notificationCounts?.pendingRequests || 0 },
         ],
         secondary: [
+          { label: "Requests", href: "/requests", icon: MessageSquare, badge: notificationCounts?.pendingRequests || 0 },
           { label: "Star Members", href: "/star-members", icon: Star },
           { label: "Diet Plans", href: "/diet-plans", icon: Utensils },
           { label: "Templates", href: "/templates", icon: FileText },
@@ -376,10 +384,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         primary: [
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Workout", href: "/my-workout", icon: Dumbbell },
-          { label: "Attendance", href: "/attendance", icon: CalendarCheck },
+          { label: "Dika AI", href: "/dika", icon: Sparkles },
           { label: "Nutrition", href: "/nutrition", icon: Salad },
         ],
         secondary: [
+          { label: "Attendance", href: "/attendance", icon: CalendarCheck },
           { label: "Progress", href: "/progress", icon: TrendingUp },
           { label: "My Body", href: "/my-body", icon: Scale },
           { label: "My Diet", href: "/my-diet-plan", icon: Utensils },
@@ -399,10 +408,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         primary: [
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Workouts", href: "/my-workouts", icon: Dumbbell },
-          { label: "Progress", href: "/progress", icon: TrendingUp },
+          { label: "Dika AI", href: "/dika", icon: Sparkles },
           { label: "Nutrition", href: "/nutrition", icon: Salad },
         ],
         secondary: [
+          { label: "Progress", href: "/progress", icon: TrendingUp },
           { label: "My Body", href: "/my-body", icon: HeartPulse },
           { label: "Profile", href: "/profile", icon: UserCircle },
           { label: "Join Gym", href: "/join-gym", icon: Building2 },
@@ -658,8 +668,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </DrawerContent>
       </Drawer>
-      
-      <Dika />
     </div>
   );
 }

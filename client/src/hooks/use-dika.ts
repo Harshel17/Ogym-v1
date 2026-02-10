@@ -137,6 +137,156 @@ function storedToMessages(stored: StoredMessage[]): DikaMessage[] {
   }));
 }
 
+export function useDikaPage(userId: number) {
+  const queryClient = useQueryClient();
+  const [messages, setMessages] = useState<DikaMessage[]>(() => 
+    loadLocalHistory(userId)
+  );
+  const [serverLoaded, setServerLoaded] = useState(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingMessagesRef = useRef<DikaMessage[] | null>(null);
+
+  const syncToServer = useCallback((msgs: DikaMessage[]) => {
+    const stored = messagesToStored(msgs);
+    pendingMessagesRef.current = null;
+    apiRequest('PUT', '/api/dika/conversations', { messages: stored }).catch(err => {
+      console.error('Failed to sync dika to server:', err);
+    });
+  }, []);
+
+  const { data: serverConvo } = useQuery<{ messages: StoredMessage[] }>({
+    queryKey: ['/api/dika/conversations'],
+    enabled: !serverLoaded,
+    staleTime: 0,
+  });
+
+  useEffect(() => {
+    if (serverConvo && !serverLoaded) {
+      setServerLoaded(true);
+      const serverMessages = storedToMessages(serverConvo.messages || []);
+      const localMessages = loadLocalHistory(userId);
+      if (serverMessages.length === 0 && localMessages.length === 0) return;
+      if (serverMessages.length === 0 && localMessages.length > 0) { setMessages(localMessages); syncToServer(localMessages); }
+      else if (serverMessages.length > 0 && localMessages.length === 0) { setMessages(serverMessages); saveLocalHistory(userId, serverMessages); }
+      else {
+        const serverLatest = new Date(serverMessages[serverMessages.length - 1].timestamp).getTime();
+        const localLatest = new Date(localMessages[localMessages.length - 1].timestamp).getTime();
+        if (serverLatest >= localLatest) { setMessages(serverMessages); saveLocalHistory(userId, serverMessages); }
+        else { setMessages(localMessages); syncToServer(localMessages); }
+      }
+    }
+  }, [serverConvo, serverLoaded, userId, syncToServer]);
+
+  useEffect(() => {
+    setMessages(loadLocalHistory(userId));
+    setServerLoaded(false);
+    briefingFetchedRef.current = false;
+  }, [userId]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveLocalHistory(userId, messages);
+      pendingMessagesRef.current = messages;
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(() => syncToServer(messages), 1000);
+    }
+    return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
+  }, [messages, userId, syncToServer]);
+
+  useEffect(() => {
+    const flushPending = () => {
+      if (pendingMessagesRef.current && pendingMessagesRef.current.length > 0) {
+        const stored = messagesToStored(pendingMessagesRef.current);
+        const blob = new Blob([JSON.stringify({ messages: stored })], { type: 'application/json' });
+        navigator.sendBeacon('/api/dika/conversations-beacon', blob);
+      }
+    };
+    window.addEventListener('beforeunload', flushPending);
+    const visHandler = () => { if (document.visibilityState === 'hidden') flushPending(); };
+    document.addEventListener('visibilitychange', visHandler);
+    return () => { window.removeEventListener('beforeunload', flushPending); document.removeEventListener('visibilitychange', visHandler); };
+  }, []);
+
+  const { data: suggestionsData } = useQuery<{ suggestions: string[] }>({
+    queryKey: ['/api/dika/suggestions'],
+  });
+
+  const briefingFetchedRef = useRef(false);
+  useEffect(() => {
+    if (messages.length === 0 && serverLoaded && !briefingFetchedRef.current) {
+      briefingFetchedRef.current = true;
+      apiRequest('GET', '/api/dika/briefing')
+        .then(res => res.json())
+        .then(data => {
+          if (data.answer) {
+            const briefingMsg: DikaMessage = {
+              id: `briefing-${Date.now()}`,
+              role: 'assistant',
+              content: data.answer,
+              timestamp: new Date(),
+              followUpChips: data.followUpChips || [],
+            };
+            setMessages([briefingMsg]);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [messages.length, serverLoaded]);
+
+  const askMutation = useMutation({
+    mutationFn: async (message: string) => {
+      const history = messages.slice(-8).map(m => ({
+        role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
+        content: m.content,
+      }));
+      const res = await apiRequest('POST', '/api/dika/ask', { message, conversationHistory: history });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const assistantMessage: DikaMessage = {
+        id: `assistant-${Date.now()}`,
+        role: 'assistant',
+        content: data.answer,
+        timestamp: new Date(),
+        followUpChips: data.followUpChips || [],
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+      if (data.answer?.includes('MEAL_LOG_DATA:')) {
+        queryClient.invalidateQueries({ queryKey: ['/api/nutrition/page-data'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/nutrition/analytics'] });
+      }
+    },
+  });
+
+  const sendMessage = useCallback((content: string) => {
+    const userMessage: DikaMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+    askMutation.mutate(content);
+  }, [askMutation]);
+
+  const clearHistory = useCallback(() => {
+    setMessages([]);
+    clearLocalHistory(userId);
+    briefingFetchedRef.current = false;
+    apiRequest('DELETE', '/api/dika/conversations').catch(err => {
+      console.error('Failed to clear server dika history:', err);
+    });
+  }, [userId]);
+
+  return {
+    messages,
+    suggestions: suggestionsData?.suggestions || [],
+    isLoading: askMutation.isPending,
+    sendMessage,
+    clearHistory,
+  };
+}
+
 export function useDika(userId: number, hideDika: boolean) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
