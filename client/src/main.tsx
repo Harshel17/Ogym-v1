@@ -21,10 +21,12 @@ safeInitCapacitor();
   let attempts = 0;
   function measure() {
     const h = el.getBoundingClientRect().height;
-    document.documentElement.style.setProperty('--cached-safe-top', h + 'px');
-    if (h === 0 && attempts < 15) {
+    if (h > 0) {
+      document.documentElement.style.setProperty('--cached-safe-top', h + 'px');
+      el.remove();
+    } else if (attempts < 20) {
       attempts++;
-      setTimeout(measure, attempts < 5 ? 100 : 300);
+      setTimeout(measure, attempts < 5 ? 50 : attempts < 10 ? 150 : 300);
     } else {
       el.remove();
     }

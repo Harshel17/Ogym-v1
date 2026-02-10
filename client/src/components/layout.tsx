@@ -538,26 +538,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile top safe area spacer - uses cached value with env() fallback for iOS */}
-      <div 
-        className="md:hidden bg-background flex-shrink-0"
-        style={{ height: 'var(--cached-safe-top, env(safe-area-inset-top, 0px))' }}
-      />
-
       {/* Main Content - scrollable naturally */}
       <main ref={mainRefCallback} className="flex-1 min-w-0 md:overflow-y-auto overflow-x-hidden app-main-scroll relative z-0">
         <PullIndicator />
-        <div className="p-4 pt-6 md:p-8 max-w-7xl mx-auto page-fade-scale md:pb-8 md:pt-0" key={location}>
+        <div className="p-4 md:p-8 max-w-7xl mx-auto page-fade-scale md:pb-8 md:pt-0 mobile-safe-top" key={location}>
           {children}
         </div>
       </main>
 
       {/* Mobile Bottom Tab Bar - scrolls with content, not fixed */}
       <nav 
-        className="md:hidden border-t border-border/50 bg-background flex-shrink-0"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        className="md:hidden border-t border-border/50 bg-background flex-shrink-0 mobile-safe-bottom"
       >
-        <div className="flex justify-around items-end w-full pt-2 pb-1">
+        <div className="flex justify-around items-end w-full pt-2 pb-1.5">
           {primaryTabs.map((item) => {
             const isActive = location === item.href || 
               (item.href !== "/" && location.startsWith(item.href));
