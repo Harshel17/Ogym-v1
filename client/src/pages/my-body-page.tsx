@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { GuidedEmptyState } from "@/components/guided-empty-state";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
@@ -379,9 +380,17 @@ export default function MyBodyPage() {
         </CardHeader>
         <CardContent>
           {measurements.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No measurements recorded yet. Click "Add Measurement" to get started.
-            </div>
+            <GuidedEmptyState
+              icon={Scale}
+              title="No Measurements Yet"
+              description="Start tracking your body measurements to see your transformation over time. Record your weight, body fat, and more."
+              features={[
+                "Track weight, body fat, and key measurements",
+                "See visual trends over weeks and months",
+                "Compare progress with your fitness goals",
+              ]}
+              iconGradient="from-cyan-500 to-blue-600"
+            />
           ) : (
             <div className="space-y-4">
               {measurements.map((m, index) => (

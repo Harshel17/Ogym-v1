@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { GuidedEmptyState } from "@/components/guided-empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Dialog, 
@@ -152,12 +153,17 @@ export default function TrainerWorkoutPage() {
               ))}
             </div>
           ) : (cycles as any[]).length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-8">
-                <Dumbbell className="w-10 h-10 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground text-center">No workout cycles yet.</p>
-              </CardContent>
-            </Card>
+            <GuidedEmptyState
+              icon={Dumbbell}
+              title="No Workout Programs Yet"
+              description="Create your first workout cycle and assign it to a member. You can build custom programs with exercises, sets, and rest days."
+              features={[
+                "Design multi-day workout cycles with exercises",
+                "Set target reps, weights, and rest periods",
+                "Track member completion and adjust programs",
+              ]}
+              iconGradient="from-orange-500 to-red-500"
+            />
           ) : (() => {
             const filteredCycles = (cycles as any[]).filter(cycle => {
               const member = (members as any[]).find(m => m.id === cycle.memberId);

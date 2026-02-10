@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { GuidedEmptyState } from "@/components/guided-empty-state";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -411,13 +412,19 @@ export default function StatsPage() {
       </div>
 
       {!stats || stats.totalWorkouts === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <BarChart3 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-semibold text-lg">No stats yet</h3>
-            <p className="text-muted-foreground mt-2">Complete some workouts to see your statistics!</p>
-          </CardContent>
-        </Card>
+        <GuidedEmptyState
+          icon={BarChart3}
+          title="No Progress Data Yet"
+          description="Complete your first workout to start seeing your stats, streaks, and progress charts here."
+          features={[
+            "Track your workout streak day by day",
+            "See weekly and monthly completion rates",
+            "View detailed exercise history and personal records",
+          ]}
+          actionLabel="Go to Workout"
+          actionHref="/my-workout"
+          iconGradient="from-blue-500 to-indigo-600"
+        />
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

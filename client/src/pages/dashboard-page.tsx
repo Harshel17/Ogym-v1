@@ -17,6 +17,7 @@ import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Targe
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
+import { FeatureDiscoveryTips } from "@/components/feature-discovery-tips";
 import { HealthSummary } from "@/components/health-summary";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { Switch } from "@/components/ui/switch";
@@ -545,6 +546,8 @@ function OwnerDashboard() {
         />
       </div>
 
+      <FeatureDiscoveryTips role="owner" />
+
       {/* Quick Export Actions */}
       <div className="flex flex-wrap gap-1.5">
         <a href="/api/owner/export/members" download>
@@ -737,6 +740,8 @@ function TrainerDashboard() {
           description="Your starred members"
         />
       </div>
+
+      <FeatureDiscoveryTips role="trainer" />
 
       {newMembers.length > 0 && (
         <Card className="border-primary/30 bg-primary/5">
@@ -1352,6 +1357,8 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
 
       {/* Greeting Banner */}
       <GreetingBanner greeting={greeting} greetingIcon={greetingIcon} username={username} motiveLine={motiveLine} />
+
+      <FeatureDiscoveryTips role="member" isPersonalMode={isPersonalMode} />
 
       {/* Today's Workout */}
       <Collapsible open={isWorkoutOpen} onOpenChange={setIsWorkoutOpen}>

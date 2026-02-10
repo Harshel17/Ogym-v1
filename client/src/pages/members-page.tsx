@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { GuidedEmptyState } from "@/components/guided-empty-state";
 import { 
   Table, 
   TableBody, 
@@ -240,16 +241,31 @@ export default function MembersPage() {
                   </div>
                 ))}
               </div>
+            ) : filteredMembers.length === 0 && !search ? (
+              <GuidedEmptyState
+                icon={Users}
+                title={isTrainer ? "No Members Assigned Yet" : "No Members Yet"}
+                description={isTrainer 
+                  ? "Once the gym owner assigns members to you, they'll appear here. You can then create workout plans and track their progress."
+                  : "Your member list is empty. Share your gym code with people to let them join, or add members manually."}
+                features={isTrainer ? [
+                  "View assigned members and their workout progress",
+                  "Create personalized workout programs",
+                  "Track attendance and engagement",
+                ] : [
+                  "Add members individually or share your gym code",
+                  "Assign trainers and manage subscriptions",
+                  "Track attendance and workout progress",
+                ]}
+                actionLabel={isOwner ? "Share Gym Code" : undefined}
+                actionHref={isOwner ? "/profile" : undefined}
+                secondaryActionLabel="Ask Dika for help"
+                secondaryActionHref="/dika"
+              />
             ) : filteredMembers.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>
-                  {isTrainer 
-                    ? "No members assigned to you yet." 
-                    : isOwner && ownerTab === "new"
-                      ? "All members have trainers assigned and payments set up."
-                      : "No members found."}
-                </p>
+                <p>No members found matching your search.</p>
               </div>
             ) : (
               filteredMembers.map((member: any) => {

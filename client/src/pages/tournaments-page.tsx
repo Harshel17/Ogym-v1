@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { GuidedEmptyState } from "@/components/guided-empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -377,15 +378,23 @@ export default function TournamentsPage() {
       )}
       
       {(!tournaments || tournaments.length === 0) && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">No tournaments yet</h3>
-            <p className="text-muted-foreground">
-              {canCreate ? "Create a tournament to challenge your gym members!" : "Check back later for gym competitions!"}
-            </p>
-          </CardContent>
-        </Card>
+        <GuidedEmptyState
+          icon={Trophy}
+          title="No Tournaments Yet"
+          description={canCreate 
+            ? "Create fitness challenges and tournaments to motivate your gym members and build community spirit."
+            : "Your gym hasn't started any tournaments yet. Check back soon for exciting fitness challenges!"}
+          features={canCreate ? [
+            "Create custom fitness challenges with leaderboards",
+            "Set duration and track participant progress",
+            "Award points and build competitive spirit",
+          ] : [
+            "Compete in gym fitness challenges",
+            "Climb the leaderboard and earn recognition",
+            "Track your progress against other members",
+          ]}
+          iconGradient="from-amber-500 to-orange-600"
+        />
       )}
     </div>
   );

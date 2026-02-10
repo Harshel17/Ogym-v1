@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { GuidedEmptyState } from "@/components/guided-empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -641,10 +642,17 @@ function PlansTab() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : activePlans.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No membership plans yet. Create your first plan to get started.</p>
-          </div>
+          <GuidedEmptyState
+            icon={CreditCard}
+            title="No Membership Plans Yet"
+            description="Create your first membership plan to start accepting payments and managing subscriptions for your members."
+            features={[
+              "Set up monthly, quarterly, or yearly plans",
+              "Support multiple currencies for international gyms",
+              "Track payments and send automated reminders",
+            ]}
+            iconGradient="from-emerald-500 to-green-600"
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {activePlans.map((plan) => (

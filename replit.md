@@ -44,6 +44,8 @@ Preferred communication style: Simple, everyday language.
 - **Fitness Device Integration:** Support for health tracking data.
 - **iOS App Store Compliance:** Specific implementations for Guideline 3.1.1 (owner registration hidden on iOS native app), Guideline 5.1.1 (account deletion with cascade), and Guideline 1.2 (UGC moderation for social feed).
 - **iOS Specific UI/UX:** Handles status bar, safe areas, rubber-band scroll prevention, toast positioning, and Dika drawer spacing.
+- **Feature Discovery Tips:** Role-specific rotating tips on dashboards (owner: 8, trainer: 5, member: 6, personal: 5) with localStorage-persisted dismissal, auto-rotation, and navigation links. Component: `client/src/components/feature-discovery-tips.tsx`.
+- **Guided Empty States:** Enhanced empty state component with icon, description, feature highlights, and action buttons used across members, payments, workouts, progress, tournaments, and body measurement pages. Component: `client/src/components/guided-empty-state.tsx`.
 
 ## External Dependencies
 - **PostgreSQL:** Primary database.
