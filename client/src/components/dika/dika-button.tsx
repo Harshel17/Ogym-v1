@@ -109,6 +109,7 @@ export function DikaButton({
 
       let moveCount = 0;
       let cancelledCount = 0;
+      let touchEnded = false;
 
       const handleTouchMove = (ev: TouchEvent) => {
         ev.stopPropagation();
@@ -153,8 +154,12 @@ export function DikaButton({
       };
 
       const handleTouchEnd = (ev: TouchEvent) => {
+        if (touchEnded) return;
+
         const relevantTouch = Array.from(ev.changedTouches).find(t => t.identifier === activeTouchId);
-        if (!relevantTouch && ev.type !== 'touchcancel') return;
+        if (!relevantTouch) return;
+
+        touchEnded = true;
 
         ev.stopPropagation();
         ev.stopImmediatePropagation();
@@ -172,29 +177,31 @@ export function DikaButton({
           longPressTimer.current = null;
         }
 
-        button.removeEventListener('touchmove', handleTouchMove);
-        button.removeEventListener('touchend', handleTouchEnd);
-        button.removeEventListener('touchcancel', handleTouchEnd);
+        button.removeEventListener('touchmove', handleTouchMove, { capture: true } as any);
+        button.removeEventListener('touchend', handleTouchEnd, { capture: true } as any);
+        button.removeEventListener('touchcancel', handleTouchEnd, { capture: true } as any);
 
         const finalT = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0)`;
         button.style.transform = finalT;
         (button.style as any).webkitTransform = finalT;
 
-        debugEvents.push(`TEND moves=${moveCount} cancelled=${cancelledCount} dragged=${draggedRef.current} finalPos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)}`);
+        const wasDragged = draggedRef.current;
+        draggedRef.current = false;
 
-        if (!draggedRef.current) {
+        debugEvents.push(`TEND moves=${moveCount} cancelled=${cancelledCount} dragged=${wasDragged} finalPos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)} type=${ev.type}`);
+
+        if (!wasDragged) {
           isDraggingRef.current = false;
           debugEvents.push(`TAP -> open drawer`);
+          sendDebug(debugEvents);
           onClickRef.current();
         } else {
           const finalPos = posRef.current;
           isDraggingRef.current = false;
           onPositionChangeRef.current(finalPos);
           debugEvents.push(`DRAG_END -> saved pos ${Math.round(finalPos.x)},${Math.round(finalPos.y)}`);
+          sendDebug(debugEvents);
         }
-        draggedRef.current = false;
-
-        sendDebug(debugEvents);
       };
 
       button.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
