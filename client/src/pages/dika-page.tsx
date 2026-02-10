@@ -3,6 +3,7 @@ import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckC
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { RoboDIcon } from '@/components/dika/dika-icons';
 import { useVisualViewportHeight } from '@/hooks/use-keyboard';
@@ -551,9 +552,25 @@ function DikaPageInner({ userId }: { userId: number }) {
           </div>
           <div className="flex items-center gap-1">
             {messages.length > 0 && (
-              <Button variant="ghost" size="icon" onClick={clearHistory} className="text-slate-400" data-testid="button-clear-history">
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-slate-400" data-testid="button-clear-history">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete chat history?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete your entire conversation with Dika. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={clearHistory} className="bg-destructive text-destructive-foreground" data-testid="button-confirm-delete">Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         </div>

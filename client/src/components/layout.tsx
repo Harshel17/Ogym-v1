@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RoboDIcon } from "@/components/dika/dika-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { cn } from "@/lib/utils";
 import { usePullRefresh } from "@/hooks/use-pull-refresh";
 import { queryClient } from "@/lib/queryClient";
 import ogymLogo from "@/assets/images/ogym-logo.png";
@@ -43,7 +44,6 @@ import {
   HeartPulse,
   PhoneCall,
   MailCheck,
-  Sparkles,
   Apple,
   Salad,
   type LucideIcon
@@ -52,9 +52,27 @@ import {
 type MobileTabItem = {
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: LucideIcon | React.ComponentType<{ className?: string }>;
   badge?: number;
 };
+
+function DikaNavIcon({ className }: { className?: string }) {
+  return (
+    <div className={cn("relative flex items-center justify-center", className)}>
+      <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+        <defs>
+          <linearGradient id="dika-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#f59e0b" />
+            <stop offset="100%" stopColor="#ea580c" />
+          </linearGradient>
+        </defs>
+        <text x="5" y="18" fontFamily="system-ui, -apple-system, sans-serif" fontWeight="900" fontSize="18" fill="url(#dika-grad)" letterSpacing="-1">D</text>
+        <path d="M17 3l1.2 2.4L20.6 6.6l-2.4 1.2L17 10.2l-1.2-2.4L13.4 6.6l2.4-1.2z" fill="url(#dika-grad)" />
+        <path d="M20 11l0.7 1.3L22 13l-1.3 0.7L20 15l-0.7-1.3L18 13l1.3-0.7z" fill="url(#dika-grad)" opacity="0.7" />
+      </svg>
+    </div>
+  );
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logoutMutation } = useAuth();
@@ -101,7 +119,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { 
       label: "Dika AI", 
       href: "/dika", 
-      icon: Sparkles,
+      icon: DikaNavIcon,
       visible: hasGym || isPersonalMode,
       badge: 0
     },
@@ -323,7 +341,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         primary: [
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Members", href: "/members", icon: Users },
-          { label: "Dika AI", href: "/dika", icon: Sparkles },
+          { label: "Dika AI", href: "/dika", icon: DikaNavIcon },
           { label: "Payments", href: "/payments", icon: CreditCard },
         ],
         secondary: [
@@ -362,7 +380,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         primary: [
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Workouts", href: "/workouts", icon: Dumbbell },
-          { label: "Dika AI", href: "/dika", icon: Sparkles },
+          { label: "Dika AI", href: "/dika", icon: DikaNavIcon },
           { label: "Members", href: "/members", icon: Users },
         ],
         secondary: [
@@ -384,7 +402,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         primary: [
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Workout", href: "/my-workout", icon: Dumbbell },
-          { label: "Dika AI", href: "/dika", icon: Sparkles },
+          { label: "Dika AI", href: "/dika", icon: DikaNavIcon },
           { label: "Nutrition", href: "/nutrition", icon: Salad },
         ],
         secondary: [
@@ -408,7 +426,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         primary: [
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Workouts", href: "/my-workouts", icon: Dumbbell },
-          { label: "Dika AI", href: "/dika", icon: Sparkles },
+          { label: "Dika AI", href: "/dika", icon: DikaNavIcon },
           { label: "Nutrition", href: "/nutrition", icon: Salad },
         ],
         secondary: [
