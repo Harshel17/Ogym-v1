@@ -58,19 +58,25 @@ type MobileTabItem = {
 
 function DikaNavIcon({ className }: { className?: string }) {
   return (
-    <div className={cn("relative flex items-center justify-center", className)}>
-      <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
-        <defs>
-          <linearGradient id="dika-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#f59e0b" />
-            <stop offset="100%" stopColor="#ea580c" />
-          </linearGradient>
-        </defs>
-        <text x="5" y="18" fontFamily="system-ui, -apple-system, sans-serif" fontWeight="900" fontSize="18" fill="url(#dika-grad)" letterSpacing="-1">D</text>
-        <path d="M17 3l1.2 2.4L20.6 6.6l-2.4 1.2L17 10.2l-1.2-2.4L13.4 6.6l2.4-1.2z" fill="url(#dika-grad)" />
-        <path d="M20 11l0.7 1.3L22 13l-1.3 0.7L20 15l-0.7-1.3L18 13l1.3-0.7z" fill="url(#dika-grad)" opacity="0.7" />
-      </svg>
-    </div>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      stroke="none"
+    >
+      <defs>
+        <linearGradient id="dika-nav-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#ea580c" />
+        </linearGradient>
+      </defs>
+      <rect x="2" y="3" width="14" height="18" rx="3" fill="url(#dika-nav-grad)" />
+      <rect x="5.5" y="7" width="2.5" height="7" rx="1" fill="white" />
+      <rect x="9" y="7" width="2.5" height="7" rx="1" fill="white" />
+      <path d="M18.5 2l1.2 2.5L22.2 5.7l-2.5 1.2L18.5 9.4l-1.2-2.5L14.8 5.7l2.5-1.2z" fill="url(#dika-nav-grad)" />
+      <path d="M20 12.5l0.8 1.5 1.7 0.8-1.7 0.8L20 17.1l-0.8-1.5-1.7-0.8 1.7-0.8z" fill="url(#dika-nav-grad)" opacity="0.6" />
+    </svg>
   );
 }
 
