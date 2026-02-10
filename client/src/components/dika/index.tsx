@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useDika } from '@/hooks/use-dika';
 import { DikaButton } from './dika-button';
@@ -30,9 +31,22 @@ function DikaInner({ userId, hideDika }: { userId: number; hideDika: boolean }) 
     hideDikaButton,
   } = useDika(userId, hideDika);
 
+  const [buttonKey, setButtonKey] = useState(0);
+  const prevIsOpen = useRef(isOpen);
+
+  useEffect(() => {
+    if (prevIsOpen.current && !isOpen) {
+      setTimeout(() => {
+        setButtonKey(k => k + 1);
+      }, 50);
+    }
+    prevIsOpen.current = isOpen;
+  }, [isOpen]);
+
   return (
     <>
       <DikaButton
+        key={buttonKey}
         icon={icon}
         position={position}
         onPositionChange={updatePosition}
