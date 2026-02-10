@@ -114,6 +114,63 @@ const SUPPORT_TICKET_PATTERNS = [
   /(?:contact|reach)\s+(?:support|help|customer\s+service)/i,
 ];
 
+const SUPPORT_FLOW_MARKER = '<!-- SUPPORT_FLOW_ACTIVE -->';
+
+export function detectOngoingSupportTicketFlow(
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+): boolean {
+  if (!conversationHistory || conversationHistory.length < 2) return false;
+  const recentMessages = conversationHistory.slice(-8);
+  for (let i = recentMessages.length - 1; i >= 0; i--) {
+    const msg = recentMessages[i];
+    if (msg.role === 'assistant' && msg.content.includes(SUPPORT_FLOW_MARKER)) {
+      if (msg.content.includes('DIKA_ACTION_DATA')) {
+        return false;
+      }
+      return true;
+    }
+    if (msg.role === 'assistant' && msg.content.includes('DIKA_ACTION_DATA')) {
+      return false;
+    }
+    if (msg.role === 'assistant' && /ticket.*created|ticket.*submitted|done/i.test(msg.content)) {
+      return false;
+    }
+  }
+  return false;
+}
+
+type SupportTicketState = 'needs_description' | 'needs_priority' | 'ready';
+
+function extractPriorityFromMessage(msg: string): string | null {
+  const trimmed = msg.trim().toLowerCase();
+  if (/^(low|medium|high)$/.test(trimmed)) return trimmed;
+  if (/^(low|medium|high)\s+priority$/i.test(trimmed)) return trimmed.split(/\s/)[0];
+  if (/^priority\s*[:\-]?\s*(low|medium|high)$/i.test(trimmed)) {
+    const m = trimmed.match(/(low|medium|high)/i);
+    return m ? m[1].toLowerCase() : null;
+  }
+  return null;
+}
+
+function detectSupportTicketState(
+  currentMessage: string,
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+): SupportTicketState {
+  if (!conversationHistory || conversationHistory.length < 2) return 'needs_description';
+  const recentMessages = conversationHistory.slice(-10);
+  let hasDescription = false;
+  for (const msg of recentMessages) {
+    if (msg.role === 'assistant' && msg.content.includes('<!-- SUPPORT_STEP:description_collected -->')) {
+      hasDescription = true;
+    }
+  }
+  if (!hasDescription) return 'needs_description';
+  if (extractPriorityFromMessage(currentMessage)) {
+    return 'ready';
+  }
+  return 'needs_priority';
+}
+
 export function extractMemberNameFromLookup(message: string): string | null {
   for (const pattern of MEMBER_LOOKUP_PATTERNS) {
     const match = message.match(pattern);
@@ -1159,9 +1216,53 @@ export async function processSupportTicketAction(
 
   const availableTypes = validIssueTypes.map(t => `${t} (${issueTypeLabels[t] || t})`).join(', ');
 
-  const historyContext = conversationHistory
-    ? conversationHistory.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n')
-    : '';
+  const state = detectSupportTicketState(message, conversationHistory);
+
+  if (state === 'needs_description') {
+    return {
+      answer: `Sure, I can help you create a support ticket! Could you describe what's going wrong? The more detail you provide, the faster our team can help.\n${SUPPORT_FLOW_MARKER}`,
+      followUpChips: ['Report a bug', 'Payment issue', 'Something is broken'],
+    };
+  }
+
+  if (state === 'needs_priority') {
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `The user described an issue. Acknowledge it briefly in 1-2 short sentences, then ask how urgent it is. End with: "Would you say this is **low**, **medium**, or **high** priority?". Be warm and empathetic. Do NOT create the ticket yet.`
+          },
+          { role: "user", content: message }
+        ],
+        max_completion_tokens: 150,
+      });
+      const aiResponse = response.choices[0]?.message?.content?.trim() || 
+        "Thanks for explaining that. How urgent is this for you - would you say it's **low**, **medium**, or **high** priority?";
+      return {
+        answer: `${aiResponse}\n<!-- SUPPORT_STEP:description_collected -->\n${SUPPORT_FLOW_MARKER}`,
+        followUpChips: ['Low priority', 'Medium priority', 'High priority'],
+      };
+    } catch {
+      return {
+        answer: `Thanks for explaining that. How urgent is this for you - would you say it's **low**, **medium**, or **high** priority?\n<!-- SUPPORT_STEP:description_collected -->\n${SUPPORT_FLOW_MARKER}`,
+        followUpChips: ['Low priority', 'Medium priority', 'High priority'],
+      };
+    }
+  }
+
+  const priority = extractPriorityFromMessage(message) || 'medium';
+
+  const descriptionMessages = conversationHistory
+    ? conversationHistory
+        .filter(m => m.role === 'user')
+        .map(m => m.content)
+        .filter(c => !detectSupportTicketRequest(c) && !/\b(low|medium|high)\s+priority\b/i.test(c))
+    : [];
+  const userDescription = descriptionMessages.length > 0
+    ? descriptionMessages[descriptionMessages.length - 1]
+    : message;
 
   try {
     const response = await openai.chat.completions.create({
@@ -1169,77 +1270,57 @@ export async function processSupportTicketAction(
       messages: [
         {
           role: "system",
-          content: `You are a support ticket helper for OGym fitness app. Your job is to extract support ticket details from the user's message.
+          content: `You extract support ticket data. Given the user's issue description, respond ONLY with a JSON object (no markdown, no extra text):
+{"issueType":"...","description":"..."}
 
-The user is a ${role}${isPersonalMode ? ' in personal mode (no gym)' : gymId ? ' at a gym' : ''}.
-
-Available issue types: ${availableTypes}
-
-Extract the following from the conversation:
-1. issueType: One of [${validIssueTypes.join(', ')}]. Pick the most appropriate based on what they describe.
-2. priority: One of [low, medium, high]. Default to medium unless they indicate urgency.
-3. description: A clear summary of their issue (at least 10 characters).
-
-If you can determine all three fields from the message, respond with a JSON block in this exact format:
-<!-- SUPPORT_TICKET_DATA:{"issueType":"...","priority":"...","description":"..."} -->
-
-Then add a friendly confirmation message asking the user to confirm the ticket details.
-
-If the user's message is too vague to determine the issue, ask them to describe their problem in more detail. Do NOT output the JSON block in that case.`
+issueType must be one of: [${validIssueTypes.join(', ')}]. Pick the best match.
+description: Write a clear, professional summary of their issue in 1-2 sentences (minimum 15 characters). Don't just repeat their words - summarize clearly.`
         },
-        ...(historyContext ? [{ role: "user" as const, content: `Previous conversation:\n${historyContext}` }] : []),
-        { role: "user", content: message }
+        { role: "user", content: userDescription }
       ],
-      max_completion_tokens: 400,
+      max_completion_tokens: 150,
+      response_format: { type: "json_object" },
     });
 
-    const content = response.choices[0]?.message?.content || '';
+    const parsed = JSON.parse(response.choices[0]?.message?.content || '{}');
+    const issueType = validIssueTypes.includes(parsed.issueType) ? parsed.issueType : 'bug_report';
+    const description = (parsed.description?.trim() && parsed.description.trim().length >= 10)
+      ? parsed.description.trim()
+      : userDescription;
 
-    const ticketMatch = content.match(/<!-- SUPPORT_TICKET_DATA:([\s\S]+?) -->/);
-    if (ticketMatch) {
-      try {
-        const ticketData = JSON.parse(ticketMatch[1].trim());
-        const issueType = validIssueTypes.includes(ticketData.issueType) ? ticketData.issueType : 'other';
-        const priority = ['low', 'medium', 'high'].includes(ticketData.priority) ? ticketData.priority : 'medium';
-        const description = ticketData.description?.trim() || message;
+    const actionData: ActionData = {
+      actionType: 'create_support_ticket',
+      status: 'pending_confirmation',
+      payload: {
+        issueType,
+        issueTypeLabel: issueTypeLabels[issueType] || issueType,
+        priority,
+        description,
+      },
+      preview: `Create support ticket: ${issueTypeLabels[issueType] || issueType}`,
+    };
 
-        const actionData: ActionData = {
-          actionType: 'create_support_ticket',
-          status: 'pending_confirmation',
-          payload: {
-            issueType,
-            issueTypeLabel: issueTypeLabels[issueType] || issueType,
-            priority,
-            description,
-          },
-          preview: `Create support ticket: ${issueTypeLabels[issueType] || issueType}`,
-        };
-
-        const cleanContent = content
-          .replace(/<!-- SUPPORT_TICKET_DATA:[\s\S]+? -->/g, '')
-          .trim();
-
-        const answer = `${cleanContent || `I'll create a support ticket for you. Here are the details:`}\n<!-- DIKA_ACTION_DATA:${JSON.stringify(actionData)} -->`;
-
-        return {
-          answer,
-          followUpChips: ['Go to support', 'Report another issue'],
-        };
-      } catch {
-        // JSON parse failed, fall through
-      }
-    }
-
-    const cleanAnswer = content.replace(/<!-- SUPPORT_TICKET_DATA:[\s\S]+? -->/g, '').trim();
     return {
-      answer: cleanAnswer || "Could you describe your issue in a bit more detail? For example, what's not working or what problem you're experiencing?",
-      followUpChips: ['Report a bug', 'Payment issue', 'Account problem'],
+      answer: `Here's your support ticket - please confirm the details:\n<!-- DIKA_ACTION_DATA:${JSON.stringify(actionData)} -->`,
+      followUpChips: ['Go to support', 'Report another issue'],
     };
   } catch (error) {
     console.error('Support ticket AI processing error:', error);
+    const actionData: ActionData = {
+      actionType: 'create_support_ticket',
+      status: 'pending_confirmation',
+      payload: {
+        issueType: 'bug_report',
+        issueTypeLabel: 'Bug Report',
+        priority,
+        description: userDescription,
+      },
+      preview: 'Create support ticket: Bug Report',
+    };
+
     return {
-      answer: "I'd be happy to help you create a support ticket. Could you describe what issue you're experiencing?",
-      followUpChips: ['Report a bug', 'Payment issue', 'Account problem'],
+      answer: `Here's your support ticket - please confirm the details:\n<!-- DIKA_ACTION_DATA:${JSON.stringify(actionData)} -->`,
+      followUpChips: ['Go to support', 'Report another issue'],
     };
   }
 }

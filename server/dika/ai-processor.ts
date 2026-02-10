@@ -19,7 +19,7 @@ import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
 import { detectWorkoutGenerationRequest, generateWorkoutPlan } from "./workout-generator";
 import { detectMealLogRequest, parseMealFromMessage, logMealForUser, getTodayNutritionSummary, formatMealLogResponse, detectRestaurantInMessage, looksLikeRestaurantFood } from "./meal-logger";
-import { detectOwnerAction, processOwnerAction, OwnerActionType, detectSupportTicketRequest, processSupportTicketAction } from "./owner-actions";
+import { detectOwnerAction, processOwnerAction, OwnerActionType, detectSupportTicketRequest, processSupportTicketAction, detectOngoingSupportTicketFlow } from "./owner-actions";
 import { detectWeeklyReportRequest, generateWeeklyReport, formatWeeklyReportResponse } from "./weekly-report";
 
 function detectPendingMealFromHistory(
@@ -923,7 +923,7 @@ export async function processWithAI(
     }
   }
 
-  if (detectSupportTicketRequest(message)) {
+  if (detectSupportTicketRequest(message) || detectOngoingSupportTicketFlow(conversationHistory)) {
     try {
       return await processSupportTicketAction(userId, role, gymId, message, conversationHistory);
     } catch (error: any) {
