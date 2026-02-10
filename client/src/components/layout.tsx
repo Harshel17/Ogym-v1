@@ -58,25 +58,12 @@ type MobileTabItem = {
 
 function DikaNavIcon({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      stroke="none"
-    >
-      <defs>
-        <linearGradient id="dika-nav-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#f59e0b" />
-          <stop offset="100%" stopColor="#ea580c" />
-        </linearGradient>
-      </defs>
-      <rect x="2" y="3" width="14" height="18" rx="3" fill="url(#dika-nav-grad)" />
-      <rect x="5.5" y="7" width="2.5" height="7" rx="1" fill="white" />
-      <rect x="9" y="7" width="2.5" height="7" rx="1" fill="white" />
-      <path d="M18.5 2l1.2 2.5L22.2 5.7l-2.5 1.2L18.5 9.4l-1.2-2.5L14.8 5.7l2.5-1.2z" fill="url(#dika-nav-grad)" />
-      <path d="M20 12.5l0.8 1.5 1.7 0.8-1.7 0.8L20 17.1l-0.8-1.5-1.7-0.8 1.7-0.8z" fill="url(#dika-nav-grad)" opacity="0.6" />
-    </svg>
+    <div className={cn("relative", className)}>
+      <div className="w-full h-full rounded-md bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center p-[2px]">
+        <RoboDIcon className="w-full h-full text-white" />
+      </div>
+      <div className="absolute -top-[2px] -right-[2px] w-[5px] h-[5px] rounded-full bg-yellow-400 border border-amber-600" />
+    </div>
   );
 }
 
