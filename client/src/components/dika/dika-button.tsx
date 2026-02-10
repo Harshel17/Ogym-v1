@@ -4,6 +4,7 @@ import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
 
 const DRAG_THRESHOLD = 8;
+const BUILD_TAG = 'v3';
 
 interface DikaButtonProps {
   icon: DikaIcon;
@@ -18,7 +19,7 @@ function sendDebug(events: string[]) {
     fetch('/api/debug-touch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ events, ua: navigator.userAgent, time: new Date().toISOString() }),
+      body: JSON.stringify({ events, ua: navigator.userAgent, time: new Date().toISOString(), build: BUILD_TAG }),
     }).catch(() => {});
   } catch {}
 }
@@ -32,10 +33,19 @@ export function DikaButton({
 }: DikaButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
-  const draggedRef = useRef(false);
-  const isDraggingRef = useRef(false);
+
   const posRef = useRef({ x: position.x, y: position.y });
-  const rafRef = useRef<number>(0);
+
+  const touchState = useRef({
+    active: false,
+    touchId: -1,
+    startX: 0,
+    startY: 0,
+    offsetX: 0,
+    offsetY: 0,
+    dragged: false,
+    moveCount: 0,
+  });
 
   const onPositionChangeRef = useRef(onPositionChange);
   onPositionChangeRef.current = onPositionChange;
@@ -44,25 +54,7 @@ export function DikaButton({
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
 
-  const applyPosition = useCallback((x: number, y: number) => {
-    const btn = buttonRef.current;
-    if (btn) {
-      const t = `translate3d(${x}px, ${y}px, 0)`;
-      btn.style.transform = t;
-      (btn.style as any).webkitTransform = t;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isDraggingRef.current) {
-      posRef.current = { x: position.x, y: position.y };
-      applyPosition(position.x, position.y);
-    }
-  }, [position.x, position.y, applyPosition]);
-
-  useEffect(() => {
-    applyPosition(posRef.current.x, posRef.current.y);
-  }, [applyPosition]);
+  const debugRef = useRef<string[]>([]);
 
   const constrainPosition = useCallback((x: number, y: number) => {
     const buttonSize = 44;
@@ -74,155 +66,155 @@ export function DikaButton({
     };
   }, []);
 
+  const applyTransform = useCallback((x: number, y: number) => {
+    const btn = buttonRef.current;
+    if (btn) {
+      const t = `translate3d(${x}px, ${y}px, 0)`;
+      btn.style.transform = t;
+      (btn.style as any).webkitTransform = t;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!touchState.current.active) {
+      posRef.current = { x: position.x, y: position.y };
+      applyTransform(position.x, position.y);
+    }
+  }, [position.x, position.y, applyTransform]);
+
+  useEffect(() => {
+    applyTransform(posRef.current.x, posRef.current.y);
+  }, [applyTransform]);
+
   useEffect(() => {
     const button = buttonRef.current;
     if (!button) return;
 
-    let activeTouchId: number | null = null;
+    const onTouchStart = (e: TouchEvent) => {
+      if (touchState.current.active) return;
 
-    const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      e.stopImmediatePropagation();
 
       const touch = e.touches[0];
-      activeTouchId = touch.identifier;
-      const startX = touch.clientX;
-      const startY = touch.clientY;
-      draggedRef.current = false;
-      isDraggingRef.current = false;
+      const pos = posRef.current;
 
-      const currentPos = posRef.current;
-      const offsetX = touch.clientX - currentPos.x;
-      const offsetY = touch.clientY - currentPos.y;
+      touchState.current = {
+        active: true,
+        touchId: touch.identifier,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        offsetX: touch.clientX - pos.x,
+        offsetY: touch.clientY - pos.y,
+        dragged: false,
+        moveCount: 0,
+      };
 
-      const debugEvents: string[] = [];
-      debugEvents.push(`TSTART sx=${Math.round(startX)} sy=${Math.round(startY)} bx=${Math.round(currentPos.x)} by=${Math.round(currentPos.y)}`);
+      debugRef.current = [`TSTART sx=${Math.round(touch.clientX)} sy=${Math.round(touch.clientY)} bx=${Math.round(pos.x)} by=${Math.round(pos.y)} build=${BUILD_TAG}`];
 
       if (onLongPressRef.current) {
         longPressTimer.current = setTimeout(() => {
-          if (!draggedRef.current) {
+          if (touchState.current.active && !touchState.current.dragged) {
             onLongPressRef.current?.();
           }
         }, 500);
       }
+    };
 
-      let moveCount = 0;
-      let cancelledCount = 0;
-      let touchEnded = false;
+    const onTouchMove = (e: TouchEvent) => {
+      const st = touchState.current;
+      if (!st.active) return;
 
-      const handleTouchMove = (ev: TouchEvent) => {
-        ev.stopPropagation();
-        ev.stopImmediatePropagation();
-        ev.preventDefault();
+      e.preventDefault();
+      e.stopPropagation();
 
-        const t = Array.from(ev.touches).find(t => t.identifier === activeTouchId);
-        if (!t) return;
+      const touch = Array.from(e.touches).find(t => t.identifier === st.touchId);
+      if (!touch) return;
 
-        if (ev.defaultPrevented) cancelledCount++;
+      st.moveCount++;
 
-        moveCount++;
-        const dx = t.clientX - startX;
-        const dy = t.clientY - startY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+      const dx = touch.clientX - st.startX;
+      const dy = touch.clientY - st.startY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < DRAG_THRESHOLD && !draggedRef.current) return;
+      if (!st.dragged && distance < DRAG_THRESHOLD) return;
 
-        if (!draggedRef.current) {
-          draggedRef.current = true;
-          isDraggingRef.current = true;
-          debugEvents.push(`DRAG_START at move #${moveCount}`);
-          if (longPressTimer.current) {
-            clearTimeout(longPressTimer.current);
-            longPressTimer.current = null;
-          }
-        }
-
-        const newPos = constrainPosition(t.clientX - offsetX, t.clientY - offsetY);
-        posRef.current = newPos;
-
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        rafRef.current = requestAnimationFrame(() => {
-          const t3d = `translate3d(${newPos.x}px, ${newPos.y}px, 0)`;
-          button.style.transform = t3d;
-          (button.style as any).webkitTransform = t3d;
-        });
-
-        if (moveCount <= 3 || moveCount % 50 === 0) {
-          debugEvents.push(`MOVE #${moveCount} -> ${Math.round(newPos.x)},${Math.round(newPos.y)} (dx=${Math.round(dx)} dy=${Math.round(dy)})`);
-        }
-      };
-
-      const handleTouchEnd = (ev: TouchEvent) => {
-        if (touchEnded) return;
-
-        const relevantTouch = Array.from(ev.changedTouches).find(t => t.identifier === activeTouchId);
-        if (!relevantTouch) return;
-
-        touchEnded = true;
-
-        ev.stopPropagation();
-        ev.stopImmediatePropagation();
-        ev.preventDefault();
-
-        activeTouchId = null;
-
-        if (rafRef.current) {
-          cancelAnimationFrame(rafRef.current);
-          rafRef.current = 0;
-        }
-
+      if (!st.dragged) {
+        st.dragged = true;
+        debugRef.current.push(`DRAG_START move#${st.moveCount}`);
         if (longPressTimer.current) {
           clearTimeout(longPressTimer.current);
           longPressTimer.current = null;
         }
+      }
 
-        button.removeEventListener('touchmove', handleTouchMove, { capture: true } as any);
-        button.removeEventListener('touchend', handleTouchEnd, { capture: true } as any);
-        button.removeEventListener('touchcancel', handleTouchEnd, { capture: true } as any);
+      const newPos = constrainPosition(touch.clientX - st.offsetX, touch.clientY - st.offsetY);
+      posRef.current = newPos;
+      applyTransform(newPos.x, newPos.y);
 
-        const finalT = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0)`;
-        button.style.transform = finalT;
-        (button.style as any).webkitTransform = finalT;
-
-        const wasDragged = draggedRef.current;
-        draggedRef.current = false;
-
-        debugEvents.push(`TEND moves=${moveCount} cancelled=${cancelledCount} dragged=${wasDragged} finalPos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)} type=${ev.type}`);
-
-        if (!wasDragged) {
-          isDraggingRef.current = false;
-          debugEvents.push(`TAP -> open drawer`);
-          sendDebug(debugEvents);
-          onClickRef.current();
-        } else {
-          const finalPos = posRef.current;
-          isDraggingRef.current = false;
-          onPositionChangeRef.current(finalPos);
-          debugEvents.push(`DRAG_END -> saved pos ${Math.round(finalPos.x)},${Math.round(finalPos.y)}`);
-          sendDebug(debugEvents);
-        }
-      };
-
-      button.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
-      button.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
-      button.addEventListener('touchcancel', handleTouchEnd, { passive: false, capture: true });
+      if (st.moveCount <= 3) {
+        debugRef.current.push(`MOVE#${st.moveCount} ${Math.round(newPos.x)},${Math.round(newPos.y)}`);
+      }
     };
 
-    button.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
-    const styles = getComputedStyle(button);
-    sendDebug([`INIT pos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)} display=${styles.display} pointer=${styles.pointerEvents} zIndex=${styles.zIndex} touchAction=${styles.touchAction}`]);
+    const onTouchEnd = (e: TouchEvent) => {
+      const st = touchState.current;
+      if (!st.active) return;
+
+      const found = Array.from(e.changedTouches).find(t => t.identifier === st.touchId);
+      if (!found) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const wasDragged = st.dragged;
+      const finalPos = { ...posRef.current };
+
+      st.active = false;
+      st.dragged = false;
+      st.touchId = -1;
+
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+
+      applyTransform(finalPos.x, finalPos.y);
+
+      debugRef.current.push(`TEND moves=${st.moveCount} dragged=${wasDragged} pos=${Math.round(finalPos.x)},${Math.round(finalPos.y)} type=${e.type}`);
+
+      if (wasDragged) {
+        onPositionChangeRef.current(finalPos);
+        debugRef.current.push(`DRAG_END`);
+      } else {
+        debugRef.current.push(`TAP`);
+        onClickRef.current();
+      }
+
+      sendDebug(debugRef.current);
+      debugRef.current = [];
+    };
+
+    button.addEventListener('touchstart', onTouchStart, { passive: false });
+    button.addEventListener('touchmove', onTouchMove, { passive: false });
+    button.addEventListener('touchend', onTouchEnd, { passive: false });
+    button.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+    sendDebug([`INIT ${BUILD_TAG} pos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)}`]);
 
     return () => {
-      button.removeEventListener('touchstart', handleTouchStart, { capture: true } as any);
+      button.removeEventListener('touchstart', onTouchStart);
+      button.removeEventListener('touchmove', onTouchMove);
+      button.removeEventListener('touchend', onTouchEnd);
+      button.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [constrainPosition, applyPosition]);
+  }, [constrainPosition, applyTransform]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     const startX = e.clientX;
     const startY = e.clientY;
-    draggedRef.current = false;
+    let dragged = false;
 
     const currentPos = posRef.current;
     const offsetX = e.clientX - currentPos.x;
@@ -230,7 +222,7 @@ export function DikaButton({
 
     if (onLongPressRef.current) {
       longPressTimer.current = setTimeout(() => {
-        if (!draggedRef.current) {
+        if (!dragged) {
           onLongPressRef.current?.();
         }
       }, 500);
@@ -241,9 +233,9 @@ export function DikaButton({
       const dy = ev.clientY - startY;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if (distance < DRAG_THRESHOLD && !draggedRef.current) return;
+      if (distance < DRAG_THRESHOLD && !dragged) return;
 
-      draggedRef.current = true;
+      dragged = true;
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
@@ -251,7 +243,7 @@ export function DikaButton({
 
       const newPos = constrainPosition(ev.clientX - offsetX, ev.clientY - offsetY);
       posRef.current = newPos;
-      applyPosition(newPos.x, newPos.y);
+      applyTransform(newPos.x, newPos.y);
     };
 
     const handleMouseUp = () => {
@@ -262,20 +254,17 @@ export function DikaButton({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
 
-      if (draggedRef.current) {
+      if (dragged) {
         onPositionChangeRef.current(posRef.current);
       }
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [constrainPosition, applyPosition]);
+  }, [constrainPosition, applyTransform]);
 
   const handleClick = useCallback(() => {
-    if (draggedRef.current) {
-      draggedRef.current = false;
-      return;
-    }
+    if (touchState.current.dragged) return;
     onClick();
   }, [onClick]);
 
