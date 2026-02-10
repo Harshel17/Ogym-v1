@@ -546,8 +546,8 @@ function DikaPageInner({ userId }: { userId: number }) {
   return (
     <div
       ref={containerRef}
-      className={cn("flex flex-col -m-4 md:-m-8", keyboardVisible ? "dika-full-height-kb" : "dika-full-height")}
-      style={visualHeight ? { height: `${keyboardVisible ? visualHeight : visualHeight - 56}px` } : undefined}
+      className="flex flex-col -m-4 md:-m-8 dika-full-height-kb"
+      style={visualHeight ? { height: `${visualHeight}px` } : undefined}
       data-testid="page-dika"
     >
       <div className="flex-shrink-0 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 border-b border-white/[0.06] px-4 py-3 backdrop-blur-xl" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4px)' }}>
@@ -714,7 +714,7 @@ function DikaPageInner({ userId }: { userId: number }) {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className={cn("px-4 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center gap-2 flex-shrink-0 bg-gradient-to-t from-white via-white to-slate-50/80 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80 backdrop-blur-xl", keyboardVisible ? "py-1.5" : "py-3")} style={!keyboardVisible ? { paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' } : undefined}>
+      <form onSubmit={handleSubmit} className="px-4 py-2 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center gap-2 flex-shrink-0 bg-gradient-to-t from-white via-white to-slate-50/80 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80 backdrop-blur-xl">
         <div className="flex-1 relative">
           <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder={isListening ? "Listening..." : "Ask Dika anything..."} disabled={isLoading} className={cn("pr-4 rounded-full bg-slate-100/80 dark:bg-slate-800/60 border-slate-200/60 dark:border-slate-700/40 focus:border-amber-400/60 focus:ring-amber-400/15 placeholder:text-slate-400/60 shadow-inner shadow-slate-200/30 dark:shadow-slate-900/20 transition-all duration-200", isListening && "border-red-400/60 animate-pulse")} inputMode="text" autoComplete="off" enterKeyHint="send" data-testid="input-dika-message" />
         </div>
