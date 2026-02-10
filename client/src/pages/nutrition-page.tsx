@@ -594,7 +594,7 @@ export default function NutritionPage() {
         </div>
       </div>
 
-      <Card className={`card-ambient shadow-lg shadow-primary/5 relative ${allMealsLogged ? 'card-shine' : ''}`} data-testid="card-calorie-summary">
+      <Card className={`card-glow-green shadow-lg shadow-primary/5 relative ${allMealsLogged ? 'card-shine' : ''}`} data-testid="card-calorie-summary">
         <CardContent className="pt-4 pb-4 relative">
           <div className="flex items-center justify-between mb-3 gap-3">
             <div className="text-center flex-1" style={{ animation: 'slideUp 0.5s ease-out' }}>
@@ -802,17 +802,17 @@ export default function NutritionPage() {
 
       {MEAL_TYPES.map((meal, mealIndex) => {
         const mealCalories = groupedLogs[meal].reduce((sum, log) => sum + log.calories, 0);
-        const mealIconConfig: Record<string, { icon: typeof Apple; color: string; bg: string }> = {
-          breakfast: { icon: Apple, color: 'text-amber-500', bg: 'bg-amber-500/15' },
-          lunch: { icon: Beef, color: 'text-green-500', bg: 'bg-green-500/15' },
-          dinner: { icon: Flame, color: 'text-orange-500', bg: 'bg-orange-500/15' },
-          snack: { icon: Wheat, color: 'text-purple-500', bg: 'bg-purple-500/15' },
+        const mealIconConfig: Record<string, { icon: typeof Apple; color: string; bg: string; glow: string }> = {
+          breakfast: { icon: Apple, color: 'text-amber-500', bg: 'bg-amber-500/15', glow: 'card-glow-amber' },
+          lunch: { icon: Beef, color: 'text-green-500', bg: 'bg-green-500/15', glow: 'card-glow-green' },
+          dinner: { icon: Flame, color: 'text-orange-500', bg: 'bg-orange-500/15', glow: 'card-glow-orange' },
+          snack: { icon: Wheat, color: 'text-purple-500', bg: 'bg-purple-500/15', glow: 'card-glow-purple' },
         };
         const config = mealIconConfig[meal] || mealIconConfig.snack;
         const MealIcon = config.icon;
         const hasFood = groupedLogs[meal].length > 0;
         return (
-        <Card key={meal} className="overflow-hidden shadow-sm relative" style={{ animation: `slideUp 0.4s ease-out ${0.1 * mealIndex}s both` }}>
+        <Card key={meal} className={`overflow-hidden shadow-sm relative ${hasFood ? config.glow : ''}`} style={{ animation: `slideUp 0.4s ease-out ${0.1 * mealIndex}s both` }}>
           {hasFood && <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${meal === 'breakfast' ? 'from-amber-500/60 to-amber-400/20' : meal === 'lunch' ? 'from-green-500/60 to-green-400/20' : meal === 'dinner' ? 'from-orange-500/60 to-orange-400/20' : 'from-purple-500/60 to-purple-400/20'}`} />}
           <CardHeader className="pb-1 pt-3 px-3">
             <div className="flex items-center justify-between gap-2">
@@ -888,7 +888,7 @@ export default function NutritionPage() {
         );
       })}
 
-      <Card className="card-ambient shadow-sm relative">
+      <Card className={`shadow-sm relative ${proteinLogs.length > 0 ? 'card-glow-red' : 'card-ambient'}`}>
         <CardHeader className="pb-1 pt-3 px-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
@@ -1674,7 +1674,7 @@ function NutritionAnalytics() {
   };
 
   return (
-    <Card className="bg-card/60" data-testid="card-nutrition-analytics">
+    <Card className="card-glow-blue bg-card/60" data-testid="card-nutrition-analytics">
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
