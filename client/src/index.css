@@ -87,8 +87,8 @@ html.capacitor-native body[data-scroll-locked] {
   -webkit-transform: translateZ(0);
 }
 
-/* iOS GPU acceleration for fixed/animated elements */
-.capacitor-native .fixed,
+/* iOS GPU acceleration for fixed/animated elements (exclude dika button - uses left/top positioning) */
+.capacitor-native .fixed:not([data-testid="button-dika"]),
 .capacitor-native [class*="animate-"] {
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
