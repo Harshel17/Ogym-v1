@@ -4,7 +4,8 @@ import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
 
 const DRAG_THRESHOLD = 8;
-const BUILD_TAG = 'v3';
+const BUILD_TAG = 'v4-doc';
+const BUTTON_SELECTOR = '[data-dika-drag="true"]';
 
 interface DikaButtonProps {
   icon: DikaIcon;
@@ -87,11 +88,20 @@ export function DikaButton({
   }, [applyTransform]);
 
   useEffect(() => {
-    const button = buttonRef.current;
-    if (!button) return;
+    function getButton(): HTMLElement | null {
+      return document.querySelector(BUTTON_SELECTOR);
+    }
+
+    function isTouchOnButton(target: EventTarget | null): boolean {
+      if (!target || !(target instanceof Node)) return false;
+      const btn = getButton();
+      if (!btn) return false;
+      return btn === target || btn.contains(target);
+    }
 
     const onTouchStart = (e: TouchEvent) => {
       if (touchState.current.active) return;
+      if (!isTouchOnButton(e.target)) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -150,7 +160,13 @@ export function DikaButton({
 
       const newPos = constrainPosition(touch.clientX - st.offsetX, touch.clientY - st.offsetY);
       posRef.current = newPos;
-      applyTransform(newPos.x, newPos.y);
+
+      const btn = getButton();
+      if (btn) {
+        const t = `translate3d(${newPos.x}px, ${newPos.y}px, 0)`;
+        btn.style.transform = t;
+        (btn.style as any).webkitTransform = t;
+      }
 
       if (st.moveCount <= 3) {
         debugRef.current.push(`MOVE#${st.moveCount} ${Math.round(newPos.x)},${Math.round(newPos.y)}`);
@@ -179,7 +195,12 @@ export function DikaButton({
         longPressTimer.current = null;
       }
 
-      applyTransform(finalPos.x, finalPos.y);
+      const btn = getButton();
+      if (btn) {
+        const t = `translate3d(${finalPos.x}px, ${finalPos.y}px, 0)`;
+        btn.style.transform = t;
+        (btn.style as any).webkitTransform = t;
+      }
 
       debugRef.current.push(`TEND moves=${st.moveCount} dragged=${wasDragged} pos=${Math.round(finalPos.x)},${Math.round(finalPos.y)} type=${e.type}`);
 
@@ -195,18 +216,18 @@ export function DikaButton({
       debugRef.current = [];
     };
 
-    button.addEventListener('touchstart', onTouchStart, { passive: false });
-    button.addEventListener('touchmove', onTouchMove, { passive: false });
-    button.addEventListener('touchend', onTouchEnd, { passive: false });
-    button.addEventListener('touchcancel', onTouchEnd, { passive: false });
+    document.addEventListener('touchstart', onTouchStart, { passive: false });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd, { passive: false });
+    document.addEventListener('touchcancel', onTouchEnd, { passive: false });
 
     sendDebug([`INIT ${BUILD_TAG} pos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)}`]);
 
     return () => {
-      button.removeEventListener('touchstart', onTouchStart);
-      button.removeEventListener('touchmove', onTouchMove);
-      button.removeEventListener('touchend', onTouchEnd);
-      button.removeEventListener('touchcancel', onTouchEnd);
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener('touchcancel', onTouchEnd);
     };
   }, [constrainPosition, applyTransform]);
 
@@ -272,6 +293,7 @@ export function DikaButton({
     <button
       ref={buttonRef}
       data-testid="button-dika"
+      data-dika-drag="true"
       onClick={handleClick}
       onMouseDown={handleMouseDown}
       className={cn(
