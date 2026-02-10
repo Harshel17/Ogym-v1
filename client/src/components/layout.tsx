@@ -543,16 +543,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
             return (
               <Link key={item.href} href={item.href}>
                 <div 
-                  className={`relative flex flex-col items-center justify-center min-w-[56px] py-1.5 cursor-pointer transition-colors duration-150 ${
+                  className={`relative flex flex-col items-center justify-center min-w-[56px] py-1.5 cursor-pointer transition-all duration-200 ${
                     isActive ? "text-primary" : "text-muted-foreground"
                   }`}
                   data-testid={`tab-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   {isActive && (
-                    <div className="absolute -top-0.5 w-5 h-[3px] rounded-full bg-primary" />
+                    <div className="absolute -top-0.5 w-5 h-[3px] rounded-full bg-primary transition-all duration-200" />
                   )}
                   <div className="relative">
-                    <item.icon className={`w-5 h-5 ${isActive ? "stroke-[2.5]" : ""}`} />
+                    <item.icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? "stroke-[2.5] scale-105" : ""}`} />
                     {(item.badge ?? 0) > 0 && (
                       <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-0.5">
                         {(item.badge ?? 0) > 99 ? '99+' : item.badge}

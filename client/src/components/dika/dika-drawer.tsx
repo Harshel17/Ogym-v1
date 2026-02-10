@@ -1071,15 +1071,6 @@ export function DikaDrawer({
 
   useEffect(() => {
     if (isOpen) {
-      const isNative = document.documentElement.classList.contains('capacitor-native');
-      const savedScrollY = window.scrollY;
-      if (!isNative) {
-        document.body.style.overflow = 'hidden';
-        document.body.style.position = 'fixed';
-        document.body.style.width = '100%';
-        document.body.style.top = `-${savedScrollY}px`;
-      }
-
       setTimeout(() => {
         inputRef.current?.focus();
       }, 400);
@@ -1100,13 +1091,6 @@ export function DikaDrawer({
       document.addEventListener('touchmove', handleTouchMove, { passive: false });
 
       return () => {
-        if (!isNative) {
-          document.body.style.overflow = '';
-          document.body.style.position = '';
-          document.body.style.width = '';
-          document.body.style.top = '';
-          window.scrollTo(0, savedScrollY);
-        }
         document.removeEventListener('keydown', handleEsc);
         document.removeEventListener('touchmove', handleTouchMove);
       };

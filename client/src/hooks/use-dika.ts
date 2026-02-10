@@ -360,11 +360,16 @@ export function useDika(userId: number, hideDika: boolean) {
       }
       window.scrollTo(0, 0);
     };
-    requestAnimationFrame(() => {
-      restoreScroll();
-      setTimeout(restoreScroll, 100);
-      setTimeout(restoreScroll, 350);
+    const intervals = [50, 150, 300, 500, 800, 1200];
+    intervals.forEach(ms => setTimeout(restoreScroll, ms));
+    const observer = new MutationObserver(() => {
+      const h = document.body.style.height;
+      if (h && h !== '100%' && h !== '') {
+        document.body.style.removeProperty('height');
+      }
     });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['style'] });
+    setTimeout(() => observer.disconnect(), 2000);
   }, []);
 
   const clearHistory = useCallback(() => {

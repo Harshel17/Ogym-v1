@@ -32,14 +32,12 @@ function DikaInner({ userId, hideDika }: { userId: number; hideDika: boolean }) 
 
   return (
     <>
-      {!isOpen && (
-        <DikaButton
-          icon={icon}
-          position={position}
-          onPositionChange={updatePosition}
-          onClick={openDrawer}
-        />
-      )}
+      <DikaButton
+        icon={icon}
+        position={position}
+        onPositionChange={updatePosition}
+        onClick={openDrawer}
+      />
       <DikaDrawer
         isOpen={isOpen}
         onClose={closeDrawer}
