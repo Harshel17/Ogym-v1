@@ -43,10 +43,14 @@ export function DikaButton({
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
 
+  const rafRef = useRef<number>(0);
+
   const applyPosition = useCallback((x: number, y: number) => {
     const btn = buttonRef.current;
     if (btn) {
-      btn.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      const t = `translate3d(${x}px, ${y}px, 0)`;
+      btn.style.transform = t;
+      (btn.style as any).webkitTransform = t;
     }
   }, []);
 
@@ -126,7 +130,13 @@ export function DikaButton({
 
         const newPos = constrainPosition(t.clientX - offsetX, t.clientY - offsetY);
         posRef.current = newPos;
-        button.style.transform = `translate3d(${newPos.x}px, ${newPos.y}px, 0)`;
+
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(() => {
+          const t3d = `translate3d(${newPos.x}px, ${newPos.y}px, 0)`;
+          button.style.transform = t3d;
+          (button.style as any).webkitTransform = t3d;
+        });
 
         if (moveCount <= 3 || moveCount % 50 === 0) {
           debugEvents.push(`MOVE #${moveCount} -> ${Math.round(newPos.x)},${Math.round(newPos.y)} (dx=${Math.round(dx)} dy=${Math.round(dy)})`);
@@ -137,6 +147,11 @@ export function DikaButton({
         ev.preventDefault();
         ev.stopPropagation();
 
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = 0;
+        }
+
         if (longPressTimer.current) {
           clearTimeout(longPressTimer.current);
           longPressTimer.current = null;
@@ -145,6 +160,10 @@ export function DikaButton({
         document.removeEventListener('touchmove', handleTouchMove);
         document.removeEventListener('touchend', handleTouchEnd);
         document.removeEventListener('touchcancel', handleTouchEnd);
+
+        const finalT = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0)`;
+        button.style.transform = finalT;
+        (button.style as any).webkitTransform = finalT;
 
         debugEvents.push(`TEND moves=${moveCount} dragged=${draggedRef.current} finalPos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)} transform=${button.style.transform}`);
 
