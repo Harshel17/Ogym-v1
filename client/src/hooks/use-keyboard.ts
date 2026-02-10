@@ -24,6 +24,8 @@ export function useKeyboardHeight() {
         setKeyboardHeight(newKeyboardHeight);
       };
 
+      handleResize();
+
       viewport.addEventListener('resize', handleResize);
       viewport.addEventListener('scroll', handleResize);
       
@@ -100,6 +102,8 @@ export function useVisualViewportHeight() {
         setHeight(null);
       }
     };
+
+    handleResize();
 
     viewport.addEventListener('resize', handleResize);
     viewport.addEventListener('scroll', handleResize);
