@@ -1088,7 +1088,16 @@ export function DikaDrawer({
         if (e.key === 'Escape') onClose();
       };
 
+      const handleTouchMove = (e: TouchEvent) => {
+        const panel = drawerPanelRef.current;
+        if (panel && panel.contains(e.target as Node)) {
+          return;
+        }
+        e.preventDefault();
+      };
+
       document.addEventListener('keydown', handleEsc);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
 
       return () => {
         if (!isNative) {
@@ -1099,6 +1108,7 @@ export function DikaDrawer({
           window.scrollTo(0, savedScrollY);
         }
         document.removeEventListener('keydown', handleEsc);
+        document.removeEventListener('touchmove', handleTouchMove);
       };
     }
   }, [isOpen, onClose]);
@@ -1108,19 +1118,15 @@ export function DikaDrawer({
   return (
     <>
       <div 
-        className="fixed inset-0 bg-black/60 z-[99999]"
+        className="fixed inset-0 bg-black/60 z-[99999] transition-opacity duration-300"
         onClick={onClose}
-        style={{ WebkitTapHighlightColor: 'transparent' }}
+        onTouchMove={(e) => e.preventDefault()}
         data-testid="overlay-dika"
       />
       <div 
         ref={drawerPanelRef}
         className="fixed top-0 right-0 left-0 w-full sm:max-w-md flex flex-col p-0 bg-background shadow-2xl z-[100000] animate-in slide-in-from-right duration-300"
-        style={{
-          ...(visualHeight ? { height: `${visualHeight}px`, bottom: 'auto' } : { bottom: '0px' }),
-          WebkitOverflowScrolling: 'touch',
-          willChange: 'transform',
-        }}
+        style={visualHeight ? { height: `${visualHeight}px`, bottom: 'auto' } : { bottom: '0px' }}
         data-testid="drawer-dika"
       >
         <div 
