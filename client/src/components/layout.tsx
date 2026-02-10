@@ -8,6 +8,7 @@ import { RoboDIcon } from "@/components/dika/dika-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 import { usePullRefresh } from "@/hooks/use-pull-refresh";
+import { useKeyboardHeight } from "@/hooks/use-keyboard";
 import { queryClient } from "@/lib/queryClient";
 import ogymLogo from "@/assets/images/ogym-logo.png";
 import { 
@@ -71,6 +72,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logoutMutation } = useAuth();
   const [location, navigate] = useLocation();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const keyboardHeight = useKeyboardHeight();
+  const isDikaWithKeyboard = location === '/dika' && keyboardHeight > 0;
   const { data: notificationCounts } = useNotificationCounts();
   const mainRef = useRef<HTMLElement | null>(null);
   
@@ -541,14 +544,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Main Content - scrollable naturally */}
       <main ref={mainRefCallback} className="flex-1 min-w-0 md:overflow-y-auto overflow-x-hidden app-main-scroll relative z-0">
         <PullIndicator />
-        <div className={`p-4 md:p-8 max-w-7xl mx-auto page-fade-scale md:pb-8 md:pt-0 mobile-content-bottom ${location === '/dika' ? '' : 'mobile-safe-top'}`} key={location}>
+        <div className={`p-4 md:p-8 max-w-7xl mx-auto page-fade-scale md:pb-8 md:pt-0 ${isDikaWithKeyboard ? '' : 'mobile-content-bottom'} ${location === '/dika' ? '' : 'mobile-safe-top'}`} key={location}>
           {children}
         </div>
       </main>
 
-      {/* Mobile Bottom Tab Bar - fixed at bottom */}
+      {/* Mobile Bottom Tab Bar - fixed at bottom, hidden when Dika keyboard is open */}
       <nav 
-        className="md:hidden border-t border-border/50 bg-background fixed bottom-0 left-0 right-0 z-50"
+        className={cn("md:hidden border-t border-border/50 bg-background fixed bottom-0 left-0 right-0 z-50 transition-transform duration-200", isDikaWithKeyboard && "translate-y-full")}
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
         <div className="flex justify-around items-center w-full h-14">
