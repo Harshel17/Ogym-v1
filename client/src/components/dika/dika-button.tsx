@@ -35,6 +35,7 @@ export function DikaButton({
   const draggedRef = useRef(false);
   const isDraggingRef = useRef(false);
   const posRef = useRef({ x: position.x, y: position.y });
+  const rafRef = useRef<number>(0);
 
   const onPositionChangeRef = useRef(onPositionChange);
   onPositionChangeRef.current = onPositionChange;
@@ -42,8 +43,6 @@ export function DikaButton({
   onLongPressRef.current = onLongPress;
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
-
-  const rafRef = useRef<number>(0);
 
   const applyPosition = useCallback((x: number, y: number) => {
     const btn = buttonRef.current;
@@ -79,11 +78,15 @@ export function DikaButton({
     const button = buttonRef.current;
     if (!button) return;
 
+    let activeTouchId: number | null = null;
+
     const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
 
       const touch = e.touches[0];
+      activeTouchId = touch.identifier;
       const startX = touch.clientX;
       const startY = touch.clientY;
       draggedRef.current = false;
@@ -108,14 +111,16 @@ export function DikaButton({
       let cancelledCount = 0;
 
       const handleTouchMove = (ev: TouchEvent) => {
-        if (ev.defaultPrevented) {
-          cancelledCount++;
-        }
-        ev.preventDefault();
         ev.stopPropagation();
+        ev.stopImmediatePropagation();
+        ev.preventDefault();
+
+        const t = Array.from(ev.touches).find(t => t.identifier === activeTouchId);
+        if (!t) return;
+
+        if (ev.defaultPrevented) cancelledCount++;
 
         moveCount++;
-        const t = ev.touches[0];
         const dx = t.clientX - startX;
         const dy = t.clientY - startY;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -148,8 +153,14 @@ export function DikaButton({
       };
 
       const handleTouchEnd = (ev: TouchEvent) => {
-        ev.preventDefault();
+        const relevantTouch = Array.from(ev.changedTouches).find(t => t.identifier === activeTouchId);
+        if (!relevantTouch && ev.type !== 'touchcancel') return;
+
         ev.stopPropagation();
+        ev.stopImmediatePropagation();
+        ev.preventDefault();
+
+        activeTouchId = null;
 
         if (rafRef.current) {
           cancelAnimationFrame(rafRef.current);
@@ -161,15 +172,15 @@ export function DikaButton({
           longPressTimer.current = null;
         }
 
-        document.removeEventListener('touchmove', handleTouchMove);
-        document.removeEventListener('touchend', handleTouchEnd);
-        document.removeEventListener('touchcancel', handleTouchEnd);
+        button.removeEventListener('touchmove', handleTouchMove);
+        button.removeEventListener('touchend', handleTouchEnd);
+        button.removeEventListener('touchcancel', handleTouchEnd);
 
         const finalT = `translate3d(${posRef.current.x}px, ${posRef.current.y}px, 0)`;
         button.style.transform = finalT;
         (button.style as any).webkitTransform = finalT;
 
-        debugEvents.push(`TEND moves=${moveCount} cancelled=${cancelledCount} dragged=${draggedRef.current} finalPos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)} transform=${button.style.transform} btnInDOM=${document.body.contains(button)} btnDisplay=${getComputedStyle(button).display} btnVis=${getComputedStyle(button).visibility} btnPointer=${getComputedStyle(button).pointerEvents}`);
+        debugEvents.push(`TEND moves=${moveCount} cancelled=${cancelledCount} dragged=${draggedRef.current} finalPos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)}`);
 
         if (!draggedRef.current) {
           isDraggingRef.current = false;
@@ -186,17 +197,17 @@ export function DikaButton({
         sendDebug(debugEvents);
       };
 
-      document.addEventListener('touchmove', handleTouchMove, { passive: false });
-      document.addEventListener('touchend', handleTouchEnd, { passive: false });
-      document.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+      button.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+      button.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
+      button.addEventListener('touchcancel', handleTouchEnd, { passive: false, capture: true });
     };
 
-    button.addEventListener('touchstart', handleTouchStart, { passive: false });
+    button.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
     const styles = getComputedStyle(button);
-    sendDebug([`INIT listener attached, pos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)} transform=${button.style.transform} display=${styles.display} vis=${styles.visibility} pointer=${styles.pointerEvents} zIndex=${styles.zIndex} touchAction=${styles.touchAction}`]);
+    sendDebug([`INIT pos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)} display=${styles.display} pointer=${styles.pointerEvents} zIndex=${styles.zIndex} touchAction=${styles.touchAction}`]);
 
     return () => {
-      button.removeEventListener('touchstart', handleTouchStart);
+      button.removeEventListener('touchstart', handleTouchStart, { capture: true } as any);
     };
   }, [constrainPosition, applyPosition]);
 
