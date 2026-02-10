@@ -37,6 +37,7 @@ function DikaInner({ userId, hideDika }: { userId: number; hideDika: boolean }) 
         position={position}
         onPositionChange={updatePosition}
         onClick={openDrawer}
+        isDrawerOpen={isOpen}
       />
       <DikaDrawer
         isOpen={isOpen}

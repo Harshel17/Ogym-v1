@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
@@ -11,6 +11,7 @@ interface DikaButtonProps {
   onPositionChange: (pos: { x: number; y: number }) => void;
   onClick: () => void;
   onLongPress?: () => void;
+  isDrawerOpen?: boolean;
 }
 
 export function DikaButton({ 
@@ -18,18 +19,43 @@ export function DikaButton({
   position, 
   onPositionChange, 
   onClick,
-  onLongPress 
+  onLongPress,
+  isDrawerOpen = false,
 }: DikaButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const draggedRef = useRef(false);
   const isDraggingRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
+  const prevDrawerOpen = useRef(isDrawerOpen);
 
   const onPositionChangeRef = useRef(onPositionChange);
   onPositionChangeRef.current = onPositionChange;
   const onLongPressRef = useRef(onLongPress);
   onLongPressRef.current = onLongPress;
+
+  useEffect(() => {
+    const wasOpen = prevDrawerOpen.current;
+    prevDrawerOpen.current = isDrawerOpen;
+
+    if (wasOpen && !isDrawerOpen && buttonRef.current) {
+      const el = buttonRef.current;
+      el.style.display = 'none';
+      void el.offsetHeight;
+      el.style.display = '';
+
+      requestAnimationFrame(() => {
+        if (buttonRef.current) {
+          buttonRef.current.style.transform = `translate3d(${position.x}px, ${position.y}px, 0.01px)`;
+          requestAnimationFrame(() => {
+            if (buttonRef.current) {
+              buttonRef.current.style.transform = `translate3d(${position.x}px, ${position.y}px, 0)`;
+            }
+          });
+        }
+      });
+    }
+  }, [isDrawerOpen, position.x, position.y]);
 
   const constrainPosition = useCallback((x: number, y: number) => {
     const buttonSize = 48;
@@ -169,13 +195,14 @@ export function DikaButton({
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       className={cn(
-        "fixed z-[9999] w-12 h-12 rounded-xl",
+        "fixed w-12 h-12 rounded-xl",
         "bg-gradient-to-br from-amber-500 to-orange-600",
         "shadow-lg shadow-amber-500/30",
         "flex items-center justify-center",
         "cursor-grab active:cursor-grabbing",
         "border border-amber-400/30",
         "select-none",
+        isDrawerOpen ? "z-[99998] pointer-events-none opacity-0" : "z-[100001]",
         isDragging ? "scale-110 shadow-xl shadow-amber-500/40" : "",
       )}
       style={{
@@ -184,7 +211,7 @@ export function DikaButton({
         touchAction: 'none',
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
-        transition: isDragging ? 'none' : 'box-shadow 0.2s ease, transform 0.15s ease',
+        transition: isDragging ? 'none' : 'box-shadow 0.2s ease',
       }}
       aria-label="Ask Dika"
     >
