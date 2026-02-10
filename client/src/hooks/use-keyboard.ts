@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 function isNativePlatform(): boolean {
   try {
@@ -26,10 +26,18 @@ export function useKeyboardHeight() {
 
       handleResize();
 
+      let pollCount = 0;
+      const pollTimer = setInterval(() => {
+        handleResize();
+        pollCount++;
+        if (pollCount >= 8) clearInterval(pollTimer);
+      }, 100);
+
       viewport.addEventListener('resize', handleResize);
       viewport.addEventListener('scroll', handleResize);
       
       return () => {
+        clearInterval(pollTimer);
         viewport.removeEventListener('resize', handleResize);
         viewport.removeEventListener('scroll', handleResize);
       };
@@ -60,6 +68,7 @@ export function useKeyboardHeight() {
 export function useVisualViewportHeight() {
   const [height, setHeight] = useState<number | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const focusedRef = useRef(false);
 
   useEffect(() => {
     const native = isNativePlatform();
@@ -103,14 +112,40 @@ export function useVisualViewportHeight() {
       }
     };
 
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+        focusedRef.current = true;
+        setTimeout(handleResize, 300);
+        setTimeout(handleResize, 600);
+      }
+    };
+
+    const handleFocusOut = () => {
+      focusedRef.current = false;
+      setTimeout(handleResize, 100);
+    };
+
     handleResize();
+
+    let pollCount = 0;
+    const pollTimer = setInterval(() => {
+      handleResize();
+      pollCount++;
+      if (pollCount >= 10) clearInterval(pollTimer);
+    }, 80);
 
     viewport.addEventListener('resize', handleResize);
     viewport.addEventListener('scroll', handleResize);
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
     
     return () => {
+      clearInterval(pollTimer);
       viewport.removeEventListener('resize', handleResize);
       viewport.removeEventListener('scroll', handleResize);
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
     };
   }, []);
 

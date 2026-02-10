@@ -95,6 +95,11 @@ html.capacitor-native body[data-scroll-locked] {
     margin-top: calc(-1 * env(safe-area-inset-top, 0px) - 8px) !important;
     padding-top: 0 !important;
   }
+  .dika-full-height-kb {
+    height: 100dvh;
+    margin-top: calc(-1 * env(safe-area-inset-top, 0px) - 8px) !important;
+    padding-top: 0 !important;
+  }
 }
 
 /* Main app scroll container */

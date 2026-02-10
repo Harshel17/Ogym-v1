@@ -546,7 +546,7 @@ function DikaPageInner({ userId }: { userId: number }) {
   return (
     <div
       ref={containerRef}
-      className="flex flex-col -m-4 md:-m-8 dika-full-height"
+      className={cn("flex flex-col -m-4 md:-m-8", keyboardVisible ? "dika-full-height-kb" : "dika-full-height")}
       style={visualHeight ? { height: `${keyboardVisible ? visualHeight : visualHeight - 56}px` } : undefined}
       data-testid="page-dika"
     >
