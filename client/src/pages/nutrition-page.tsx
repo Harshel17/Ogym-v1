@@ -455,7 +455,7 @@ export default function NutritionPage() {
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-9 w-9" />
         </div>
-        <Card className="border-0 bg-card/60">
+        <Card className="bg-card/60">
           <CardContent className="pt-3 pb-3">
             <div className="flex items-center justify-between mb-3 gap-2">
               <div className="text-center flex-1 space-y-1">
@@ -479,7 +479,7 @@ export default function NutritionPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-card/60">
+        <Card className="bg-card/60">
           <CardContent className="pt-3 pb-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <Skeleton className="h-4 w-16" />
@@ -489,7 +489,7 @@ export default function NutritionPage() {
           </CardContent>
         </Card>
         {["Breakfast", "Lunch", "Dinner", "Snack"].map(meal => (
-          <Card key={meal} className="border-0 bg-card/60">
+          <Card key={meal} className="bg-card/60">
             <CardContent className="pt-3 pb-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <Skeleton className="h-4 w-20" />
@@ -594,7 +594,7 @@ export default function NutritionPage() {
         </div>
       </div>
 
-      <Card className={`border-0 overflow-hidden shadow-lg shadow-primary/5 relative ${allMealsLogged ? 'card-shine' : ''}`} data-testid="card-calorie-summary">
+      <Card className={`overflow-hidden shadow-lg shadow-primary/5 relative ${allMealsLogged ? 'card-shine' : ''}`} data-testid="card-calorie-summary">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] via-transparent to-primary/[0.02] pointer-events-none" />
         <CardContent className="pt-4 pb-4 relative">
           <div className="flex items-center justify-between mb-3 gap-3">
@@ -716,7 +716,7 @@ export default function NutritionPage() {
         Add Food
       </Button>
 
-      <Card className="border-0 overflow-hidden shadow-sm relative" data-testid="card-water-tracker" style={{ animation: 'slideUp 0.4s ease-out 0.5s both' }}>
+      <Card className="overflow-hidden shadow-sm relative" data-testid="card-water-tracker" style={{ animation: 'slideUp 0.4s ease-out 0.5s both' }}>
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.03] to-transparent pointer-events-none" />
         <CardContent className="pt-3 pb-3 relative">
           <div className="flex items-center justify-between gap-2 mb-2">
@@ -800,7 +800,7 @@ export default function NutritionPage() {
         const MealIcon = config.icon;
         const hasFood = groupedLogs[meal].length > 0;
         return (
-        <Card key={meal} className="border-0 overflow-hidden shadow-sm relative" style={{ animation: `slideUp 0.4s ease-out ${0.1 * mealIndex}s both` }}>
+        <Card key={meal} className="overflow-hidden shadow-sm relative" style={{ animation: `slideUp 0.4s ease-out ${0.1 * mealIndex}s both` }}>
           {hasFood && <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${meal === 'breakfast' ? 'from-amber-500/60 to-amber-400/20' : meal === 'lunch' ? 'from-green-500/60 to-green-400/20' : meal === 'dinner' ? 'from-orange-500/60 to-orange-400/20' : 'from-purple-500/60 to-purple-400/20'}`} />}
           <CardHeader className="pb-1 pt-3 px-3">
             <div className="flex items-center justify-between gap-2">
@@ -876,7 +876,7 @@ export default function NutritionPage() {
         );
       })}
 
-      <Card className="border-0 overflow-hidden shadow-sm relative">
+      <Card className="overflow-hidden shadow-sm relative">
         <CardHeader className="pb-1 pt-3 px-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
@@ -947,7 +947,7 @@ export default function NutritionPage() {
       </Card>
 
       {Object.keys(extraMealsByLabel).length > 0 && (
-        <Card className="border-0 bg-card/60">
+        <Card className="bg-card/60">
           <CardHeader className="pb-1 pt-3 px-3">
             <CardTitle className="text-sm font-semibold">Extra Meals</CardTitle>
           </CardHeader>
@@ -1598,7 +1598,7 @@ function NutritionAnalytics() {
 
   if (isLoading) {
     return (
-      <Card className="border-0 bg-card/60">
+      <Card className="bg-card/60">
         <CardContent className="pt-6 pb-6">
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -1662,7 +1662,7 @@ function NutritionAnalytics() {
   };
 
   return (
-    <Card className="border-0 bg-card/60" data-testid="card-nutrition-analytics">
+    <Card className="bg-card/60" data-testid="card-nutrition-analytics">
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">

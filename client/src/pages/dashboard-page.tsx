@@ -229,7 +229,7 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
 
   if (isLoading) {
     return (
-      <Card className="border-0 bg-muted/30">
+      <Card className="bg-muted/30">
         <CardContent className="py-6">
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -242,7 +242,7 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
 
   if (!activity || totalItems === 0) {
     return (
-      <Card className="border-0 bg-muted/30">
+      <Card className="bg-muted/30">
         <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold">
             <div className="p-1.5 rounded-lg bg-primary/15">
@@ -262,7 +262,7 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
   const totalPaymentAmount = payments.reduce((sum, p) => sum + p.amountPaid, 0);
 
   return (
-    <Card className="border-0 bg-muted/30">
+    <Card className="bg-muted/30">
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
           <div className="p-1.5 rounded-lg bg-primary/15">
@@ -572,7 +572,7 @@ function OwnerDashboard() {
 
       {/* AI Insights Summary */}
       {aiInsights && (
-        <Card className="border-0 bg-gradient-to-br from-purple-500/5 via-transparent to-indigo-500/5">
+        <Card className="bg-gradient-to-br from-purple-500/5 via-transparent to-indigo-500/5">
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
               <div className="p-1.5 rounded-lg bg-purple-500/15">
@@ -608,7 +608,7 @@ function OwnerDashboard() {
       <TodayActivitySection formatMoney={formatMoney} />
 
       <div className="grid gap-2.5 md:grid-cols-2">
-        <Card className="border-0 bg-muted/30">
+        <Card className="bg-muted/30">
           <CardHeader className="pb-2 pt-3 px-3">
             <CardTitle className="text-sm font-semibold">Attendance (Last 7 days)</CardTitle>
           </CardHeader>
@@ -645,7 +645,7 @@ function OwnerDashboard() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-muted/30">
+        <Card className="bg-muted/30">
           <CardHeader className="pb-2 pt-3 px-3">
             <CardTitle className="text-sm font-semibold">Recent Activity</CardTitle>
           </CardHeader>
@@ -1362,7 +1362,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
 
       {/* Today's Workout */}
       <Collapsible open={isWorkoutOpen} onOpenChange={setIsWorkoutOpen}>
-        <Card className={`border-0 overflow-hidden shadow-lg shadow-primary/5 relative ${allCompleted ? 'card-shine' : ''}`} data-testid="card-today-workout">
+        <Card className={`overflow-hidden shadow-lg shadow-primary/5 relative ${allCompleted ? 'card-shine' : ''}`} data-testid="card-today-workout">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent pointer-events-none" />
           <CollapsibleTrigger asChild>
             <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer group pb-3 relative">
@@ -1823,7 +1823,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
 
       {/* Trainer & Membership Info */}
       {memberProfile && (memberProfile.trainerName || memberProfile.cycleEndDate) && (
-        <Card className="border-0 bg-card/70 backdrop-blur-sm">
+        <Card className="bg-card/70 backdrop-blur-sm">
           <CardContent className="pt-4 pb-4">
             <div className="grid grid-cols-2 gap-3">
               {memberProfile.trainerName && (
@@ -1855,7 +1855,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
 
       {/* Sessions & Payments */}
       <div className="grid gap-2.5 grid-cols-2">
-        <Card className="border-0 bg-card/70 backdrop-blur-sm" data-testid="stat-card-attendance">
+        <Card className="bg-card/70 backdrop-blur-sm" data-testid="stat-card-attendance">
           <CardContent className="py-3.5 px-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-sm shadow-blue-500/20">
@@ -1868,7 +1868,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-card/70 backdrop-blur-sm" data-testid="stat-card-payment">
+        <Card className="bg-card/70 backdrop-blur-sm" data-testid="stat-card-payment">
           <CardContent className="py-3.5 px-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm shadow-violet-500/20">
@@ -2272,7 +2272,7 @@ function MemberCalendarWidget() {
   };
 
   return (
-    <Card className="border-0 bg-card/60 backdrop-blur-sm" data-testid="card-calendar">
+    <Card className="bg-card/60 backdrop-blur-sm" data-testid="card-calendar">
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
           <div className="p-1.5 bg-gradient-to-br from-primary/15 to-primary/5 rounded-lg">

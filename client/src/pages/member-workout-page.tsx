@@ -605,14 +605,14 @@ export default function MemberWorkoutPage() {
       )}
 
       {todayLoading ? (
-        <Card className="border-0 bg-card/60">
+        <Card className="bg-card/60">
           <CardContent className="py-6 text-center">
             <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">Loading today's workout...</p>
           </CardContent>
         </Card>
       ) : today?.message ? (
-        <Card className="border-0 bg-card/60">
+        <Card className="bg-card/60">
           <CardContent className="flex flex-col items-center justify-center py-8">
             <div className="w-12 h-12 rounded-2xl bg-muted/50 flex items-center justify-center mb-3">
               <AlertCircle className="w-6 h-6 text-muted-foreground" />
@@ -633,7 +633,7 @@ export default function MemberWorkoutPage() {
           </CardContent>
         </Card>
       ) : canManageOwnWorkouts && !today?.cycleId ? (
-        <Card className="border-0 bg-card/60">
+        <Card className="bg-card/60">
           <CardContent className="flex flex-col items-center justify-center py-8">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
               <Dumbbell className="w-7 h-7 text-primary" />
@@ -676,7 +676,7 @@ export default function MemberWorkoutPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-0 bg-card/60 overflow-hidden">
+        <Card className="bg-card/60 overflow-hidden">
           <CardHeader className="pb-2">
             <div className="flex flex-row items-center justify-between gap-2">
               <div className="flex items-center gap-3">
@@ -1119,7 +1119,7 @@ export default function MemberWorkoutPage() {
       )}
 
       {!cycleLoading && cycle && cycle.items && (
-        <Card className="border-0 bg-card/60">
+        <Card className="bg-card/60">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
@@ -1221,7 +1221,7 @@ export default function MemberWorkoutPage() {
       )}
 
       {canManageOwnWorkouts && cycleHistory && cycleHistory.length > 1 && (
-        <Card className="border-0 bg-card/60">
+        <Card className="bg-card/60">
           <CardHeader 
             className="cursor-pointer pb-2"
             onClick={() => setHistoryOpen(!historyOpen)}

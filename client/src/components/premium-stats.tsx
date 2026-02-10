@@ -104,7 +104,7 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer border-0 bg-card/70 backdrop-blur-sm transition-all duration-300 ease-out",
+        "cursor-pointer bg-card/70 backdrop-blur-sm transition-all duration-300 ease-out",
         "hover:scale-[1.02] active:scale-[0.98]",
         colors.glow
       )}
@@ -193,7 +193,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer border-0 bg-card/70 backdrop-blur-sm transition-all duration-300 ease-out",
+        "cursor-pointer bg-card/70 backdrop-blur-sm transition-all duration-300 ease-out",
         "hover:scale-[1.02] active:scale-[0.98]",
         "shadow-emerald-500/10"
       )}
@@ -403,7 +403,7 @@ export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], 
   }, [calendarDays]);
 
   return (
-    <Card className={cn("border-0 bg-card/70 backdrop-blur-sm", className)} data-testid="card-weekly-progress">
+    <Card className={cn("bg-card/70 backdrop-blur-sm", className)} data-testid="card-weekly-progress">
       <CardContent className="py-4 px-4">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-bold">This Week</span>
