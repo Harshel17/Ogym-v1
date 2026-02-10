@@ -4,7 +4,7 @@ import type { DikaIcon } from '@/hooks/use-dika';
 import { DikaCircleIcon, SunflowerIcon, BatIcon, RoboDIcon } from './dika-icons';
 
 const DRAG_THRESHOLD = 8;
-const BUILD_TAG = 'v4-doc';
+const BUILD_TAG = 'v5-diag';
 const BUTTON_SELECTOR = '[data-dika-drag="true"]';
 
 interface DikaButtonProps {
@@ -92,16 +92,30 @@ export function DikaButton({
       return document.querySelector(BUTTON_SELECTOR);
     }
 
-    function isTouchOnButton(target: EventTarget | null): boolean {
-      if (!target || !(target instanceof Node)) return false;
-      const btn = getButton();
-      if (!btn) return false;
-      return btn === target || btn.contains(target);
-    }
+    let diagCount = 0;
+    const onAnyTouch = (e: TouchEvent) => {
+      diagCount++;
+      if (diagCount <= 5) {
+        const t = e.target as HTMLElement;
+        const btn = getButton();
+        const tag = t?.tagName || 'null';
+        const cls = (t?.className || '').toString().slice(0, 40);
+        const hasAttr = t?.getAttribute?.('data-dika-drag') || 'no';
+        const btnFound = btn ? 'yes' : 'no';
+        const isInBtn = btn && t instanceof Node ? (btn === t || btn.contains(t)) : false;
+        sendDebug([`DIAG-TOUCH#${diagCount} tag=${tag} attr=${hasAttr} btnFound=${btnFound} isInBtn=${isInBtn} cls=${cls}`]);
+      }
+    };
+    document.addEventListener('touchstart', onAnyTouch, { passive: true, capture: true });
 
     const onTouchStart = (e: TouchEvent) => {
       if (touchState.current.active) return;
-      if (!isTouchOnButton(e.target)) return;
+
+      const target = e.target as HTMLElement;
+      const btn = getButton();
+      if (!btn) return;
+      if (!(target instanceof Node)) return;
+      if (btn !== target && !btn.contains(target)) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -224,6 +238,7 @@ export function DikaButton({
     sendDebug([`INIT ${BUILD_TAG} pos=${Math.round(posRef.current.x)},${Math.round(posRef.current.y)}`]);
 
     return () => {
+      document.removeEventListener('touchstart', onAnyTouch, true);
       document.removeEventListener('touchstart', onTouchStart);
       document.removeEventListener('touchmove', onTouchMove);
       document.removeEventListener('touchend', onTouchEnd);
@@ -317,7 +332,7 @@ export function DikaButton({
     >
       <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-transparent to-white/10" />
       <RoboDIcon className="w-7 h-7 text-white relative z-10" />
-      <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[6px] font-bold rounded-full w-3 h-3 flex items-center justify-center z-20">4</span>
+      <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[6px] font-bold rounded-full w-3 h-3 flex items-center justify-center z-20">5</span>
     </button>
   );
 }
