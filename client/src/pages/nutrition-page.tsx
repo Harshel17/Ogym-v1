@@ -594,8 +594,7 @@ export default function NutritionPage() {
         </div>
       </div>
 
-      <Card className={`overflow-hidden shadow-lg shadow-primary/5 relative ${allMealsLogged ? 'card-shine' : ''}`} data-testid="card-calorie-summary">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] via-transparent to-primary/[0.02] pointer-events-none" />
+      <Card className={`card-ambient shadow-lg shadow-primary/5 relative ${allMealsLogged ? 'card-shine' : ''}`} data-testid="card-calorie-summary">
         <CardContent className="pt-4 pb-4 relative">
           <div className="flex items-center justify-between mb-3 gap-3">
             <div className="text-center flex-1" style={{ animation: 'slideUp 0.5s ease-out' }}>
@@ -716,8 +715,7 @@ export default function NutritionPage() {
         Add Food
       </Button>
 
-      <Card className="shadow-sm relative" data-testid="card-water-tracker" style={{ animation: 'slideUp 0.4s ease-out 0.5s both' }}>
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.03] to-transparent pointer-events-none rounded-md" />
+      <Card className="card-glow-blue shadow-sm relative" data-testid="card-water-tracker" style={{ animation: 'slideUp 0.4s ease-out 0.5s both' }}>
         <CardContent className="pt-3 pb-3 relative">
           <div className="flex items-center gap-3">
             {(() => {
@@ -890,7 +888,7 @@ export default function NutritionPage() {
         );
       })}
 
-      <Card className="overflow-hidden shadow-sm relative">
+      <Card className="card-ambient shadow-sm relative">
         <CardHeader className="pb-1 pt-3 px-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">

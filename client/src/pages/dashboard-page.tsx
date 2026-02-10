@@ -1362,8 +1362,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
 
       {/* Today's Workout */}
       <Collapsible open={isWorkoutOpen} onOpenChange={setIsWorkoutOpen}>
-        <Card className={`overflow-hidden shadow-lg shadow-primary/5 relative ${allCompleted ? 'card-shine' : ''}`} data-testid="card-today-workout">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] to-transparent pointer-events-none" />
+        <Card className={`card-ambient shadow-lg shadow-primary/5 relative ${allCompleted ? 'card-shine' : ''}`} data-testid="card-today-workout">
           <CollapsibleTrigger asChild>
             <CardHeader className="flex flex-row items-center justify-between gap-2 cursor-pointer group pb-3 relative">
               <div className="flex items-center gap-3">
@@ -2272,10 +2271,7 @@ function MemberCalendarWidget() {
   };
 
   return (
-    <Card className="overflow-hidden backdrop-blur-sm relative" data-testid="card-calendar">
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at 10% 0%, hsl(var(--primary) / 0.06) 0%, transparent 50%), radial-gradient(ellipse at 90% 100%, hsl(var(--primary) / 0.03) 0%, transparent 40%)'
-      }} />
+    <Card className="card-ambient backdrop-blur-sm relative" data-testid="card-calendar">
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 relative z-10">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
           <div className="p-1.5 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg shadow-sm" style={{ boxShadow: '0 2px 8px hsl(var(--primary) / 0.15)' }}>

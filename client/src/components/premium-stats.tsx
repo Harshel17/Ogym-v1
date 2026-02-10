@@ -101,22 +101,19 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
   const percentage = Math.min((value / maxValue) * 100, 100);
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
+  const glowClass = color === "orange" ? "card-glow-orange" : color === "green" ? "card-glow-green" : "card-glow-green";
+
   return (
     <Card
       className={cn(
-        "cursor-pointer overflow-hidden backdrop-blur-sm transition-all duration-300 ease-out relative",
+        "cursor-pointer backdrop-blur-sm transition-all duration-300 ease-out relative",
         "hover:scale-[1.02] active:scale-[0.98]",
+        glowClass,
         colors.glow
       )}
       onClick={onClick}
       data-testid={`stat-card-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: `radial-gradient(ellipse at 30% 0%, ${colors.ringColor}12 0%, transparent 60%), radial-gradient(ellipse at 80% 100%, ${colors.ringColor}08 0%, transparent 50%)`
-      }} />
-      <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full pointer-events-none" style={{
-        background: `radial-gradient(circle, ${colors.ringColor}10 0%, transparent 70%)`
-      }} />
       <CardContent className="flex flex-col items-center justify-center h-[130px] py-0 relative z-10">
         <div className="relative mb-2">
           <svg width={size} height={size} className="transform -rotate-90">
@@ -199,18 +196,13 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   return (
     <Card
       className={cn(
-        "cursor-pointer overflow-hidden backdrop-blur-sm transition-all duration-300 ease-out relative",
+        "cursor-pointer backdrop-blur-sm transition-all duration-300 ease-out relative",
         "hover:scale-[1.02] active:scale-[0.98]",
+        "card-glow-green",
         "shadow-emerald-500/10"
       )}
       data-testid="stat-card-calories"
     >
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: `radial-gradient(ellipse at 30% 0%, ${calorieColor}12 0%, transparent 60%), radial-gradient(ellipse at 80% 100%, ${calorieColor}08 0%, transparent 50%)`
-      }} />
-      <div className="absolute -bottom-6 -left-6 w-20 h-20 rounded-full pointer-events-none" style={{
-        background: `radial-gradient(circle, ${calorieColor}10 0%, transparent 70%)`
-      }} />
       <CardContent className="flex flex-col items-center justify-center h-[130px] py-0 relative z-10">
         <div className="relative mb-2">
           <svg
@@ -447,10 +439,7 @@ export const WeeklyProgress = memo(function WeeklyProgress({ calendarDays = [], 
   const weekPercentage = passedDaysCount > 0 ? Math.round((completedCount / passedDaysCount) * 100) : 0;
 
   return (
-    <Card className={cn("overflow-hidden backdrop-blur-sm relative", className)} data-testid="card-weekly-progress">
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at 20% 0%, rgba(16, 185, 129, 0.06) 0%, transparent 50%), radial-gradient(ellipse at 80% 100%, rgba(59, 130, 246, 0.04) 0%, transparent 50%)'
-      }} />
+    <Card className={cn("card-ambient backdrop-blur-sm relative", className)} data-testid="card-weekly-progress">
       <CardContent className="py-4 px-4 relative z-10">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
