@@ -84,14 +84,10 @@ html.capacitor-native body[data-scroll-locked] {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   overscroll-behavior-x: none;
-  -webkit-transform: translateZ(0);
 }
 
-/* iOS GPU acceleration for fixed/animated elements (exclude dika button - uses left/top positioning) */
-.capacitor-native .fixed:not([data-testid="button-dika"]),
+/* iOS GPU acceleration for animations only - NOT fixed elements (breaks touch hit-testing after overlay removal) */
 .capacitor-native [class*="animate-"] {
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
 }
@@ -99,11 +95,6 @@ html.capacitor-native body[data-scroll-locked] {
 /* Smoother iOS tap response */
 * {
   -webkit-tap-highlight-color: transparent;
-}
-
-/* iOS smooth transitions for page content */
-.capacitor-native .app-main-scroll > * {
-  -webkit-transform: translateZ(0);
 }
 
 /* Scroll padding - no longer needed for fixed overlays (removed) */
