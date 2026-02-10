@@ -514,12 +514,56 @@ function DikaPageInner({ userId }: { userId: number }) {
     const container = containerRef.current;
     if (!container) return;
 
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-
+    let kbHeight = 0;
     let lastH = 0;
-    const syncHeight = () => {
+
+    const isNative = (() => {
+      try {
+        const w = window as any;
+        return !!(w.Capacitor?.isNativePlatform?.());
+      } catch { return false; }
+    })();
+
+    const applyHeight = () => {
       if (!containerRef.current) return;
+      const screenH = window.innerHeight || document.documentElement.clientHeight;
+      const h = kbHeight > 0 ? screenH - kbHeight : screenH;
+      if (h !== lastH && h > 0) {
+        lastH = h;
+        containerRef.current.style.height = `${h}px`;
+      }
+    };
+
+    if (isNative) {
+      let showHandle: any;
+      let hideHandle: any;
+
+      import('@capacitor/keyboard').then(({ Keyboard }) => {
+        Keyboard.addListener('keyboardWillShow', (info) => {
+          kbHeight = info.keyboardHeight;
+          applyHeight();
+        }).then(h => { showHandle = h; });
+
+        Keyboard.addListener('keyboardWillHide', () => {
+          kbHeight = 0;
+          applyHeight();
+        }).then(h => { hideHandle = h; });
+      }).catch(() => {});
+
+      applyHeight();
+      const poll = setInterval(applyHeight, 150);
+
+      return () => {
+        clearInterval(poll);
+        if (showHandle) showHandle.remove();
+        if (hideHandle) hideHandle.remove();
+      };
+    }
+
+    const viewport = window.visualViewport;
+
+    const syncFromViewport = () => {
+      if (!containerRef.current || !viewport) return;
       const h = viewport.height;
       if (h !== lastH && h > 0) {
         lastH = h;
@@ -527,33 +571,35 @@ function DikaPageInner({ userId }: { userId: number }) {
       }
     };
 
-    syncHeight();
+    if (viewport) {
+      syncFromViewport();
+      viewport.addEventListener('resize', syncFromViewport);
+      viewport.addEventListener('scroll', syncFromViewport);
+      const poll = setInterval(syncFromViewport, 100);
 
-    viewport.addEventListener('resize', syncHeight);
-    viewport.addEventListener('scroll', syncHeight);
-
-    const poll = setInterval(syncHeight, 100);
-
-    const handleFocus = () => {
-      syncHeight();
-      let frames = 0;
-      const burst = () => {
-        syncHeight();
-        if (++frames < 60) requestAnimationFrame(burst);
+      const handleFocus = () => {
+        syncFromViewport();
+        let frames = 0;
+        const burst = () => {
+          syncFromViewport();
+          if (++frames < 60) requestAnimationFrame(burst);
+        };
+        requestAnimationFrame(burst);
       };
-      requestAnimationFrame(burst);
-    };
 
-    document.addEventListener('focusin', handleFocus);
-    document.addEventListener('focusout', handleFocus);
+      document.addEventListener('focusin', handleFocus);
+      document.addEventListener('focusout', handleFocus);
 
-    return () => {
-      clearInterval(poll);
-      viewport.removeEventListener('resize', syncHeight);
-      viewport.removeEventListener('scroll', syncHeight);
-      document.removeEventListener('focusin', handleFocus);
-      document.removeEventListener('focusout', handleFocus);
-    };
+      return () => {
+        clearInterval(poll);
+        viewport.removeEventListener('resize', syncFromViewport);
+        viewport.removeEventListener('scroll', syncFromViewport);
+        document.removeEventListener('focusin', handleFocus);
+        document.removeEventListener('focusout', handleFocus);
+      };
+    }
+
+    applyHeight();
   }, []);
 
   useEffect(() => {
