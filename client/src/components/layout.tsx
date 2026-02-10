@@ -58,11 +58,11 @@ type MobileTabItem = {
 
 function DikaNavIcon({ className }: { className?: string }) {
   return (
-    <div className={cn("relative", className)}>
-      <div className="w-full h-full rounded-md bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center p-[2px]">
+    <div className={cn("relative !w-[22px] !h-[22px]", className)}>
+      <div className="w-full h-full rounded-[4px] bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center p-[2px]">
         <RoboDIcon className="w-full h-full text-white" />
       </div>
-      <div className="absolute -top-[2px] -right-[2px] w-[5px] h-[5px] rounded-full bg-yellow-400 border border-amber-600" />
+      <div className="absolute -top-[1px] -right-[1px] w-1 h-1 rounded-full bg-yellow-400" />
     </div>
   );
 }
