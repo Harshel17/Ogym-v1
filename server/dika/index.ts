@@ -54,12 +54,26 @@ export async function handleDikaQuery(
   gymId: number | null,
   message: string,
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
-  localDate?: string
+  localDate?: string,
+  isIOSNative?: boolean
 ): Promise<DikaResponse> {
+  // Block owner business actions on iOS native (Apple Guideline 3.1.1)
+  if (isIOSNative && role === 'owner') {
+    const { detectOwnerAction } = await import('./owner-actions');
+    const action = detectOwnerAction(message);
+    if (action === 'log_payment') {
+      return {
+        answer: "Payment management is not available on this device. Please use the web version at app.ogym.fitness to manage payments.",
+        confidence: 'high',
+        followUpChips: ['Member attendance', 'Gym overview', 'Who checked in today?'],
+      };
+    }
+  }
+
   // Try AI-powered response first
   if (await isAIAvailable()) {
     try {
-      const { answer, followUpChips } = await processWithAI(userId, role, gymId, message, conversationHistory, localDate);
+      const { answer, followUpChips } = await processWithAI(userId, role, gymId, message, conversationHistory, localDate, isIOSNative);
       return {
         answer,
         confidence: 'high',
@@ -265,7 +279,7 @@ async function executeIntent(
   }
 }
 
-export function getSuggestionChips(role: UserRole, gymId: number | null): string[] {
+export function getSuggestionChips(role: UserRole, gymId: number | null, isIOSNative?: boolean): string[] {
   if (!gymId) {
     return [
       "What did I train this week?",
@@ -290,6 +304,13 @@ export function getSuggestionChips(role: UserRole, gymId: number | null): string
       ];
       
     case 'owner':
+      if (isIOSNative) {
+        return [
+          "Who checked in today?",
+          "Gym overview",
+          "Add a new member",
+        ];
+      }
       return [
         "Who checked in today?",
         "Add a new member",

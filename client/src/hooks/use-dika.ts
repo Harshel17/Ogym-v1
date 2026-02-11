@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { resetBodyStyles } from '@/hooks/use-keyboard';
+import { isNative, isIOS } from '@/lib/capacitor-init';
 
 export type DikaIcon = 'circle' | 'sunflower' | 'bat';
 
@@ -207,8 +208,9 @@ export function useDikaPage(userId: number) {
     return () => { window.removeEventListener('beforeunload', flushPending); document.removeEventListener('visibilitychange', visHandler); };
   }, []);
 
+  const suggestionsUrl = isNative() && isIOS() ? '/api/dika/suggestions?platform=ios_native' : '/api/dika/suggestions';
   const { data: suggestionsData } = useQuery<{ suggestions: string[] }>({
-    queryKey: ['/api/dika/suggestions'],
+    queryKey: [suggestionsUrl],
   });
 
   const briefingFetchedRef = useRef(false);
@@ -239,7 +241,8 @@ export function useDikaPage(userId: number) {
         role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
         content: m.content,
       }));
-      const res = await apiRequest('POST', '/api/dika/ask', { message, conversationHistory: history });
+      const platform = isNative() && isIOS() ? 'ios_native' : undefined;
+      const res = await apiRequest('POST', '/api/dika/ask', { message, conversationHistory: history, platform });
       return res.json();
     },
     onSuccess: (data) => {
@@ -390,8 +393,9 @@ export function useDika(userId: number, hideDika: boolean) {
     };
   }, []);
 
+  const drawerSuggestionsUrl = isNative() && isIOS() ? '/api/dika/suggestions?platform=ios_native' : '/api/dika/suggestions';
   const { data: suggestionsData } = useQuery<{ suggestions: string[] }>({
-    queryKey: ['/api/dika/suggestions'],
+    queryKey: [drawerSuggestionsUrl],
     enabled: isOpen,
   });
 
@@ -423,7 +427,8 @@ export function useDika(userId: number, hideDika: boolean) {
         role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
         content: m.content,
       }));
-      const res = await apiRequest('POST', '/api/dika/ask', { message, conversationHistory: history });
+      const platform = isNative() && isIOS() ? 'ios_native' : undefined;
+      const res = await apiRequest('POST', '/api/dika/ask', { message, conversationHistory: history, platform });
       return res.json();
     },
     onSuccess: (data, message) => {

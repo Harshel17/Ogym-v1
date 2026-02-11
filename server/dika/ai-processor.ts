@@ -695,7 +695,7 @@ async function getTrainerDataContext(trainerId: number, gymId: number): Promise<
   };
 }
 
-function buildSystemPrompt(userContext: UserContext, dataContext: MemberContext | OwnerContext | TrainerContext): string {
+function buildSystemPrompt(userContext: UserContext, dataContext: MemberContext | OwnerContext | TrainerContext, isIOSNative?: boolean): string {
   const basePrompt = `You are Dika, an intelligent AI assistant for OGym - a gym management platform. You help ${userContext.role}s understand their gym data and provide actionable insights.
 
 IMPORTANT RULES:
@@ -781,6 +781,41 @@ Do NOT try to solve technical issues yourself - offer to report them instead.`;
     const ctx = dataContext as OwnerContext;
     const currency = userContext.gymCurrency === 'USD' ? '$' : '₹';
     
+    if (isIOSNative) {
+      const checkedInList = ctx.checkedInTodayNames.length > 0
+        ? `\n  Names: ${ctx.checkedInTodayNames.join(', ')}${ctx.checkedInToday > 10 ? ` (and ${ctx.checkedInToday - 10} more)` : ''}`
+        : '';
+      const notCheckedInList = ctx.notCheckedInTodayNames.length > 0
+        ? `\n- NOT checked in today (sample): ${ctx.notCheckedInTodayNames.join(', ')}`
+        : '';
+
+      return basePrompt + `
+GYM OVERVIEW:
+- Total members: ${ctx.totalMembers}
+- Checked in today: ${ctx.checkedInToday} (${ctx.attendanceRate}% of total)${checkedInList}${notCheckedInList}
+- New members this month: ${ctx.recentTrends.newMembersThisMonth}
+
+You can help this owner with:
+- Member lists and attendance tracking
+- Attendance trends and patterns
+- Who checked in today and who hasn't
+- Strategic recommendations for member engagement
+- Creating support tickets to report issues or request help
+
+IMPORTANT RESTRICTIONS:
+- Do NOT discuss payments, revenue, subscriptions, billing, walk-in visitors, or any financial topics. If asked, say "Payment and billing features are available on the web version at app.ogym.fitness."
+- Do NOT offer to log payments, assign subscriptions, or perform any payment-related actions.
+- Do NOT mention unpaid members, revenue figures, or subscription expiry details.
+- Focus ONLY on attendance, member engagement, workouts, and general gym management insights.
+
+IMPORTANT - ISSUE DETECTION:
+When the user describes a problem, complaint, bug, or something that isn't working correctly, you should:
+1. Briefly acknowledge what they described
+2. Offer to create a support ticket so the team can look into it.
+3. Include "Report this issue" as a follow-up chip
+Do NOT try to solve technical issues yourself - offer to report them instead.`;
+    }
+
     const unpaidList = ctx.unpaidMemberNames.length > 0 
       ? `\n  Names: ${ctx.unpaidMemberNames.join(', ')}${ctx.unpaidThisMonth > 10 ? ` (and ${ctx.unpaidThisMonth - 10} more)` : ''}`
       : '';
@@ -854,7 +889,8 @@ export async function processWithAI(
   gymId: number | null,
   message: string,
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
-  localDate?: string
+  localDate?: string,
+  isIOSNative?: boolean
 ): Promise<{ answer: string; followUpChips: string[] }> {
   if (detectOngoingSupportTicketFlow(conversationHistory)) {
     try {
@@ -1064,7 +1100,8 @@ export async function processWithAI(
 
   if (role === 'owner' && gymId) {
     const ownerAction = detectOwnerAction(message);
-    if (ownerAction && ownerAction !== 'create_support_ticket') {
+    const blockedOnIOS = isIOSNative && ownerAction && ['log_payment', 'navigate'].includes(ownerAction);
+    if (ownerAction && ownerAction !== 'create_support_ticket' && !blockedOnIOS) {
       try {
         return await processOwnerAction(userId, gymId, message, ownerAction, conversationHistory);
       } catch (error: any) {
@@ -1073,12 +1110,14 @@ export async function processWithAI(
       }
     }
 
-    const pendingAction = detectPendingActionFromHistory(conversationHistory);
-    if (pendingAction && pendingAction !== 'create_support_ticket') {
-      try {
-        return await processOwnerAction(userId, gymId, message, pendingAction, conversationHistory);
-      } catch (error) {
-        console.error('Owner action follow-up processing failed:', error);
+    if (!isIOSNative) {
+      const pendingAction = detectPendingActionFromHistory(conversationHistory);
+      if (pendingAction && pendingAction !== 'create_support_ticket') {
+        try {
+          return await processOwnerAction(userId, gymId, message, pendingAction, conversationHistory);
+        } catch (error) {
+          console.error('Owner action follow-up processing failed:', error);
+        }
       }
     }
   }
@@ -1144,7 +1183,7 @@ export async function processWithAI(
     dataContext = await getMemberDataContext(userId, gymId);
   }
   
-  const systemPrompt = buildSystemPrompt(userContext, dataContext);
+  const systemPrompt = buildSystemPrompt(userContext, dataContext, isIOSNative);
   
   try {
     const response = await openai.chat.completions.create({
@@ -1158,7 +1197,7 @@ export async function processWithAI(
     
     const answer = response.choices[0]?.message?.content || "I'm having trouble understanding that. Could you rephrase?";
     
-    const followUpChips = generateFollowUpChips(role, message, gymId);
+    const followUpChips = generateFollowUpChips(role, message, gymId, isIOSNative);
     
     return { answer, followUpChips };
   } catch (error) {
@@ -1167,7 +1206,7 @@ export async function processWithAI(
   }
 }
 
-function generateFollowUpChips(role: UserRole, lastMessage: string, gymId: number | null): string[] {
+function generateFollowUpChips(role: UserRole, lastMessage: string, gymId: number | null, isIOSNative?: boolean): string[] {
   const lowerMessage = lastMessage.toLowerCase();
   
   if (role === 'member') {
@@ -1187,6 +1226,18 @@ function generateFollowUpChips(role: UserRole, lastMessage: string, gymId: numbe
   }
   
   if (role === 'owner') {
+    if (isIOSNative) {
+      if (lowerMessage.includes('attendance') || lowerMessage.includes('check')) {
+        return ['Who checked in today?', 'Gym overview'];
+      }
+      if (lowerMessage.includes('member') || lowerMessage.includes('growth')) {
+        return ['Add a new member', 'Who checked in today?'];
+      }
+      if (lowerMessage.includes('issue') || lowerMessage.includes('problem') || lowerMessage.includes('mismatch') || lowerMessage.includes('wrong') || lowerMessage.includes('broken') || lowerMessage.includes('not working') || lowerMessage.includes('not showing')) {
+        return ['Report this issue', 'Go to support'];
+      }
+      return ['Who checked in today?', 'Gym overview', 'Add a new member'];
+    }
     if (lowerMessage.includes('payment') || lowerMessage.includes('paid') || lowerMessage.includes('revenue')) {
       return ['Log a payment', 'Go to revenue', 'Who checked in today?'];
     }

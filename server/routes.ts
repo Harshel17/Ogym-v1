@@ -4781,6 +4781,7 @@ Return ONLY JSON.`
         role: z.enum(['user', 'assistant']),
         content: z.string(),
       })).optional(),
+      platform: z.string().optional(),
     });
     
     const input = schema.safeParse(req.body);
@@ -4791,6 +4792,7 @@ Return ONLY JSON.`
     const user = req.user!;
     const role = user.role as 'member' | 'trainer' | 'owner';
     const localDate = getLocalDate(req);
+    const isIOSNative = input.data.platform === 'ios_native';
     
     try {
       const response = await handleDikaQuery(
@@ -4799,7 +4801,8 @@ Return ONLY JSON.`
         user.gymId || null,
         input.data.message,
         input.data.conversationHistory,
-        localDate
+        localDate,
+        isIOSNative
       );
       
       res.json(response);
@@ -4812,7 +4815,8 @@ Return ONLY JSON.`
   app.get("/api/dika/suggestions", requireAuth, async (req, res) => {
     const user = req.user!;
     const role = user.role as 'member' | 'trainer' | 'owner';
-    const suggestions = getSuggestionChips(role, user.gymId || null);
+    const isIOSNative = req.query.platform === 'ios_native';
+    const suggestions = getSuggestionChips(role, user.gymId || null, isIOSNative);
     res.json({ suggestions });
   });
 
