@@ -1,0 +1,85 @@
+PROMPT FOR REPLIT AI AGENT (OGym) — Sports Training Feature (Plan Only)
+
+IMPORTANT: Do NOT start building or changing any code yet.
+Do NOT create files, do NOT implement UI, do NOT add DB migrations.
+Only produce a detailed implementation plan + file-level change list + data models + API contracts + UI flow.
+WAIT for me to say “BUILD” before you write any code.
+
+Goal:
+Add a new optional “Sports Training” feature to OGym. This is NOT a “mode” concept. It is a separate entry point (sports icon/symbol) that lets a user select a sport, answer a few questions, optionally take a fitness test, choose what sport skill they want to improve, and then OGym adapts their existing workout plan accordingly and tracks progress.
+
+Core User Flow (v1):
+1) User sees a Sports icon/symbol entry point (ex: card/button labeled “Sports Training”).
+2) On click, user chooses a sport (v1 sports: Cricket, Football/Soccer, Basketball, Running).
+3) Ask: “How often do you play?” (options: 1x/week, 2–3x/week, 4+/week).
+4) Optional: “Take a quick fitness test (5 min)” — if yes, run 2–3 simple tests.
+   - Example baseline tests (generic v1 across sports): 
+     a) 60-second run distance (user enters meters)
+     b) Push-ups max reps (user enters reps)
+     c) Squats max reps (user enters reps)
+   - After user submits, classify level: Beginner / Intermediate / Advanced using simple thresholds.
+5) Next: show sport-specific “What do you want to improve?” options.
+   - For Cricket (v1 example):
+     - Batting
+     - Bowling
+     - Fielding
+     If Batting selected -> sub-options like:
+       - Pull shot power
+       - Timing
+       - Endurance
+6) After user picks a specific improvement goal (ex: “Pull shot power”), show an explanation:
+   “Improving pull shot power needs rotational core strength, leg drive, shoulder stability, and explosive power.”
+   Then ask:
+   - “Make this my MAIN goal” OR
+   - “Include this along with my general fitness”
+7) Based on goal choice, adapt the user’s existing OGym workout plan:
+   - DO NOT create an entirely new workout system.
+   - Use a tagging/mapping approach: map sport goals -> focus tags -> existing workouts in OGym.
+   - Example tags: core_rotation, explosive_power, shoulder_stability, leg_drive, sprint_speed, agility
+   - The adaptation should either:
+     a) increase frequency of tagged workouts, or
+     b) swap a few exercises in current plan for tagged alternatives,
+     c) adjust sets/reps/rest slightly based on level + play frequency
+8) Tracking:
+   - Track adherence as usual.
+   - Add optional “Retake test in 4 weeks” reminder (no automation required now).
+   - Store the sport profile (sport, frequency, level, chosen goal, main/secondary) in DB.
+
+Requirements:
+- Keep v1 simple, clean, and fast to ship.
+- Sports feature must be OPTIONAL and not block normal onboarding.
+- The plan adaptation must be reversible (user can turn off sports goal later).
+- Keep UI minimal and consistent with OGym existing design.
+
+Deliverables (Plan Only — no code):
+A) Proposed DB schema changes:
+   - tables/fields for sports profile + fitness test results + sport goal selection
+B) Proposed API endpoints (FastAPI/Express/etc — match OGym’s stack):
+   - create/update sports profile
+   - submit fitness test results
+   - fetch sport goal options by sport
+   - apply plan adaptation
+   - fetch current sports settings
+C) UI screens and components (with exact steps and copy):
+   - Sports entry screen
+   - Sport selection
+   - Frequency screen
+   - Fitness test (optional)
+   - Improvement goal selection
+   - Goal confirmation (main vs include)
+   - Success / “plan updated” screen
+D) Workout mapping strategy:
+   - Define how we map (sport + goal) -> tags -> workouts
+   - Provide a starter mapping for Cricket (Batting -> Pull shot power) and one more sport as example
+E) Risks & edge cases:
+   - user skips test
+   - user changes sport later
+   - user has an existing plan
+   - missing workout tags
+F) File-level change list:
+   - exact frontend files/components to add or modify
+   - exact backend routes/services to add or modify
+   - any config changes
+
+After you deliver the PLAN, stop.
+Do NOT build until I explicitly say “BUILD”.
