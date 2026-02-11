@@ -8,7 +8,7 @@ import { Layout } from "@/components/layout";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Loader2 } from "lucide-react";
 import { lazy, Suspense, useEffect } from "react";
-import { refreshStatusBar } from "@/lib/capacitor-init";
+import { refreshStatusBar, isIOS, isNative } from "@/lib/capacitor-init";
 
 import AuthPage from "@/pages/auth-page";
 import DashboardPage from "@/pages/dashboard-page";
@@ -82,9 +82,10 @@ type ProtectedRouteProps = {
   allowWithoutOnboarding?: boolean;
   allowWithExpiredSubscription?: boolean;
   requiredRole?: "owner" | "trainer" | "member";
+  blockOnIOSOwner?: boolean;
 };
 
-function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWithoutOnboarding = false, allowWithExpiredSubscription = false, requiredRole }: ProtectedRouteProps) {
+function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWithoutOnboarding = false, allowWithExpiredSubscription = false, requiredRole, blockOnIOSOwner = false }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -97,6 +98,11 @@ function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWi
 
   if (!user) {
     return <Redirect to="/auth" />;
+  }
+
+  // Block owner access to business/payment pages on iOS native app (Apple Guideline 3.1.1)
+  if (blockOnIOSOwner && user.role === "owner" && isNative() && isIOS()) {
+    return <Redirect to="/" />;
   }
 
   // Role guard - redirect if user doesn't have required role
@@ -212,7 +218,7 @@ function Router() {
       </Route>
       
       <Route path="/payments">
-        <ProtectedRoute component={PaymentsPage} />
+        <ProtectedRoute component={PaymentsPage} blockOnIOSOwner />
       </Route>
 
       <Route path="/workouts">
@@ -296,7 +302,7 @@ function Router() {
       </Route>
 
       <Route path="/transfers">
-        <ProtectedRoute component={TransfersPage} />
+        <ProtectedRoute component={TransfersPage} blockOnIOSOwner />
       </Route>
 
       <Route path="/owner/attendance">
@@ -308,7 +314,7 @@ function Router() {
       </Route>
 
       <Route path="/owner/revenue">
-        <ProtectedRoute component={OwnerRevenuePage} requiredRole="owner" />
+        <ProtectedRoute component={OwnerRevenuePage} requiredRole="owner" blockOnIOSOwner />
       </Route>
 
       <Route path="/owner/member-analytics">
@@ -320,11 +326,11 @@ function Router() {
       </Route>
 
       <Route path="/owner/walk-in-visitors">
-        <ProtectedRoute component={OwnerWalkInVisitorsPage} requiredRole="owner" />
+        <ProtectedRoute component={OwnerWalkInVisitorsPage} requiredRole="owner" blockOnIOSOwner />
       </Route>
 
       <Route path="/owner/follow-ups">
-        <ProtectedRoute component={OwnerFollowUpsPage} requiredRole="owner" />
+        <ProtectedRoute component={OwnerFollowUpsPage} requiredRole="owner" blockOnIOSOwner />
       </Route>
 
       <Route path="/owner/kiosk">
@@ -336,7 +342,7 @@ function Router() {
       </Route>
 
       <Route path="/owner/automated-emails">
-        <ProtectedRoute component={OwnerAutomatedEmailsPage} requiredRole="owner" />
+        <ProtectedRoute component={OwnerAutomatedEmailsPage} requiredRole="owner" blockOnIOSOwner />
       </Route>
 
       <Route path="/checkin/:token" component={KioskCheckinPage} />

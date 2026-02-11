@@ -430,10 +430,14 @@ export default function AuthPage() {
 
         <div className="relative z-20 max-w-lg animate-slide-in-up" style={{ animationDelay: '0.2s' }}>
           <h2 className="text-5xl font-bold font-display mb-6 leading-tight">
-            Manage your fitness business with <span className="text-white/90">precision</span> and <span className="bg-gradient-to-r from-amber-200 to-yellow-100 bg-clip-text text-transparent">style</span>.
+            {isIOSNativeApp()
+              ? <>Your fitness journey, <span className="text-white/90">simplified</span> and <span className="bg-gradient-to-r from-amber-200 to-yellow-100 bg-clip-text text-transparent">elevated</span>.</>
+              : <>Manage your fitness business with <span className="text-white/90">precision</span> and <span className="bg-gradient-to-r from-amber-200 to-yellow-100 bg-clip-text text-transparent">style</span>.</>}
           </h2>
           <p className="text-xl text-white/70 font-light leading-relaxed">
-            Whether you're an owner, trainer, or dedicated member, OGym connects your community and tracks your progress effortlessly.
+            {isIOSNativeApp() 
+              ? "Track your workouts, connect with trainers, and crush your fitness goals — all in one place."
+              : "Whether you're an owner, trainer, or dedicated member, OGym connects your community and tracks your progress effortlessly."}
           </p>
         </div>
         
@@ -649,12 +653,7 @@ export default function AuthPage() {
                                 {!isIOSNativeApp() && <SelectItem value="owner">Gym Owner</SelectItem>}
                               </SelectContent>
                             </Select>
-                            {/* iOS native app: informational message only, no links per Apple Guideline 3.1.1 */}
-                            {isIOSNativeApp() && (
-                              <p className="text-xs text-muted-foreground mt-2">
-                                Gym owner accounts are created outside the app. Existing accounts can sign in.
-                              </p>
-                            )}
+                            
                             <FormMessage />
                           </FormItem>
                         )}
@@ -953,7 +952,7 @@ export default function AuthPage() {
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="owner">Owner</SelectItem>
+                      {!isIOSNativeApp() && <SelectItem value="owner">Owner</SelectItem>}
                       <SelectItem value="trainer">Trainer</SelectItem>
                       <SelectItem value="member">Member</SelectItem>
                     </SelectContent>

@@ -20,6 +20,7 @@ import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboa
 import { FeatureDiscoveryTips } from "@/components/feature-discovery-tips";
 import { HealthSummary } from "@/components/health-summary";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
+import { isIOS, isNative } from "@/lib/capacitor-init";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
@@ -208,6 +209,7 @@ type TodayActivity = {
 function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => string }) {
   const [, navigate] = useLocation();
   const [expanded, setExpanded] = useState(false);
+  const isIOSNativeApp = isNative() && isIOS();
 
   const getClientLocalDate = () => {
     const now = new Date();
@@ -291,22 +293,26 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
             <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{newMembers.length}</p>
             <p className="text-xs font-medium text-muted-foreground">New Members</p>
           </div>
-          <div
-            className="flex-1 text-center p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 cursor-pointer hover-elevate"
-            onClick={() => navigate("/payments")}
-            data-testid="stat-payments-today"
-          >
-            <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{payments.length}</p>
-            <p className="text-xs font-medium text-muted-foreground">Payments</p>
-          </div>
-          <div
-            className="flex-1 text-center p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 cursor-pointer hover-elevate"
-            onClick={() => navigate("/payments")}
-            data-testid="stat-expiring-today"
-          >
-            <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{expiringSubscriptions.length}</p>
-            <p className="text-xs font-medium text-muted-foreground">Expiring</p>
-          </div>
+          {!isIOSNativeApp && (
+            <div
+              className="flex-1 text-center p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 cursor-pointer hover-elevate"
+              onClick={() => navigate("/payments")}
+              data-testid="stat-payments-today"
+            >
+              <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{payments.length}</p>
+              <p className="text-xs font-medium text-muted-foreground">Payments</p>
+            </div>
+          )}
+          {!isIOSNativeApp && (
+            <div
+              className="flex-1 text-center p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 cursor-pointer hover-elevate"
+              onClick={() => navigate("/payments")}
+              data-testid="stat-expiring-today"
+            >
+              <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{expiringSubscriptions.length}</p>
+              <p className="text-xs font-medium text-muted-foreground">Expiring</p>
+            </div>
+          )}
         </div>
 
         {expanded && (
@@ -338,7 +344,7 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
               </div>
             )}
 
-            {payments.length > 0 && (
+            {!isIOSNativeApp && payments.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
                   <CreditCard className="w-3 h-3" /> Payments ({formatMoney(totalPaymentAmount)})
@@ -365,7 +371,7 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
               </div>
             )}
 
-            {expiringSubscriptions.length > 0 && (
+            {!isIOSNativeApp && expiringSubscriptions.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
                   <AlertTriangle className="w-3 h-3" /> Expiring Today
@@ -404,6 +410,7 @@ function OwnerDashboard() {
   const { data: attendance = [] } = useAttendance();
   const { data: payments = [] } = usePayments();
   const { format: formatMoney } = useGymCurrency();
+  const isIOSNativeApp = isNative() && isIOS();
   
   // Onboarding state
   const [showOnboarding, setShowOnboarding] = useState(() => {
@@ -520,55 +527,62 @@ function OwnerDashboard() {
           description="Checked in"
           color="purple"
         />
-        <StatCard 
-          title="Pending" 
-          value={pendingPayments} 
-          icon={AlertCircle} 
-          description="Unpaid"
-          color={pendingPayments > 0 ? "amber" : "green"}
-          onClick={() => navigate("/payments")}
-        />
-        <StatCard 
-          title="Revenue" 
-          value={formatMoney(revenue)} 
-          icon={TrendingUp} 
-          description="This month"
-          color="green"
-          onClick={() => navigate("/owner/revenue")}
-        />
-        <StatCard 
-          title="Walk-ins" 
-          value={walkInStats?.todayCount || 0} 
-          icon={UserPlus} 
-          description="Today"
-          color="blue"
-          onClick={() => navigate("/owner/walk-in-visitors")}
-        />
+        {!isIOSNativeApp && (
+          <StatCard 
+            title="Pending" 
+            value={pendingPayments} 
+            icon={AlertCircle} 
+            description="Unpaid"
+            color={pendingPayments > 0 ? "amber" : "green"}
+            onClick={() => navigate("/payments")}
+          />
+        )}
+        {!isIOSNativeApp && (
+          <StatCard 
+            title="Revenue" 
+            value={formatMoney(revenue)} 
+            icon={TrendingUp} 
+            description="This month"
+            color="green"
+            onClick={() => navigate("/owner/revenue")}
+          />
+        )}
+        {!isIOSNativeApp && (
+          <StatCard 
+            title="Walk-ins" 
+            value={walkInStats?.todayCount || 0} 
+            icon={UserPlus} 
+            description="Today"
+            color="blue"
+            onClick={() => navigate("/owner/walk-in-visitors")}
+          />
+        )}
       </div>
 
       <FeatureDiscoveryTips role="owner" />
 
-      {/* Quick Export Actions */}
-      <div className="flex flex-wrap gap-1.5">
-        <a href="/api/owner/export/members" download>
-          <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="button-export-members">
-            <Download className="w-3 h-3 mr-1" />
-            Members
-          </Button>
-        </a>
-        <a href="/api/owner/export/payments" download>
-          <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="button-export-payments">
-            <Download className="w-3 h-3 mr-1" />
-            Payments
-          </Button>
-        </a>
-        <a href="/api/owner/export/attendance" download>
-          <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="button-export-attendance">
-            <Download className="w-3 h-3 mr-1" />
-            Attendance
-          </Button>
-        </a>
-      </div>
+      {!isIOSNativeApp && (
+        <div className="flex flex-wrap gap-1.5">
+          <a href="/api/owner/export/members" download>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="button-export-members">
+              <Download className="w-3 h-3 mr-1" />
+              Members
+            </Button>
+          </a>
+          <a href="/api/owner/export/payments" download>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="button-export-payments">
+              <Download className="w-3 h-3 mr-1" />
+              Payments
+            </Button>
+          </a>
+          <a href="/api/owner/export/attendance" download>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="button-export-attendance">
+              <Download className="w-3 h-3 mr-1" />
+              Attendance
+            </Button>
+          </a>
+        </div>
+      )}
 
       {/* AI Insights Summary */}
       {aiInsights && (

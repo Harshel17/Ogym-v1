@@ -132,14 +132,13 @@ export default function GymRequestPage() {
     submitMutation.mutate(data);
   };
 
-  // Block gym registration on iOS native app per Apple Guideline 3.1.1
   if (isIOSNativeApp()) {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] text-center px-4">
         <AlertCircle className="w-16 h-16 text-muted-foreground mb-4" />
         <h2 className="text-2xl font-bold">Not Available</h2>
         <p className="text-muted-foreground">
-          Gym owner accounts are created outside the app. Existing accounts can sign in.
+          This feature is not available on this device.
         </p>
       </div>
     );

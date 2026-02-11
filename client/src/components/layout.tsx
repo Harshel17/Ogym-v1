@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 import { usePullRefresh } from "@/hooks/use-pull-refresh";
 import { useKeyboardHeight } from "@/hooks/use-keyboard";
+import { isIOS, isNative } from "@/lib/capacitor-init";
 import { queryClient } from "@/lib/queryClient";
 import ogymLogo from "@/assets/images/ogym-logo.png";
 import { 
@@ -96,6 +97,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   if (!user) return null;
 
+  const isIOSNativeApp = isNative() && isIOS();
   const isOwner = user.role === "owner";
   const isTrainer = user.role === "trainer";
   const isMember = user.role === "member";
@@ -123,7 +125,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Register Gym", 
       href: "/gym-request", 
       icon: Building2,
-      visible: isOwnerWithoutGym,
+      visible: isOwnerWithoutGym && !isIOSNativeApp,
       badge: 0
     },
     { 
@@ -172,7 +174,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Payments", 
       href: "/payments", 
       icon: CreditCard,
-      visible: (isOwner && hasGym) || isMember,
+      visible: ((isOwner && hasGym) && !isIOSNativeApp) || isMember,
       badge: 0
     },
     { 
@@ -249,7 +251,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Transfers", 
       href: "/transfers", 
       icon: ArrowRightLeft,
-      visible: isOwner && hasGym,
+      visible: isOwner && hasGym && !isIOSNativeApp,
       badge: notificationCounts?.pendingTransfers || 0
     },
     { 
@@ -263,14 +265,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Walk-ins", 
       href: "/owner/walk-in-visitors", 
       icon: PersonStanding,
-      visible: isOwner && hasGym,
+      visible: isOwner && hasGym && !isIOSNativeApp,
       badge: 0
     },
     { 
       label: "Follow-ups", 
       href: "/owner/follow-ups", 
       icon: PhoneCall,
-      visible: isOwner && hasGym,
+      visible: isOwner && hasGym && !isIOSNativeApp,
       badge: 0
     },
     { 
@@ -334,22 +336,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const getMobileNavigation = (): { primary: MobileTabItem[], secondary: MobileTabItem[] } => {
     if (isOwner && hasGym) {
       return {
-        primary: [
-          { label: "Dashboard", href: "/", icon: LayoutDashboard },
-          { label: "Members", href: "/members", icon: Users },
-          { label: "Dika AI", href: "/dika", icon: DikaNavIcon },
-          { label: "Payments", href: "/payments", icon: CreditCard },
-        ],
+        primary: isIOSNativeApp
+          ? [
+              { label: "Dashboard", href: "/", icon: LayoutDashboard },
+              { label: "Members", href: "/members", icon: Users },
+              { label: "Dika AI", href: "/dika", icon: DikaNavIcon },
+              { label: "Attendance", href: "/owner/attendance", icon: CalendarCheck },
+            ]
+          : [
+              { label: "Dashboard", href: "/", icon: LayoutDashboard },
+              { label: "Members", href: "/members", icon: Users },
+              { label: "Dika AI", href: "/dika", icon: DikaNavIcon },
+              { label: "Payments", href: "/payments", icon: CreditCard },
+            ],
         secondary: [
-          { label: "Attendance", href: "/owner/attendance", icon: CalendarCheck },
+          ...(!isIOSNativeApp ? [{ label: "Attendance", href: "/owner/attendance", icon: CalendarCheck }] : []),
           { label: "Trainers", href: "/trainers", icon: Users },
-          { label: "Transfers", href: "/transfers", icon: ArrowRightLeft, badge: notificationCounts?.pendingTransfers || 0 },
+          ...(!isIOSNativeApp ? [{ label: "Transfers", href: "/transfers", icon: ArrowRightLeft, badge: notificationCounts?.pendingTransfers || 0 }] : []),
           { label: "Announcements", href: "/owner/announcements", icon: Megaphone },
-          { label: "Walk-ins", href: "/owner/walk-in-visitors", icon: PersonStanding },
-          { label: "Follow-ups", href: "/owner/follow-ups", icon: PhoneCall },
+          ...(!isIOSNativeApp ? [
+            { label: "Walk-ins", href: "/owner/walk-in-visitors", icon: PersonStanding },
+            { label: "Follow-ups", href: "/owner/follow-ups", icon: PhoneCall },
+          ] : []),
           { label: "Self Check-in", href: "/owner/kiosk", icon: QrCode },
           { label: "AI Insights", href: "/owner/ai-insights", icon: Brain },
-          { label: "Auto Emails", href: "/owner/automated-emails", icon: MailCheck },
+          ...(!isIOSNativeApp ? [{ label: "Auto Emails", href: "/owner/automated-emails", icon: MailCheck }] : []),
           { label: "Feed", href: "/feed", icon: Activity },
           { label: "Tournaments", href: "/tournaments", icon: Trophy },
           { label: "Join Requests", href: "/owner/join-requests", icon: UserPlus, badge: notificationCounts?.pendingJoinRequests || 0 },

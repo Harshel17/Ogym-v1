@@ -127,10 +127,9 @@ export default function PendingApprovalPage() {
                   </p>
                 </div>
               )}
-              {/* Hide resubmit button on iOS native app for owners per Apple Guideline 3.1.1 */}
               {isOwner && isIOSNativeApp() ? (
                 <p className="text-sm text-center text-muted-foreground">
-                  Gym owner accounts are created outside the app. Existing accounts can sign in.
+                  This feature is not available on this device.
                 </p>
               ) : (
                 <>
@@ -181,7 +180,7 @@ export default function PendingApprovalPage() {
               <CardDescription>
                 {isOwner 
                   ? (isIOSNativeApp() 
-                      ? "Gym owner accounts are created outside the app. Existing accounts can sign in."
+                      ? "This feature is not available on this device."
                       : "You haven't submitted a gym registration request yet.")
                   : "You haven't submitted a request to join a gym yet."}
               </CardDescription>

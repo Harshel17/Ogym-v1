@@ -41,8 +41,8 @@ Preferred communication style: Simple, everyday language.
 - **Production Security:** Implemented with Helmet.js, secure session cookies, rate limiting, and request body limits.
 - **Error Handling:** React Error Boundary for graceful UI error recovery.
 - **Deployment:** Same-origin deployment with Express serving API and static frontend.
-- **Fitness Device Integration:** Support for health tracking data.
-- **iOS App Store Compliance:** Specific implementations for Guideline 3.1.1 (owner registration hidden on iOS native app), Guideline 5.1.1 (account deletion with cascade), and Guideline 1.2 (UGC moderation for social feed).
+- **Fitness Device Integration:** Planned (HealthKit/Google Fit removed from iOS/Android builds pending proper UI implementation per Apple Guideline 2.5.1). Code exists but feature-flagged off.
+- **iOS App Store Compliance:** Comprehensive implementations for Guideline 3.1.1 (owner registration + all business/payment features hidden on iOS native: nav items, dashboard widgets, route-level guards via `blockOnIOSOwner`), Guideline 2.5.1 (HealthKit references removed from Info.plist/Podfile/Gradle), Guideline 5.1.1 (account deletion with cascade), and Guideline 1.2 (UGC moderation for social feed). Detection via `isNative() && isIOS()` from `capacitor-init.ts`.
 - **iOS Specific UI/UX:** Handles status bar, safe areas, rubber-band scroll prevention, toast positioning, and Dika drawer spacing.
 - **Feature Discovery Tips:** Role-specific rotating tips on dashboards (owner: 8, trainer: 5, member: 6, personal: 5) with localStorage-persisted dismissal, auto-rotation, and navigation links. Component: `client/src/components/feature-discovery-tips.tsx`.
 - **Guided Empty States:** Enhanced empty state component with icon, description, feature highlights, and action buttons used across members, payments, workouts, progress, tournaments, and body measurement pages. Component: `client/src/components/guided-empty-state.tsx`.
