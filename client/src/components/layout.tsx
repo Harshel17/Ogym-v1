@@ -73,8 +73,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location, navigate] = useLocation();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const keyboardHeight = useKeyboardHeight();
-  const isDikaPage = location === '/dika';
-  const isDikaWithKeyboard = isDikaPage || keyboardHeight > 0;
+  const isDikaWithKeyboard = location === '/dika' && keyboardHeight > 0;
   const { data: notificationCounts } = useNotificationCounts();
   const mainRef = useRef<HTMLElement | null>(null);
   

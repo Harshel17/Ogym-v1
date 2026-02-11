@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { RoboDIcon } from '@/components/dika/dika-icons';
+import { useVisualViewportHeight } from '@/hooks/use-keyboard';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -425,6 +426,7 @@ function DikaPageInner({ userId }: { userId: number }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { visualHeight, keyboardVisible } = useVisualViewportHeight();
   const [, setLocation] = useLocation();
 
   const [actionResults, setActionResults] = useState<Record<string, { success: boolean; message: string }>>({});
@@ -511,96 +513,12 @@ function DikaPageInner({ userId }: { userId: number }) {
   }, [messages]);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let kbHeight = 0;
-    let lastH = 0;
-
-    const isNative = (() => {
-      try {
-        const w = window as any;
-        return !!(w.Capacitor?.isNativePlatform?.());
-      } catch { return false; }
-    })();
-
-    const applyHeight = () => {
-      if (!containerRef.current) return;
-      const screenH = window.innerHeight || document.documentElement.clientHeight;
-      const h = kbHeight > 0 ? screenH - kbHeight : screenH;
-      if (h !== lastH && h > 0) {
-        lastH = h;
-        containerRef.current.style.height = `${h}px`;
-      }
-    };
-
-    if (isNative) {
-      let showHandle: any;
-      let hideHandle: any;
-
-      import('@capacitor/keyboard').then(({ Keyboard }) => {
-        Keyboard.addListener('keyboardWillShow', (info) => {
-          kbHeight = info.keyboardHeight;
-          applyHeight();
-        }).then(h => { showHandle = h; });
-
-        Keyboard.addListener('keyboardWillHide', () => {
-          kbHeight = 0;
-          applyHeight();
-        }).then(h => { hideHandle = h; });
-      }).catch(() => {});
-
-      applyHeight();
-      const poll = setInterval(applyHeight, 150);
-
-      return () => {
-        clearInterval(poll);
-        if (showHandle) showHandle.remove();
-        if (hideHandle) hideHandle.remove();
-      };
+    if (keyboardVisible) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
     }
-
-    const viewport = window.visualViewport;
-
-    const syncFromViewport = () => {
-      if (!containerRef.current || !viewport) return;
-      const h = viewport.height;
-      if (h !== lastH && h > 0) {
-        lastH = h;
-        containerRef.current.style.height = `${h}px`;
-      }
-    };
-
-    if (viewport) {
-      syncFromViewport();
-      viewport.addEventListener('resize', syncFromViewport);
-      viewport.addEventListener('scroll', syncFromViewport);
-      const poll = setInterval(syncFromViewport, 100);
-
-      const handleFocus = () => {
-        syncFromViewport();
-        let frames = 0;
-        const burst = () => {
-          syncFromViewport();
-          if (++frames < 60) requestAnimationFrame(burst);
-        };
-        requestAnimationFrame(burst);
-      };
-
-      document.addEventListener('focusin', handleFocus);
-      document.addEventListener('focusout', handleFocus);
-
-      return () => {
-        clearInterval(poll);
-        viewport.removeEventListener('resize', syncFromViewport);
-        viewport.removeEventListener('scroll', syncFromViewport);
-        document.removeEventListener('focusin', handleFocus);
-        document.removeEventListener('focusout', handleFocus);
-      };
-    }
-
-    applyHeight();
-  }, []);
+  }, [keyboardVisible]);
 
   useEffect(() => {
     if (messages.length === 0) return;
@@ -628,7 +546,8 @@ function DikaPageInner({ userId }: { userId: number }) {
   return (
     <div
       ref={containerRef}
-      className="flex flex-col -m-4 md:-m-8 dika-full-height-kb"
+      className={cn("flex flex-col -m-4 md:-m-8", keyboardVisible ? "dika-full-height-kb" : "dika-full-height")}
+      style={visualHeight ? { height: `${keyboardVisible ? visualHeight : visualHeight - 56}px` } : undefined}
       data-testid="page-dika"
     >
       <div className="flex-shrink-0 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 border-b border-white/[0.06] px-4 py-3 backdrop-blur-xl" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4px)' }}>
@@ -795,7 +714,7 @@ function DikaPageInner({ userId }: { userId: number }) {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="px-4 py-2 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center gap-2 flex-shrink-0 bg-gradient-to-t from-white via-white to-slate-50/80 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80 backdrop-blur-xl">
+      <form onSubmit={handleSubmit} className={cn("px-4 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center gap-2 flex-shrink-0 bg-gradient-to-t from-white via-white to-slate-50/80 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80 backdrop-blur-xl", keyboardVisible ? "py-1.5" : "py-3")} style={!keyboardVisible ? { paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' } : undefined}>
         <div className="flex-1 relative">
           <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder={isListening ? "Listening..." : "Ask Dika anything..."} disabled={isLoading} className={cn("pr-4 rounded-full bg-slate-100/80 dark:bg-slate-800/60 border-slate-200/60 dark:border-slate-700/40 focus:border-amber-400/60 focus:ring-amber-400/15 placeholder:text-slate-400/60 shadow-inner shadow-slate-200/30 dark:shadow-slate-900/20 transition-all duration-200", isListening && "border-red-400/60 animate-pulse")} inputMode="text" autoComplete="off" enterKeyHint="send" data-testid="input-dika-message" />
         </div>
