@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward } from "lucide-react";
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
@@ -942,6 +942,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const [selectedReorderDay, setSelectedReorderDay] = useState<number | null>(null);
   const [reorderAction, setReorderAction] = useState<"swap" | "push">("swap");
   const [isRestDayReorder, setIsRestDayReorder] = useState(false);
+  const [showRestDayDialog, setShowRestDayDialog] = useState(false);
   const { toast } = useToast();
   
   // Onboarding state
@@ -1033,6 +1034,25 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
     }
   });
   
+  const restTodayMutation = useMutation({
+    mutationFn: async (adjustPlan: "none" | "swap_next_rest" | "push_workout") => {
+      const res = await apiRequest("POST", "/api/workouts/rest-today", { adjustPlan });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setShowRestDayDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/workout/summary'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/workout/schedule'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/workout/missed'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/me/calendar/enhanced'] });
+      toast({ title: "Rest Day", description: data.message || "Enjoy your rest day!" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed", description: error.message || "Could not mark as rest day", variant: "destructive" });
+    }
+  });
+
   // Reorder workout mutation ("Do Another Workout" or "Workout Today" from rest day)
   const reorderMutation = useMutation({
     mutationFn: async (data: { cycleId: number; targetDayIndex: number; action: "swap" | "push"; isRestDayReorder?: boolean }) => {
@@ -1779,6 +1799,18 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                       Do a Different Workout
                     </Button>
                   )}
+
+                  {!allCompleted && !isRestDay && workoutData?.cycleId && (
+                    <Button 
+                      variant="ghost"
+                      className="w-full mt-1 text-muted-foreground"
+                      onClick={() => setShowRestDayDialog(true)}
+                      data-testid="button-take-rest-day"
+                    >
+                      <BedDouble className="w-4 h-4 mr-2" />
+                      Take Rest Day
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -1914,6 +1946,78 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
               {markDayDoneMutation.isPending ? "Marking..." : "Yes, Mark as Done"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRestDayDialog} onOpenChange={setShowRestDayDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BedDouble className="w-5 h-5 text-indigo-500" />
+              Take Rest Day
+            </DialogTitle>
+            <DialogDescription>
+              {dayLabel ? `Skip "${dayLabel}" today.` : "Skip today's workout."} How should we adjust your schedule?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <button
+              onClick={() => restTodayMutation.mutate("swap_next_rest")}
+              disabled={restTodayMutation.isPending}
+              className="w-full text-left p-3 rounded-lg border border-border bg-muted/30 hover-elevate transition-colors"
+              data-testid="button-rest-swap"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <ArrowRightLeft className="w-4 h-4 text-blue-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Swap with Next Rest Day</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Today's workout moves to the next rest day slot</p>
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => restTodayMutation.mutate("push_workout")}
+              disabled={restTodayMutation.isPending}
+              className="w-full text-left p-3 rounded-lg border border-border bg-muted/30 hover-elevate transition-colors"
+              data-testid="button-rest-push"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-500/10">
+                  <ChevronsRight className="w-4 h-4 text-amber-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Push Workout Forward</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Today's workout shifts to tomorrow, others move forward</p>
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => restTodayMutation.mutate("none")}
+              disabled={restTodayMutation.isPending}
+              className="w-full text-left p-3 rounded-lg border border-border bg-muted/30 hover-elevate transition-colors"
+              data-testid="button-rest-skip"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-slate-500/10">
+                  <SkipForward className="w-4 h-4 text-slate-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Just Skip Today</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Rest today, schedule stays the same</p>
+                </div>
+              </div>
+            </button>
+          </div>
+          {restTodayMutation.isPending && (
+            <div className="flex items-center justify-center gap-2 py-2 text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm">Updating schedule...</span>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
