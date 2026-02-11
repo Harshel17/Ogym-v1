@@ -140,6 +140,16 @@ export default function NutritionPage() {
   const [showRestaurantDropdown, setShowRestaurantDropdown] = useState(false);
   const [restaurantSuggestions, setRestaurantSuggestions] = useState<Array<{ name: string; category: string }>>([]);
   const [selectedModifiers, setSelectedModifiers] = useState<Set<number>>(new Set());
+  const [foodTypePresets, setFoodTypePresets] = useState<{
+    countUnit?: string;
+    countOptions?: number[];
+    defaultCount?: number;
+    sizeOptions?: { label: string; multiplier: number }[];
+    styleOptions?: string[];
+    foodType?: string;
+  } | null>(null);
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
+  const [selectedSizeMultiplier, setSelectedSizeMultiplier] = useState<number>(1);
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -240,6 +250,36 @@ export default function NutritionPage() {
     }
   });
 
+  useEffect(() => {
+    if (!selectedFood) {
+      setFoodTypePresets(null);
+      setSelectedStyle(null);
+      setSelectedSizeMultiplier(1);
+      return;
+    }
+    const fetchPresets = async () => {
+      try {
+        const res = await fetch(`/api/nutrition/food/type-presets?name=${encodeURIComponent(selectedFood.name)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.presets) {
+            setFoodTypePresets(data.presets);
+            setSelectedStyle(null);
+            setSelectedSizeMultiplier(1);
+            if (data.presets.defaultCount) {
+              setQuantity(String(data.presets.defaultCount));
+            }
+          } else {
+            setFoodTypePresets(null);
+          }
+        }
+      } catch {
+        setFoodTypePresets(null);
+      }
+    };
+    fetchPresets();
+  }, [selectedFood]);
+
   const resetAddFood = () => {
     setSearchQuery("");
     setSearchResults([]);
@@ -252,6 +292,9 @@ export default function NutritionPage() {
     setFoodMode("search");
     setRestaurantName("");
     setSelectedModifiers(new Set());
+    setFoodTypePresets(null);
+    setSelectedStyle(null);
+    setSelectedSizeMultiplier(1);
   };
 
   const openAddFoodForMeal = (mealType: string) => {
@@ -306,6 +349,8 @@ export default function NutritionPage() {
   const handleLogSelectedFood = () => {
     if (!selectedFood) return;
     const qty = parseFloat(quantity) || 1;
+    const sizeMult = foodTypePresets?.sizeOptions ? selectedSizeMultiplier : 1;
+    const effectiveQty = qty * sizeMult;
     if (restaurantName.trim()) {
       addRecentRestaurant(restaurantName.trim());
     }
@@ -315,12 +360,14 @@ export default function NutritionPage() {
     const modLabels = selectedFood.commonModifiers 
       ? Array.from(selectedModifiers).map(idx => selectedFood.commonModifiers![idx]?.label).filter(Boolean)
       : [];
-    const foodNameWithMods = modLabels.length > 0 
-      ? `${selectedFood.name} (${modLabels.join(', ')})`
+    const descriptors = [...modLabels];
+    if (selectedStyle) descriptors.push(selectedStyle);
+    const foodNameWithMods = descriptors.length > 0 
+      ? `${selectedFood.name} (${descriptors.join(', ')})`
       : selectedFood.name;
     const st = selectedFood.sourceType;
     const baseVerified = st === 'branded_database' || st === 'curated_database';
-    const hasModifiers = selectedModifiers.size > 0;
+    const hasModifiers = selectedModifiers.size > 0 || selectedStyle !== null;
     const finalIsEstimate = !baseVerified || hasModifiers;
     const finalSourceType = st || 'ai_estimated';
 
@@ -331,11 +378,11 @@ export default function NutritionPage() {
       foodName: foodNameWithMods,
       brandName: selectedFood.brandName || restaurantName.trim() || undefined,
       servingSize: selectedFood.servingSize,
-      quantity: qty,
-      calories: Math.max(0, Math.round((selectedFood.nutrients.calories + modCalories) * qty)),
-      protein: selectedFood.nutrients.protein ? Math.round(selectedFood.nutrients.protein * qty) : null,
-      carbs: selectedFood.nutrients.carbs ? Math.round(selectedFood.nutrients.carbs * qty) : null,
-      fat: selectedFood.nutrients.fat ? Math.round(selectedFood.nutrients.fat * qty) : null,
+      quantity: effectiveQty,
+      calories: Math.max(0, Math.round((selectedFood.nutrients.calories + modCalories) * effectiveQty)),
+      protein: selectedFood.nutrients.protein ? Math.round(selectedFood.nutrients.protein * effectiveQty) : null,
+      carbs: selectedFood.nutrients.carbs ? Math.round(selectedFood.nutrients.carbs * effectiveQty) : null,
+      fat: selectedFood.nutrients.fat ? Math.round(selectedFood.nutrients.fat * effectiveQty) : null,
       barcode: selectedFood.barcode || null,
       isEstimate: finalIsEstimate,
       sourceType: finalSourceType,
@@ -1456,17 +1503,118 @@ export default function NutritionPage() {
                 </Button>
               </div>
 
-              <div>
-                <Label>Quantity (servings)</Label>
-                <Input
-                  type="number"
-                  min="0.25"
-                  step="0.25"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  data-testid="input-quantity"
-                />
-              </div>
+              {foodTypePresets ? (
+                <div className="space-y-3">
+                  {(foodTypePresets.countOptions && foodTypePresets.countUnit) && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">
+                        How many {foodTypePresets.countUnit}?
+                      </Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {foodTypePresets.countOptions.map((count) => {
+                          const isActive = String(count) === quantity;
+                          return (
+                            <Badge
+                              key={count}
+                              variant={isActive ? "default" : "outline"}
+                              className={`cursor-pointer text-xs toggle-elevate ${isActive ? 'toggle-elevated' : ''}`}
+                              onClick={() => setQuantity(String(count))}
+                              data-testid={`button-count-${count}`}
+                            >
+                              {count}
+                            </Badge>
+                          );
+                        })}
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            min="0.5"
+                            step="0.5"
+                            value={quantity}
+                            onChange={(e) => setQuantity(e.target.value)}
+                            className="w-16 h-7 text-xs text-center"
+                            data-testid="input-quantity-custom"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {foodTypePresets.sizeOptions && foodTypePresets.sizeOptions.length > 0 && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Size</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {foodTypePresets.sizeOptions.map((size, idx) => {
+                          const isActive = selectedSizeMultiplier === size.multiplier;
+                          return (
+                            <Badge
+                              key={idx}
+                              variant={isActive ? "default" : "outline"}
+                              className={`cursor-pointer text-xs toggle-elevate ${isActive ? 'toggle-elevated' : ''}`}
+                              onClick={() => setSelectedSizeMultiplier(size.multiplier)}
+                              data-testid={`button-size-${idx}`}
+                            >
+                              {size.label}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {foodTypePresets.styleOptions && foodTypePresets.styleOptions.length > 0 && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Type / Style</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {foodTypePresets.styleOptions.map((style, idx) => {
+                          const isActive = selectedStyle === style;
+                          return (
+                            <Badge
+                              key={idx}
+                              variant={isActive ? "default" : "outline"}
+                              className={`cursor-pointer text-xs toggle-elevate ${isActive ? 'toggle-elevated' : ''}`}
+                              onClick={() => setSelectedStyle(isActive ? null : style)}
+                              data-testid={`button-style-${idx}`}
+                            >
+                              {style}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {!foodTypePresets.countOptions && !foodTypePresets.sizeOptions && (
+                    <div>
+                      <Label>Quantity (servings)</Label>
+                      <Input
+                        type="number"
+                        min="0.25"
+                        step="0.25"
+                        value={quantity}
+                        onChange={(e) => setQuantity(e.target.value)}
+                        data-testid="input-quantity"
+                      />
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-muted-foreground italic">
+                    More detail = more accurate results
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <Label>Quantity (servings)</Label>
+                  <Input
+                    type="number"
+                    min="0.25"
+                    step="0.25"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    data-testid="input-quantity"
+                  />
+                </div>
+              )}
 
               {selectedFood.commonModifiers && selectedFood.commonModifiers.length > 0 && (
                 <div>
@@ -1499,10 +1647,12 @@ export default function NutritionPage() {
 
               {(() => {
                 const qty = parseFloat(quantity) || 1;
+                const sizeMult = foodTypePresets?.sizeOptions ? selectedSizeMultiplier : 1;
+                const effectiveQty = qty * sizeMult;
                 const modCalories = selectedFood.commonModifiers 
                   ? Array.from(selectedModifiers).reduce((sum, idx) => sum + (selectedFood.commonModifiers![idx]?.calorieDelta || 0), 0)
                   : 0;
-                const adjustedCals = Math.max(0, Math.round((selectedFood.nutrients.calories + modCalories) * qty));
+                const adjustedCals = Math.max(0, Math.round((selectedFood.nutrients.calories + modCalories) * effectiveQty));
                 return (
               <div className="grid grid-cols-4 gap-2 text-center text-sm">
                 <div className="p-2 bg-muted rounded">
@@ -1510,15 +1660,15 @@ export default function NutritionPage() {
                   <div className="text-muted-foreground">Cal</div>
                 </div>
                 <div className="p-2 bg-muted rounded">
-                  <div className="font-medium">{Math.round((selectedFood.nutrients.protein || 0) * qty)}g</div>
+                  <div className="font-medium">{Math.round((selectedFood.nutrients.protein || 0) * effectiveQty)}g</div>
                   <div className="text-muted-foreground">Protein</div>
                 </div>
                 <div className="p-2 bg-muted rounded">
-                  <div className="font-medium">{Math.round((selectedFood.nutrients.carbs || 0) * qty)}g</div>
+                  <div className="font-medium">{Math.round((selectedFood.nutrients.carbs || 0) * effectiveQty)}g</div>
                   <div className="text-muted-foreground">Carbs</div>
                 </div>
                 <div className="p-2 bg-muted rounded">
-                  <div className="font-medium">{Math.round((selectedFood.nutrients.fat || 0) * qty)}g</div>
+                  <div className="font-medium">{Math.round((selectedFood.nutrients.fat || 0) * effectiveQty)}g</div>
                   <div className="text-muted-foreground">Fat</div>
                 </div>
               </div>

@@ -4124,6 +4124,20 @@ Return ONLY the JSON, no explanation.`;
     }
   });
 
+  app.get("/api/nutrition/food/type-presets", requireRole(["member"]), async (req, res) => {
+    const foodName = req.query.name as string;
+    if (!foodName) {
+      return res.json({ presets: null });
+    }
+    try {
+      const { getServingPresetsForFood } = await import("./nutrition/food-type-intelligence");
+      const presets = getServingPresetsForFood(foodName);
+      res.json({ presets });
+    } catch (error) {
+      res.json({ presets: null });
+    }
+  });
+
   app.post("/api/nutrition/food/restaurant-search", requireRole(["member"]), async (req, res) => {
     const schema = z.object({
       restaurant: z.string().min(2).max(100),

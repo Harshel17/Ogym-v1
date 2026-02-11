@@ -19,6 +19,7 @@ import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
 import { detectWorkoutGenerationRequest, generateWorkoutPlan } from "./workout-generator";
 import { detectMealLogRequest, parseMealFromMessage, logMealForUser, getTodayNutritionSummary, formatMealLogResponse, detectRestaurantInMessage, looksLikeRestaurantFood } from "./meal-logger";
+import { detectFoodType, hasQuantityInMessage, buildSmartFollowUp, generateFollowUpChips as generateFoodTypeChips } from "../nutrition/food-type-intelligence";
 import { detectOwnerAction, processOwnerAction, OwnerActionType, detectSupportTicketRequest, processSupportTicketAction, detectOngoingSupportTicketFlow } from "./owner-actions";
 import { detectWeeklyReportRequest, generateWeeklyReport, formatWeeklyReportResponse } from "./weekly-report";
 
@@ -81,6 +82,48 @@ function detectPendingMealFromHistory(
       }
     }
     return prevMsg.content;
+  }
+  return null;
+}
+
+function detectPendingFoodTypeFollowUp(
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+): { originalFood: string; mealType?: string } | null {
+  if (!conversationHistory || conversationHistory.length < 2) return null;
+  
+  const recentMessages = conversationHistory.slice(-6);
+  
+  for (let i = recentMessages.length - 1; i >= 0; i--) {
+    const msg = recentMessages[i];
+    if (msg.role !== 'assistant') continue;
+    
+    const isFoodTypeQuestion = msg.content.includes('More detail = more accurate calories') ||
+      msg.content.includes('How many') && msg.content.includes('get the calories right');
+    
+    if (!isFoodTypeQuestion) continue;
+    
+    for (let j = i - 1; j >= 0; j--) {
+      const prevMsg = recentMessages[j];
+      if (prevMsg.role !== 'user') continue;
+      
+      const mealPatterns = [
+        /\bi (?:had|ate|just had|just ate|consumed|grabbed|got)\s+(?:a|an|some|the)?\s*(.+)/i,
+        /\b(?:had|ate|got)\s+(?:a|an|some|the)?\s*(.+)/i,
+        /(?:for\s+(?:breakfast|lunch|dinner|snack)[,:]?\s*)(.+)/i,
+      ];
+      
+      for (const pattern of mealPatterns) {
+        const match = prevMsg.content.match(pattern);
+        if (match) {
+          const mealTypeMatch = prevMsg.content.match(/(?:breakfast|lunch|dinner|snack)/i);
+          return { 
+            originalFood: match[1].trim(),
+            mealType: mealTypeMatch ? mealTypeMatch[0].toLowerCase() : undefined,
+          };
+        }
+      }
+      return { originalFood: prevMsg.content.trim() };
+    }
   }
   return null;
 }
@@ -896,13 +939,72 @@ export async function processWithAI(
     }
   }
 
+  if (role === 'member') {
+    const pendingFoodType = detectPendingFoodTypeFollowUp(conversationHistory);
+    if (pendingFoodType) {
+      try {
+        const combinedMessage = `I ate ${pendingFoodType.originalFood}, ${message}`;
+        const detectedRestaurant = detectRestaurantInMessage(combinedMessage);
+        const parsedMeal = await parseMealFromMessage(combinedMessage, detectedRestaurant || undefined);
+        if (parsedMeal && parsedMeal.items.length > 0) {
+          const { logged } = await logMealForUser(userId, parsedMeal, localDate);
+          if (logged) {
+            const nutritionSummary = await getTodayNutritionSummary(userId, localDate);
+            const answer = formatMealLogResponse(parsedMeal, nutritionSummary);
+            const followUpChips = [
+              'How many calories left today?',
+              'Log another meal',
+              'My nutrition summary'
+            ];
+            return { answer, followUpChips };
+          }
+        }
+      } catch (error) {
+        console.error('Food type follow-up logging failed:', error);
+      }
+    }
+  }
+
   if (role === 'member' && detectMealLogRequest(message)) {
     try {
       const detectedRestaurant = detectRestaurantInMessage(message);
       const isRestaurantFood = looksLikeRestaurantFood(message);
+      const foodType = detectFoodType(message);
+      const userGaveDetails = hasQuantityInMessage(message);
+
+      if (foodType && !userGaveDetails) {
+        let followUpParts: string[] = [];
+        followUpParts.push(`Before I log that, a quick question to get the calories right:\n`);
+
+        const questionParts: string[] = [];
+
+        if (foodType.type === "countable" || foodType.type === "sliced") {
+          questionParts.push(`**How many ${foodType.countUnit}?** (${foodType.countOptions.join(", ")})`);
+        }
+        if (foodType.sizeOptions && foodType.sizeOptions.length > 0) {
+          const sizeLabels = foodType.sizeOptions.map(s => s.label);
+          questionParts.push(`**Size?** (${sizeLabels.join(" / ")})`);
+        }
+        if (foodType.type === "portioned" && !foodType.sizeOptions) {
+          questionParts.push(`**How much?** (half / 1 bowl / 1 plate)`);
+        }
+        if (foodType.styleOptions && foodType.styleOptions.length > 0) {
+          questionParts.push(`**Type/style?** (${foodType.styleOptions.slice(0, 5).join(", ")})`);
+        }
+        if (!detectedRestaurant && isRestaurantFood) {
+          questionParts.push(`**Restaurant?** (e.g., Dominos, homemade)`);
+        }
+
+        followUpParts.push(questionParts.join("\n"));
+        followUpParts.push(`\n*Tip: More detail = more accurate calories. Answer what you can, I'll estimate the rest!*`);
+
+        const answer = followUpParts.join("\n");
+        const chips = generateFoodTypeChips(foodType);
+        return { answer, followUpChips: chips };
+      }
       
-      if (!detectedRestaurant && isRestaurantFood) {
-        const answer = `Before I log that, a quick question to get the calories right:\n\n**Which restaurant was this from?** And any extra sauces, toppings, or modifications?\n\nFor example: "Whataburger, no mayo" or "just homemade"\n\nThis helps me use the exact restaurant nutrition data instead of a generic estimate.`;
+      if (!detectedRestaurant && isRestaurantFood && !foodType) {
+        const answer = `Before I log that, a quick question to get the calories right:\n\n**Which restaurant was this from?** And any extra sauces, toppings, or modifications?\n\nFor example: "Whataburger, no mayo" or "just homemade"\n\n*Tip: More detail = more accurate calories. Answer what you can, I'll estimate the rest!*`;
         const followUpChips = [
           'Just homemade',
           'McDonald\'s',
