@@ -657,11 +657,12 @@ function DikaPageInner({ userId }: { userId: number }) {
                   <>
                     {(() => {
                       const mealLog = extractMealLogFromContent(message.content);
-                      const actionData = extractActionFromContent(message.content);
+                      const rawActionData = extractActionFromContent(message.content);
+                      const actionData = (rawActionData && isNative() && isIOS() && rawActionData.actionType === 'log_payment') ? null : rawActionData;
                       const weeklyReport = extractWeeklyReportFromContent(message.content);
                       let displayContent = message.content;
                       if (mealLog) displayContent = stripMealLogTag(displayContent);
-                      if (actionData) displayContent = stripActionTag(displayContent);
+                      if (rawActionData) displayContent = stripActionTag(displayContent);
                       if (weeklyReport) displayContent = stripWeeklyReportTag(displayContent);
                       return (
                         <>
