@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dumbbell, TrendingUp, Calendar, Users, ClipboardList, CreditCard, Building2, BarChart3, Target, ChevronLeft, ChevronRight, Check, Brain, Sparkles } from "lucide-react";
+import { isNative, isIOS } from "@/lib/capacitor-init";
 
 interface Slide {
   icon: typeof Dumbbell;
@@ -270,6 +271,27 @@ const ownerSlides: Slide[] = [
   }
 ];
 
+const ownerSlidesIOS: Slide[] = [
+  {
+    icon: Building2,
+    title: "Your Gym, Your Way",
+    description: "Invite trainers with a simple code, register members in seconds, and control everything from one place. Running a gym has never been this smooth!",
+    color: "primary"
+  },
+  {
+    icon: Users,
+    title: "Manage Your Team",
+    description: "Track attendance patterns, assign trainers to members, and keep everyone on the same page with announcements and updates.",
+    color: "green"
+  },
+  {
+    icon: Brain,
+    title: "AI-Powered Assistant",
+    description: "Meet Dika, your AI assistant that helps you manage members, track attendance, and stay on top of your gym operations effortlessly!",
+    color: "purple"
+  }
+];
+
 export function MemberOnboarding({ onComplete }: { onComplete: () => void }) {
   return <OnboardingCarousel slides={memberSlides} onComplete={onComplete} />;
 }
@@ -283,5 +305,6 @@ export function TrainerOnboarding({ onComplete }: { onComplete: () => void }) {
 }
 
 export function OwnerOnboarding({ onComplete }: { onComplete: () => void }) {
-  return <OnboardingCarousel slides={ownerSlides} onComplete={onComplete} />;
+  const slides = (isNative() && isIOS()) ? ownerSlidesIOS : ownerSlides;
+  return <OnboardingCarousel slides={slides} onComplete={onComplete} />;
 }

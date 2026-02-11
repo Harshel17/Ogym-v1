@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { format, parseISO } from "date-fns";
 import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { isNative, isIOS } from "@/lib/capacitor-init";
 
 type MemberProfile = {
   id: number;
@@ -100,6 +101,7 @@ export default function OwnerMemberDetailPage() {
   const memberId = parseInt(params.memberId || "0");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const { format: formatMoney } = useGymCurrency();
+  const isIOSNativeApp = isNative() && isIOS();
 
   const { data: profile, isLoading: profileLoading, error: profileError } = useQuery<MemberProfile>({
     queryKey: ["/api/owner/members", memberId, "profile"],
@@ -187,7 +189,7 @@ export default function OwnerMemberDetailPage() {
       <Tabs defaultValue="profile" className="w-full">
         <TabsList>
           <TabsTrigger value="profile" data-testid="tab-profile">Profile</TabsTrigger>
-          <TabsTrigger value="payments" data-testid="tab-payments">Payments</TabsTrigger>
+          {!isIOSNativeApp && <TabsTrigger value="payments" data-testid="tab-payments">Payments</TabsTrigger>}
           <TabsTrigger value="workouts" data-testid="tab-workouts">Workouts</TabsTrigger>
           <TabsTrigger value="stats" data-testid="tab-stats">Stats</TabsTrigger>
         </TabsList>
@@ -232,7 +234,7 @@ export default function OwnerMemberDetailPage() {
                     {profile?.membershipStatus === 'active' ? 'Active' : profile?.membershipStatus === 'expired' ? 'Expired' : 'Inactive'}
                   </Badge>
                 </div>
-                {profile?.subscriptionEndDate && (
+                {profile?.subscriptionEndDate && !isIOSNativeApp && (
                   <div>
                     <p className="text-sm text-muted-foreground">Expires On</p>
                     <p className="font-medium" data-testid="text-expires-on">

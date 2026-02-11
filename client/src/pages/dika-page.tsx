@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { useTrainingMode } from '@/hooks/use-gym';
+import { isNative, isIOS } from '@/lib/capacitor-init';
 import { useDikaPage } from '@/hooks/use-dika';
 import type { ReactNode } from 'react';
 
@@ -622,7 +623,7 @@ function DikaPageInner({ userId }: { userId: number }) {
               </div>
             </div>
             <h3 className="text-lg font-semibold mb-1.5 text-slate-800 dark:text-slate-100 tracking-tight">How can I help you today?</h3>
-            <p className="text-[13px] text-slate-400 dark:text-slate-500 mb-8 max-w-[260px] mx-auto leading-relaxed">Workouts, nutrition, attendance, payments and more</p>
+            <p className="text-[13px] text-slate-400 dark:text-slate-500 mb-8 max-w-[260px] mx-auto leading-relaxed">{isNative() && isIOS() ? "Workouts, nutrition, attendance and more" : "Workouts, nutrition, attendance, payments and more"}</p>
             {suggestions.length > 0 && (
               <div className="space-y-3">
                 <p className="text-[10px] text-slate-400/70 dark:text-slate-500/70 uppercase tracking-[0.15em] font-medium">Try asking</p>

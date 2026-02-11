@@ -11,6 +11,9 @@ import {
   Sparkles, type LucideIcon
 } from "lucide-react";
 import { RoboDIcon } from "@/components/dika/dika-icons";
+import { isNative, isIOS } from "@/lib/capacitor-init";
+
+const IOS_BLOCKED_OWNER_TIPS = ["owner-dika", "owner-walkin", "owner-followups", "owner-transfers", "owner-ai-insights"];
 
 interface FeatureTip {
   id: string;
@@ -297,10 +300,14 @@ function dismissTip(role: string, tipId: string) {
 }
 
 export function FeatureDiscoveryTips({ role, isPersonalMode }: { role: string; isPersonalMode?: boolean }) {
-  const allTips = role === "owner" ? ownerTips 
+  const isIOSNativeApp = isNative() && isIOS();
+  const baseTips = role === "owner" ? ownerTips 
     : role === "trainer" ? trainerTips 
     : isPersonalMode ? personalModeTips 
     : memberTips;
+  const allTips = (role === "owner" && isIOSNativeApp)
+    ? baseTips.filter(t => !IOS_BLOCKED_OWNER_TIPS.includes(t.id))
+    : baseTips;
 
   const roleKey = isPersonalMode ? "personal" : role;
   const [dismissed, setDismissed] = useState<string[]>(() => getDismissedTips(roleKey));

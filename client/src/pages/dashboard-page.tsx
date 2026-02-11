@@ -585,7 +585,7 @@ function OwnerDashboard() {
       )}
 
       {/* AI Insights Summary */}
-      {aiInsights && (
+      {aiInsights && !isIOSNativeApp && (
         <Card className="bg-gradient-to-br from-purple-500/5 via-transparent to-indigo-500/5">
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">

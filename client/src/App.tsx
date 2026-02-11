@@ -338,7 +338,7 @@ function Router() {
       </Route>
 
       <Route path="/owner/ai-insights">
-        <ProtectedRoute component={OwnerAiInsightsPage} requiredRole="owner" />
+        <ProtectedRoute component={OwnerAiInsightsPage} requiredRole="owner" blockOnIOSOwner />
       </Route>
 
       <Route path="/owner/automated-emails">

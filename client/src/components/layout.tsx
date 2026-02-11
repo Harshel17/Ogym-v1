@@ -279,7 +279,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "AI Insights", 
       href: "/owner/ai-insights", 
       icon: Brain,
-      visible: isOwner && hasGym,
+      visible: isOwner && hasGym && !isIOSNativeApp,
       badge: 0
     },
     { 
@@ -359,7 +359,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             { label: "Follow-ups", href: "/owner/follow-ups", icon: PhoneCall },
           ] : []),
           { label: "Self Check-in", href: "/owner/kiosk", icon: QrCode },
-          { label: "AI Insights", href: "/owner/ai-insights", icon: Brain },
+          ...(!isIOSNativeApp ? [{ label: "AI Insights", href: "/owner/ai-insights", icon: Brain }] : []),
           ...(!isIOSNativeApp ? [{ label: "Auto Emails", href: "/owner/automated-emails", icon: MailCheck }] : []),
           { label: "Feed", href: "/feed", icon: Activity },
           { label: "Tournaments", href: "/tournaments", icon: Trophy },
@@ -372,11 +372,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
     }
     if (isOwner && !hasGym) {
       return {
-        primary: [
-          { label: "Register", href: "/gym-request", icon: Building2 },
-          { label: "Help", href: "/help", icon: HelpCircle },
-          { label: "Profile", href: "/profile", icon: UserCircle },
-        ],
+        primary: isIOSNativeApp
+          ? [
+              { label: "Help", href: "/help", icon: HelpCircle },
+              { label: "Profile", href: "/profile", icon: UserCircle },
+            ]
+          : [
+              { label: "Register", href: "/gym-request", icon: Building2 },
+              { label: "Help", href: "/help", icon: HelpCircle },
+              { label: "Profile", href: "/profile", icon: UserCircle },
+            ],
         secondary: [
           { label: "Support", href: "/support", icon: MessageSquare },
         ]

@@ -40,6 +40,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { isNative, isIOS } from "@/lib/capacitor-init";
 
 type MemberDetail = {
   id: number;
@@ -65,6 +66,7 @@ export default function MembersPage() {
   const [selectedMemberName, setSelectedMemberName] = useState<string>("");
   
   const isOwner = user?.role === "owner";
+  const isIOSNativeApp = isNative() && isIOS();
   const isTrainer = user?.role === "trainer";
   
   const { data: ownerMembersDetails = [], isLoading: ownerLoading } = useMembersDetails();
@@ -125,8 +127,8 @@ export default function MembersPage() {
 
   const isNewMemberCheck = (m: any) => {
     const hasTrainer = !!m.trainerName;
+    if (isIOSNativeApp) return !hasTrainer;
     const hasAnySubscription = !!m.subscriptionEndDate;
-    
     return !hasTrainer || !hasAnySubscription;
   };
 
@@ -219,7 +221,9 @@ export default function MembersPage() {
                 <div>
                   <h4 className="font-medium text-sm">Members Need Attention</h4>
                   <p className="text-sm text-muted-foreground mt-1">
-                    These members need a trainer assigned or don't have a subscription set up yet. Click on a member row to view details.
+                    {isIOSNativeApp 
+                      ? "These members need a trainer assigned. Click on a member row to view details."
+                      : "These members need a trainer assigned or don't have a subscription set up yet. Click on a member row to view details."}
                   </p>
                 </div>
               </div>
@@ -252,6 +256,10 @@ export default function MembersPage() {
                   "View assigned members and their workout progress",
                   "Create personalized workout programs",
                   "Track attendance and engagement",
+                ] : isIOSNativeApp ? [
+                  "Add members individually or share your gym code",
+                  "Assign trainers to members",
+                  "Track attendance and workout progress",
                 ] : [
                   "Add members individually or share your gym code",
                   "Assign trainers and manage subscriptions",
@@ -271,7 +279,7 @@ export default function MembersPage() {
               filteredMembers.map((member: any) => {
                 const isStar = starMemberIds.has(member.id);
                 const isPendingThis = pendingStarId === member.id;
-                const needsAttention = isOwner && (!member.trainerName || !member.subscriptionEndDate);
+                const needsAttention = isOwner && (!member.trainerName || (!isIOSNativeApp && !member.subscriptionEndDate));
                 
                 return (
                   <div
@@ -313,15 +321,17 @@ export default function MembersPage() {
                               </div>
                             </div>
                             
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 text-sm">
-                                <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                                <span className={!member.subscriptionEndDate ? "text-orange-500 text-xs" : "text-muted-foreground"}>
-                                  {member.subscriptionEndDate || "No subscription"}
-                                </span>
+                            {!isIOSNativeApp && (
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 text-sm">
+                                  <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                                  <span className={!member.subscriptionEndDate ? "text-orange-500 text-xs" : "text-muted-foreground"}>
+                                    {member.subscriptionEndDate || "No subscription"}
+                                  </span>
+                                </div>
+                                <PaymentBadge status={member.paymentStatus} />
                               </div>
-                              <PaymentBadge status={member.paymentStatus} />
-                            </div>
+                            )}
                           </div>
                         )}
                         
@@ -369,8 +379,8 @@ export default function MembersPage() {
                   {isTrainer && <TableHead className="w-12">Star</TableHead>}
                   <TableHead>Name</TableHead>
                   {isOwner && <TableHead>Trainer</TableHead>}
-                  {isOwner && <TableHead>Subscription End</TableHead>}
-                  {isOwner && <TableHead>Payment</TableHead>}
+                  {isOwner && !isIOSNativeApp && <TableHead>Subscription End</TableHead>}
+                  {isOwner && !isIOSNativeApp && <TableHead>Payment</TableHead>}
                   <TableHead>Joined</TableHead>
                   {isOwner && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
@@ -386,7 +396,7 @@ export default function MembersPage() {
                       {isTrainer 
                         ? "No members assigned to you yet." 
                         : isOwner && ownerTab === "new"
-                          ? "All members have trainers assigned and payments set up."
+                          ? (isIOSNativeApp ? "All members have trainers assigned." : "All members have trainers assigned and payments set up.")
                           : "No members found."}
                     </TableCell>
                   </TableRow>
@@ -455,7 +465,7 @@ export default function MembersPage() {
                           )}
                         </TableCell>
                       )}
-                      {isOwner && (
+                      {isOwner && !isIOSNativeApp && (
                         <TableCell>
                           {member.subscriptionEndDate ? (
                             <span className="text-sm">{member.subscriptionEndDate}</span>
@@ -464,7 +474,7 @@ export default function MembersPage() {
                           )}
                         </TableCell>
                       )}
-                      {isOwner && (
+                      {isOwner && !isIOSNativeApp && (
                         <TableCell>
                           <PaymentBadge status={member.paymentStatus} />
                         </TableCell>

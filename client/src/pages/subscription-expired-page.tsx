@@ -2,9 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Mail, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { isNative, isIOS } from "@/lib/capacitor-init";
 
 export default function SubscriptionExpiredPage() {
   const { user, logoutMutation } = useAuth();
+  const isIOSNativeApp = isNative() && isIOS();
 
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -17,22 +19,26 @@ export default function SubscriptionExpiredPage() {
           <div className="mx-auto w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
             <AlertTriangle className="w-8 h-8 text-destructive" />
           </div>
-          <CardTitle className="text-xl">Subscription Expired</CardTitle>
+          <CardTitle className="text-xl" data-testid="text-subscription-expired-title">
+            {isIOSNativeApp ? "Access Temporarily Unavailable" : "Subscription Expired"}
+          </CardTitle>
           <CardDescription>
-            Your gym's subscription has expired. Access to the app is temporarily disabled.
+            {isIOSNativeApp
+              ? "Your gym's access has been temporarily disabled. Please contact your gym administrator or OGym support."
+              : "Your gym's subscription has expired. Access to the app is temporarily disabled."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
             <p className="text-sm font-medium">What this means:</p>
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• You and your gym members cannot access the app</li>
-              <li>• Your data is safe and will be restored when renewed</li>
-              <li>• Please contact OGym support to renew your subscription</li>
+              <li>• Access to the app is temporarily paused</li>
+              <li>• Your data is safe and will be restored</li>
+              <li>• Please contact OGym support for assistance</li>
             </ul>
           </div>
 
-          {user?.role === "owner" ? (
+          {user?.role === "owner" && !isIOSNativeApp ? (
             <div className="space-y-3">
               <p className="text-sm font-medium text-center">Contact OGym to renew:</p>
               <div className="flex flex-col gap-2">
@@ -54,11 +60,22 @@ export default function SubscriptionExpiredPage() {
                 </a>
               </div>
             </div>
-          ) : (
+          ) : user?.role !== "owner" ? (
             <div className="text-center">
               <p className="text-sm text-muted-foreground">
                 Please contact your gym owner to renew the subscription.
               </p>
+            </div>
+          ) : (
+            <div className="text-center">
+              <a 
+                href="mailto:support@ogym.fitness"
+                className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                data-testid="link-email-support"
+              >
+                <Mail className="w-4 h-4" />
+                Contact support: support@ogym.fitness
+              </a>
             </div>
           )}
 
