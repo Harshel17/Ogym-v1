@@ -28,7 +28,7 @@ export interface ParsedMeal {
 }
 
 const MEAL_LOG_PATTERNS = [
-  /i (?:had|ate|just had|just ate|consumed|grabbed|took|drank|drink)\b/i,
+  /i (?:had|have|ate|just had|just ate|consumed|grabbed|took|drank|drink|having|got|gotten|eaten)\b/i,
   /(?:log|track|add|record|save)\s+(?:my\s+)?(?:meal|food|breakfast|lunch|dinner|snack|what i (?:had|ate))/i,
   /(?:for\s+)?(?:breakfast|lunch|dinner|snack|snak|brekfast|lnch)\s+(?:i\s+)?(?:had|ate|was)/i,
   /(?:breakfast|lunch|dinner|snack|snak|brekfast|lnch)\s*(?::|was|is)\s+/i,
@@ -56,6 +56,11 @@ export function detectMealLogRequest(message: string): boolean {
     'what to eat',
     'should i eat',
     'can i eat',
+    'have a question',
+    'have question',
+    'got a question',
+    'need help',
+    'help me',
   ];
   if (nonMealKeywords.some(kw => lower.includes(kw))) return false;
 
