@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { isNative, isIOS } from "@/lib/capacitor-init";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -537,7 +538,7 @@ function OwnerProfileView() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">Owner Profile</h2>
+        <h2 className="text-3xl font-bold font-display text-foreground">{isNative() && isIOS() ? "Profile" : "Owner Profile"}</h2>
         <p className="text-muted-foreground mt-1">Manage your account and gym details.</p>
       </div>
 
@@ -568,7 +569,7 @@ function OwnerProfileView() {
         </Card>
       )}
 
-      {gymSubscription && (
+      {gymSubscription && !(isNative() && isIOS()) && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -781,8 +782,8 @@ function OwnerProfileView() {
           </Card>
         )}
 
-        <OwnerPaymentSettings />
-        <PaymentConfirmationsDashboard />
+        {!(isNative() && isIOS()) && <OwnerPaymentSettings />}
+        {!(isNative() && isIOS()) && <PaymentConfirmationsDashboard />}
         <DikaSettingsCard />
         <NotificationSettingsCard />
         <PrivacyPolicyCard />

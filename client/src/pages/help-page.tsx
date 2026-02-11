@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { isNative, isIOS } from "@/lib/capacitor-init";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -945,11 +946,20 @@ export default function HelpPage() {
   let roleDescription: string;
   let roleIcon: typeof Dumbbell;
 
+  const isIOSNativeApp = isNative() && isIOS();
+
   if (user?.role === 'owner') {
-    features = ownerFeatures;
-    roleTitle = "Gym Owner Guide";
-    roleDescription = "Everything you need to manage and grow your gym business.";
-    roleIcon = Building2;
+    if (isIOSNativeApp) {
+      features = ownerFeatures.filter(f => !['payments', 'walkins', 'analytics'].includes(f.id));
+      roleTitle = "Gym Guide";
+      roleDescription = "Manage your gym's attendance and members.";
+      roleIcon = Building2;
+    } else {
+      features = ownerFeatures;
+      roleTitle = "Gym Owner Guide";
+      roleDescription = "Everything you need to manage and grow your gym business.";
+      roleIcon = Building2;
+    }
   } else if (user?.role === 'trainer') {
     features = trainerFeatures;
     roleTitle = "Trainer Guide";
