@@ -93,8 +93,13 @@ export async function initializeCapacitor() {
 
   try {
     const { Keyboard } = await import('@capacitor/keyboard');
-    await Keyboard.setResizeMode({ mode: 'none' as any });
-    console.log('Capacitor Keyboard resize mode set to none');
+    if (platform === 'ios') {
+      await Keyboard.setResizeMode({ mode: 'none' as any });
+      console.log('iOS: Keyboard resize mode set to none');
+    } else {
+      await Keyboard.setResizeMode({ mode: 'native' as any });
+      console.log('Android: Keyboard resize mode set to native');
+    }
   } catch (error) {
     console.error('Failed to configure Keyboard:', error);
   }

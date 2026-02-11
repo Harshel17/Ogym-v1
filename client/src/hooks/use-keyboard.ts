@@ -65,6 +65,17 @@ export function useKeyboardHeight() {
   return keyboardHeight;
 }
 
+function getPlatformName(): string {
+  try {
+    const w = window as any;
+    if (w.Capacitor && w.Capacitor.getPlatform) return w.Capacitor.getPlatform();
+  } catch {}
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('android')) return 'android';
+  if (ua.includes('iphone') || ua.includes('ipad')) return 'ios';
+  return 'web';
+}
+
 export function useVisualViewportHeight() {
   const [height, setHeight] = useState<number | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -72,11 +83,42 @@ export function useVisualViewportHeight() {
 
   useEffect(() => {
     const native = isNativePlatform();
+    const platform = getPlatformName();
+    const isAndroid = platform === 'android';
 
     if (native) {
       let showHandle: any;
       let hideHandle: any;
       
+      if (isAndroid) {
+        const handleResize = () => {
+          const viewport = window.visualViewport;
+          const viewH = viewport ? viewport.height : window.innerHeight;
+          const windowH = window.screen.height;
+          const diff = windowH - viewH;
+          if (diff > 150) {
+            setKeyboardVisible(true);
+            setHeight(viewH);
+          } else {
+            setKeyboardVisible(false);
+            setHeight(null);
+          }
+        };
+        
+        const viewport = window.visualViewport;
+        if (viewport) {
+          viewport.addEventListener('resize', handleResize);
+          window.addEventListener('resize', handleResize);
+          return () => {
+            viewport.removeEventListener('resize', handleResize);
+            window.removeEventListener('resize', handleResize);
+          };
+        }
+        
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+      }
+
       import('@capacitor/keyboard').then(({ Keyboard }) => {
         Keyboard.addListener('keyboardWillShow', (info) => {
           setKeyboardVisible(true);

@@ -100,6 +100,16 @@ html.capacitor-native body[data-scroll-locked] {
     margin-top: calc(-1 * var(--cached-safe-top, env(safe-area-inset-top, 0px)) - 8px) !important;
     padding-top: 0 !important;
   }
+  .is-android .dika-full-height {
+    height: calc(100dvh - var(--tabbar-total-h, 3.5rem));
+    margin-top: -8px !important;
+    padding-top: 0 !important;
+  }
+  .is-android .dika-full-height-kb {
+    height: 100%;
+    margin-top: -8px !important;
+    padding-top: 0 !important;
+  }
 }
 
 /* Main app scroll container */
