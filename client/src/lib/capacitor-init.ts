@@ -46,6 +46,34 @@ export async function refreshStatusBar() {
   await updateStatusBarForTheme(isDark);
 }
 
+function setAndroidSafeAreaTop() {
+  const platform = getPlatform();
+  if (platform !== 'android') return;
+
+  const existing = getComputedStyle(document.documentElement).getPropertyValue('--cached-safe-top').trim();
+  if (existing && existing !== '0px' && existing !== '') return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const screenTop = (window.screen as any).availTop || 0;
+  let statusBarHeight = 0;
+
+  if (screenTop > 0) {
+    statusBarHeight = screenTop;
+  } else {
+    statusBarHeight = Math.round(24 * dpr) / dpr;
+    if (window.innerHeight < window.screen.height) {
+      statusBarHeight = window.screen.height - window.innerHeight;
+      if (statusBarHeight > 60) statusBarHeight = Math.round(24 * dpr) / dpr;
+    }
+  }
+
+  if (statusBarHeight > 0 && statusBarHeight <= 60) {
+    document.documentElement.style.setProperty('--cached-safe-top', statusBarHeight + 'px');
+    document.documentElement.style.setProperty('--safe-top', statusBarHeight + 'px');
+    console.log(`Android safe-area-top set to ${statusBarHeight}px`);
+  }
+}
+
 export async function initializeCapacitor() {
   const native = isNativePlatform();
   const platform = native ? getPlatform() : detectPlatformFromUserAgent();
@@ -53,6 +81,7 @@ export async function initializeCapacitor() {
   if (platform === 'android') {
     document.documentElement.classList.add('capacitor-android');
     document.documentElement.classList.add('is-android');
+    setAndroidSafeAreaTop();
   } else if (platform === 'ios') {
     document.documentElement.classList.add('capacitor-ios');
     document.documentElement.classList.add('is-ios');
@@ -71,6 +100,16 @@ export async function initializeCapacitor() {
     await StatusBar.show();
     const isDark = document.documentElement.classList.contains('dark');
     await updateStatusBarForTheme(isDark);
+
+    if (platform === 'android') {
+      try {
+        const info = await StatusBar.getInfo();
+        if (info.overlays) {
+          setAndroidSafeAreaTop();
+        }
+      } catch {}
+    }
+
     console.log('Capacitor StatusBar initialized');
   } catch (error) {
     console.error('Failed to configure StatusBar:', error);
