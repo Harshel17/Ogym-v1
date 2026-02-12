@@ -55,6 +55,7 @@ import SupportPage from "@/pages/support-page";
 import HelpPage from "@/pages/help-page";
 import TermsPage from "@/pages/terms-page";
 import PrivacyPage from "@/pages/privacy-page";
+import DeleteAccountPage from "@/pages/delete-account-page";
 import SubscriptionExpiredPage from "@/pages/subscription-expired-page";
 import WeeklyReportPage from "@/pages/weekly-report-page";
 import DikaPage from "@/pages/dika-page";
@@ -395,6 +396,7 @@ function Router() {
 
       <Route path="/terms" component={TermsPage} />
       <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/delete-account" component={DeleteAccountPage} />
 
       <Route component={NotFound} />
     </Switch>
