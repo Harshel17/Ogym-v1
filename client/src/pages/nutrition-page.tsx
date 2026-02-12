@@ -764,6 +764,49 @@ export default function NutritionPage() {
         Add Food
       </Button>
 
+      {recentFoods.length > 0 && (
+        <div data-testid="section-quick-relog" style={{ animation: 'slideUp 0.4s ease-out 0.3s both' }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-3 h-3 text-muted-foreground" />
+              <span className="text-xs font-semibold text-muted-foreground">Quick re-log</span>
+            </div>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {recentFoods.slice(0, 6).map((food: any, i: number) => (
+              <button
+                key={`quick-${i}`}
+                onClick={() => {
+                  logFoodMutation.mutate({
+                    date: dateStr,
+                    mealType: "snack",
+                    mealLabel: null,
+                    foodName: food.foodName || food.food_name,
+                    brandName: food.brandName || food.brand_name,
+                    servingSize: food.servingSize || food.serving_size,
+                    quantity: 1,
+                    calories: food.calories,
+                    protein: food.protein || null,
+                    carbs: food.carbs || null,
+                    fat: food.fat || null,
+                    barcode: food.barcode || null,
+                  });
+                }}
+                disabled={logFoodMutation.isPending}
+                className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg border bg-card hover-elevate active:scale-[0.97] transition-transform"
+                data-testid={`button-quick-relog-${i}`}
+              >
+                <Plus className="w-3 h-3 text-primary flex-shrink-0" />
+                <div className="text-left">
+                  <p className="text-xs font-medium truncate max-w-[100px]">{food.foodName || food.food_name}</p>
+                  <p className="text-[10px] text-muted-foreground">{food.calories} cal</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <Card className="card-glow-blue shadow-sm relative" data-testid="card-water-tracker" style={{ animation: 'slideUp 0.4s ease-out 0.5s both' }}>
         <CardContent className="pt-3 pb-3 relative">
           <div className="flex items-center gap-3">

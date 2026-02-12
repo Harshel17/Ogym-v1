@@ -209,7 +209,7 @@ export function useDikaPage(userId: number) {
   }, []);
 
   const suggestionsUrl = isNative() && isIOS() ? '/api/dika/suggestions?platform=ios_native' : '/api/dika/suggestions';
-  const { data: suggestionsData } = useQuery<{ suggestions: string[] }>({
+  const { data: suggestionsData } = useQuery<{ suggestions: string[]; quickActions?: Array<{ label: string; icon: string; message: string }> }>({
     queryKey: [suggestionsUrl],
   });
 
@@ -284,6 +284,7 @@ export function useDikaPage(userId: number) {
   return {
     messages,
     suggestions: suggestionsData?.suggestions || [],
+    quickActions: suggestionsData?.quickActions || [],
     isLoading: askMutation.isPending,
     sendMessage,
     clearHistory,

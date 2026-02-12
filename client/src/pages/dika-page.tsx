@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, ChevronLeft, MapPin, Pizza, Coffee, Salad, Soup, UtensilsCrossed, Star } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, ChevronLeft, MapPin, Pizza, Coffee, Salad, Soup, UtensilsCrossed, Star, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -551,10 +551,33 @@ export default function DikaPage() {
   return <DikaPageInner userId={user.id} />;
 }
 
+function QuickActionIcon({ icon }: { icon: string }) {
+  switch (icon) {
+    case 'utensils': return <UtensilsCrossed className="w-4 h-4" />;
+    case 'dumbbell': return <Dumbbell className="w-4 h-4" />;
+    case 'trending-up': return <TrendingUp className="w-4 h-4" />;
+    case 'map-pin': return <MapPin className="w-4 h-4" />;
+    case 'users': return <Users className="w-4 h-4" />;
+    case 'alert': return <AlertCircle className="w-4 h-4" />;
+    case 'bar-chart': return <TrendingUp className="w-4 h-4" />;
+    case 'user-plus': return <UserPlus className="w-4 h-4" />;
+    case 'credit-card': return <CreditCard className="w-4 h-4" />;
+    default: return <Sparkles className="w-4 h-4" />;
+  }
+}
+
+const QUICK_ACTION_COLORS = [
+  'from-amber-400 to-orange-500',
+  'from-blue-400 to-indigo-500',
+  'from-emerald-400 to-teal-500',
+  'from-purple-400 to-violet-500',
+];
+
 function DikaPageInner({ userId }: { userId: number }) {
   const {
     messages,
     suggestions,
+    quickActions,
     isLoading,
     sendMessage,
     clearHistory,
@@ -789,22 +812,44 @@ function DikaPageInner({ userId }: { userId: number }) {
         </div>
         <div className="p-4 space-y-4 lg:max-w-3xl lg:mx-auto relative">
         {messages.length === 0 && (
-          <div className="text-center py-10 relative">
-            <div className="w-20 h-20 mx-auto mb-6 relative">
+          <div className="text-center py-8 relative">
+            <div className="w-16 h-16 mx-auto mb-4 relative">
               <div className="absolute inset-[-8px] rounded-3xl bg-gradient-to-br from-amber-400/25 to-orange-500/15 blur-2xl" style={{ animation: 'dikaGlow 4s ease-in-out infinite' }} />
-              <div className="absolute inset-[-4px] rounded-2xl bg-gradient-to-br from-amber-400/10 to-orange-500/10" style={{ animation: 'dikaPulseRing 3s ease-out infinite' }} />
               <div className="relative w-full h-full rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center shadow-xl shadow-amber-500/10">
-                <RoboDIcon className="w-10 h-10 text-amber-500 dark:text-amber-400" />
+                <RoboDIcon className="w-8 h-8 text-amber-500 dark:text-amber-400" />
               </div>
             </div>
-            <h3 className="text-lg font-semibold mb-1.5 text-slate-800 dark:text-slate-100 tracking-tight">How can I help you today?</h3>
-            <p className="text-[13px] text-slate-400 dark:text-slate-500 mb-8 max-w-[260px] mx-auto leading-relaxed">{isNative() && isIOS() ? "Workouts, nutrition, attendance and more" : "Workouts, nutrition, attendance, payments and more"}</p>
+            <h3 className="text-lg font-semibold mb-1 text-slate-800 dark:text-slate-100 tracking-tight" data-testid="text-dika-welcome">Hey! I'm Dika</h3>
+            <p className="text-[13px] text-slate-400 dark:text-slate-500 mb-6 max-w-[280px] mx-auto leading-relaxed">Your personal fitness assistant. I can log meals, track workouts, show your progress, and more.</p>
+
+            {quickActions.length > 0 && (
+              <div className="mb-6">
+                <p className="text-[10px] text-slate-400/70 dark:text-slate-500/70 uppercase tracking-[0.15em] font-medium mb-3">Quick actions</p>
+                <div className="grid grid-cols-2 gap-2 max-w-[300px] mx-auto">
+                  {quickActions.map((action: { label: string; icon: string; message: string }, i: number) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSuggestionClick(action.message)}
+                      className="dika-suggestion-enter flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/90 dark:bg-slate-800/90 border border-slate-200/60 dark:border-slate-700/50 text-left transition-all duration-200 active:scale-[0.97] shadow-sm"
+                      style={{ animationDelay: `${i * 80}ms`, opacity: 0 }}
+                      data-testid={`button-quick-action-${i}`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${QUICK_ACTION_COLORS[i % QUICK_ACTION_COLORS.length]} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                        <span className="text-white"><QuickActionIcon icon={action.icon} /></span>
+                      </div>
+                      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{action.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {suggestions.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-[10px] text-slate-400/70 dark:text-slate-500/70 uppercase tracking-[0.15em] font-medium">Try asking</p>
+              <div className="space-y-2.5">
+                <p className="text-[10px] text-slate-400/70 dark:text-slate-500/70 uppercase tracking-[0.15em] font-medium">Or try asking</p>
                 <div className="flex flex-wrap gap-2 justify-center max-w-[320px] mx-auto">
                   {suggestions.map((suggestion: string, i: number) => (
-                    <Badge key={i} variant="outline" className="dika-suggestion-enter cursor-pointer hover-elevate bg-white/80 dark:bg-slate-800/80 border-slate-200/60 dark:border-slate-700/50 text-slate-600 dark:text-slate-300 text-xs backdrop-blur-sm shadow-sm" style={{ animationDelay: `${i * 80}ms`, opacity: 0 }} onClick={() => handleSuggestionClick(suggestion)} data-testid={`chip-suggestion-${i}`}>
+                    <Badge key={i} variant="outline" className="dika-suggestion-enter cursor-pointer hover-elevate bg-white/80 dark:bg-slate-800/80 border-slate-200/60 dark:border-slate-700/50 text-slate-600 dark:text-slate-300 text-xs backdrop-blur-sm shadow-sm" style={{ animationDelay: `${(quickActions.length * 80) + (i * 80)}ms`, opacity: 0 }} onClick={() => handleSuggestionClick(suggestion)} data-testid={`chip-suggestion-${i}`}>
                       {suggestion}
                     </Badge>
                   ))}

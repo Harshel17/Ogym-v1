@@ -13,7 +13,7 @@ import { db } from "./db";
 import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs } from "@shared/schema";
 import { eq, and, isNotNull, inArray, sql, desc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
-import { handleDikaQuery, getSuggestionChips, generateOwnerBriefing } from "./dika";
+import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing } from "./dika";
 import { executeOwnerAction, executeSupportTicket, type ActionData } from "./dika/owner-actions";
 import { searchFoodByName, lookupByBarcode, FoodProduct } from "./nutrition/open-food-facts";
 import { searchLocalFoods } from "./nutrition/food-database";
@@ -4817,7 +4817,8 @@ Return ONLY JSON.`
     const role = user.role as 'member' | 'trainer' | 'owner';
     const isIOSNative = req.query.platform === 'ios_native';
     const suggestions = getSuggestionChips(role, user.gymId || null, isIOSNative);
-    res.json({ suggestions });
+    const quickActions = getQuickActions(role, user.gymId || null, isIOSNative);
+    res.json({ suggestions, quickActions });
   });
 
   app.get("/api/dika/briefing", requireAuth, async (req, res) => {

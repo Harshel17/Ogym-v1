@@ -282,8 +282,9 @@ async function executeIntent(
 export function getSuggestionChips(role: UserRole, gymId: number | null, isIOSNative?: boolean): string[] {
   if (!gymId) {
     return [
-      "What did I train this week?",
-      "How many calories today?",
+      "Log my meal",
+      "What's my workout today?",
+      "Show my progress",
       "Weekly report",
     ];
   }
@@ -291,33 +292,89 @@ export function getSuggestionChips(role: UserRole, gymId: number | null, isIOSNa
   switch (role) {
     case 'member':
       return [
-        "My workouts this week",
-        "How many calories today?",
+        "Log my meal",
+        "What's my workout today?",
+        "Show my progress",
+        "How many calories left?",
         "Weekly report",
       ];
       
     case 'trainer':
       return [
+        "Who skipped this week?",
+        "Today's check-ins",
         "My workouts this week",
-        "Who skipped workouts this week?",
-        "Who hasn't checked in today?",
+        "Show my progress",
       ];
       
     case 'owner':
       if (isIOSNative) {
         return [
-          "Who checked in today?",
+          "Today's check-ins",
           "Gym overview",
-          "Add a new member",
+          "Add a member",
+          "Show my progress",
         ];
       }
       return [
-        "Who checked in today?",
-        "Add a new member",
+        "Today's check-ins",
+        "Gym overview",
+        "Add a member",
         "Log a payment",
-        "Go to payments",
+        "Show my progress",
       ];
       
+    default:
+      return [];
+  }
+}
+
+export interface QuickAction {
+  label: string;
+  icon: string;
+  message: string;
+}
+
+export function getQuickActions(role: UserRole, gymId: number | null, isIOSNative?: boolean): QuickAction[] {
+  if (!gymId) {
+    return [
+      { label: "Log meal", icon: "utensils", message: "I want to log my meal" },
+      { label: "My workout", icon: "dumbbell", message: "What's my workout today?" },
+      { label: "Progress", icon: "trending-up", message: "Show my progress this week" },
+      { label: "Find food", icon: "map-pin", message: "Find me healthy food nearby" },
+    ];
+  }
+
+  switch (role) {
+    case 'member':
+      return [
+        { label: "Log meal", icon: "utensils", message: "I want to log my meal" },
+        { label: "My workout", icon: "dumbbell", message: "What's my workout today?" },
+        { label: "Progress", icon: "trending-up", message: "Show my progress this week" },
+        { label: "Find food", icon: "map-pin", message: "Find me healthy food nearby" },
+      ];
+    case 'trainer':
+      return [
+        { label: "Check-ins", icon: "users", message: "Who checked in today?" },
+        { label: "Skipped", icon: "alert", message: "Who skipped workouts this week?" },
+        { label: "My workout", icon: "dumbbell", message: "What's my workout today?" },
+        { label: "Progress", icon: "trending-up", message: "Show my progress this week" },
+      ];
+    case 'owner':
+      if (isIOSNative) {
+        return [
+          { label: "Check-ins", icon: "users", message: "Who checked in today?" },
+          { label: "Overview", icon: "bar-chart", message: "Give me a gym overview" },
+          { label: "Add member", icon: "user-plus", message: "I want to add a new member" },
+          { label: "Progress", icon: "trending-up", message: "Show my gym's progress" },
+        ];
+      }
+      return [
+        { label: "Check-ins", icon: "users", message: "Who checked in today?" },
+        { label: "Overview", icon: "bar-chart", message: "Give me a gym overview" },
+        { label: "Add member", icon: "user-plus", message: "I want to add a new member" },
+        { label: "Log payment", icon: "credit-card", message: "I want to log a payment" },
+      ];
     default:
       return [];
   }
