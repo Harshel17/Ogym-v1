@@ -93,8 +93,8 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
   const Icon = iconMap[icon];
   const colors = colorConfig[color];
 
-  const size = 72;
-  const strokeWidth = 4;
+  const size = 56;
+  const strokeWidth = 3.5;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const maxValue = icon === "flame" ? Math.max(value, 30) : Math.max(value, 7);
@@ -114,8 +114,8 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
       onClick={onClick}
       data-testid={`stat-card-${label.toLowerCase().replace(/\s/g, "-")}`}
     >
-      <CardContent className="flex flex-col items-center justify-center h-[130px] py-0 relative z-10">
-        <div className="relative mb-2">
+      <CardContent className="flex flex-col items-center justify-center h-[100px] py-0 relative z-10">
+        <div className="relative mb-1.5">
           <svg width={size} height={size} className="transform -rotate-90">
             <circle
               cx={size / 2}
@@ -140,13 +140,13 @@ export const AnimatedStatCard = memo(function AnimatedStatCard({
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className={cn("p-2.5 rounded-xl text-white shadow-lg", colors.iconBg)} style={{ boxShadow: `0 4px 12px ${colors.ringColor}30` }}>
-              <Icon className={cn("w-4 h-4", icon === "flame" && value > 0 && "streak-flame")} />
+            <div className={cn("p-2 rounded-lg text-white shadow-lg", colors.iconBg)} style={{ boxShadow: `0 4px 12px ${colors.ringColor}30` }}>
+              <Icon className={cn("w-3.5 h-3.5", icon === "flame" && value > 0 && "streak-flame")} />
             </div>
           </div>
         </div>
-        <p className="text-2xl font-bold tabular-nums leading-none">{displayValue}</p>
-        <p className="text-[10px] text-muted-foreground mt-1 font-semibold uppercase tracking-wider">{label}</p>
+        <p className="text-xl font-bold tabular-nums leading-none">{displayValue}</p>
+        <p className="text-[9px] text-muted-foreground mt-0.5 font-semibold uppercase tracking-wider">{label}</p>
       </CardContent>
     </Card>
   );
@@ -177,10 +177,10 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
   const proteinPercentage = effectiveProteinTarget > 0 ? Math.min((currentProtein / effectiveProteinTarget) * 100, 100) : 0;
   const isProteinOver = effectiveProteinTarget > 0 && currentProtein > effectiveProteinTarget;
   
-  const size = 72;
-  const outerStrokeWidth = 4;
-  const innerStrokeWidth = 3;
-  const gap = 3;
+  const size = 56;
+  const outerStrokeWidth = 3.5;
+  const innerStrokeWidth = 2.5;
+  const gap = 2.5;
   const outerRadius = (size - outerStrokeWidth) / 2;
   const innerRadius = outerRadius - outerStrokeWidth / 2 - gap - innerStrokeWidth / 2;
   
@@ -203,8 +203,8 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center h-[130px] py-0 relative z-10">
-        <div className="relative mb-2">
+      <CardContent className="flex flex-col items-center justify-center h-[100px] py-0 relative z-10">
+        <div className="relative mb-1.5">
           <svg
             width={size}
             height={size}
@@ -262,20 +262,20 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className={cn(
-              "text-sm font-bold tabular-nums leading-none",
+              "text-xs font-bold tabular-nums leading-none",
               isCaloriesOver && "text-red-500"
             )}>
               {displayValue}
             </span>
-            <span className="text-[8px] text-muted-foreground mt-0.5 font-medium">kcal</span>
+            <span className="text-[7px] text-muted-foreground mt-0.5 font-medium">kcal</span>
           </div>
         </div>
         
-        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Today's Calories</p>
+        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Today's Calories</p>
         
         {showProteinRing && (
           <p className={cn(
-            "text-[10px] tabular-nums mt-0.5 font-medium",
+            "text-[9px] tabular-nums mt-0.5 font-medium",
             isProteinOver ? "text-red-500" : "text-blue-500"
           )}>
             {currentProtein}g / {effectiveProteinTarget}g protein
