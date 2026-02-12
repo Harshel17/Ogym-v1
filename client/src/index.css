@@ -113,14 +113,10 @@ html.capacitor-native body[data-scroll-locked] {
 }
 
 @media (min-width: 1024px) {
-  .dika-full-height {
-    height: 100% !important;
-    margin-top: -2rem !important;
-    padding-top: 0 !important;
-  }
+  .dika-full-height,
   .dika-full-height-kb {
     height: 100% !important;
-    margin-top: -2rem !important;
+    margin: 0 !important;
     padding-top: 0 !important;
   }
 }
