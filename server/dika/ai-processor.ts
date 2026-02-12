@@ -27,6 +27,7 @@ import { findRestaurantSuggestion, getSuggestionForGoal, getGeneralDikaMessage, 
 export function detectFindFoodRequest(message: string): boolean {
   const patterns = [
     /find\s+(me\s+)?food/i,
+    /find\s+(me\s+)?(some\s+)?food/i,
     /find\s+(me\s+)?(healthy|clean|safe)\s+food/i,
     /food\s+near\s*(me|by|here)/i,
     /restaurant[s]?\s+near\s*(me|by|here)/i,
@@ -44,6 +45,12 @@ export function detectFindFoodRequest(message: string): boolean {
     /cleanest\s+food/i,
     /what\s+can\s+i\s+eat\s+around/i,
     /good\s+(food|restaurant|place)\s+near/i,
+    /can\s+(you\s+)?find\s+(me\s+)?(some\s+)?food/i,
+    /help\s+(me\s+)?find\s+(some\s+)?food/i,
+    /get\s+(me\s+)?(some\s+)?food/i,
+    /food\s+(around|nearby)/i,
+    /show\s+(me\s+)?(food|restaurant)/i,
+    /search\s+(for\s+)?(food|restaurant)/i,
   ];
   return patterns.some(p => p.test(message));
 }
