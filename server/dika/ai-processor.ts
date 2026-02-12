@@ -281,6 +281,12 @@ interface MemberContext {
     proteinGoal: number | null;
     mealsLogged: number;
   };
+  todayWorkout: {
+    dayLabel: string | null;
+    isRestDay: boolean;
+    exercises: Array<{ name: string; muscleType: string; sets: number; reps: number; type: string }>;
+    completedCount: number;
+  } | null;
 }
 
 interface OwnerContext {
@@ -445,6 +451,82 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
     };
   }
   
+  let todayWorkoutContext: MemberContext['todayWorkout'] = null;
+  if (currentCycle) {
+    try {
+      const [cycle] = await db.select({
+        id: workoutCycles.id,
+        cycleLength: workoutCycles.cycleLength,
+        startDate: workoutCycles.startDate,
+        restDays: workoutCycles.restDays,
+        dayLabels: workoutCycles.dayLabels,
+        progressionMode: workoutCycles.progressionMode,
+        currentDayIndex: workoutCycles.currentDayIndex,
+      })
+      .from(workoutCycles)
+      .where(and(
+        eq(workoutCycles.memberId, userId),
+        eq(workoutCycles.source, source),
+        eq(workoutCycles.isActive, true)
+      ))
+      .limit(1);
+
+      if (cycle) {
+        let dayIndex: number;
+        if (cycle.progressionMode === 'completion') {
+          dayIndex = cycle.currentDayIndex || 0;
+        } else {
+          const startDate = new Date(cycle.startDate + 'T00:00:00');
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const daysDiff = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+          dayIndex = ((daysDiff % cycle.cycleLength) + cycle.cycleLength) % cycle.cycleLength;
+        }
+
+        const isRestDay = (cycle.restDays || []).includes(dayIndex);
+        const dayLabel = cycle.dayLabels?.[dayIndex] || null;
+
+        const todayExercises = await db.select({
+          exerciseName: workoutItems.exerciseName,
+          muscleType: workoutItems.muscleType,
+          sets: workoutItems.sets,
+          reps: workoutItems.reps,
+          exerciseType: workoutItems.exerciseType,
+        })
+        .from(workoutItems)
+        .where(and(
+          eq(workoutItems.cycleId, cycle.id),
+          eq(workoutItems.dayIndex, dayIndex),
+          eq(workoutItems.isDeleted, false)
+        ))
+        .orderBy(workoutItems.orderIndex);
+
+        const todayCompletions = await db.select({ id: workoutCompletions.id })
+          .from(workoutCompletions)
+          .where(and(
+            eq(workoutCompletions.memberId, userId),
+            eq(workoutCompletions.cycleId, cycle.id),
+            eq(workoutCompletions.completedDate, dates.today)
+          ));
+
+        todayWorkoutContext = {
+          dayLabel,
+          isRestDay,
+          exercises: todayExercises.map(e => ({
+            name: e.exerciseName,
+            muscleType: e.muscleType,
+            sets: e.sets,
+            reps: e.reps,
+            type: e.exerciseType,
+          })),
+          completedCount: todayCompletions.length,
+        };
+      }
+    } catch (err) {
+      console.error('Failed to fetch today workout for Dika context:', err);
+    }
+  }
+
   return {
     workoutsThisWeek: weeklyWorkouts?.count || 0,
     workoutsThisMonth: monthlyWorkouts?.count || 0,
@@ -466,7 +548,8 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
     subscriptionStatus,
     subscriptionExpiryDate,
     healthData: healthContext,
-    nutrition: await getTodayNutritionSummary(userId)
+    nutrition: await getTodayNutritionSummary(userId),
+    todayWorkout: todayWorkoutContext,
   };
 }
 
@@ -771,6 +854,17 @@ FITNESS DEVICE DATA (from ${getHealthSourceLabel(ctx.healthData.source)}):
 FITNESS DEVICE: Connected to ${getHealthSourceLabel(ctx.healthData.source)} (no data synced today)
 ` : '';
     
+    const todayWorkoutSection = ctx.todayWorkout ? (
+      ctx.todayWorkout.isRestDay ? `
+TODAY'S WORKOUT: Rest Day (recovery day)` :
+      ctx.todayWorkout.exercises.length > 0 ? `
+TODAY'S WORKOUT${ctx.todayWorkout.dayLabel ? ` (${ctx.todayWorkout.dayLabel})` : ''}:
+${ctx.todayWorkout.exercises.map(e => `- ${e.name} (${e.muscleType}) - ${e.sets}x${e.reps}${e.type === 'cardio' ? ' [cardio]' : ''}`).join('\n')}
+Progress: ${ctx.todayWorkout.completedCount}/${ctx.todayWorkout.exercises.length} completed` :
+      `
+TODAY'S WORKOUT: No exercises scheduled`
+    ) : '';
+
     return basePrompt + `
 MEMBER DATA:
 - Workouts this week: ${ctx.workoutsThisWeek}
@@ -779,6 +873,7 @@ MEMBER DATA:
 - Current workout cycle: ${ctx.currentCycleName || 'None assigned'}
 - Gym attendance this month: ${ctx.attendanceThisMonth} days
 - Subscription: ${ctx.subscriptionStatus}${ctx.subscriptionExpiryDate ? ` (expires ${ctx.subscriptionExpiryDate})` : ''}
+${todayWorkoutSection}
 ${ctx.bodyMeasurements.latest ? `
 BODY MEASUREMENTS:
 - Latest (${ctx.bodyMeasurements.latest.date}): ${ctx.bodyMeasurements.latest.weight ? `Weight: ${ctx.bodyMeasurements.latest.weight}kg` : ''}${ctx.bodyMeasurements.latest.bodyFat ? `, Body Fat: ${ctx.bodyMeasurements.latest.bodyFat}%` : ''}
@@ -917,6 +1012,28 @@ Do NOT try to solve technical issues yourself - offer to report them instead.`;
   }
   
   return basePrompt;
+}
+
+const contextCache = new Map<string, { data: MemberContext | OwnerContext | TrainerContext; userContext: UserContext; timestamp: number }>();
+const CONTEXT_CACHE_TTL = 60 * 1000;
+
+function getCachedContext(userId: number, role: string, gymId: number | null): { data: MemberContext | OwnerContext | TrainerContext; userContext: UserContext } | null {
+  const key = `${userId}-${role}-${gymId ?? 'none'}`;
+  const cached = contextCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CONTEXT_CACHE_TTL) {
+    return { data: cached.data, userContext: cached.userContext };
+  }
+  contextCache.delete(key);
+  return null;
+}
+
+function setCachedContext(userId: number, role: string, gymId: number | null, data: MemberContext | OwnerContext | TrainerContext, userContext: UserContext) {
+  const key = `${userId}-${role}-${gymId ?? 'none'}`;
+  contextCache.set(key, { data, userContext, timestamp: Date.now() });
+  if (contextCache.size > 100) {
+    const firstKey = contextCache.keys().next().value;
+    if (firstKey) contextCache.delete(firstKey);
+  }
 }
 
 export async function processWithAI(
@@ -1168,74 +1285,97 @@ export async function processWithAI(
     }
   }
   
-  const [user] = await db.select({
-    username: users.username,
-  })
-  .from(users)
-  .where(eq(users.id, userId));
-  
-  const [profile] = await db.select({
-    fullName: userProfiles.fullName
-  })
-  .from(userProfiles)
-  .where(eq(userProfiles.userId, userId));
-  
-  let gymName: string | undefined;
-  let gymCurrency: string | undefined;
-  
-  if (gymId) {
-    const [gym] = await db.select({
-      name: gyms.name,
-      currency: gyms.currency
-    })
-    .from(gyms)
-    .where(eq(gyms.id, gymId));
-    
-    if (gym) {
-      gymName = gym.name;
-      gymCurrency = gym.currency || undefined;
-    }
-  }
-  
-  const userContext: UserContext = {
-    role,
-    gymId,
-    userId,
-    userName: profile?.fullName || user?.username || 'User',
-    gymName,
-    gymCurrency
-  };
-  
+  const cached = getCachedContext(userId, role, gymId);
+  let userContext: UserContext;
   let dataContext: MemberContext | OwnerContext | TrainerContext;
-  
-  if (role === 'owner') {
-    if (!gymId) {
-      return { 
-        answer: "I don't have gym data to analyze. Please make sure you're associated with a gym.", 
-        followUpChips: [] 
-      };
-    }
-    dataContext = await getOwnerDataContext(gymId);
-  } else if (role === 'trainer') {
-    if (!gymId) {
-      return { 
-        answer: "I don't have gym data to analyze. Please make sure you're associated with a gym.", 
-        followUpChips: [] 
-      };
-    }
-    dataContext = await getTrainerDataContext(userId, gymId);
+
+  if (cached) {
+    userContext = cached.userContext;
+    dataContext = cached.data;
   } else {
-    // Member role - can work with or without gymId (personal mode)
-    dataContext = await getMemberDataContext(userId, gymId);
+    const [user] = await db.select({
+      username: users.username,
+    })
+    .from(users)
+    .where(eq(users.id, userId));
+    
+    const [profile] = await db.select({
+      fullName: userProfiles.fullName
+    })
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, userId));
+    
+    let gymName: string | undefined;
+    let gymCurrency: string | undefined;
+    
+    if (gymId) {
+      const [gym] = await db.select({
+        name: gyms.name,
+        currency: gyms.currency
+      })
+      .from(gyms)
+      .where(eq(gyms.id, gymId));
+      
+      if (gym) {
+        gymName = gym.name;
+        gymCurrency = gym.currency || undefined;
+      }
+    }
+    
+    userContext = {
+      role,
+      gymId,
+      userId,
+      userName: profile?.fullName || user?.username || 'User',
+      gymName,
+      gymCurrency
+    };
+    
+    if (role === 'owner') {
+      if (!gymId) {
+        return { 
+          answer: "I don't have gym data to analyze. Please make sure you're associated with a gym.", 
+          followUpChips: [] 
+        };
+      }
+      dataContext = await getOwnerDataContext(gymId);
+    } else if (role === 'trainer') {
+      if (!gymId) {
+        return { 
+          answer: "I don't have gym data to analyze. Please make sure you're associated with a gym.", 
+          followUpChips: [] 
+        };
+      }
+      dataContext = await getTrainerDataContext(userId, gymId);
+    } else {
+      dataContext = await getMemberDataContext(userId, gymId);
+    }
+
+    setCachedContext(userId, role, gymId, dataContext, userContext);
   }
   
   const systemPrompt = buildSystemPrompt(userContext, dataContext, isIOSNative);
   
   try {
+    const historyMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+    if (conversationHistory && conversationHistory.length > 0) {
+      const recentHistory = conversationHistory.slice(-6);
+      for (const msg of recentHistory) {
+        const cleanContent = msg.content
+          .replace(/<!-- MEAL_LOG_DATA:[\s\S]+? -->/g, '[meal logged]')
+          .replace(/<!-- DIKA_ACTION_DATA:[\s\S]+? -->/g, '[action taken]')
+          .replace(/<!-- WEEKLY_REPORT_DATA:[\s\S]+? -->/g, '[report generated]')
+          .replace(/<!-- WORKOUT_PLAN_DATA:[\s\S]+? -->/g, '[workout plan]')
+          .replace(/<!-- DIKA_FIND_FOOD -->/g, '[food search]');
+        historyMessages.push({ role: msg.role, content: cleanContent });
+      }
+    }
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
+        ...historyMessages,
         { role: "user", content: message }
       ],
       max_completion_tokens: 500,
@@ -1243,7 +1383,7 @@ export async function processWithAI(
     
     const answer = response.choices[0]?.message?.content || "I'm having trouble understanding that. Could you rephrase?";
     
-    const followUpChips = generateFollowUpChips(role, message, gymId, isIOSNative);
+    const followUpChips = generateFollowUpChips(role, message, answer, gymId, isIOSNative);
     
     return { answer, followUpChips };
   } catch (error) {
@@ -1252,63 +1392,76 @@ export async function processWithAI(
   }
 }
 
-function generateFollowUpChips(role: UserRole, lastMessage: string, gymId: number | null, isIOSNative?: boolean): string[] {
-  const lowerMessage = lastMessage.toLowerCase();
-  
-  if (role === 'member') {
-    if (lowerMessage.includes('calorie') || lowerMessage.includes('nutrition') || lowerMessage.includes('protein') || lowerMessage.includes('ate') || lowerMessage.includes('eat')) {
-      return ['How many calories left today?', 'My workout progress'];
-    }
-    if (lowerMessage.includes('workout') || lowerMessage.includes('train')) {
-      return ['Show my body measurements', 'How is my attendance?'];
-    }
-    if (lowerMessage.includes('weight') || lowerMessage.includes('body') || lowerMessage.includes('progress')) {
-      return ['My workouts this week', 'Am I being consistent?'];
-    }
-    if (lowerMessage.includes('support') || lowerMessage.includes('issue') || lowerMessage.includes('problem') || lowerMessage.includes('report') || lowerMessage.includes('bug') || lowerMessage.includes('mismatch') || lowerMessage.includes('wrong') || lowerMessage.includes('broken') || lowerMessage.includes('not working') || lowerMessage.includes('not showing') || lowerMessage.includes('disappear')) {
-      return ['Report this issue', 'Go to support'];
-    }
-    return ['My workout progress', 'How am I doing?'];
+function generateFollowUpChips(role: UserRole, lastMessage: string, aiResponse: string, gymId: number | null, isIOSNative?: boolean): string[] {
+  const msg = lastMessage.toLowerCase();
+  const resp = aiResponse.toLowerCase();
+  const combined = msg + ' ' + resp;
+
+  const isIssue = /issue|problem|bug|mismatch|wrong|broken|not working|not showing|disappear|error|report/.test(msg);
+
+  if (isIssue) {
+    return ['Report this issue', 'Go to support'];
   }
-  
+
+  if (role === 'member') {
+    const topics = {
+      nutrition: /calorie|nutrition|protein|carb|fat|ate |eat |food|meal|diet|hunger/.test(combined),
+      workout: /workout|train|exercise|set|rep|bench|squat|chest|back|leg|arm|shoulder/.test(combined),
+      body: /weight|body|measurement|progress|fat|lean|bmi/.test(combined),
+      attendance: /attendance|check.?in|consistent|streak|skip|miss/.test(combined),
+      subscription: /subscription|expir|renew|plan|membership/.test(combined),
+    };
+
+    const chips: string[] = [];
+    if (topics.nutrition) {
+      chips.push('How many calories left today?');
+      if (!topics.workout) chips.push('What\'s my workout today?');
+    }
+    if (topics.workout) {
+      chips.push('Show my body measurements');
+      if (!topics.nutrition) chips.push('How\'s my nutrition today?');
+    }
+    if (topics.body) {
+      chips.push('Am I being consistent?');
+      if (!topics.workout) chips.push('My workouts this week');
+    }
+    if (topics.attendance) {
+      chips.push('My workout progress');
+    }
+    if (topics.subscription) {
+      chips.push('My workout progress');
+    }
+
+    if (chips.length === 0) {
+      chips.push('What\'s my workout today?', 'How am I doing?');
+    }
+
+    return chips.slice(0, 3);
+  }
+
   if (role === 'owner') {
     if (isIOSNative) {
-      if (lowerMessage.includes('attendance') || lowerMessage.includes('check')) {
-        return ['Who checked in today?', 'Gym overview'];
-      }
-      if (lowerMessage.includes('member') || lowerMessage.includes('growth')) {
-        return ['Add a new member', 'Who checked in today?'];
-      }
-      if (lowerMessage.includes('issue') || lowerMessage.includes('problem') || lowerMessage.includes('mismatch') || lowerMessage.includes('wrong') || lowerMessage.includes('broken') || lowerMessage.includes('not working') || lowerMessage.includes('not showing')) {
-        return ['Report this issue', 'Go to support'];
-      }
+      if (/attendance|check/.test(msg)) return ['Who checked in today?', 'Gym overview'];
+      if (/member|growth/.test(msg)) return ['Add a new member', 'Who checked in today?'];
       return ['Who checked in today?', 'Gym overview', 'Add a new member'];
     }
-    if (lowerMessage.includes('payment') || lowerMessage.includes('paid') || lowerMessage.includes('revenue')) {
+    if (/payment|paid|revenue|money/.test(combined)) {
       return ['Log a payment', 'Go to revenue', 'Who checked in today?'];
     }
-    if (lowerMessage.includes('attendance') || lowerMessage.includes('check')) {
+    if (/attendance|check/.test(combined)) {
       return ['Go to attendance', 'Revenue this month', 'Expiring memberships'];
     }
-    if (lowerMessage.includes('member') || lowerMessage.includes('growth')) {
+    if (/member|growth|sign.?up/.test(combined)) {
       return ['Add a new member', 'Assign a trainer', 'Go to members'];
-    }
-    if (lowerMessage.includes('issue') || lowerMessage.includes('problem') || lowerMessage.includes('mismatch') || lowerMessage.includes('wrong') || lowerMessage.includes('broken') || lowerMessage.includes('not working') || lowerMessage.includes('not showing')) {
-      return ['Report this issue', 'Go to support'];
     }
     return ['Add a new member', 'Log a payment', 'Gym overview'];
   }
-  
+
   if (role === 'trainer') {
-    if (lowerMessage.includes('skip') || lowerMessage.includes('miss')) {
-      return ['Who checked in today?', 'Member progress'];
-    }
-    if (lowerMessage.includes('issue') || lowerMessage.includes('problem') || lowerMessage.includes('mismatch') || lowerMessage.includes('wrong') || lowerMessage.includes('broken') || lowerMessage.includes('not working')) {
-      return ['Report this issue', 'Go to support'];
-    }
+    if (/skip|miss|absent/.test(combined)) return ['Who checked in today?', 'Member progress'];
     return ['Who needs attention?', 'Today\'s check-ins'];
   }
-  
+
   return [];
 }
 
