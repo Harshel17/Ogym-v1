@@ -146,6 +146,7 @@ export default function NutritionPage() {
     defaultCount?: number;
     sizeOptions?: { label: string; multiplier: number }[];
     styleOptions?: string[];
+    styleCalorieMultipliers?: Record<string, number>;
     foodType?: string;
   } | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
@@ -350,6 +351,7 @@ export default function NutritionPage() {
     if (!selectedFood) return;
     const qty = parseFloat(quantity) || 1;
     const sizeMult = foodTypePresets?.sizeOptions ? selectedSizeMultiplier : 1;
+    const styleMult = (selectedStyle && foodTypePresets?.styleCalorieMultipliers?.[selectedStyle]) || 1;
     const effectiveQty = qty * sizeMult;
     if (restaurantName.trim()) {
       addRecentRestaurant(restaurantName.trim());
@@ -379,10 +381,10 @@ export default function NutritionPage() {
       brandName: selectedFood.brandName || restaurantName.trim() || undefined,
       servingSize: selectedFood.servingSize,
       quantity: effectiveQty,
-      calories: Math.max(0, Math.round((selectedFood.nutrients.calories + modCalories) * effectiveQty)),
-      protein: selectedFood.nutrients.protein ? Math.round(selectedFood.nutrients.protein * effectiveQty) : null,
-      carbs: selectedFood.nutrients.carbs ? Math.round(selectedFood.nutrients.carbs * effectiveQty) : null,
-      fat: selectedFood.nutrients.fat ? Math.round(selectedFood.nutrients.fat * effectiveQty) : null,
+      calories: Math.max(0, Math.round((selectedFood.nutrients.calories * styleMult + modCalories) * effectiveQty)),
+      protein: selectedFood.nutrients.protein ? Math.round(selectedFood.nutrients.protein * styleMult * effectiveQty) : null,
+      carbs: selectedFood.nutrients.carbs ? Math.round(selectedFood.nutrients.carbs * styleMult * effectiveQty) : null,
+      fat: selectedFood.nutrients.fat ? Math.round(selectedFood.nutrients.fat * styleMult * effectiveQty) : null,
       barcode: selectedFood.barcode || null,
       isEstimate: finalIsEstimate,
       sourceType: finalSourceType,
@@ -1525,6 +1527,9 @@ export default function NutritionPage() {
                             </Badge>
                           );
                         })}
+                        {foodTypePresets.countUnit && (
+                          <span className="text-xs text-muted-foreground self-center ml-0.5">{foodTypePresets.countUnit}</span>
+                        )}
                         <div className="flex items-center gap-1">
                           <Input
                             type="number"
@@ -1648,11 +1653,12 @@ export default function NutritionPage() {
               {(() => {
                 const qty = parseFloat(quantity) || 1;
                 const sizeMult = foodTypePresets?.sizeOptions ? selectedSizeMultiplier : 1;
+                const styleMult = (selectedStyle && foodTypePresets?.styleCalorieMultipliers?.[selectedStyle]) || 1;
                 const effectiveQty = qty * sizeMult;
                 const modCalories = selectedFood.commonModifiers 
                   ? Array.from(selectedModifiers).reduce((sum, idx) => sum + (selectedFood.commonModifiers![idx]?.calorieDelta || 0), 0)
                   : 0;
-                const adjustedCals = Math.max(0, Math.round((selectedFood.nutrients.calories + modCalories) * effectiveQty));
+                const adjustedCals = Math.max(0, Math.round((selectedFood.nutrients.calories * styleMult + modCalories) * effectiveQty));
                 return (
               <div className="grid grid-cols-4 gap-2 text-center text-sm">
                 <div className="p-2 bg-muted rounded">
@@ -1660,15 +1666,15 @@ export default function NutritionPage() {
                   <div className="text-muted-foreground">Cal</div>
                 </div>
                 <div className="p-2 bg-muted rounded">
-                  <div className="font-medium">{Math.round((selectedFood.nutrients.protein || 0) * effectiveQty)}g</div>
+                  <div className="font-medium">{Math.round((selectedFood.nutrients.protein || 0) * styleMult * effectiveQty)}g</div>
                   <div className="text-muted-foreground">Protein</div>
                 </div>
                 <div className="p-2 bg-muted rounded">
-                  <div className="font-medium">{Math.round((selectedFood.nutrients.carbs || 0) * effectiveQty)}g</div>
+                  <div className="font-medium">{Math.round((selectedFood.nutrients.carbs || 0) * styleMult * effectiveQty)}g</div>
                   <div className="text-muted-foreground">Carbs</div>
                 </div>
                 <div className="p-2 bg-muted rounded">
-                  <div className="font-medium">{Math.round((selectedFood.nutrients.fat || 0) * effectiveQty)}g</div>
+                  <div className="font-medium">{Math.round((selectedFood.nutrients.fat || 0) * styleMult * effectiveQty)}g</div>
                   <div className="text-muted-foreground">Fat</div>
                 </div>
               </div>

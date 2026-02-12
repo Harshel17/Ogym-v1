@@ -5,6 +5,7 @@ export interface FoodTypeInfo {
   defaultCount: number;
   sizeOptions?: { label: string; multiplier: number }[];
   styleOptions?: string[];
+  styleCalorieMultipliers?: Record<string, number>;
   followUpTemplate: string;
 }
 
@@ -52,6 +53,7 @@ const FOOD_TYPE_MAP: Record<string, FoodTypeInfo> = {
     countOptions: [1, 2, 3, 4, 5],
     defaultCount: 2,
     styleOptions: ["Plain Roti", "Butter Roti", "Tandoori Roti"],
+    styleCalorieMultipliers: { "Plain Roti": 1.0, "Butter Roti": 1.25, "Tandoori Roti": 1.1 },
     followUpTemplate: "How many rotis? (e.g., 2 butter roti, 3 plain)",
   },
   naan: {
@@ -60,6 +62,7 @@ const FOOD_TYPE_MAP: Record<string, FoodTypeInfo> = {
     countOptions: [1, 2, 3],
     defaultCount: 1,
     styleOptions: ["Plain Naan", "Butter Naan", "Garlic Naan", "Cheese Naan"],
+    styleCalorieMultipliers: { "Plain Naan": 1.0, "Butter Naan": 1.2, "Garlic Naan": 1.15, "Cheese Naan": 1.4 },
     followUpTemplate: "How many and what type? (e.g., 1 garlic naan, 2 butter naan)",
   },
   paratha: {
@@ -130,6 +133,7 @@ const FOOD_TYPE_MAP: Record<string, FoodTypeInfo> = {
     countOptions: [1, 2, 3, 4],
     defaultCount: 2,
     styleOptions: ["Boiled", "Scrambled", "Fried", "Omelette", "Poached"],
+    styleCalorieMultipliers: { "Boiled": 0.78, "Scrambled": 1.0, "Fried": 1.17, "Omelette": 1.1, "Poached": 0.8 },
     followUpTemplate: "How many and how cooked? (e.g., 2 scrambled, 3 boiled)",
   },
   samosa: {
@@ -439,6 +443,7 @@ export function getServingPresetsForFood(foodName: string): {
   defaultCount?: number;
   sizeOptions?: { label: string; multiplier: number }[];
   styleOptions?: string[];
+  styleCalorieMultipliers?: Record<string, number>;
   foodType?: string;
 } | null {
   const typeName = detectFoodTypeByName(foodName);
@@ -453,6 +458,7 @@ export function getServingPresetsForFood(foodName: string): {
     defaultCount: info.defaultCount,
     sizeOptions: info.sizeOptions,
     styleOptions: info.styleOptions,
+    styleCalorieMultipliers: info.styleCalorieMultipliers,
     foodType: typeName,
   };
 }
