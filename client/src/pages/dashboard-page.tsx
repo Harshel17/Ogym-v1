@@ -103,10 +103,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-3">
       {user.role === "owner" && (
-        <>
+        <div className="lg:max-w-5xl space-y-3">
           <GreetingBanner greeting={greeting} greetingIcon={greetingIcon} username={user.username} />
           <OwnerDashboard />
-        </>
+        </div>
       )}
       {user.role === "trainer" && (
         <>
@@ -584,42 +584,44 @@ function OwnerDashboard() {
         </div>
       )}
 
-      {/* AI Insights Summary */}
-      {aiInsights && !isIOSNativeApp && (
-        <Card className="bg-gradient-to-br from-purple-500/5 via-transparent to-indigo-500/5">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <div className="p-1.5 rounded-lg bg-purple-500/15">
-                <Brain className="w-3.5 h-3.5 text-purple-500" />
+      <div className="grid gap-2.5 lg:grid-cols-2">
+        {/* AI Insights Summary */}
+        {aiInsights && !isIOSNativeApp && (
+          <Card className="bg-gradient-to-br from-purple-500/5 via-transparent to-indigo-500/5">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                <div className="p-1.5 rounded-lg bg-purple-500/15">
+                  <Brain className="w-3.5 h-3.5 text-purple-500" />
+                </div>
+                AI Insights
+              </CardTitle>
+              <Link href="/owner/ai-insights">
+                <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="link-ai-insights">
+                  View All <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent className="pt-0 pb-3 px-3">
+              <div className="flex gap-2">
+                <div className="flex-1 text-center p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                  <p className="text-xl font-bold text-red-600 dark:text-red-400">{aiInsights.churnRisk.count}</p>
+                  <p className="text-xs font-medium text-muted-foreground">At risk</p>
+                </div>
+                <div className="flex-1 text-center p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{aiInsights.followUpReminders.count}</p>
+                  <p className="text-xs font-medium text-muted-foreground">Follow-ups</p>
+                </div>
+                <div className="flex-1 text-center p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{aiInsights.memberInsights.newThisMonth}</p>
+                  <p className="text-xs font-medium text-muted-foreground">New</p>
+                </div>
               </div>
-              AI Insights
-            </CardTitle>
-            <Link href="/owner/ai-insights">
-              <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="link-ai-insights">
-                View All <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent className="pt-0 pb-3 px-3">
-            <div className="flex gap-2">
-              <div className="flex-1 text-center p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
-                <p className="text-xl font-bold text-red-600 dark:text-red-400">{aiInsights.churnRisk.count}</p>
-                <p className="text-xs font-medium text-muted-foreground">At risk</p>
-              </div>
-              <div className="flex-1 text-center p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{aiInsights.followUpReminders.count}</p>
-                <p className="text-xs font-medium text-muted-foreground">Follow-ups</p>
-              </div>
-              <div className="flex-1 text-center p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{aiInsights.memberInsights.newThisMonth}</p>
-                <p className="text-xs font-medium text-muted-foreground">New</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
 
-      <TodayActivitySection formatMoney={formatMoney} />
+        <TodayActivitySection formatMoney={formatMoney} />
+      </div>
 
       <div className="grid gap-2.5 md:grid-cols-2">
         <Card className="bg-muted/30">
