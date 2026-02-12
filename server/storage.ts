@@ -2083,13 +2083,29 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // Get all swaps for this member
+    // Get all swaps for this member - keyed by cycleId-date
     const swapsData = await db.select().from(memberRestDaySwaps)
       .where(eq(memberRestDaySwaps.memberId, memberId));
     
     const swaps = new Map<string, number>();
+    const swapForcedRestDates = new Set<string>();
     for (const swap of swapsData) {
-      swaps.set(`${swap.phaseId}-${swap.swapDate}`, swap.targetDayIndex);
+      swaps.set(`${swap.cycleId}-${swap.swapDate}`, swap.targetDayIndex);
+      swapForcedRestDates.add(`${swap.cycleId}-${swap.targetDate}`);
+    }
+    
+    // Get schedule overrides (SWAP/PUSH reorder) for this member
+    const overridesData = allCycleIds.length > 0
+      ? await db.select().from(cycleScheduleOverrides)
+          .where(and(
+            eq(cycleScheduleOverrides.memberId, memberId),
+            eq(cycleScheduleOverrides.isActive, true)
+          ))
+      : [];
+    
+    const scheduleOverridesByDate = new Map<string, number>();
+    for (const ov of overridesData) {
+      scheduleOverridesByDate.set(`${ov.cycleId}-${ov.date}`, ov.dayIndex);
     }
     
     // For completion-based cycles, load session data to map dates to day indices
@@ -2111,7 +2127,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    return { phases, directCycles, phaseExerciseDays, cycleExerciseDays, cycleRestDays, cycleLengths, swaps, completionSessionDayByDate };
+    return { phases, directCycles, phaseExerciseDays, cycleExerciseDays, cycleRestDays, cycleLengths, swaps, swapForcedRestDates, scheduleOverridesByDate, completionSessionDayByDate };
   }
 
   /**
@@ -2128,6 +2144,8 @@ export class DatabaseStorage implements IStorage {
       cycleRestDays: Map<number, Set<number>>;
       cycleLengths: Map<number, number>;
       swaps: Map<string, number>;
+      swapForcedRestDates: Set<string>;
+      scheduleOverridesByDate: Map<string, number>;
       completionSessionDayByDate: Map<string, number>;
     }
   ): "workout" | "rest" | "unplanned" {
@@ -2150,7 +2168,6 @@ export class DatabaseStorage implements IStorage {
         } else if (cache.completionSessionDayByDate.has(dateStr)) {
           dayIndex = cache.completionSessionDayByDate.get(dateStr)!;
         } else if (dateStr < todayStr) {
-          // Past date with no session: determine which day user was on
           let lastKnownDayIndex = 0;
           let lastSessionDate: string | null = null;
           const sortedDates = Array.from(cache.completionSessionDayByDate.keys()).sort();
@@ -2162,14 +2179,7 @@ export class DatabaseStorage implements IStorage {
               break;
             }
           }
-          // In completion mode, the user stays on a day until they complete it
-          // Since they had a session on the last date, they were working on that day
-          // The next day would be active after completion
-          // For streak purposes: if user didn't work out, it's a workout day they missed
           dayIndex = lastKnownDayIndex;
-          // Check if last session date advanced the day (was completed)
-          // Simple heuristic: if the next session after this gap uses a different dayIndex, 
-          // the previous one was completed
           if (lastSessionDate) {
             for (const sDate of sortedDates) {
               if (sDate >= dateStr) {
@@ -2189,6 +2199,40 @@ export class DatabaseStorage implements IStorage {
         const startDate = new Date(directCycle.startDate + 'T00:00:00');
         const daysDiff = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
         dayIndex = daysDiff % cycleLength;
+      }
+      
+      // For completion mode: if a session exists for this date, the user already worked out
+      // so we trust the session's dayIndex and skip swap/override checks
+      const hasSessionData = directCycle.progressionMode === "completion" && cache.completionSessionDayByDate.has(dateStr);
+      
+      if (!hasSessionData) {
+        // Check for rest day swap: if this date's workout was swapped away, it's now rest
+        const forcedRestKey = `${directCycle.id}-${dateStr}`;
+        if (cache.swapForcedRestDates.has(forcedRestKey)) {
+          return "rest";
+        }
+        
+        // Check for rest day swap: if a rest day was swapped TO a workout day
+        const swapKey = `${directCycle.id}-${dateStr}`;
+        if (cache.swaps.has(swapKey)) {
+          const swappedDayIndex = cache.swaps.get(swapKey)!;
+          const cycleExerciseDaysSet = cache.cycleExerciseDays.get(directCycle.id);
+          if (cycleExerciseDaysSet && cycleExerciseDaysSet.has(swappedDayIndex)) {
+            return "workout";
+          }
+          return "rest";
+        }
+        
+        // Check for schedule override (SWAP/PUSH reorder)
+        const overrideKey = `${directCycle.id}-${dateStr}`;
+        if (cache.scheduleOverridesByDate.has(overrideKey)) {
+          const overrideDayIndex = cache.scheduleOverridesByDate.get(overrideKey)!;
+          const cycleExerciseDaysSet = cache.cycleExerciseDays.get(directCycle.id);
+          if (cycleExerciseDaysSet && cycleExerciseDaysSet.has(overrideDayIndex)) {
+            return "workout";
+          }
+          return "rest";
+        }
       }
       
       // Check if this day is a rest day in the cycle
@@ -2222,9 +2266,26 @@ export class DatabaseStorage implements IStorage {
     const daysDiff = Math.floor((date.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
     const dayIndex = daysDiff % cycleLength;
     
-    // Check for swap - note: swaps use targetDayIndex which is the day being swapped TO
-    const swapKey = `${phase.id}-${dateStr}`;
-    const effectiveDayIndex = cache.swaps.has(swapKey) ? cache.swaps.get(swapKey)! : dayIndex;
+    // Check for swap - swaps are keyed by cycleId, not phaseId
+    const phaseSwapCycleId = phase.cycleId;
+    const swapKey = phaseSwapCycleId ? `${phaseSwapCycleId}-${dateStr}` : null;
+    let effectiveDayIndex = dayIndex;
+    if (swapKey) {
+      if (cache.swapForcedRestDates.has(swapKey)) {
+        return "rest";
+      }
+      if (cache.swaps.has(swapKey)) {
+        effectiveDayIndex = cache.swaps.get(swapKey)!;
+      }
+    }
+    
+    // Check for schedule override (SWAP/PUSH reorder) for phase's linked cycle
+    if (phaseSwapCycleId) {
+      const overrideKey = `${phaseSwapCycleId}-${dateStr}`;
+      if (cache.scheduleOverridesByDate.has(overrideKey)) {
+        effectiveDayIndex = cache.scheduleOverridesByDate.get(overrideKey)!;
+      }
+    }
     
     // Determine if this day is a workout or rest day
     // Priority: 1) Custom phase exercises, 2) Cycle exercises, 3) Cycle restDays metadata
@@ -4349,6 +4410,32 @@ export class DatabaseStorage implements IStorage {
       itemsByDayIndex[item.dayIndex].push(item);
     }
 
+    // Load rest day swaps and schedule overrides for this cycle
+    let swapDateToTargetDay = new Map<string, number>();
+    let swapForcedRestDates = new Set<string>();
+    let overrideDateToDayIndex = new Map<string, number>();
+    if (cycle) {
+      const swapsForCycle = await db.select().from(memberRestDaySwaps)
+        .where(and(
+          eq(memberRestDaySwaps.memberId, memberId),
+          eq(memberRestDaySwaps.cycleId, cycle.id)
+        ));
+      for (const sw of swapsForCycle) {
+        swapDateToTargetDay.set(sw.swapDate, sw.targetDayIndex);
+        swapForcedRestDates.add(sw.targetDate);
+      }
+
+      const overridesForCycle = await db.select().from(cycleScheduleOverrides)
+        .where(and(
+          eq(cycleScheduleOverrides.memberId, memberId),
+          eq(cycleScheduleOverrides.cycleId, cycle.id),
+          eq(cycleScheduleOverrides.isActive, true)
+        ));
+      for (const ov of overridesForCycle) {
+        overrideDateToDayIndex.set(ov.date, ov.dayIndex);
+      }
+    }
+
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(mon).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       
@@ -4373,12 +4460,10 @@ export class DatabaseStorage implements IStorage {
         
         if (withinStart && withinEnd) {
           if (isCompletionMode) {
-            // Completion mode: use session data to determine the day index
             if (sessionDayIndexByDate[dateStr] !== undefined) {
               dayIndex = sessionDayIndexByDate[dateStr];
               isCycleActive = true;
             } else {
-              // No session: figure out what day the user was on by looking at prior sessions
               let lastKnownDayIndex = 0;
               let lastSessionWasDone = false;
               const sortedDates = Object.keys(sessionDayIndexByDate).sort();
@@ -4404,22 +4489,38 @@ export class DatabaseStorage implements IStorage {
               isCycleActive = true;
             }
           } else {
-            // Calendar mode: use date math
             dayIndex = daysDiff % cycle.cycleLength;
             isCycleActive = true;
           }
         }
       }
 
-      const scheduledForDay = isCycleActive ? scheduledItems.filter(item => item.dayIndex === dayIndex) : [];
+      // Apply swap and schedule override to get effective day index
+      // For completion mode with sessions: session data is the source of truth (user already worked out)
+      // Only apply overrides on dates WITHOUT sessions (shows what was scheduled but missed)
+      let effectiveDayIndex = dayIndex;
+      let forcedRest = false;
+      const hasSessionForDate = isCompletionMode && sessionDayIndexByDate[dateStr] !== undefined;
+      if (isCycleActive && !hasSessionForDate) {
+        if (swapForcedRestDates.has(dateStr)) {
+          forcedRest = true;
+        } else if (swapDateToTargetDay.has(dateStr)) {
+          effectiveDayIndex = swapDateToTargetDay.get(dateStr)!;
+        } else if (overrideDateToDayIndex.has(dateStr)) {
+          effectiveDayIndex = overrideDateToDayIndex.get(dateStr)!;
+        }
+      }
+
+      const scheduledForDay = isCycleActive && !forcedRest
+        ? scheduledItems.filter(item => item.dayIndex === effectiveDayIndex) 
+        : [];
       
-      // For completion mode, check if this is a rest day by label or empty exercises
-      const dayLabel = cycle?.dayLabels?.[dayIndex] || "";
-      const isRestDay = isCycleActive && (
-        (cycle?.restDays?.includes(dayIndex)) || 
+      const dayLabel = cycle?.dayLabels?.[effectiveDayIndex] || "";
+      const isRestDay = forcedRest || (isCycleActive && (
+        (cycle?.restDays?.includes(effectiveDayIndex)) || 
         dayLabel.toLowerCase().includes("rest") || 
         scheduledForDay.length === 0
-      );
+      ));
 
       const missed = scheduledForDay
         .filter(item => !completedIds.has(item.id))
@@ -4664,7 +4765,37 @@ export class DatabaseStorage implements IStorage {
             dayIndex = daysDiff % cycle.cycleLength;
           }
           
-          scheduledItems = await db.select()
+          // Check for swaps/overrides (only if no session in completion mode)
+          const sessionExists = cycle.progressionMode === "completion" && 
+            (await db.select().from(workoutSessions).where(and(
+              eq(workoutSessions.memberId, memberId),
+              eq(workoutSessions.cycleId, cycle.id),
+              eq(workoutSessions.date, date)
+            )).limit(1)).length > 0;
+          
+          let forcedRest = false;
+          if (!sessionExists) {
+            const swapsForCycle = await db.select().from(memberRestDaySwaps)
+              .where(and(
+                eq(memberRestDaySwaps.memberId, memberId),
+                eq(memberRestDaySwaps.cycleId, cycle.id)
+              ));
+            const swapForDate = swapsForCycle.find(s => s.swapDate === date);
+            const isForcedRestDate = swapsForCycle.some(s => s.targetDate === date);
+            
+            if (isForcedRestDate) {
+              forcedRest = true;
+            } else if (swapForDate) {
+              dayIndex = swapForDate.targetDayIndex;
+            } else {
+              const override = await this.getCycleScheduleOverrideForDate(memberId, cycle.id, date);
+              if (override) {
+                dayIndex = override.dayIndex;
+              }
+            }
+          }
+          
+          scheduledItems = forcedRest ? [] : await db.select()
             .from(workoutItems)
             .where(and(
               eq(workoutItems.cycleId, cycle.id),
