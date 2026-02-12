@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { useBackNavigation } from "@/hooks/use-back-navigation";
-import { ArrowLeft, Calendar, Dumbbell, Shield, ChevronRight, ChevronDown, ChevronUp, Save, Loader2, CheckCircle2, XCircle, Target } from "lucide-react";
+import { ArrowLeft, Calendar, Dumbbell, Shield, ChevronRight, ChevronDown, ChevronUp, Save, Loader2, CheckCircle2, XCircle, Target, History } from "lucide-react";
+import { GuidedEmptyState } from "@/components/guided-empty-state";
 import { format } from "date-fns";
 
 type WorkoutSession = {
@@ -167,13 +168,18 @@ export default function WorkoutHistoryPage() {
           <p className="text-muted-foreground mt-2">Loading workouts...</p>
         </div>
       ) : sessions.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Dumbbell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-semibold text-lg">No workout history yet</h3>
-            <p className="text-muted-foreground mt-2">Complete some workouts to see them here!</p>
-          </CardContent>
-        </Card>
+        <GuidedEmptyState
+          icon={History}
+          title="No Workout History Yet"
+          description="Your completed workouts will appear here so you can track your progress over time."
+          features={[
+            "See all your past workout sessions",
+            "Track sets, reps, and weights for each exercise",
+            "Monitor your consistency with workout streaks"
+          ]}
+          actionLabel="Go to Today's Workout"
+          actionHref="/"
+        />
       ) : (
         <div className="space-y-3">
           {sessions.map((session, index) => (

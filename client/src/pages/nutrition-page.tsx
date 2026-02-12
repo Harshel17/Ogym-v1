@@ -555,7 +555,7 @@ export default function NutritionPage() {
   }
 
   return (
-    <div className="space-y-3 pb-24">
+    <div className="space-y-3 pb-24 stagger-list">
       <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="text-lg font-bold tracking-tight">Nutrition</h1>

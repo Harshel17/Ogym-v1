@@ -6,7 +6,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFeed, useFeedComments, useAddReaction, useRemoveReaction, useAddComment, useHidePost, useCreatePost, useReportPost, useBlockUser, useBlockedUsers, type FeedPost } from "@/hooks/use-social";
 import { useAuth } from "@/hooks/use-auth";
-import { Heart, Flame, Award, HandMetal, MessageCircle, MoreHorizontal, Send, Dumbbell, Trophy, UserPlus, Sparkles, Flag, UserX } from "lucide-react";
+import { Heart, Flame, Award, HandMetal, MessageCircle, MoreHorizontal, Send, Dumbbell, Trophy, UserPlus, Sparkles, Flag, UserX, Activity } from "lucide-react";
+import { GuidedEmptyState } from "@/components/guided-empty-state";
 import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
@@ -260,7 +261,7 @@ export default function FeedPage() {
   }
   
   return (
-    <div className="container max-w-2xl mx-auto p-4 space-y-4">
+    <div className="container max-w-2xl mx-auto p-4 space-y-4 stagger-list">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold" data-testid="text-page-title">Gym Feed</h1>
       </div>
@@ -285,13 +286,19 @@ export default function FeedPage() {
       </Card>
       
       {(!filteredPosts || filteredPosts.length === 0) ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">No activity yet</h3>
-            <p className="text-muted-foreground">Complete workouts to see updates here!</p>
-          </CardContent>
-        </Card>
+        <GuidedEmptyState
+          icon={Activity}
+          title="No Activity Yet"
+          description="When you or your gym mates complete workouts, achievements will show up here."
+          features={[
+            "Celebrate workout completions and streaks",
+            "React and comment on achievements",
+            "Stay motivated with your gym community"
+          ]}
+          actionLabel="Start a Workout"
+          actionHref="/"
+          iconGradient="from-orange-500 to-rose-500"
+        />
       ) : (
         filteredPosts.map((post) => (
           <PostCard key={post.id} post={post} />

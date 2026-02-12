@@ -1443,8 +1443,33 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
             </CardHeader>
           </CollapsibleTrigger>
           {workoutItems.length > 0 && !isWorkoutOpen && (
-            <div className="px-6 pb-4 -mt-1">
+            <div className="px-6 pb-4 -mt-1 space-y-2">
               <WorkoutProgressBar completed={completedCount} total={workoutItems.length} />
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] text-muted-foreground">{workoutItems.length} exercises</span>
+                {muscleTypes.slice(0, 3).map((mt: string) => (
+                  <Badge key={mt} variant="outline" className="text-[10px] py-0 px-1.5 border-primary/20 text-primary/80 no-default-hover-elevate no-default-active-elevate">{mt}</Badge>
+                ))}
+                {!allCompleted && (
+                  <Button 
+                    size="sm"
+                    className="ml-auto text-[11px] h-7"
+                    onClick={(e) => { e.stopPropagation(); setIsWorkoutOpen(true); }}
+                    data-testid="button-start-workout-quick"
+                  >
+                    {completedCount > 0 ? "Continue" : "Start"}
+                    <ChevronsRight className="w-3 h-3 ml-1" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+          {isRestDay && !isWorkoutOpen && workoutItems.length === 0 && (
+            <div className="px-6 pb-4 -mt-1">
+              <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-muted/30" data-testid="rest-day-indicator">
+                <BedDouble className="w-4 h-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Rest day - recover and recharge</span>
+              </div>
             </div>
           )}
           
