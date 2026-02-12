@@ -722,7 +722,7 @@ function DikaPageInner({ userId }: { userId: number }) {
     <div
       ref={containerRef}
       className={cn("flex flex-col -m-4 md:-m-8", keyboardVisible ? "dika-full-height-kb" : "dika-full-height")}
-      style={visualHeight ? { height: `${keyboardVisible ? visualHeight : visualHeight - 56}px` } : undefined}
+      style={visualHeight && window.innerWidth < 1024 ? { height: `${keyboardVisible ? visualHeight : visualHeight - 56}px` } : undefined}
       data-testid="page-dika"
     >
       <div className="flex-shrink-0 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 border-b border-white/[0.06] px-4 py-3 backdrop-blur-xl" style={{ paddingTop: document.documentElement.classList.contains('is-android') ? '4px' : 'calc(var(--cached-safe-top, env(safe-area-inset-top, 0px)) + 4px)' }}>
