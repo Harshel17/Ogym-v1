@@ -4537,7 +4537,7 @@ Return ONLY JSON.`
     if (!result.success) {
       return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD" });
     }
-    const analytics = await storage.getMemberDailyAnalytics(req.user!.gymId!, req.user!.id, result.data);
+    const analytics = await storage.getMemberDailyAnalytics(req.user!.gymId, req.user!.id, result.data);
     res.json(analytics);
   });
 

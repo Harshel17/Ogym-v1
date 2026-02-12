@@ -428,7 +428,7 @@ export interface IStorage {
     completed: { name: string; sets: number; reps: number; weight: string | null }[];
     missed: { name: string; sets: number; reps: number; weight: string | null }[];
   }[]>;
-  getMemberDailyAnalytics(gymId: number, memberId: number, date: string): Promise<{
+  getMemberDailyAnalytics(gymId: number | null, memberId: number, date: string): Promise<{
     date: string;
     totalExercises: number;
     completedCount: number;
@@ -2000,12 +2000,13 @@ export class DatabaseStorage implements IStorage {
    */
   async loadMemberScheduleData(memberId: number, gymId: number | null = null): Promise<{
     phases: (typeof trainingPhases.$inferSelect)[];
-    directCycles: (typeof workoutCycles.$inferSelect)[]; // Cycles directly assigned to member
-    phaseExerciseDays: Map<number, Set<number>>; // phaseId -> set of dayIndices with exercises
-    cycleExerciseDays: Map<number, Set<number>>; // cycleId -> set of dayIndices with exercises
-    cycleRestDays: Map<number, Set<number>>; // cycleId -> set of rest day indices
-    cycleLengths: Map<number, number>; // cycleId -> cycle length
-    swaps: Map<string, number>; // "phaseId-date" -> targetDayIndex
+    directCycles: (typeof workoutCycles.$inferSelect)[];
+    phaseExerciseDays: Map<number, Set<number>>;
+    cycleExerciseDays: Map<number, Set<number>>;
+    cycleRestDays: Map<number, Set<number>>;
+    cycleLengths: Map<number, number>;
+    swaps: Map<string, number>;
+    completionSessionDayByDate: Map<string, number>;
   }> {
     // Get all phases for this member
     const phases = await db.select().from(trainingPhases)
@@ -2091,7 +2092,26 @@ export class DatabaseStorage implements IStorage {
       swaps.set(`${swap.phaseId}-${swap.swapDate}`, swap.targetDayIndex);
     }
     
-    return { phases, directCycles, phaseExerciseDays, cycleExerciseDays, cycleRestDays, cycleLengths, swaps };
+    // For completion-based cycles, load session data to map dates to day indices
+    const completionSessionDayByDate = new Map<string, number>();
+    const completionCycles = directCycles.filter(c => c.progressionMode === "completion");
+    if (completionCycles.length > 0) {
+      const completionCycleIds = completionCycles.map(c => c.id);
+      const sessions = await db.select().from(workoutSessions)
+        .where(and(
+          eq(workoutSessions.memberId, memberId),
+          inArray(workoutSessions.cycleId, completionCycleIds)
+        ))
+        .orderBy(workoutSessions.date);
+      
+      for (const s of sessions) {
+        if (s.cycleDayIndex !== null && s.cycleDayIndex !== undefined) {
+          completionSessionDayByDate.set(s.date, s.cycleDayIndex);
+        }
+      }
+    }
+    
+    return { phases, directCycles, phaseExerciseDays, cycleExerciseDays, cycleRestDays, cycleLengths, swaps, completionSessionDayByDate };
   }
 
   /**
@@ -2108,6 +2128,7 @@ export class DatabaseStorage implements IStorage {
       cycleRestDays: Map<number, Set<number>>;
       cycleLengths: Map<number, number>;
       swaps: Map<string, number>;
+      completionSessionDayByDate: Map<string, number>;
     }
   ): "workout" | "rest" | "unplanned" {
     const date = new Date(dateStr + 'T00:00:00');
@@ -2123,18 +2144,44 @@ export class DatabaseStorage implements IStorage {
       let dayIndex: number;
       
       if (directCycle.progressionMode === "completion") {
-        // Completion mode: day index only advances when workout is completed
-        // There is NO fixed schedule - user works out at their own pace
-        // For today: use currentDayIndex to determine what's next
-        // For past dates: can't use date math (it doesn't apply to completion mode)
-        //   - If user worked out that day, the completion records will show it as "present"
-        //   - If user didn't work out, it's NOT a missed day - they just didn't train
-        // For future dates: unplanned (no schedule)
         const todayStr = new Date().toISOString().split('T')[0];
         if (dateStr === todayStr) {
           dayIndex = directCycle.currentDayIndex ?? 0;
+        } else if (cache.completionSessionDayByDate.has(dateStr)) {
+          dayIndex = cache.completionSessionDayByDate.get(dateStr)!;
+        } else if (dateStr < todayStr) {
+          // Past date with no session: determine which day user was on
+          let lastKnownDayIndex = 0;
+          let lastSessionDate: string | null = null;
+          const sortedDates = Array.from(cache.completionSessionDayByDate.keys()).sort();
+          for (const sDate of sortedDates) {
+            if (sDate < dateStr) {
+              lastKnownDayIndex = cache.completionSessionDayByDate.get(sDate)!;
+              lastSessionDate = sDate;
+            } else {
+              break;
+            }
+          }
+          // In completion mode, the user stays on a day until they complete it
+          // Since they had a session on the last date, they were working on that day
+          // The next day would be active after completion
+          // For streak purposes: if user didn't work out, it's a workout day they missed
+          dayIndex = lastKnownDayIndex;
+          // Check if last session date advanced the day (was completed)
+          // Simple heuristic: if the next session after this gap uses a different dayIndex, 
+          // the previous one was completed
+          if (lastSessionDate) {
+            for (const sDate of sortedDates) {
+              if (sDate >= dateStr) {
+                const nextDayIndex = cache.completionSessionDayByDate.get(sDate)!;
+                if (nextDayIndex !== lastKnownDayIndex) {
+                  dayIndex = nextDayIndex;
+                }
+                break;
+              }
+            }
+          }
         } else {
-          // Past and future dates in completion mode have no fixed schedule
           return "unplanned";
         }
       } else {
@@ -4530,7 +4577,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getMemberDailyAnalytics(gymId: number, memberId: number, date: string): Promise<{
+  async getMemberDailyAnalytics(gymId: number | null, memberId: number, date: string): Promise<{
     date: string;
     totalExercises: number;
     completedCount: number;
@@ -4558,9 +4605,13 @@ export class DatabaseStorage implements IStorage {
       eq(workoutCompletions.completedDate, date)
     ));
 
+    const cycleCondition = gymId !== null
+      ? and(eq(workoutCycles.gymId, gymId), eq(workoutCycles.memberId, memberId))
+      : and(isNull(workoutCycles.gymId), eq(workoutCycles.memberId, memberId), eq(workoutCycles.source, 'self'));
+    
     const memberCycle = await db.select()
       .from(workoutCycles)
-      .where(and(eq(workoutCycles.gymId, gymId), eq(workoutCycles.memberId, memberId)))
+      .where(cycleCondition)
       .limit(1);
 
     let scheduledItems: typeof workoutItems.$inferSelect[] = [];
@@ -4578,7 +4629,41 @@ export class DatabaseStorage implements IStorage {
         const withinEnd = !cycle.endDate || date <= cycle.endDate;
         
         if (withinStart && withinEnd) {
-          dayIndex = daysDiff % cycle.cycleLength;
+          if (cycle.progressionMode === "completion") {
+            // Completion mode: use session data to determine the day index
+            const sessions = await db.select().from(workoutSessions)
+              .where(and(
+                eq(workoutSessions.memberId, memberId),
+                eq(workoutSessions.cycleId, cycle.id)
+              ))
+              .orderBy(workoutSessions.date);
+            
+            const sessionForDate = sessions.find(s => s.date === date);
+            if (sessionForDate && sessionForDate.cycleDayIndex !== null) {
+              dayIndex = sessionForDate.cycleDayIndex;
+            } else {
+              // No session for this date: find what day the user was on
+              let lastKnownDayIndex = 0;
+              for (const s of sessions) {
+                if (s.date < date && s.cycleDayIndex !== null && s.cycleDayIndex !== undefined) {
+                  lastKnownDayIndex = s.cycleDayIndex;
+                  // Check if the next session uses a different day (meaning this one was completed)
+                } else if (s.date >= date) {
+                  break;
+                }
+              }
+              // Check if last session advanced the day
+              const nextSession = sessions.find(s => s.date >= date && s.cycleDayIndex !== null);
+              if (nextSession && nextSession.cycleDayIndex !== lastKnownDayIndex) {
+                dayIndex = nextSession.cycleDayIndex;
+              } else {
+                dayIndex = lastKnownDayIndex;
+              }
+            }
+          } else {
+            dayIndex = daysDiff % cycle.cycleLength;
+          }
+          
           scheduledItems = await db.select()
             .from(workoutItems)
             .where(and(
