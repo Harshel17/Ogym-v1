@@ -1037,6 +1037,27 @@ export const insertPaymentConfirmationSchema = createInsertSchema(paymentConfirm
 export const insertAutomatedEmailReminderSchema = createInsertSchema(automatedEmailReminders).omit({ id: true, sentAt: true });
 export const insertWeeklyOwnerSummarySchema = createInsertSchema(weeklyOwnerSummaries).omit({ id: true, sentAt: true });
 
+// === FITNESS GOALS (Dika AI) ===
+
+export const fitnessGoals = pgTable("fitness_goals", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  gymId: integer("gym_id").references(() => gyms.id),
+  category: text("category", { enum: ["strength", "weight", "body_fat", "consistency", "nutrition", "custom"] }).notNull(),
+  title: text("title").notNull(),
+  targetValue: integer("target_value"),
+  targetUnit: text("target_unit"),
+  currentValue: integer("current_value"),
+  milestones: text("milestones").array(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+}, (table) => ({
+  userIdx: index("fitness_goals_user_idx").on(table.userId),
+}));
+
+export const insertFitnessGoalSchema = createInsertSchema(fitnessGoals).omit({ id: true, createdAt: true, completedAt: true });
+
 // Payment Links type for gym settings
 export const paymentLinksSchema = z.object({
   upi: z.string().optional(),
@@ -1191,3 +1212,6 @@ export type InsertWaterLog = z.infer<typeof insertWaterLogSchema>;
 
 export type WeeklyReport = typeof weeklyReports.$inferSelect;
 export type InsertWeeklyReport = z.infer<typeof insertWeeklyReportSchema>;
+
+export type FitnessGoal = typeof fitnessGoals.$inferSelect;
+export type InsertFitnessGoal = z.infer<typeof insertFitnessGoalSchema>;

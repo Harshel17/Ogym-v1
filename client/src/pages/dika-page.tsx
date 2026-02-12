@@ -496,6 +496,12 @@ function MarkdownContent({ content }: { content: string }) {
       .replace(/<!-- MEAL_LOG_DATA:[\s\S]+? -->/g, '').replace(/&lt;!-- MEAL_LOG_DATA:[\s\S]+? --&gt;/g, '')
       .replace(/<!-- DIKA_ACTION_DATA:[\s\S]+? -->/g, '').replace(/&lt;!-- DIKA_ACTION_DATA:[\s\S]+? --&gt;/g, '')
       .replace(/<!-- WEEKLY_REPORT_DATA:[\s\S]+? -->/g, '').replace(/&lt;!-- WEEKLY_REPORT_DATA:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- PENDING_BODY_MEASUREMENT:[\s\S]+? -->/g, '').replace(/&lt;!-- PENDING_BODY_MEASUREMENT:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- PENDING_EXERCISE_SWAP:[\s\S]+? -->/g, '').replace(/&lt;!-- PENDING_EXERCISE_SWAP:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- PENDING_GOAL:[\s\S]+? -->/g, '').replace(/&lt;!-- PENDING_GOAL:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- PENDING_MEAL_SUGGESTION:[\s\S]+? -->/g, '').replace(/&lt;!-- PENDING_MEAL_SUGGESTION:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- DIKA_FIND_FOOD -->/g, '').replace(/&lt;!-- DIKA_FIND_FOOD --&gt;/g, '')
+      .replace(/\n?\[chips?:\s*"[^"]+".+?\]/gi, '')
       .trim();
     return parseMarkdown(cleanContent);
   }, [content]);

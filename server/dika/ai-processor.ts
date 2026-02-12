@@ -23,6 +23,8 @@ import { detectFoodType, hasQuantityInMessage, buildSmartFollowUp, generateFollo
 import { detectOwnerAction, processOwnerAction, OwnerActionType, detectSupportTicketRequest, processSupportTicketAction, detectOngoingSupportTicketFlow } from "./owner-actions";
 import { detectWeeklyReportRequest, generateWeeklyReport, formatWeeklyReportResponse } from "./weekly-report";
 import { findRestaurantSuggestion, getSuggestionForGoal, getGeneralDikaMessage, GoalType } from "../nutrition/restaurant-suggestions";
+import { detectMemberAction, detectPendingMemberAction, processBodyMeasurement, processExerciseSwap, processGoalAction, processMealSuggestion, getActiveGoals } from "./member-actions";
+import { fitnessGoals } from "@shared/schema";
 
 export function detectFindFoodRequest(message: string): boolean {
   const patterns = [
@@ -287,6 +289,7 @@ interface MemberContext {
     exercises: Array<{ name: string; muscleType: string; sets: number; reps: number; type: string }>;
     completedCount: number;
   } | null;
+  activeGoals: Array<{ title: string; category: string; targetValue: number | null; currentValue: number | null; targetUnit: string | null }>;
 }
 
 interface OwnerContext {
@@ -550,6 +553,7 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
     healthData: healthContext,
     nutrition: await getTodayNutritionSummary(userId),
     todayWorkout: todayWorkoutContext,
+    activeGoals: await getActiveGoals(userId),
   };
 }
 
@@ -824,6 +828,7 @@ RULES:
 1. Only use data you have access to. Never make things up.
 2. You ARE a fitness expert - give helpful advice about exercises, nutrition, routines, and body composition. Only suggest a doctor for medical issues or pain.
 3. If asked about something outside your data, briefly say what you can help with instead.
+4. At the END of every response, suggest 2-3 natural follow-up questions on a new line in this exact format: [chips: "Question 1", "Question 2"]. These should flow naturally from the conversation. Do NOT include this format in the middle of your response.
 
 USER CONTEXT:
 - Name: ${userContext.userName}
@@ -889,13 +894,30 @@ ${ctx.nutrition.calorieGoal ? `- Remaining: ${Math.max(0, ctx.nutrition.calorieG
 IMPORTANT - MEAL LOGGING:
 - When the user tells you what they ate (e.g. "I had eggs and toast"), the system automatically detects and logs it. You do NOT need to handle meal logging yourself.
 - You CAN answer questions about their nutrition data shown above.
+- When asked "what should I eat" or meal suggestions, the system handles it. You do NOT need to suggest meals yourself.
 
+EXERCISE SUBSTITUTION:
+- When a member says they can't do an exercise or asks for alternatives, the system handles finding and swapping exercises. You do NOT need to handle this yourself.
+
+BODY MEASUREMENT LOGGING:
+- When a member tells you their weight, body fat, or other measurements, the system detects and logs it. You do NOT need to handle this yourself.
+
+GOAL TRACKING:
+- When a member says "I want to..." or "set a goal", the system handles goal creation. You do NOT need to handle this yourself.
+${ctx.activeGoals.length > 0 ? `
+ACTIVE GOALS:
+${ctx.activeGoals.map(g => `- ${g.title}${g.targetValue ? ` (target: ${g.targetValue}${g.targetUnit || ''})` : ''}${g.currentValue ? ` — currently at ${g.currentValue}${g.targetUnit || ''}` : ''}`).join('\n')}
+When relevant to the conversation, mention the user's goals and progress. Be encouraging!
+` : ''}
 You can help this member with:
 - Workout progress and consistency analysis
 - Attendance patterns
 - Body measurement trends and progress
 - Subscription status
 - Nutrition tracking and calorie analysis
+- Meal suggestions based on remaining macros
+- Exercise alternatives and substitutions
+- Fitness goal setting and tracking
 ${ctx.healthData.connected ? '- Fitness device data analysis (steps, calories burned, heart rate, sleep)' : ''}
 - Motivation and encouragement based on their data
 - Creating support tickets to report issues or request help
@@ -1154,7 +1176,52 @@ export async function processWithAI(
     }
   }
 
-  if ((role === 'member' || role === 'personal') && detectFindFoodRequest(message)) {
+  if (role === 'member') {
+    const pendingMemberAction = detectPendingMemberAction(conversationHistory);
+    if (pendingMemberAction) {
+      try {
+        if (pendingMemberAction === 'log_body_measurement') {
+          return await processBodyMeasurement(userId, gymId, message, conversationHistory);
+        }
+        if (pendingMemberAction === 'swap_exercise') {
+          return await processExerciseSwap(userId, gymId, message, conversationHistory, localDate);
+        }
+        if (pendingMemberAction === 'set_goal') {
+          return await processGoalAction(userId, gymId, message, 'set_goal', conversationHistory);
+        }
+        if (pendingMemberAction === 'suggest_meal') {
+          return await processMealSuggestion(userId, message, conversationHistory, localDate);
+        }
+      } catch (error) {
+        console.error('Member action follow-up failed:', error);
+      }
+    }
+
+    const memberAction = detectMemberAction(message);
+    if (memberAction) {
+      try {
+        if (memberAction === 'suggest_meal') {
+          return await processMealSuggestion(userId, message, conversationHistory, localDate);
+        }
+        if (memberAction === 'log_body_measurement') {
+          return await processBodyMeasurement(userId, gymId, message, conversationHistory);
+        }
+        if (memberAction === 'swap_exercise') {
+          return await processExerciseSwap(userId, gymId, message, conversationHistory, localDate);
+        }
+        if (memberAction === 'set_goal') {
+          return await processGoalAction(userId, gymId, message, 'set_goal', conversationHistory);
+        }
+        if (memberAction === 'update_goal') {
+          return await processGoalAction(userId, gymId, message, 'update_goal', conversationHistory);
+        }
+      } catch (error) {
+        console.error('Member action processing failed:', error);
+      }
+    }
+  }
+
+  if (role === 'member' && detectFindFoodRequest(message)) {
     const answer = `I'll help you find the best food options nearby! Let me check what's around you.\n\n<!-- DIKA_FIND_FOOD -->`;
     const followUpChips = [
       'Log a meal',
@@ -1366,7 +1433,11 @@ export async function processWithAI(
           .replace(/<!-- DIKA_ACTION_DATA:[\s\S]+? -->/g, '[action taken]')
           .replace(/<!-- WEEKLY_REPORT_DATA:[\s\S]+? -->/g, '[report generated]')
           .replace(/<!-- WORKOUT_PLAN_DATA:[\s\S]+? -->/g, '[workout plan]')
-          .replace(/<!-- DIKA_FIND_FOOD -->/g, '[food search]');
+          .replace(/<!-- DIKA_FIND_FOOD -->/g, '[food search]')
+          .replace(/<!-- PENDING_BODY_MEASUREMENT:[\s\S]+? -->/g, '[awaiting confirmation]')
+          .replace(/<!-- PENDING_EXERCISE_SWAP:[\s\S]+? -->/g, '[awaiting swap choice]')
+          .replace(/<!-- PENDING_GOAL:[\s\S]+? -->/g, '[awaiting goal confirmation]')
+          .replace(/<!-- PENDING_MEAL_SUGGESTION:[\s\S]+? -->/g, '[meal suggestions shown]');
         historyMessages.push({ role: msg.role, content: cleanContent });
       }
     }
@@ -1381,11 +1452,20 @@ export async function processWithAI(
       max_completion_tokens: 500,
     });
     
-    const answer = response.choices[0]?.message?.content || "I'm having trouble understanding that. Could you rephrase?";
+    let rawAnswer = response.choices[0]?.message?.content || "I'm having trouble understanding that. Could you rephrase?";
     
-    const followUpChips = generateFollowUpChips(role, message, answer, gymId, isIOSNative);
+    let followUpChips: string[] = [];
+    const chipMatch = rawAnswer.match(/\[chips?:\s*"([^"]+)"(?:\s*,\s*"([^"]+)")?(?:\s*,\s*"([^"]+)")?\s*\]/i);
+    if (chipMatch) {
+      followUpChips = [chipMatch[1], chipMatch[2], chipMatch[3]].filter(Boolean) as string[];
+      rawAnswer = rawAnswer.replace(/\n?\[chips?:\s*"[^"]+".+?\]/i, '').trim();
+    }
     
-    return { answer, followUpChips };
+    if (followUpChips.length === 0) {
+      followUpChips = generateFollowUpChips(role, message, rawAnswer, gymId, isIOSNative);
+    }
+    
+    return { answer: rawAnswer, followUpChips };
   } catch (error) {
     console.error('AI processing error:', error);
     throw error;

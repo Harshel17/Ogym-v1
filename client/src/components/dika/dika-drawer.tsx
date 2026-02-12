@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, Scale, Target, ArrowLeftRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -324,6 +324,10 @@ const ACTION_ICONS: Record<string, typeof UserPlus> = {
   assign_trainer: Users,
   navigate: Navigation,
   create_support_ticket: LifeBuoy,
+  log_body_measurement: Scale,
+  swap_exercise: ArrowLeftRight,
+  set_goal: Target,
+  update_goal: Target,
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -332,6 +336,10 @@ const ACTION_LABELS: Record<string, string> = {
   assign_trainer: 'Assign Trainer',
   navigate: 'Navigate',
   create_support_ticket: 'Support Ticket',
+  log_body_measurement: 'Body Measurement',
+  swap_exercise: 'Exercise Swap',
+  set_goal: 'Goal Set',
+  update_goal: 'Goal Progress',
 };
 
 const ACTION_GRADIENTS: Record<string, string> = {
@@ -340,6 +348,10 @@ const ACTION_GRADIENTS: Record<string, string> = {
   assign_trainer: 'from-purple-500 to-violet-600',
   navigate: 'from-amber-500 to-orange-600',
   create_support_ticket: 'from-rose-500 to-pink-600',
+  log_body_measurement: 'from-cyan-500 to-teal-600',
+  swap_exercise: 'from-orange-500 to-amber-600',
+  set_goal: 'from-green-500 to-emerald-600',
+  update_goal: 'from-green-500 to-emerald-600',
 };
 
 interface ActionCardProps {
@@ -767,6 +779,17 @@ function MarkdownContent({ content }: { content: string }) {
       .replace(/&lt;!-- DIKA_ACTION_DATA:[\s\S]+? --&gt;/g, '')
       .replace(/<!-- WEEKLY_REPORT_DATA:[\s\S]+? -->/g, '')
       .replace(/&lt;!-- WEEKLY_REPORT_DATA:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- PENDING_BODY_MEASUREMENT:[\s\S]+? -->/g, '')
+      .replace(/&lt;!-- PENDING_BODY_MEASUREMENT:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- PENDING_EXERCISE_SWAP:[\s\S]+? -->/g, '')
+      .replace(/&lt;!-- PENDING_EXERCISE_SWAP:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- PENDING_GOAL:[\s\S]+? -->/g, '')
+      .replace(/&lt;!-- PENDING_GOAL:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- PENDING_MEAL_SUGGESTION:[\s\S]+? -->/g, '')
+      .replace(/&lt;!-- PENDING_MEAL_SUGGESTION:[\s\S]+? --&gt;/g, '')
+      .replace(/<!-- DIKA_FIND_FOOD -->/g, '')
+      .replace(/&lt;!-- DIKA_FIND_FOOD --&gt;/g, '')
+      .replace(/\n?\[chips?:\s*"[^"]+".+?\]/gi, '')
       .trim();
     return parseMarkdown(cleanContent);
   }, [content]);
