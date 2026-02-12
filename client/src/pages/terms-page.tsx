@@ -7,8 +7,8 @@ export default function TermsPage() {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="h-full overflow-y-auto bg-background p-4 md:p-8">
+      <div className="max-w-4xl mx-auto pb-8">
         <Button
           variant="ghost"
           className="mb-4"
