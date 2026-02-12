@@ -6057,6 +6057,15 @@ export class DatabaseStorage implements IStorage {
     const startDate = new Date(cycle.startDate);
     const endDate = new Date(Math.min(new Date(cycle.endDate).getTime(), new Date(today).getTime()));
     
+    // Load schedule overrides (rest day swaps) to reflect actual day assignments
+    const overrides = await this.getCycleScheduleOverrides(memberId, cycle.id);
+    const overridesByDate: Record<string, number> = {};
+    for (const ov of overrides) {
+      if (ov.isActive) {
+        overridesByDate[ov.date] = ov.dayIndex;
+      }
+    }
+    
     type PlannedExercise = {
       id: number;
       exerciseName: string;
@@ -6082,11 +6091,56 @@ export class DatabaseStorage implements IStorage {
       plannedExercises: PlannedExercise[];
     }[] = [];
     
+    // For completion-based cycles, build a map of date -> dayIndex from actual sessions
+    // since days don't advance by calendar date but by user completion
+    const isCompletionMode = cycle.progressionMode === "completion";
+    const sessionDayIndexByDate: Record<string, number> = {};
+    if (isCompletionMode) {
+      for (const s of sessions) {
+        if (s.cycleDayIndex !== null && s.cycleDayIndex !== undefined) {
+          sessionDayIndexByDate[s.date] = s.cycleDayIndex;
+        }
+      }
+    }
+    
     let currentDate = new Date(startDate);
     while (currentDate <= endDate) {
       const dateStr = currentDate.toISOString().split('T')[0];
       const daysSinceStart = Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      const dayIndex = daysSinceStart % cycle.cycleLength;
+      
+      let dayIndex: number;
+      if (overridesByDate[dateStr] !== undefined) {
+        dayIndex = overridesByDate[dateStr];
+      } else if (isCompletionMode && sessionDayIndexByDate[dateStr] !== undefined) {
+        // For completion-based: use the actual day index from the session
+        dayIndex = sessionDayIndexByDate[dateStr];
+      } else if (isCompletionMode) {
+        // No session for this date in completion mode - find what day the user was on
+        // by looking at the most recent session before this date
+        let lastKnownDayIndex = 0;
+        let lastSessionWasDone = false;
+        const sortedSessionDates = Object.keys(sessionDayIndexByDate).sort();
+        for (const sDate of sortedSessionDates) {
+          if (sDate < dateStr) {
+            const sSession = sessionsByDate[sDate];
+            lastKnownDayIndex = sessionDayIndexByDate[sDate];
+            lastSessionWasDone = Boolean(sSession?.isManuallyCompleted) || 
+              ((sessionExerciseCounts[sSession?.id ?? 0] || 0) >= (itemsByDay[lastKnownDayIndex]?.length || 0) && (itemsByDay[lastKnownDayIndex]?.length || 0) > 0);
+          } else {
+            break;
+          }
+        }
+        // If the last session was completed, the next day index would be active
+        if (lastSessionWasDone) {
+          dayIndex = (lastKnownDayIndex + 1) % cycle.cycleLength;
+        } else {
+          dayIndex = lastKnownDayIndex;
+        }
+      } else {
+        // Calendar-based: calculate from dates
+        dayIndex = daysSinceStart % cycle.cycleLength;
+      }
+      
       const dayLabel = cycle.dayLabels?.[dayIndex] || `Day ${dayIndex + 1}`;
       const dayItems = itemsByDay[dayIndex] || [];
       const isRestDay = (cycle.restDays?.includes(dayIndex)) || dayLabel.toLowerCase().includes("rest") || dayItems.length === 0;
