@@ -4271,6 +4271,36 @@ export class DatabaseStorage implements IStorage {
     const daysInMonth = new Date(year, mon, 0).getDate();
     const cycle = memberCycle.length > 0 ? memberCycle[0] : null;
     const cycleEndDate = cycle?.endDate || null;
+    const isCompletionMode = cycle?.progressionMode === "completion";
+
+    // For completion-based cycles, fetch workout sessions to determine actual day indices
+    let sessionDayIndexByDate: Record<string, number> = {};
+    let completionSessionsByDate: Record<string, { id: number; isManuallyCompleted: boolean | null }> = {};
+    if (isCompletionMode && cycle) {
+      const sessions = await db.select()
+        .from(workoutSessions)
+        .where(and(
+          eq(workoutSessions.memberId, memberId),
+          eq(workoutSessions.cycleId, cycle.id)
+        ))
+        .orderBy(workoutSessions.date);
+      
+      for (const s of sessions) {
+        if (s.cycleDayIndex !== null && s.cycleDayIndex !== undefined) {
+          sessionDayIndexByDate[s.date] = s.cycleDayIndex;
+          completionSessionsByDate[s.date] = { id: s.id, isManuallyCompleted: s.isManuallyCompleted };
+        }
+      }
+    }
+
+    // Group scheduled items by day index for quick lookup
+    const itemsByDayIndex: Record<number, typeof scheduledItems> = {};
+    for (const item of scheduledItems) {
+      if (!itemsByDayIndex[item.dayIndex]) {
+        itemsByDayIndex[item.dayIndex] = [];
+      }
+      itemsByDayIndex[item.dayIndex].push(item);
+    }
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(mon).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -4295,11 +4325,37 @@ export class DatabaseStorage implements IStorage {
         const withinEnd = !cycleEndDate || dateStr <= cycleEndDate;
         
         if (withinStart && withinEnd) {
-          if (cycle.progressionMode === "completion") {
-            // Completion mode: no fixed date-based schedule at all.
-            // The calendar only reflects actual completions (present/rest).
-            // The "Today's Workout" card handles showing what's next.
-            // Never set isCycleActive so no day shows "missed" exercises.
+          if (isCompletionMode) {
+            // Completion mode: use session data to determine the day index
+            if (sessionDayIndexByDate[dateStr] !== undefined) {
+              dayIndex = sessionDayIndexByDate[dateStr];
+              isCycleActive = true;
+            } else {
+              // No session: figure out what day the user was on by looking at prior sessions
+              let lastKnownDayIndex = 0;
+              let lastSessionWasDone = false;
+              const sortedDates = Object.keys(sessionDayIndexByDate).sort();
+              for (const sDate of sortedDates) {
+                if (sDate < dateStr) {
+                  const sInfo = completionSessionsByDate[sDate];
+                  lastKnownDayIndex = sessionDayIndexByDate[sDate];
+                  const dayItems = itemsByDayIndex[lastKnownDayIndex] || [];
+                  const sDateCompletedIds = completedByDate.get(sDate) || new Set();
+                  const sDateCompletedCount = dayItems.filter(i => sDateCompletedIds.has(i.id)).length;
+                  lastSessionWasDone = Boolean(sInfo?.isManuallyCompleted) || 
+                    (sDateCompletedCount >= dayItems.length && dayItems.length > 0) ||
+                    (dayItems.length === 0);
+                } else {
+                  break;
+                }
+              }
+              if (lastSessionWasDone) {
+                dayIndex = (lastKnownDayIndex + 1) % cycle.cycleLength;
+              } else {
+                dayIndex = lastKnownDayIndex;
+              }
+              isCycleActive = true;
+            }
           } else {
             // Calendar mode: use date math
             dayIndex = daysDiff % cycle.cycleLength;
@@ -4309,6 +4365,15 @@ export class DatabaseStorage implements IStorage {
       }
 
       const scheduledForDay = isCycleActive ? scheduledItems.filter(item => item.dayIndex === dayIndex) : [];
+      
+      // For completion mode, check if this is a rest day by label or empty exercises
+      const dayLabel = cycle?.dayLabels?.[dayIndex] || "";
+      const isRestDay = isCycleActive && (
+        (cycle?.restDays?.includes(dayIndex)) || 
+        dayLabel.toLowerCase().includes("rest") || 
+        scheduledForDay.length === 0
+      );
+
       const missed = scheduledForDay
         .filter(item => !completedIds.has(item.id))
         .map(item => ({
@@ -4319,11 +4384,11 @@ export class DatabaseStorage implements IStorage {
         }));
 
       let status: "present" | "absent" | "rest" | "future" = "rest";
-      if (scheduledForDay.length > 0) {
-        // Workout day: status based on whether any exercises were completed
+      if (isRestDay) {
+        status = "rest";
+      } else if (scheduledForDay.length > 0) {
         status = completed.length > 0 ? "present" : "absent";
       } else if (wasPresent || completed.length > 0) {
-        // Had completions or attendance even without scheduled items
         status = "present";
       }
 
