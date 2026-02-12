@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, ChevronLeft } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, ChevronLeft, MapPin, Pizza, Coffee, Salad, Soup, UtensilsCrossed, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -293,6 +293,152 @@ function WeeklyReportCard({ report }: { report: WeeklyReportData }) {
   );
 }
 
+interface FindFoodRestaurant {
+  name: string;
+  distance: number;
+  distanceText: string;
+  suggestion: { item: string; reason: string; approxCalories: string; dikaMessage?: string } | null;
+  category: string;
+  lat: number;
+  lon: number;
+}
+
+function extractFindFoodTag(content: string): boolean {
+  return content.includes('<!-- DIKA_FIND_FOOD -->') || content.includes('&lt;!-- DIKA_FIND_FOOD --&gt;');
+}
+
+function stripFindFoodTag(content: string): string {
+  return content.replace(/\n?<!-- DIKA_FIND_FOOD -->/g, '').replace(/\n?&lt;!-- DIKA_FIND_FOOD --&gt;/g, '').trim();
+}
+
+function getCategoryIcon(category: string) {
+  const iconClass = "w-3.5 h-3.5";
+  switch (category) {
+    case 'fast_food': return <Beef className={`${iconClass} text-orange-500`} />;
+    case 'pizza': return <Pizza className={`${iconClass} text-red-500`} />;
+    case 'mexican': return <UtensilsCrossed className={`${iconClass} text-yellow-600`} />;
+    case 'asian': return <Soup className={`${iconClass} text-amber-500`} />;
+    case 'indian': return <Soup className={`${iconClass} text-orange-600`} />;
+    case 'coffee': return <Coffee className={`${iconClass} text-amber-700 dark:text-amber-400`} />;
+    case 'healthy': return <Salad className={`${iconClass} text-green-500`} />;
+    default: return <Utensils className={`${iconClass} text-muted-foreground`} />;
+  }
+}
+
+function FindFoodCard({ onSearch }: { onSearch: () => void }) {
+  return (
+    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-800/40 overflow-hidden" data-testid="card-find-food-prompt">
+      <div className="px-3 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
+        <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><h3 className="font-semibold text-sm">Find Healthy Food Nearby</h3></div>
+      </div>
+      <div className="px-3 py-3">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">I need your location to find the best food options based on your nutrition goals. Your location is only used for this search.</p>
+        <Button onClick={onSearch} className="w-full gap-2" size="sm" data-testid="button-dika-find-food">
+          <MapPin className="w-3.5 h-3.5" />
+          Share Location & Find Food
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function FindFoodLoadingCard() {
+  return (
+    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-800/40 overflow-hidden" data-testid="card-find-food-loading">
+      <div className="px-3 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
+        <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><h3 className="font-semibold text-sm">Finding Food Near You</h3></div>
+      </div>
+      <div className="px-4 py-6 flex flex-col items-center gap-2">
+        <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+        <p className="text-xs text-gray-500 dark:text-gray-400">Searching for restaurants and finding the best options for your goals...</p>
+      </div>
+    </div>
+  );
+}
+
+function FindFoodResultsCard({ restaurants, dikaMessage, goalType, remainingCalories }: { restaurants: FindFoodRestaurant[]; dikaMessage: string; goalType: string; remainingCalories: number }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const goalLabel = goalType === 'lose' ? 'Cutting' : goalType === 'gain' ? 'Bulking' : 'Maintenance';
+  const goalColor = goalType === 'lose' ? 'text-blue-600 dark:text-blue-400' : goalType === 'gain' ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400';
+
+  if (restaurants.length === 0) {
+    return (
+      <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden" data-testid="card-find-food-empty">
+        <div className="px-3 py-2.5 bg-gradient-to-r from-gray-400 to-gray-500 text-white">
+          <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><h3 className="font-semibold text-sm">No Results</h3></div>
+        </div>
+        <div className="px-3 py-3 text-xs text-gray-500 dark:text-gray-400">No recognized restaurants found nearby. Try the Find My Food page for a wider search.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-800/40 overflow-hidden" data-testid="card-find-food-results">
+      <div className="px-3 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><h3 className="font-semibold text-sm">Best Options Near You</h3></div>
+          <span className="text-[10px] opacity-90">{restaurants.length} found</span>
+        </div>
+      </div>
+      <div className="px-3 py-2">
+        <div className="flex items-center justify-between mb-2 bg-gray-50 dark:bg-gray-900/40 rounded-md px-2.5 py-1.5">
+          <div className="flex items-center gap-1.5">
+            <Flame className="w-3 h-3 text-orange-500" />
+            <span className="text-[11px] text-gray-500 dark:text-gray-400">{remainingCalories} cal remaining</span>
+          </div>
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0"><span className={goalColor}>{goalLabel}</span></Badge>
+        </div>
+        {dikaMessage && <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mb-2 italic">{dikaMessage}</p>}
+        <div className="space-y-1.5">
+          {restaurants.map((r, i) => (
+            <div
+              key={`${r.name}-${i}`}
+              className={cn("rounded-md border transition-all cursor-pointer", expanded === r.name ? "border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/20" : "border-gray-100 dark:border-gray-800 hover-elevate")}
+              onClick={() => setExpanded(expanded === r.name ? null : r.name)}
+              data-testid={`card-restaurant-${i}`}
+            >
+              <div className="flex items-center gap-2 px-2.5 py-2">
+                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                  {getCategoryIcon(r.category)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{r.name}</span>
+                    <span className="text-[10px] text-gray-400 flex-shrink-0">{r.distanceText}</span>
+                  </div>
+                  {r.suggestion && (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
+                      <span className="text-[11px] text-gray-600 dark:text-gray-400 truncate">{r.suggestion.item}</span>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex-shrink-0">{r.suggestion.approxCalories}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {expanded === r.name && r.suggestion && (
+                <div className="px-2.5 pb-2.5 pt-0.5 border-t border-gray-100 dark:border-gray-800">
+                  <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed mb-2">{r.suggestion.reason}</p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-[11px] flex-1"
+                      onClick={(e) => { e.stopPropagation(); window.open(`https://maps.google.com/maps?daddr=${r.lat},${r.lon}`, '_blank'); }}
+                      data-testid={`button-directions-${i}`}
+                    >
+                      <Navigation className="w-3 h-3 mr-1" />Directions
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function parseMarkdown(text: string): ReactNode[] {
   const lines = text.split('\n');
   const elements: ReactNode[] = [];
@@ -433,6 +579,34 @@ function DikaPageInner({ userId }: { userId: number }) {
   const [actionResults, setActionResults] = useState<Record<string, { success: boolean; message: string }>>({});
   const [executingActionId, setExecutingActionId] = useState<string | null>(null);
   const [cancelledActions, setCancelledActions] = useState<Set<string>>(new Set());
+
+  const [findFoodState, setFindFoodState] = useState<Record<string, 'idle' | 'loading' | 'done' | 'error'>>({});
+  const [findFoodResults, setFindFoodResults] = useState<Record<string, { restaurants: FindFoodRestaurant[]; dikaMessage: string; goalType: string; remainingCalories: number }>>({});
+
+  const handleFindFood = useCallback(async (messageId: string) => {
+    setFindFoodState(prev => ({ ...prev, [messageId]: 'loading' }));
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 30000, maximumAge: 120000 });
+      });
+      const res = await apiRequest('POST', '/api/dika/find-food', {
+        lat: position.coords.latitude,
+        lon: position.coords.longitude,
+        radiusMiles: 3,
+      });
+      const data = await res.json();
+      setFindFoodResults(prev => ({ ...prev, [messageId]: data }));
+      setFindFoodState(prev => ({ ...prev, [messageId]: 'done' }));
+    } catch (error: any) {
+      setFindFoodState(prev => ({ ...prev, [messageId]: 'error' }));
+      const isPermDenied = error?.code === 1;
+      toast({
+        title: isPermDenied ? "Location access needed" : "Could not find food",
+        description: isPermDenied ? "Please allow location access to find food near you." : "Something went wrong. Please try again.",
+        variant: "destructive"
+      });
+    }
+  }, [toast]);
 
   const saveWorkoutMutation = useMutation({
     mutationFn: async ({ plan, messageId }: { plan: GeneratedWorkoutPlan; messageId: string }) => {
@@ -660,10 +834,14 @@ function DikaPageInner({ userId }: { userId: number }) {
                       const rawActionData = extractActionFromContent(message.content);
                       const actionData = (rawActionData && isNative() && isIOS() && rawActionData.actionType === 'log_payment') ? null : rawActionData;
                       const weeklyReport = extractWeeklyReportFromContent(message.content);
+                      const hasFindFood = extractFindFoodTag(message.content);
                       let displayContent = message.content;
                       if (mealLog) displayContent = stripMealLogTag(displayContent);
                       if (rawActionData) displayContent = stripActionTag(displayContent);
                       if (weeklyReport) displayContent = stripWeeklyReportTag(displayContent);
+                      if (hasFindFood) displayContent = stripFindFoodTag(displayContent);
+                      const ffState = findFoodState[message.id] || 'idle';
+                      const ffResults = findFoodResults[message.id];
                       return (
                         <>
                           <MarkdownContent content={displayContent} />
@@ -672,6 +850,10 @@ function DikaPageInner({ userId }: { userId: number }) {
                           {actionData && actionData.status === 'pending_confirmation' && !cancelledActions.has(message.id) && (
                             <ActionCard action={actionData} onConfirm={() => handleActionConfirm(message.id, actionData)} onCancel={() => handleActionCancel(message.id)} isExecuting={executingActionId === message.id} executionResult={actionResults[message.id] || null} />
                           )}
+                          {hasFindFood && ffState === 'idle' && <FindFoodCard onSearch={() => handleFindFood(message.id)} />}
+                          {hasFindFood && ffState === 'loading' && <FindFoodLoadingCard />}
+                          {hasFindFood && ffState === 'done' && ffResults && <FindFoodResultsCard restaurants={ffResults.restaurants} dikaMessage={ffResults.dikaMessage} goalType={ffResults.goalType} remainingCalories={ffResults.remainingCalories} />}
+                          {hasFindFood && ffState === 'error' && <FindFoodCard onSearch={() => handleFindFood(message.id)} />}
                         </>
                       );
                     })()}

@@ -5080,6 +5080,115 @@ Return ONLY JSON.`
     }
   });
 
+  app.post("/api/dika/find-food", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        lat: z.number(),
+        lon: z.number(),
+        radiusMiles: z.number().min(0.5).max(10).default(3),
+      });
+
+      const input = schema.parse(req.body);
+      const userId = req.user!.id;
+      const radiusMeters = input.radiusMiles * 1609.34;
+
+      const nutritionResult = await db.execute(
+        sql`SELECT COALESCE(SUM(calories * serving_quantity), 0) as calories FROM food_logs WHERE user_id = ${userId} AND date::date = CURRENT_DATE`
+      );
+      const nutritionRow = nutritionResult.rows?.[0] || nutritionResult[0];
+
+      const goalRows = await db.execute(
+        sql`SELECT calorie_goal, goal_type FROM calorie_goals WHERE user_id = ${userId} LIMIT 1`
+      );
+      const goalRow = goalRows.rows?.[0] || goalRows[0];
+
+      const calorieGoal = Number(goalRow?.calorie_goal) || 2000;
+      const goalType = ((goalRow?.goal_type as string) || 'maintain') as 'lose' | 'maintain' | 'gain';
+      const consumed = Number((nutritionRow as any)?.calories) || 0;
+      const remainingCalories = Math.max(0, calorieGoal - consumed);
+
+      const overpassQuery = `
+        [out:json][timeout:25];
+        (
+          node["amenity"="restaurant"](around:${radiusMeters},${input.lat},${input.lon});
+          node["amenity"="fast_food"](around:${radiusMeters},${input.lat},${input.lon});
+          node["amenity"="cafe"](around:${radiusMeters},${input.lat},${input.lon});
+        );
+        out body;
+      `;
+
+      const overpassServers = [
+        'https://overpass-api.de/api/interpreter',
+        'https://lz4.overpass-api.de/api/interpreter',
+        'https://overpass.kumi.systems/api/interpreter'
+      ];
+
+      let data: any = null;
+      let lastError: Error | null = null;
+
+      for (const server of overpassServers) {
+        try {
+          const overpassUrl = `${server}?data=${encodeURIComponent(overpassQuery)}`;
+          const response = await fetch(overpassUrl, {
+            headers: { 'User-Agent': 'OGym-FitnessApp/1.0 (contact@ogym.fitness)' }
+          });
+          if (response.ok) {
+            data = await response.json();
+            break;
+          }
+          lastError = new Error(`${server} returned ${response.status}`);
+        } catch (err) {
+          lastError = err as Error;
+        }
+      }
+
+      if (!data) {
+        throw lastError || new Error('All Overpass API servers failed');
+      }
+
+      const elements = data.elements || [];
+      const toRad = (deg: number) => deg * Math.PI / 180;
+      const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 3959;
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      };
+
+      const restaurants = elements
+        .filter((el: any) => el.tags?.name)
+        .map((el: any) => {
+          const distance = haversineDistance(input.lat, input.lon, el.lat, el.lon);
+          const restaurantSuggestion = findRestaurantSuggestion(el.tags.name);
+          let suggestion = null;
+          let category = 'casual';
+          if (restaurantSuggestion) {
+            suggestion = getSuggestionForGoal(restaurantSuggestion, goalType as GoalType, remainingCalories);
+            category = restaurantSuggestion.category;
+          }
+          return { name: el.tags.name, distance, distanceText: distance < 1 ? `${(distance * 5280).toFixed(0)} ft` : `${distance.toFixed(1)} mi`, suggestion, category, lat: el.lat, lon: el.lon };
+        })
+        .filter((r: any) => r.suggestion !== null)
+        .sort((a: any, b: any) => a.distance - b.distance)
+        .slice(0, 8);
+
+      const dikaMessage = getGeneralDikaMessage(goalType as GoalType, remainingCalories);
+
+      res.json({
+        restaurants,
+        dikaMessage,
+        goalType,
+        remainingCalories,
+        calorieGoal,
+        consumed,
+      });
+    } catch (error) {
+      console.error("Dika find-food error:", error);
+      res.status(500).json({ message: "Failed to find nearby restaurants" });
+    }
+  });
+
   // Save AI-generated workout plan
   app.post("/api/dika/save-workout", requireAuth, async (req, res) => {
     // Only members can save workout plans

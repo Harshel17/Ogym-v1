@@ -22,6 +22,31 @@ import { detectMealLogRequest, parseMealFromMessage, logMealForUser, getTodayNut
 import { detectFoodType, hasQuantityInMessage, buildSmartFollowUp, generateFollowUpChips as generateFoodTypeChips } from "../nutrition/food-type-intelligence";
 import { detectOwnerAction, processOwnerAction, OwnerActionType, detectSupportTicketRequest, processSupportTicketAction, detectOngoingSupportTicketFlow } from "./owner-actions";
 import { detectWeeklyReportRequest, generateWeeklyReport, formatWeeklyReportResponse } from "./weekly-report";
+import { findRestaurantSuggestion, getSuggestionForGoal, getGeneralDikaMessage, GoalType } from "../nutrition/restaurant-suggestions";
+
+export function detectFindFoodRequest(message: string): boolean {
+  const patterns = [
+    /find\s+(me\s+)?food/i,
+    /find\s+(me\s+)?(healthy|clean|safe)\s+food/i,
+    /food\s+near\s*(me|by|here)/i,
+    /restaurant[s]?\s+near\s*(me|by|here)/i,
+    /what\s+(should|can)\s+i\s+eat\s+near/i,
+    /where\s+(should|can)\s+i\s+eat/i,
+    /what('?s| is)\s+near\s*(me|by|here)\s+to\s+eat/i,
+    /suggest\s+(me\s+)?(food|restaurant|place)/i,
+    /healthy\s+(food|restaurant|option|place)\s+near/i,
+    /find\s+my\s+food/i,
+    /nearby\s+(food|restaurant|place)/i,
+    /eat\s+out\s+near/i,
+    /where\s+to\s+eat/i,
+    /clean\s+food\s+near/i,
+    /safest\s+food/i,
+    /cleanest\s+food/i,
+    /what\s+can\s+i\s+eat\s+around/i,
+    /good\s+(food|restaurant|place)\s+near/i,
+  ];
+  return patterns.some(p => p.test(message));
+}
 
 function detectPendingMealFromHistory(
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
@@ -1066,6 +1091,16 @@ export async function processWithAI(
     } catch (error) {
       console.error('Meal logging failed:', error);
     }
+  }
+
+  if ((role === 'member' || role === 'personal') && detectFindFoodRequest(message)) {
+    const answer = `I'll help you find the best food options nearby! Let me check what's around you.\n\n<!-- DIKA_FIND_FOOD -->`;
+    const followUpChips = [
+      'Log a meal',
+      'How many calories left today?',
+      'My nutrition summary'
+    ];
+    return { answer, followUpChips };
   }
 
   if (detectWeeklyReportRequest(message)) {
