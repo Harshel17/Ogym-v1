@@ -783,10 +783,11 @@ function DikaPageInner({ userId }: { userId: number }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-slate-50 via-slate-50 to-white dark:from-slate-900 dark:via-slate-900/95 dark:to-slate-950 relative">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-slate-50 via-slate-50 to-white dark:from-slate-900 dark:via-slate-900/95 dark:to-slate-950 relative flex flex-col items-center">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full bg-gradient-to-br from-amber-500/[0.04] via-orange-500/[0.02] to-transparent dark:from-amber-500/[0.03] dark:via-orange-500/[0.01] blur-3xl" />
         </div>
+        <div className="w-full lg:max-w-2xl space-y-4 relative">
         {messages.length === 0 && (
           <div className="text-center py-10 relative">
             <div className="w-20 h-20 mx-auto mb-6 relative">
@@ -896,20 +897,23 @@ function DikaPageInner({ userId }: { userId: number }) {
           </div>
         )}
         <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className={cn("px-4 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center gap-2 flex-shrink-0 bg-gradient-to-t from-white via-white to-slate-50/80 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80 backdrop-blur-xl", keyboardVisible ? "py-1.5" : "py-3")} style={!keyboardVisible ? { paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' } : undefined}>
-        <div className="flex-1 relative">
-          <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder={isListening ? "Listening..." : "Ask Dika anything..."} disabled={isLoading} className={cn("pr-4 rounded-full bg-slate-100/80 dark:bg-slate-800/60 border-slate-200/60 dark:border-slate-700/40 focus:border-amber-400/60 focus:ring-amber-400/15 placeholder:text-slate-400/60 shadow-inner shadow-slate-200/30 dark:shadow-slate-900/20 transition-all duration-200", isListening && "border-red-400/60 animate-pulse")} inputMode="text" autoComplete="off" enterKeyHint="send" data-testid="input-dika-message" />
-        </div>
-        {voiceSupported && (
-          <Button type="button" size="icon" variant={isListening ? "destructive" : "ghost"} onClick={toggleListening} disabled={isLoading} className={cn("rounded-full text-slate-400", isListening && "animate-pulse")} data-testid="button-dika-voice">
-            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+      <form onSubmit={handleSubmit} className={cn("px-4 border-t border-slate-200/50 dark:border-slate-800/50 flex items-center justify-center gap-2 flex-shrink-0 bg-gradient-to-t from-white via-white to-slate-50/80 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80 backdrop-blur-xl", keyboardVisible ? "py-1.5" : "py-3")} style={!keyboardVisible ? { paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' } : undefined}>
+        <div className="flex items-center gap-2 w-full lg:max-w-2xl">
+          <div className="flex-1 relative">
+            <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder={isListening ? "Listening..." : "Ask Dika anything..."} disabled={isLoading} className={cn("pr-4 rounded-full bg-slate-100/80 dark:bg-slate-800/60 border-slate-200/60 dark:border-slate-700/40 focus:border-amber-400/60 focus:ring-amber-400/15 placeholder:text-slate-400/60 shadow-inner shadow-slate-200/30 dark:shadow-slate-900/20 transition-all duration-200", isListening && "border-red-400/60 animate-pulse")} inputMode="text" autoComplete="off" enterKeyHint="send" data-testid="input-dika-message" />
+          </div>
+          {voiceSupported && (
+            <Button type="button" size="icon" variant={isListening ? "destructive" : "ghost"} onClick={toggleListening} disabled={isLoading} className={cn("rounded-full text-slate-400", isListening && "animate-pulse")} data-testid="button-dika-voice">
+              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </Button>
+          )}
+          <Button type="submit" size="icon" disabled={!input.trim() || isLoading} className="rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 shadow-lg shadow-amber-500/30 transition-all duration-200 disabled:shadow-none disabled:opacity-40" data-testid="button-dika-send">
+            <Send className="w-4 h-4 text-white" />
           </Button>
-        )}
-        <Button type="submit" size="icon" disabled={!input.trim() || isLoading} className="rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 shadow-lg shadow-amber-500/30 transition-all duration-200 disabled:shadow-none disabled:opacity-40" data-testid="button-dika-send">
-          <Send className="w-4 h-4 text-white" />
-        </Button>
+        </div>
       </form>
     </div>
   );
