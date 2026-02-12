@@ -1026,6 +1026,16 @@ export async function processWithAI(
     }
   }
 
+  if ((role === 'member' || role === 'personal') && detectFindFoodRequest(message)) {
+    const answer = `I'll help you find the best food options nearby! Let me check what's around you.\n\n<!-- DIKA_FIND_FOOD -->`;
+    const followUpChips = [
+      'Log a meal',
+      'How many calories left today?',
+      'My nutrition summary'
+    ];
+    return { answer, followUpChips };
+  }
+
   if (role === 'member' && detectMealLogRequest(message)) {
     try {
       const detectedRestaurant = detectRestaurantInMessage(message);
@@ -1091,16 +1101,6 @@ export async function processWithAI(
     } catch (error) {
       console.error('Meal logging failed:', error);
     }
-  }
-
-  if ((role === 'member' || role === 'personal') && detectFindFoodRequest(message)) {
-    const answer = `I'll help you find the best food options nearby! Let me check what's around you.\n\n<!-- DIKA_FIND_FOOD -->`;
-    const followUpChips = [
-      'Log a meal',
-      'How many calories left today?',
-      'My nutrition summary'
-    ];
-    return { answer, followUpChips };
   }
 
   if (detectWeeklyReportRequest(message)) {
