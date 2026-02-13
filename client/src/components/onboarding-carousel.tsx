@@ -61,11 +61,16 @@ function OnboardingCarousel({ cards, onComplete }: OnboardingCarouselProps) {
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-background flex flex-col" 
+      className="fixed inset-0 z-50 bg-background" 
       data-testid="onboarding-carousel"
-      style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      style={{ 
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100dvh',
+      }}
     >
-      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+      <div className="shrink-0 flex items-center justify-between px-4 pt-3 pb-2">
         <div className="flex items-center gap-1.5">
           {cards.map((c, i) => (
             <button
@@ -93,7 +98,7 @@ function OnboardingCarousel({ cards, onComplete }: OnboardingCarouselProps) {
       </div>
 
       <div 
-        className="flex-1 overflow-y-auto px-4 pb-4"
+        className="min-h-0 flex-1 overflow-y-auto px-4 pb-4"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -130,7 +135,7 @@ function OnboardingCarousel({ cards, onComplete }: OnboardingCarouselProps) {
       </div>
 
       <div 
-        className="px-4 py-3 border-t border-border/30 flex items-center gap-2"
+        className="shrink-0 px-4 py-3 border-t border-border/30 flex items-center gap-2"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
       >
         <Button
