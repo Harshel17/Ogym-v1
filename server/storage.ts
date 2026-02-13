@@ -63,7 +63,8 @@ import {
   type HealthData, type InsertHealthData,
   type PostReport, type InsertPostReport,
   type UserBlock, type InsertUserBlock,
-  type WaterLog, type InsertWaterLog, insertWaterLogSchema
+  type WaterLog, type InsertWaterLog, insertWaterLogSchema,
+  dikaConversations, fitnessGoals
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -8910,7 +8911,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(paymentTransactions).where(eq(paymentTransactions.memberId, userId));
     await db.delete(memberSubscriptions).where(eq(memberSubscriptions.memberId, userId));
     await db.delete(payments).where(eq(payments.memberId, userId));
-    await db.delete(paymentConfirmations).where(eq(paymentConfirmations.memberId, userId));
+    try { await db.delete(paymentConfirmations).where(eq(paymentConfirmations.memberId, userId)); } catch {}
 
     // Body measurements
     await db.delete(bodyMeasurements).where(eq(bodyMeasurements.memberId, userId));
@@ -8970,6 +8971,13 @@ export class DatabaseStorage implements IStorage {
     // Calorie tracking
     await db.delete(foodLogs).where(eq(foodLogs.userId, userId));
     await db.delete(calorieGoals).where(eq(calorieGoals.userId, userId));
+    await db.delete(waterLogs).where(eq(waterLogs.userId, userId));
+
+    // Fitness goals
+    try { await db.delete(fitnessGoals).where(eq(fitnessGoals.userId, userId)); } catch {}
+
+    // Dika conversations (cascade deletes messages)
+    await db.delete(dikaConversations).where(eq(dikaConversations.userId, userId));
 
     // Health data
     await db.delete(healthData).where(eq(healthData.userId, userId));
