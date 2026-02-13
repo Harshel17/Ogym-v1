@@ -1373,8 +1373,9 @@ function DeleteAccountCard() {
       return res.json();
     },
     onSuccess: () => {
+      queryClient.clear();
       toast({ title: "Account deleted", description: "Your account has been permanently deleted." });
-      navigate("/auth");
+      window.location.href = "/auth";
     },
     onError: (error: Error) => {
       toast({ 
