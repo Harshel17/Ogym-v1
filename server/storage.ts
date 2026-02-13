@@ -8954,7 +8954,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(transferRequests).where(eq(transferRequests.memberId, userId));
 
     // Gym history
-    await db.delete(gymHistory).where(eq(gymHistory.userId, userId));
+    await db.delete(gymHistory).where(eq(gymHistory.memberId, userId));
 
     // Join requests
     await db.delete(joinRequests).where(eq(joinRequests.userId, userId));
