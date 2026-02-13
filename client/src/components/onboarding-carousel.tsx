@@ -98,13 +98,13 @@ function OnboardingCarousel({ cards, onComplete }: OnboardingCarouselProps) {
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
-        <div className={`rounded-2xl bg-gradient-to-br ${card.gradient} p-4 mb-3`}>
+        <div className={`rounded-2xl bg-gradient-to-br ${card.gradient} p-4 mb-4`}>
           <div className="flex items-center gap-3">
             <div className={`w-11 h-11 rounded-xl ${card.iconBg} flex items-center justify-center shrink-0`}>
-              <Icon className="w-5.5 h-5.5 text-white" />
+              <Icon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold leading-tight" data-testid="text-card-title">{card.title}</h2>
+              <h2 className="text-lg font-bold leading-tight text-foreground" data-testid="text-card-title">{card.title}</h2>
               <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>
             </div>
           </div>
@@ -116,13 +116,13 @@ function OnboardingCarousel({ cards, onComplete }: OnboardingCarouselProps) {
             return (
               <div 
                 key={i} 
-                className="flex items-start gap-3 p-3 rounded-xl border border-border/40 bg-muted/30"
+                className="flex items-start gap-3 p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
                 data-testid={`bullet-${i}`}
               >
-                <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
                   <BulletIcon className="w-3.5 h-3.5 text-primary" />
                 </div>
-                <p className="text-[13px] leading-relaxed text-foreground/85 pt-0.5">{bullet.text}</p>
+                <p className="text-[13px] leading-relaxed text-zinc-700 dark:text-zinc-200 pt-0.5">{bullet.text}</p>
               </div>
             );
           })}
