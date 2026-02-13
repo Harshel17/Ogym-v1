@@ -412,13 +412,13 @@ function OwnerDashboard() {
   const { format: formatMoney } = useGymCurrency();
   const isIOSNativeApp = isNative() && isIOS();
   
-  // Onboarding state
+  // Onboarding state (user-specific key to handle shared browsers)
   const [showOnboarding, setShowOnboarding] = useState(() => {
-    return !localStorage.getItem('ogym_owner_onboarding_seen');
+    return !localStorage.getItem(`ogym_owner_onboarding_seen_${user?.id}`);
   });
   
   const completeOnboarding = () => {
-    localStorage.setItem('ogym_owner_onboarding_seen', 'true');
+    localStorage.setItem(`ogym_owner_onboarding_seen_${user?.id}`, 'true');
     setShowOnboarding(false);
   };
 
@@ -699,13 +699,14 @@ type TrainerDashboardData = {
 };
 
 function TrainerDashboard() {
-  // Onboarding state
+  const { user } = useAuth();
+  // Onboarding state (user-specific key to handle shared browsers)
   const [showOnboarding, setShowOnboarding] = useState(() => {
-    return !localStorage.getItem('ogym_trainer_onboarding_seen');
+    return !localStorage.getItem(`ogym_trainer_onboarding_seen_${user?.id}`);
   });
   
   const completeOnboarding = () => {
-    localStorage.setItem('ogym_trainer_onboarding_seen', 'true');
+    localStorage.setItem(`ogym_trainer_onboarding_seen_${user?.id}`, 'true');
     setShowOnboarding(false);
   };
 
@@ -961,8 +962,8 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const [showRestDayDialog, setShowRestDayDialog] = useState(false);
   const { toast } = useToast();
   
-  // Onboarding state
-  const onboardingKey = isPersonalMode ? 'ogym_personal_onboarding_seen' : 'ogym_member_onboarding_seen';
+  // Onboarding state (user-specific key to handle shared browsers)
+  const onboardingKey = isPersonalMode ? `ogym_personal_onboarding_seen_${user?.id}` : `ogym_member_onboarding_seen_${user?.id}`;
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return !localStorage.getItem(onboardingKey);
   });
