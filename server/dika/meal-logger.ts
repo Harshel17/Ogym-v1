@@ -341,26 +341,19 @@ export function formatMealLogResponse(meal: ParsedMeal, nutritionSummary: {
 
   const mealLabel = mealTypeLabels[meal.mealType] || 'Meal';
 
-  let response = `Got it! I've logged your **${mealLabel.toLowerCase()}** for you.\n\n`;
-
-  const calorieGoalText = nutritionSummary.calorieGoal
-    ? ` out of ${nutritionSummary.calorieGoal.toLocaleString()}`
-    : '';
-  const proteinGoalText = nutritionSummary.proteinGoal
-    ? `/${nutritionSummary.proteinGoal}g`
-    : 'g';
+  let response = `logged your ${mealLabel.toLowerCase()}!\n\n`;
 
   if (nutritionSummary.calorieGoal) {
     const remaining = nutritionSummary.calorieGoal - nutritionSummary.totalCalories;
     if (remaining > 0) {
-      response += `You have **${remaining.toLocaleString()} cal** remaining for today. Keep going!`;
+      response += `you've got **${remaining.toLocaleString()} cal** left for today — still plenty of room`;
     } else if (remaining === 0) {
-      response += `You've hit your calorie target for today. Nice work!`;
+      response += `you just hit your calorie target exactly — that's solid`;
     } else {
-      response += `You're ${Math.abs(remaining).toLocaleString()} cal over your daily target. Maybe go easy on the next meal.`;
+      response += `heads up, you're **${Math.abs(remaining).toLocaleString()} cal** over your target for today`;
     }
   } else {
-    response += `Today's total: **${nutritionSummary.totalCalories.toLocaleString()} cal** | **${nutritionSummary.totalProtein}g protein**. Consider setting a daily calorie goal for better tracking!`;
+    response += `that puts you at **${nutritionSummary.totalCalories.toLocaleString()} cal** and **${nutritionSummary.totalProtein}g protein** today`;
   }
 
   const mealData = JSON.stringify({

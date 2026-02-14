@@ -75,7 +75,9 @@ function detectPendingMealFromHistory(
     const isRestaurantQuestion = lastMsg.content.includes('Which restaurant') || 
       lastMsg.content.includes('which restaurant') ||
       lastMsg.content.includes('extra sauces, toppings') ||
-      lastMsg.content.includes('exact restaurant nutrition');
+      lastMsg.content.includes('exact restaurant nutrition') ||
+      lastMsg.content.includes('restaurant or homemade') ||
+      lastMsg.content.includes('brand/restaurant name helps');
     if (isRestaurantQuestion) {
       restaurantQuestionMsg = lastMsg;
       searchStartIndex = recentMessages.length - 2;
@@ -88,7 +90,9 @@ function detectPendingMealFromHistory(
     const isRestaurantQuestion = secondLast.content.includes('Which restaurant') || 
       secondLast.content.includes('which restaurant') ||
       secondLast.content.includes('extra sauces, toppings') ||
-      secondLast.content.includes('exact restaurant nutrition');
+      secondLast.content.includes('exact restaurant nutrition') ||
+      secondLast.content.includes('restaurant or homemade') ||
+      secondLast.content.includes('brand/restaurant name helps');
     if (!isRestaurantQuestion) return null;
     restaurantQuestionMsg = secondLast;
     searchStartIndex = recentMessages.length - 3;
@@ -134,7 +138,9 @@ function detectPendingFoodTypeFollowUp(
     if (msg.role !== 'assistant') continue;
     
     const isFoodTypeQuestion = msg.content.includes('More detail = more accurate calories') ||
-      msg.content.includes('How many') && msg.content.includes('get the calories right');
+      msg.content.includes('How many') && msg.content.includes('get the calories right') ||
+      msg.content.includes('so I nail the calories') ||
+      msg.content.includes("I'll estimate the rest");
     
     if (!isFoodTypeQuestion) continue;
     
@@ -908,20 +914,27 @@ async function getTrainerDataContext(trainerId: number, gymId: number): Promise<
 }
 
 function buildSystemPrompt(userContext: UserContext, dataContext: MemberContext | OwnerContext | TrainerContext, isIOSNative?: boolean): string {
-  const basePrompt = `You are Dika, a friendly AI fitness buddy for OGym. You talk like a supportive friend, not a textbook.
+  const basePrompt = `You are Dika, a real fitness buddy inside OGym. You talk like a close friend who's into fitness — not a chatbot, not a coach reading from slides.
 
-RESPONSE STYLE:
-- Keep it SHORT. 1-3 sentences for simple questions. Max 4-5 for complex ones.
-- Be warm and casual - use "you're doing great", "nice work", "let's fix that" etc.
-- Use simple language. No jargon. No bullet-point essays unless the user asks for detail.
-- When sharing numbers, highlight the most important one. Don't dump all stats at once.
-- End with a quick tip or encouragement when it fits naturally.
+HOW YOU TALK:
+- Sound like a real person texting a friend. Use contractions (you're, that's, don't). Keep it loose.
+- Short replies. 1-2 sentences for simple stuff. 3-4 max for bigger topics. No walls of text.
+- Never respond with bullet-point lists or formatted essays unless the user specifically asks for a breakdown.
+- When sharing numbers, weave them into conversation naturally: "you're at 1,800 cals — only 400 to go, not bad!" instead of "Calories consumed: 1800 / 2200 goal".
+- Have emotional range. Show genuine reactions:
+  - Surprise: "wait, you already hit your protein goal?"
+  - Mild concern: "only 2 workouts this week — everything alright?"
+  - Excitement: "your bench volume is up 15%, that's legit progress"
+  - Casual check-in: "how's that feeling so far?"
+- Don't always be positive. If they're slacking, gently call it out like a friend would. If they're crushing it, hype them up.
+- Never use emojis. Never use markdown headers. Keep formatting minimal — bold only for key numbers or food names when logging.
+- Do NOT start responses with "Great question!" or "That's a great goal!" — just answer naturally.
 
 RULES:
 1. Only use data you have access to. Never make things up.
-2. You ARE a fitness expert - give helpful advice about exercises, nutrition, routines, and body composition. Only suggest a doctor for medical issues or pain.
-3. If asked about something outside your data, briefly say what you can help with instead.
-4. At the END of every response, suggest 2-3 natural follow-up questions on a new line in this exact format: [chips: "Question 1", "Question 2"]. These should flow naturally from the conversation. Do NOT include this format in the middle of your response.
+2. You ARE a fitness expert — give real advice about exercises, nutrition, routines, and body composition. Only suggest a doctor for medical issues or pain.
+3. If asked about something outside your data, briefly pivot to what you can help with.
+4. At the END of every response, suggest 2-3 casual follow-up questions on a new line in this exact format: [chips: "Short question 1", "Short question 2"]. Keep chips short (3-6 words), casual, and conversational — like "How's my week going?" not "What is my weekly workout progress summary?". Do NOT include this format in the middle of your response.
 
 USER CONTEXT:
 - Name: ${userContext.userName}
@@ -985,8 +998,8 @@ NUTRITION TODAY:
 ${ctx.nutrition.calorieGoal ? `- Remaining: ${Math.max(0, ctx.nutrition.calorieGoal - ctx.nutrition.totalCalories)} cal` : '- No calorie goal set'}
 
 IMPORTANT - MEAL LOGGING:
-- When the user tells you what they ate (e.g. "I had eggs and toast"), the system automatically detects and logs it. You do NOT need to handle meal logging yourself.
-- You CAN answer questions about their nutrition data shown above.
+- When the user tells you what they ate (e.g. "I had eggs and toast", "ate some chocolate", "had ice cream"), the system automatically detects and logs it. You do NOT need to handle meal logging yourself.
+- You CAN answer questions about their nutrition data shown above. Talk about it casually — "you've eaten about 1,800 so far, got room for a solid dinner" not a stats report.
 - When asked "what should I eat" or meal suggestions, the system handles it. You do NOT need to suggest meals yourself.
 
 EXERCISE SUBSTITUTION:
@@ -1004,11 +1017,16 @@ When relevant to the conversation, mention the user's goals and progress. Be enc
 ` : ''}
 ${ctx.sportsMode.profile ? `
 SPORTS MODE:
-- Sport: ${ctx.sportsMode.profile.sport} | Role: ${ctx.sportsMode.profile.role}${ctx.sportsMode.profile.fitnessScore !== null ? ` | Fitness Score: ${ctx.sportsMode.profile.fitnessScore}/100` : ''}
-- Impact: ${ctx.sportsMode.impactScore}% of workout cycle is sport-targeted (${ctx.sportsMode.totalSportExercises} of ${ctx.sportsMode.totalCycleExercises} exercises)
-${ctx.sportsMode.activeModifications.length > 0 ? `Active skill training:
-${ctx.sportsMode.activeModifications.map(m => `- "${m.skillName}" (${m.skillCategory}) at ${m.priority}% priority — ${m.daysActive} days active${m.targetMuscles.length > 0 ? ` — targets: ${m.targetMuscles.join(', ')}` : ''}${m.sportExercises.length > 0 ? ` — exercises: ${m.sportExercises.join(', ')}` : ''}`).join('\n')}` : '- No active skill modifications'}
-When asked about sports training, share their current skill focus, which muscles are being targeted, and how long they've been training. Be enthusiastic about their sport commitment!
+This user plays ${ctx.sportsMode.profile.sport} as a ${ctx.sportsMode.profile.role}${ctx.sportsMode.profile.fitnessScore !== null ? ` (fitness score: ${ctx.sportsMode.profile.fitnessScore}/100)` : ''}.
+${ctx.sportsMode.impactScore}% of their workout cycle is sport-targeted (${ctx.sportsMode.totalSportExercises} of ${ctx.sportsMode.totalCycleExercises} exercises).
+${ctx.sportsMode.activeModifications.length > 0 ? `They're actively working on:
+${ctx.sportsMode.activeModifications.map(m => `- ${m.skillName} (${m.skillCategory}) at ${m.priority}% priority, ${m.daysActive} days in${m.targetMuscles.length > 0 ? ` — hitting ${m.targetMuscles.join(', ')}` : ''}${m.sportExercises.length > 0 ? ` — doing ${m.sportExercises.join(', ')}` : ''}`).join('\n')}` : 'No active skill modifications yet.'}
+SPORTS CONVERSATION STYLE:
+- Talk about their sport like you actually watch and play it. Use the right terms for ${ctx.sportsMode.profile.sport}.
+- Reference their specific skill work naturally: "how's the ${ctx.sportsMode.activeModifications[0]?.skillName || 'training'} coming along?" not "Your sport skill progress is..."
+- If they've been training a skill for a while, acknowledge the commitment: "${ctx.sportsMode.activeModifications[0]?.daysActive || 0} days on ${ctx.sportsMode.activeModifications[0]?.skillName || 'this'} — that consistency matters"
+- Connect their gym exercises to their sport performance: "those lateral lunges are gonna help your court movement"
+- When [Sport] exercises show up in their workout, mention how they tie back to their game
 ` : ''}
 You can help this member with:
 - Workout progress and consistency analysis
@@ -1341,40 +1359,40 @@ export async function processWithAI(
       const userGaveDetails = hasQuantityInMessage(message);
 
       if (foodType && !userGaveDetails) {
-        let followUpParts: string[] = [];
-        followUpParts.push(`Before I log that, a quick question to get the calories right:\n`);
+        const foodName = message.replace(/^(i\s+)?(had|ate|just had|just ate|consumed|grabbed|got|eaten|have|having)\s+/i, '').replace(/\s+(for\s+)?(breakfast|lunch|dinner|snack|brunch|supper).*$/i, '').trim();
+        
+        let questionParts: string[] = [];
 
-        const questionParts: string[] = [];
-
+        if (foodType.styleOptions && foodType.styleOptions.length > 0) {
+          questionParts.push(`what kind? ${foodType.styleOptions.slice(0, 4).join(", ")}...`);
+        }
         if (foodType.type === "countable" || foodType.type === "sliced") {
-          questionParts.push(`**How many ${foodType.countUnit}?** (${foodType.countOptions.join(", ")})`);
+          questionParts.push(`how many ${foodType.countUnit}?`);
         }
         if (foodType.sizeOptions && foodType.sizeOptions.length > 0) {
-          const sizeLabels = foodType.sizeOptions.map(s => s.label);
-          questionParts.push(`**Size?** (${sizeLabels.join(" / ")})`);
+          const sizeLabels = foodType.sizeOptions.map(s => s.label.toLowerCase());
+          questionParts.push(`size? ${sizeLabels.join(" / ")}`);
         }
         if (foodType.type === "portioned" && !foodType.sizeOptions) {
-          questionParts.push(`**How much?** (half / 1 bowl / 1 plate)`);
-        }
-        if (foodType.styleOptions && foodType.styleOptions.length > 0) {
-          questionParts.push(`**Type/style?** (${foodType.styleOptions.slice(0, 5).join(", ")})`);
+          questionParts.push(`how much — half, 1 bowl, 1 plate?`);
         }
         if (!detectedRestaurant && isRestaurantFood) {
-          questionParts.push(`**Restaurant?** (e.g., Dominos, homemade)`);
+          questionParts.push(`from a restaurant or homemade?`);
         }
 
-        followUpParts.push(questionParts.join("\n"));
-        followUpParts.push(`\n*Tip: More detail = more accurate calories. Answer what you can, I'll estimate the rest!*`);
-
-        const answer = followUpParts.join("\n");
+        const intro = `got it — ${foodName}! quick questions so I nail the calories:`;
+        const questions = questionParts.join(" and ");
+        const outro = `just tell me what you know, I'll estimate the rest`;
+        
+        const answer = `${intro} ${questions}.\n\n${outro}`;
         const chips = generateFoodTypeChips(foodType);
         return { answer, followUpChips: chips };
       }
       
       if (!detectedRestaurant && isRestaurantFood && !foodType) {
-        const answer = `Before I log that, a quick question to get the calories right:\n\n**Which restaurant was this from?** And any extra sauces, toppings, or modifications?\n\nFor example: "Whataburger, no mayo" or "just homemade"\n\n*Tip: More detail = more accurate calories. Answer what you can, I'll estimate the rest!*`;
+        const answer = `nice — was that from a restaurant or homemade? if it's from somewhere specific, the brand/restaurant name helps me get the calories closer. any toppings or extras too.\n\njust say something like "McDonald's, no mayo" or "homemade" and I'll handle the rest`;
         const followUpChips = [
-          'Just homemade',
+          'Homemade',
           'McDonald\'s',
           'Chick-fil-A'
         ];

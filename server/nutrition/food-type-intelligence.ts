@@ -310,6 +310,105 @@ const FOOD_TYPE_MAP: Record<string, FoodTypeInfo> = {
     styleOptions: ["Steamed", "Fried", "Tandoori"],
     followUpTemplate: "How many and what type? (e.g., 6 steamed chicken momos)",
   },
+  chocolate: {
+    type: "countable",
+    countUnit: "pieces/bars",
+    countOptions: [1, 2, 3, 4],
+    defaultCount: 1,
+    sizeOptions: [
+      { label: "Fun size", multiplier: 0.4 },
+      { label: "Regular bar", multiplier: 1 },
+      { label: "King size", multiplier: 1.8 },
+      { label: "A few squares", multiplier: 0.3 },
+    ],
+    styleOptions: ["Milk chocolate", "Dark chocolate", "White chocolate", "With nuts", "With caramel", "With crisp/wafer"],
+    followUpTemplate: "Which chocolate? Brand and size help — e.g., Snickers regular, 2 squares of dark chocolate",
+  },
+  icecream: {
+    type: "portioned",
+    countUnit: "scoops",
+    countOptions: [1, 2, 3],
+    defaultCount: 1,
+    sizeOptions: [
+      { label: "1 scoop / small cup", multiplier: 1 },
+      { label: "2 scoops / regular", multiplier: 2 },
+      { label: "3 scoops / large", multiplier: 3 },
+      { label: "Pint", multiplier: 4 },
+    ],
+    styleOptions: ["Vanilla", "Chocolate", "Strawberry", "Cookies & Cream", "Mango", "Butterscotch", "Kulfi"],
+    followUpTemplate: "What flavor and how much? Brand too if you know it (e.g., 2 scoops chocolate Baskin Robbins, small vanilla cone)",
+  },
+  cake: {
+    type: "sliced",
+    countUnit: "slices",
+    countOptions: [1, 2, 3],
+    defaultCount: 1,
+    sizeOptions: [
+      { label: "Thin slice", multiplier: 0.6 },
+      { label: "Regular slice", multiplier: 1 },
+      { label: "Thick/large slice", multiplier: 1.5 },
+    ],
+    styleOptions: ["Chocolate cake", "Vanilla", "Red velvet", "Cheesecake", "Carrot cake", "Black forest", "Tres leches"],
+    followUpTemplate: "What kind and how much? (e.g., 1 slice chocolate cake, 2 slices cheesecake)",
+  },
+  brownie: {
+    type: "countable",
+    countUnit: "brownies",
+    countOptions: [1, 2, 3],
+    defaultCount: 1,
+    sizeOptions: [
+      { label: "Small square", multiplier: 0.7 },
+      { label: "Regular", multiplier: 1 },
+      { label: "Large/bakery size", multiplier: 1.5 },
+    ],
+    styleOptions: ["Plain", "Walnut", "Fudge", "With ice cream"],
+    followUpTemplate: "How many and what type? (e.g., 1 walnut brownie, 2 fudge brownies)",
+  },
+  candy: {
+    type: "countable",
+    countUnit: "pieces",
+    countOptions: [1, 2, 3, 5, 10],
+    defaultCount: 2,
+    styleOptions: ["Hard candy", "Gummy", "Sour", "Caramel", "Lollipop", "Toffee"],
+    followUpTemplate: "What kind and how many? Brand helps too (e.g., 3 Jolly Ranchers, a handful of gummy bears)",
+  },
+  chips: {
+    type: "portioned",
+    countUnit: "servings",
+    countOptions: [1],
+    defaultCount: 1,
+    sizeOptions: [
+      { label: "Small bag/handful", multiplier: 0.5 },
+      { label: "Regular bag", multiplier: 1 },
+      { label: "Large/sharing bag", multiplier: 2.5 },
+    ],
+    styleOptions: ["Plain/Salted", "BBQ", "Sour Cream", "Hot/Spicy", "Cheese", "Masala"],
+    followUpTemplate: "What kind and how much? (e.g., regular bag of Lays classic, handful of Doritos)",
+  },
+  donut: {
+    type: "countable",
+    countUnit: "donuts",
+    countOptions: [1, 2, 3, 4],
+    defaultCount: 1,
+    styleOptions: ["Glazed", "Chocolate", "Sprinkles", "Cream-filled", "Jelly-filled", "Plain"],
+    followUpTemplate: "How many and what kind? (e.g., 2 glazed donuts, 1 chocolate from Dunkin)",
+  },
+  pastry: {
+    type: "countable",
+    countUnit: "pieces",
+    countOptions: [1, 2, 3],
+    defaultCount: 1,
+    styleOptions: ["Croissant", "Danish", "Muffin", "Cinnamon roll", "Eclair", "Puff pastry"],
+    followUpTemplate: "What kind and how many? (e.g., 1 chocolate croissant, 2 blueberry muffins)",
+  },
+  biscuit: {
+    type: "countable",
+    countUnit: "biscuits",
+    countOptions: [1, 2, 3, 4, 5, 6],
+    defaultCount: 2,
+    styleOptions: ["Plain", "Cream-filled", "Chocolate-coated", "Digestive", "Marie", "Bourbon"],
+    followUpTemplate: "How many and what brand/type? (e.g., 3 Oreos, 4 digestive biscuits)",
+  },
 };
 
 const FOOD_KEYWORD_MAP: Array<{ keywords: string[]; type: string }> = [
@@ -344,6 +443,15 @@ const FOOD_KEYWORD_MAP: Array<{ keywords: string[]; type: string }> = [
   { keywords: ["sushi", "maki", "roll", "nigiri", "sashimi"], type: "sushi" },
   { keywords: ["dumpling", "dumplings", "gyoza", "wonton", "potsticker"], type: "dumpling" },
   { keywords: ["momo", "momos"], type: "momo" },
+  { keywords: ["chocolate", "chocolates", "choclate", "choclet", "snickers", "kitkat", "kit kat", "twix", "m&m", "hershey", "cadbury", "dairy milk", "ferrero", "lindt", "toblerone", "milky bar", "5 star", "five star", "perk", "munch", "silk"], type: "chocolate" },
+  { keywords: ["ice cream", "icecream", "ice-cream", "gelato", "sundae", "kulfi", "cornetto", "magnum", "cone ice", "softy", "frozen yogurt", "froyo"], type: "icecream" },
+  { keywords: ["cake", "cakes", "pastry cake", "cupcake", "cupcakes", "cheesecake", "red velvet", "black forest", "pound cake"], type: "cake" },
+  { keywords: ["brownie", "brownies", "browny"], type: "brownie" },
+  { keywords: ["candy", "candies", "gummy", "gummies", "gummy bear", "jolly rancher", "skittles", "starburst", "sour patch", "toffee", "toffees", "jelly bean"], type: "candy" },
+  { keywords: ["chips", "crisps", "lays", "lay's", "doritos", "pringles", "cheetos", "kurkure", "nachos", "potato chips", "tortilla chips"], type: "chips" },
+  { keywords: ["donut", "donuts", "doughnut", "doughnuts", "glazed donut", "dunkin"], type: "donut" },
+  { keywords: ["croissant", "muffin", "muffins", "cinnamon roll", "danish", "eclair", "puff"], type: "pastry" },
+  { keywords: ["biscuit", "biscuits", "oreo", "oreos", "bourbon", "digestive", "marie", "cream biscuit", "hide and seek", "parle-g", "parle g", "good day", "monaco"], type: "biscuit" },
 ];
 
 export function detectFoodType(message: string): FoodTypeInfo | null {
@@ -379,7 +487,7 @@ export function getFoodTypeInfo(typeName: string): FoodTypeInfo | null {
 
 export function hasQuantityInMessage(message: string): boolean {
   const quantityPatterns = [
-    /\b\d+\s*(?:slice|piece|wing|nugget|dosa|idli|roti|naan|paratha|chapati|puri|vada|samosa|egg|taco|cookie|pancake|momo|dumpling)/i,
+    /\b\d+\s*(?:slice|piece|wing|nugget|dosa|idli|roti|naan|paratha|chapati|puri|vada|samosa|egg|taco|cookie|pancake|momo|dumpling|brownie|donut|biscuit|bar|scoop|square)/i,
     /\b(?:half|full|quarter|one|two|three|four|five|six|seven|eight|nine|ten|dozen)\b/i,
     /\b\d+\s*(?:bowl|plate|cup|serving|portion|pc|pcs)\b/i,
     /\b(?:small|medium|large|regular|venti|grande|tall|lg|sm|med)\b/i,
