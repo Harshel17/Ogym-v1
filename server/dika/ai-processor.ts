@@ -13,7 +13,9 @@ import {
   trainerMemberAssignments,
   gyms,
   memberSubscriptions,
-  healthData
+  healthData,
+  sportProfiles,
+  sportPrograms
 } from "@shared/schema";
 import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
@@ -286,10 +288,28 @@ interface MemberContext {
   todayWorkout: {
     dayLabel: string | null;
     isRestDay: boolean;
-    exercises: Array<{ name: string; muscleType: string; sets: number; reps: number; type: string }>;
+    exercises: Array<{ name: string; muscleType: string; sets: number; reps: number; type: string; isSportExercise?: boolean }>;
     completedCount: number;
   } | null;
   activeGoals: Array<{ title: string; category: string; targetValue: number | null; currentValue: number | null; targetUnit: string | null }>;
+  sportsMode: {
+    profile: {
+      sport: string;
+      role: string;
+      fitnessScore: number | null;
+    } | null;
+    activeModifications: Array<{
+      skillName: string;
+      skillCategory: string;
+      priority: number;
+      daysActive: number;
+      targetMuscles: string[];
+      sportExercises: string[];
+    }>;
+    totalSportExercises: number;
+    totalCycleExercises: number;
+    impactScore: number;
+  };
 }
 
 interface OwnerContext {
@@ -495,6 +515,7 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
           sets: workoutItems.sets,
           reps: workoutItems.reps,
           exerciseType: workoutItems.exerciseType,
+          sportProgramId: workoutItems.sportProgramId,
         })
         .from(workoutItems)
         .where(and(
@@ -521,6 +542,7 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
             sets: e.sets,
             reps: e.reps,
             type: e.exerciseType,
+            isSportExercise: !!e.sportProgramId,
           })),
           completedCount: todayCompletions.length,
         };
@@ -528,6 +550,76 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
     } catch (err) {
       console.error('Failed to fetch today workout for Dika context:', err);
     }
+  }
+
+  let sportsModeContext: MemberContext['sportsMode'] = {
+    profile: null,
+    activeModifications: [],
+    totalSportExercises: 0,
+    totalCycleExercises: 0,
+    impactScore: 0,
+  };
+
+  try {
+    const [sportProfile] = await db.select()
+      .from(sportProfiles)
+      .where(and(eq(sportProfiles.userId, userId), eq(sportProfiles.isActive, true)))
+      .limit(1);
+
+    if (sportProfile) {
+      sportsModeContext.profile = {
+        sport: sportProfile.sport,
+        role: sportProfile.role,
+        fitnessScore: sportProfile.fitnessScore,
+      };
+
+      const activePrograms = await db.select()
+        .from(sportPrograms)
+        .where(and(eq(sportPrograms.userId, userId), eq(sportPrograms.isActive, true)));
+
+      if (activePrograms.length > 0) {
+        let allSportItemNames: string[] = [];
+
+        for (const prog of activePrograms) {
+          const analysis = prog.aiAnalysis as any;
+          const planData = prog.programPlan as any;
+          const changes = planData?.changes || [];
+          const sportExNames = changes.flatMap((c: any) => (c.additions || []).map((a: any) => a.exerciseName));
+          allSportItemNames.push(...sportExNames);
+
+          const daysActive = prog.createdAt
+            ? Math.floor((Date.now() - new Date(prog.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+            : 0;
+
+          sportsModeContext.activeModifications.push({
+            skillName: prog.skillName,
+            skillCategory: prog.skillCategory,
+            priority: prog.priority || 100,
+            daysActive,
+            targetMuscles: analysis?.targetMuscles || [],
+            sportExercises: sportExNames.slice(0, 5),
+          });
+        }
+
+        if (activePrograms[0].cycleId) {
+          const cycleItems = await db.select()
+            .from(workoutItems)
+            .where(and(
+              eq(workoutItems.cycleId, activePrograms[0].cycleId),
+              eq(workoutItems.isDeleted, false)
+            ));
+          sportsModeContext.totalCycleExercises = cycleItems.length;
+          sportsModeContext.totalSportExercises = cycleItems.filter(i =>
+            activePrograms.some(p => i.sportProgramId === p.id)
+          ).length;
+          sportsModeContext.impactScore = sportsModeContext.totalCycleExercises > 0
+            ? Math.round((sportsModeContext.totalSportExercises / sportsModeContext.totalCycleExercises) * 100)
+            : 0;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to fetch sports mode context for Dika:', err);
   }
 
   return {
@@ -554,6 +646,7 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
     nutrition: await getTodayNutritionSummary(userId),
     todayWorkout: todayWorkoutContext,
     activeGoals: await getActiveGoals(userId),
+    sportsMode: sportsModeContext,
   };
 }
 
@@ -864,7 +957,7 @@ FITNESS DEVICE: Connected to ${getHealthSourceLabel(ctx.healthData.source)} (no 
 TODAY'S WORKOUT: Rest Day (recovery day)` :
       ctx.todayWorkout.exercises.length > 0 ? `
 TODAY'S WORKOUT${ctx.todayWorkout.dayLabel ? ` (${ctx.todayWorkout.dayLabel})` : ''}:
-${ctx.todayWorkout.exercises.map(e => `- ${e.name} (${e.muscleType}) - ${e.sets}x${e.reps}${e.type === 'cardio' ? ' [cardio]' : ''}`).join('\n')}
+${ctx.todayWorkout.exercises.map(e => `- ${e.name} (${e.muscleType}) - ${e.sets}x${e.reps}${e.type === 'cardio' ? ' [cardio]' : ''}${e.isSportExercise ? ' [Sport]' : ''}`).join('\n')}
 Progress: ${ctx.todayWorkout.completedCount}/${ctx.todayWorkout.exercises.length} completed` :
       `
 TODAY'S WORKOUT: No exercises scheduled`
@@ -909,6 +1002,14 @@ ACTIVE GOALS:
 ${ctx.activeGoals.map(g => `- ${g.title}${g.targetValue ? ` (target: ${g.targetValue}${g.targetUnit || ''})` : ''}${g.currentValue ? ` — currently at ${g.currentValue}${g.targetUnit || ''}` : ''}`).join('\n')}
 When relevant to the conversation, mention the user's goals and progress. Be encouraging!
 ` : ''}
+${ctx.sportsMode.profile ? `
+SPORTS MODE:
+- Sport: ${ctx.sportsMode.profile.sport} | Role: ${ctx.sportsMode.profile.role}${ctx.sportsMode.profile.fitnessScore !== null ? ` | Fitness Score: ${ctx.sportsMode.profile.fitnessScore}/100` : ''}
+- Impact: ${ctx.sportsMode.impactScore}% of workout cycle is sport-targeted (${ctx.sportsMode.totalSportExercises} of ${ctx.sportsMode.totalCycleExercises} exercises)
+${ctx.sportsMode.activeModifications.length > 0 ? `Active skill training:
+${ctx.sportsMode.activeModifications.map(m => `- "${m.skillName}" (${m.skillCategory}) at ${m.priority}% priority — ${m.daysActive} days active${m.targetMuscles.length > 0 ? ` — targets: ${m.targetMuscles.join(', ')}` : ''}${m.sportExercises.length > 0 ? ` — exercises: ${m.sportExercises.join(', ')}` : ''}`).join('\n')}` : '- No active skill modifications'}
+When asked about sports training, share their current skill focus, which muscles are being targeted, and how long they've been training. Be enthusiastic about their sport commitment!
+` : ''}
 You can help this member with:
 - Workout progress and consistency analysis
 - Attendance patterns
@@ -919,6 +1020,7 @@ You can help this member with:
 - Exercise alternatives and substitutions
 - Fitness goal setting and tracking
 ${ctx.healthData.connected ? '- Fitness device data analysis (steps, calories burned, heart rate, sleep)' : ''}
+${ctx.sportsMode.profile ? '- Sports Mode progress, sport training insights, and skill improvement tracking' : ''}
 - Motivation and encouragement based on their data
 - Creating support tickets to report issues or request help
 
