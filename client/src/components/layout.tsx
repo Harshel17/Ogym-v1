@@ -48,6 +48,7 @@ import {
   MailCheck,
   Apple,
   Salad,
+  Medal,
   type LucideIcon
 } from "lucide-react";
 
@@ -241,6 +242,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       badge: 0
     },
     { 
+      label: "Sports Mode", 
+      href: "/sports-mode", 
+      icon: Medal,
+      visible: isMember || isPersonalMode,
+      badge: 0
+    },
+    { 
       label: "Requests", 
       href: "/requests", 
       icon: MessageSquare,
@@ -427,6 +435,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Announcements", href: "/announcements", icon: Megaphone, badge: notificationCounts?.unreadAnnouncements || 0 },
           { label: "Feed", href: "/feed", icon: Activity },
           { label: "Tournaments", href: "/tournaments", icon: Trophy },
+          { label: "Sports Mode", href: "/sports-mode", icon: Medal },
           { label: "Profile", href: "/profile", icon: UserCircle },
           { label: "Help", href: "/help", icon: HelpCircle },
           { label: "Support", href: "/support", icon: MessageSquare },
@@ -444,6 +453,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         secondary: [
           { label: "Progress", href: "/progress", icon: TrendingUp },
           { label: "My Body", href: "/my-body", icon: HeartPulse },
+          { label: "Sports Mode", href: "/sports-mode", icon: Medal },
           { label: "Profile", href: "/profile", icon: UserCircle },
           { label: "Join Gym", href: "/join-gym", icon: Building2 },
           { label: "Help", href: "/help", icon: HelpCircle },

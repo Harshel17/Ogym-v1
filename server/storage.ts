@@ -64,7 +64,10 @@ import {
   type PostReport, type InsertPostReport,
   type UserBlock, type InsertUserBlock,
   type WaterLog, type InsertWaterLog, insertWaterLogSchema,
-  dikaConversations, fitnessGoals
+  dikaConversations, fitnessGoals,
+  sportProfiles, sportPrograms,
+  type SportProfile, type InsertSportProfile,
+  type SportProgram, type InsertSportProgram,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -799,6 +802,16 @@ export interface IStorage {
   unblockUser(blockerId: number, blockedUserId: number): Promise<void>;
   getBlockedUsers(blockerId: number): Promise<number[]>;
   isUserBlocked(blockerId: number, blockedUserId: number): Promise<boolean>;
+  
+  // Sports Mode
+  getSportProfile(userId: number): Promise<SportProfile | undefined>;
+  createSportProfile(data: InsertSportProfile): Promise<SportProfile>;
+  updateSportProfile(id: number, data: Partial<InsertSportProfile>): Promise<SportProfile>;
+  getSportPrograms(userId: number): Promise<SportProgram[]>;
+  getSportProgram(id: number): Promise<SportProgram | undefined>;
+  createSportProgram(data: InsertSportProgram): Promise<SportProgram>;
+  updateSportProgram(id: number, data: Partial<InsertSportProgram>): Promise<SportProgram>;
+  deactivateSportProgram(id: number): Promise<void>;
 }
 
 // Admin Types
@@ -9060,6 +9073,52 @@ export class DatabaseStorage implements IStorage {
     const [block] = await db.select().from(userBlocks)
       .where(and(eq(userBlocks.blockerId, blockerId), eq(userBlocks.blockedUserId, blockedUserId)));
     return !!block;
+  }
+
+  async getSportProfile(userId: number): Promise<SportProfile | undefined> {
+    const [profile] = await db.select().from(sportProfiles)
+      .where(and(eq(sportProfiles.userId, userId), eq(sportProfiles.isActive, true)))
+      .orderBy(desc(sportProfiles.createdAt))
+      .limit(1);
+    return profile;
+  }
+
+  async createSportProfile(data: InsertSportProfile): Promise<SportProfile> {
+    await db.update(sportProfiles)
+      .set({ isActive: false })
+      .where(and(eq(sportProfiles.userId, data.userId), eq(sportProfiles.isActive, true)));
+    const [profile] = await db.insert(sportProfiles).values(data).returning();
+    return profile;
+  }
+
+  async updateSportProfile(id: number, data: Partial<InsertSportProfile>): Promise<SportProfile> {
+    const [profile] = await db.update(sportProfiles).set(data).where(eq(sportProfiles.id, id)).returning();
+    return profile;
+  }
+
+  async getSportPrograms(userId: number): Promise<SportProgram[]> {
+    return db.select().from(sportPrograms)
+      .where(and(eq(sportPrograms.userId, userId), eq(sportPrograms.isActive, true)))
+      .orderBy(desc(sportPrograms.createdAt));
+  }
+
+  async getSportProgram(id: number): Promise<SportProgram | undefined> {
+    const [program] = await db.select().from(sportPrograms).where(eq(sportPrograms.id, id));
+    return program;
+  }
+
+  async createSportProgram(data: InsertSportProgram): Promise<SportProgram> {
+    const [program] = await db.insert(sportPrograms).values(data).returning();
+    return program;
+  }
+
+  async updateSportProgram(id: number, data: Partial<InsertSportProgram>): Promise<SportProgram> {
+    const [program] = await db.update(sportPrograms).set(data).where(eq(sportPrograms.id, id)).returning();
+    return program;
+  }
+
+  async deactivateSportProgram(id: number): Promise<void> {
+    await db.update(sportPrograms).set({ isActive: false }).where(eq(sportPrograms.id, id));
   }
 }
 

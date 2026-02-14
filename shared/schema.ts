@@ -211,6 +211,7 @@ export const workoutItems = pgTable("workout_items", {
   distanceKm: text("distance_km"), // For cardio exercises (text to allow "5km", "3.2mi" etc)
   orderIndex: integer("order_index").default(0),
   isDeleted: boolean("is_deleted").default(false),
+  sportProgramId: integer("sport_program_id"),
 });
 
 export const workoutCompletions = pgTable("workout_completions", {
@@ -1036,6 +1037,48 @@ export const insertKioskOtpCodeSchema = createInsertSchema(kioskOtpCodes).omit({
 export const insertPaymentConfirmationSchema = createInsertSchema(paymentConfirmations).omit({ id: true, createdAt: true, confirmedAt: true, confirmedByUserId: true });
 export const insertAutomatedEmailReminderSchema = createInsertSchema(automatedEmailReminders).omit({ id: true, sentAt: true });
 export const insertWeeklyOwnerSummarySchema = createInsertSchema(weeklyOwnerSummaries).omit({ id: true, sentAt: true });
+
+// === SPORTS MODE ===
+
+export const sportProfiles = pgTable("sport_profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  sport: text("sport").notNull(),
+  role: text("role").notNull(),
+  fitnessScore: integer("fitness_score"),
+  testAnswers: jsonb("test_answers"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("sport_profiles_user_idx").on(table.userId),
+}));
+
+export const sportPrograms = pgTable("sport_programs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  sportProfileId: integer("sport_profile_id").references(() => sportProfiles.id).notNull(),
+  sport: text("sport").notNull(),
+  role: text("role").notNull(),
+  skillCategory: text("skill_category").notNull(),
+  skillName: text("skill_name").notNull(),
+  aiAnalysis: jsonb("ai_analysis"),
+  programPlan: jsonb("program_plan"),
+  durationWeeks: integer("duration_weeks").default(3),
+  isActive: boolean("is_active").default(true),
+  cycleId: integer("cycle_id").references(() => workoutCycles.id),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("sport_programs_user_idx").on(table.userId),
+  profileIdx: index("sport_programs_profile_idx").on(table.sportProfileId),
+}));
+
+export const insertSportProfileSchema = createInsertSchema(sportProfiles).omit({ id: true, createdAt: true });
+export const insertSportProgramSchema = createInsertSchema(sportPrograms).omit({ id: true, createdAt: true });
+
+export type SportProfile = typeof sportProfiles.$inferSelect;
+export type InsertSportProfile = z.infer<typeof insertSportProfileSchema>;
+export type SportProgram = typeof sportPrograms.$inferSelect;
+export type InsertSportProgram = z.infer<typeof insertSportProgramSchema>;
 
 // === FITNESS GOALS (Dika AI) ===
 

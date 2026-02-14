@@ -9509,6 +9509,169 @@ Return ONLY JSON.`
     }
   });
 
+  // ==================== SPORTS MODE ====================
+  
+  app.get("/api/sport/profile", requireAuth, async (req, res) => {
+    try {
+      const profile = await storage.getSportProfile(req.user!.id);
+      res.json(profile || null);
+    } catch (err) {
+      console.error("Get sport profile error:", err);
+      res.status(500).json({ message: "Failed to get sport profile" });
+    }
+  });
+
+  app.post("/api/sport/profile", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        sport: z.string().min(1),
+        role: z.string().min(1),
+        fitnessScore: z.number().min(0).max(100).optional(),
+        testAnswers: z.any().optional(),
+      });
+      const data = schema.parse(req.body);
+      const profile = await storage.createSportProfile({
+        userId: req.user!.id,
+        sport: data.sport,
+        role: data.role,
+        fitnessScore: data.fitnessScore ?? null,
+        testAnswers: data.testAnswers ?? null,
+        isActive: true,
+      });
+      res.json(profile);
+    } catch (err) {
+      console.error("Create sport profile error:", err);
+      res.status(500).json({ message: "Failed to create sport profile" });
+    }
+  });
+
+  app.get("/api/sport/programs", requireAuth, async (req, res) => {
+    try {
+      const programs = await storage.getSportPrograms(req.user!.id);
+      res.json(programs);
+    } catch (err) {
+      console.error("Get sport programs error:", err);
+      res.status(500).json({ message: "Failed to get sport programs" });
+    }
+  });
+
+  app.get("/api/sport/programs/:id", requireAuth, async (req, res) => {
+    try {
+      const program = await storage.getSportProgram(parseInt(req.params.id));
+      if (!program || program.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Program not found" });
+      }
+      res.json(program);
+    } catch (err) {
+      console.error("Get sport program error:", err);
+      res.status(500).json({ message: "Failed to get sport program" });
+    }
+  });
+
+  app.post("/api/sport/generate-program", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        sportProfileId: z.number(),
+        sport: z.string(),
+        role: z.string(),
+        skillCategory: z.string(),
+        skillName: z.string(),
+        fitnessScore: z.number().optional(),
+      });
+      const data = schema.parse(req.body);
+
+      const sportProfile = await storage.getSportProfile(req.user!.id);
+      if (!sportProfile || sportProfile.id !== data.sportProfileId) {
+        return res.status(403).json({ message: "Sport profile not found or not authorized" });
+      }
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI();
+
+      const prompt = `You are a professional sports training coach specializing in ${data.sport}. 
+Create a personalized ${data.skillName} improvement program for a ${data.role} player.
+${data.fitnessScore ? `Their fitness assessment score is ${data.fitnessScore}/100.` : 'No fitness assessment was taken.'}
+
+Return a JSON object with this exact structure:
+{
+  "analysis": {
+    "currentLevel": "beginner|intermediate|advanced",
+    "keyStrengths": ["strength1", "strength2"],
+    "areasToImprove": ["area1", "area2"],
+    "recommendation": "Brief personalized recommendation"
+  },
+  "program": {
+    "title": "Program title",
+    "description": "Brief program description",
+    "durationWeeks": 3,
+    "sessionsPerWeek": 3,
+    "phases": [
+      {
+        "week": 1,
+        "focus": "Phase focus",
+        "sessions": [
+          {
+            "day": 1,
+            "title": "Session title",
+            "warmup": ["warmup exercise 1", "warmup exercise 2"],
+            "drills": [
+              {"name": "Drill name", "sets": 3, "reps": "10", "rest": "60s", "notes": "Key coaching point"}
+            ],
+            "cooldown": ["cooldown exercise 1"]
+          }
+        ]
+      }
+    ]
+  }
+}
+
+Focus on ${data.skillCategory} > ${data.skillName}. Make it practical, progressive, and sport-specific.
+Only return valid JSON, no other text.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 3000,
+      });
+
+      const aiResult = JSON.parse(completion.choices[0].message.content || "{}");
+
+      const program = await storage.createSportProgram({
+        userId: req.user!.id,
+        sportProfileId: data.sportProfileId,
+        sport: data.sport,
+        role: data.role,
+        skillCategory: data.skillCategory,
+        skillName: data.skillName,
+        aiAnalysis: aiResult.analysis,
+        programPlan: aiResult.program,
+        durationWeeks: aiResult.program?.durationWeeks || 3,
+        isActive: true,
+        cycleId: null,
+      });
+
+      res.json(program);
+    } catch (err) {
+      console.error("Generate sport program error:", err);
+      res.status(500).json({ message: "Failed to generate sport program" });
+    }
+  });
+
+  app.delete("/api/sport/programs/:id", requireAuth, async (req, res) => {
+    try {
+      const program = await storage.getSportProgram(parseInt(req.params.id));
+      if (!program || program.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Program not found" });
+      }
+      await storage.deactivateSportProgram(program.id);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Delete sport program error:", err);
+      res.status(500).json({ message: "Failed to delete sport program" });
+    }
+  });
+
   await seedDemoData();
   return httpServer;
 }

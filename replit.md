@@ -34,6 +34,7 @@ Preferred communication style: Simple, everyday language.
 - **Training Mode:** Configurable "Trainer-Led" or "Self-Guided" workout management for gym members.
 - **Calorie Analytics:** Weekly and monthly analytics for calorie tracking against goals.
 - **Enhanced Nutrition Page:** Features global "+ Add Food" button, multiple meal types, protein/water intake tracking, recent foods quick-add, and AI-powered nutrition estimation (OpenAI GPT-4o-mini). Includes an expanded American food database.
+- **Sports Mode:** AI-powered sport-specific training programs. Users select a sport (Football, Basketball, Tennis, Swimming, Boxing, MMA, Cricket, Volleyball), choose their role/position, take an optional fitness assessment (score out of 100), then pick a skill to improve. GPT-4o-mini generates personalized multi-week training programs with drills, warmups, and cooldowns. Database: `sport_profiles`, `sport_programs` tables. Page: `client/src/pages/sports-mode-page.tsx`.
 - **Find My Food:** Location-based restaurant finder suggesting healthy options using OpenStreetMap Overpass API.
 - **Dika Assistant:** AI-powered personal assistant (OpenAI GPT-4o-mini) offering contextual insights, conversational meal logging, and owner actions (navigation, member addition, payment logging, trainer assignment). Supports cross-device chat synchronization.
 - **Dika Weekly Report:** AI-generated personalized fitness progress reports viewable publicly via token or emailed.
