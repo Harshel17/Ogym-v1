@@ -4054,7 +4054,10 @@ export async function registerRoutes(
     
     try {
       const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI();
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
       
       const restaurantContext = input.restaurant 
         ? `This item is from "${input.restaurant}" restaurant. Use the EXACT official nutrition data published by ${input.restaurant} for this menu item. If ${input.restaurant} publishes nutrition facts on their website, use those exact numbers. Be as accurate as possible to the real restaurant menu item.`
@@ -4161,7 +4164,10 @@ Return ONLY the JSON, no explanation.`;
       }
 
       const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI();
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
       
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -9586,7 +9592,10 @@ Return ONLY JSON.`
       }
 
       const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI();
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
 
       const prompt = `You are a professional sports training coach specializing in ${data.sport}. 
 Create a personalized ${data.skillName} improvement program for a ${data.role} player.
