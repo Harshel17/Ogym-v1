@@ -1063,6 +1063,8 @@ export const sportPrograms = pgTable("sport_programs", {
   skillName: text("skill_name").notNull(),
   aiAnalysis: jsonb("ai_analysis"),
   programPlan: jsonb("program_plan"),
+  priority: integer("priority").default(100),
+  replacedItems: jsonb("replaced_items"),
   durationWeeks: integer("duration_weeks").default(3),
   isActive: boolean("is_active").default(true),
   cycleId: integer("cycle_id").references(() => workoutCycles.id),

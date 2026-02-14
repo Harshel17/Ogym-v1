@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import {
   Trophy, Dumbbell, Target, Zap, ChevronRight, ChevronLeft, Loader2,
-  ArrowLeft, Trash2, Activity, Medal, Brain, Waves, Swords, Crosshair,
+  ArrowLeft, ArrowRight, Activity, Medal, Brain, Waves, Swords, Crosshair,
+  Check, X, AlertTriangle,
   type LucideIcon
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -121,16 +123,20 @@ function SportIcon({ sport, className = "w-6 h-6" }: { sport: string; className?
   return <Icon className={className} />;
 }
 
+type Step = "loading" | "select-sport" | "select-role" | "fitness-test" | "select-skill" | "previewing" | "preview-results" | "no-cycle" | "applying" | "dashboard";
+
 export default function SportsModePage() {
   const { toast } = useToast();
-  const [step, setStep] = useState<"loading" | "select-sport" | "select-role" | "fitness-test" | "select-skill" | "generating" | "dashboard" | "view-program">("loading");
+  const [, navigate] = useLocation();
+  const [step, setStep] = useState<Step>("loading");
   const [selectedSport, setSelectedSport] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
   const [testAnswers, setTestAnswers] = useState<Record<string, number>>({});
   const [currentTestQ, setCurrentTestQ] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSkill, setSelectedSkill] = useState("");
-  const [viewingProgram, setViewingProgram] = useState<SportProgram | null>(null);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [selectedPriority, setSelectedPriority] = useState<number | null>(null);
 
   const { data: profile, isLoading: profileLoading } = useQuery<SportProfile | null>({
     queryKey: ["/api/sport/profile"],
@@ -150,26 +156,58 @@ export default function SportsModePage() {
     },
   });
 
-  const generateProgram = useMutation({
-    mutationFn: async (data: {
-      sportProfileId: number;
-      sport: string;
-      role: string;
-      skillCategory: string;
-      skillName: string;
-      fitnessScore?: number;
-    }) => {
-      const res = await apiRequest("POST", "/api/sport/generate-program", data);
+  const previewMods = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/sport/preview-modifications", data);
+      return res.json();
+    },
+    onSuccess: (result) => {
+      setPreviewData(result);
+      if (result.noCycle) {
+        setStep("no-cycle");
+      } else {
+        setStep("preview-results");
+      }
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to generate preview. Please try again.", variant: "destructive" });
+      setStep("select-skill");
+    },
+  });
+
+  const applyMods = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/sport/apply-modifications", data);
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sport/programs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/calendar/enhanced"] });
+      toast({ title: "Workout Updated!", description: "Your cycle has been modified with sport-targeted exercises." });
       setStep("dashboard");
-      toast({ title: "Program Created!", description: "Your AI-powered training program is ready." });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to generate program. Please try again.", variant: "destructive" });
-      setStep("select-skill");
+      toast({ title: "Error", description: "Failed to apply changes. Please try again.", variant: "destructive" });
+    },
+  });
+
+  const createFullCycle = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/sport/create-full-cycle", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sport/programs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/calendar/enhanced"] });
+      toast({ title: "Workout Cycle Created!", description: "Your sport-focused workout cycle is ready." });
+      setStep("dashboard");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create cycle. Please try again.", variant: "destructive" });
     },
   });
 
@@ -180,9 +218,9 @@ export default function SportsModePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sport/programs"] });
-      setViewingProgram(null);
-      setStep("dashboard");
-      toast({ title: "Program removed" });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
+      toast({ title: "Sport modification removed" });
     },
   });
 
@@ -207,6 +245,57 @@ export default function SportsModePage() {
     return "select-sport";
   })();
 
+  const handleSkillSelect = (skill: string) => {
+    if (!profile) return;
+    setSelectedSkill(skill);
+    setStep("previewing");
+    const activeSport = selectedSport || profile.sport;
+    const activeRole = selectedRole || profile.role;
+    previewMods.mutate({
+      sportProfileId: profile.id,
+      sport: activeSport,
+      role: activeRole,
+      skillCategory: selectedCategory,
+      skillName: skill,
+      fitnessScore: profile.fitnessScore ?? undefined,
+    });
+  };
+
+  const handleApply = () => {
+    if (!profile || !previewData || selectedPriority === null) return;
+    const preview = previewData.previews?.find((p: any) => p.priority === selectedPriority);
+    if (!preview) return;
+
+    setStep("applying");
+    const activeSport = selectedSport || profile.sport;
+    const activeRole = selectedRole || profile.role;
+    applyMods.mutate({
+      sportProfileId: profile.id,
+      sport: activeSport,
+      role: activeRole,
+      skillCategory: selectedCategory,
+      skillName: selectedSkill,
+      priority: selectedPriority,
+      changes: preview.changes,
+      analysis: previewData.analysis,
+    });
+  };
+
+  const handleCreateFullCycle = () => {
+    if (!profile) return;
+    setStep("applying");
+    const activeSport = selectedSport || profile.sport;
+    const activeRole = selectedRole || profile.role;
+    createFullCycle.mutate({
+      sportProfileId: profile.id,
+      sport: activeSport,
+      role: activeRole,
+      skillCategory: selectedCategory,
+      skillName: selectedSkill,
+      fitnessScore: profile.fitnessScore ?? undefined,
+    });
+  };
+
   if (currentStep === "select-sport") {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-4 pb-24" data-testid="sports-select-sport">
@@ -216,7 +305,7 @@ export default function SportsModePage() {
               <Trophy className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Sports Mode</h1>
-            <p className="text-zinc-500 dark:text-zinc-400 mt-1">AI-powered sport-specific training programs</p>
+            <p className="text-zinc-500 dark:text-zinc-400 mt-1">Modify your workouts to improve your sport skills</p>
           </div>
 
           <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-3">Choose Your Sport</h2>
@@ -292,7 +381,6 @@ export default function SportsModePage() {
 
   if (currentStep === "fitness-test") {
     const question = FITNESS_TEST_QUESTIONS[currentTestQ];
-    const totalScore = Object.values(testAnswers).reduce((sum, s) => sum + s, 0);
     const progress = ((currentTestQ) / FITNESS_TEST_QUESTIONS.length) * 100;
 
     return (
@@ -395,8 +483,9 @@ export default function SportsModePage() {
 
           <div className="text-center mb-6">
             <SportIcon sport={activeSport} className="w-8 h-8 text-orange-500 mx-auto" />
-            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mt-2">Choose a Skill to Train</h1>
-            <div className="flex items-center justify-center gap-2 mt-1">
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mt-2">Choose a Skill to Improve</h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Your workout cycle will be modified to target this skill</p>
+            <div className="flex items-center justify-center gap-2 mt-2">
               <Badge variant="secondary" className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">{activeSport}</Badge>
               <Badge variant="secondary">{activeRole}</Badge>
               {profile?.fitnessScore && (
@@ -442,19 +531,7 @@ export default function SportsModePage() {
                 {sportData?.skills[selectedCategory]?.map((skill) => (
                   <button
                     key={skill}
-                    onClick={() => {
-                      if (!profile) return;
-                      setSelectedSkill(skill);
-                      setStep("generating");
-                      generateProgram.mutate({
-                        sportProfileId: profile.id,
-                        sport: activeSport,
-                        role: activeRole,
-                        skillCategory: selectedCategory,
-                        skillName: skill,
-                        fitnessScore: profile.fitnessScore ?? undefined,
-                      });
-                    }}
+                    onClick={() => handleSkillSelect(skill)}
                     className="w-full flex items-center justify-between p-4 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-orange-400 dark:hover:border-orange-500 hover:shadow-md transition-all"
                     data-testid={`skill-${skill.replace(/\s+/g, '-').toLowerCase()}`}
                   >
@@ -479,16 +556,20 @@ export default function SportsModePage() {
     );
   }
 
-  if (currentStep === "generating") {
+  if (currentStep === "previewing" || currentStep === "applying") {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center p-4" data-testid="sports-generating">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center p-4" data-testid="sports-previewing">
         <div className="text-center max-w-sm">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-orange-500 to-red-500 mb-4 animate-pulse">
             <Brain className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Creating Your Program</h2>
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
+            {currentStep === "previewing" ? "Analyzing Your Cycle" : "Applying Changes"}
+          </h2>
           <p className="text-zinc-500 dark:text-zinc-400 mb-4">
-            AI is analyzing your profile and generating a personalized {selectedSkill} training plan...
+            {currentStep === "previewing"
+              ? `AI is checking your current workouts and planning ${selectedSkill} modifications...`
+              : "Updating your workout cycle with sport-targeted exercises..."}
           </p>
           <Loader2 className="w-6 h-6 animate-spin mx-auto text-orange-500" />
         </div>
@@ -496,163 +577,220 @@ export default function SportsModePage() {
     );
   }
 
-  if (currentStep === "view-program" && viewingProgram) {
-    const analysis = viewingProgram.aiAnalysis as any;
-    const plan = viewingProgram.programPlan as any;
-
+  if (currentStep === "no-cycle") {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-4 pb-24" data-testid="sports-view-program">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-4 pb-24" data-testid="sports-no-cycle">
         <div className="max-w-lg mx-auto pt-2">
           <button
-            onClick={() => {
-              setViewingProgram(null);
-              setStep("dashboard");
-            }}
+            onClick={() => { setStep("select-skill"); setSelectedCategory(""); }}
             className="flex items-center text-zinc-500 dark:text-zinc-400 mb-4 hover:text-zinc-700 dark:hover:text-zinc-300"
-            data-testid="back-to-dashboard-from-program"
+            data-testid="back-to-skills"
           >
-            <ArrowLeft className="w-4 h-4 mr-1" /> Back
+            <ChevronLeft className="w-4 h-4 mr-1" /> Back
           </button>
 
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <SportIcon sport={viewingProgram.sport} className="w-6 h-6 text-orange-500" />
-              <div>
-                <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{plan?.title || viewingProgram.skillName}</h1>
-                <div className="flex gap-2 mt-1">
-                  <Badge variant="secondary" className="text-xs">{viewingProgram.sport}</Badge>
-                  <Badge variant="secondary" className="text-xs">{viewingProgram.role}</Badge>
-                </div>
-              </div>
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 mb-3">
+              <AlertTriangle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
             </div>
-            {plan?.description && (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">{plan.description}</p>
-            )}
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">No Workout Cycle Found</h1>
+            <p className="text-zinc-500 dark:text-zinc-400 mt-2">
+              You don't have a workout cycle assigned yet. To modify your workouts for <span className="font-semibold text-orange-500">{selectedSkill}</span>, you need an active cycle.
+            </p>
           </div>
 
-          {analysis && (
-            <Card className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 mb-4">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-orange-500" />
-                  AI Analysis
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Badge className={
-                      analysis.currentLevel === "beginner" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" :
-                      analysis.currentLevel === "intermediate" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" :
-                      "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                    }>
-                      {analysis.currentLevel}
-                    </Badge>
+          <div className="space-y-4">
+            <Card className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                    <Dumbbell className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  {analysis.recommendation && (
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">{analysis.recommendation}</p>
-                  )}
-                  {analysis.targetMuscles?.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Target Muscle Groups</p>
-                      <div className="flex flex-wrap gap-1">
-                        {analysis.targetMuscles.map((m: string) => (
-                          <Badge key={m} variant="outline" className="text-xs bg-blue-50 dark:bg-blue-900/10 dark:text-blue-300">{m}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {analysis.whyTheseMuscles && (
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">{analysis.whyTheseMuscles}</p>
-                  )}
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-zinc-800 dark:text-zinc-200">Create a workout cycle first</h3>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                      Set up your regular workout cycle, then come back here to add sport-specific modifications.
+                    </p>
+                    <Button
+                      className="mt-3"
+                      variant="outline"
+                      onClick={() => navigate("/workouts")}
+                      data-testid="go-to-workouts"
+                    >
+                      Go to Workouts <ArrowRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          )}
 
-          {plan?.phases?.map((phase: any, phaseIdx: number) => (
-            <Card key={phaseIdx} className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 mb-4">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">
-                  Week {phase.week}: {phase.focus}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {phase.sessions?.map((session: any, sessionIdx: number) => (
-                    <div key={sessionIdx} className="border border-zinc-100 dark:border-zinc-700 rounded-lg p-3">
-                      <h4 className="font-medium text-sm text-zinc-800 dark:text-zinc-200 mb-2">
-                        Day {session.day}: {session.title}
-                      </h4>
+            <div className="relative flex items-center justify-center">
+              <div className="border-t border-zinc-200 dark:border-zinc-700 flex-1" />
+              <span className="px-3 text-sm text-zinc-400 bg-zinc-50 dark:bg-zinc-900">or</span>
+              <div className="border-t border-zinc-200 dark:border-zinc-700 flex-1" />
+            </div>
 
-                      {session.warmup?.length > 0 && (
-                        <div className="mb-2">
-                          <p className="text-xs font-medium text-orange-600 dark:text-orange-400 mb-1">Warmup</p>
-                          <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-0.5">
-                            {session.warmup.map((w: string, i: number) => (
-                              <li key={i}>• {w}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {(session.exercises || session.drills)?.length > 0 && (
-                        <div className="mb-2">
-                          <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Exercises</p>
-                          <div className="space-y-2">
-                            {(session.exercises || session.drills).map((ex: any, i: number) => (
-                              <div key={i} className="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{ex.name}</span>
-                                  <span className="text-xs text-zinc-500">
-                                    {ex.sets}x{ex.reps} | Rest: {ex.rest}
-                                  </span>
-                                </div>
-                                {ex.muscleGroup && (
-                                  <span className="inline-block text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded mt-1">{ex.muscleGroup}</span>
-                                )}
-                                {ex.notes && (
-                                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{ex.notes}</p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {session.cooldown?.length > 0 && (
-                        <div>
-                          <p className="text-xs font-medium text-green-600 dark:text-green-400 mb-1">Cooldown</p>
-                          <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-0.5">
-                            {session.cooldown.map((c: string, i: number) => (
-                              <li key={i}>• {c}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+            <Card className="bg-white dark:bg-zinc-800 border-orange-200 dark:border-orange-800">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-zinc-800 dark:text-zinc-200">Use this as your full workout</h3>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                      AI will create a complete workout cycle entirely focused on improving your <span className="font-medium text-orange-500">{selectedSkill}</span> in {selectedSport || profile?.sport}.
+                    </p>
+                    <Button
+                      className="mt-3 bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600"
+                      onClick={handleCreateFullCycle}
+                      disabled={createFullCycle.isPending}
+                      data-testid="create-full-cycle"
+                    >
+                      {createFullCycle.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Brain className="w-4 h-4 mr-2" />}
+                      Generate Sport Workout Cycle
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          ))}
-
-          <Button
-            variant="destructive"
-            className="w-full"
-            onClick={() => deleteProgram.mutate(viewingProgram.id)}
-            disabled={deleteProgram.isPending}
-            data-testid="delete-program"
-          >
-            {deleteProgram.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
-            Remove Program
-          </Button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Dashboard view
+  if (currentStep === "preview-results" && previewData) {
+    const previews = previewData.previews || [];
+    const cycleInfo = previewData.cycleInfo;
+    const currentExercises = previewData.currentExercises || {};
+    const analysis = previewData.analysis;
+
+    const priorityLabels: Record<number, { label: string; color: string; bgColor: string; desc: string }> = {
+      50: { label: "Light", color: "text-green-700 dark:text-green-300", bgColor: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800", desc: "Keep most of your workouts, add a few sport exercises" },
+      80: { label: "Moderate", color: "text-blue-700 dark:text-blue-300", bgColor: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800", desc: "Replace most exercises with sport-targeted ones" },
+      100: { label: "Full Focus", color: "text-orange-700 dark:text-orange-300", bgColor: "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800", desc: "Fully rebuild your cycle around this sport goal" },
+    };
+
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-4 pb-24" data-testid="sports-preview-results">
+        <div className="max-w-lg mx-auto pt-2">
+          <button
+            onClick={() => { setStep("select-skill"); setSelectedCategory(""); setSelectedPriority(null); }}
+            className="flex items-center text-zinc-500 dark:text-zinc-400 mb-4 hover:text-zinc-700 dark:hover:text-zinc-300"
+            data-testid="back-to-skills-from-preview"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" /> Back
+          </button>
+
+          <div className="text-center mb-4">
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">How much do you want to change?</h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              Your cycle <span className="font-medium text-zinc-700 dark:text-zinc-300">"{cycleInfo?.name}"</span> will be modified for <span className="font-medium text-orange-500">{selectedSkill}</span>
+            </p>
+          </div>
+
+          {analysis?.targetMuscles?.length > 0 && (
+            <div className="mb-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+              <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Target Muscles</p>
+              <div className="flex flex-wrap gap-1">
+                {analysis.targetMuscles.map((m: string) => (
+                  <Badge key={m} variant="outline" className="text-xs bg-white/50 dark:bg-zinc-800/50">{m}</Badge>
+                ))}
+              </div>
+              {analysis.whyTheseMuscles && (
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">{analysis.whyTheseMuscles}</p>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {previews.map((preview: any) => {
+              const config = priorityLabels[preview.priority] || priorityLabels[50];
+              const isSelected = selectedPriority === preview.priority;
+
+              return (
+                <button
+                  key={preview.priority}
+                  onClick={() => setSelectedPriority(preview.priority)}
+                  className={`w-full text-left rounded-xl border-2 transition-all ${
+                    isSelected
+                      ? "border-orange-500 ring-2 ring-orange-200 dark:ring-orange-800"
+                      : `${config.bgColor} hover:border-orange-300 dark:hover:border-orange-700`
+                  }`}
+                  data-testid={`priority-${preview.priority}`}
+                >
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-2xl font-bold ${config.color}`}>{preview.priority}%</span>
+                        <Badge className={`${config.color} bg-transparent border`}>{config.label}</Badge>
+                      </div>
+                      {isSelected && (
+                        <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">{preview.summary || config.desc}</p>
+
+                    <div className="space-y-2">
+                      {preview.changes?.map((change: any, idx: number) => {
+                        const dayLabel = cycleInfo?.dayLabels?.[change.dayIndex] || `Day ${change.dayIndex + 1}`;
+                        return (
+                          <div key={idx} className="bg-white dark:bg-zinc-800 rounded-lg p-3 border border-zinc-100 dark:border-zinc-700">
+                            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2">{dayLabel}</p>
+                            {change.removals?.length > 0 && (
+                              <div className="space-y-1 mb-2">
+                                {change.removals.map((r: any, i: number) => (
+                                  <div key={i} className="flex items-center gap-2 text-xs">
+                                    <X className="w-3 h-3 text-red-500 flex-shrink-0" />
+                                    <span className="text-zinc-500 dark:text-zinc-400 line-through">{r.exerciseName}</span>
+                                    <Badge variant="outline" className="text-[10px] px-1 py-0">{r.muscleType}</Badge>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {change.additions?.length > 0 && (
+                              <div className="space-y-1">
+                                {change.additions.map((a: any, i: number) => (
+                                  <div key={i} className="flex items-center gap-2 text-xs">
+                                    <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
+                                    <span className="text-zinc-800 dark:text-zinc-200 font-medium">{a.exerciseName}</span>
+                                    <span className="text-zinc-400">{a.sets}x{a.reps}</span>
+                                    <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 dark:bg-blue-900/20">{a.muscleType}</Badge>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedPriority !== null && (
+            <div className="mt-6 sticky bottom-20 bg-zinc-50 dark:bg-zinc-900 pt-2 pb-2">
+              <Button
+                className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 h-12 text-base"
+                onClick={handleApply}
+                disabled={applyMods.isPending}
+                data-testid="apply-changes"
+              >
+                {applyMods.isPending ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Check className="w-5 h-5 mr-2" />}
+                Apply {selectedPriority}% Changes to My Cycle
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-4 pb-24" data-testid="sports-dashboard">
       <div className="max-w-lg mx-auto pt-2">
@@ -680,62 +818,55 @@ export default function SportsModePage() {
         <Button
           onClick={() => {
             setSelectedCategory("");
+            setSelectedPriority(null);
             setStep("select-skill");
           }}
           className="w-full mb-6 bg-gradient-to-r from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600"
-          data-testid="add-new-program"
+          data-testid="add-sport-modification"
         >
-          <Zap className="w-4 h-4 mr-2" /> New Training Program
+          <Zap className="w-4 h-4 mr-2" /> Modify Workouts for a Skill
         </Button>
 
         {(!programs || programs.length === 0) ? (
           <Card className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700">
             <CardContent className="pt-6 text-center">
               <Medal className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
-              <h3 className="font-semibold text-zinc-800 dark:text-zinc-200">No Programs Yet</h3>
+              <h3 className="font-semibold text-zinc-800 dark:text-zinc-200">No Sport Modifications Yet</h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                Create your first AI-powered sport training program to get started!
+                Pick a sport skill above to modify your workout cycle with exercises that help you improve.
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Active Programs</h2>
-            {programs.map((program) => (
-              <button
-                key={program.id}
-                onClick={() => {
-                  setViewingProgram(program);
-                  setStep("view-program");
-                }}
-                className="w-full text-left p-4 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-orange-400 dark:hover:border-orange-500 hover:shadow-md transition-all"
-                data-testid={`program-card-${program.id}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
-                    <SportIcon sport={program.sport} className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-zinc-800 dark:text-zinc-200 truncate">
-                      {(program.programPlan as any)?.title || program.skillName}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="text-xs">{program.skillCategory}</Badge>
-                      <span className="text-xs text-zinc-400">{program.durationWeeks} weeks</span>
+            <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Active Modifications</h2>
+            {programs.filter(p => p.isActive).map((program) => (
+              <Card key={program.id} className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700" data-testid={`mod-card-${program.id}`}>
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center flex-shrink-0">
+                      <SportIcon sport={program.sport} className="w-5 h-5 text-white" />
                     </div>
-                    {(program.aiAnalysis as any)?.currentLevel && (
-                      <Badge className={`mt-1 text-xs ${
-                        (program.aiAnalysis as any).currentLevel === "beginner" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" :
-                        (program.aiAnalysis as any).currentLevel === "intermediate" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" :
-                        "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                      }`}>
-                        {(program.aiAnalysis as any).currentLevel}
-                      </Badge>
-                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-zinc-800 dark:text-zinc-200 truncate">{program.skillName}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="secondary" className="text-xs">{program.skillCategory}</Badge>
+                        <Badge variant="outline" className="text-xs">{program.priority}% priority</Badge>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      onClick={() => deleteProgram.mutate(program.id)}
+                      disabled={deleteProgram.isPending}
+                      data-testid={`remove-mod-${program.id}`}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-zinc-400 flex-shrink-0" />
-                </div>
-              </button>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}

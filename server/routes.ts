@@ -9574,8 +9574,255 @@ Return ONLY JSON.`
     }
   });
 
-  app.post("/api/sport/generate-program", requireAuth, async (req, res) => {
+  app.post("/api/sport/preview-modifications", requireAuth, async (req, res) => {
     try {
+      if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
+        return res.status(403).json({ message: "Sports Mode cycle modifications are only available for Self-Guided and Personal Mode members" });
+      }
+
+      const schema = z.object({
+        sportProfileId: z.number(),
+        sport: z.string(),
+        role: z.string(),
+        skillCategory: z.string(),
+        skillName: z.string(),
+        fitnessScore: z.number().optional(),
+      });
+      const data = schema.parse(req.body);
+
+      const sportProfile = await storage.getSportProfile(req.user!.id);
+      if (!sportProfile || sportProfile.id !== data.sportProfileId) {
+        return res.status(403).json({ message: "Sport profile not found or not authorized" });
+      }
+
+      const activeCycle = await storage.getMemberCycle(req.user!.id);
+      let currentExercises: any[] = [];
+      let cycleInfo: any = null;
+
+      if (activeCycle) {
+        const items = await storage.getWorkoutItems(activeCycle.id);
+        const activeItems = items.filter(i => !i.isDeleted);
+        cycleInfo = {
+          id: activeCycle.id,
+          name: activeCycle.name,
+          cycleLength: activeCycle.cycleLength,
+          dayLabels: activeCycle.dayLabels,
+          restDays: activeCycle.restDays || [],
+        };
+        currentExercises = activeItems.map(i => ({
+          id: i.id,
+          dayIndex: i.dayIndex,
+          exerciseName: i.exerciseName,
+          muscleType: i.muscleType,
+          bodyPart: i.bodyPart,
+          sets: i.sets,
+          reps: i.reps,
+          weight: i.weight,
+          exerciseType: i.exerciseType,
+          orderIndex: i.orderIndex,
+        }));
+      }
+
+      if (!activeCycle || currentExercises.length === 0) {
+        return res.json({ noCycle: true, cycleInfo: null, previews: [] });
+      }
+
+      const exercisesByDay: Record<number, any[]> = {};
+      for (const ex of currentExercises) {
+        if (!exercisesByDay[ex.dayIndex]) exercisesByDay[ex.dayIndex] = [];
+        exercisesByDay[ex.dayIndex].push(ex);
+      }
+
+      const cycleDescription = Object.entries(exercisesByDay).map(([day, exs]) => {
+        const dayLabel = cycleInfo.dayLabels?.[parseInt(day)] || `Day ${parseInt(day) + 1}`;
+        const isRest = cycleInfo.restDays?.includes(parseInt(day));
+        if (isRest) return `${dayLabel} (Rest Day)`;
+        return `${dayLabel}: ${exs.map((e: any) => `${e.exerciseName} (${e.muscleType}, ${e.sets}x${e.reps})`).join(', ')}`;
+      }).join('\n');
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const prompt = `You are a sports fitness coach. A ${data.role} in ${data.sport} wants to improve their ${data.skillName} (${data.skillCategory}).
+${data.fitnessScore ? `Fitness score: ${data.fitnessScore}/100.` : ''}
+
+Their current workout cycle has ${cycleInfo.cycleLength} days:
+${cycleDescription}
+
+Create 3 modification plans at 50%, 80%, and 100% priority levels. For each level, suggest which exercises to REPLACE with sport-targeted exercises that help improve ${data.skillName} in ${data.sport}.
+
+RULES:
+- Only suggest gym exercises (weight training, bodyweight, resistance) - NO sport drills
+- Each replacement exercise must specify the target muscle group
+- At 50%: replace few exercises across the cycle with sport-targeted ones
+- At 80%: replace most exercises, keeping only essential compound movements
+- At 100%: replace all exercises with sport-focused training
+- Do NOT touch rest days
+- Keep the same dayIndex structure
+
+Return JSON:
+{
+  "analysis": {
+    "targetMuscles": ["muscle1", "muscle2"],
+    "whyTheseMuscles": "Why these muscles matter for ${data.skillName}"
+  },
+  "previews": [
+    {
+      "priority": 50,
+      "summary": "Brief description of changes at 50%",
+      "changes": [
+        {
+          "dayIndex": 0,
+          "removals": [{"exerciseName": "Original exercise name", "muscleType": "Original muscle"}],
+          "additions": [{"exerciseName": "New exercise", "muscleType": "Target muscle", "bodyPart": "Body part", "sets": 3, "reps": 10}]
+        }
+      ]
+    },
+    {
+      "priority": 80,
+      "summary": "Brief description of changes at 80%",
+      "changes": [...]
+    },
+    {
+      "priority": 100,
+      "summary": "Brief description of changes at 100%",
+      "changes": [...]
+    }
+  ]
+}
+
+Only return valid JSON.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_completion_tokens: 4000,
+      });
+
+      const aiResult = JSON.parse(completion.choices[0].message.content || "{}");
+
+      res.json({
+        noCycle: false,
+        cycleInfo,
+        currentExercises: exercisesByDay,
+        analysis: aiResult.analysis,
+        previews: aiResult.previews || [],
+      });
+    } catch (err) {
+      console.error("Preview sport modifications error:", err);
+      res.status(500).json({ message: "Failed to generate modification previews" });
+    }
+  });
+
+  app.post("/api/sport/apply-modifications", requireAuth, async (req, res) => {
+    try {
+      if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
+        return res.status(403).json({ message: "Only Self-Guided and Personal Mode members" });
+      }
+
+      const schema = z.object({
+        sportProfileId: z.number(),
+        sport: z.string(),
+        role: z.string(),
+        skillCategory: z.string(),
+        skillName: z.string(),
+        priority: z.number(),
+        changes: z.array(z.object({
+          dayIndex: z.number(),
+          removals: z.array(z.object({ exerciseName: z.string(), muscleType: z.string() })),
+          additions: z.array(z.object({
+            exerciseName: z.string(),
+            muscleType: z.string(),
+            bodyPart: z.string(),
+            sets: z.number(),
+            reps: z.number(),
+          })),
+        })),
+        analysis: z.any().optional(),
+      });
+      const data = schema.parse(req.body);
+
+      const sportProfile = await storage.getSportProfile(req.user!.id);
+      if (!sportProfile || sportProfile.id !== data.sportProfileId) {
+        return res.status(403).json({ message: "Sport profile not found or not authorized" });
+      }
+
+      const activeCycle = await storage.getMemberCycle(req.user!.id);
+      if (!activeCycle) {
+        return res.status(400).json({ message: "No active workout cycle found" });
+      }
+
+      const existingItems = await storage.getWorkoutItems(activeCycle.id);
+      const replacedItemIds: number[] = [];
+
+      const program = await storage.createSportProgram({
+        userId: req.user!.id,
+        sportProfileId: data.sportProfileId,
+        sport: data.sport,
+        role: data.role,
+        skillCategory: data.skillCategory,
+        skillName: data.skillName,
+        aiAnalysis: data.analysis || null,
+        programPlan: { changes: data.changes },
+        priority: data.priority,
+        durationWeeks: 0,
+        isActive: true,
+        cycleId: activeCycle.id,
+      });
+
+      for (const change of data.changes) {
+        const dayItems = existingItems.filter(i => i.dayIndex === change.dayIndex && !i.isDeleted);
+
+        for (const removal of change.removals) {
+          const match = dayItems.find(i =>
+            i.exerciseName.toLowerCase() === removal.exerciseName.toLowerCase() &&
+            !replacedItemIds.includes(i.id)
+          );
+          if (match) {
+            replacedItemIds.push(match.id);
+            await storage.deleteWorkoutItem(match.id);
+          }
+        }
+
+        const maxOrder = dayItems.reduce((max, i) => Math.max(max, i.orderIndex || 0), 0);
+        for (let i = 0; i < change.additions.length; i++) {
+          const addition = change.additions[i];
+          await storage.addWorkoutItem({
+            cycleId: activeCycle.id,
+            dayIndex: change.dayIndex,
+            exerciseName: addition.exerciseName,
+            muscleType: addition.muscleType,
+            bodyPart: addition.bodyPart,
+            exerciseType: "strength",
+            sets: addition.sets,
+            reps: addition.reps,
+            orderIndex: maxOrder + i + 1,
+            sportProgramId: program.id,
+          });
+        }
+      }
+
+      await storage.updateSportProgram(program.id, {
+        replacedItems: replacedItemIds,
+      });
+
+      res.json({ success: true, programId: program.id });
+    } catch (err) {
+      console.error("Apply sport modifications error:", err);
+      res.status(500).json({ message: "Failed to apply modifications" });
+    }
+  });
+
+  app.post("/api/sport/create-full-cycle", requireAuth, async (req, res) => {
+    try {
+      if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
+        return res.status(403).json({ message: "Only Self-Guided and Personal Mode members" });
+      }
+
       const schema = z.object({
         sportProfileId: z.number(),
         sport: z.string(),
@@ -9597,61 +9844,65 @@ Return ONLY JSON.`
         baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
       });
 
-      const prompt = `You are a sports fitness and strength coach. A ${data.role} in ${data.sport} wants to improve their ${data.skillName} (category: ${data.skillCategory}).
-${data.fitnessScore ? `Their fitness assessment score is ${data.fitnessScore}/100.` : 'No fitness assessment was taken.'}
+      const prompt = `You are a sports fitness coach. Create a complete gym workout cycle for a ${data.role} in ${data.sport} who wants to improve ${data.skillName} (${data.skillCategory}).
+${data.fitnessScore ? `Fitness score: ${data.fitnessScore}/100.` : ''}
 
-Your job is to create a GYM WORKOUT PROGRAM focusing on the MUSCLES AND EXERCISES that will help this athlete improve at ${data.skillName}. 
+RULES:
+- Create a 5-day cycle (with 2 rest days) focused on muscles that improve ${data.skillName}
+- Only gym exercises (weight training, bodyweight, resistance) - NO sport drills
+- Each exercise must have a target muscle group and body part
+- Progressive and balanced across the week
 
-IMPORTANT RULES:
-- Do NOT include sport drills, coaching tips, or practice sessions
-- ONLY include gym workouts: weight training, bodyweight exercises, resistance exercises, stretches
-- For each exercise, specify the TARGET MUSCLE GROUP it works
-- Focus on muscles that are critical for ${data.skillName} in ${data.sport}
-- Make it a proper gym program with progressive overload
-
-Return a JSON object with this exact structure:
+Return JSON:
 {
   "analysis": {
-    "currentLevel": "beginner|intermediate|advanced",
-    "targetMuscles": ["muscle1", "muscle2", "muscle3"],
-    "whyTheseMuscles": "Brief explanation of why these muscle groups matter for ${data.skillName}",
-    "recommendation": "Brief personalized recommendation"
+    "targetMuscles": ["muscle1", "muscle2"],
+    "whyTheseMuscles": "Why these muscles matter"
   },
-  "program": {
-    "title": "Program title",
-    "description": "Brief description focusing on muscle development for the skill",
-    "durationWeeks": 3,
-    "sessionsPerWeek": 3,
-    "phases": [
-      {
-        "week": 1,
-        "focus": "Phase focus (e.g. Foundation Strength)",
-        "sessions": [
-          {
-            "day": 1,
-            "title": "Session title (e.g. Upper Body Power)",
-            "warmup": ["warmup exercise 1", "warmup exercise 2"],
-            "exercises": [
-              {"name": "Exercise name", "muscleGroup": "Target muscle", "sets": 3, "reps": "10", "rest": "60s", "notes": "Form tip or progression note"}
-            ],
-            "cooldown": ["cooldown stretch 1"]
-          }
-        ]
-      }
+  "cycle": {
+    "name": "Cycle name for ${data.skillName}",
+    "cycleLength": 7,
+    "dayLabels": ["Day 1 Name", "Day 2 Name", "Day 3 Name", "Day 4 Name", "Day 5 Name", "Rest", "Rest"],
+    "restDays": [5, 6],
+    "exercises": [
+      {"dayIndex": 0, "exerciseName": "Exercise", "muscleType": "Muscle", "bodyPart": "Body part", "sets": 3, "reps": 10, "orderIndex": 0},
+      {"dayIndex": 0, "exerciseName": "Exercise 2", "muscleType": "Muscle", "bodyPart": "Body part", "sets": 3, "reps": 12, "orderIndex": 1}
     ]
   }
 }
 
-Only return valid JSON, no other text.`;
+Only return valid JSON.`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        max_tokens: 3000,
+        max_completion_tokens: 4000,
       });
 
       const aiResult = JSON.parse(completion.choices[0].message.content || "{}");
+      const cycleData = aiResult.cycle;
+
+      if (!cycleData) {
+        return res.status(500).json({ message: "AI failed to generate cycle" });
+      }
+
+      const today = new Date();
+      const endDate = new Date(today);
+      endDate.setDate(endDate.getDate() + 90);
+
+      const cycle = await storage.createWorkoutCycle({
+        memberId: req.user!.id,
+        name: cycleData.name || `${data.sport} - ${data.skillName} Training`,
+        cycleLength: cycleData.cycleLength || 7,
+        dayLabels: cycleData.dayLabels,
+        restDays: cycleData.restDays,
+        startDate: today.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        progressionMode: "calendar",
+        source: "self",
+        isActive: true,
+      });
 
       const program = await storage.createSportProgram({
         userId: req.user!.id,
@@ -9661,16 +9912,34 @@ Only return valid JSON, no other text.`;
         skillCategory: data.skillCategory,
         skillName: data.skillName,
         aiAnalysis: aiResult.analysis,
-        programPlan: aiResult.program,
-        durationWeeks: aiResult.program?.durationWeeks || 3,
+        programPlan: { fullCycle: true },
+        priority: 100,
+        durationWeeks: 0,
         isActive: true,
-        cycleId: null,
+        cycleId: cycle.id,
       });
 
-      res.json(program);
+      if (cycleData.exercises && Array.isArray(cycleData.exercises)) {
+        for (const ex of cycleData.exercises) {
+          await storage.addWorkoutItem({
+            cycleId: cycle.id,
+            dayIndex: ex.dayIndex,
+            exerciseName: ex.exerciseName,
+            muscleType: ex.muscleType,
+            bodyPart: ex.bodyPart,
+            exerciseType: "strength",
+            sets: ex.sets || 3,
+            reps: ex.reps || 10,
+            orderIndex: ex.orderIndex || 0,
+            sportProgramId: program.id,
+          });
+        }
+      }
+
+      res.json({ success: true, programId: program.id, cycleId: cycle.id });
     } catch (err) {
-      console.error("Generate sport program error:", err);
-      res.status(500).json({ message: "Failed to generate sport program" });
+      console.error("Create full sport cycle error:", err);
+      res.status(500).json({ message: "Failed to create sport cycle" });
     }
   });
 
