@@ -8,7 +8,7 @@ import { useLocation } from "wouter";
 import {
   Trophy, Dumbbell, Target, Zap, ChevronRight, ChevronLeft, Loader2,
   ArrowLeft, ArrowRight, Activity, Medal, Brain, Waves, Swords, Crosshair,
-  Check, X, AlertTriangle,
+  Check, X, AlertTriangle, ChevronDown, ChevronUp, Calendar, BarChart3,
   type LucideIcon
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -137,6 +137,7 @@ export default function SportsModePage() {
   const [selectedSkill, setSelectedSkill] = useState("");
   const [previewData, setPreviewData] = useState<any>(null);
   const [selectedPriority, setSelectedPriority] = useState<number | null>(null);
+  const [expandedModId, setExpandedModId] = useState<number | null>(null);
 
   const { data: profile, isLoading: profileLoading } = useQuery<SportProfile | null>({
     queryKey: ["/api/sport/profile"],
@@ -840,34 +841,140 @@ export default function SportsModePage() {
         ) : (
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Active Modifications</h2>
-            {programs.filter(p => p.isActive).map((program) => (
-              <Card key={program.id} className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700" data-testid={`mod-card-${program.id}`}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center flex-shrink-0">
-                      <SportIcon sport={program.sport} className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-zinc-800 dark:text-zinc-200 truncate">{program.skillName}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary" className="text-xs">{program.skillCategory}</Badge>
-                        <Badge variant="outline" className="text-xs">{program.priority}% priority</Badge>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                      onClick={() => deleteProgram.mutate(program.id)}
-                      disabled={deleteProgram.isPending}
-                      data-testid={`remove-mod-${program.id}`}
+            {programs.filter(p => p.isActive).map((program) => {
+              const isExpanded = expandedModId === program.id;
+              const planData = program.programPlan as any;
+              const changes = planData?.changes || [];
+              const analysis = program.aiAnalysis as any;
+              const totalAdded = changes.reduce((sum: number, c: any) => sum + (c.additions?.length || 0), 0);
+              const totalRemoved = changes.reduce((sum: number, c: any) => sum + (c.removals?.length || 0), 0);
+              const daysAffected = changes.length;
+
+              return (
+                <Card key={program.id} className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 overflow-hidden" data-testid={`mod-card-${program.id}`}>
+                  <CardContent className="p-0">
+                    <button
+                      className="w-full text-left p-4 flex items-center gap-3"
+                      onClick={() => setExpandedModId(isExpanded ? null : program.id)}
+                      data-testid={`mod-toggle-${program.id}`}
                     >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center flex-shrink-0">
+                        <SportIcon sport={program.sport} className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-zinc-800 dark:text-zinc-200 truncate">{program.skillName}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="secondary" className="text-xs">{program.skillCategory}</Badge>
+                          <Badge variant="outline" className="text-xs">{program.priority}% priority</Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 h-7 w-7 p-0"
+                          onClick={(e) => { e.stopPropagation(); deleteProgram.mutate(program.id); }}
+                          disabled={deleteProgram.isPending}
+                          data-testid={`remove-mod-${program.id}`}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                        {isExpanded ? <ChevronUp className="w-4 h-4 text-zinc-400" /> : <ChevronDown className="w-4 h-4 text-zinc-400" />}
+                      </div>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="border-t border-zinc-100 dark:border-zinc-700 px-4 pb-4 space-y-4">
+                        <div className="grid grid-cols-3 gap-2 pt-3">
+                          <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-2.5 text-center">
+                            <Calendar className="w-4 h-4 text-blue-500 mx-auto mb-1" />
+                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{daysAffected}</p>
+                            <p className="text-[10px] text-blue-600 dark:text-blue-400">Days Changed</p>
+                          </div>
+                          <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-2.5 text-center">
+                            <Check className="w-4 h-4 text-green-500 mx-auto mb-1" />
+                            <p className="text-lg font-bold text-green-700 dark:text-green-300">{totalAdded}</p>
+                            <p className="text-[10px] text-green-600 dark:text-green-400">Added</p>
+                          </div>
+                          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-2.5 text-center">
+                            <X className="w-4 h-4 text-red-500 mx-auto mb-1" />
+                            <p className="text-lg font-bold text-red-700 dark:text-red-300">{totalRemoved}</p>
+                            <p className="text-[10px] text-red-600 dark:text-red-400">Replaced</p>
+                          </div>
+                        </div>
+
+                        {analysis?.targetMuscles?.length > 0 && (
+                          <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+                            <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-1.5 flex items-center gap-1">
+                              <Target className="w-3.5 h-3.5" /> Target Muscles
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {analysis.targetMuscles.map((m: string) => (
+                                <Badge key={m} variant="outline" className="text-[10px] bg-white/50 dark:bg-zinc-800/50">{m}</Badge>
+                              ))}
+                            </div>
+                            {analysis.whyTheseMuscles && (
+                              <p className="text-[11px] text-indigo-600 dark:text-indigo-400 mt-1.5">{analysis.whyTheseMuscles}</p>
+                            )}
+                          </div>
+                        )}
+
+                        <div>
+                          <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 mb-2 flex items-center gap-1">
+                            <BarChart3 className="w-3.5 h-3.5" /> Day-by-Day Changes
+                          </p>
+                          <div className="space-y-2">
+                            {changes.map((change: any, idx: number) => {
+                              const dayLabel = `Day ${change.dayIndex + 1}`;
+                              return (
+                                <div key={idx} className="rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-700 p-3">
+                                  <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2">{dayLabel}</p>
+                                  {change.removals?.length > 0 && (
+                                    <div className="space-y-1 mb-2">
+                                      {change.removals.map((r: any, i: number) => (
+                                        <div key={i} className="flex items-center gap-2 text-xs">
+                                          <div className="w-4 h-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                                            <X className="w-2.5 h-2.5 text-red-500" />
+                                          </div>
+                                          <span className="text-zinc-500 dark:text-zinc-400 line-through flex-1">{r.exerciseName}</span>
+                                          <Badge variant="outline" className="text-[9px] px-1 py-0">{r.muscleType}</Badge>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {change.additions?.length > 0 && (
+                                    <div className="space-y-1">
+                                      {change.additions.map((a: any, i: number) => (
+                                        <div key={i} className="flex items-center gap-2 text-xs">
+                                          <div className="w-4 h-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                                            <Zap className="w-2.5 h-2.5 text-green-600" />
+                                          </div>
+                                          <span className="text-zinc-800 dark:text-zinc-200 font-medium flex-1">{a.exerciseName}</span>
+                                          <span className="text-zinc-400 text-[10px]">{a.sets}x{a.reps}</span>
+                                          <Badge variant="outline" className="text-[9px] px-1 py-0 bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400">
+                                            <Zap className="w-2 h-2 mr-0.5" />Sport
+                                          </Badge>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {program.createdAt && (
+                          <p className="text-[10px] text-zinc-400 text-center pt-1">
+                            Applied on {new Date(program.createdAt).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
 

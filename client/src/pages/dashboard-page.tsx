@@ -1597,6 +1597,11 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                               <p className={`font-medium text-sm ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
                                 {item.exerciseName}
                               </p>
+                              {item.sportProgramId && (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 flex-shrink-0" data-testid={`sport-badge-dash-${item.id}`}>
+                                  <Zap className="w-2.5 h-2.5 mr-0.5" />Sport
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-xs text-muted-foreground ml-5">
                               {item.exerciseType === 'cardio' ? (

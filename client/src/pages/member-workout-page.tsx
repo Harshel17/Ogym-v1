@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw, Loader2, Plus, Dumbbell, Wand2, Shuffle, ArrowLeftRight, History, Clock, Heart } from "lucide-react";
+import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw, Loader2, Plus, Dumbbell, Wand2, Shuffle, ArrowLeftRight, History, Clock, Heart, Zap } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -937,6 +937,11 @@ export default function MemberWorkoutPage() {
                                   <p className={`font-medium text-sm ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
                                     {item.exerciseName}
                                   </p>
+                                  {item.sportProgramId && (
+                                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 flex-shrink-0" data-testid={`sport-badge-${item.id}`}>
+                                      <Zap className="w-2.5 h-2.5 mr-0.5" />Sport
+                                    </Badge>
+                                  )}
                                 </div>
                                 <p className="text-xs text-muted-foreground ml-5">
                                   {item.exerciseType === 'cardio' ? (
@@ -1186,6 +1191,11 @@ export default function MemberWorkoutPage() {
                                   <Dumbbell className="w-3 h-3 text-blue-500 flex-shrink-0" />
                                 )}
                                 <span className="flex-1 min-w-0 truncate">{w.exerciseName}</span>
+                                {w.sportProgramId && (
+                                  <span className="inline-flex items-center text-[9px] px-1 py-0 rounded border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 flex-shrink-0" data-testid={`sport-tag-cycle-${w.id}`}>
+                                    <Zap className="w-2 h-2 mr-0.5" />Sport
+                                  </span>
+                                )}
                                 <span className="text-[10px] flex-shrink-0">
                                   {w.exerciseType === 'cardio' ? (
                                     <>
