@@ -552,25 +552,18 @@ export default function SportsModePage() {
                   {analysis.recommendation && (
                     <p className="text-sm text-zinc-600 dark:text-zinc-400">{analysis.recommendation}</p>
                   )}
-                  {analysis.keyStrengths?.length > 0 && (
+                  {analysis.targetMuscles?.length > 0 && (
                     <div>
-                      <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Strengths</p>
+                      <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Target Muscle Groups</p>
                       <div className="flex flex-wrap gap-1">
-                        {analysis.keyStrengths.map((s: string) => (
-                          <Badge key={s} variant="outline" className="text-xs bg-green-50 dark:bg-green-900/10">{s}</Badge>
+                        {analysis.targetMuscles.map((m: string) => (
+                          <Badge key={m} variant="outline" className="text-xs bg-blue-50 dark:bg-blue-900/10 dark:text-blue-300">{m}</Badge>
                         ))}
                       </div>
                     </div>
                   )}
-                  {analysis.areasToImprove?.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Areas to Improve</p>
-                      <div className="flex flex-wrap gap-1">
-                        {analysis.areasToImprove.map((a: string) => (
-                          <Badge key={a} variant="outline" className="text-xs bg-orange-50 dark:bg-orange-900/10">{a}</Badge>
-                        ))}
-                      </div>
-                    </div>
+                  {analysis.whyTheseMuscles && (
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">{analysis.whyTheseMuscles}</p>
                   )}
                 </div>
               </CardContent>
@@ -603,20 +596,23 @@ export default function SportsModePage() {
                         </div>
                       )}
 
-                      {session.drills?.length > 0 && (
+                      {(session.exercises || session.drills)?.length > 0 && (
                         <div className="mb-2">
-                          <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Drills</p>
+                          <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Exercises</p>
                           <div className="space-y-2">
-                            {session.drills.map((drill: any, i: number) => (
+                            {(session.exercises || session.drills).map((ex: any, i: number) => (
                               <div key={i} className="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-2">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{drill.name}</span>
+                                  <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{ex.name}</span>
                                   <span className="text-xs text-zinc-500">
-                                    {drill.sets}×{drill.reps} | Rest: {drill.rest}
+                                    {ex.sets}x{ex.reps} | Rest: {ex.rest}
                                   </span>
                                 </div>
-                                {drill.notes && (
-                                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{drill.notes}</p>
+                                {ex.muscleGroup && (
+                                  <span className="inline-block text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded mt-1">{ex.muscleGroup}</span>
+                                )}
+                                {ex.notes && (
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{ex.notes}</p>
                                 )}
                               </div>
                             ))}

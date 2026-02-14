@@ -9597,36 +9597,44 @@ Return ONLY JSON.`
         baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
       });
 
-      const prompt = `You are a professional sports training coach specializing in ${data.sport}. 
-Create a personalized ${data.skillName} improvement program for a ${data.role} player.
+      const prompt = `You are a sports fitness and strength coach. A ${data.role} in ${data.sport} wants to improve their ${data.skillName} (category: ${data.skillCategory}).
 ${data.fitnessScore ? `Their fitness assessment score is ${data.fitnessScore}/100.` : 'No fitness assessment was taken.'}
+
+Your job is to create a GYM WORKOUT PROGRAM focusing on the MUSCLES AND EXERCISES that will help this athlete improve at ${data.skillName}. 
+
+IMPORTANT RULES:
+- Do NOT include sport drills, coaching tips, or practice sessions
+- ONLY include gym workouts: weight training, bodyweight exercises, resistance exercises, stretches
+- For each exercise, specify the TARGET MUSCLE GROUP it works
+- Focus on muscles that are critical for ${data.skillName} in ${data.sport}
+- Make it a proper gym program with progressive overload
 
 Return a JSON object with this exact structure:
 {
   "analysis": {
     "currentLevel": "beginner|intermediate|advanced",
-    "keyStrengths": ["strength1", "strength2"],
-    "areasToImprove": ["area1", "area2"],
+    "targetMuscles": ["muscle1", "muscle2", "muscle3"],
+    "whyTheseMuscles": "Brief explanation of why these muscle groups matter for ${data.skillName}",
     "recommendation": "Brief personalized recommendation"
   },
   "program": {
     "title": "Program title",
-    "description": "Brief program description",
+    "description": "Brief description focusing on muscle development for the skill",
     "durationWeeks": 3,
     "sessionsPerWeek": 3,
     "phases": [
       {
         "week": 1,
-        "focus": "Phase focus",
+        "focus": "Phase focus (e.g. Foundation Strength)",
         "sessions": [
           {
             "day": 1,
-            "title": "Session title",
+            "title": "Session title (e.g. Upper Body Power)",
             "warmup": ["warmup exercise 1", "warmup exercise 2"],
-            "drills": [
-              {"name": "Drill name", "sets": 3, "reps": "10", "rest": "60s", "notes": "Key coaching point"}
+            "exercises": [
+              {"name": "Exercise name", "muscleGroup": "Target muscle", "sets": 3, "reps": "10", "rest": "60s", "notes": "Form tip or progression note"}
             ],
-            "cooldown": ["cooldown exercise 1"]
+            "cooldown": ["cooldown stretch 1"]
           }
         ]
       }
@@ -9634,7 +9642,6 @@ Return a JSON object with this exact structure:
   }
 }
 
-Focus on ${data.skillCategory} > ${data.skillName}. Make it practical, progressive, and sport-specific.
 Only return valid JSON, no other text.`;
 
       const completion = await openai.chat.completions.create({
