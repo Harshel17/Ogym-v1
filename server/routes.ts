@@ -10,8 +10,8 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs } from "@shared/schema";
-import { eq, and, isNotNull, inArray, sql, desc } from "drizzle-orm";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions } from "@shared/schema";
+import { eq, and, isNotNull, inArray, sql, desc, gte } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing } from "./dika";
 import { executeOwnerAction, executeSupportTicket, type ActionData } from "./dika/owner-actions";
@@ -9940,6 +9940,108 @@ Only return valid JSON.`;
     } catch (err) {
       console.error("Create full sport cycle error:", err);
       res.status(500).json({ message: "Failed to create sport cycle" });
+    }
+  });
+
+  app.get("/api/sport/programs/:id/analytics", requireAuth, async (req, res) => {
+    try {
+      const program = await storage.getSportProgram(parseInt(req.params.id));
+      if (!program || program.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Program not found" });
+      }
+
+      const cycleId = program.cycleId;
+      let totalExercises = 0;
+      let sportExercises = 0;
+      let muscleDistribution: Record<string, { total: number; sport: number }> = {};
+
+      if (cycleId) {
+        const allItems = await storage.getWorkoutItems(cycleId);
+        totalExercises = allItems.length;
+        sportExercises = allItems.filter(i => i.sportProgramId === program.id).length;
+
+        for (const item of allItems) {
+          const muscle = item.muscleType || "Other";
+          if (!muscleDistribution[muscle]) {
+            muscleDistribution[muscle] = { total: 0, sport: 0 };
+          }
+          muscleDistribution[muscle].total++;
+          if (item.sportProgramId === program.id) {
+            muscleDistribution[muscle].sport++;
+          }
+        }
+      }
+
+      const planData = program.programPlan as any;
+      const changes = planData?.changes || [];
+      let volumeBefore = { sets: 0, reps: 0 };
+      let volumeAfter = { sets: 0, reps: 0 };
+      for (const change of changes) {
+        for (const r of (change.removals || [])) {
+          volumeBefore.sets += (r.sets || 3);
+          volumeBefore.reps += (r.sets || 3) * (r.reps || 10);
+        }
+        for (const a of (change.additions || [])) {
+          volumeAfter.sets += (a.sets || 3);
+          volumeAfter.reps += (a.sets || 3) * (a.reps || 10);
+        }
+      }
+
+      let completionRate = null;
+      let completedSportExercises = 0;
+      let totalSportExerciseOccurrences = 0;
+
+      if (cycleId) {
+        const sportItems = (await storage.getWorkoutItems(cycleId)).filter(i => i.sportProgramId === program.id);
+        if (sportItems.length > 0) {
+          const today = new Date().toISOString().split("T")[0];
+          const createdDate = program.createdAt ? new Date(program.createdAt).toISOString().split("T")[0] : today;
+          
+          const completions = await db.select().from(workoutCompletions).where(
+            and(
+              eq(workoutCompletions.memberId, req.user!.id),
+              gte(workoutCompletions.completedDate, createdDate)
+            )
+          );
+
+          const sportItemIds = sportItems.map(i => i.id);
+          completedSportExercises = completions.filter(c => c.workoutItemId && sportItemIds.includes(c.workoutItemId)).length;
+          
+          const daysSinceCreated = Math.max(1, Math.floor((Date.now() - new Date(createdDate).getTime()) / (1000 * 60 * 60 * 24)));
+          const cycleLength = Math.max(...sportItems.map(i => i.dayIndex)) + 1;
+          const cyclesCompleted = Math.max(1, Math.floor(daysSinceCreated / Math.max(1, cycleLength)));
+          totalSportExerciseOccurrences = sportItems.length * cyclesCompleted;
+          completionRate = totalSportExerciseOccurrences > 0 
+            ? Math.round((completedSportExercises / totalSportExerciseOccurrences) * 100) 
+            : null;
+        }
+      }
+
+      const daysActive = program.createdAt 
+        ? Math.floor((Date.now() - new Date(program.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      res.json({
+        impactScore: totalExercises > 0 ? Math.round((sportExercises / totalExercises) * 100) : 0,
+        totalExercises,
+        sportExercises,
+        muscleDistribution,
+        volumeChange: {
+          removedSets: volumeBefore.sets,
+          removedReps: volumeBefore.reps,
+          addedSets: volumeAfter.sets,
+          addedReps: volumeAfter.reps,
+          netSets: volumeAfter.sets - volumeBefore.sets,
+          netReps: volumeAfter.reps - volumeBefore.reps,
+        },
+        completionRate,
+        completedSportExercises,
+        totalSportExerciseOccurrences,
+        daysActive,
+      });
+    } catch (err) {
+      console.error("Sport program analytics error:", err);
+      res.status(500).json({ message: "Failed to get analytics" });
     }
   });
 

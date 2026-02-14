@@ -9,6 +9,7 @@ import {
   Trophy, Dumbbell, Target, Zap, ChevronRight, ChevronLeft, Loader2,
   ArrowLeft, ArrowRight, Activity, Medal, Brain, Waves, Swords, Crosshair,
   Check, X, AlertTriangle, ChevronDown, ChevronUp, Calendar, BarChart3,
+  TrendingUp, TrendingDown, Minus, Timer, Flame, PieChart,
   type LucideIcon
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -121,6 +122,335 @@ const FITNESS_TEST_QUESTIONS = [
 function SportIcon({ sport, className = "w-6 h-6" }: { sport: string; className?: string }) {
   const Icon = SPORT_ICONS[sport] || Trophy;
   return <Icon className={className} />;
+}
+
+interface AnalyticsData {
+  impactScore: number;
+  totalExercises: number;
+  sportExercises: number;
+  muscleDistribution: Record<string, { total: number; sport: number }>;
+  volumeChange: {
+    removedSets: number; removedReps: number;
+    addedSets: number; addedReps: number;
+    netSets: number; netReps: number;
+  };
+  completionRate: number | null;
+  completedSportExercises: number;
+  totalSportExerciseOccurrences: number;
+  daysActive: number;
+}
+
+function ImpactRing({ value, size = 72, strokeWidth = 6 }: { value: number; size?: number; strokeWidth?: number }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
+  const color = value >= 30 ? "text-orange-500" : value >= 15 ? "text-amber-500" : "text-blue-500";
+  return (
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor"
+          strokeWidth={strokeWidth} className="text-zinc-200 dark:text-zinc-700" />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor"
+          strokeWidth={strokeWidth} className={color}
+          strokeDasharray={circumference} strokeDashoffset={offset}
+          strokeLinecap="round" style={{ transition: "stroke-dashoffset 0.6s ease" }} />
+      </svg>
+      <span className="absolute text-sm font-bold text-zinc-800 dark:text-zinc-100">{value}%</span>
+    </div>
+  );
+}
+
+function MuscleBar({ name, total, sport }: { name: string; total: number; sport: number }) {
+  const pct = total > 0 ? Math.round((sport / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[11px] text-zinc-600 dark:text-zinc-400 w-16 truncate text-right">{name}</span>
+      <div className="flex-1 h-3 bg-zinc-100 dark:bg-zinc-700 rounded-full overflow-hidden relative">
+        <div className="h-full bg-gradient-to-r from-orange-400 to-red-400 rounded-full transition-all duration-500"
+          style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 w-8">{sport}/{total}</span>
+    </div>
+  );
+}
+
+function SportModCard({ program, isExpanded, onToggle, onDelete, deleteDisabled }: {
+  program: SportProgram;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+  deleteDisabled: boolean;
+}) {
+  const planData = program.programPlan as any;
+  const changes = planData?.changes || [];
+  const analysis = program.aiAnalysis as any;
+  const totalAdded = changes.reduce((sum: number, c: any) => sum + (c.additions?.length || 0), 0);
+  const totalRemoved = changes.reduce((sum: number, c: any) => sum + (c.removals?.length || 0), 0);
+  const daysAffected = changes.length;
+
+  const { data: analytics, isLoading: analyticsLoading } = useQuery<AnalyticsData>({
+    queryKey: ['/api/sport/programs', program.id, 'analytics'],
+    enabled: isExpanded,
+  });
+
+  const [showDayDetails, setShowDayDetails] = useState(false);
+
+  return (
+    <Card className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 overflow-hidden" data-testid={`mod-card-${program.id}`}>
+      <CardContent className="p-0">
+        <div className="w-full text-left p-4 flex items-center gap-3">
+          <div
+            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+            onClick={onToggle}
+            data-testid={`mod-toggle-${program.id}`}
+          >
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center flex-shrink-0">
+              <SportIcon sport={program.sport} className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-zinc-800 dark:text-zinc-200 truncate">{program.skillName}</h3>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="secondary" className="text-xs">{program.skillCategory}</Badge>
+                <Badge variant="outline" className="text-xs">{program.priority}% priority</Badge>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 h-7 w-7 p-0"
+              onClick={onDelete}
+              disabled={deleteDisabled}
+              data-testid={`remove-mod-${program.id}`}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+            <div className="cursor-pointer" onClick={onToggle} data-testid={`mod-chevron-${program.id}`}>
+              {isExpanded ? <ChevronUp className="w-4 h-4 text-zinc-400" /> : <ChevronDown className="w-4 h-4 text-zinc-400" />}
+            </div>
+          </div>
+        </div>
+
+        {isExpanded && (
+          <div className="border-t border-zinc-100 dark:border-zinc-700 px-4 pb-4 space-y-4">
+            {analyticsLoading ? (
+              <div className="pt-4 space-y-3">
+                <Skeleton className="h-20 w-full rounded-xl" />
+                <Skeleton className="h-16 w-full rounded-xl" />
+                <Skeleton className="h-32 w-full rounded-xl" />
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-4 pt-3">
+                  <ImpactRing value={analytics?.impactScore || 0} />
+                  <div className="flex-1 space-y-1.5">
+                    <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">Impact Score</p>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      {analytics?.sportExercises || 0} of {analytics?.totalExercises || 0} exercises in your cycle are sport-targeted
+                    </p>
+                    <div className="flex gap-3">
+                      <div className="flex items-center gap-1">
+                        <Timer className="w-3 h-3 text-blue-500" />
+                        <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
+                          {analytics?.daysActive || 0}d active
+                        </span>
+                      </div>
+                      {analytics?.completionRate !== null && analytics?.completionRate !== undefined && (
+                        <div className="flex items-center gap-1">
+                          <Flame className="w-3 h-3 text-orange-500" />
+                          <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
+                            {analytics.completionRate}% done
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-1.5">
+                  <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-2 text-center">
+                    <p className="text-base font-bold text-blue-700 dark:text-blue-300">{daysAffected}</p>
+                    <p className="text-[9px] text-blue-600 dark:text-blue-400">Days</p>
+                  </div>
+                  <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-2 text-center">
+                    <p className="text-base font-bold text-green-700 dark:text-green-300">{totalAdded}</p>
+                    <p className="text-[9px] text-green-600 dark:text-green-400">Added</p>
+                  </div>
+                  <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-2 text-center">
+                    <p className="text-base font-bold text-red-700 dark:text-red-300">{totalRemoved}</p>
+                    <p className="text-[9px] text-red-600 dark:text-red-400">Replaced</p>
+                  </div>
+                  <div className="rounded-lg bg-purple-50 dark:bg-purple-900/20 p-2 text-center">
+                    <p className="text-base font-bold text-purple-700 dark:text-purple-300">{program.priority}%</p>
+                    <p className="text-[9px] text-purple-600 dark:text-purple-400">Priority</p>
+                  </div>
+                </div>
+
+                {analytics?.volumeChange && (analytics.volumeChange.removedSets > 0 || analytics.volumeChange.addedSets > 0) && (
+                  <div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-700 p-3">
+                    <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 mb-2 flex items-center gap-1">
+                      <Activity className="w-3.5 h-3.5" /> Volume Change
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[10px] text-zinc-400 mb-1">Sets</p>
+                        <div className="flex items-center gap-1.5">
+                          {analytics.volumeChange.netSets > 0 ? (
+                            <TrendingUp className="w-3.5 h-3.5 text-green-500" />
+                          ) : analytics.volumeChange.netSets < 0 ? (
+                            <TrendingDown className="w-3.5 h-3.5 text-red-500" />
+                          ) : (
+                            <Minus className="w-3.5 h-3.5 text-zinc-400" />
+                          )}
+                          <span className={`text-sm font-bold ${analytics.volumeChange.netSets > 0 ? 'text-green-600 dark:text-green-400' : analytics.volumeChange.netSets < 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-500'}`}>
+                            {analytics.volumeChange.netSets > 0 ? '+' : ''}{analytics.volumeChange.netSets}
+                          </span>
+                          <span className="text-[10px] text-zinc-400">net</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-zinc-400 mb-1">Total Reps</p>
+                        <div className="flex items-center gap-1.5">
+                          {analytics.volumeChange.netReps > 0 ? (
+                            <TrendingUp className="w-3.5 h-3.5 text-green-500" />
+                          ) : analytics.volumeChange.netReps < 0 ? (
+                            <TrendingDown className="w-3.5 h-3.5 text-red-500" />
+                          ) : (
+                            <Minus className="w-3.5 h-3.5 text-zinc-400" />
+                          )}
+                          <span className={`text-sm font-bold ${analytics.volumeChange.netReps > 0 ? 'text-green-600 dark:text-green-400' : analytics.volumeChange.netReps < 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-500'}`}>
+                            {analytics.volumeChange.netReps > 0 ? '+' : ''}{analytics.volumeChange.netReps}
+                          </span>
+                          <span className="text-[10px] text-zinc-400">net</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {analytics?.muscleDistribution && Object.keys(analytics.muscleDistribution).length > 0 && (
+                  <div className="rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-700 p-3">
+                    <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 mb-2.5 flex items-center gap-1">
+                      <PieChart className="w-3.5 h-3.5" /> Muscle Distribution
+                    </p>
+                    <div className="space-y-1.5">
+                      {Object.entries(analytics.muscleDistribution)
+                        .sort((a, b) => b[1].sport - a[1].sport)
+                        .slice(0, 6)
+                        .map(([muscle, data]) => (
+                          <MuscleBar key={muscle} name={muscle} total={data.total} sport={data.sport} />
+                        ))}
+                    </div>
+                    <p className="text-[10px] text-zinc-400 mt-2 text-center">
+                      Sport exercises per muscle group
+                    </p>
+                  </div>
+                )}
+
+                {analytics?.completionRate !== null && analytics?.completionRate !== undefined && (
+                  <div className="rounded-xl bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border border-orange-200 dark:border-orange-800 p-3">
+                    <p className="text-xs font-semibold text-orange-700 dark:text-orange-300 mb-2 flex items-center gap-1">
+                      <Flame className="w-3.5 h-3.5" /> Sport Exercise Completion
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <div className="h-2.5 bg-orange-100 dark:bg-orange-900/30 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full transition-all duration-700"
+                            style={{ width: `${Math.min(100, analytics.completionRate)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-sm font-bold text-orange-700 dark:text-orange-300 w-10 text-right">
+                        {analytics.completionRate}%
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-orange-600 dark:text-orange-400 mt-1">
+                      {analytics.completedSportExercises} of {analytics.totalSportExerciseOccurrences} sport exercises completed
+                    </p>
+                  </div>
+                )}
+
+                {analysis?.targetMuscles?.length > 0 && (
+                  <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+                    <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-1.5 flex items-center gap-1">
+                      <Target className="w-3.5 h-3.5" /> Target Muscles
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {analysis.targetMuscles.map((m: string) => (
+                        <Badge key={m} variant="outline" className="text-[10px] bg-white/50 dark:bg-zinc-800/50">{m}</Badge>
+                      ))}
+                    </div>
+                    {analysis.whyTheseMuscles && (
+                      <p className="text-[11px] text-indigo-600 dark:text-indigo-400 mt-1.5">{analysis.whyTheseMuscles}</p>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <button
+                    className="w-full flex items-center justify-between py-2"
+                    onClick={() => setShowDayDetails(!showDayDetails)}
+                    data-testid={`day-details-toggle-${program.id}`}
+                  >
+                    <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 flex items-center gap-1">
+                      <BarChart3 className="w-3.5 h-3.5" /> Day-by-Day Changes
+                    </p>
+                    {showDayDetails ? <ChevronUp className="w-3.5 h-3.5 text-zinc-400" /> : <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />}
+                  </button>
+                  {showDayDetails && (
+                    <div className="space-y-2 mt-1">
+                      {changes.map((change: any, idx: number) => (
+                        <div key={idx} className="rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-700 p-3">
+                          <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2">Day {change.dayIndex + 1}</p>
+                          {change.removals?.length > 0 && (
+                            <div className="space-y-1 mb-2">
+                              {change.removals.map((r: any, i: number) => (
+                                <div key={i} className="flex items-center gap-2 text-xs">
+                                  <div className="w-4 h-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                                    <X className="w-2.5 h-2.5 text-red-500" />
+                                  </div>
+                                  <span className="text-zinc-500 dark:text-zinc-400 line-through flex-1">{r.exerciseName}</span>
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0">{r.muscleType}</Badge>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {change.additions?.length > 0 && (
+                            <div className="space-y-1">
+                              {change.additions.map((a: any, i: number) => (
+                                <div key={i} className="flex items-center gap-2 text-xs">
+                                  <div className="w-4 h-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                                    <Zap className="w-2.5 h-2.5 text-green-600" />
+                                  </div>
+                                  <span className="text-zinc-800 dark:text-zinc-200 font-medium flex-1">{a.exerciseName}</span>
+                                  <span className="text-zinc-400 text-[10px]">{a.sets}x{a.reps}</span>
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0 bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400">
+                                    <Zap className="w-2 h-2 mr-0.5" />Sport
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {program.createdAt && (
+                  <p className="text-[10px] text-zinc-400 text-center pt-1">
+                    Applied on {new Date(program.createdAt).toLocaleDateString()}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 type Step = "loading" | "select-sport" | "select-role" | "fitness-test" | "select-skill" | "previewing" | "preview-results" | "no-cycle" | "applying" | "dashboard";
@@ -841,140 +1171,16 @@ export default function SportsModePage() {
         ) : (
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Active Modifications</h2>
-            {programs.filter(p => p.isActive).map((program) => {
-              const isExpanded = expandedModId === program.id;
-              const planData = program.programPlan as any;
-              const changes = planData?.changes || [];
-              const analysis = program.aiAnalysis as any;
-              const totalAdded = changes.reduce((sum: number, c: any) => sum + (c.additions?.length || 0), 0);
-              const totalRemoved = changes.reduce((sum: number, c: any) => sum + (c.removals?.length || 0), 0);
-              const daysAffected = changes.length;
-
-              return (
-                <Card key={program.id} className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 overflow-hidden" data-testid={`mod-card-${program.id}`}>
-                  <CardContent className="p-0">
-                    <button
-                      className="w-full text-left p-4 flex items-center gap-3"
-                      onClick={() => setExpandedModId(isExpanded ? null : program.id)}
-                      data-testid={`mod-toggle-${program.id}`}
-                    >
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center flex-shrink-0">
-                        <SportIcon sport={program.sport} className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-zinc-800 dark:text-zinc-200 truncate">{program.skillName}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs">{program.skillCategory}</Badge>
-                          <Badge variant="outline" className="text-xs">{program.priority}% priority</Badge>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 h-7 w-7 p-0"
-                          onClick={(e) => { e.stopPropagation(); deleteProgram.mutate(program.id); }}
-                          disabled={deleteProgram.isPending}
-                          data-testid={`remove-mod-${program.id}`}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                        {isExpanded ? <ChevronUp className="w-4 h-4 text-zinc-400" /> : <ChevronDown className="w-4 h-4 text-zinc-400" />}
-                      </div>
-                    </button>
-
-                    {isExpanded && (
-                      <div className="border-t border-zinc-100 dark:border-zinc-700 px-4 pb-4 space-y-4">
-                        <div className="grid grid-cols-3 gap-2 pt-3">
-                          <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-2.5 text-center">
-                            <Calendar className="w-4 h-4 text-blue-500 mx-auto mb-1" />
-                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{daysAffected}</p>
-                            <p className="text-[10px] text-blue-600 dark:text-blue-400">Days Changed</p>
-                          </div>
-                          <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-2.5 text-center">
-                            <Check className="w-4 h-4 text-green-500 mx-auto mb-1" />
-                            <p className="text-lg font-bold text-green-700 dark:text-green-300">{totalAdded}</p>
-                            <p className="text-[10px] text-green-600 dark:text-green-400">Added</p>
-                          </div>
-                          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-2.5 text-center">
-                            <X className="w-4 h-4 text-red-500 mx-auto mb-1" />
-                            <p className="text-lg font-bold text-red-700 dark:text-red-300">{totalRemoved}</p>
-                            <p className="text-[10px] text-red-600 dark:text-red-400">Replaced</p>
-                          </div>
-                        </div>
-
-                        {analysis?.targetMuscles?.length > 0 && (
-                          <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
-                            <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-1.5 flex items-center gap-1">
-                              <Target className="w-3.5 h-3.5" /> Target Muscles
-                            </p>
-                            <div className="flex flex-wrap gap-1">
-                              {analysis.targetMuscles.map((m: string) => (
-                                <Badge key={m} variant="outline" className="text-[10px] bg-white/50 dark:bg-zinc-800/50">{m}</Badge>
-                              ))}
-                            </div>
-                            {analysis.whyTheseMuscles && (
-                              <p className="text-[11px] text-indigo-600 dark:text-indigo-400 mt-1.5">{analysis.whyTheseMuscles}</p>
-                            )}
-                          </div>
-                        )}
-
-                        <div>
-                          <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 mb-2 flex items-center gap-1">
-                            <BarChart3 className="w-3.5 h-3.5" /> Day-by-Day Changes
-                          </p>
-                          <div className="space-y-2">
-                            {changes.map((change: any, idx: number) => {
-                              const dayLabel = `Day ${change.dayIndex + 1}`;
-                              return (
-                                <div key={idx} className="rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-700 p-3">
-                                  <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2">{dayLabel}</p>
-                                  {change.removals?.length > 0 && (
-                                    <div className="space-y-1 mb-2">
-                                      {change.removals.map((r: any, i: number) => (
-                                        <div key={i} className="flex items-center gap-2 text-xs">
-                                          <div className="w-4 h-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-                                            <X className="w-2.5 h-2.5 text-red-500" />
-                                          </div>
-                                          <span className="text-zinc-500 dark:text-zinc-400 line-through flex-1">{r.exerciseName}</span>
-                                          <Badge variant="outline" className="text-[9px] px-1 py-0">{r.muscleType}</Badge>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {change.additions?.length > 0 && (
-                                    <div className="space-y-1">
-                                      {change.additions.map((a: any, i: number) => (
-                                        <div key={i} className="flex items-center gap-2 text-xs">
-                                          <div className="w-4 h-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
-                                            <Zap className="w-2.5 h-2.5 text-green-600" />
-                                          </div>
-                                          <span className="text-zinc-800 dark:text-zinc-200 font-medium flex-1">{a.exerciseName}</span>
-                                          <span className="text-zinc-400 text-[10px]">{a.sets}x{a.reps}</span>
-                                          <Badge variant="outline" className="text-[9px] px-1 py-0 bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400">
-                                            <Zap className="w-2 h-2 mr-0.5" />Sport
-                                          </Badge>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {program.createdAt && (
-                          <p className="text-[10px] text-zinc-400 text-center pt-1">
-                            Applied on {new Date(program.createdAt).toLocaleDateString()}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {programs.filter(p => p.isActive).map((program) => (
+              <SportModCard
+                key={program.id}
+                program={program}
+                isExpanded={expandedModId === program.id}
+                onToggle={() => setExpandedModId(expandedModId === program.id ? null : program.id)}
+                onDelete={() => deleteProgram.mutate(program.id)}
+                deleteDisabled={deleteProgram.isPending}
+              />
+            ))}
           </div>
         )}
 
