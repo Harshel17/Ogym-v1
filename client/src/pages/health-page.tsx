@@ -63,7 +63,7 @@ import {
 } from 'recharts';
 import type { HealthData, FoodLog } from '@shared/schema';
 
-function AnimatedRing({ value, max, size = 90, strokeWidth = 7, color, glowColor, icon: Icon, label, displayValue, unit }: {
+function AnimatedRing({ value, max, size = 72, strokeWidth = 6, color, glowColor, icon: Icon, label, displayValue, unit }: {
   value: number;
   max: number;
   size?: number;
@@ -125,8 +125,8 @@ function RecoveryGauge({ score }: { score: number }) {
   };
 
   const config = getConfig(score);
-  const size = 130;
-  const strokeWidth = 10;
+  const size = 100;
+  const strokeWidth = 8;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = (score / 100) * circumference;
@@ -146,7 +146,7 @@ function RecoveryGauge({ score }: { score: number }) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-black tracking-tighter" data-testid="text-recovery-score">{score}</span>
+          <span className="text-2xl font-black tracking-tighter" data-testid="text-recovery-score">{score}</span>
           <span className="text-[11px] font-medium text-muted-foreground">{config.label}</span>
         </div>
       </div>
@@ -580,7 +580,7 @@ export default function HealthPage() {
 
       <Card className="overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/20 shadow-lg" data-testid="section-daily-overview">
         <CardContent className="pt-5 pb-5">
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-4 gap-3">
             <AnimatedRing
               value={todayData?.steps || 0} max={10000}
               color="#3b82f6" glowColor="rgba(59,130,246,0.15)"
