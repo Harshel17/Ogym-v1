@@ -18,7 +18,7 @@ import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgre
 import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
 import { FeatureDiscoveryTips } from "@/components/feature-discovery-tips";
-import { HealthSummary } from "@/components/health-summary";
+import { useHealthStatus, useHealthDataToday } from "@/hooks/use-health-data";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { isIOS, isNative } from "@/lib/capacitor-init";
 import { Switch } from "@/components/ui/switch";
@@ -90,6 +90,194 @@ function getMotivationalLine(streak: number, workoutsDone: boolean, caloriesLogg
   if (hour < 12) return "Let's make it count";
   if (hour < 17) return "Stay focused";
   return "Rest well tonight";
+}
+
+function HealthActivityDashboard() {
+  const { data: status, isLoading: statusLoading } = useHealthStatus();
+  const { data: healthData, isLoading: dataLoading } = useHealthDataToday();
+
+  const connected = status?.connected;
+  const hasData = connected && healthData;
+
+  const steps = hasData ? (healthData.steps || 0) : 0;
+  const caloriesBurned = hasData ? (healthData.caloriesBurned || 0) : 0;
+  const sleepMinutes = hasData ? (healthData.sleepMinutes || 0) : 0;
+  const restingHR = hasData ? (healthData.restingHeartRate || 0) : 0;
+  const avgHR = hasData ? (healthData.avgHeartRate || 0) : 0;
+  const activeMinutes = hasData ? (healthData.activeMinutes || 0) : 0;
+
+  const stepsGoal = 10000;
+  const caloriesGoal = 500;
+  const sleepGoal = 480;
+
+  const stepsPercent = Math.min((steps / stepsGoal) * 100, 100);
+  const caloriesPercent = Math.min((caloriesBurned / caloriesGoal) * 100, 100);
+  const sleepPercent = sleepMinutes > 0 ? Math.min((sleepMinutes / sleepGoal) * 100, 100) : 0;
+
+  const computeRecovery = () => {
+    if (!hasData) return 0;
+    let score = 50;
+    if (sleepMinutes >= 450) score += 20;
+    else if (sleepMinutes >= 360) score += 10;
+    else if (sleepMinutes < 360 && sleepMinutes > 0) score -= 15;
+    if (restingHR > 0 && restingHR < 60) score += 15;
+    else if (restingHR >= 60 && restingHR <= 75) score += 5;
+    else if (restingHR > 75) score -= 10;
+    if (activeMinutes > 90) score -= 10;
+    else if (activeMinutes >= 30) score += 10;
+    else if (activeMinutes > 0) score += 5;
+    if (steps >= 8000) score += 5;
+    else if (steps < 3000 && steps > 0) score -= 5;
+    return Math.max(0, Math.min(100, score));
+  };
+
+  const recovery = computeRecovery();
+
+  const getRecoveryColor = (score: number) => {
+    if (score >= 80) return 'text-green-500';
+    if (score >= 60) return 'text-yellow-500';
+    if (score >= 40) return 'text-orange-500';
+    return 'text-red-500';
+  };
+
+  const getRecoveryLabel = (score: number) => {
+    if (score >= 80) return 'Excellent';
+    if (score >= 60) return 'Good';
+    if (score >= 40) return 'Fair';
+    return 'Low';
+  };
+
+  const getRecoveryBg = (score: number) => {
+    if (score >= 80) return 'from-green-500/15 to-emerald-500/15';
+    if (score >= 60) return 'from-yellow-500/15 to-amber-500/15';
+    if (score >= 40) return 'from-orange-500/15 to-amber-500/15';
+    return 'from-red-500/15 to-rose-500/15';
+  };
+
+  const formatSleep = (mins: number) => {
+    if (mins <= 0) return '--';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}h ${m}m`;
+  };
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
+    return num.toLocaleString();
+  };
+
+  const ringStyle = (percent: number, color: string) => ({
+    background: `conic-gradient(${color} ${percent * 3.6}deg, rgba(128,128,128,0.15) 0deg)`,
+  });
+
+  if (statusLoading) {
+    return (
+      <Card className="card-ambient backdrop-blur-sm" data-testid="card-health-loading">
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Link href="/health">
+      <Card className="card-ambient backdrop-blur-sm cursor-pointer hover:bg-accent/50 transition-colors" data-testid="card-health-activity">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/10">
+                <Activity className="w-4 h-4 text-green-500" />
+              </div>
+              <CardTitle className="text-sm font-semibold">Health & Activity</CardTitle>
+            </div>
+            {hasData && (
+              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full bg-gradient-to-r ${getRecoveryBg(recovery)}`}>
+                <Zap className="w-3 h-3" />
+                <span className={`text-xs font-bold ${getRecoveryColor(recovery)}`}>{recovery}</span>
+                <span className="text-[10px] text-muted-foreground">{getRecoveryLabel(recovery)}</span>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="pt-1 pb-4">
+          {!connected ? (
+            <div className="flex items-center gap-3 py-2">
+              <div className="grid grid-cols-4 gap-3 flex-1">
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-blue-500/10">
+                    <Activity className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-medium">Steps</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-orange-500/10">
+                    <Flame className="w-5 h-5 text-orange-400" />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-medium">Calories</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-purple-500/10">
+                    <Moon className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-medium">Sleep</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-red-500/10">
+                    <Heart className="w-5 h-5 text-red-400" />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground font-medium">Heart</span>
+                </div>
+              </div>
+            </div>
+          ) : dataLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-3">
+              <div className="flex flex-col items-center gap-1.5" data-testid="health-steps">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center relative" style={ringStyle(stepsPercent, '#3b82f6')}>
+                  <div className="w-9 h-9 rounded-full bg-background flex items-center justify-center">
+                    <Activity className="w-4 h-4 text-blue-500" />
+                  </div>
+                </div>
+                <span className="text-sm font-bold tabular-nums">{formatNumber(steps)}</span>
+                <span className="text-[10px] text-muted-foreground font-medium">Steps</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5" data-testid="health-calories">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center relative" style={ringStyle(caloriesPercent, '#f97316')}>
+                  <div className="w-9 h-9 rounded-full bg-background flex items-center justify-center">
+                    <Flame className="w-4 h-4 text-orange-500" />
+                  </div>
+                </div>
+                <span className="text-sm font-bold tabular-nums">{formatNumber(caloriesBurned)}</span>
+                <span className="text-[10px] text-muted-foreground font-medium">Burned</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5" data-testid="health-sleep">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center relative" style={ringStyle(sleepPercent, '#a855f7')}>
+                  <div className="w-9 h-9 rounded-full bg-background flex items-center justify-center">
+                    <Moon className="w-4 h-4 text-purple-500" />
+                  </div>
+                </div>
+                <span className="text-sm font-bold tabular-nums">{formatSleep(sleepMinutes)}</span>
+                <span className="text-[10px] text-muted-foreground font-medium">Sleep</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5" data-testid="health-heart">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center relative" style={ringStyle(avgHR > 0 ? Math.min((avgHR / 180) * 100, 100) : 0, '#ef4444')}>
+                  <div className="w-9 h-9 rounded-full bg-background flex items-center justify-center">
+                    <Heart className="w-4 h-4 text-red-500" />
+                  </div>
+                </div>
+                <span className="text-sm font-bold tabular-nums">{avgHR > 0 ? avgHR : '--'}</span>
+                <span className="text-[10px] text-muted-foreground font-medium">Avg HR</span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </Link>
+  );
 }
 
 export default function DashboardPage() {
@@ -1862,38 +2050,40 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
               )}
             </CardContent>
           </CollapsibleContent>
+          {/* Weekly Progress inside workout card */}
+          {workoutSummary && (
+            <div className="px-4 pb-4 -mt-1">
+              <WeeklyProgress calendarDays={workoutSummary.calendarDays} className="shadow-none border-0 bg-muted/30" />
+            </div>
+          )}
         </Card>
       </Collapsible>
 
-      <HealthSummary />
+      {/* Health & Activity Section */}
+      <HealthActivityDashboard />
 
       {/* Calorie & Streak Ring Cards */}
       {workoutSummary && (
-        <>
-          <div className="grid grid-cols-2 gap-2.5">
-            <Link href="/progress/workouts">
-              <AnimatedStatCard
-                value={workoutSummary.streak}
-                label="Day Streak"
-                icon="flame"
-                color="orange"
-                delay={100}
-              />
-            </Link>
-            <Link href="/nutrition">
-              <CalorieProgressCard
-                current={calorieData?.summary?.calories || 0}
-                target={calorieData?.goal?.dailyCalorieTarget || 0}
-                currentProtein={calorieData?.summary?.protein || 0}
-                targetProtein={calorieData?.goal?.dailyProteinTarget || 0}
-                delay={200}
-              />
-            </Link>
-          </div>
-
-          {/* Weekly Progress */}
-          <WeeklyProgress calendarDays={workoutSummary.calendarDays} />
-        </>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Link href="/progress/workouts">
+            <AnimatedStatCard
+              value={workoutSummary.streak}
+              label="Day Streak"
+              icon="flame"
+              color="orange"
+              delay={100}
+            />
+          </Link>
+          <Link href="/nutrition">
+            <CalorieProgressCard
+              current={calorieData?.summary?.calories || 0}
+              target={calorieData?.goal?.dailyCalorieTarget || 0}
+              currentProtein={calorieData?.summary?.protein || 0}
+              targetProtein={calorieData?.goal?.dailyProteinTarget || 0}
+              delay={200}
+            />
+          </Link>
+        </div>
       )}
 
       {/* Calendar */}
