@@ -1271,11 +1271,10 @@ export async function processWithAI(
     const exercise = findExercise(exerciseQuery);
     if (exercise) {
       const answer = formatExerciseResponse(exercise);
-      const followUpChips = [
-        'What muscles does it work?',
-        'Alternative exercises',
-        'My workout progress'
-      ];
+      const isFromDashboard = message.toLowerCase().includes('help me with the exercise') || message.toLowerCase().includes('swap it with');
+      const followUpChips = isFromDashboard
+        ? ['I can\'t do this exercise', 'Show me easier alternatives', 'Swap this exercise in my workout']
+        : ['What muscles does it work?', 'Alternative exercises', 'My workout progress'];
       return { answer, followUpChips };
     }
   }

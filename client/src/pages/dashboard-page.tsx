@@ -1127,6 +1127,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const [isRestDayReorder, setIsRestDayReorder] = useState(false);
   const [showRestDayDialog, setShowRestDayDialog] = useState(false);
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   
   // Onboarding state (user-specific key to handle shared browsers)
   const onboardingKey = isPersonalMode ? `ogym_personal_onboarding_seen_${user?.id}` : `ogym_member_onboarding_seen_${user?.id}`;
@@ -1783,20 +1784,34 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                             </p>
                           </div>
 
-                          {!item.completed && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleExpandItem(item)}
-                              data-testid={`button-expand-${item.id}`}
-                            >
-                              {isExpanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-0.5">
+                            {!item.completed && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/dika?exercise=${encodeURIComponent(item.exerciseName)}&sets=${item.sets || ''}&reps=${item.reps || ''}&muscle=${encodeURIComponent(item.muscleType || '')}`);
+                                }}
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-amber-500 hover:bg-amber-500/10 transition-colors flex-shrink-0"
+                                data-testid={`button-dika-exercise-${item.id}`}
+                              >
+                                <Sparkles className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {!item.completed && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleExpandItem(item)}
+                                data-testid={`button-expand-${item.id}`}
+                              >
+                                {isExpanded ? (
+                                  <ChevronUp className="w-4 h-4" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
                         </div>
                         
                         {isExpanded && !item.completed && (
