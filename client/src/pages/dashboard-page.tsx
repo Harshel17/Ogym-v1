@@ -1889,22 +1889,32 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                                     </ul>
                                   </div>
                                 )}
-                                <div className="flex items-center gap-2 pt-1">
+                                <div className="flex flex-col gap-1.5 pt-2 border-t border-amber-200/50 dark:border-amber-800/30 mt-1">
                                   <a
                                     href={exerciseHelpData[item.id].youtubeUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-[10px] font-medium text-red-500 hover:text-red-600"
+                                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-[11px] font-medium hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                                     data-testid={`youtube-link-${item.id}`}
                                   >
-                                    <ExternalLink className="w-3 h-3" /> Watch on YouTube
+                                    <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                                    Watch video tutorial on YouTube
                                   </a>
                                   <button
+                                    onClick={() => navigate(`/dika?exercise=${encodeURIComponent(item.exerciseName)}&sets=${item.sets || ''}&reps=${item.reps || ''}&muscle=${encodeURIComponent(item.muscleType || '')}&swap=1`)}
+                                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 text-[11px] font-medium hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                                    data-testid={`swap-exercise-${item.id}`}
+                                  >
+                                    <ArrowLeftRight className="w-3.5 h-3.5 flex-shrink-0" />
+                                    Want an alternative exercise? Swap it
+                                  </button>
+                                  <button
                                     onClick={() => navigate(`/dika?exercise=${encodeURIComponent(item.exerciseName)}&sets=${item.sets || ''}&reps=${item.reps || ''}&muscle=${encodeURIComponent(item.muscleType || '')}`)}
-                                    className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700"
+                                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 text-[11px] font-medium hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
                                     data-testid={`ask-dika-${item.id}`}
                                   >
-                                    <Sparkles className="w-3 h-3" /> Ask Dika
+                                    <Sparkles className="w-3.5 h-3.5 flex-shrink-0" />
+                                    Have doubts? Ask Dika AI
                                   </button>
                                 </div>
                               </div>

@@ -618,16 +618,24 @@ function DikaPageInner({ userId }: { userId: number }) {
     const params = new URLSearchParams(window.location.search);
     const exerciseName = params.get('exercise');
     if (!exerciseName) return;
-    const queryKey = `${exerciseName}-${params.get('sets')}-${params.get('reps')}-${params.get('muscle')}`;
+    const isSwap = params.get('swap') === '1';
+    const queryKey = `${exerciseName}-${params.get('sets')}-${params.get('reps')}-${params.get('muscle')}-${isSwap ? 'swap' : 'help'}`;
     if (lastExerciseQuery.current === queryKey) return;
     lastExerciseQuery.current = queryKey;
     const sets = params.get('sets');
     const reps = params.get('reps');
     const muscle = params.get('muscle');
-    let prompt = `Help me with the exercise "${exerciseName}"`;
-    if (muscle) prompt += ` (${muscle})`;
-    if (sets && reps) prompt += ` - I'm doing ${sets} sets of ${reps} reps`;
-    prompt += `. Show me how to do it properly with step-by-step instructions, common mistakes to avoid, and a YouTube search link. Also suggest 3 alternative exercises I could swap it with.`;
+    let prompt: string;
+    if (isSwap) {
+      prompt = `I can't do ${exerciseName}`;
+      if (muscle) prompt += ` (${muscle})`;
+      prompt += ` today. Can you suggest alternative exercises I can swap it with?`;
+    } else {
+      prompt = `Help me with the exercise "${exerciseName}"`;
+      if (muscle) prompt += ` (${muscle})`;
+      if (sets && reps) prompt += ` - I'm doing ${sets} sets of ${reps} reps`;
+      prompt += `. Show me how to do it properly with step-by-step instructions, common mistakes to avoid, and a YouTube search link. Also suggest 3 alternative exercises I could swap it with.`;
+    }
     window.history.replaceState({}, '', '/dika');
     sendMessage(prompt);
   }, [isLoading, sendMessage]);
