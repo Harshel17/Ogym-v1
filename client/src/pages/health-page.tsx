@@ -435,7 +435,7 @@ export default function HealthPage() {
     );
   }
 
-  if (!isNativePlatform && !isConnected) {
+  if (!isNativePlatform && !isConnected && !(weeklyData && weeklyData.length > 0)) {
     return (
       <div className="p-4 space-y-6 max-w-lg mx-auto">
         <div className="flex items-center gap-3 mb-2">
@@ -476,13 +476,6 @@ export default function HealthPage() {
             </div>
           </CardContent>
         </Card>
-
-        {weeklyData && weeklyData.length > 0 && (
-          <>
-            <Separator />
-            <p className="text-sm text-muted-foreground">Previously synced data is still viewable below.</p>
-          </>
-        )}
       </div>
     );
   }
