@@ -822,11 +822,12 @@ function DikaPageInner({ userId }: { userId: number }) {
                 className="text-slate-400/70 rounded-xl"
                 onClick={async () => {
                   try {
+                    const { Browser } = await import("@capacitor/browser");
+                    try { await Browser.close(); } catch {}
                     const res = await fetch("/api/auth/link-token", { method: "POST", credentials: "include" });
                     if (!res.ok) return;
                     const data = await res.json();
                     if (!data.token) return;
-                    const { Browser } = await import("@capacitor/browser");
                     await Browser.open({ url: `https://app.ogym.fitness/dika-web?token=${data.token}` });
                   } catch {}
                 }}

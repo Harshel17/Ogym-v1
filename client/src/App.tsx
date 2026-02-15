@@ -295,11 +295,9 @@ function TokenAuthRoute({ component: Component }: { component: React.ComponentTy
   }
 
   return (
-    <Layout>
-      <Suspense fallback={<PageLoader />}>
-        <Component />
-      </Suspense>
-    </Layout>
+    <Suspense fallback={<PageLoader />}>
+      <Component />
+    </Suspense>
   );
 }
 

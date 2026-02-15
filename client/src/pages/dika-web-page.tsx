@@ -100,6 +100,14 @@ function stripSpecialTags(content: string): string {
     .replace(/\n?&lt;!-- DIKA_ACTION_DATA:[\s\S]+? --&gt;/g, '')
     .replace(/\n?<!-- DIKA_FIND_FOOD -->/g, '')
     .replace(/\n?&lt;!-- DIKA_FIND_FOOD --&gt;/g, '')
+    .replace(/\n?<!-- PENDING_BODY_MEASUREMENT:[\s\S]+? -->/g, '')
+    .replace(/\n?&lt;!-- PENDING_BODY_MEASUREMENT:[\s\S]+? --&gt;/g, '')
+    .replace(/\n?<!-- PENDING_EXERCISE_SWAP:[\s\S]+? -->/g, '')
+    .replace(/\n?&lt;!-- PENDING_EXERCISE_SWAP:[\s\S]+? --&gt;/g, '')
+    .replace(/\n?<!-- PENDING_GOAL:[\s\S]+? -->/g, '')
+    .replace(/\n?&lt;!-- PENDING_GOAL:[\s\S]+? --&gt;/g, '')
+    .replace(/\n?<!-- PENDING_MEAL_SUGGESTION:[\s\S]+? -->/g, '')
+    .replace(/\n?&lt;!-- PENDING_MEAL_SUGGESTION:[\s\S]+? --&gt;/g, '')
     .trim();
 }
 
