@@ -24,10 +24,6 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
     return null;
   }
 
-  if (!isNative && !statusLoading && !status?.connected) {
-    return null;
-  }
-
   if (statusLoading) {
     return (
       <Card className={className}>
@@ -39,7 +35,24 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
   }
 
   if (!status?.connected) {
-    return null;
+    return (
+      <Link href="/health">
+        <Card className={`${className} cursor-pointer hover:bg-accent/50 transition-colors`} data-testid="card-health-promo">
+          <CardContent className="flex items-center gap-4 py-4">
+            <div className="p-2.5 rounded-full bg-gradient-to-br from-green-500/15 to-emerald-500/15">
+              <Activity className="w-5 h-5 text-green-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Health & Activity</p>
+              <p className="text-xs text-muted-foreground">
+                {isNative ? 'Connect Apple Health or Google Fit' : 'Track steps, calories, heart rate & sleep'}
+              </p>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><path d="m9 18 6-6-6-6"/></svg>
+          </CardContent>
+        </Card>
+      </Link>
+    );
   }
 
   const isLoading = dataLoading;
