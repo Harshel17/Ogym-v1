@@ -2076,7 +2076,9 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
           </Link>
         </div>
       )}
-      <HealthActivityDashboard />
+      <div className="mt-1">
+        <HealthActivityDashboard />
+      </div>
 
       {/* Calendar */}
       <MemberCalendarWidget />
