@@ -24,6 +24,32 @@ export function verifyMobileToken(token: string): { userId: number } | null {
   }
 }
 
+const usedLinkTokens = new Set<string>();
+setInterval(() => usedLinkTokens.clear(), 10 * 60 * 1000);
+
+export function generateLinkToken(userId: number): string {
+  const jti = randomBytes(16).toString("hex");
+  return jwt.sign({ userId, purpose: "link", jti }, JWT_SECRET, { expiresIn: "5m" });
+}
+
+export function verifyLinkToken(token: string): { userId: number } | null {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: number; purpose?: string; jti?: string };
+    if (decoded.purpose !== "link") return null;
+    if (!decoded.jti || usedLinkTokens.has(decoded.jti)) return null;
+    return { userId: decoded.userId };
+  } catch {
+    return null;
+  }
+}
+
+export function consumeLinkToken(token: string): void {
+  try {
+    const decoded = jwt.decode(token) as { jti?: string } | null;
+    if (decoded?.jti) usedLinkTokens.add(decoded.jti);
+  } catch {}
+}
+
 // Middleware to authenticate mobile requests via Bearer token
 export async function mobileAuthMiddleware(req: Request, res: Response, next: NextFunction) {
   // Skip if already authenticated via session

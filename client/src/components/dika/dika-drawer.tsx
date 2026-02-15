@@ -1158,8 +1158,12 @@ export function DikaDrawer({
                   size="icon"
                   onClick={async () => {
                     try {
+                      const res = await fetch("/api/auth/link-token", { method: "POST", credentials: "include" });
+                      if (!res.ok) return;
+                      const data = await res.json();
+                      if (!data.token) return;
                       const { Browser } = await import("@capacitor/browser");
-                      await Browser.open({ url: "https://app.ogym.fitness/dika" });
+                      await Browser.open({ url: `https://app.ogym.fitness/dika-web?token=${data.token}` });
                     } catch {}
                   }}
                   className="text-slate-400"

@@ -7,7 +7,7 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import { Layout } from "@/components/layout";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Loader2 } from "lucide-react";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState, useCallback } from "react";
 import { refreshStatusBar, isIOS, isNative } from "@/lib/capacitor-init";
 
 import AuthPage from "@/pages/auth-page";
@@ -150,6 +150,159 @@ function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWi
   );
 }
 
+function TokenAuthRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user, isLoading } = useAuth();
+  const [tokenState, setTokenState] = useState<"checking" | "confirming" | "logging_in" | "done" | "error">("checking");
+  const [tokenUser, setTokenUser] = useState<{ id: number; username: string; role: string } | null>(null);
+  const [tokenValue, setTokenValue] = useState<string | null>(null);
+  const [, navigate] = useLocation();
+
+  const verifyToken = useCallback(async () => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    if (!token) {
+      setTokenState("done");
+      return;
+    }
+    setTokenValue(token);
+    try {
+      const res = await fetch("/api/auth/token-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ token }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTokenUser(data);
+        setTokenState("confirming");
+      } else {
+        setTokenState("error");
+      }
+    } catch {
+      setTokenState("error");
+    }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("token")) {
+      verifyToken();
+    } else {
+      setTokenState("done");
+    }
+  }, [verifyToken]);
+
+  const confirmLogin = useCallback(async () => {
+    if (!tokenValue) return;
+    setTokenState("logging_in");
+    try {
+      const res = await fetch("/api/auth/token-confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ token: tokenValue }),
+      });
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+        window.history.replaceState({}, "", "/dika-web");
+        setTokenState("done");
+      } else {
+        setTokenState("error");
+      }
+    } catch {
+      setTokenState("error");
+    }
+  }, [tokenValue]);
+
+  if (tokenState === "checking" || tokenState === "logging_in") {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#0b1220]">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+      </div>
+    );
+  }
+
+  if (tokenState === "confirming" && tokenUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#0b1220]">
+        <div className="bg-[#131c2e] border border-slate-700/50 rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-xl">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl font-bold text-white">{tokenUser.username.charAt(0).toUpperCase()}</span>
+          </div>
+          <h2 className="text-xl font-semibold text-white mb-1">Welcome back!</h2>
+          <p className="text-slate-400 mb-6">
+            Continue as <span className="text-amber-400 font-medium">{tokenUser.username}</span>?
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={confirmLogin}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-medium hover:opacity-90 transition-opacity"
+              data-testid="button-confirm-token-login"
+            >
+              Continue
+            </button>
+            <button
+              onClick={() => {
+                window.history.replaceState({}, "", "/dika-web");
+                navigate("/auth");
+              }}
+              className="w-full py-3 rounded-xl border border-slate-600 text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
+              data-testid="button-switch-account"
+            >
+              Use a different account
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (tokenState === "error") {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#0b1220]">
+        <div className="bg-[#131c2e] border border-slate-700/50 rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-xl">
+          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl text-red-400">!</span>
+          </div>
+          <h2 className="text-xl font-semibold text-white mb-2">Link expired</h2>
+          <p className="text-slate-400 mb-6">This login link has expired. Please try again from the app or sign in below.</p>
+          <button
+            onClick={() => {
+              window.history.replaceState({}, "", "/dika-web");
+              navigate("/auth");
+            }}
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-medium hover:opacity-90 transition-opacity"
+            data-testid="button-go-to-login"
+          >
+            Sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Redirect to="/auth" />;
+  }
+
+  return (
+    <Layout>
+      <Suspense fallback={<PageLoader />}>
+        <Component />
+      </Suspense>
+    </Layout>
+  );
+}
+
 function OnboardingRoute() {
   const { user, isLoading } = useAuth();
 
@@ -242,7 +395,7 @@ function Router() {
       </Route>
 
       <Route path="/dika-web">
-        <ProtectedRoute component={DikaWebPage} allowWithoutGym={true} />
+        <TokenAuthRoute component={DikaWebPage} />
       </Route>
 
       <Route path="/progress">

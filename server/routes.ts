@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth, hashPassword, comparePasswords, generateMobileToken, mobileAuthMiddleware } from "./auth";
+import { setupAuth, hashPassword, comparePasswords, generateMobileToken, generateLinkToken, verifyLinkToken, consumeLinkToken, mobileAuthMiddleware } from "./auth";
 import { storage } from "./storage";
 import { z } from "zod";
 import { nanoid } from "nanoid";
@@ -387,6 +387,56 @@ export async function registerRoutes(
       ...user,
       subscriptionStatus
     });
+  });
+
+  app.post("/api/auth/link-token", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const token = generateLinkToken(req.user!.id);
+    res.json({ token });
+  });
+
+  app.post("/api/auth/token-verify", async (req, res) => {
+    try {
+      const { token } = req.body;
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ message: "Token required" });
+      }
+      const decoded = verifyLinkToken(token);
+      if (!decoded) {
+        return res.status(401).json({ message: "Invalid or expired token" });
+      }
+      const user = await storage.getUser(decoded.userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      res.json({ id: user.id, username: user.username, role: user.role });
+    } catch {
+      res.status(500).json({ message: "Token verification failed" });
+    }
+  });
+
+  app.post("/api/auth/token-confirm", async (req, res) => {
+    try {
+      const { token } = req.body;
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ message: "Token required" });
+      }
+      const decoded = verifyLinkToken(token);
+      if (!decoded) {
+        return res.status(401).json({ message: "Invalid or expired token" });
+      }
+      consumeLinkToken(token);
+      const user = await storage.getUser(decoded.userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      req.login(user, (err) => {
+        if (err) return res.status(500).json({ message: "Login failed" });
+        res.json({ id: user.id, username: user.username, role: user.role });
+      });
+    } catch {
+      res.status(500).json({ message: "Token login failed" });
+    }
   });
 
   // Rate limiter for forgot password (stricter: 3 per 15 minutes per IP)
