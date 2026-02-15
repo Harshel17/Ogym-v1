@@ -435,7 +435,7 @@ export default function HealthPage() {
     );
   }
 
-  if (!isNativePlatform && !isConnected && !(weeklyData && weeklyData.length > 0)) {
+  if (!isNativePlatform && !isConnected && !todayData && !(weeklyData && weeklyData.length > 0)) {
     return (
       <div className="p-4 space-y-6 max-w-lg mx-auto">
         <div className="flex items-center gap-3 mb-2">

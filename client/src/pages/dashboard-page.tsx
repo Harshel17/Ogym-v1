@@ -96,7 +96,7 @@ function HealthActivityDashboard() {
   const { data: status, isLoading: statusLoading } = useHealthStatus();
   const { data: healthData, isLoading: dataLoading } = useHealthDataToday();
 
-  const connected = status?.connected;
+  const connected = status?.connected || !!healthData;
   const hasData = connected && healthData;
 
   const steps = hasData ? (healthData.steps || 0) : 0;
