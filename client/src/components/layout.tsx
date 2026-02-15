@@ -249,6 +249,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       badge: 0
     },
     { 
+      label: "Health", 
+      href: "/health", 
+      icon: HeartPulse,
+      visible: isMember || isPersonalMode,
+      badge: 0
+    },
+    { 
       label: "Requests", 
       href: "/requests", 
       icon: MessageSquare,

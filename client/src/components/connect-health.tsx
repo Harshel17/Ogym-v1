@@ -1,73 +1,72 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Activity, Heart, Footprints, Moon, Flame, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Activity, Heart, Footprints, Moon, Flame, HeartPulse, ChevronRight, Watch } from 'lucide-react';
 import { SiApple } from 'react-icons/si';
 import { Capacitor } from '@capacitor/core';
-
-// Feature flag - set to true when ready to enable health integration
-const HEALTH_FEATURE_ENABLED = false;
+import { useHealthStatus } from '@/hooks/use-health-data';
+import { Link } from 'wouter';
 
 export function ConnectHealth() {
   const isNative = Capacitor.isNativePlatform();
   const platform = Capacitor.getPlatform();
+  const { data: status } = useHealthStatus();
 
-  const sourceName = platform === 'ios' ? 'Apple Health' : 'Google Fit';
+  const sourceName = platform === 'ios' ? 'Apple Health' : platform === 'android' ? 'Google Fit' : 'Fitness Device';
   const sourceIcon = platform === 'ios' 
     ? <SiApple className="w-5 h-5" /> 
     : <Activity className="w-5 h-5" />;
 
-  // Show Coming Soon state when feature is disabled
-  if (!HEALTH_FEATURE_ENABLED) {
-    return (
-      <Card data-testid="card-connect-health" className="opacity-90">
-        <CardHeader>
+  const isConnected = status?.connected;
+
+  return (
+    <Link href="/health">
+      <Card data-testid="card-connect-health" className="cursor-pointer hover:bg-accent/50 transition-colors">
+        <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              {isNative ? sourceIcon : <Activity className="w-5 h-5" />}
+              <div className="p-2 rounded-lg bg-primary/10">
+                <HeartPulse className="w-5 h-5 text-primary" />
+              </div>
               <div>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  {isNative ? sourceName : 'Fitness Device'}
-                  <Badge variant="secondary" className="text-xs">
-                    <Clock className="w-3 h-3 mr-1" />
-                    Coming Soon
-                  </Badge>
+                <CardTitle className="text-base flex items-center gap-2">
+                  Health & Activity
+                  {isConnected && (
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      <Watch className="w-3 h-3" />
+                      {status?.source === 'apple_health' ? 'Apple Health' : 'Google Fit'}
+                    </Badge>
+                  )}
                 </CardTitle>
                 <CardDescription>
-                  Sync steps, calories, heart rate & sleep
+                  {isConnected ? 'View your fitness data and insights' : 'Connect your device to track health metrics'}
                 </CardDescription>
               </div>
             </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              We're working on bringing fitness device integration to OGym. Soon you'll be able to automatically sync your health data.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
-                <Footprints className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Daily steps</span>
-              </div>
-              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
-                <Flame className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Calories burned</span>
-              </div>
-              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
-                <Heart className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Heart rate</span>
-              </div>
-              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
-                <Moon className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Sleep duration</span>
-              </div>
+          <div className="grid grid-cols-4 gap-2">
+            <div className="flex flex-col items-center gap-1 p-2 bg-muted/30 rounded-lg">
+              <Footprints className="w-4 h-4 text-blue-500" />
+              <span className="text-[10px] text-muted-foreground">Steps</span>
+            </div>
+            <div className="flex flex-col items-center gap-1 p-2 bg-muted/30 rounded-lg">
+              <Flame className="w-4 h-4 text-orange-500" />
+              <span className="text-[10px] text-muted-foreground">Calories</span>
+            </div>
+            <div className="flex flex-col items-center gap-1 p-2 bg-muted/30 rounded-lg">
+              <Heart className="w-4 h-4 text-red-500" />
+              <span className="text-[10px] text-muted-foreground">Heart Rate</span>
+            </div>
+            <div className="flex flex-col items-center gap-1 p-2 bg-muted/30 rounded-lg">
+              <Moon className="w-4 h-4 text-purple-500" />
+              <span className="text-[10px] text-muted-foreground">Sleep</span>
             </div>
           </div>
         </CardContent>
       </Card>
-    );
-  }
-
-  // Full functionality will be enabled when HEALTH_FEATURE_ENABLED = true
-  return null;
+    </Link>
+  );
 }

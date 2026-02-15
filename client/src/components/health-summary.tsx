@@ -6,8 +6,7 @@ import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
 
-// Feature flag - set to true when ready to enable health integration
-const HEALTH_FEATURE_ENABLED = false;
+const HEALTH_FEATURE_ENABLED = true;
 
 interface HealthSummaryProps {
   compact?: boolean;
@@ -120,7 +119,8 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
   }
 
   return (
-    <Card className={className} data-testid="card-health-summary">
+    <Link href="/health">
+    <Card className={`${className} cursor-pointer hover:bg-accent/50 transition-colors`} data-testid="card-health-summary">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -210,6 +210,7 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
         )}
       </CardContent>
     </Card>
+    </Link>
   );
 }
 

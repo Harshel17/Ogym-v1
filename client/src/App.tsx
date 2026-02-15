@@ -23,6 +23,7 @@ import ProfilePage from "@/pages/profile-page";
 import MyBodyPage from "@/pages/my-body-page";
 import NutritionPage from "@/pages/nutrition-page";
 import SportsModePage from "@/pages/sports-mode-page";
+import HealthPage from "@/pages/health-page";
 import StarMembersPage from "@/pages/star-members-page";
 import DietPlansPage from "@/pages/diet-plans-page";
 import MyDietPlanPage from "@/pages/my-diet-plan-page";
@@ -285,6 +286,10 @@ function Router() {
 
       <Route path="/sports-mode">
         <ProtectedRoute component={SportsModePage} requiredRole="member" allowWithoutGym={true} />
+      </Route>
+
+      <Route path="/health">
+        <ProtectedRoute component={HealthPage} requiredRole="member" allowWithoutGym={true} />
       </Route>
 
       <Route path="/star-members/:memberId">
