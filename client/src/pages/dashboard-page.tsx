@@ -2055,8 +2055,8 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
 
       {/* Calorie, Streak & Health */}
       {workoutSummary && (
-        <div className="grid grid-cols-2 gap-2.5" style={{ marginBottom: '-4px' }}>
-          <Link href="/progress/workouts">
+        <div className="grid grid-cols-2 gap-2.5">
+          <Link href="/progress/workouts" className="overflow-hidden rounded-xl">
             <AnimatedStatCard
               value={workoutSummary.streak}
               label="Day Streak"
@@ -2065,7 +2065,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
               delay={100}
             />
           </Link>
-          <Link href="/nutrition">
+          <Link href="/nutrition" className="overflow-hidden rounded-xl">
             <CalorieProgressCard
               current={calorieData?.summary?.calories || 0}
               target={calorieData?.goal?.dailyCalorieTarget || 0}
@@ -2113,35 +2113,6 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
         </Card>
       )}
 
-      {/* Sessions & Payments */}
-      <div className="grid gap-2.5 grid-cols-2">
-        <Card className="bg-card/70 backdrop-blur-sm" data-testid="stat-card-attendance">
-          <CardContent className="py-3.5 px-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-sm shadow-blue-500/20">
-                <CalendarCheck className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-xl font-bold tabular-nums leading-none">{attendedCount}</p>
-                <p className="text-[10px] text-muted-foreground font-semibold mt-0.5 uppercase tracking-wider">Sessions</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/70 backdrop-blur-sm" data-testid="stat-card-payment">
-          <CardContent className="py-3.5 px-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm shadow-violet-500/20">
-                <CreditCard className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-xl font-bold tabular-nums leading-none">{lastPayment ? `$${((lastPayment.amountPaid || 0) / 100).toFixed(2)}` : 'N/A'}</p>
-                <p className="text-[10px] text-muted-foreground font-semibold mt-0.5 uppercase tracking-wider">{lastPayment ? lastPayment.status : 'No payments'}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <Dialog open={showMarkDoneDialog} onOpenChange={setShowMarkDoneDialog}>
         <DialogContent>
