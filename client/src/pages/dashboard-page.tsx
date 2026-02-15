@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward, Footprints } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward, Footprints, ExternalLink, X } from "lucide-react";
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
@@ -1128,6 +1128,9 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const [showRestDayDialog, setShowRestDayDialog] = useState(false);
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const [exerciseHelpId, setExerciseHelpId] = useState<number | null>(null);
+  const [exerciseHelpData, setExerciseHelpData] = useState<Record<number, any>>({});
+  const [exerciseHelpLoading, setExerciseHelpLoading] = useState<number | null>(null);
   
   // Onboarding state (user-specific key to handle shared browsers)
   const onboardingKey = isPersonalMode ? `ogym_personal_onboarding_seen_${user?.id}` : `ogym_member_onboarding_seen_${user?.id}`;
@@ -1789,9 +1792,23 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  navigate(`/dika?exercise=${encodeURIComponent(item.exerciseName)}&sets=${item.sets || ''}&reps=${item.reps || ''}&muscle=${encodeURIComponent(item.muscleType || '')}`);
+                                  if (exerciseHelpId === item.id) {
+                                    setExerciseHelpId(null);
+                                    return;
+                                  }
+                                  setExerciseHelpId(item.id);
+                                  if (!exerciseHelpData[item.id]) {
+                                    setExerciseHelpLoading(item.id);
+                                    fetch(`/api/exercise-info?name=${encodeURIComponent(item.exerciseName)}`, { credentials: 'include' })
+                                      .then(r => r.json())
+                                      .then(data => {
+                                        setExerciseHelpData(prev => ({ ...prev, [item.id]: data }));
+                                        setExerciseHelpLoading(null);
+                                      })
+                                      .catch(() => setExerciseHelpLoading(null));
+                                  }
                                 }}
-                                className="w-7 h-7 rounded-full flex items-center justify-center text-amber-500 hover:bg-amber-500/10 transition-colors flex-shrink-0"
+                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors flex-shrink-0 ${exerciseHelpId === item.id ? 'text-amber-600 bg-amber-500/20' : 'text-amber-500 hover:bg-amber-500/10'}`}
                                 data-testid={`button-dika-exercise-${item.id}`}
                               >
                                 <Sparkles className="w-3.5 h-3.5" />
@@ -1814,6 +1831,98 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                           </div>
                         </div>
                         
+                        {exerciseHelpId === item.id && !item.completed && (
+                          <div className="px-3 pb-2 pt-1 border-t border-amber-200 dark:border-amber-800/50 bg-amber-50/50 dark:bg-amber-950/20">
+                            {exerciseHelpLoading === item.id ? (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                                <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">Loading exercise info...</span>
+                              </div>
+                            ) : exerciseHelpData[item.id]?.found ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                                    <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">{exerciseHelpData[item.id].name}</span>
+                                  </div>
+                                  <button onClick={() => setExerciseHelpId(null)} className="text-muted-foreground hover:text-foreground" data-testid={`close-exercise-help-${item.id}`}>
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                                <div className="flex flex-wrap gap-1 text-[10px]">
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">{exerciseHelpData[item.id].difficulty}</span>
+                                  {exerciseHelpData[item.id].equipment?.map((eq: string) => (
+                                    <span key={eq} className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">{eq}</span>
+                                  ))}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground">
+                                  <span className="font-medium">Muscles:</span> {exerciseHelpData[item.id].primaryMuscles?.join(', ')}
+                                  {exerciseHelpData[item.id].secondaryMuscles?.length > 0 && (
+                                    <span> (also: {exerciseHelpData[item.id].secondaryMuscles.join(', ')})</span>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-semibold text-foreground mb-1">How to do it:</p>
+                                  <ol className="space-y-0.5 text-[10px] text-muted-foreground list-decimal list-inside">
+                                    {exerciseHelpData[item.id].steps?.map((step: string, i: number) => (
+                                      <li key={i}>{step}</li>
+                                    ))}
+                                  </ol>
+                                </div>
+                                {exerciseHelpData[item.id].tips?.length > 0 && (
+                                  <div>
+                                    <p className="text-[10px] font-semibold text-foreground mb-0.5">Pro Tips:</p>
+                                    <ul className="space-y-0.5 text-[10px] text-muted-foreground">
+                                      {exerciseHelpData[item.id].tips.map((tip: string, i: number) => (
+                                        <li key={i} className="flex gap-1"><span className="text-amber-500">•</span> {tip}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                                {exerciseHelpData[item.id].commonMistakes?.length > 0 && (
+                                  <div>
+                                    <p className="text-[10px] font-semibold text-red-500 dark:text-red-400 mb-0.5">Avoid:</p>
+                                    <ul className="space-y-0.5 text-[10px] text-muted-foreground">
+                                      {exerciseHelpData[item.id].commonMistakes.map((m: string, i: number) => (
+                                        <li key={i} className="flex gap-1"><span className="text-red-400">•</span> {m}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2 pt-1">
+                                  <a
+                                    href={exerciseHelpData[item.id].youtubeUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[10px] font-medium text-red-500 hover:text-red-600"
+                                    data-testid={`youtube-link-${item.id}`}
+                                  >
+                                    <ExternalLink className="w-3 h-3" /> Watch on YouTube
+                                  </a>
+                                  <button
+                                    onClick={() => navigate(`/dika?exercise=${encodeURIComponent(item.exerciseName)}&sets=${item.sets || ''}&reps=${item.reps || ''}&muscle=${encodeURIComponent(item.muscleType || '')}`)}
+                                    className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700"
+                                    data-testid={`ask-dika-${item.id}`}
+                                  >
+                                    <Sparkles className="w-3 h-3" /> Ask Dika
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="py-3 text-center">
+                                <p className="text-xs text-muted-foreground mb-1">No detailed info found for this exercise.</p>
+                                <button
+                                  onClick={() => navigate(`/dika?exercise=${encodeURIComponent(item.exerciseName)}&sets=${item.sets || ''}&reps=${item.reps || ''}&muscle=${encodeURIComponent(item.muscleType || '')}`)}
+                                  className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700"
+                                  data-testid={`ask-dika-fallback-${item.id}`}
+                                >
+                                  <Sparkles className="w-3 h-3" /> Ask Dika AI instead
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {isExpanded && !item.completed && (
                           <div className="px-3 pb-3 pt-0 space-y-3 border-t border-border/50 mt-1">
                             {(loadingPlanSets === item.id || !perSetInputs[item.id]) ? (

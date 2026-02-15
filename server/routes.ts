@@ -15,6 +15,7 @@ import { eq, and, isNotNull, inArray, sql, desc, gte, like, asc } from "drizzle-
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing } from "./dika";
 import { executeOwnerAction, executeSupportTicket, type ActionData } from "./dika/owner-actions";
+import { findExercise } from "./dika/exercise-database";
 import { searchFoodByName, lookupByBarcode, FoodProduct } from "./nutrition/open-food-facts";
 import { searchLocalFoods } from "./nutrition/food-database";
 import { lookupBarcodeLocal } from "./nutrition/barcode-database";
@@ -4830,6 +4831,26 @@ Return ONLY JSON.`
   });
 
   // === DIKA AI ASSISTANT ===
+  app.get("/api/exercise-info", requireAuth, async (req, res) => {
+    const name = req.query.name as string;
+    if (!name) return res.status(400).json({ error: "Missing exercise name" });
+    const exercise = findExercise(name);
+    if (!exercise) return res.json({ found: false });
+    const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(exercise.youtubeSearchQuery)}`;
+    res.json({
+      found: true,
+      name: exercise.name,
+      primaryMuscles: exercise.primaryMuscles,
+      secondaryMuscles: exercise.secondaryMuscles,
+      equipment: exercise.equipment,
+      difficulty: exercise.difficulty,
+      steps: exercise.steps,
+      tips: exercise.tips,
+      commonMistakes: exercise.commonMistakes,
+      youtubeUrl,
+    });
+  });
+
   app.post("/api/dika/ask", requireAuth, async (req, res) => {
     const schema = z.object({
       message: z.string().min(1).max(500),
