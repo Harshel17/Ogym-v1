@@ -2054,7 +2054,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       </Collapsible>
 
       {/* Calorie, Streak & Health */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {workoutSummary && (
           <div className="grid grid-cols-2 gap-2.5">
             <Link href="/progress/workouts">
