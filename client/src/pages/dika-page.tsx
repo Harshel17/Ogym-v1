@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, ChevronLeft, MapPin, Pizza, Coffee, Salad, Soup, UtensilsCrossed, Star, Sparkles } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, ChevronLeft, MapPin, Pizza, Coffee, Salad, Soup, UtensilsCrossed, Star, Sparkles, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -787,6 +787,22 @@ function DikaPageInner({ userId }: { userId: number }) {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {isNative() && isIOS() && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-slate-400/70 rounded-xl"
+                onClick={async () => {
+                  try {
+                    const { Browser } = await import("@capacitor/browser");
+                    await Browser.open({ url: "https://app.ogym.fitness/dika" });
+                  } catch {}
+                }}
+                data-testid="button-dika-open-browser"
+              >
+                <Globe className="w-4 h-4" />
+              </Button>
+            )}
             {messages.length > 0 && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>

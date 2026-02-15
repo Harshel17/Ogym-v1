@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, Scale, Target, ArrowLeftRight } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, Scale, Target, ArrowLeftRight, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { useTrainingMode } from '@/hooks/use-gym';
+import { isNative, isIOS } from '@/lib/capacitor-init';
 
 interface GeneratedWorkoutPlan {
   name: string;
@@ -1151,6 +1152,22 @@ export function DikaDrawer({
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {isNative() && isIOS() && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={async () => {
+                    try {
+                      const { Browser } = await import("@capacitor/browser");
+                      await Browser.open({ url: "https://app.ogym.fitness/dika" });
+                    } catch {}
+                  }}
+                  className="text-slate-400"
+                  data-testid="button-dika-open-browser"
+                >
+                  <Globe className="w-4 h-4" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
