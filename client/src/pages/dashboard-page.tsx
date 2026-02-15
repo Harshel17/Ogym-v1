@@ -2050,17 +2050,8 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
               )}
             </CardContent>
           </CollapsibleContent>
-          {/* Weekly Progress inside workout card */}
-          {workoutSummary && (
-            <div className="px-4 pb-4 -mt-1">
-              <WeeklyProgress calendarDays={workoutSummary.calendarDays} className="shadow-none border-0 bg-muted/30" />
-            </div>
-          )}
         </Card>
       </Collapsible>
-
-      {/* Health & Activity Section */}
-      <HealthActivityDashboard />
 
       {/* Calorie & Streak Ring Cards */}
       {workoutSummary && (
@@ -2085,6 +2076,9 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
           </Link>
         </div>
       )}
+
+      {/* Health & Activity Section */}
+      <HealthActivityDashboard />
 
       {/* Calendar */}
       <MemberCalendarWidget />

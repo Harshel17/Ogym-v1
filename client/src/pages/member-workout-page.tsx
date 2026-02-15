@@ -19,6 +19,7 @@ import { AIImportWizard } from "@/components/ai-import-wizard";
 import { PersonalModeOnboarding, MemberOnboarding } from "@/components/onboarding-carousel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VisualWorkoutMap } from "@/components/visual-workout-map";
+import { WeeklyProgress } from "@/components/premium-stats";
 import { User } from "lucide-react";
 
 interface WorkoutSummary {
@@ -602,6 +603,10 @@ export default function MemberWorkoutPage() {
             <p className="text-[10px] text-muted-foreground font-medium">Last 7 Days</p>
           </div>
         </div>
+      )}
+
+      {!statsLoading && workoutSummary && (
+        <WeeklyProgress calendarDays={workoutSummary.calendarDays} />
       )}
 
       {todayLoading ? (
