@@ -913,6 +913,60 @@ export const dikaConversations = pgTable("dika_conversations", {
   userIdx: uniqueIndex("dika_conversations_user_idx").on(table.userId),
 }));
 
+// === DIKA MULTI-CHAT SYSTEM ===
+export const dikaChats = pgTable("dika_chats", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  title: text("title").default("New Chat"),
+  category: text("category").default("general"),
+  isPinned: boolean("is_pinned").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  lastMessageAt: timestamp("last_message_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("dika_chats_user_idx").on(table.userId),
+  lastMsgIdx: index("dika_chats_last_msg_idx").on(table.userId, table.lastMessageAt),
+}));
+
+export const dikaChatMessages = pgTable("dika_chat_messages", {
+  id: serial("id").primaryKey(),
+  chatId: integer("chat_id").references(() => dikaChats.id, { onDelete: 'cascade' }).notNull(),
+  role: text("role").notNull(),
+  content: text("content").notNull(),
+  followUpChips: jsonb("follow_up_chips"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  chatIdx: index("dika_chat_messages_chat_idx").on(table.chatId),
+}));
+
+export const dikaInsights = pgTable("dika_insights", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  insightKey: text("insight_key").notNull(),
+  insightValue: text("insight_value").notNull(),
+  source: text("source").default("conversation"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("dika_insights_user_idx").on(table.userId),
+}));
+
+export const dikaActionFeed = pgTable("dika_action_feed", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  chatId: integer("chat_id").references(() => dikaChats.id),
+  actionType: text("action_type").notNull(),
+  summary: text("summary").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("dika_action_feed_user_idx").on(table.userId),
+}));
+
+export const insertDikaChatSchema = createInsertSchema(dikaChats).omit({ id: true, createdAt: true, updatedAt: true, lastMessageAt: true });
+export const insertDikaChatMessageSchema = createInsertSchema(dikaChatMessages).omit({ id: true, createdAt: true });
+export const insertDikaInsightSchema = createInsertSchema(dikaInsights).omit({ id: true, updatedAt: true });
+export const insertDikaActionFeedSchema = createInsertSchema(dikaActionFeed).omit({ id: true, createdAt: true });
+
 // Health data from fitness devices (Apple Health, Google Fit)
 export const healthData = pgTable("health_data", {
   id: serial("id").primaryKey(),
@@ -1260,3 +1314,12 @@ export type InsertWeeklyReport = z.infer<typeof insertWeeklyReportSchema>;
 
 export type FitnessGoal = typeof fitnessGoals.$inferSelect;
 export type InsertFitnessGoal = z.infer<typeof insertFitnessGoalSchema>;
+
+export type DikaChat = typeof dikaChats.$inferSelect;
+export type InsertDikaChat = z.infer<typeof insertDikaChatSchema>;
+export type DikaChatMessage = typeof dikaChatMessages.$inferSelect;
+export type InsertDikaChatMessage = z.infer<typeof insertDikaChatMessageSchema>;
+export type DikaInsight = typeof dikaInsights.$inferSelect;
+export type InsertDikaInsight = z.infer<typeof insertDikaInsightSchema>;
+export type DikaActionFeedEntry = typeof dikaActionFeed.$inferSelect;
+export type InsertDikaActionFeedEntry = z.infer<typeof insertDikaActionFeedSchema>;

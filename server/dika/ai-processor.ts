@@ -281,6 +281,15 @@ interface MemberContext {
       avgHeartRate?: number;
       sleepMinutes?: number;
     } | null;
+    weeklyAvg: {
+      steps: number;
+      caloriesBurned: number;
+      activeMinutes: number;
+      avgHeartRate: number;
+      sleepMinutes: number;
+      daysTracked: number;
+    } | null;
+    recoveryScore: number | null;
   };
   nutrition: {
     totalCalories: number;
@@ -455,7 +464,9 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
   let healthContext: MemberContext['healthData'] = {
     connected: false,
     source: null,
-    today: null
+    today: null,
+    weeklyAvg: null,
+    recoveryScore: null,
   };
 
   if (userData?.healthConnected) {
@@ -467,6 +478,48 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
       ))
       .limit(1);
 
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoStr = weekAgo.toISOString().split('T')[0];
+
+    const weeklyData = await db.select()
+      .from(healthData)
+      .where(and(
+        eq(healthData.userId, userId),
+        gte(healthData.date, weekAgoStr)
+      ));
+
+    let weeklyAvg: MemberContext['healthData']['weeklyAvg'] = null;
+    let recoveryScore: number | null = null;
+
+    if (weeklyData.length > 0) {
+      const daysTracked = weeklyData.length;
+      const totals = weeklyData.reduce((acc, d) => ({
+        steps: acc.steps + (d.steps || 0),
+        caloriesBurned: acc.caloriesBurned + (d.caloriesBurned || 0),
+        activeMinutes: acc.activeMinutes + (d.activeMinutes || 0),
+        avgHeartRate: acc.avgHeartRate + (d.avgHeartRate || 0),
+        sleepMinutes: acc.sleepMinutes + (d.sleepMinutes || 0),
+      }), { steps: 0, caloriesBurned: 0, activeMinutes: 0, avgHeartRate: 0, sleepMinutes: 0 });
+
+      weeklyAvg = {
+        steps: Math.round(totals.steps / daysTracked),
+        caloriesBurned: Math.round(totals.caloriesBurned / daysTracked),
+        activeMinutes: Math.round(totals.activeMinutes / daysTracked),
+        avgHeartRate: Math.round(totals.avgHeartRate / daysTracked),
+        sleepMinutes: Math.round(totals.sleepMinutes / daysTracked),
+        daysTracked,
+      };
+
+      const sleepScore = Math.min(100, ((weeklyAvg.sleepMinutes || 0) / 480) * 100);
+      const hrScore = weeklyAvg.avgHeartRate > 0
+        ? Math.max(0, 100 - Math.abs(weeklyAvg.avgHeartRate - 65) * 2)
+        : 50;
+      const activityScore = Math.min(100, ((weeklyAvg.activeMinutes || 0) / 60) * 100);
+      const stepsScore = Math.min(100, ((weeklyAvg.steps || 0) / 10000) * 100);
+      recoveryScore = Math.round(sleepScore * 0.35 + hrScore * 0.25 + activityScore * 0.2 + stepsScore * 0.2);
+    }
+
     healthContext = {
       connected: true,
       source: userData.healthSource || null,
@@ -476,7 +529,9 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
         activeMinutes: todayHealth.activeMinutes || undefined,
         avgHeartRate: todayHealth.avgHeartRate || undefined,
         sleepMinutes: todayHealth.sleepMinutes || undefined
-      } : null
+      } : null,
+      weeklyAvg,
+      recoveryScore,
     };
   }
   
@@ -954,6 +1009,19 @@ TODAY'S DATE: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 
       return 'fitness device';
     };
     
+    const weeklyHealthSection = ctx.healthData.weeklyAvg ? `
+WEEKLY HEALTH AVERAGES (last ${ctx.healthData.weeklyAvg.daysTracked} days):
+- Avg steps/day: ${ctx.healthData.weeklyAvg.steps.toLocaleString()}
+- Avg calories burned/day: ${ctx.healthData.weeklyAvg.caloriesBurned.toLocaleString()}
+- Avg active minutes/day: ${ctx.healthData.weeklyAvg.activeMinutes}
+- Avg resting heart rate: ${ctx.healthData.weeklyAvg.avgHeartRate} bpm
+- Avg sleep/night: ${Math.floor(ctx.healthData.weeklyAvg.sleepMinutes / 60)}h ${ctx.healthData.weeklyAvg.sleepMinutes % 60}m
+` : '';
+
+    const recoverySection = ctx.healthData.recoveryScore !== null ? `
+RECOVERY SCORE: ${ctx.healthData.recoveryScore}/100 (${ctx.healthData.recoveryScore >= 80 ? 'Excellent - push hard today' : ctx.healthData.recoveryScore >= 60 ? 'Good - normal training fine' : ctx.healthData.recoveryScore >= 40 ? 'Fair - consider lighter session' : 'Low - prioritize rest and recovery'})
+` : '';
+
     const healthDataSection = ctx.healthData.connected && ctx.healthData.today ? `
 FITNESS DEVICE DATA (from ${getHealthSourceLabel(ctx.healthData.source)}):
 - Steps today: ${ctx.healthData.today.steps?.toLocaleString() || 'N/A'}
@@ -961,9 +1029,9 @@ FITNESS DEVICE DATA (from ${getHealthSourceLabel(ctx.healthData.source)}):
 - Active minutes: ${ctx.healthData.today.activeMinutes || 'N/A'}
 - Average heart rate: ${ctx.healthData.today.avgHeartRate || 'N/A'} bpm
 - Sleep last night: ${ctx.healthData.today.sleepMinutes ? `${Math.floor(ctx.healthData.today.sleepMinutes / 60)}h ${ctx.healthData.today.sleepMinutes % 60}m` : 'N/A'}
-` : ctx.healthData.connected ? `
+${weeklyHealthSection}${recoverySection}` : ctx.healthData.connected ? `
 FITNESS DEVICE: Connected to ${getHealthSourceLabel(ctx.healthData.source)} (no data synced today)
-` : '';
+${weeklyHealthSection}${recoverySection}` : '';
     
     const todayWorkoutSection = ctx.todayWorkout ? (
       ctx.todayWorkout.isRestDay ? `
@@ -1037,7 +1105,10 @@ You can help this member with:
 - Meal suggestions based on remaining macros
 - Exercise alternatives and substitutions
 - Fitness goal setting and tracking
-${ctx.healthData.connected ? '- Fitness device data analysis (steps, calories burned, heart rate, sleep)' : ''}
+${ctx.healthData.connected ? `- Fitness device data analysis (steps, calories burned, heart rate, sleep)
+- Weekly health trends and averages
+- Recovery score analysis and workout intensity recommendations
+- Cross-analysis between workouts, nutrition, and health metrics (e.g. "you burned 500 cal but only ate 300")` : ''}
 ${ctx.sportsMode.profile ? '- Sports Mode progress, sport training insights, and skill improvement tracking' : ''}
 - Motivation and encouragement based on their data
 - Creating support tickets to report issues or request help

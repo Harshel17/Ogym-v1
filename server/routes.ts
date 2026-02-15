@@ -10,8 +10,8 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions } from "@shared/schema";
-import { eq, and, isNotNull, inArray, sql, desc, gte } from "drizzle-orm";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed } from "@shared/schema";
+import { eq, and, isNotNull, inArray, sql, desc, gte, like, asc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing } from "./dika";
 import { executeOwnerAction, executeSupportTicket, type ActionData } from "./dika/owner-actions";
@@ -4995,6 +4995,321 @@ Return ONLY JSON.`
     }
   });
   
+  // === DIKA MULTI-CHAT SYSTEM ===
+  app.get("/api/dika/chats", requireAuth, async (req, res) => {
+    try {
+      const chats = await db.select()
+        .from(dikaChats)
+        .where(eq(dikaChats.userId, req.user!.id))
+        .orderBy(desc(dikaChats.lastMessageAt));
+      res.json({ chats });
+    } catch (error) {
+      console.error('Failed to load dika chats:', error);
+      res.status(500).json({ message: "Failed to load chats" });
+    }
+  });
+
+  app.post("/api/dika/chats", requireAuth, async (req, res) => {
+    const schema = z.object({
+      title: z.string().optional(),
+      category: z.string().optional(),
+    });
+    const input = schema.safeParse(req.body);
+    if (!input.success) return res.status(400).json({ message: "Invalid request" });
+    try {
+      const [chat] = await db.insert(dikaChats)
+        .values({
+          userId: req.user!.id,
+          title: input.data.title || 'New Chat',
+          category: input.data.category || 'general',
+        })
+        .returning();
+      res.json({ chat });
+    } catch (error) {
+      console.error('Failed to create dika chat:', error);
+      res.status(500).json({ message: "Failed to create chat" });
+    }
+  });
+
+  app.patch("/api/dika/chats/:chatId", requireAuth, async (req, res) => {
+    const chatId = parseInt(req.params.chatId);
+    const schema = z.object({
+      title: z.string().optional(),
+      category: z.string().optional(),
+      isPinned: z.boolean().optional(),
+    });
+    const input = schema.safeParse(req.body);
+    if (!input.success) return res.status(400).json({ message: "Invalid request" });
+    try {
+      const [existing] = await db.select().from(dikaChats)
+        .where(and(eq(dikaChats.id, chatId), eq(dikaChats.userId, req.user!.id)));
+      if (!existing) return res.status(404).json({ message: "Chat not found" });
+      const updates: any = { updatedAt: new Date() };
+      if (input.data.title !== undefined) updates.title = input.data.title;
+      if (input.data.category !== undefined) updates.category = input.data.category;
+      if (input.data.isPinned !== undefined) updates.isPinned = input.data.isPinned;
+      const [updated] = await db.update(dikaChats).set(updates)
+        .where(eq(dikaChats.id, chatId)).returning();
+      res.json({ chat: updated });
+    } catch (error) {
+      console.error('Failed to update dika chat:', error);
+      res.status(500).json({ message: "Failed to update chat" });
+    }
+  });
+
+  app.delete("/api/dika/chats/:chatId", requireAuth, async (req, res) => {
+    const chatId = parseInt(req.params.chatId);
+    try {
+      const [existing] = await db.select().from(dikaChats)
+        .where(and(eq(dikaChats.id, chatId), eq(dikaChats.userId, req.user!.id)));
+      if (!existing) return res.status(404).json({ message: "Chat not found" });
+      await db.delete(dikaActionFeed).where(eq(dikaActionFeed.chatId, chatId));
+      await db.delete(dikaChats).where(eq(dikaChats.id, chatId));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Failed to delete dika chat:', error);
+      res.status(500).json({ message: "Failed to delete chat" });
+    }
+  });
+
+  app.get("/api/dika/chats/:chatId/messages", requireAuth, async (req, res) => {
+    const chatId = parseInt(req.params.chatId);
+    try {
+      const [chat] = await db.select().from(dikaChats)
+        .where(and(eq(dikaChats.id, chatId), eq(dikaChats.userId, req.user!.id)));
+      if (!chat) return res.status(404).json({ message: "Chat not found" });
+      const messages = await db.select().from(dikaChatMessages)
+        .where(eq(dikaChatMessages.chatId, chatId))
+        .orderBy(asc(dikaChatMessages.createdAt));
+      res.json({ messages });
+    } catch (error) {
+      console.error('Failed to load chat messages:', error);
+      res.status(500).json({ message: "Failed to load messages" });
+    }
+  });
+
+  app.post("/api/dika/chats/:chatId/messages", requireAuth, async (req, res) => {
+    const chatId = parseInt(req.params.chatId);
+    const schema = z.object({
+      message: z.string().min(1).max(2000),
+      platform: z.string().optional(),
+    });
+    const input = schema.safeParse(req.body);
+    if (!input.success) return res.status(400).json({ message: "Invalid request" });
+    try {
+      const [chat] = await db.select().from(dikaChats)
+        .where(and(eq(dikaChats.id, chatId), eq(dikaChats.userId, req.user!.id)));
+      if (!chat) return res.status(404).json({ message: "Chat not found" });
+
+      const [userMsg] = await db.insert(dikaChatMessages)
+        .values({ chatId, role: 'user', content: input.data.message })
+        .returning();
+
+      const recentMsgs = await db.select().from(dikaChatMessages)
+        .where(eq(dikaChatMessages.chatId, chatId))
+        .orderBy(desc(dikaChatMessages.createdAt))
+        .limit(10);
+      const history = recentMsgs.reverse().map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+
+      const user = req.user!;
+      const role = user.role as 'member' | 'trainer' | 'owner';
+      const localDate = getLocalDate(req);
+      const isIOSNative = input.data.platform === 'ios_native';
+
+      const response = await handleDikaQuery(
+        user.id, role, user.gymId || null,
+        input.data.message, history, localDate, isIOSNative
+      );
+
+      const [assistantMsg] = await db.insert(dikaChatMessages)
+        .values({
+          chatId,
+          role: 'assistant',
+          content: response.answer,
+          followUpChips: response.followUpChips || [],
+        })
+        .returning();
+
+      const chatUpdateData: any = {
+        lastMessageAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const msgCount = recentMsgs.length;
+      if (msgCount <= 2) {
+        const msgLower = input.data.message.toLowerCase();
+        const respLower = response.answer.toLowerCase();
+        const combined = msgLower + ' ' + respLower;
+
+        let detectedCategory = 'general';
+        if (/calorie|nutrition|protein|carb|fat|meal|food|diet|eat|ate|hunger|macro/.test(combined)) {
+          detectedCategory = 'nutrition';
+        } else if (/workout|train|exercise|set|rep|bench|squat|chest|back|leg|arm|shoulder|gym|lift/.test(combined)) {
+          detectedCategory = 'workouts';
+        } else if (/sport|football|basketball|tennis|swimming|boxing|mma|cricket|volleyball|drill|match/.test(combined)) {
+          detectedCategory = 'sports';
+        }
+        chatUpdateData.category = detectedCategory;
+
+        if (chat.title === 'New Chat' || chat.title.length > 40) {
+          const words = input.data.message.split(/\s+/).slice(0, 6).join(' ');
+          chatUpdateData.title = words.length > 40 ? words.slice(0, 40) + '...' : words;
+        }
+      }
+
+      await db.update(dikaChats).set(chatUpdateData).where(eq(dikaChats.id, chatId));
+
+      if (response.answer?.includes('MEAL_LOG_DATA:')) {
+        await db.insert(dikaActionFeed).values({
+          userId: user.id,
+          chatId,
+          actionType: 'meal_logged',
+          summary: 'Logged a meal via Dika',
+        });
+      }
+      if (response.answer?.includes('WORKOUT_PLAN_DATA:')) {
+        await db.insert(dikaActionFeed).values({
+          userId: user.id,
+          chatId,
+          actionType: 'workout_generated',
+          summary: 'Generated a workout plan',
+        });
+      }
+      if (response.answer?.includes('WEEKLY_REPORT_DATA:')) {
+        await db.insert(dikaActionFeed).values({
+          userId: user.id,
+          chatId,
+          actionType: 'report_generated',
+          summary: 'Generated a weekly health report',
+        });
+      }
+
+      try {
+        const insightPatterns: Array<{ pattern: RegExp; key: string; extract: (m: RegExpMatchArray) => string }> = [
+          { pattern: /(?:my goal|i want to|i'm trying to|aim to)\s+(.{5,60})/i, key: 'fitness_goal', extract: (m) => m[1].replace(/[.!,]+$/, '') },
+          { pattern: /(?:i weigh|my weight is|i'm|i am)\s+(\d{2,3})\s*(?:kg|lbs|pounds|kilos)/i, key: 'current_weight', extract: (m) => m[0].replace(/^(i weigh|my weight is|i'm|i am)\s+/i, '') },
+          { pattern: /(?:allergic to|allergy|can't eat|don't eat|avoid)\s+(.{3,40})/i, key: 'dietary_restriction', extract: (m) => m[1].replace(/[.!,]+$/, '') },
+          { pattern: /(?:i'm|i am)\s+(vegan|vegetarian|pescatarian|keto|paleo|gluten.?free)/i, key: 'diet_type', extract: (m) => m[1] },
+          { pattern: /(?:i train|i work out|i exercise)\s+(\d)\s*(?:times|days|x)\s*(?:a|per)\s*week/i, key: 'training_frequency', extract: (m) => `${m[1]} times/week` },
+          { pattern: /(?:my calorie goal|target|aiming for)\s+(\d{3,5})\s*(?:cal|kcal|calories)/i, key: 'calorie_target', extract: (m) => `${m[1]} calories` },
+        ];
+
+        for (const p of insightPatterns) {
+          const match = input.data.message.match(p.pattern);
+          if (match) {
+            const value = p.extract(match);
+            const existing = await db.select().from(dikaInsights)
+              .where(and(eq(dikaInsights.userId, user.id), eq(dikaInsights.insightKey, p.key)))
+              .limit(1);
+            if (existing.length > 0) {
+              await db.update(dikaInsights)
+                .set({ insightValue: value, source: 'conversation', updatedAt: new Date() })
+                .where(eq(dikaInsights.id, existing[0].id));
+            } else {
+              await db.insert(dikaInsights).values({
+                userId: user.id,
+                insightKey: p.key,
+                insightValue: value,
+                source: 'conversation',
+              });
+            }
+          }
+        }
+      } catch (insightError) {
+        console.error('Insight extraction failed (non-critical):', insightError);
+      }
+
+      res.json({
+        userMessage: userMsg,
+        assistantMessage: assistantMsg,
+        answer: response.answer,
+        followUpChips: response.followUpChips,
+      });
+    } catch (error) {
+      console.error('Dika multi-chat query error:', error);
+      res.status(500).json({ answer: "Sorry, I encountered an error. Please try again." });
+    }
+  });
+
+  app.get("/api/dika/search", requireAuth, async (req, res) => {
+    const query = (req.query.q as string || '').trim();
+    if (!query) return res.json({ results: [] });
+    try {
+      const messages = await db.select({
+        messageId: dikaChatMessages.id,
+        chatId: dikaChatMessages.chatId,
+        role: dikaChatMessages.role,
+        content: dikaChatMessages.content,
+        createdAt: dikaChatMessages.createdAt,
+      })
+      .from(dikaChatMessages)
+      .innerJoin(dikaChats, eq(dikaChatMessages.chatId, dikaChats.id))
+      .where(and(
+        eq(dikaChats.userId, req.user!.id),
+        like(dikaChatMessages.content, `%${query}%`)
+      ))
+      .orderBy(desc(dikaChatMessages.createdAt))
+      .limit(20);
+      
+      const chatIds = [...new Set(messages.map(m => m.chatId))];
+      const chatMap = new Map<number, any>();
+      if (chatIds.length > 0) {
+        const chats = await db.select().from(dikaChats).where(inArray(dikaChats.id, chatIds));
+        chats.forEach(c => chatMap.set(c.id, c));
+      }
+      
+      const results = messages.map(m => ({
+        ...m,
+        chatTitle: chatMap.get(m.chatId)?.title || 'Chat',
+        chatCategory: chatMap.get(m.chatId)?.category || 'general',
+      }));
+      res.json({ results });
+    } catch (error) {
+      console.error('Dika search error:', error);
+      res.status(500).json({ message: "Search failed" });
+    }
+  });
+
+  app.get("/api/dika/insights", requireAuth, async (req, res) => {
+    try {
+      const insights = await db.select().from(dikaInsights)
+        .where(eq(dikaInsights.userId, req.user!.id))
+        .orderBy(desc(dikaInsights.updatedAt));
+      res.json({ insights });
+    } catch (error) {
+      console.error('Failed to load insights:', error);
+      res.status(500).json({ message: "Failed to load insights" });
+    }
+  });
+
+  app.delete("/api/dika/insights/:id", requireAuth, async (req, res) => {
+    const insightId = parseInt(req.params.id);
+    try {
+      await db.delete(dikaInsights)
+        .where(and(eq(dikaInsights.id, insightId), eq(dikaInsights.userId, req.user!.id)));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Failed to delete insight:', error);
+      res.status(500).json({ message: "Failed to delete insight" });
+    }
+  });
+
+  app.get("/api/dika/action-feed", requireAuth, async (req, res) => {
+    try {
+      const feed = await db.select().from(dikaActionFeed)
+        .where(eq(dikaActionFeed.userId, req.user!.id))
+        .orderBy(desc(dikaActionFeed.createdAt))
+        .limit(30);
+      res.json({ feed });
+    } catch (error) {
+      console.error('Failed to load action feed:', error);
+      res.status(500).json({ message: "Failed to load action feed" });
+    }
+  });
+
   app.get("/api/reports/:token", async (req, res) => {
     try {
       const { token } = req.params;

@@ -61,6 +61,7 @@ import DeleteAccountPage from "@/pages/delete-account-page";
 import SubscriptionExpiredPage from "@/pages/subscription-expired-page";
 import WeeklyReportPage from "@/pages/weekly-report-page";
 import DikaPage from "@/pages/dika-page";
+import DikaWebPage from "@/pages/dika-web-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 import { SwipeNavigationProvider } from "@/hooks/use-swipe-navigation";
@@ -238,6 +239,10 @@ function Router() {
 
       <Route path="/dika">
         <ProtectedRoute component={DikaPage} allowWithoutGym={true} />
+      </Route>
+
+      <Route path="/dika-web">
+        <ProtectedRoute component={DikaWebPage} allowWithoutGym={true} />
       </Route>
 
       <Route path="/progress">
