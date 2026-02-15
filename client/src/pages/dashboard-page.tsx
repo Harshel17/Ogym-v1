@@ -2053,32 +2053,32 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
         </Card>
       </Collapsible>
 
-      {/* Calorie & Streak Ring Cards */}
-      {workoutSummary && (
-        <div className="grid grid-cols-2 gap-2.5">
-          <Link href="/progress/workouts">
-            <AnimatedStatCard
-              value={workoutSummary.streak}
-              label="Day Streak"
-              icon="flame"
-              color="orange"
-              delay={100}
-            />
-          </Link>
-          <Link href="/nutrition">
-            <CalorieProgressCard
-              current={calorieData?.summary?.calories || 0}
-              target={calorieData?.goal?.dailyCalorieTarget || 0}
-              currentProtein={calorieData?.summary?.protein || 0}
-              targetProtein={calorieData?.goal?.dailyProteinTarget || 0}
-              delay={200}
-            />
-          </Link>
-        </div>
-      )}
-
-      {/* Health & Activity Section */}
-      <HealthActivityDashboard />
+      {/* Calorie, Streak & Health */}
+      <div className="space-y-2">
+        {workoutSummary && (
+          <div className="grid grid-cols-2 gap-2.5">
+            <Link href="/progress/workouts">
+              <AnimatedStatCard
+                value={workoutSummary.streak}
+                label="Day Streak"
+                icon="flame"
+                color="orange"
+                delay={100}
+              />
+            </Link>
+            <Link href="/nutrition">
+              <CalorieProgressCard
+                current={calorieData?.summary?.calories || 0}
+                target={calorieData?.goal?.dailyCalorieTarget || 0}
+                currentProtein={calorieData?.summary?.protein || 0}
+                targetProtein={calorieData?.goal?.dailyProteinTarget || 0}
+                delay={200}
+              />
+            </Link>
+          </div>
+        )}
+        <HealthActivityDashboard />
+      </div>
 
       {/* Calendar */}
       <MemberCalendarWidget />
