@@ -63,7 +63,7 @@ import {
 } from 'recharts';
 import type { HealthData, FoodLog } from '@shared/schema';
 
-function AnimatedRing({ value, max, size = 72, strokeWidth = 6, color, glowColor, icon: Icon, label, displayValue, unit }: {
+function AnimatedRing({ value, max, size = 58, strokeWidth = 5, color, glowColor, icon: Icon, label, displayValue, unit }: {
   value: number;
   max: number;
   size?: number;
@@ -104,8 +104,8 @@ function AnimatedRing({ value, max, size = 72, strokeWidth = 6, color, glowColor
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <Icon className="w-4 h-4 mb-0.5" style={{ color }} />
-          <span className="text-sm font-bold tracking-tight">{displayValue}</span>
+          <Icon className="w-3 h-3 mb-0.5" style={{ color }} />
+          <span className="text-xs font-bold tracking-tight">{displayValue}</span>
         </div>
       </div>
       <div className="text-center">
@@ -580,7 +580,7 @@ export default function HealthPage() {
 
       <Card className="overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/20 shadow-lg" data-testid="section-daily-overview">
         <CardContent className="pt-5 pb-5">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-4">
             <AnimatedRing
               value={todayData?.steps || 0} max={10000}
               color="#3b82f6" glowColor="rgba(59,130,246,0.15)"
