@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward, Footprints } from "lucide-react";
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
@@ -92,6 +92,30 @@ function getMotivationalLine(streak: number, workoutsDone: boolean, caloriesLogg
   return "Rest well tonight";
 }
 
+function MiniRing({ value, max, size = 48, color, icon: Icon }: {
+  value: number; max: number; size?: number; color: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+}) {
+  const sw = 4;
+  const r = (size - sw) / 2;
+  const circ = 2 * Math.PI * r;
+  const pct = Math.min(value / max, 1);
+  const c = size / 2;
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={c} cy={c} r={r} fill="none" stroke="currentColor" strokeWidth={sw} className="text-muted/10" />
+        <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={sw}
+          strokeDasharray={circ} strokeDashoffset={circ - pct * circ} strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 1s ease' }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <Icon className="w-4 h-4" style={{ color }} />
+      </div>
+    </div>
+  );
+}
+
 function HealthActivityDashboard() {
   const { data: status, isLoading: statusLoading } = useHealthStatus();
   const { data: healthData, isLoading: dataLoading } = useHealthDataToday();
@@ -105,14 +129,6 @@ function HealthActivityDashboard() {
   const restingHR = hasData ? (healthData.restingHeartRate || 0) : 0;
   const avgHR = hasData ? (healthData.avgHeartRate || 0) : 0;
   const activeMinutes = hasData ? (healthData.activeMinutes || 0) : 0;
-
-  const stepsGoal = 10000;
-  const caloriesGoal = 500;
-  const sleepGoal = 480;
-
-  const stepsPercent = Math.min((steps / stepsGoal) * 100, 100);
-  const caloriesPercent = Math.min((caloriesBurned / caloriesGoal) * 100, 100);
-  const sleepPercent = sleepMinutes > 0 ? Math.min((sleepMinutes / sleepGoal) * 100, 100) : 0;
 
   const computeRecovery = () => {
     if (!hasData) return 0;
@@ -133,32 +149,25 @@ function HealthActivityDashboard() {
 
   const recovery = computeRecovery();
 
-  const getRecoveryColor = (score: number) => {
-    if (score >= 80) return 'text-green-500';
-    if (score >= 60) return 'text-yellow-500';
-    if (score >= 40) return 'text-orange-500';
-    return 'text-red-500';
+  const getRecoveryColor = (s: number) => {
+    if (s >= 80) return '#22c55e';
+    if (s >= 60) return '#3b82f6';
+    if (s >= 40) return '#f59e0b';
+    return '#ef4444';
   };
 
-  const getRecoveryLabel = (score: number) => {
-    if (score >= 80) return 'Excellent';
-    if (score >= 60) return 'Good';
-    if (score >= 40) return 'Fair';
+  const getRecoveryLabel = (s: number) => {
+    if (s >= 80) return 'Excellent';
+    if (s >= 60) return 'Good';
+    if (s >= 40) return 'Fair';
     return 'Low';
-  };
-
-  const getRecoveryBg = (score: number) => {
-    if (score >= 80) return 'from-green-500/15 to-emerald-500/15';
-    if (score >= 60) return 'from-yellow-500/15 to-amber-500/15';
-    if (score >= 40) return 'from-orange-500/15 to-amber-500/15';
-    return 'from-red-500/15 to-rose-500/15';
   };
 
   const formatSleep = (mins: number) => {
     if (mins <= 0) return '--';
     const h = Math.floor(mins / 60);
     const m = mins % 60;
-    return `${h}h ${m}m`;
+    return m > 0 ? `${h}h${m}m` : `${h}h`;
   };
 
   const formatNumber = (num: number) => {
@@ -166,13 +175,9 @@ function HealthActivityDashboard() {
     return num.toLocaleString();
   };
 
-  const ringStyle = (percent: number, color: string) => ({
-    background: `conic-gradient(${color} ${percent * 3.6}deg, rgba(128,128,128,0.15) 0deg)`,
-  });
-
   if (statusLoading) {
     return (
-      <Card className="card-ambient backdrop-blur-sm" data-testid="card-health-loading">
+      <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-health-loading">
         <CardContent className="flex items-center justify-center py-8">
           <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
         </CardContent>
@@ -182,99 +187,72 @@ function HealthActivityDashboard() {
 
   return (
     <Link href="/health">
-      <Card className="card-ambient backdrop-blur-sm cursor-pointer hover:bg-accent/50 transition-colors" data-testid="card-health-activity">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/10">
-                <Activity className="w-4 h-4 text-green-500" />
+      <Card className="overflow-hidden border-0 shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300" data-testid="card-health-activity">
+        <div className="bg-gradient-to-br from-card via-card to-muted/20">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/10">
+                  <Activity className="w-4 h-4 text-green-500" />
+                </div>
+                <CardTitle className="text-sm font-semibold">Health & Activity</CardTitle>
               </div>
-              <CardTitle className="text-sm font-semibold">Health & Activity</CardTitle>
+              {hasData && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ backgroundColor: `${getRecoveryColor(recovery)}15` }}>
+                  <Zap className="w-3 h-3" style={{ color: getRecoveryColor(recovery) }} />
+                  <span className="text-xs font-bold" style={{ color: getRecoveryColor(recovery) }}>{recovery}</span>
+                  <span className="text-[10px] text-muted-foreground">{getRecoveryLabel(recovery)}</span>
+                </div>
+              )}
             </div>
-            {hasData && (
-              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full bg-gradient-to-r ${getRecoveryBg(recovery)}`}>
-                <Zap className="w-3 h-3" />
-                <span className={`text-xs font-bold ${getRecoveryColor(recovery)}`}>{recovery}</span>
-                <span className="text-[10px] text-muted-foreground">{getRecoveryLabel(recovery)}</span>
+          </CardHeader>
+          <CardContent className="pt-1 pb-4">
+            {!connected ? (
+              <div className="grid grid-cols-4 gap-3 py-1">
+                {[
+                  { icon: Footprints, color: '#3b82f6', bg: 'bg-blue-500/8', label: 'Steps' },
+                  { icon: Flame, color: '#f97316', bg: 'bg-orange-500/8', label: 'Calories' },
+                  { icon: Moon, color: '#a855f7', bg: 'bg-purple-500/8', label: 'Sleep' },
+                  { icon: Heart, color: '#ef4444', bg: 'bg-red-500/8', label: 'Heart' },
+                ].map((item) => (
+                  <div key={item.label} className="flex flex-col items-center gap-1.5">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${item.bg}`}>
+                      <item.icon className="w-5 h-5" style={{ color: item.color }} />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-medium">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            ) : dataLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                <div className="flex flex-col items-center gap-1" data-testid="health-steps">
+                  <MiniRing value={steps} max={10000} color="#3b82f6" icon={Footprints} />
+                  <span className="text-[13px] font-bold tabular-nums">{formatNumber(steps)}</span>
+                  <span className="text-[10px] text-muted-foreground">Steps</span>
+                </div>
+                <div className="flex flex-col items-center gap-1" data-testid="health-calories">
+                  <MiniRing value={caloriesBurned} max={500} color="#f97316" icon={Flame} />
+                  <span className="text-[13px] font-bold tabular-nums">{caloriesBurned}</span>
+                  <span className="text-[10px] text-muted-foreground">Burned</span>
+                </div>
+                <div className="flex flex-col items-center gap-1" data-testid="health-sleep">
+                  <MiniRing value={sleepMinutes} max={480} color="#a855f7" icon={Moon} />
+                  <span className="text-[13px] font-bold tabular-nums">{formatSleep(sleepMinutes)}</span>
+                  <span className="text-[10px] text-muted-foreground">Sleep</span>
+                </div>
+                <div className="flex flex-col items-center gap-1" data-testid="health-heart">
+                  <MiniRing value={avgHR} max={200} color="#ef4444" icon={Heart} />
+                  <span className="text-[13px] font-bold tabular-nums">{avgHR > 0 ? `${avgHR}` : '--'}</span>
+                  <span className="text-[10px] text-muted-foreground">Avg HR</span>
+                </div>
               </div>
             )}
-          </div>
-        </CardHeader>
-        <CardContent className="pt-1 pb-4">
-          {!connected ? (
-            <div className="flex items-center gap-3 py-2">
-              <div className="grid grid-cols-4 gap-3 flex-1">
-                <div className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-blue-500/10">
-                    <Activity className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground font-medium">Steps</span>
-                </div>
-                <div className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-orange-500/10">
-                    <Flame className="w-5 h-5 text-orange-400" />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground font-medium">Calories</span>
-                </div>
-                <div className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-purple-500/10">
-                    <Moon className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground font-medium">Sleep</span>
-                </div>
-                <div className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-red-500/10">
-                    <Heart className="w-5 h-5 text-red-400" />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground font-medium">Heart</span>
-                </div>
-              </div>
-            </div>
-          ) : dataLoading ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-4 gap-3">
-              <div className="flex flex-col items-center gap-1.5" data-testid="health-steps">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center relative" style={ringStyle(stepsPercent, '#3b82f6')}>
-                  <div className="w-9 h-9 rounded-full bg-background flex items-center justify-center">
-                    <Activity className="w-4 h-4 text-blue-500" />
-                  </div>
-                </div>
-                <span className="text-sm font-bold tabular-nums">{formatNumber(steps)}</span>
-                <span className="text-[10px] text-muted-foreground font-medium">Steps</span>
-              </div>
-              <div className="flex flex-col items-center gap-1.5" data-testid="health-calories">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center relative" style={ringStyle(caloriesPercent, '#f97316')}>
-                  <div className="w-9 h-9 rounded-full bg-background flex items-center justify-center">
-                    <Flame className="w-4 h-4 text-orange-500" />
-                  </div>
-                </div>
-                <span className="text-sm font-bold tabular-nums">{formatNumber(caloriesBurned)}</span>
-                <span className="text-[10px] text-muted-foreground font-medium">Burned</span>
-              </div>
-              <div className="flex flex-col items-center gap-1.5" data-testid="health-sleep">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center relative" style={ringStyle(sleepPercent, '#a855f7')}>
-                  <div className="w-9 h-9 rounded-full bg-background flex items-center justify-center">
-                    <Moon className="w-4 h-4 text-purple-500" />
-                  </div>
-                </div>
-                <span className="text-sm font-bold tabular-nums">{formatSleep(sleepMinutes)}</span>
-                <span className="text-[10px] text-muted-foreground font-medium">Sleep</span>
-              </div>
-              <div className="flex flex-col items-center gap-1.5" data-testid="health-heart">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center relative" style={ringStyle(avgHR > 0 ? Math.min((avgHR / 180) * 100, 100) : 0, '#ef4444')}>
-                  <div className="w-9 h-9 rounded-full bg-background flex items-center justify-center">
-                    <Heart className="w-4 h-4 text-red-500" />
-                  </div>
-                </div>
-                <span className="text-sm font-bold tabular-nums">{avgHR > 0 ? avgHR : '--'}</span>
-                <span className="text-[10px] text-muted-foreground font-medium">Avg HR</span>
-              </div>
-            </div>
-          )}
-        </CardContent>
+          </CardContent>
+        </div>
       </Card>
     </Link>
   );
