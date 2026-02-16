@@ -5000,7 +5000,7 @@ Return ONLY JSON.`
             const nutritionSummary = await getTodayNutritionSummary(user.id, localDate);
             const answer = formatMealLogResponse(parsedMeal, nutritionSummary);
             return res.json({
-              answer: `📸 analyzed your food photo!\n\n${answer}`,
+              answer: `I analyzed your food photo!\n\n${answer}`,
               followUpChips: ['How many calories left today?', 'Log another meal', 'My nutrition summary'],
             });
           }
@@ -5320,7 +5320,7 @@ Return ONLY JSON.`
         .where(and(eq(dikaChats.id, chatId), eq(dikaChats.userId, req.user!.id)));
       if (!chat) return res.status(404).json({ message: "Chat not found" });
 
-      const userContent = input.data.imageBase64 ? `📸 [Photo] ${input.data.message}` : input.data.message;
+      const userContent = input.data.imageBase64 ? `[Photo attached] ${input.data.message}` : input.data.message;
       const [userMsg] = await db.insert(dikaChatMessages)
         .values({ chatId, role: 'user', content: userContent })
         .returning();
@@ -5351,7 +5351,7 @@ Return ONLY JSON.`
               const nutritionSummary = await getTodayNutritionSummary(user.id, localDate);
               const answer = formatMealLogResponse(parsedMeal, nutritionSummary);
               response = {
-                answer: `📸 analyzed your food photo!\n\n${answer}`,
+                answer: `I analyzed your food photo!\n\n${answer}`,
                 followUpChips: ['How many calories left today?', 'Log another meal', 'My nutrition summary'],
               };
             } else {
