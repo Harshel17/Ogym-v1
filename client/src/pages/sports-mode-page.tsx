@@ -665,7 +665,7 @@ export default function SportsModePage() {
   if (currentStep === "select-sport") {
     return (
       <PageShell>
-        <BackButton onClick={() => navigate("/dashboard")} label="Dashboard" testId="back-to-dashboard-from-sport" />
+        <BackButton onClick={() => navigate("/")} label="Dashboard" testId="back-to-dashboard-from-sport" />
 
         <div className="text-center mb-8" data-testid="sports-select-sport">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 mb-4 shadow-lg shadow-orange-500/20">
@@ -1149,7 +1149,7 @@ export default function SportsModePage() {
 
   return (
     <PageShell sport={profile?.sport}>
-      <BackButton onClick={() => navigate("/dashboard")} label="Dashboard" testId="back-to-dashboard" />
+      <BackButton onClick={() => navigate("/")} label="Dashboard" testId="back-to-dashboard" />
 
       <div className="mb-6" data-testid="sports-dashboard">
         <div className="flex items-center gap-3 mb-4">
