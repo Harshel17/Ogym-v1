@@ -10625,6 +10625,64 @@ Only return valid JSON.`;
     }
   });
 
+  // === MATCH LOGS ===
+
+  app.post("/api/match-logs", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        sport: z.string(),
+        sportProfileId: z.number(),
+        matchDate: z.string(),
+        matchTiming: z.enum(["today", "tomorrow", "yesterday"]),
+        status: z.enum(["going", "done", "scheduled", "recovery"]),
+        duration: z.number().optional(),
+        intensity: z.enum(["casual", "competitive"]).optional(),
+        caloriesBurned: z.number().optional(),
+        workoutAction: z.enum(["rest", "warmup", "recovery", "normal"]),
+        notes: z.string().optional(),
+      });
+      const input = schema.parse(req.body);
+      const log = await storage.createMatchLog({
+        ...input,
+        userId: req.user!.id,
+      });
+      res.status(201).json(log);
+    } catch (err) {
+      console.error("Create match log error:", err);
+      res.status(500).json({ message: "Failed to log match" });
+    }
+  });
+
+  app.get("/api/match-logs", requireAuth, async (req, res) => {
+    try {
+      const logs = await storage.getMatchLogs(req.user!.id);
+      res.json(logs);
+    } catch (err) {
+      console.error("Get match logs error:", err);
+      res.status(500).json({ message: "Failed to get match logs" });
+    }
+  });
+
+  app.get("/api/match-logs/date/:date", requireAuth, async (req, res) => {
+    try {
+      const log = await storage.getMatchLogByDate(req.user!.id, req.params.date);
+      res.json(log || null);
+    } catch (err) {
+      console.error("Get match log by date error:", err);
+      res.status(500).json({ message: "Failed to get match log" });
+    }
+  });
+
+  app.post("/api/match-logs/:id/cancel", requireAuth, async (req, res) => {
+    try {
+      await storage.cancelMatchLog(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Cancel match log error:", err);
+      res.status(500).json({ message: "Failed to cancel match log" });
+    }
+  });
+
   await seedDemoData();
   return httpServer;
 }

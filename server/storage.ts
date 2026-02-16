@@ -65,9 +65,10 @@ import {
   type UserBlock, type InsertUserBlock,
   type WaterLog, type InsertWaterLog, insertWaterLogSchema,
   dikaConversations, fitnessGoals,
-  sportProfiles, sportPrograms,
+  sportProfiles, sportPrograms, matchLogs,
   type SportProfile, type InsertSportProfile,
   type SportProgram, type InsertSportProgram,
+  type MatchLog, type InsertMatchLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -812,6 +813,12 @@ export interface IStorage {
   createSportProgram(data: InsertSportProgram): Promise<SportProgram>;
   updateSportProgram(id: number, data: Partial<InsertSportProgram>): Promise<SportProgram>;
   deactivateSportProgram(id: number): Promise<void>;
+  
+  // Match Logs
+  createMatchLog(data: InsertMatchLog): Promise<MatchLog>;
+  getMatchLogs(userId: number): Promise<MatchLog[]>;
+  getMatchLogByDate(userId: number, matchDate: string): Promise<MatchLog | undefined>;
+  cancelMatchLog(id: number): Promise<void>;
 }
 
 // Admin Types
@@ -9119,6 +9126,33 @@ export class DatabaseStorage implements IStorage {
 
   async deactivateSportProgram(id: number): Promise<void> {
     await db.update(sportPrograms).set({ isActive: false }).where(eq(sportPrograms.id, id));
+  }
+
+  async createMatchLog(data: InsertMatchLog): Promise<MatchLog> {
+    const [log] = await db.insert(matchLogs).values(data).returning();
+    return log;
+  }
+
+  async getMatchLogs(userId: number): Promise<MatchLog[]> {
+    return db.select().from(matchLogs)
+      .where(and(eq(matchLogs.userId, userId), eq(matchLogs.cancelled, false)))
+      .orderBy(desc(matchLogs.createdAt));
+  }
+
+  async getMatchLogByDate(userId: number, matchDate: string): Promise<MatchLog | undefined> {
+    const [log] = await db.select().from(matchLogs)
+      .where(and(
+        eq(matchLogs.userId, userId),
+        eq(matchLogs.matchDate, matchDate),
+        eq(matchLogs.cancelled, false)
+      ))
+      .orderBy(desc(matchLogs.createdAt))
+      .limit(1);
+    return log;
+  }
+
+  async cancelMatchLog(id: number): Promise<void> {
+    await db.update(matchLogs).set({ cancelled: true }).where(eq(matchLogs.id, id));
   }
 }
 

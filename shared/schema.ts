@@ -1136,6 +1136,32 @@ export type InsertSportProfile = z.infer<typeof insertSportProfileSchema>;
 export type SportProgram = typeof sportPrograms.$inferSelect;
 export type InsertSportProgram = z.infer<typeof insertSportProgramSchema>;
 
+// === MATCH LOGS ===
+
+export const matchLogs = pgTable("match_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  sportProfileId: integer("sport_profile_id").references(() => sportProfiles.id).notNull(),
+  sport: text("sport").notNull(),
+  matchDate: text("match_date").notNull(),
+  matchTiming: text("match_timing", { enum: ["today", "tomorrow", "yesterday"] }).notNull(),
+  status: text("status", { enum: ["going", "done", "scheduled", "recovery"] }).notNull(),
+  duration: integer("duration"),
+  intensity: text("intensity", { enum: ["casual", "competitive"] }),
+  caloriesBurned: integer("calories_burned"),
+  workoutAction: text("workout_action", { enum: ["rest", "warmup", "recovery", "normal"] }).notNull(),
+  notes: text("notes"),
+  cancelled: boolean("cancelled").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("match_logs_user_idx").on(table.userId),
+  dateIdx: index("match_logs_date_idx").on(table.matchDate),
+}));
+
+export const insertMatchLogSchema = createInsertSchema(matchLogs).omit({ id: true, createdAt: true });
+export type MatchLog = typeof matchLogs.$inferSelect;
+export type InsertMatchLog = z.infer<typeof insertMatchLogSchema>;
+
 // === FITNESS GOALS (Dika AI) ===
 
 export const fitnessGoals = pgTable("fitness_goals", {

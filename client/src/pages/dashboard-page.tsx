@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward, Footprints, ExternalLink, X } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward, Footprints, ExternalLink, X, Trophy } from "lucide-react";
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
@@ -1131,7 +1131,16 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const [exerciseHelpId, setExerciseHelpId] = useState<number | null>(null);
   const [exerciseHelpData, setExerciseHelpData] = useState<Record<number, any>>({});
   const [exerciseHelpLoading, setExerciseHelpLoading] = useState<number | null>(null);
-  
+
+  // Match logging state
+  const [showMatchDialog, setShowMatchDialog] = useState(false);
+  const [matchStep, setMatchStep] = useState<"timing" | "today-status" | "action" | "details" | "done">("timing");
+  const [matchTiming, setMatchTiming] = useState<"today" | "tomorrow" | "yesterday" | "">("");
+  const [matchStatus, setMatchStatus] = useState<"going" | "done" | "scheduled" | "recovery" | "">("");
+  const [matchAction, setMatchAction] = useState<"rest" | "warmup" | "recovery" | "normal" | "">("");
+  const [matchDuration, setMatchDuration] = useState<number>(60);
+  const [matchIntensity, setMatchIntensity] = useState<"casual" | "competitive">("casual");
+
   // Onboarding state (user-specific key to handle shared browsers)
   const onboardingKey = isPersonalMode ? `ogym_personal_onboarding_seen_${user?.id}` : `ogym_member_onboarding_seen_${user?.id}`;
   const [showOnboarding, setShowOnboarding] = useState(() => {
@@ -1152,7 +1161,52 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   });
   const { data: todayWorkout, isLoading: workoutLoading } = useTodayWorkout();
   const { data: profile } = useMemberProfile();
-  
+
+  const { data: sportProfile } = useQuery<any>({
+    queryKey: ["/api/sport/profile"],
+  });
+
+  const { data: todayMatchLog } = useQuery<any>({
+    queryKey: ["/api/match-logs/date", format(new Date(), 'yyyy-MM-dd')],
+    queryFn: async () => {
+      const res = await fetch(`/api/match-logs/date/${format(new Date(), 'yyyy-MM-dd')}`);
+      return res.json();
+    },
+  });
+
+  const logMatchMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/match-logs", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      queryClient.invalidateQueries({ queryKey: ["/api/match-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/match-logs/date", today] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/workout/summary'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/me/calendar/enhanced'] });
+      setMatchStep("done");
+    },
+    onError: () => {
+      toast({ title: "Failed to log match", variant: "destructive" });
+    },
+  });
+
+  const cancelMatchMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/match-logs/${id}/cancel`);
+      return res.json();
+    },
+    onSuccess: () => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      queryClient.invalidateQueries({ queryKey: ["/api/match-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/match-logs/date", today] });
+      queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
+      toast({ title: "Match day cancelled", description: "Your regular workout is restored." });
+    },
+  });
+
   const todayDateStr = format(new Date(), 'yyyy-MM-dd');
   const { data: calorieData } = useQuery<{ 
     summary: { calories: number; protein: number }; 
@@ -1207,7 +1261,65 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   };
   
   const todayDate = format(new Date(), 'yyyy-MM-dd');
-  
+
+  const getMatchDate = () => {
+    return format(new Date(), 'yyyy-MM-dd');
+  };
+
+  const CALORIE_ESTIMATES: Record<string, Record<string, number>> = {
+    "Football (Soccer)": { casual: 400, competitive: 700 },
+    "Basketball": { casual: 350, competitive: 600 },
+    "Tennis": { casual: 300, competitive: 550 },
+    "Swimming": { casual: 350, competitive: 650 },
+    "Boxing": { casual: 400, competitive: 750 },
+    "MMA": { casual: 450, competitive: 800 },
+    "Cricket": { casual: 200, competitive: 350 },
+    "Volleyball": { casual: 250, competitive: 450 },
+  };
+
+  const handleSubmitMatch = () => {
+    if (!sportProfile || !matchTiming || !matchAction) return;
+    const sport = sportProfile.sport;
+    const est = CALORIE_ESTIMATES[sport] || { casual: 300, competitive: 500 };
+    const durationMultiplier = matchDuration / 60;
+    const estimatedCalories = Math.round((matchIntensity === "competitive" ? est.competitive : est.casual) * durationMultiplier);
+
+    const statusMap: Record<string, string> = {
+      "today-going": "going",
+      "today-done": "done",
+      "tomorrow-": "scheduled",
+      "yesterday-": "done",
+    };
+    const statusKey = matchTiming === "today" ? `today-${matchStatus}` : `${matchTiming}-`;
+    const status = statusMap[statusKey] || "done";
+
+    logMatchMutation.mutate({
+      sport,
+      sportProfileId: sportProfile.id,
+      matchDate: getMatchDate(),
+      matchTiming,
+      status,
+      duration: matchDuration,
+      intensity: matchIntensity,
+      caloriesBurned: estimatedCalories,
+      workoutAction: matchAction,
+    });
+  };
+
+  const openMatchDialog = () => {
+    if (!sportProfile) {
+      navigate("/sports-mode");
+      return;
+    }
+    setMatchStep("timing");
+    setMatchTiming("");
+    setMatchStatus("");
+    setMatchAction("");
+    setMatchDuration(60);
+    setMatchIntensity("casual");
+    setShowMatchDialog(true);
+  };
+
   const markDayDoneMutation = useMutation({
     mutationFn: async () => {
       return apiRequest("POST", `/api/member/workout/day/${todayDate}/mark-done`);
@@ -2188,6 +2300,52 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
           </Link>
         </div>
       )}
+      {/* Log a Match Button */}
+      <Button
+        variant="outline"
+        className="w-full border-dashed border-primary/30 text-primary"
+        onClick={openMatchDialog}
+        data-testid="button-log-match"
+      >
+        <Trophy className="w-4 h-4 mr-2" />
+        {todayMatchLog?.id ? `${sportProfile?.sport || 'Match'} Day` : 'Log a Match'}
+      </Button>
+
+      {todayMatchLog?.id && (
+        <Card className="bg-card/70 border-primary/20">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Trophy className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{todayMatchLog.sport} - {todayMatchLog.workoutAction === 'rest' ? 'Rest Day' : todayMatchLog.workoutAction === 'warmup' ? 'Warm-up Day' : todayMatchLog.workoutAction === 'recovery' ? 'Recovery Day' : 'Match Day'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {todayMatchLog.duration ? `${todayMatchLog.duration} min` : ''} {todayMatchLog.intensity ? `- ${todayMatchLog.intensity}` : ''} {todayMatchLog.caloriesBurned ? `- ~${todayMatchLog.caloriesBurned} cal` : ''}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground text-xs"
+                onClick={() => cancelMatchMutation.mutate(todayMatchLog.id)}
+                disabled={cancelMatchMutation.isPending}
+                data-testid="button-cancel-match"
+              >
+                {cancelMatchMutation.isPending ? (
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                ) : (
+                  <X className="w-3 h-3 mr-1" />
+                )}
+                {cancelMatchMutation.isPending ? "Cancelling..." : "Cancel"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="mt-1">
         <HealthActivityDashboard />
       </div>
@@ -2502,6 +2660,323 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Log a Match Dialog */}
+      <Dialog open={showMatchDialog} onOpenChange={(open) => { if (!open) { setShowMatchDialog(false); setMatchStep("timing"); } }}>
+        <DialogContent className="sm:max-w-md">
+          {matchStep === "timing" && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-primary" />
+                  Log a Match
+                </DialogTitle>
+                <DialogDescription>
+                  {sportProfile?.sport} - {sportProfile?.role}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 py-2">
+                <Button
+                  variant="outline"
+                  onClick={() => { setMatchTiming("tomorrow"); setMatchStep("action"); }}
+                  className="w-full justify-start h-auto p-3"
+                  data-testid="match-timing-tomorrow"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-500/10">
+                      <Calendar className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Tomorrow is Match</p>
+                      <p className="text-xs text-muted-foreground font-normal">Prepare for tomorrow's game</p>
+                    </div>
+                  </div>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { setMatchTiming("today"); setMatchStep("today-status"); }}
+                  className="w-full justify-start h-auto p-3"
+                  data-testid="match-timing-today"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-green-500/10">
+                      <Zap className="w-4 h-4 text-green-500" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Match Day</p>
+                      <p className="text-xs text-muted-foreground font-normal">Playing a match today</p>
+                    </div>
+                  </div>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { setMatchTiming("yesterday"); setMatchStatus("done"); setMatchStep("action"); }}
+                  className="w-full justify-start h-auto p-3"
+                  data-testid="match-timing-yesterday"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-amber-500/10">
+                      <Clock className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Yesterday was Match</p>
+                      <p className="text-xs text-muted-foreground font-normal">Log yesterday's game</p>
+                    </div>
+                  </div>
+                </Button>
+              </div>
+            </>
+          )}
+
+          {matchStep === "today-status" && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-green-500" />
+                  Match Day
+                </DialogTitle>
+                <DialogDescription>
+                  Are you heading to the match or already done?
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 py-2">
+                <Button
+                  variant="outline"
+                  onClick={() => { setMatchStatus("going"); setMatchAction("normal"); setMatchStep("details"); }}
+                  className="w-full justify-start h-auto p-3"
+                  data-testid="match-status-going"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-green-500/10">
+                      <ArrowRight className="w-4 h-4 text-green-500" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Going for the Match</p>
+                      <p className="text-xs text-muted-foreground font-normal">Today's workout replaced with match activity</p>
+                    </div>
+                  </div>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { setMatchStatus("done"); setMatchStep("action"); }}
+                  className="w-full justify-start h-auto p-3"
+                  data-testid="match-status-done"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-500/10">
+                      <Check className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Done with the Match</p>
+                      <p className="text-xs text-muted-foreground font-normal">Log your match and get recovery suggestions</p>
+                    </div>
+                  </div>
+                </Button>
+              </div>
+              <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => setMatchStep("timing")} data-testid="match-back-timing">
+                Back
+              </Button>
+            </>
+          )}
+
+          {matchStep === "action" && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {matchTiming === "tomorrow" && <Calendar className="w-5 h-5 text-blue-500" />}
+                  {matchTiming === "today" && <Activity className="w-5 h-5 text-green-500" />}
+                  {matchTiming === "yesterday" && <Clock className="w-5 h-5 text-amber-500" />}
+                  {matchTiming === "tomorrow" ? "Prepare for Tomorrow" : matchTiming === "yesterday" ? "Post-Match Recovery" : "After the Match"}
+                </DialogTitle>
+                <DialogDescription>
+                  {matchTiming === "tomorrow" 
+                    ? "How would you like to prepare for your match?" 
+                    : "What would you like to do for today's workout?"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 py-2">
+                {matchTiming === "tomorrow" && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => { setMatchAction("rest"); setMatchStep("details"); }}
+                      className="w-full justify-start h-auto p-3"
+                      data-testid="match-action-rest"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-indigo-500/10">
+                          <BedDouble className="w-4 h-4 text-indigo-500" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-medium">Rest Today</p>
+                          <p className="text-xs text-muted-foreground font-normal">Save energy for tomorrow's match</p>
+                        </div>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => { setMatchAction("warmup"); setMatchStep("details"); }}
+                      className="w-full justify-start h-auto p-3"
+                      data-testid="match-action-warmup"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-orange-500/10">
+                          <Flame className="w-4 h-4 text-orange-500" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-medium">Light Warm-up</p>
+                          <p className="text-xs text-muted-foreground font-normal">Dynamic stretching and mobility work</p>
+                        </div>
+                      </div>
+                    </Button>
+                  </>
+                )}
+                {(matchTiming === "yesterday" || (matchTiming === "today" && matchStatus === "done")) && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => { setMatchAction("recovery"); setMatchStep("details"); }}
+                      className="w-full justify-start h-auto p-3"
+                      data-testid="match-action-recovery"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-purple-500/10">
+                          <Heart className="w-4 h-4 text-purple-500" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-medium">Recovery Workout</p>
+                          <p className="text-xs text-muted-foreground font-normal">Light stretching, foam rolling, easy cardio</p>
+                        </div>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => { setMatchAction("rest"); setMatchStep("details"); }}
+                      className="w-full justify-start h-auto p-3"
+                      data-testid="match-action-rest-after"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-indigo-500/10">
+                          <BedDouble className="w-4 h-4 text-indigo-500" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-medium">Full Rest</p>
+                          <p className="text-xs text-muted-foreground font-normal">Take a complete rest day to recover</p>
+                        </div>
+                      </div>
+                    </Button>
+                  </>
+                )}
+              </div>
+              <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => setMatchStep(matchTiming === "today" ? "today-status" : "timing")} data-testid="match-back-action">
+                Back
+              </Button>
+            </>
+          )}
+
+          {matchStep === "details" && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-primary" />
+                  Match Details
+                </DialogTitle>
+                <DialogDescription>
+                  {sportProfile?.sport} - {matchTiming === "tomorrow" ? "Tomorrow" : matchTiming === "yesterday" ? "Yesterday" : "Today"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                {(matchTiming !== "tomorrow" || matchAction === "warmup") && (
+                  <>
+                    <div>
+                      <Label className="text-sm font-medium mb-2 block">Duration (minutes)</Label>
+                      <div className="flex items-center gap-3">
+                        <Button variant="outline" size="sm" onClick={() => setMatchDuration(Math.max(15, matchDuration - 15))} data-testid="match-duration-minus">
+                          <Minus className="w-3 h-3" />
+                        </Button>
+                        <span className="text-lg font-bold w-16 text-center">{matchDuration}</span>
+                        <Button variant="outline" size="sm" onClick={() => setMatchDuration(Math.min(300, matchDuration + 15))} data-testid="match-duration-plus">
+                          <Plus className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium mb-2 block">Intensity</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => setMatchIntensity("casual")}
+                          className={`p-3 rounded-lg border text-center transition-colors ${matchIntensity === "casual" ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/50'}`}
+                          data-testid="match-intensity-casual"
+                        >
+                          <p className="text-sm font-medium">Casual</p>
+                          <p className="text-xs text-muted-foreground">Friendly game</p>
+                        </button>
+                        <button
+                          onClick={() => setMatchIntensity("competitive")}
+                          className={`p-3 rounded-lg border text-center transition-colors ${matchIntensity === "competitive" ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/50'}`}
+                          data-testid="match-intensity-competitive"
+                        >
+                          <p className="text-sm font-medium">Competitive</p>
+                          <p className="text-xs text-muted-foreground">Serious match</p>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {matchAction && (
+                  <div className="rounded-lg bg-muted/50 p-3">
+                    <p className="text-xs text-muted-foreground mb-1">Today's plan</p>
+                    <p className="text-sm font-medium">
+                      {matchAction === "rest" && "Full Rest Day - No workout, save your energy"}
+                      {matchAction === "warmup" && "Light Warm-up - Dynamic stretching and mobility"}
+                      {matchAction === "recovery" && "Recovery Session - Foam rolling, stretching, light cardio"}
+                      {matchAction === "normal" && `${sportProfile?.sport} Match - Counts as today's workout`}
+                    </p>
+                    {matchTiming !== "tomorrow" && (
+                      <p className="text-xs text-primary mt-1">
+                        ~{Math.round(((CALORIE_ESTIMATES[sportProfile?.sport || ""] || { casual: 300, competitive: 500 })[matchIntensity] || 300) * (matchDuration / 60))} cal estimated
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="ghost" onClick={() => setMatchStep(matchTiming === "today" && matchStatus === "going" ? "today-status" : "action")} data-testid="match-back-details">
+                  Back
+                </Button>
+                <Button onClick={handleSubmitMatch} disabled={logMatchMutation.isPending} data-testid="match-confirm">
+                  {logMatchMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Logging...
+                    </>
+                  ) : "Confirm"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {matchStep === "done" && (
+            <>
+              <div className="text-center py-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500/10 mb-4">
+                  <Check className="w-8 h-8 text-green-500" />
+                </div>
+                <h3 className="text-lg font-bold mb-1">Match Logged!</h3>
+                <p className="text-sm text-muted-foreground">
+                  {matchAction === "rest" && "Enjoy your rest day. Your regular workout cycle is unchanged."}
+                  {matchAction === "warmup" && "Do some light stretching and mobility work. Good luck tomorrow!"}
+                  {matchAction === "recovery" && "Take it easy with some foam rolling and light stretching."}
+                  {matchAction === "normal" && "Your match counts as today's activity. Great game!"}
+                </p>
+              </div>
+              <Button className="w-full" onClick={() => setShowMatchDialog(false)} data-testid="match-done-close">
+                Done
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

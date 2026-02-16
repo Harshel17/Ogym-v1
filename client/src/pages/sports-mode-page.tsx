@@ -838,8 +838,8 @@ export default function SportsModePage() {
           <div className={`inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${c.gradient} mb-3 shadow-lg`}>
             <SportIcon sport={activeSport} className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-lg font-bold text-white">Choose a Skill to Improve</h1>
-          <p className="text-sm text-zinc-500 mt-1">Your workout cycle will be modified to target this skill</p>
+          <h1 className="text-lg font-bold text-white">What would you like to do?</h1>
+          <p className="text-sm text-zinc-500 mt-1">Pick a skill to train or just track your matches</p>
           <div className="flex items-center justify-center gap-2 mt-3">
             <span className={`text-xs px-2.5 py-1 rounded-full ${c.lightBg} ${c.text} font-medium`}>{activeSport}</span>
             <span className="text-xs px-2.5 py-1 rounded-full bg-white/10 text-zinc-400">{activeRole}</span>
@@ -853,6 +853,31 @@ export default function SportsModePage() {
 
         {!selectedCategory ? (
           <div className="space-y-2.5">
+            <button
+              onClick={() => {
+                setStep("dashboard");
+              }}
+              className={`w-full flex items-center justify-between p-4 rounded-2xl border ${c.accent} ${c.lightBg} transition-all group`}
+              data-testid="category-just-track"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${c.gradient} flex items-center justify-center shadow-md`}>
+                  <Trophy className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <span className={`font-medium ${c.text}`}>Just Track</span>
+                  <p className="text-xs text-zinc-500">Log matches without training programs</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-zinc-600" />
+            </button>
+
+            <div className="flex items-center gap-3 my-3">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-[10px] text-zinc-600 uppercase tracking-wider">or improve a skill</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+
             {Object.keys(sportData?.skills || {}).map((category, idx) => (
               <button
                 key={category}
