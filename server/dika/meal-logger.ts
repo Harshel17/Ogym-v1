@@ -324,6 +324,99 @@ export async function getTodayNutritionSummary(userId: number, localDate?: strin
   };
 }
 
+export async function parseMealFromPhoto(imageBase64: string): Promise<ParsedMeal | null> {
+  try {
+    const hour = new Date().getHours();
+    let mealType: ParsedMeal["mealType"] = "snack";
+    if (hour >= 5 && hour < 11) mealType = "breakfast";
+    else if (hour >= 11 && hour < 15) mealType = "lunch";
+    else if (hour >= 15 && hour < 18) mealType = "snack";
+    else mealType = "dinner";
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You are a professional nutritionist analyzing a food photo. Identify every food item and provide accurate USDA-based nutrition data.
+
+RULES:
+1. Identify EVERY distinct food item separately
+2. Estimate portion size in grams using plate size (~25cm), utensils, food-to-plate ratio
+3. Use USDA FoodData Central per-100g values × estimated weight
+4. Account for cooking method (grilled, fried, steamed, raw, baked)
+5. Recognize international cuisines (Indian, Middle Eastern, Asian, Mexican, etc.)
+6. Be specific with food names including cooking method
+
+Return ONLY JSON:
+{
+  "mealType": "${mealType}",
+  "items": [
+    {
+      "foodName": "Specific food name (cooking method)",
+      "calories": 250,
+      "protein": 30,
+      "carbs": 5,
+      "fat": 12,
+      "servingSize": "1 piece (150g)",
+      "servingQuantity": 1
+    }
+  ]
+}`
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Analyze this food photo and provide nutritional breakdown for each item." },
+            {
+              type: "image_url",
+              image_url: {
+                url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
+                detail: "high"
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 800,
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+    });
+
+    const content = response.choices[0]?.message?.content?.trim();
+    if (!content) return null;
+
+    const parsed = JSON.parse(content);
+    if (!parsed.items || !Array.isArray(parsed.items) || parsed.items.length === 0) return null;
+
+    const validMealTypes = ["breakfast", "lunch", "dinner", "snack", "extra", "protein"];
+    const finalMealType = validMealTypes.includes(parsed.mealType) ? parsed.mealType : mealType;
+
+    let totalCalories = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
+    const items: ParsedMealItem[] = parsed.items.map((item: any) => {
+      const calories = Math.round(Number(item.calories) || 0);
+      const protein = Math.round(Number(item.protein) || 0);
+      const carbs = Math.round(Number(item.carbs) || 0);
+      const fat = Math.round(Number(item.fat) || 0);
+      totalCalories += calories;
+      totalProtein += protein;
+      totalCarbs += carbs;
+      totalFat += fat;
+      return {
+        foodName: String(item.foodName || 'Unknown food'),
+        calories, protein, carbs, fat,
+        servingSize: String(item.servingSize || '1 serving'),
+        servingQuantity: Number(item.servingQuantity) || 1,
+      };
+    });
+
+    return { mealType: finalMealType as ParsedMeal["mealType"], items, totalCalories, totalProtein, totalCarbs, totalFat };
+  } catch (error) {
+    console.error('Failed to parse meal from photo:', error);
+    return null;
+  }
+}
+
 export function formatMealLogResponse(meal: ParsedMeal, nutritionSummary: {
   totalCalories: number;
   totalProtein: number;

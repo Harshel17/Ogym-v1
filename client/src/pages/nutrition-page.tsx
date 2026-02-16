@@ -9,7 +9,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } fro
 import { 
   Flame, Apple, Beef, Wheat, Droplet, Plus, Search, Loader2, 
   ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X, TrendingUp, Calendar, BarChart3, Watch,
-  Droplets, Clock, Sparkles, Undo2, Zap, CheckCircle2, AlertTriangle
+  Droplets, Clock, Sparkles, Undo2, Zap, CheckCircle2, AlertTriangle, Camera, ImageIcon, Check
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -151,6 +151,17 @@ export default function NutritionPage() {
   } | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const [selectedSizeMultiplier, setSelectedSizeMultiplier] = useState<number>(1);
+
+  const [isPhotoAnalyzing, setIsPhotoAnalyzing] = useState(false);
+  const [photoResults, setPhotoResults] = useState<{
+    items: Array<{ name: string; estimatedGrams: number; calories: number; protein: number; carbs: number; fat: number; servingSize: string; confidence: string; selected: boolean }>;
+    mealDescription: string;
+    overallConfidence: string;
+  } | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+  const [photoMealType, setPhotoMealType] = useState<string>("snack");
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -297,6 +308,83 @@ export default function NutritionPage() {
     setSelectedStyle(null);
     setSelectedSizeMultiplier(1);
   };
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast({ title: "Photo too large", description: "Please use a photo under 4MB.", variant: "destructive" });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      setPhotoPreview(base64);
+      setIsPhotoDialogOpen(true);
+      setIsPhotoAnalyzing(true);
+      setPhotoResults(null);
+
+      const hour = new Date().getHours();
+      if (hour >= 5 && hour < 11) setPhotoMealType("breakfast");
+      else if (hour >= 11 && hour < 15) setPhotoMealType("lunch");
+      else if (hour >= 15 && hour < 18) setPhotoMealType("snack");
+      else setPhotoMealType("dinner");
+
+      try {
+        const res = await apiRequest("POST", "/api/nutrition/food/photo-analyze", { imageBase64: base64 });
+        const data = await res.json();
+        setPhotoResults({
+          items: data.items.map((item: any) => ({ ...item, selected: true })),
+          mealDescription: data.mealDescription,
+          overallConfidence: data.overallConfidence,
+        });
+      } catch (err: any) {
+        toast({ title: "Analysis failed", description: err.message || "Could not analyze photo. Try again.", variant: "destructive" });
+        setIsPhotoDialogOpen(false);
+      } finally {
+        setIsPhotoAnalyzing(false);
+      }
+    };
+    reader.readAsDataURL(file);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  };
+
+  const logPhotoFoodsMutation = useMutation({
+    mutationFn: async (items: Array<{ name: string; calories: number; protein: number; carbs: number; fat: number; servingSize: string; selected: boolean }>) => {
+      const selectedItems = items.filter(i => i.selected);
+      const promises = selectedItems.map((item: any) =>
+        apiRequest("POST", "/api/nutrition/logs", {
+          date: dateStr,
+          mealType: photoMealType,
+          mealLabel: null,
+          foodName: item.name,
+          brandName: "Photo Analysis",
+          servingSize: item.servingSize,
+          servingQuantity: 1,
+          calories: item.calories,
+          protein: item.protein,
+          carbs: item.carbs,
+          fat: item.fat,
+          barcode: null,
+          isEstimate: true,
+          sourceType: "photo_analyzed",
+        })
+      );
+      return Promise.all(promises);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/page-data"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/analytics"] });
+      setIsPhotoDialogOpen(false);
+      setPhotoResults(null);
+      setPhotoPreview(null);
+      toast({ title: "Food logged!", description: "All items from your photo have been logged." });
+    },
+    onError: () => {
+      toast({ title: "Failed to log", description: "Something went wrong. Please try again.", variant: "destructive" });
+    },
+  });
 
   const openAddFoodForMeal = (mealType: string) => {
     setSelectedMealType(mealType);
@@ -755,14 +843,34 @@ export default function NutritionPage() {
         </CardContent>
       </Card>
 
-      <Button 
-        onClick={openGlobalAddFood}
-        className={`w-full bg-gradient-to-r from-primary to-primary/80 shadow-md shadow-primary/20 ${summary.calories === 0 ? 'nutrition-cta-pulse' : ''}`}
-        data-testid="button-global-add-food"
-      >
-        <Plus className="w-4 h-4 mr-1.5" />
-        Add Food
-      </Button>
+      <div className="flex gap-2">
+        <Button 
+          onClick={openGlobalAddFood}
+          className={`flex-1 bg-gradient-to-r from-primary to-primary/80 shadow-md shadow-primary/20 ${summary.calories === 0 ? 'nutrition-cta-pulse' : ''}`}
+          data-testid="button-global-add-food"
+        >
+          <Plus className="w-4 h-4 mr-1.5" />
+          Add Food
+        </Button>
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handlePhotoSelect}
+          data-testid="input-photo-food"
+        />
+        <Button
+          variant="outline"
+          onClick={() => photoInputRef.current?.click()}
+          className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/20 text-violet-600 dark:text-violet-400 shadow-sm"
+          data-testid="button-photo-food"
+        >
+          <Camera className="w-4 h-4 mr-1.5" />
+          Photo
+        </Button>
+      </div>
 
       {recentFoods.length > 0 && (
         <div data-testid="section-quick-relog" style={{ animation: 'slideUp 0.4s ease-out 0.3s both' }}>
@@ -1097,6 +1205,141 @@ export default function NutritionPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={isPhotoDialogOpen} onOpenChange={(open) => { setIsPhotoDialogOpen(open); if (!open) { setPhotoResults(null); setPhotoPreview(null); } }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="w-5 h-5 text-violet-500" />
+              Photo Food Log
+            </DialogTitle>
+          </DialogHeader>
+
+          {photoPreview && (
+            <div className="relative rounded-xl overflow-hidden border border-border/50">
+              <img src={photoPreview} alt="Food" className="w-full max-h-48 object-cover" />
+              {isPhotoAnalyzing && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm">
+                  <div className="text-center">
+                    <Loader2 className="w-8 h-8 text-violet-400 animate-spin mx-auto mb-2" />
+                    <p className="text-sm text-white font-medium">Analyzing food...</p>
+                    <p className="text-xs text-white/60 mt-1">Identifying items and nutrition</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {photoResults && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">{photoResults.mealDescription}</p>
+                <Badge variant="outline" className={
+                  photoResults.overallConfidence === 'high' ? 'border-green-500/30 text-green-600 bg-green-500/5' :
+                  photoResults.overallConfidence === 'medium' ? 'border-amber-500/30 text-amber-600 bg-amber-500/5' :
+                  'border-red-500/30 text-red-600 bg-red-500/5'
+                }>
+                  {photoResults.overallConfidence} confidence
+                </Badge>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Log as:</Label>
+                <Select value={photoMealType} onValueChange={setPhotoMealType}>
+                  <SelectTrigger className="w-32" data-testid="select-photo-meal-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="breakfast">Breakfast</SelectItem>
+                    <SelectItem value="lunch">Lunch</SelectItem>
+                    <SelectItem value="dinner">Dinner</SelectItem>
+                    <SelectItem value="snack">Snack</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                {photoResults.items.map((item, i) => (
+                  <div
+                    key={i}
+                    className={`p-3 rounded-xl border transition-all ${item.selected ? 'border-violet-500/30 bg-violet-500/5' : 'border-border/50 bg-muted/30 opacity-60'}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setPhotoResults(prev => {
+                                if (!prev) return prev;
+                                const updated = [...prev.items];
+                                updated[i] = { ...updated[i], selected: !updated[i].selected };
+                                return { ...prev, items: updated };
+                              });
+                            }}
+                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${item.selected ? 'bg-violet-500 border-violet-500' : 'border-muted-foreground/30'}`}
+                            data-testid={`toggle-photo-item-${i}`}
+                          >
+                            {item.selected && <Check className="w-3 h-3 text-white" />}
+                          </button>
+                          <span className="font-medium text-sm truncate">{item.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 ml-7">
+                          <span className="text-xs text-muted-foreground">{item.servingSize}</span>
+                          <Badge variant="outline" className={`text-[10px] px-1 py-0 ${
+                            item.confidence === 'high' ? 'text-green-600 border-green-500/20' :
+                            item.confidence === 'medium' ? 'text-amber-600 border-amber-500/20' :
+                            'text-red-600 border-red-500/20'
+                          }`}>
+                            {item.confidence}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-bold">{item.calories} cal</p>
+                        <p className="text-[10px] text-muted-foreground">P:{item.protein}g C:{item.carbs}g F:{item.fat}g</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl border border-border/30">
+                <span className="text-sm font-medium">Total</span>
+                <div className="text-right">
+                  <p className="font-bold">
+                    {photoResults.items.filter(i => i.selected).reduce((s, i) => s + i.calories, 0)} cal
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    P:{photoResults.items.filter(i => i.selected).reduce((s, i) => s + i.protein, 0)}g{' '}
+                    C:{photoResults.items.filter(i => i.selected).reduce((s, i) => s + i.carbs, 0)}g{' '}
+                    F:{photoResults.items.filter(i => i.selected).reduce((s, i) => s + i.fat, 0)}g
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => { setIsPhotoDialogOpen(false); setPhotoResults(null); setPhotoPreview(null); }}
+                  data-testid="button-photo-cancel"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-violet-500/20"
+                  disabled={!photoResults.items.some(i => i.selected) || logPhotoFoodsMutation.isPending}
+                  onClick={() => logPhotoFoodsMutation.mutate(photoResults.items)}
+                  data-testid="button-photo-confirm"
+                >
+                  {logPhotoFoodsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Check className="w-4 h-4 mr-1.5" />}
+                  Log {photoResults.items.filter(i => i.selected).length} Items
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isAddFoodOpen} onOpenChange={(open) => { setIsAddFoodOpen(open); if (!open) resetAddFood(); }}>
         <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, ChevronLeft, MapPin, Pizza, Coffee, Salad, Soup, UtensilsCrossed, Star, Sparkles, Globe } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, ChevronLeft, MapPin, Pizza, Coffee, Salad, Soup, UtensilsCrossed, Star, Sparkles, Globe, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -601,6 +601,7 @@ function DikaPageInner({ userId }: { userId: number }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { visualHeight, keyboardVisible } = useVisualViewportHeight();
   const [, setLocation] = useLocation();
@@ -770,6 +771,22 @@ function DikaPageInner({ userId }: { userId: number }) {
     e.preventDefault();
     if (input.trim() && !isLoading) { sendMessage(input.trim()); setInput(''); }
   };
+
+  const handlePhotoSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast({ title: 'Photo too large', description: 'Please use a photo under 4MB.', variant: 'destructive' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      sendMessage("Analyze this food photo and log it", base64);
+    };
+    reader.readAsDataURL(file);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }, [sendMessage, toast]);
 
   const handleSuggestionClick = (suggestion: string) => {
     sendMessage(suggestion);
@@ -1002,6 +1019,10 @@ function DikaPageInner({ userId }: { userId: number }) {
 
       <div className={cn("border-t border-slate-200/50 dark:border-slate-800/50 flex-shrink-0 bg-gradient-to-t from-white via-white to-slate-50/80 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900/80 backdrop-blur-xl")}>
         <form onSubmit={handleSubmit} className={cn("px-4 flex items-center gap-2 lg:max-w-3xl lg:mx-auto", keyboardVisible ? "py-1.5" : "py-3")} style={!keyboardVisible ? { paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' } : undefined}>
+          <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} data-testid="input-dika-photo" />
+          <Button type="button" size="icon" variant="ghost" onClick={() => photoInputRef.current?.click()} disabled={isLoading} className="rounded-full text-slate-400" data-testid="button-dika-photo">
+            <Camera className="w-4 h-4" />
+          </Button>
           <div className="flex-1 relative">
             <Input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder={isListening ? "Listening..." : "Ask Dika anything..."} disabled={isLoading} className={cn("pr-4 rounded-full bg-slate-100/80 dark:bg-slate-800/60 border-slate-200/60 dark:border-slate-700/40 focus:border-amber-400/60 focus:ring-amber-400/15 placeholder:text-slate-400/60 shadow-inner shadow-slate-200/30 dark:shadow-slate-900/20 transition-all duration-200", isListening && "border-red-400/60 animate-pulse")} inputMode="text" autoComplete="off" enterKeyHint="send" data-testid="input-dika-message" />
           </div>

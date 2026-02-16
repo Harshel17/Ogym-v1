@@ -4178,6 +4178,124 @@ Return ONLY the JSON, no explanation.`;
     }
   });
 
+  app.post("/api/nutrition/food/photo-analyze", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({
+      imageBase64: z.string().min(100),
+      mealType: z.string().optional(),
+    });
+    const input = schema.parse(req.body);
+
+    try {
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a professional nutritionist and food recognition expert. Analyze food photos with USDA-level accuracy.
+
+RULES:
+1. Identify EVERY distinct food item visible in the photo separately
+2. Estimate portion size in grams using visual cues: plate size (~25cm standard dinner plate), utensil reference, food-to-plate ratio, food thickness and density
+3. Base ALL nutritional values on USDA FoodData Central per-100g values multiplied by your estimated weight
+4. Account for cooking method (grilled, fried, steamed, raw, baked — look for oil sheen, char marks, moisture, browning)
+5. For packaged/branded foods, use the brand's published nutrition data
+6. For restaurant-style dishes, estimate based on typical restaurant portions (usually 20-30% more calories than homemade)
+7. Be specific: "grilled chicken thigh with skin" not just "chicken"
+8. Recognize international cuisines: Indian (dal, biryani, roti, paneer), Middle Eastern (hummus, shawarma, falafel), Asian (sushi, pho, pad thai, dim sum), Mexican (tacos, burrito), etc.
+
+CONFIDENCE LEVELS:
+- "high": Clear, well-lit photo, easily identifiable food, standard portion
+- "medium": Somewhat unclear, mixed dish, hard to estimate portion
+- "low": Blurry, obscured, unusual food, very hard to estimate
+
+Return ONLY a JSON object:
+{
+  "items": [
+    {
+      "name": "Specific food name with cooking method",
+      "estimatedGrams": 150,
+      "calories": 250,
+      "protein": 30,
+      "carbs": 5,
+      "fat": 12,
+      "servingSize": "1 medium thigh (150g)",
+      "cookingMethod": "grilled",
+      "confidence": "high"
+    }
+  ],
+  "mealDescription": "Brief 1-line description of the overall meal",
+  "overallConfidence": "high"
+}`
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Analyze this food photo. Identify every food item, estimate portions in grams, and provide accurate USDA-based nutritional values."
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: input.imageBase64.startsWith('data:') ? input.imageBase64 : `data:image/jpeg;base64,${input.imageBase64}`,
+                  detail: "high"
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 1000,
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+      });
+
+      const responseText = completion.choices[0]?.message?.content?.trim() || '';
+      let parsed: any;
+      try {
+        parsed = JSON.parse(responseText);
+      } catch {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) return res.status(500).json({ message: "Could not parse AI response" });
+        parsed = JSON.parse(jsonMatch[0]);
+      }
+
+      if (!parsed.items || !Array.isArray(parsed.items) || parsed.items.length === 0) {
+        return res.status(400).json({ message: "No food items detected in the photo. Please try a clearer photo." });
+      }
+
+      const items = parsed.items.map((item: any) => ({
+        name: String(item.name || 'Unknown food'),
+        estimatedGrams: Math.round(Number(item.estimatedGrams) || 100),
+        calories: Math.round(Number(item.calories) || 0),
+        protein: Math.round(Number(item.protein) || 0),
+        carbs: Math.round(Number(item.carbs) || 0),
+        fat: Math.round(Number(item.fat) || 0),
+        servingSize: String(item.servingSize || '1 serving'),
+        cookingMethod: String(item.cookingMethod || 'unknown'),
+        confidence: ['high', 'medium', 'low'].includes(item.confidence) ? item.confidence : 'medium',
+      }));
+
+      res.json({
+        items,
+        mealDescription: parsed.mealDescription || 'Food photo analysis',
+        overallConfidence: parsed.overallConfidence || 'medium',
+        totalCalories: items.reduce((s: number, i: any) => s + i.calories, 0),
+        totalProtein: items.reduce((s: number, i: any) => s + i.protein, 0),
+        totalCarbs: items.reduce((s: number, i: any) => s + i.carbs, 0),
+        totalFat: items.reduce((s: number, i: any) => s + i.fat, 0),
+      });
+    } catch (error: any) {
+      console.error("Photo analysis error:", error);
+      res.status(500).json({ message: "Failed to analyze food photo. Please try again." });
+    }
+  });
+
   app.get("/api/nutrition/food/type-presets", requireRole(["member"]), async (req, res) => {
     const foodName = req.query.name as string;
     if (!foodName) {
@@ -4859,6 +4977,7 @@ Return ONLY JSON.`
         content: z.string(),
       })).optional(),
       platform: z.string().optional(),
+      imageBase64: z.string().optional(),
     });
     
     const input = schema.safeParse(req.body);
@@ -4870,6 +4989,34 @@ Return ONLY JSON.`
     const role = user.role as 'member' | 'trainer' | 'owner';
     const localDate = getLocalDate(req);
     const isIOSNative = input.data.platform === 'ios_native';
+
+    if (input.data.imageBase64 && role === 'member') {
+      try {
+        const { parseMealFromPhoto, logMealForUser, getTodayNutritionSummary, formatMealLogResponse } = await import('./dika/meal-logger');
+        const parsedMeal = await parseMealFromPhoto(input.data.imageBase64);
+        if (parsedMeal && parsedMeal.items.length > 0) {
+          const { logged } = await logMealForUser(user.id, parsedMeal, localDate);
+          if (logged) {
+            const nutritionSummary = await getTodayNutritionSummary(user.id, localDate);
+            const answer = formatMealLogResponse(parsedMeal, nutritionSummary);
+            return res.json({
+              answer: `📸 analyzed your food photo!\n\n${answer}`,
+              followUpChips: ['How many calories left today?', 'Log another meal', 'My nutrition summary'],
+            });
+          }
+        }
+        return res.json({
+          answer: "I couldn't identify any food in that photo. Could you try taking a clearer photo, or describe what you're eating?",
+          followUpChips: ['Log my meal', 'Take another photo'],
+        });
+      } catch (error) {
+        console.error('Dika photo analysis error:', error);
+        return res.json({
+          answer: "I had trouble analyzing that photo. Try again or just tell me what you ate!",
+          followUpChips: ['Log my meal', 'Try another photo'],
+        });
+      }
+    }
     
     try {
       const response = await handleDikaQuery(
@@ -5164,6 +5311,7 @@ Return ONLY JSON.`
     const schema = z.object({
       message: z.string().min(1).max(2000),
       platform: z.string().optional(),
+      imageBase64: z.string().optional(),
     });
     const input = schema.safeParse(req.body);
     if (!input.success) return res.status(400).json({ message: "Invalid request" });
@@ -5172,8 +5320,9 @@ Return ONLY JSON.`
         .where(and(eq(dikaChats.id, chatId), eq(dikaChats.userId, req.user!.id)));
       if (!chat) return res.status(404).json({ message: "Chat not found" });
 
+      const userContent = input.data.imageBase64 ? `📸 [Photo] ${input.data.message}` : input.data.message;
       const [userMsg] = await db.insert(dikaChatMessages)
-        .values({ chatId, role: 'user', content: input.data.message })
+        .values({ chatId, role: 'user', content: userContent })
         .returning();
 
       const recentMsgs = await db.select().from(dikaChatMessages)
@@ -5190,10 +5339,37 @@ Return ONLY JSON.`
       const localDate = getLocalDate(req);
       const isIOSNative = input.data.platform === 'ios_native';
 
-      const response = await handleDikaQuery(
-        user.id, role, user.gymId || null,
-        input.data.message, history, localDate, isIOSNative
-      );
+      let response: { answer: string; followUpChips?: string[] };
+
+      if (input.data.imageBase64 && role === 'member') {
+        try {
+          const { parseMealFromPhoto, logMealForUser, getTodayNutritionSummary, formatMealLogResponse } = await import('./dika/meal-logger');
+          const parsedMeal = await parseMealFromPhoto(input.data.imageBase64);
+          if (parsedMeal && parsedMeal.items.length > 0) {
+            const { logged } = await logMealForUser(user.id, parsedMeal, localDate);
+            if (logged) {
+              const nutritionSummary = await getTodayNutritionSummary(user.id, localDate);
+              const answer = formatMealLogResponse(parsedMeal, nutritionSummary);
+              response = {
+                answer: `📸 analyzed your food photo!\n\n${answer}`,
+                followUpChips: ['How many calories left today?', 'Log another meal', 'My nutrition summary'],
+              };
+            } else {
+              response = { answer: "I identified the food but couldn't log it. Please try again.", followUpChips: ['Log my meal'] };
+            }
+          } else {
+            response = { answer: "I couldn't identify any food in that photo. Could you try a clearer photo or describe what you're eating?", followUpChips: ['Log my meal', 'Take another photo'] };
+          }
+        } catch (error) {
+          console.error('Dika web photo analysis error:', error);
+          response = { answer: "I had trouble analyzing that photo. Try again or just tell me what you ate!", followUpChips: ['Log my meal'] };
+        }
+      } else {
+        response = await handleDikaQuery(
+          user.id, role, user.gymId || null,
+          input.data.message, history, localDate, isIOSNative
+        );
+      }
 
       const [assistantMsg] = await db.insert(dikaChatMessages)
         .values({

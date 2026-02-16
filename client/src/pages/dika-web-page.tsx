@@ -3,7 +3,7 @@ import {
   Send, Loader2, Copy, Check, Trash2, Plus, Search, Menu, X,
   Utensils, Dumbbell, TrendingUp, Heart, Pin, PinOff,
   ChevronDown, ChevronRight, MessageSquare, Pencil,
-  Zap, Lightbulb, Activity, Sparkles,
+  Zap, Lightbulb, Activity, Sparkles, Camera, ImageIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -254,6 +254,7 @@ export default function DikaWebPage() {
   const [feedOpen, setFeedOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const { data: chatsData, isLoading: chatsLoading } = useQuery<{ chats: DikaChat[] }>({
     queryKey: ['/api/dika/chats'],
@@ -354,8 +355,8 @@ export default function DikaWebPage() {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async ({ chatId, message }: { chatId: number; message: string }) => {
-      const res = await apiRequest('POST', `/api/dika/chats/${chatId}/messages`, { message, platform: 'web' });
+    mutationFn: async ({ chatId, message, imageBase64 }: { chatId: number; message: string; imageBase64?: string }) => {
+      const res = await apiRequest('POST', `/api/dika/chats/${chatId}/messages`, { message, platform: 'web', imageBase64 });
       return res.json();
     },
     onSuccess: () => {
@@ -404,6 +405,50 @@ export default function DikaWebPage() {
     setIsSending(true);
     sendMessageMutation.mutate({ chatId: chatId!, message: msg });
   }, [messageInput, activeChatId, sendMessageMutation, toast]);
+
+  const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast({ title: 'Photo too large', description: 'Please use a photo under 4MB.', variant: 'destructive' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      const msg = "Analyze this food photo and log it";
+
+      let chatId = activeChatId;
+      if (!chatId) {
+        try {
+          const res = await apiRequest('POST', '/api/dika/chats', { title: 'Food Photo Log' });
+          const data = await res.json();
+          chatId = data.chat.id;
+          setActiveChatId(chatId);
+          queryClient.invalidateQueries({ queryKey: ['/api/dika/chats'] });
+          setSidebarOpen(false);
+        } catch {
+          toast({ title: 'Error', description: 'Failed to create chat.', variant: 'destructive' });
+          return;
+        }
+      }
+
+      const optimistic: DikaChatMessage = {
+        id: -Date.now(),
+        chatId: chatId!,
+        role: 'user',
+        content: `[Photo attached] ${msg}`,
+        followUpChips: null,
+        metadata: null,
+        createdAt: new Date().toISOString(),
+      };
+      setOptimisticMessages([optimistic]);
+      setIsSending(true);
+      sendMessageMutation.mutate({ chatId: chatId!, message: msg, imageBase64: base64 });
+    };
+    reader.readAsDataURL(file);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }, [activeChatId, sendMessageMutation, toast]);
 
   const handleNewChat = useCallback(() => {
     setActiveChatId(null);
@@ -739,6 +784,22 @@ export default function DikaWebPage() {
         <div className="flex-shrink-0 border-t border-slate-800/50 bg-[#0d1424]/80 backdrop-blur-xl px-4 py-4">
           <div className="max-w-2xl mx-auto">
             <div className="flex gap-2 items-center bg-[#131d30] border border-slate-700/40 rounded-2xl px-4 py-2 focus-within:border-amber-500/40 focus-within:ring-2 focus-within:ring-amber-500/10 transition-all">
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoSelect}
+                data-testid="input-dika-web-photo"
+              />
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                disabled={isSending}
+                className="text-slate-400 transition-colors disabled:opacity-30 flex-shrink-0"
+                data-testid="button-dika-web-photo"
+              >
+                <Camera className="w-5 h-5" />
+              </button>
               <Input
                 ref={inputRef}
                 value={messageInput}

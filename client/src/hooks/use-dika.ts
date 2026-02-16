@@ -236,13 +236,13 @@ export function useDikaPage(userId: number) {
   }, [messages.length, serverLoaded]);
 
   const askMutation = useMutation({
-    mutationFn: async (message: string) => {
+    mutationFn: async ({ message, imageBase64 }: { message: string; imageBase64?: string }) => {
       const history = messages.slice(-8).map(m => ({
         role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
         content: m.content,
       }));
       const platform = isNative() && isIOS() ? 'ios_native' : undefined;
-      const res = await apiRequest('POST', '/api/dika/ask', { message, conversationHistory: history, platform });
+      const res = await apiRequest('POST', '/api/dika/ask', { message, conversationHistory: history, platform, imageBase64 });
       return res.json();
     },
     onSuccess: (data) => {
@@ -261,15 +261,15 @@ export function useDikaPage(userId: number) {
     },
   });
 
-  const sendMessage = useCallback((content: string) => {
+  const sendMessage = useCallback((content: string, imageBase64?: string) => {
     const userMessage: DikaMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content,
+      content: imageBase64 ? `[Photo attached] ${content}` : content,
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMessage]);
-    askMutation.mutate(content);
+    askMutation.mutate({ message: content, imageBase64 });
   }, [askMutation]);
 
   const clearHistory = useCallback(() => {
@@ -423,13 +423,13 @@ export function useDika(userId: number, hideDika: boolean) {
   }, [isOpen, messages.length, serverLoaded]);
 
   const askMutation = useMutation({
-    mutationFn: async (message: string) => {
+    mutationFn: async ({ message, imageBase64 }: { message: string; imageBase64?: string }) => {
       const history = messages.slice(-8).map(m => ({
         role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
         content: m.content,
       }));
       const platform = isNative() && isIOS() ? 'ios_native' : undefined;
-      const res = await apiRequest('POST', '/api/dika/ask', { message, conversationHistory: history, platform });
+      const res = await apiRequest('POST', '/api/dika/ask', { message, conversationHistory: history, platform, imageBase64 });
       return res.json();
     },
     onSuccess: (data, message) => {
@@ -459,15 +459,15 @@ export function useDika(userId: number, hideDika: boolean) {
     },
   });
 
-  const sendMessage = useCallback((content: string) => {
+  const sendMessage = useCallback((content: string, imageBase64?: string) => {
     const userMessage: DikaMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content,
+      content: imageBase64 ? `[Photo attached] ${content}` : content,
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMessage]);
-    askMutation.mutate(content);
+    askMutation.mutate({ message: content, imageBase64 });
   }, [askMutation]);
 
   const updatePosition = useCallback((position: DikaPosition) => {

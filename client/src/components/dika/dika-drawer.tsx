@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, ReactNode } from 'react';
-import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, Scale, Target, ArrowLeftRight, Globe } from 'lucide-react';
+import { Send, Loader2, Settings, Copy, Check, Trash2, Mic, MicOff, Save, CheckCircle, Cpu, Utensils, Flame, Beef, Wheat, Droplets, UserPlus, CreditCard, Users, Navigation, X, CheckCheck, AlertCircle, FileText, Mail, ExternalLink, Dumbbell, Apple, TrendingUp, LifeBuoy, Scale, Target, ArrowLeftRight, Globe, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -888,7 +888,7 @@ interface DikaDrawerProps {
   suggestions: string[];
   isLoading: boolean;
   currentIcon: DikaIcon;
-  onSend: (message: string) => void;
+  onSend: (message: string, imageBase64?: string) => void;
   onIconChange: (icon: DikaIcon) => void;
   onHide: () => void;
   onClearHistory: () => void;
@@ -1018,6 +1018,7 @@ export function DikaDrawer({
   
   const { isListening, isSupported: voiceSupported, toggleListening } = useVoiceInput(handleVoiceTranscript);
   const inputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const { visualHeight, keyboardVisible } = useVisualViewportHeight();
 
   const handleCopy = async (messageId: string, content: string) => {
@@ -1080,6 +1081,22 @@ export function DikaDrawer({
       setInput('');
     }
   };
+
+  const handlePhotoSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast({ title: 'Photo too large', description: 'Please use a photo under 4MB.', variant: 'destructive' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      onSend("Analyze this food photo and log it", base64);
+    };
+    reader.readAsDataURL(file);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  }, [onSend, toast]);
 
   const handleSuggestionClick = (suggestion: string) => {
     onSend(suggestion);
@@ -1435,6 +1452,10 @@ export function DikaDrawer({
           className="p-4 border-t flex gap-2 flex-shrink-0 bg-background"
           style={{ paddingBottom: keyboardVisible ? '0.5rem' : `max(1rem, env(safe-area-inset-bottom))` }}
         >
+          <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} data-testid="input-dika-drawer-photo" />
+          <Button type="button" size="icon" variant="ghost" onClick={() => photoInputRef.current?.click()} disabled={isLoading} className="rounded-full text-slate-400 flex-shrink-0" data-testid="button-dika-drawer-photo">
+            <Camera className="w-4 h-4" />
+          </Button>
           <div className="flex-1 relative">
             <Input
               ref={inputRef}
