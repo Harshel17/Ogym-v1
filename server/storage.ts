@@ -4357,7 +4357,7 @@ export class DatabaseStorage implements IStorage {
         eq(matchLogs.userId, memberId),
         gte(matchLogs.matchDate, startDate),
         lt(matchLogs.matchDate, endDate),
-        sql`${matchLogs.status} != 'cancelled'`
+        eq(matchLogs.cancelled, false)
       ));
     const matchLogByDate = new Map<string, typeof monthMatchLogs[0]>();
     for (const ml of monthMatchLogs) {
@@ -4916,7 +4916,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(matchLogs.userId, memberId),
         eq(matchLogs.matchDate, date),
-        sql`${matchLogs.status} != 'cancelled'`
+        eq(matchLogs.cancelled, false)
       ))
       .limit(1);
 

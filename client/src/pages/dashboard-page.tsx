@@ -1449,6 +1449,8 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       queryClient.invalidateQueries({ queryKey: ["/api/match-logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/match-logs/date", today] });
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/workout/summary'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/me/calendar/enhanced'] });
       toast({ title: "Match day cancelled", description: "Your regular workout is restored." });
     },
   });
@@ -2099,6 +2101,17 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {sportProfile && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8 rounded-lg text-amber-500"
+                    onClick={(e) => { e.stopPropagation(); openMatchDialog(); }}
+                    data-testid="button-log-match"
+                  >
+                    <Trophy className="w-4 h-4" />
+                  </Button>
+                )}
                 {workoutItems.length > 0 && (
                   <Badge 
                     variant={allCompleted ? "default" : "secondary"}
@@ -2695,18 +2708,6 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
           </Link>
         </div>
       )}
-      {/* Log a Match Button */}
-      <Button
-        variant="outline"
-        className="w-full border-dashed border-primary/30 text-primary"
-        onClick={openMatchDialog}
-        data-testid="button-log-match"
-      >
-        <Trophy className="w-4 h-4 mr-2" />
-        {todayMatchLog?.id ? `${sportProfile?.sport || 'Match'} Day` : 'Log a Match'}
-      </Button>
-
-
       <div className="mt-1">
         <HealthActivityDashboard />
       </div>
