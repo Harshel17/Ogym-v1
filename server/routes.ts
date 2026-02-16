@@ -390,6 +390,23 @@ export async function registerRoutes(
     });
   });
 
+  app.post("/api/ai-consent", requireAuth, async (req, res) => {
+    try {
+      const { consent } = req.body;
+      if (typeof consent !== "boolean") {
+        return res.status(400).json({ message: "Invalid consent value" });
+      }
+      await db.update(users).set({
+        aiDataConsent: consent,
+        aiDataConsentAt: consent ? new Date() : null,
+      }).where(eq(users.id, req.user!.id));
+      res.json({ success: true, aiDataConsent: consent });
+    } catch (err) {
+      console.error("[AI Consent] Error:", err);
+      res.status(500).json({ message: "Failed to update consent" });
+    }
+  });
+
   app.post("/api/auth/link-token", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const token = generateLinkToken(req.user!.id);

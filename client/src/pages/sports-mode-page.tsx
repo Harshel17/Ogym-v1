@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useAiConsent, AiDataConsentDialog } from "@/components/ai-data-consent";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -494,6 +495,7 @@ type Step = "loading" | "select-sport" | "select-role" | "fitness-test" | "selec
 
 export default function SportsModePage() {
   const { toast } = useToast();
+  const aiConsent = useAiConsent();
   const [, navigate] = useLocation();
   const [step, setStep] = useState<Step>("loading");
   const [selectedSport, setSelectedSport] = useState("");
@@ -592,6 +594,14 @@ export default function SportsModePage() {
     },
   });
 
+  const consentDialog = (
+    <AiDataConsentDialog
+      open={aiConsent.showDialog}
+      onConsentGranted={aiConsent.onConsentGranted}
+      onConsentDenied={aiConsent.onConsentDenied}
+    />
+  );
+
   if (profileLoading || programsLoading) {
     if (step === "loading") {
       return (
@@ -651,14 +661,16 @@ export default function SportsModePage() {
 
   const handleCreateFullCycle = () => {
     if (!profile) return;
-    setStep("applying");
-    createFullCycle.mutate({
-      sportProfileId: profile.id,
-      sport: activeSport,
-      role: activeRole,
-      skillCategory: selectedCategory,
-      skillName: selectedSkill,
-      fitnessScore: profile.fitnessScore ?? undefined,
+    aiConsent.requireConsent(() => {
+      setStep("applying");
+      createFullCycle.mutate({
+        sportProfileId: profile.id,
+        sport: activeSport,
+        role: activeRole,
+        skillCategory: selectedCategory,
+        skillName: selectedSkill,
+        fitnessScore: profile.fitnessScore ?? undefined,
+      });
     });
   };
 

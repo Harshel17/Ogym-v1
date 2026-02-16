@@ -1,7 +1,9 @@
+import { useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useDika } from '@/hooks/use-dika';
 import { DikaButton } from './dika-button';
 import { DikaDrawer } from './dika-drawer';
+import { useAiConsent, AiDataConsentDialog } from '@/components/ai-data-consent';
 
 export function Dika() {
   const { user } = useAuth();
@@ -14,6 +16,7 @@ export function Dika() {
 }
 
 function DikaInner({ userId, hideDika }: { userId: number; hideDika: boolean }) {
+  const aiConsent = useAiConsent();
   const {
     isOpen,
     messages,
@@ -30,6 +33,10 @@ function DikaInner({ userId, hideDika }: { userId: number; hideDika: boolean }) 
     hideDikaButton,
   } = useDika(userId, hideDika);
 
+  const consentWrappedSend = useCallback((message: string, imageBase64?: string) => {
+    aiConsent.requireConsent(() => sendMessage(message, imageBase64));
+  }, [aiConsent, sendMessage]);
+
   return (
     <>
       <DikaButton
@@ -45,10 +52,15 @@ function DikaInner({ userId, hideDika }: { userId: number; hideDika: boolean }) 
         suggestions={suggestions}
         isLoading={isLoading}
         currentIcon={icon}
-        onSend={sendMessage}
+        onSend={consentWrappedSend}
         onIconChange={updateIcon}
         onHide={hideDikaButton}
         onClearHistory={clearHistory}
+      />
+      <AiDataConsentDialog
+        open={aiConsent.showDialog}
+        onConsentGranted={aiConsent.onConsentGranted}
+        onConsentDenied={aiConsent.onConsentDenied}
       />
     </>
   );

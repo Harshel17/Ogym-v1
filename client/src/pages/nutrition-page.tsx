@@ -24,6 +24,7 @@ import { useHealthStatus, useHealthDataToday } from "@/hooks/use-health-data";
 import { fuzzyMatchRestaurants, getRecentRestaurants, addRecentRestaurant } from "@/lib/restaurant-data";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAiConsent, AiDataConsentDialog } from "@/components/ai-data-consent";
 
 type CalorieGoal = {
   id: number;
@@ -122,6 +123,7 @@ const MEAL_LABELS: Record<string, string> = {
 
 export default function NutritionPage() {
   const { toast } = useToast();
+  const aiConsent = useAiConsent();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
   const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
@@ -869,7 +871,7 @@ export default function NutritionPage() {
         />
         <Button
           variant="outline"
-          onClick={() => photoInputRef.current?.click()}
+          onClick={() => aiConsent.requireConsent(() => photoInputRef.current?.click())}
           className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/20 text-violet-600 dark:text-violet-400 shadow-sm"
           data-testid="button-photo-food"
         >
@@ -1602,7 +1604,7 @@ export default function NutritionPage() {
                       <p className="text-sm text-muted-foreground text-center">Take or upload a photo of your food for instant nutrition analysis</p>
                       <div className="flex gap-2">
                         <Button
-                          onClick={() => photoInputRef.current?.click()}
+                          onClick={() => aiConsent.requireConsent(() => photoInputRef.current?.click())}
                           className="bg-gradient-to-r from-violet-500 to-purple-600 text-white"
                           data-testid="button-take-photo-inline"
                         >
@@ -1611,7 +1613,7 @@ export default function NutritionPage() {
                         </Button>
                         <Button
                           variant="outline"
-                          onClick={() => photoUploadRef.current?.click()}
+                          onClick={() => aiConsent.requireConsent(() => photoUploadRef.current?.click())}
                           data-testid="button-upload-photo-inline"
                         >
                           <ImageIcon className="w-4 h-4 mr-2" />
