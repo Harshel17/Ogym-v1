@@ -135,7 +135,7 @@ export default function NutritionPage() {
   const [manualEntry, setManualEntry] = useState({ name: "", calories: "", protein: "", carbs: "", fat: "", restaurant: "" });
   const [showScanner, setShowScanner] = useState(false);
   const [isScanLookup, setIsScanLookup] = useState(false);
-  const [foodMode, setFoodMode] = useState<"search" | "recent">("search");
+  const [foodMode, setFoodMode] = useState<"search" | "recent" | "photo">("search");
   const [restaurantName, setRestaurantName] = useState("");
   const [showRestaurantDropdown, setShowRestaurantDropdown] = useState(false);
   const [restaurantSuggestions, setRestaurantSuggestions] = useState<Array<{ name: string; category: string }>>([]);
@@ -307,6 +307,8 @@ export default function NutritionPage() {
     setFoodTypePresets(null);
     setSelectedStyle(null);
     setSelectedSizeMultiplier(1);
+    setPhotoPreview(null);
+    setPhotoResults(null);
   };
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -377,8 +379,10 @@ export default function NutritionPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/nutrition/page-data"] });
       queryClient.invalidateQueries({ queryKey: ["/api/nutrition/analytics"] });
       setIsPhotoDialogOpen(false);
+      setIsAddFoodOpen(false);
       setPhotoResults(null);
       setPhotoPreview(null);
+      resetAddFood();
       toast({ title: "Food logged!", description: "All items from your photo have been logged." });
     },
     onError: () => {
@@ -1451,9 +1455,170 @@ export default function NutritionPage() {
                   <Clock className="w-3 h-3 mr-1" />
                   Recent
                 </Button>
+                <Button
+                  variant={foodMode === "photo" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFoodMode("photo")}
+                  className={foodMode !== "photo" ? "border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400" : "bg-violet-600 hover:bg-violet-700 text-white"}
+                  data-testid="button-food-mode-photo"
+                >
+                  <Camera className="w-3 h-3 mr-1" />
+                  Photo
+                </Button>
               </div>
 
-              {foodMode === "recent" ? (
+              {foodMode === "photo" ? (
+                <div className="space-y-4">
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 4 * 1024 * 1024) {
+                        toast({ title: "Photo too large", description: "Please use a photo under 4MB.", variant: "destructive" });
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = async () => {
+                        const base64 = reader.result as string;
+                        setPhotoPreview(base64);
+                        setIsPhotoAnalyzing(true);
+                        setPhotoResults(null);
+                        setPhotoMealType(selectedMealType);
+                        try {
+                          const res = await apiRequest("POST", "/api/nutrition/food/photo-analyze", { imageBase64: base64 });
+                          const data = await res.json();
+                          setPhotoResults({
+                            items: data.items.map((item: any) => ({ ...item, selected: true })),
+                            mealDescription: data.mealDescription,
+                            overallConfidence: data.overallConfidence,
+                          });
+                        } catch (err: any) {
+                          toast({ title: "Analysis failed", description: err.message || "Could not analyze photo.", variant: "destructive" });
+                          setPhotoPreview(null);
+                        } finally {
+                          setIsPhotoAnalyzing(false);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                      if (photoInputRef.current) photoInputRef.current.value = "";
+                    }}
+                    data-testid="input-photo-food-inline"
+                  />
+
+                  {!photoPreview && !photoResults && (
+                    <div className="flex flex-col items-center gap-3 py-6">
+                      <div className="w-16 h-16 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                        <Camera className="w-8 h-8 text-violet-500" />
+                      </div>
+                      <p className="text-sm text-muted-foreground text-center">Take a photo of your food for instant nutrition analysis</p>
+                      <Button
+                        onClick={() => photoInputRef.current?.click()}
+                        className="bg-gradient-to-r from-violet-500 to-purple-600 text-white"
+                        data-testid="button-take-photo-inline"
+                      >
+                        <Camera className="w-4 h-4 mr-2" />
+                        Take Photo
+                      </Button>
+                    </div>
+                  )}
+
+                  {photoPreview && (
+                    <div className="relative rounded-xl overflow-hidden border border-border/50">
+                      <img src={photoPreview} alt="Food" className="w-full max-h-48 object-cover" />
+                      {isPhotoAnalyzing && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm">
+                          <div className="text-center">
+                            <Loader2 className="w-8 h-8 text-violet-400 animate-spin mx-auto mb-2" />
+                            <p className="text-sm text-white font-medium">Analyzing food...</p>
+                            <p className="text-xs text-white/60 mt-1">Identifying items and nutrition</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {photoResults && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">{photoResults.mealDescription}</p>
+                        <Badge variant="outline" className={
+                          photoResults.overallConfidence === 'high' ? 'border-green-500/30 text-green-600 bg-green-500/5' :
+                          photoResults.overallConfidence === 'medium' ? 'border-amber-500/30 text-amber-600 bg-amber-500/5' :
+                          'border-red-500/30 text-red-600 bg-red-500/5'
+                        }>
+                          {photoResults.overallConfidence} confidence
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        {photoResults.items.map((item, i) => (
+                          <div
+                            key={i}
+                            className={cn("flex items-center gap-3 p-2.5 rounded-lg border transition-colors cursor-pointer", item.selected ? "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800" : "bg-muted/30 border-border/30 opacity-60")}
+                            onClick={() => {
+                              setPhotoResults(prev => prev ? {
+                                ...prev,
+                                items: prev.items.map((it, idx) => idx === i ? { ...it, selected: !it.selected } : it)
+                              } : null);
+                            }}
+                            data-testid={`photo-item-inline-${i}`}
+                          >
+                            <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0", item.selected ? "border-violet-500 bg-violet-500" : "border-muted-foreground/30")}>
+                              {item.selected && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm">{item.name}</p>
+                              <p className="text-xs text-muted-foreground">{item.servingSize}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-sm">{item.calories} cal</p>
+                              <p className="text-[10px] text-muted-foreground">P:{item.protein}g C:{item.carbs}g F:{item.fat}g</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <div className="text-sm text-muted-foreground">
+                          <span className="font-medium">{photoResults.items.filter(i => i.selected).reduce((s, i) => s + i.calories, 0)} cal</span>
+                          {' '}
+                          <span className="text-xs">
+                            P:{photoResults.items.filter(i => i.selected).reduce((s, i) => s + i.protein, 0)}g{' '}
+                            C:{photoResults.items.filter(i => i.selected).reduce((s, i) => s + i.carbs, 0)}g{' '}
+                            F:{photoResults.items.filter(i => i.selected).reduce((s, i) => s + i.fat, 0)}g
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          disabled={!photoResults.items.some(i => i.selected) || logPhotoFoodsMutation.isPending}
+                          onClick={() => logPhotoFoodsMutation.mutate(photoResults.items)}
+                          className="bg-gradient-to-r from-violet-500 to-purple-600 text-white"
+                          data-testid="button-log-photo-items-inline"
+                        >
+                          {logPhotoFoodsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Check className="w-4 h-4 mr-1.5" />}
+                          Log {photoResults.items.filter(i => i.selected).length} Items
+                        </Button>
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => { setPhotoPreview(null); setPhotoResults(null); }}
+                        data-testid="button-retake-photo-inline"
+                      >
+                        <Camera className="w-3.5 h-3.5 mr-1.5" />
+                        Try Another Photo
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : foodMode === "recent" ? (
                 <div className="space-y-1 max-h-[300px] overflow-y-auto">
                   {recentFoods.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">No recent foods yet</p>
