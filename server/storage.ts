@@ -4351,6 +4351,19 @@ export class DatabaseStorage implements IStorage {
       lt(workoutCompletions.completedDate, endDate)
     ));
 
+    const monthMatchLogs = await db.select()
+      .from(matchLogs)
+      .where(and(
+        eq(matchLogs.userId, memberId),
+        gte(matchLogs.matchDate, startDate),
+        lt(matchLogs.matchDate, endDate),
+        sql`${matchLogs.status} != 'cancelled'`
+      ));
+    const matchLogByDate = new Map<string, typeof monthMatchLogs[0]>();
+    for (const ml of monthMatchLogs) {
+      matchLogByDate.set(ml.matchDate, ml);
+    }
+
     // For personal mode, get cycles with source='self', for gym mode get gym-assigned cycles
     const cycleCondition = gymId !== null
       ? and(eq(workoutCycles.gymId, gymId), eq(workoutCycles.memberId, memberId))
@@ -4552,8 +4565,29 @@ export class DatabaseStorage implements IStorage {
           weight: item.weight
         }));
 
+      const dayMatchLog = matchLogByDate.get(dateStr);
+      
       let status: "present" | "absent" | "rest" | "future" = "rest";
-      if (isRestDay) {
+      if (dayMatchLog) {
+        if (dayMatchLog.workoutAction === "rest") {
+          status = "rest";
+        } else {
+          status = "present";
+          const actionLabels: Record<string, string> = {
+            warmup: "Warm-up",
+            recovery: "Recovery",
+            train: "Training",
+            full: "Match Day"
+          };
+          const label = actionLabels[dayMatchLog.workoutAction || ""] || "Match Day";
+          completed.push({
+            name: `${dayMatchLog.sport} - ${label}`,
+            sets: 1,
+            reps: 1,
+            weight: dayMatchLog.duration ? `${dayMatchLog.duration} min` : null
+          });
+        }
+      } else if (isRestDay) {
         status = "rest";
       } else if (scheduledForDay.length > 0) {
         status = completed.length > 0 ? "present" : "absent";
@@ -4877,16 +4911,53 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    const dayMatchLog = await db.select()
+      .from(matchLogs)
+      .where(and(
+        eq(matchLogs.userId, memberId),
+        eq(matchLogs.matchDate, date),
+        sql`${matchLogs.status} != 'cancelled'`
+      ))
+      .limit(1);
+
+    let matchExerciseAdded = false;
+    if (dayMatchLog.length > 0) {
+      const ml = dayMatchLog[0];
+      if (ml.workoutAction && ml.workoutAction !== "rest") {
+        const actionLabels: Record<string, string> = {
+          warmup: "Warm-up",
+          recovery: "Recovery",
+          train: "Training",
+          full: "Match Day"
+        };
+        const label = actionLabels[ml.workoutAction] || "Match Day";
+        const sportName = ml.sport || "Sports";
+        exercises.unshift({
+          name: `${sportName} - ${label}`,
+          muscle: sportName,
+          sets: 1,
+          reps: 1,
+          weight: ml.duration ? `${ml.duration} min` : null,
+          completed: true,
+          volume: 0
+        });
+        matchExerciseAdded = true;
+        const existing = muscleMap.get(sportName) || { count: 0, volume: 0 };
+        muscleMap.set(sportName, { count: existing.count + 1, volume: existing.volume });
+      }
+    }
+
     const muscleBreakdown = Array.from(muscleMap.entries()).map(([muscle, data]) => ({
       muscle,
       count: data.count,
       volume: data.volume
     })).sort((a, b) => b.count - a.count);
 
+    const matchCount = matchExerciseAdded ? 1 : 0;
     return {
       date,
-      totalExercises: scheduledItems.length || completions.length,
-      completedCount: completions.length,
+      totalExercises: (scheduledItems.length || completions.length) + matchCount,
+      completedCount: completions.length + matchCount,
       missedCount: Math.max(0, scheduledItems.length - completions.length),
       totalVolume,
       muscleBreakdown,

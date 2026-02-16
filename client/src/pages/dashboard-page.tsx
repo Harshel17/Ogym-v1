@@ -2009,6 +2009,23 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                           </Button>
                         ))}
                       </div>
+                      {!allDone && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => {
+                            const all: Record<string, boolean> = {};
+                            exercises.forEach((_: any, i: number) => { all[i] = true; });
+                            setMatchExercisesDone(all);
+                            localStorage.setItem(matchExerciseStorageKey, JSON.stringify(all));
+                          }}
+                          data-testid="button-mark-all-match-done"
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Mark All as Done
+                        </Button>
+                      )}
                     </>
                   ) : (
                     <div className="rounded-xl bg-muted/30 p-4">
