@@ -99,7 +99,7 @@ app.use("/api", mutationRateLimiter);
 
 app.use(
   express.json({
-    limit: "5mb",
+    limit: "10mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },

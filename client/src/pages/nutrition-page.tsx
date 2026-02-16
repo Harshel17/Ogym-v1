@@ -163,6 +163,7 @@ export default function NutritionPage() {
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
   const [photoMealType, setPhotoMealType] = useState<string>("snack");
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoUploadRef = useRef<HTMLInputElement>(null);
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -315,8 +316,8 @@ export default function NutritionPage() {
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) {
-      toast({ title: "Photo too large", description: "Please use a photo under 4MB.", variant: "destructive" });
+    if (file.size > 7 * 1024 * 1024) {
+      toast({ title: "Photo too large", description: "Please use a photo under 7MB.", variant: "destructive" });
       return;
     }
 
@@ -1521,8 +1522,8 @@ export default function NutritionPage() {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      if (file.size > 4 * 1024 * 1024) {
-                        toast({ title: "Photo too large", description: "Please use a photo under 4MB.", variant: "destructive" });
+                      if (file.size > 7 * 1024 * 1024) {
+                        toast({ title: "Photo too large", description: "Please use a photo under 7MB.", variant: "destructive" });
                         return;
                       }
                       const reader = new FileReader();
@@ -1553,20 +1554,70 @@ export default function NutritionPage() {
                     data-testid="input-photo-food-inline"
                   />
 
+                  <input
+                    ref={photoUploadRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 7 * 1024 * 1024) {
+                        toast({ title: "Photo too large", description: "Please use a photo under 7MB.", variant: "destructive" });
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = async () => {
+                        const base64 = reader.result as string;
+                        setPhotoPreview(base64);
+                        setIsPhotoAnalyzing(true);
+                        setPhotoResults(null);
+                        setPhotoMealType(selectedMealType);
+                        try {
+                          const res = await apiRequest("POST", "/api/nutrition/food/photo-analyze", { imageBase64: base64 });
+                          const data = await res.json();
+                          setPhotoResults({
+                            items: data.items.map((item: any) => ({ ...item, selected: true, portionMultiplier: 1, baseCalories: item.calories, baseProtein: item.protein, baseCarbs: item.carbs, baseFat: item.fat, baseGrams: item.estimatedGrams || 0 })),
+                            mealDescription: data.mealDescription,
+                            overallConfidence: data.overallConfidence,
+                          });
+                        } catch (err: any) {
+                          toast({ title: "Analysis failed", description: err.message || "Could not analyze photo.", variant: "destructive" });
+                          setPhotoPreview(null);
+                        } finally {
+                          setIsPhotoAnalyzing(false);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                      if (photoUploadRef.current) photoUploadRef.current.value = "";
+                    }}
+                    data-testid="input-upload-photo-inline"
+                  />
+
                   {!photoPreview && !photoResults && (
                     <div className="flex flex-col items-center gap-3 py-6">
                       <div className="w-16 h-16 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
                         <Camera className="w-8 h-8 text-violet-500" />
                       </div>
-                      <p className="text-sm text-muted-foreground text-center">Take a photo of your food for instant nutrition analysis</p>
-                      <Button
-                        onClick={() => photoInputRef.current?.click()}
-                        className="bg-gradient-to-r from-violet-500 to-purple-600 text-white"
-                        data-testid="button-take-photo-inline"
-                      >
-                        <Camera className="w-4 h-4 mr-2" />
-                        Take Photo
-                      </Button>
+                      <p className="text-sm text-muted-foreground text-center">Take or upload a photo of your food for instant nutrition analysis</p>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => photoInputRef.current?.click()}
+                          className="bg-gradient-to-r from-violet-500 to-purple-600 text-white"
+                          data-testid="button-take-photo-inline"
+                        >
+                          <Camera className="w-4 h-4 mr-2" />
+                          Take Photo
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => photoUploadRef.current?.click()}
+                          data-testid="button-upload-photo-inline"
+                        >
+                          <ImageIcon className="w-4 h-4 mr-2" />
+                          Upload
+                        </Button>
+                      </div>
                     </div>
                   )}
 
