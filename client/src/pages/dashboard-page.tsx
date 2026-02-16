@@ -1680,6 +1680,88 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       <FeatureDiscoveryTips role="member" isPersonalMode={isPersonalMode} />
 
       {/* Today's Workout */}
+      {todayMatchLog?.id && todayMatchLog.status !== "cancelled" && todayMatchLog.workoutAction && todayMatchLog.workoutAction !== "normal" ? (
+        <Card className="card-ambient shadow-lg shadow-primary/5 relative" data-testid="card-today-workout-match">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-xl shadow-lg ${
+                todayMatchLog.workoutAction === "rest" ? "bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/25" :
+                todayMatchLog.workoutAction === "warmup" ? "bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-500/25" :
+                todayMatchLog.workoutAction === "recovery" ? "bg-gradient-to-br from-purple-500 to-pink-600 shadow-purple-500/25" :
+                "bg-gradient-to-br from-primary to-indigo-600 shadow-primary/25"
+              }`}>
+                {todayMatchLog.workoutAction === "rest" && <Moon className="w-5 h-5 text-white" />}
+                {todayMatchLog.workoutAction === "warmup" && <Flame className="w-5 h-5 text-white" />}
+                {todayMatchLog.workoutAction === "recovery" && <Heart className="w-5 h-5 text-white" />}
+              </div>
+              <div>
+                <CardTitle className="text-base font-semibold">
+                  {todayMatchLog.workoutAction === "rest" ? "Rest Day" :
+                   todayMatchLog.workoutAction === "warmup" ? "Warm-up Day" :
+                   todayMatchLog.workoutAction === "recovery" ? "Recovery Day" : "Match Day"}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {todayMatchLog.sport} {todayMatchLog.matchTiming === "tomorrow" ? "- Match Tomorrow" : todayMatchLog.matchTiming === "yesterday" ? "- Post Match" : "- Match Day"}
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="rounded-xl bg-muted/30 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">{todayMatchLog.sport}</span>
+                {todayMatchLog.intensity && (
+                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 no-default-hover-elevate no-default-active-elevate">
+                    {todayMatchLog.intensity}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {todayMatchLog.workoutAction === "rest" 
+                  ? "Your regular workout is paused. Rest up and save energy for the match."
+                  : todayMatchLog.workoutAction === "warmup"
+                  ? "Light dynamic stretching and mobility work to prepare for tomorrow's match."
+                  : todayMatchLog.workoutAction === "recovery"
+                  ? "Light stretching, foam rolling, and easy cardio to help your body recover."
+                  : "Match activity replaces today's workout."}
+              </p>
+              {(todayMatchLog.duration || todayMatchLog.caloriesBurned) && (
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  {todayMatchLog.duration && (
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> {todayMatchLog.duration} min
+                    </span>
+                  )}
+                  {todayMatchLog.caloriesBurned && (
+                    <span className="flex items-center gap-1">
+                      <Flame className="w-3 h-3" /> ~{todayMatchLog.caloriesBurned} cal
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-[11px] text-muted-foreground/70">Regular workout cycle is not affected</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground h-7"
+                  onClick={() => cancelMatchMutation.mutate(todayMatchLog.id)}
+                  disabled={cancelMatchMutation.isPending}
+                  data-testid="button-cancel-match-workout"
+                >
+                  {cancelMatchMutation.isPending ? (
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  ) : (
+                    <X className="w-3 h-3 mr-1" />
+                  )}
+                  {cancelMatchMutation.isPending ? "Restoring..." : "Restore Workout"}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
       <Collapsible open={isWorkoutOpen} onOpenChange={setIsWorkoutOpen}>
         <Card className={`card-ambient shadow-lg shadow-primary/5 relative ${allCompleted ? 'card-shine' : ''}`} data-testid="card-today-workout">
           <CollapsibleTrigger asChild>
@@ -2276,6 +2358,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
           </CollapsibleContent>
         </Card>
       </Collapsible>
+      )}
 
       {/* Calorie, Streak & Health */}
       {workoutSummary && (
@@ -2311,40 +2394,6 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
         {todayMatchLog?.id ? `${sportProfile?.sport || 'Match'} Day` : 'Log a Match'}
       </Button>
 
-      {todayMatchLog?.id && (
-        <Card className="bg-card/70 border-primary/20">
-          <CardContent className="py-3 px-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Trophy className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{todayMatchLog.sport} - {todayMatchLog.workoutAction === 'rest' ? 'Rest Day' : todayMatchLog.workoutAction === 'warmup' ? 'Warm-up Day' : todayMatchLog.workoutAction === 'recovery' ? 'Recovery Day' : 'Match Day'}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {todayMatchLog.duration ? `${todayMatchLog.duration} min` : ''} {todayMatchLog.intensity ? `- ${todayMatchLog.intensity}` : ''} {todayMatchLog.caloriesBurned ? `- ~${todayMatchLog.caloriesBurned} cal` : ''}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground text-xs"
-                onClick={() => cancelMatchMutation.mutate(todayMatchLog.id)}
-                disabled={cancelMatchMutation.isPending}
-                data-testid="button-cancel-match"
-              >
-                {cancelMatchMutation.isPending ? (
-                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                ) : (
-                  <X className="w-3 h-3 mr-1" />
-                )}
-                {cancelMatchMutation.isPending ? "Cancelling..." : "Cancel"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="mt-1">
         <HealthActivityDashboard />
