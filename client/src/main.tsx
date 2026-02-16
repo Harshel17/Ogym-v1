@@ -54,7 +54,7 @@ try {
 } catch (e) {
   console.error("App render failed:", e);
   const errDiv = document.createElement("div");
-  errDiv.style.cssText = "position:fixed;inset:0;background:#0f1418;color:#fff;padding:40px 20px;font-family:-apple-system,sans-serif;z-index:99999;";
+  errDiv.style.cssText = "position:fixed;inset:0;background:#0b1220;color:#fff;padding:40px 20px;font-family:-apple-system,sans-serif;z-index:99999;";
   errDiv.innerHTML = `<h3 style="color:#f87171">Render Error</h3><pre style="color:#fbbf24;white-space:pre-wrap;font-size:12px">${e instanceof Error ? e.message + '\n' + e.stack : String(e)}</pre>`;
   document.body.appendChild(errDiv);
 }

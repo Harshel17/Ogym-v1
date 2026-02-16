@@ -217,7 +217,7 @@ function TokenAuthRoute({ component: Component }: { component: React.ComponentTy
 
   if (tokenState === "checking" || tokenState === "logging_in") {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0f1418]">
+      <div className="flex items-center justify-center min-h-screen bg-[#0b1220]">
         <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
       </div>
     );
@@ -225,7 +225,7 @@ function TokenAuthRoute({ component: Component }: { component: React.ComponentTy
 
   if (tokenState === "confirming" && tokenUser) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0f1418]">
+      <div className="flex items-center justify-center min-h-screen bg-[#0b1220]">
         <div className="bg-[#131c2e] border border-slate-700/50 rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-xl">
           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl font-bold text-white">{tokenUser.username.charAt(0).toUpperCase()}</span>
@@ -260,7 +260,7 @@ function TokenAuthRoute({ component: Component }: { component: React.ComponentTy
 
   if (tokenState === "error") {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0f1418]">
+      <div className="flex items-center justify-center min-h-screen bg-[#0b1220]">
         <div className="bg-[#131c2e] border border-slate-700/50 rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-xl">
           <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl text-red-400">!</span>

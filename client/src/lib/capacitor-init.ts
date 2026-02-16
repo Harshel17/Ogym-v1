@@ -32,7 +32,7 @@ export async function updateStatusBarForTheme(isDarkTheme: boolean) {
     await StatusBar.setStyle({ style });
 
     if (getPlatform() === 'android') {
-      const bgColor = isDarkTheme ? '#0f1418' : '#f5f7fa';
+      const bgColor = isDarkTheme ? '#0b1220' : '#f5f7fa';
       await StatusBar.setBackgroundColor({ color: bgColor });
     }
   } catch (error) {

@@ -41,11 +41,11 @@ body {
 
 /* NATIVE ONLY: Force dark background for iOS/Android to prevent white bleed */
 html.capacitor-native {
-  background: #0f1418 !important;
+  background: #0b1220 !important;
 }
 
 html.capacitor-native body {
-  background: #0f1418 !important;
+  background: #0b1220 !important;
   margin: 0 !important;
   padding: 0 !important;
   padding-right: 0 !important;
@@ -59,7 +59,7 @@ html.capacitor-native body {
 }
 
 html.capacitor-native #root {
-  background: #0f1418 !important;
+  background: #0b1220 !important;
 }
 
 /* NATIVE: Prevent body scroll lock from killing dialog/modal scroll */
@@ -151,7 +151,7 @@ html.capacitor-native body[data-scroll-locked] {
 .glass-effect {
   -webkit-backdrop-filter: blur(20px) saturate(200%);
   backdrop-filter: blur(20px) saturate(200%);
-  background-color: rgba(15, 20, 24, 0.88);
+  background-color: rgba(11, 18, 32, 0.88);
   border-color: rgba(255, 255, 255, 0.06);
 }
 
@@ -172,21 +172,21 @@ html.capacitor-native body[data-scroll-locked] {
   --font-sans: 'DM Sans', sans-serif;
   --font-display: 'Outfit', sans-serif;
 
-  /* Electric Emerald Light Theme */
-  --background: 150 10% 97%;
-  --foreground: 160 20% 10%;
+  /* Blue Theme - Matching OGym Logo */
+  --background: 220 20% 97%;
+  --foreground: 222 47% 11%;
   
-  --primary: 160 84% 39%;
+  --primary: 217 91% 60%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 155 12% 95%;
-  --secondary-foreground: 160 20% 10%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 222 47% 11%;
   
-  --muted: 155 10% 95%;
-  --muted-foreground: 155 8% 46%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
   
-  --accent: 160 60% 94%;
-  --accent-foreground: 160 84% 32%;
+  --accent: 217 91% 96%;
+  --accent-foreground: 217 91% 50%;
   
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
@@ -197,30 +197,30 @@ html.capacitor-native body[data-scroll-locked] {
   --warning: 38 92% 50%;
   --warning-foreground: 0 0% 100%;
 
-  --border: 155 12% 90%;
-  --input: 155 12% 90%;
-  --ring: 160 84% 39%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 217 91% 60%;
   --header-border: rgba(0, 0, 0, 0.06);
 
   --card: 0 0% 100%;
-  --card-foreground: 160 20% 10%;
-  --card-border: 155 12% 90%;
+  --card-foreground: 222 47% 11%;
+  --card-border: 220 13% 91%;
   
   --popover: 0 0% 100%;
-  --popover-foreground: 160 20% 10%;
-  --popover-border: 155 12% 90%;
+  --popover-foreground: 222 47% 11%;
+  --popover-border: 220 13% 91%;
   
-  --sidebar: 150 10% 97%;
-  --sidebar-foreground: 160 20% 10%;
-  --sidebar-border: 155 12% 90%;
-  --sidebar-ring: 160 84% 39%;
-  --sidebar-primary: 160 84% 39%;
+  --sidebar: 220 20% 98%;
+  --sidebar-foreground: 222 47% 11%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 217 91% 60%;
+  --sidebar-primary: 217 91% 60%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 160 60% 94%;
-  --sidebar-accent-foreground: 160 84% 32%;
+  --sidebar-accent: 217 91% 96%;
+  --sidebar-accent-foreground: 217 91% 50%;
   
-  --chart-1: 160 84% 39%;
-  --chart-2: 190 90% 50%;
+  --chart-1: 217 91% 60%;
+  --chart-2: 160 84% 39%;
   --chart-3: 38 92% 50%;
   --chart-4: 280 65% 60%;
   --chart-5: 0 72% 51%;
@@ -229,21 +229,20 @@ html.capacitor-native body[data-scroll-locked] {
 }
 
 .dark {
-  /* Electric Emerald Dark Theme - Deep charcoal with emerald accents */
-  --background: 200 15% 7%;
-  --foreground: 150 10% 95%;
+  --background: 222 47% 8%;
+  --foreground: 210 40% 98%;
   
-  --primary: 158 82% 48%;
+  --primary: 217 91% 60%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 200 12% 14%;
-  --secondary-foreground: 150 10% 95%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
   
-  --muted: 200 12% 14%;
-  --muted-foreground: 200 10% 55%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
   
-  --accent: 160 50% 16%;
-  --accent-foreground: 158 82% 58%;
+  --accent: 217 60% 20%;
+  --accent-foreground: 217 91% 70%;
   
   --destructive: 0 62% 50%;
   --destructive-foreground: 0 0% 100%;
@@ -254,30 +253,30 @@ html.capacitor-native body[data-scroll-locked] {
   --warning: 38 90% 55%;
   --warning-foreground: 0 0% 0%;
 
-  --border: 200 12% 17%;
-  --input: 200 12% 17%;
-  --ring: 158 82% 48%;
+  --border: 217 33% 20%;
+  --input: 217 33% 20%;
+  --ring: 217 91% 60%;
   --header-border: rgba(255, 255, 255, 0.08);
 
-  --card: 200 15% 10%;
-  --card-foreground: 150 10% 95%;
-  --card-border: 200 12% 20%;
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
+  --card-border: 217 33% 24%;
   
-  --popover: 200 15% 10%;
-  --popover-foreground: 150 10% 95%;
-  --popover-border: 200 12% 17%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+  --popover-border: 217 33% 20%;
   
-  --sidebar: 200 15% 8%;
-  --sidebar-foreground: 150 10% 95%;
-  --sidebar-border: 200 12% 14%;
-  --sidebar-ring: 158 82% 48%;
-  --sidebar-primary: 158 82% 48%;
+  --sidebar: 222 47% 9%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-border: 217 33% 17%;
+  --sidebar-ring: 217 91% 60%;
+  --sidebar-primary: 217 91% 60%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 160 50% 16%;
-  --sidebar-accent-foreground: 158 82% 58%;
+  --sidebar-accent: 217 60% 20%;
+  --sidebar-accent-foreground: 217 91% 70%;
   
-  --chart-1: 158 82% 48%;
-  --chart-2: 190 85% 55%;
+  --chart-1: 217 91% 60%;
+  --chart-2: 160 80% 45%;
   --chart-3: 38 90% 55%;
   --chart-4: 280 60% 65%;
   --chart-5: 0 62% 55%;
@@ -309,11 +308,11 @@ html.capacitor-native body[data-scroll-locked] {
   }
   
   .premium-gradient {
-    @apply bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 dark:from-emerald-400 dark:via-emerald-500 dark:to-teal-500;
+    @apply bg-gradient-to-br from-primary via-primary to-indigo-600 dark:from-primary dark:via-indigo-500 dark:to-purple-600;
   }
   
   .premium-gradient-text {
-    @apply bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary to-indigo-500 bg-clip-text text-transparent;
   }
 
   .greeting-banner {
@@ -332,7 +331,7 @@ html.capacitor-native body[data-scroll-locked] {
       hsl(var(--primary) / 0.08) 0%,
       hsl(var(--primary) / 0.04) 30%,
       transparent 60%,
-      hsl(175 80% 50% / 0.06) 100%
+      hsl(280 80% 60% / 0.06) 100%
     );
     z-index: 0;
   }
@@ -358,9 +357,9 @@ html.capacitor-native body[data-scroll-locked] {
     background: linear-gradient(
       90deg,
       hsl(var(--primary)) 0%,
-      hsl(175 80% 55%) 40%,
+      hsl(280 80% 65%) 40%,
       hsl(var(--primary)) 80%,
-      hsl(175 80% 55%) 100%
+      hsl(280 80% 65%) 100%
     );
     background-size: 200% auto;
     -webkit-background-clip: text;
