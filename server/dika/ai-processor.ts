@@ -1369,15 +1369,22 @@ export async function processWithAI(
   if (role === 'member') {
     const pendingMemberAction = detectPendingMemberAction(conversationHistory);
     if (pendingMemberAction) {
+      const userWantsToLogMeal = detectMealLogRequest(message);
       try {
         if (pendingMemberAction === 'log_body_measurement') {
-          return await processBodyMeasurement(userId, gymId, message, conversationHistory);
+          if (!userWantsToLogMeal) {
+            return await processBodyMeasurement(userId, gymId, message, conversationHistory);
+          }
         }
         if (pendingMemberAction === 'swap_exercise') {
-          return await processExerciseSwap(userId, gymId, message, conversationHistory, localDate);
+          if (!userWantsToLogMeal) {
+            return await processExerciseSwap(userId, gymId, message, conversationHistory, localDate);
+          }
         }
         if (pendingMemberAction === 'set_goal') {
-          return await processGoalAction(userId, gymId, message, 'set_goal', conversationHistory);
+          if (!userWantsToLogMeal) {
+            return await processGoalAction(userId, gymId, message, 'set_goal', conversationHistory);
+          }
         }
         if (pendingMemberAction === 'suggest_meal') {
           return await processMealSuggestion(userId, message, conversationHistory, localDate);

@@ -67,12 +67,22 @@ const MEAL_SUGGESTION_PATTERNS = [
   /(?:help\s+me\s+)?(?:pick|choose|decide)\s+(?:what\s+to\s+eat|a\s+meal|food)/i,
 ];
 
+const GOAL_EXCLUSION_PATTERNS = [
+  /i\s+want\s+to\s+(?:log|track|add|record)\s+(?:a\s+)?(?:meal|food|what\s+i)/i,
+  /i\s+want\s+to\s+(?:eat|have|order|grab|get)\s+/i,
+  /i\s+want\s+to\s+(?:log|track)\s+(?:my\s+)?(?:breakfast|lunch|dinner|snack)/i,
+];
+
 export function detectMemberAction(message: string): MemberActionType | null {
   const lower = message.toLowerCase().trim();
   
   if (MEAL_SUGGESTION_PATTERNS.some(p => p.test(lower))) return 'suggest_meal';
   if (GOAL_CHECK_PATTERNS.some(p => p.test(lower))) return 'update_goal';
-  if (GOAL_SET_PATTERNS.some(p => p.test(lower))) return 'set_goal';
+  if (GOAL_SET_PATTERNS.some(p => p.test(lower))) {
+    if (!GOAL_EXCLUSION_PATTERNS.some(p => p.test(lower))) {
+      return 'set_goal';
+    }
+  }
   if (BODY_MEASUREMENT_PATTERNS.some(p => p.test(lower))) return 'log_body_measurement';
   if (EXERCISE_SWAP_PATTERNS.some(p => p.test(lower))) return 'swap_exercise';
   
