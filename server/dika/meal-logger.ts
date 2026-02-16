@@ -391,7 +391,7 @@ Return ONLY JSON:
               type: "image_url",
               image_url: {
                 url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
-                detail: "high"
+                detail: "auto"
               }
             }
           ]

@@ -4197,39 +4197,43 @@ Return ONLY the JSON, no explanation.`;
         messages: [
           {
             role: "system",
-            content: `You are a professional nutritionist and food recognition expert. Analyze food photos with USDA-level accuracy.
+            content: `You are a professional nutritionist. Analyze food photos with MyFitnessPal / USDA FoodData Central accuracy.
 
 RULES:
-1. Identify EVERY distinct food item visible in the photo separately
-2. Estimate portion size in grams using visual cues: plate size (~25cm standard dinner plate), utensil reference, food-to-plate ratio, food thickness and density
-3. Base ALL nutritional values on USDA FoodData Central per-100g values multiplied by your estimated weight
-4. Account for cooking method (grilled, fried, steamed, raw, baked — look for oil sheen, char marks, moisture, browning)
-5. For packaged/branded foods, use the brand's published nutrition data
-6. For restaurant-style dishes, estimate based on typical restaurant portions (usually 20-30% more calories than homemade)
-7. Be specific: "grilled chicken thigh with skin" not just "chicken"
-8. Recognize international cuisines: Indian (dal, biryani, roti, paneer), Middle Eastern (hummus, shawarma, falafel), Asian (sushi, pho, pad thai, dim sum), Mexican (tacos, burrito), etc.
+1. Identify EVERY distinct food item separately
+2. Estimate portion in grams using plate size (~25cm), utensils, food depth
+3. Use USDA per-100g values x estimated weight - DO NOT underestimate
+4. Account for cooking method and added oils/ghee/butter
+5. Include hidden calories from oils, ghee, sauces, gravies
+6. Be specific: "egg biryani rice" not just "rice"
 
-CONFIDENCE LEVELS:
-- "high": Clear, well-lit photo, easily identifiable food, standard portion
-- "medium": Somewhat unclear, mixed dish, hard to estimate portion
-- "low": Blurry, obscured, unusual food, very hard to estimate
+KEY BENCHMARKS:
+- Chicken biryani: 500-700 cal/plate (300-400g), rice cooked in ghee
+- Egg biryani: 450-600 cal/plate (300g)
+- Biryani rice is NOT plain rice (180-220 cal/100g vs 130 cal/100g for plain)
+- Butter chicken: 350-450 cal/serving
+- Naan with ghee: 250-350 cal
+- Indian curries contain significant oil (add 100-200 cal)
+- Fried items absorb oil: add 50-100 cal per piece
 
-Return ONLY a JSON object:
+CONFIDENCE: "high" | "medium" | "low"
+
+Return ONLY JSON:
 {
   "items": [
     {
-      "name": "Specific food name with cooking method",
-      "estimatedGrams": 150,
-      "calories": 250,
-      "protein": 30,
-      "carbs": 5,
-      "fat": 12,
-      "servingSize": "1 medium thigh (150g)",
-      "cookingMethod": "grilled",
+      "name": "Specific food name (cooking method)",
+      "estimatedGrams": 300,
+      "calories": 500,
+      "protein": 15,
+      "carbs": 70,
+      "fat": 18,
+      "servingSize": "1 plate (300g)",
+      "cookingMethod": "cooked in ghee",
       "confidence": "high"
     }
   ],
-  "mealDescription": "Brief 1-line description of the overall meal",
+  "mealDescription": "Brief 1-line description",
   "overallConfidence": "high"
 }`
           },
@@ -4244,7 +4248,7 @@ Return ONLY a JSON object:
                 type: "image_url",
                 image_url: {
                   url: input.imageBase64.startsWith('data:') ? input.imageBase64 : `data:image/jpeg;base64,${input.imageBase64}`,
-                  detail: "high"
+                  detail: "auto"
                 }
               }
             ]

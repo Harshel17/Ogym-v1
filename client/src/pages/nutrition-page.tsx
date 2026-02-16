@@ -372,7 +372,7 @@ export default function NutritionPage() {
           fat: item.fat,
           barcode: null,
           isEstimate: true,
-          sourceType: "photo_analyzed",
+          sourceType: "ai_estimated",
         })
       );
       return Promise.all(promises);
