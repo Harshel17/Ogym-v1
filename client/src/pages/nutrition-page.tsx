@@ -8,7 +8,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react";
 import { 
-  Flame, Apple, Beef, Wheat, Droplet, Plus, Search, Loader2, 
+  Flame, Apple, Beef, Wheat, Droplet, Plus, Minus, Search, Loader2, 
   ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X, TrendingUp, Calendar, BarChart3, Watch,
   Droplets, Clock, Sparkles, Undo2, Zap, CheckCircle2, AlertTriangle, Camera, ImageIcon, Check
 } from "lucide-react";
@@ -155,7 +155,7 @@ export default function NutritionPage() {
 
   const [isPhotoAnalyzing, setIsPhotoAnalyzing] = useState(false);
   const [photoResults, setPhotoResults] = useState<{
-    items: Array<{ name: string; estimatedGrams: number; calories: number; protein: number; carbs: number; fat: number; servingSize: string; confidence: string; selected: boolean }>;
+    items: Array<{ name: string; estimatedGrams: number; calories: number; protein: number; carbs: number; fat: number; servingSize: string; confidence: string; selected: boolean; portionMultiplier: number; baseCalories: number; baseProtein: number; baseCarbs: number; baseFat: number; baseGrams: number }>;
     mealDescription: string;
     overallConfidence: string;
   } | null>(null);
@@ -338,7 +338,7 @@ export default function NutritionPage() {
         const res = await apiRequest("POST", "/api/nutrition/food/photo-analyze", { imageBase64: base64 });
         const data = await res.json();
         setPhotoResults({
-          items: data.items.map((item: any) => ({ ...item, selected: true })),
+          items: data.items.map((item: any) => ({ ...item, selected: true, portionMultiplier: 1, baseCalories: item.calories, baseProtein: item.protein, baseCarbs: item.carbs, baseFat: item.fat, baseGrams: item.estimatedGrams || 0 })),
           mealDescription: data.mealDescription,
           overallConfidence: data.overallConfidence,
         });
@@ -1304,6 +1304,48 @@ export default function NutritionPage() {
                         <p className="text-[10px] text-muted-foreground">P:{item.protein}g C:{item.carbs}g F:{item.fat}g</p>
                       </div>
                     </div>
+                    {item.selected && (
+                      <div className="flex items-center gap-2 mt-2 ml-7">
+                        <span className="text-[10px] text-muted-foreground mr-auto">Portion:</span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-6 w-6 rounded-full"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPhotoResults(prev => {
+                              if (!prev) return prev;
+                              const updated = [...prev.items];
+                              const newMult = Math.max(0.25, (updated[i].portionMultiplier || 1) - 0.25);
+                              updated[i] = { ...updated[i], portionMultiplier: newMult, calories: Math.round(updated[i].baseCalories * newMult), protein: Math.round(updated[i].baseProtein * newMult), carbs: Math.round(updated[i].baseCarbs * newMult), fat: Math.round(updated[i].baseFat * newMult), estimatedGrams: Math.round(updated[i].baseGrams * newMult) };
+                              return { ...prev, items: updated };
+                            });
+                          }}
+                          data-testid={`portion-decrease-${i}`}
+                        >
+                          <Minus className="w-3 h-3" />
+                        </Button>
+                        <span className="text-xs font-medium w-10 text-center" data-testid={`portion-value-${i}`}>{item.portionMultiplier || 1}x</span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-6 w-6 rounded-full"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPhotoResults(prev => {
+                              if (!prev) return prev;
+                              const updated = [...prev.items];
+                              const newMult = Math.min(5, (updated[i].portionMultiplier || 1) + 0.25);
+                              updated[i] = { ...updated[i], portionMultiplier: newMult, calories: Math.round(updated[i].baseCalories * newMult), protein: Math.round(updated[i].baseProtein * newMult), carbs: Math.round(updated[i].baseCarbs * newMult), fat: Math.round(updated[i].baseFat * newMult), estimatedGrams: Math.round(updated[i].baseGrams * newMult) };
+                              return { ...prev, items: updated };
+                            });
+                          }}
+                          data-testid={`portion-increase-${i}`}
+                        >
+                          <Plus className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1494,7 +1536,7 @@ export default function NutritionPage() {
                           const res = await apiRequest("POST", "/api/nutrition/food/photo-analyze", { imageBase64: base64 });
                           const data = await res.json();
                           setPhotoResults({
-                            items: data.items.map((item: any) => ({ ...item, selected: true })),
+                            items: data.items.map((item: any) => ({ ...item, selected: true, portionMultiplier: 1, baseCalories: item.calories, baseProtein: item.protein, baseCarbs: item.carbs, baseFat: item.fat, baseGrams: item.estimatedGrams || 0 })),
                             mealDescription: data.mealDescription,
                             overallConfidence: data.overallConfidence,
                           });
@@ -1558,28 +1600,71 @@ export default function NutritionPage() {
 
                       <div className="space-y-2 max-h-[200px] overflow-y-auto">
                         {photoResults.items.map((item, i) => (
-                          <div
-                            key={i}
-                            className={cn("flex items-center gap-3 p-2.5 rounded-lg border transition-colors cursor-pointer", item.selected ? "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800" : "bg-muted/30 border-border/30 opacity-60")}
-                            onClick={() => {
-                              setPhotoResults(prev => prev ? {
-                                ...prev,
-                                items: prev.items.map((it, idx) => idx === i ? { ...it, selected: !it.selected } : it)
-                              } : null);
-                            }}
-                            data-testid={`photo-item-inline-${i}`}
-                          >
-                            <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0", item.selected ? "border-violet-500 bg-violet-500" : "border-muted-foreground/30")}>
-                              {item.selected && <Check className="w-3 h-3 text-white" />}
+                          <div key={i} className="space-y-1">
+                            <div
+                              className={cn("flex items-center gap-3 p-2.5 rounded-lg border transition-colors cursor-pointer", item.selected ? "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800" : "bg-muted/30 border-border/30 opacity-60")}
+                              onClick={() => {
+                                setPhotoResults(prev => prev ? {
+                                  ...prev,
+                                  items: prev.items.map((it, idx) => idx === i ? { ...it, selected: !it.selected } : it)
+                                } : null);
+                              }}
+                              data-testid={`photo-item-inline-${i}`}
+                            >
+                              <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0", item.selected ? "border-violet-500 bg-violet-500" : "border-muted-foreground/30")}>
+                                {item.selected && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm">{item.name}</p>
+                                <p className="text-xs text-muted-foreground">{item.servingSize}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-semibold text-sm">{item.calories} cal</p>
+                                <p className="text-[10px] text-muted-foreground">P:{item.protein}g C:{item.carbs}g F:{item.fat}g</p>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm">{item.name}</p>
-                              <p className="text-xs text-muted-foreground">{item.servingSize}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold text-sm">{item.calories} cal</p>
-                              <p className="text-[10px] text-muted-foreground">P:{item.protein}g C:{item.carbs}g F:{item.fat}g</p>
-                            </div>
+                            {item.selected && (
+                              <div className="flex items-center gap-1.5 ml-8">
+                                <span className="text-[10px] text-muted-foreground mr-auto">Portion:</span>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-5 w-5 rounded-full"
+                                  onClick={() => {
+                                    setPhotoResults(prev => prev ? {
+                                      ...prev,
+                                      items: prev.items.map((it, idx) => {
+                                        if (idx !== i) return it;
+                                        const newMult = Math.max(0.25, (it.portionMultiplier || 1) - 0.25);
+                                        return { ...it, portionMultiplier: newMult, calories: Math.round(it.baseCalories * newMult), protein: Math.round(it.baseProtein * newMult), carbs: Math.round(it.baseCarbs * newMult), fat: Math.round(it.baseFat * newMult), estimatedGrams: Math.round(it.baseGrams * newMult) };
+                                      })
+                                    } : null);
+                                  }}
+                                  data-testid={`inline-portion-decrease-${i}`}
+                                >
+                                  <Minus className="w-2.5 h-2.5" />
+                                </Button>
+                                <span className="text-[11px] font-medium w-8 text-center">{item.portionMultiplier || 1}x</span>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-5 w-5 rounded-full"
+                                  onClick={() => {
+                                    setPhotoResults(prev => prev ? {
+                                      ...prev,
+                                      items: prev.items.map((it, idx) => {
+                                        if (idx !== i) return it;
+                                        const newMult = Math.min(5, (it.portionMultiplier || 1) + 0.25);
+                                        return { ...it, portionMultiplier: newMult, calories: Math.round(it.baseCalories * newMult), protein: Math.round(it.baseProtein * newMult), carbs: Math.round(it.baseCarbs * newMult), fat: Math.round(it.baseFat * newMult), estimatedGrams: Math.round(it.baseGrams * newMult) };
+                                      })
+                                    } : null);
+                                  }}
+                                  data-testid={`inline-portion-increase-${i}`}
+                                >
+                                  <Plus className="w-2.5 h-2.5" />
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

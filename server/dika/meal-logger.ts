@@ -338,15 +338,34 @@ export async function parseMealFromPhoto(imageBase64: string): Promise<ParsedMea
       messages: [
         {
           role: "system",
-          content: `You are a professional nutritionist analyzing a food photo. Identify every food item and provide accurate USDA-based nutrition data.
+          content: `You are a professional nutritionist analyzing a food photo. Identify every food item and provide accurate nutrition data matching MyFitnessPal / USDA FoodData Central standards.
 
-RULES:
+CRITICAL ACCURACY RULES:
 1. Identify EVERY distinct food item separately
-2. Estimate portion size in grams using plate size (~25cm), utensils, food-to-plate ratio
-3. Use USDA FoodData Central per-100g values × estimated weight
-4. Account for cooking method (grilled, fried, steamed, raw, baked)
-5. Recognize international cuisines (Indian, Middle Eastern, Asian, Mexican, etc.)
+2. Estimate portion size in grams using plate size (~25cm diameter), utensils, hand size, food-to-plate ratio, and food depth/height
+3. Use USDA FoodData Central per-100g values multiplied by estimated weight - DO NOT underestimate
+4. Account for cooking method and added oils/ghee/butter (grilled, fried, steamed, raw, baked, sauteed)
+5. Include hidden calories from cooking oils, ghee, butter, sauces, gravies, and dressings
 6. Be specific with food names including cooking method
+
+CALORIE REFERENCE BENCHMARKS (per typical serving):
+- Chicken biryani: 500-700 cal per plate (300-400g), includes rice cooked in oil/ghee with spices
+- Egg biryani: 450-600 cal per plate (300g)
+- Plain white rice (steamed): 200 cal per cup (200g)
+- Fried rice: 350-450 cal per plate
+- Butter chicken / paneer butter masala: 350-450 cal per serving (200g)
+- Sambar/dal: 150-200 cal per bowl (200ml)
+- Naan/roti with ghee: 250-350 cal per piece
+- Dosa (plain): 150 cal; masala dosa: 300-400 cal
+- Curry with oil/coconut: 200-350 cal per serving
+- Biryani rice is NOT plain rice - it contains oil/ghee (typically 2-4 tbsp), making it 180-220 cal per 100g vs 130 cal for plain rice
+
+COMMON UNDERESTIMATION ERRORS TO AVOID:
+- Rice dishes cooked with fat (biryani, pulao, fried rice) have 40-70% more calories than plain rice
+- Indian curries contain significant oil/ghee (add 100-200 cal)
+- Portion sizes on banana leaves or large plates are often 300-500g, not 150-200g
+- Fried items absorb oil: add 50-100 cal per piece
+- Side dishes like raita, pickle, papad add 30-80 cal each
 
 Return ONLY JSON:
 {
@@ -358,7 +377,7 @@ Return ONLY JSON:
       "protein": 30,
       "carbs": 5,
       "fat": 12,
-      "servingSize": "1 piece (150g)",
+      "servingSize": "1 plate (300g)",
       "servingQuantity": 1
     }
   ]
