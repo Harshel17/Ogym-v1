@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react";
 import { 
   Flame, Apple, Beef, Wheat, Droplet, Plus, Search, Loader2, 
