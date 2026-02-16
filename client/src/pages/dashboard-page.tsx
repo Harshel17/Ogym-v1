@@ -2101,17 +2101,15 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {sportProfile && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-8 h-8 rounded-lg text-amber-500"
-                    onClick={(e) => { e.stopPropagation(); openMatchDialog(); }}
-                    data-testid="button-log-match"
-                  >
-                    <Trophy className="w-4 h-4" />
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-8 h-8 rounded-lg text-amber-500"
+                  onClick={(e) => { e.stopPropagation(); openMatchDialog(); }}
+                  data-testid="button-log-match"
+                >
+                  <Trophy className="w-4 h-4" />
+                </Button>
                 {workoutItems.length > 0 && (
                   <Badge 
                     variant={allCompleted ? "default" : "secondary"}
