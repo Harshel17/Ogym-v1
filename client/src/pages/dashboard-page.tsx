@@ -1140,6 +1140,252 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const [matchAction, setMatchAction] = useState<"rest" | "warmup" | "recovery" | "normal" | "">("");
   const [matchDuration, setMatchDuration] = useState<number>(60);
   const [matchIntensity, setMatchIntensity] = useState<"casual" | "competitive">("casual");
+  const [matchExercisesDone, setMatchExercisesDone] = useState<Record<string, boolean>>({});
+
+  const MATCH_EXERCISES: Record<string, Record<string, { warmup: { name: string; duration: string }[]; recovery: { name: string; duration: string }[] }>> = {
+    "Football (Soccer)": {
+      default: {
+        warmup: [
+          { name: "Light jog around the pitch", duration: "5 min" },
+          { name: "Dynamic leg swings (front & side)", duration: "2 min" },
+          { name: "High knees & butt kicks", duration: "3 min" },
+          { name: "Lateral shuffles & carioca", duration: "3 min" },
+          { name: "Short sprints (50-70%)", duration: "3 min" },
+          { name: "Ball control drills", duration: "5 min" },
+          { name: "Passing & receiving warm-up", duration: "5 min" },
+        ],
+        recovery: [
+          { name: "Slow walk / cool-down jog", duration: "5 min" },
+          { name: "Quad stretch (each leg)", duration: "1 min" },
+          { name: "Hamstring stretch (each leg)", duration: "1 min" },
+          { name: "Hip flexor stretch", duration: "2 min" },
+          { name: "Calf stretch (wall)", duration: "1 min" },
+          { name: "Foam roll quads & hamstrings", duration: "5 min" },
+          { name: "Glute bridge hold", duration: "2 min" },
+        ],
+      },
+      Goalkeeper: {
+        warmup: [
+          { name: "Light jog with arm circles", duration: "5 min" },
+          { name: "Dynamic leg swings", duration: "2 min" },
+          { name: "Lateral shuffles & crossovers", duration: "3 min" },
+          { name: "Reaction drills (quick feet)", duration: "3 min" },
+          { name: "Diving practice (low shots)", duration: "5 min" },
+          { name: "High ball catching", duration: "3 min" },
+          { name: "Distribution kicks", duration: "4 min" },
+        ],
+        recovery: [
+          { name: "Slow cool-down walk", duration: "5 min" },
+          { name: "Shoulder & wrist stretches", duration: "2 min" },
+          { name: "Hip opener stretch", duration: "2 min" },
+          { name: "Lower back stretch", duration: "2 min" },
+          { name: "Foam roll shoulders & back", duration: "4 min" },
+          { name: "Hamstring & quad stretch", duration: "3 min" },
+          { name: "Deep breathing & relaxation", duration: "2 min" },
+        ],
+      },
+    },
+    "Basketball": {
+      default: {
+        warmup: [
+          { name: "Light court jog (2 laps)", duration: "3 min" },
+          { name: "Dynamic arm circles & leg swings", duration: "2 min" },
+          { name: "High knees & butt kicks", duration: "2 min" },
+          { name: "Defensive slides", duration: "3 min" },
+          { name: "Layup lines", duration: "4 min" },
+          { name: "Shooting warm-up (close range)", duration: "5 min" },
+          { name: "Ball handling drills", duration: "3 min" },
+        ],
+        recovery: [
+          { name: "Slow walk & deep breathing", duration: "3 min" },
+          { name: "Calf & Achilles stretch", duration: "2 min" },
+          { name: "Quad & hamstring stretch", duration: "3 min" },
+          { name: "Shoulder & arm stretch", duration: "2 min" },
+          { name: "Foam roll legs & back", duration: "5 min" },
+          { name: "Ankle circles & mobility", duration: "2 min" },
+          { name: "Wrist & finger stretches", duration: "1 min" },
+        ],
+      },
+    },
+    "Tennis": {
+      default: {
+        warmup: [
+          { name: "Light jog (sideline to sideline)", duration: "3 min" },
+          { name: "Arm circles & shoulder rotations", duration: "2 min" },
+          { name: "Lateral shuffles", duration: "3 min" },
+          { name: "Shadow swings (forehand & backhand)", duration: "3 min" },
+          { name: "Mini-tennis (service box rallies)", duration: "5 min" },
+          { name: "Serve practice (50% power)", duration: "4 min" },
+          { name: "Baseline rally warm-up", duration: "5 min" },
+        ],
+        recovery: [
+          { name: "Slow walk around the court", duration: "3 min" },
+          { name: "Shoulder & rotator cuff stretch", duration: "3 min" },
+          { name: "Forearm & wrist stretch", duration: "2 min" },
+          { name: "Hip flexor & groin stretch", duration: "3 min" },
+          { name: "Calf & ankle stretch", duration: "2 min" },
+          { name: "Foam roll back & shoulders", duration: "4 min" },
+          { name: "Gentle full-body stretch", duration: "3 min" },
+        ],
+      },
+    },
+    "Swimming": {
+      default: {
+        warmup: [
+          { name: "Arm circles & shoulder stretches", duration: "3 min" },
+          { name: "Trunk rotations", duration: "2 min" },
+          { name: "Ankle & hip mobility", duration: "2 min" },
+          { name: "Easy swim (200m mixed stroke)", duration: "5 min" },
+          { name: "Kick drills with board", duration: "4 min" },
+          { name: "Pull drills", duration: "4 min" },
+          { name: "Race-pace intervals (4x25m)", duration: "5 min" },
+        ],
+        recovery: [
+          { name: "Easy cool-down swim (200m)", duration: "5 min" },
+          { name: "Shoulder stretch (doorway)", duration: "2 min" },
+          { name: "Lat & upper back stretch", duration: "2 min" },
+          { name: "Hip & quad stretch", duration: "3 min" },
+          { name: "Ankle circles", duration: "1 min" },
+          { name: "Foam roll lats & shoulders", duration: "4 min" },
+          { name: "Deep breathing & relaxation", duration: "3 min" },
+        ],
+      },
+    },
+    "Boxing": {
+      default: {
+        warmup: [
+          { name: "Jump rope (easy pace)", duration: "5 min" },
+          { name: "Arm circles & shoulder rolls", duration: "2 min" },
+          { name: "Shadow boxing (light)", duration: "5 min" },
+          { name: "Neck rotations", duration: "1 min" },
+          { name: "Hip circles & leg swings", duration: "2 min" },
+          { name: "Footwork drills", duration: "3 min" },
+          { name: "Light pad work / bag work", duration: "5 min" },
+        ],
+        recovery: [
+          { name: "Slow walk & shake out arms", duration: "3 min" },
+          { name: "Shoulder & chest stretch", duration: "3 min" },
+          { name: "Wrist & forearm stretch", duration: "2 min" },
+          { name: "Hip flexor stretch", duration: "2 min" },
+          { name: "Neck stretch (gentle)", duration: "2 min" },
+          { name: "Foam roll back & arms", duration: "4 min" },
+          { name: "Deep breathing", duration: "2 min" },
+        ],
+      },
+    },
+    "MMA": {
+      default: {
+        warmup: [
+          { name: "Jump rope", duration: "5 min" },
+          { name: "Hip escapes (shrimping)", duration: "3 min" },
+          { name: "Shadow boxing", duration: "3 min" },
+          { name: "Sprawls & level changes", duration: "3 min" },
+          { name: "Guard pull & stand-up drills", duration: "3 min" },
+          { name: "Neck bridges (light)", duration: "2 min" },
+          { name: "Light sparring / flow rolling", duration: "5 min" },
+        ],
+        recovery: [
+          { name: "Slow walk & deep breathing", duration: "3 min" },
+          { name: "Full-body stretch sequence", duration: "5 min" },
+          { name: "Hip opener (pigeon pose)", duration: "3 min" },
+          { name: "Shoulder & neck stretch", duration: "2 min" },
+          { name: "Foam roll full body", duration: "5 min" },
+          { name: "Ice bath or cold shower", duration: "3 min" },
+        ],
+      },
+    },
+    "Cricket": {
+      default: {
+        warmup: [
+          { name: "Light jog & dynamic stretches", duration: "5 min" },
+          { name: "Arm circles & shoulder mobility", duration: "2 min" },
+          { name: "Lateral shuffles", duration: "2 min" },
+          { name: "Catching practice (high & low)", duration: "5 min" },
+          { name: "Batting shadow swings", duration: "3 min" },
+          { name: "Throw-downs (short distance)", duration: "5 min" },
+          { name: "Sprint drills (pitch length)", duration: "3 min" },
+        ],
+        recovery: [
+          { name: "Slow cool-down walk", duration: "3 min" },
+          { name: "Shoulder & rotator cuff stretch", duration: "3 min" },
+          { name: "Lower back stretch", duration: "2 min" },
+          { name: "Hamstring & quad stretch", duration: "3 min" },
+          { name: "Wrist & forearm stretch", duration: "2 min" },
+          { name: "Foam roll back & legs", duration: "4 min" },
+          { name: "Gentle full-body stretch", duration: "3 min" },
+        ],
+      },
+      Bowler: {
+        warmup: [
+          { name: "Light jog (increasing pace)", duration: "5 min" },
+          { name: "Shoulder & arm circles (both arms)", duration: "3 min" },
+          { name: "Trunk rotations", duration: "2 min" },
+          { name: "Run-up practice (no ball)", duration: "3 min" },
+          { name: "Short-distance bowling (60%)", duration: "5 min" },
+          { name: "Yorker & bouncer practice", duration: "5 min" },
+          { name: "Fielding drills", duration: "3 min" },
+        ],
+        recovery: [
+          { name: "Slow cool-down walk", duration: "3 min" },
+          { name: "Bowling arm shoulder stretch", duration: "3 min" },
+          { name: "Lower back decompression", duration: "3 min" },
+          { name: "Hip flexor stretch", duration: "2 min" },
+          { name: "Hamstring & calf stretch", duration: "3 min" },
+          { name: "Foam roll back & shoulder", duration: "4 min" },
+          { name: "Ice pack on shoulder (if needed)", duration: "5 min" },
+        ],
+      },
+    },
+    "Volleyball": {
+      default: {
+        warmup: [
+          { name: "Light jog (court perimeter)", duration: "3 min" },
+          { name: "Arm circles & shoulder stretches", duration: "2 min" },
+          { name: "Dynamic leg swings", duration: "2 min" },
+          { name: "Vertical jump practice", duration: "3 min" },
+          { name: "Passing drills (pepper)", duration: "5 min" },
+          { name: "Setting practice", duration: "3 min" },
+          { name: "Hitting approach & swing", duration: "5 min" },
+        ],
+        recovery: [
+          { name: "Slow walk & deep breathing", duration: "3 min" },
+          { name: "Shoulder & rotator cuff stretch", duration: "3 min" },
+          { name: "Quad & knee stretch", duration: "2 min" },
+          { name: "Ankle & calf stretch", duration: "2 min" },
+          { name: "Lower back stretch", duration: "2 min" },
+          { name: "Foam roll legs & shoulders", duration: "4 min" },
+          { name: "Wrist & finger stretch", duration: "2 min" },
+        ],
+      },
+    },
+  };
+
+  const getMatchExercises = (sport: string, role: string, action: string) => {
+    const sportData = MATCH_EXERCISES[sport];
+    if (!sportData) return [];
+    const roleData = sportData[role] || sportData["default"];
+    if (!roleData) return [];
+    if (action === "warmup") return roleData.warmup || [];
+    if (action === "recovery") return roleData.recovery || [];
+    return [];
+  };
+
+  const matchExerciseStorageKey = `ogym_match_exercises_${user?.id}_${format(new Date(), 'yyyy-MM-dd')}`;
+  
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(matchExerciseStorageKey);
+      if (saved) setMatchExercisesDone(JSON.parse(saved));
+    } catch {}
+  }, [matchExerciseStorageKey]);
+
+  const toggleMatchExercise = (idx: number) => {
+    setMatchExercisesDone(prev => {
+      const next = { ...prev, [idx]: !prev[idx] };
+      localStorage.setItem(matchExerciseStorageKey, JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Onboarding state (user-specific key to handle shared browsers)
   const onboardingKey = isPersonalMode ? `ogym_personal_onboarding_seen_${user?.id}` : `ogym_member_onboarding_seen_${user?.id}`;
@@ -1707,58 +1953,107 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="rounded-xl bg-muted/30 p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium">{todayMatchLog.sport}</span>
-                {todayMatchLog.intensity && (
-                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 no-default-hover-elevate no-default-active-elevate">
-                    {todayMatchLog.intensity}
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {todayMatchLog.workoutAction === "rest" 
-                  ? "Your regular workout is paused. Rest up and save energy for the match."
-                  : todayMatchLog.workoutAction === "warmup"
-                  ? "Light dynamic stretching and mobility work to prepare for tomorrow's match."
-                  : todayMatchLog.workoutAction === "recovery"
-                  ? "Light stretching, foam rolling, and easy cardio to help your body recover."
-                  : "Match activity replaces today's workout."}
-              </p>
-              {(todayMatchLog.duration || todayMatchLog.caloriesBurned) && (
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  {todayMatchLog.duration && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {todayMatchLog.duration} min
-                    </span>
-                  )}
-                  {todayMatchLog.caloriesBurned && (
-                    <span className="flex items-center gap-1">
-                      <Flame className="w-3 h-3" /> ~{todayMatchLog.caloriesBurned} cal
-                    </span>
-                  )}
-                </div>
-              )}
-              <div className="flex items-center justify-between pt-1">
-                <p className="text-[11px] text-muted-foreground/70">Regular workout cycle is not affected</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-muted-foreground h-7"
-                  onClick={() => cancelMatchMutation.mutate(todayMatchLog.id)}
-                  disabled={cancelMatchMutation.isPending}
-                  data-testid="button-cancel-match-workout"
-                >
-                  {cancelMatchMutation.isPending ? (
-                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+            {(() => {
+              const exercises = getMatchExercises(todayMatchLog.sport, sportProfile?.role || "default", todayMatchLog.workoutAction);
+              const doneCount = exercises.filter((_: any, i: number) => matchExercisesDone[i]).length;
+              const allDone = exercises.length > 0 && doneCount === exercises.length;
+              return (
+                <div className="space-y-3">
+                  {todayMatchLog.workoutAction === "rest" ? (
+                    <div className="rounded-xl bg-muted/30 p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium">{todayMatchLog.sport}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Your regular workout is paused. Rest up and save energy for the match. Stay hydrated and get a good night's sleep.
+                      </p>
+                    </div>
+                  ) : exercises.length > 0 ? (
+                    <>
+                      <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{exercises.length} exercises</span>
+                          {allDone && (
+                            <Badge variant="default" className="bg-gradient-to-r from-green-500 to-emerald-500 border-0 text-white text-[10px] py-0 px-1.5 no-default-hover-elevate no-default-active-elevate">
+                              <Sparkles className="w-3 h-3 mr-0.5" /> Complete
+                            </Badge>
+                          )}
+                        </div>
+                        <Badge variant="secondary" className="border-0 bg-muted/60 text-[10px] no-default-hover-elevate no-default-active-elevate">
+                          {doneCount}/{exercises.length}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        {exercises.map((ex: { name: string; duration: string }, i: number) => (
+                          <Button
+                            key={i}
+                            variant="ghost"
+                            className={`w-full justify-start h-auto py-2.5 px-3 ${matchExercisesDone[i] ? 'opacity-60' : ''}`}
+                            onClick={() => toggleMatchExercise(i)}
+                            data-testid={`match-exercise-${i}`}
+                          >
+                            <div className="flex items-center gap-3 w-full">
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                matchExercisesDone[i] 
+                                  ? 'bg-green-500 border-green-500' 
+                                  : 'border-muted-foreground/30'
+                              }`}>
+                                {matchExercisesDone[i] && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <span className={`text-sm text-left flex-1 ${matchExercisesDone[i] ? 'line-through text-muted-foreground' : ''}`}>
+                                {ex.name}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground flex-shrink-0">{ex.duration}</span>
+                            </div>
+                          </Button>
+                        ))}
+                      </div>
+                    </>
                   ) : (
-                    <X className="w-3 h-3 mr-1" />
+                    <div className="rounded-xl bg-muted/30 p-4">
+                      <p className="text-sm text-muted-foreground">
+                        {todayMatchLog.workoutAction === "warmup"
+                          ? "Light dynamic stretching and mobility work to prepare for your match."
+                          : "Light stretching, foam rolling, and easy cardio to help your body recover."}
+                      </p>
+                    </div>
                   )}
-                  {cancelMatchMutation.isPending ? "Restoring..." : "Restore Workout"}
-                </Button>
-              </div>
-            </div>
+                  {(todayMatchLog.duration || todayMatchLog.caloriesBurned) && (
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
+                      {todayMatchLog.duration > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {todayMatchLog.duration} min
+                        </span>
+                      )}
+                      {todayMatchLog.caloriesBurned > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Flame className="w-3 h-3" /> ~{todayMatchLog.caloriesBurned} cal
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between px-1 pt-1">
+                    <p className="text-[11px] text-muted-foreground/70">Regular workout cycle is not affected</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs text-muted-foreground h-7"
+                      onClick={() => cancelMatchMutation.mutate(todayMatchLog.id)}
+                      disabled={cancelMatchMutation.isPending}
+                      data-testid="button-cancel-match-workout"
+                    >
+                      {cancelMatchMutation.isPending ? (
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      ) : (
+                        <X className="w-3 h-3 mr-1" />
+                      )}
+                      {cancelMatchMutation.isPending ? "Restoring..." : "Restore Workout"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       ) : (
