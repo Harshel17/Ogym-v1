@@ -2101,15 +2101,6 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-8 h-8 rounded-lg text-amber-500"
-                  onClick={(e) => { e.stopPropagation(); openMatchDialog(); }}
-                  data-testid="button-log-match"
-                >
-                  <Trophy className="w-4 h-4" />
-                </Button>
                 {workoutItems.length > 0 && (
                   <Badge 
                     variant={allCompleted ? "default" : "secondary"}
@@ -2138,26 +2129,48 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                 {muscleTypes.slice(0, 3).map((mt: string) => (
                   <Badge key={mt} variant="outline" className="text-[10px] py-0 px-1.5 border-primary/20 text-primary/80 no-default-hover-elevate no-default-active-elevate">{mt}</Badge>
                 ))}
-                {!allCompleted && (
-                  <Button 
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <Button
                     size="sm"
-                    className="ml-auto text-[11px] h-7"
-                    onClick={(e) => { e.stopPropagation(); setIsWorkoutOpen(true); }}
-                    data-testid="button-start-workout-quick"
+                    variant="outline"
+                    className="text-[11px] h-7 border-amber-500/30 text-amber-500"
+                    onClick={(e) => { e.stopPropagation(); openMatchDialog(); }}
+                    data-testid="button-log-match"
                   >
-                    {completedCount > 0 ? "Continue" : "Start"}
-                    <ChevronsRight className="w-3 h-3 ml-1" />
+                    <Trophy className="w-3 h-3 mr-1" />
+                    Match
                   </Button>
-                )}
+                  {!allCompleted && (
+                    <Button 
+                      size="sm"
+                      className="text-[11px] h-7"
+                      onClick={(e) => { e.stopPropagation(); setIsWorkoutOpen(true); }}
+                      data-testid="button-start-workout-quick"
+                    >
+                      {completedCount > 0 ? "Continue" : "Start"}
+                      <ChevronsRight className="w-3 h-3 ml-1" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           )}
           {isRestDay && !isWorkoutOpen && workoutItems.length === 0 && (
-            <div className="px-6 pb-4 -mt-1">
+            <div className="px-6 pb-4 -mt-1 space-y-2">
               <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-muted/30" data-testid="rest-day-indicator">
                 <BedDouble className="w-4 h-4 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Rest day - recover and recharge</span>
               </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-xs h-8 border-amber-500/30 text-amber-500"
+                onClick={openMatchDialog}
+                data-testid="button-log-match-rest"
+              >
+                <Trophy className="w-3.5 h-3.5 mr-1.5" />
+                Log a Match
+              </Button>
             </div>
           )}
           
