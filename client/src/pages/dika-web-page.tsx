@@ -18,7 +18,6 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { useAiConsent, AiDataConsentDialog } from '@/components/ai-data-consent';
 
 interface DikaChat {
   id: number;
@@ -242,7 +241,6 @@ const QUICK_ACTIONS = [
 export default function DikaWebPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const aiConsent = useAiConsent();
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -374,7 +372,7 @@ export default function DikaWebPage() {
     },
   });
 
-  const doSendMessage = useCallback(async (text?: string) => {
+  const handleSendMessage = useCallback(async (text?: string) => {
     const msg = text || messageInput.trim();
     if (!msg) return;
     setMessageInput('');
@@ -407,12 +405,6 @@ export default function DikaWebPage() {
     setIsSending(true);
     sendMessageMutation.mutate({ chatId: chatId!, message: msg });
   }, [messageInput, activeChatId, sendMessageMutation, toast]);
-
-  const handleSendMessage = useCallback((text?: string) => {
-    const msg = text || messageInput.trim();
-    if (!msg) return;
-    aiConsent.requireConsent(() => doSendMessage(text));
-  }, [messageInput, aiConsent, doSendMessage]);
 
   const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -501,12 +493,6 @@ export default function DikaWebPage() {
   const unpinnedChats = useMemo(() => filteredChats.filter(c => !c.isPinned), [filteredChats]);
 
   return (
-    <>
-    <AiDataConsentDialog
-      open={aiConsent.showDialog}
-      onConsentGranted={aiConsent.onConsentGranted}
-      onConsentDenied={aiConsent.onConsentDenied}
-    />
     <div className="flex h-dvh w-full bg-[#0a0f1a]" data-testid="page-dika-web">
       {sidebarOpen && (
         <div
@@ -1017,6 +1003,5 @@ function WelcomeScreen({
         </div>
       )}
     </div>
-    </>
   );
 }
