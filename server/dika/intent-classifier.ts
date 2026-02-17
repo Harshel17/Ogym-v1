@@ -34,6 +34,7 @@ const ANALYTICS_INTENT_DESCRIPTIONS: Record<string, string> = {
   new_member_retention: "New member retention, are new signups sticking around, retention rate by cohort",
   trainer_effectiveness: "Trainer performance, which trainer is best, trainer comparison, trainer member outcomes",
   period_comparison: "Compare this month vs last month, monthly comparison, how does this period compare, period over period",
+  full_synthesis: "Full summary, complete overview, overall report, how am I doing overall, summarize my last 60 days, full analysis across all metrics",
 };
 
 export interface ClassifiedIntent {
@@ -84,6 +85,10 @@ export async function classifyAnalyticsIntent(
     { pattern: /(?:calorie[s]?\s+)?(?:eaten|intake)\s+vs?\s+(?:burned|output)/i, intent: "activity_nutrition_correlation" },
     { pattern: /energy\s+balance/i, intent: "activity_nutrition_correlation" },
     { pattern: /(?:surplus|deficit)\s+(?:trend|analysis|history)/i, intent: "activity_nutrition_correlation" },
+    { pattern: /(?:calorie[s]?\s+)?(?:surplus|deficit)/i, intent: "activity_nutrition_correlation" },
+    { pattern: /(?:am\s+i\s+)?(?:in\s+a\s+)?(?:caloric?\s+)?(?:surplus|deficit)/i, intent: "activity_nutrition_correlation" },
+    { pattern: /(?:eating\s+)?(?:more|less)\s+than\s+(?:i\s+)?(?:burn|burning|spend)/i, intent: "activity_nutrition_correlation" },
+    { pattern: /(?:calories?\s+)?(?:burned?\s+vs?\s+)?(?:consumed|eaten|intake)/i, intent: "activity_nutrition_correlation" },
     { pattern: /match\s+(?:frequency|history|trend|log|stats)/i, intent: "match_frequency_trend" },
     { pattern: /how\s+many\s+(?:match|game)/i, intent: "match_frequency_trend" },
     { pattern: /(?:sport|match)\s+(?:performance|recovery|correlation)/i, intent: "sport_performance_correlation" },
@@ -98,7 +103,16 @@ export async function classifyAnalyticsIntent(
     { pattern: /(?:last|past)\s+\d+\s+(?:day|week|month).{0,30}(?:muscle|undertraining|overtrain)/i, intent: "muscle_volume_analysis" },
     { pattern: /(?:muscle\s+group|body\s+part).{0,20}(?:undertraining|neglect|miss|skip|weak)/i, intent: "muscle_volume_analysis" },
     { pattern: /(?:strength|how\s+(?:has\s+)?(?:my\s+)?strength)\s+(?:has\s+)?(?:progressed|improved|changed)/i, intent: "strength_progression" },
+    { pattern: /how\s+(?:has|have|is)\s+my\s+.{2,30}\s+(?:progressed|improved|changed|gotten\s+(?:better|stronger|weaker))/i, intent: "strength_progression" },
+    { pattern: /(?:bench\s*press|squat|deadlift|overhead\s*press|curl|pull[\s-]?up|row|press|lat\s*pull).{0,30}(?:progress|trend|improve|change|percentage|%)/i, intent: "strength_progression" },
     { pattern: /(?:how\s+(?:is|has)\s+my)\s+(?:training|workout|fitness)\s+(?:going|been|progress)/i, intent: "workout_frequency_trend" },
+    { pattern: /(?:full|complete|overall|total)\s+(?:summary|overview|report|breakdown|analysis)\s+(?:of\s+)?(?:my\s+)?(?:last|past)?\s*\d*\s*(?:day|week|month)?/i, intent: "full_synthesis" },
+    { pattern: /(?:give\s+me|show\s+me|what's)\s+(?:a\s+)?(?:full|complete|overall|detailed)\s+(?:summary|overview|report|breakdown|analysis|picture)/i, intent: "full_synthesis" },
+    { pattern: /(?:how\s+(?:am\s+i|have\s+i\s+been)\s+doing)\s+(?:over(?:all)?|in\s+(?:the\s+)?(?:last|past))/i, intent: "full_synthesis" },
+    { pattern: /(?:last|past)\s+\d+\s+(?:day|week|month).{0,20}(?:summary|overview|report|how\s+(?:am|did|have))/i, intent: "full_synthesis" },
+    { pattern: /(?:summarize|analyze|break\s*down)\s+(?:my\s+)?(?:last|past)\s+\d+\s+(?:day|week|month)/i, intent: "full_synthesis" },
+    { pattern: /^how\s+am\s+i\s+doing\s*\??$/i, intent: "full_synthesis" },
+    { pattern: /(?:my\s+)?(?:fitness|progress|training)\s+(?:summary|overview|report)/i, intent: "full_synthesis" },
   ];
 
   if (isOwner) {
@@ -119,7 +133,7 @@ export async function classifyAnalyticsIntent(
 
   for (const { pattern, intent, params } of quickPatterns) {
     if (pattern.test(lower)) {
-      const memberOnly = ["workout_frequency_trend", "muscle_volume_analysis", "strength_progression", "training_load_trend", "workout_consistency", "exercise_frequency_ranking", "rest_day_pattern", "workout_completion_rate", "day_of_week_patterns", "calorie_trend", "protein_adherence", "macro_balance_trend", "meal_timing_patterns", "water_intake_consistency", "calorie_goal_adherence", "body_composition_trend", "health_metrics_trend", "recovery_score_history", "activity_nutrition_correlation", "match_frequency_trend", "sport_performance_correlation"];
+      const memberOnly = ["workout_frequency_trend", "muscle_volume_analysis", "strength_progression", "training_load_trend", "workout_consistency", "exercise_frequency_ranking", "rest_day_pattern", "workout_completion_rate", "day_of_week_patterns", "calorie_trend", "protein_adherence", "macro_balance_trend", "meal_timing_patterns", "water_intake_consistency", "calorie_goal_adherence", "body_composition_trend", "health_metrics_trend", "recovery_score_history", "activity_nutrition_correlation", "match_frequency_trend", "sport_performance_correlation", "full_synthesis"];
       const ownerOnly = ["churn_risk_scoring", "attendance_trend_per_member", "revenue_trend", "gym_utilization_patterns", "new_member_retention", "trainer_effectiveness"];
 
       if (ownerOnly.includes(intent) && !isOwner) continue;

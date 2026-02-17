@@ -1305,6 +1305,11 @@ export function formatExerciseResponse(exercise: Exercise): string {
 export function detectExerciseQuestion(message: string): string | null {
   const lowerMessage = message.toLowerCase();
   
+  const analyticsKeywords = /(?:progress|trend|history|over\s+(?:the\s+)?(?:last|past)|improved|changed|progressed|stronger|weaker|compare|comparison|\d+\s+(?:week|month|day)|how\s+(?:has|have|is)\s+my|percentage|percent|%|undertraining|overtrain|volume\s+analysis|frequency\s+trend|consistency|adherence|surplus|deficit|analytics|when\s+do\s+i\s+(?:usually\s+)?(?:skip|miss)|how\s+(?:often|many\s+times))/i;
+  if (analyticsKeywords.test(lowerMessage)) {
+    return null;
+  }
+
   const patterns = [
     /how (?:do i|to|can i|should i) (?:do|perform|execute) (?:a |an |the )?(.+?)(?:\?|$|properly|correctly|right)/i,
     /(?:proper|correct|right|best) (?:form|technique|way) (?:for|to do) (?:a |an |the )?(.+?)(?:\?|$)/i,

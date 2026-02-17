@@ -1429,6 +1429,149 @@ export async function periodComparison(userId: number, gymId: number | null, rol
 }
 
 // ============================================================
+// 29. FULL SYNTHESIS - Multi-metric combined overview
+// ============================================================
+async function fullSynthesis(userId: number, gymId: number | null, params: any = {}): Promise<AnalyticsResult> {
+  const period = params.period || "8_weeks";
+  const days = periodToDays(period);
+  const startDate = getDateNDaysAgo(days);
+  const today = new Date().toISOString().split("T")[0];
+
+  const workoutRows = await db.select({
+    date: workoutCompletions.completedDate,
+  }).from(workoutCompletions)
+    .where(and(eq(workoutCompletions.memberId, userId), gte(workoutCompletions.completedDate, startDate)));
+  const totalWorkouts = workoutRows.length;
+  const workoutDays = new Set(workoutRows.map(r => r.date)).size;
+  const consistencyPct = Math.round((workoutDays / days) * 100);
+
+  const completionsRaw = await db.select({
+    sets: workoutCompletions.actualSets,
+    itemId: workoutCompletions.workoutItemId,
+  }).from(workoutCompletions)
+    .where(and(eq(workoutCompletions.memberId, userId), gte(workoutCompletions.completedDate, startDate)));
+
+  const itemIds = Array.from(new Set(completionsRaw.filter(c => c.itemId).map(c => c.itemId!)));
+  let itemMuscleMap: Record<number, string> = {};
+  if (itemIds.length > 0) {
+    const items = await db.select({ id: workoutItems.id, muscleType: workoutItems.muscleType })
+      .from(workoutItems).where(sql`${workoutItems.id} IN (${sql.join(itemIds.map(id => sql`${id}`), sql`, `)})`);
+    for (const item of items) {
+      itemMuscleMap[item.id] = item.muscleType || "unknown";
+    }
+  }
+
+  const muscleMap: Record<string, number> = {};
+  for (const r of completionsRaw) {
+    const m = (r.itemId ? itemMuscleMap[r.itemId] || "unknown" : "unknown").toLowerCase();
+    muscleMap[m] = (muscleMap[m] || 0) + (r.sets || 0);
+  }
+  const topMuscle = Object.entries(muscleMap).sort((a, b) => b[1] - a[1])[0];
+  const bottomMuscle = Object.entries(muscleMap).sort((a, b) => a[1] - b[1])[0];
+
+  const nutritionRows = await db.select({
+    calories: foodLogs.calories,
+    protein: foodLogs.protein,
+    carbs: foodLogs.carbs,
+    fat: foodLogs.fat,
+    date: foodLogs.date,
+  }).from(foodLogs)
+    .where(and(eq(foodLogs.userId, userId), gte(foodLogs.date, startDate)));
+
+  const nutritionDays = new Set(nutritionRows.map(r => r.date)).size;
+  const totalCals = nutritionRows.reduce((s, r) => s + (Number(r.calories) || 0), 0);
+  const totalProtein = nutritionRows.reduce((s, r) => s + (Number(r.protein) || 0), 0);
+  const totalCarbs = nutritionRows.reduce((s, r) => s + (Number(r.carbs) || 0), 0);
+  const totalFat = nutritionRows.reduce((s, r) => s + (Number(r.fat) || 0), 0);
+  const avgDailyCals = nutritionDays > 0 ? Math.round(totalCals / nutritionDays) : 0;
+  const avgDailyProtein = nutritionDays > 0 ? Math.round(totalProtein / nutritionDays) : 0;
+
+  const bodyRows = await db.select({
+    weight: bodyMeasurements.weight,
+    bodyFat: bodyMeasurements.bodyFat,
+    date: bodyMeasurements.recordedDate,
+  }).from(bodyMeasurements)
+    .where(and(eq(bodyMeasurements.memberId, userId), gte(bodyMeasurements.recordedDate, startDate)))
+    .orderBy(asc(bodyMeasurements.recordedDate));
+
+  let weightChange: string | null = null;
+  if (bodyRows.length >= 2) {
+    const first = parseFloat(bodyRows[0].weight as any);
+    const last = parseFloat(bodyRows[bodyRows.length - 1].weight as any);
+    if (!isNaN(first) && !isNaN(last)) {
+      const diff = last - first;
+      weightChange = `${diff > 0 ? "+" : ""}${diff.toFixed(1)} (${first.toFixed(1)} → ${last.toFixed(1)})`;
+    }
+  }
+
+  const healthRows = await db.select({
+    steps: healthData.steps,
+    sleepMinutes: healthData.sleepMinutes,
+    heartRate: healthData.restingHeartRate,
+  }).from(healthData)
+    .where(and(eq(healthData.userId, userId), gte(healthData.date, startDate)));
+
+  const avgSteps = healthRows.length > 0 ? Math.round(healthRows.reduce((s, r) => s + (Number(r.steps) || 0), 0) / healthRows.length) : null;
+  const avgSleepMin = healthRows.length > 0 ? healthRows.reduce((s, r) => s + (Number(r.sleepMinutes) || 0), 0) / healthRows.length : 0;
+  const avgSleep = healthRows.length > 0 ? (avgSleepMin / 60).toFixed(1) : null;
+
+  const matchRows = await db.select({ id: matchLogs.id }).from(matchLogs)
+    .where(and(eq(matchLogs.userId, userId), gte(matchLogs.matchDate, startDate)));
+  const totalMatches = matchRows.length;
+
+  const synthesis = {
+    periodDays: days,
+    periodLabel: period,
+    training: {
+      totalWorkouts,
+      workoutDays,
+      consistencyPct,
+      topMuscle: topMuscle ? { name: topMuscle[0], sets: topMuscle[1] } : null,
+      bottomMuscle: bottomMuscle ? { name: bottomMuscle[0], sets: bottomMuscle[1] } : null,
+      muscleBreakdown: muscleMap,
+    },
+    nutrition: {
+      daysLogged: nutritionDays,
+      avgDailyCalories: avgDailyCals,
+      avgDailyProtein: avgDailyProtein,
+      totalCalories: totalCals,
+      macroSplit: nutritionDays > 0 ? {
+        proteinPct: Math.round((totalProtein * 4 / totalCals) * 100) || 0,
+        carbsPct: Math.round((totalCarbs * 4 / totalCals) * 100) || 0,
+        fatPct: Math.round((totalFat * 9 / totalCals) * 100) || 0,
+      } : null,
+    },
+    body: {
+      measurements: bodyRows.length,
+      weightChange,
+    },
+    health: {
+      daysTracked: healthRows.length,
+      avgSteps,
+      avgSleep,
+    },
+    sport: {
+      totalMatches,
+    },
+  };
+
+  const summaryParts: string[] = [];
+  summaryParts.push(`${days}-day synthesis:`);
+  summaryParts.push(`Training: ${totalWorkouts} workouts across ${workoutDays} days (${consistencyPct}% consistency).`);
+  if (topMuscle) summaryParts.push(`Most trained: ${topMuscle[0]} (${topMuscle[1]} sets). Least: ${bottomMuscle?.[0]} (${bottomMuscle?.[1]} sets).`);
+  summaryParts.push(`Nutrition: ${nutritionDays} days logged, avg ${avgDailyCals} cal/day, ${avgDailyProtein}g protein/day.`);
+  if (weightChange) summaryParts.push(`Weight: ${weightChange}.`);
+  if (avgSteps) summaryParts.push(`Health: avg ${avgSteps} steps/day, ${avgSleep}h sleep.`);
+  if (totalMatches > 0) summaryParts.push(`Sport: ${totalMatches} matches played.`);
+
+  return {
+    type: "full_synthesis",
+    data: synthesis,
+    summary: summaryParts.join(" "),
+  };
+}
+
+// ============================================================
 // INTENT REGISTRY - Maps intents to functions
 // ============================================================
 export const ANALYTICS_INTENTS: Record<string, {
@@ -1464,6 +1607,7 @@ export const ANALYTICS_INTENTS: Record<string, {
   new_member_retention: { fn: (_, g, __) => newMemberRetentionRate(g!), ownerOnly: true },
   trainer_effectiveness: { fn: (_, g, __) => trainerEffectiveness(g!), ownerOnly: true },
   period_comparison: { fn: (u, g, p) => periodComparison(u, g, p.role || "member"), },
+  full_synthesis: { fn: (u, g, p) => fullSynthesis(u, g, p), memberOnly: true },
 };
 
 export async function executeAnalytics(intent: string, userId: number, gymId: number | null, params: any = {}): Promise<AnalyticsResult | null> {

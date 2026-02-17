@@ -31,6 +31,37 @@ import { fitnessGoals } from "@shared/schema";
 import { classifyAnalyticsIntent } from "./intent-classifier";
 import { executeAnalytics, type AnalyticsResult } from "./analytics-engine";
 
+function detectEmptyAnalytics(result: AnalyticsResult): boolean {
+  const d = result.data;
+  if (!d || (typeof d === "object" && Object.keys(d).length === 0)) return true;
+
+  const emptyArrayKeys = ["weeks", "weeklyData", "days", "exercises", "entries", "records",
+    "muscles", "rankedExercises", "macroTrend", "dailyTotals", "matchDays", "performanceData",
+    "members", "memberData", "trainers"];
+  for (const key of emptyArrayKeys) {
+    if (Array.isArray(d[key]) && d[key].length === 0) return true;
+  }
+
+  const zeroCountKeys = ["totalWorkouts", "totalSessions", "totalDays", "totalDaysTrained",
+    "daysLogged", "totalMatches", "totalMembers"];
+  let hasAnyZeroCheck = false;
+  let allZero = true;
+  for (const key of zeroCountKeys) {
+    if (typeof d[key] === "number") {
+      hasAnyZeroCheck = true;
+      if (d[key] > 0) { allZero = false; break; }
+    }
+  }
+  if (hasAnyZeroCheck && allZero) return true;
+
+  if (result.type === "full_synthesis" && d.training && d.nutrition) {
+    if (d.training.totalWorkouts === 0 && d.nutrition.daysLogged === 0 &&
+        d.body?.measurements === 0 && d.health?.daysTracked === 0) return true;
+  }
+
+  return false;
+}
+
 export function detectFindFoodRequest(message: string): boolean {
   const patterns = [
     /find\s+(me\s+)?food/i,
@@ -1879,7 +1910,12 @@ export async function processWithAI(
         }
 
         let systemPrompt = buildSystemPrompt(userContext, dataContext, isIOSNative);
-        const analyticsInjection = `\n\n--- COMPUTED ANALYTICS DATA (use this to answer the user's question) ---\nAnalysis type: ${analyticsResult.type}\nSummary: ${analyticsResult.summary}\nDetailed data: ${JSON.stringify(analyticsResult.data, null, 0).slice(0, 2000)}\n--- END ANALYTICS DATA ---\n\nIMPORTANT: The above analytics data was computed from real historical records. Use it to give a specific, data-driven answer. Reference actual numbers, percentages, and trends. Don't make up numbers — only use what's provided above. Be conversational but precise.`;
+        const dataStr = JSON.stringify(analyticsResult.data, null, 0).slice(0, 2000);
+        const isEmptyData = detectEmptyAnalytics(analyticsResult);
+        const noDataFallback = isEmptyData
+          ? `\n\nNOTE: The analytics query returned no meaningful data for this period. Tell the user you checked their records but found no data for the requested timeframe. Suggest they may need to log more workouts/meals/measurements, or try a different time period. Be helpful and encouraging — don't just say "no data found."`
+          : `\n\nIMPORTANT: The above analytics data was computed from real historical records. Use it to give a specific, data-driven answer. Reference actual numbers, percentages, and trends. Don't make up numbers — only use what's provided above. Be conversational but precise.`;
+        const analyticsInjection = `\n\n--- COMPUTED ANALYTICS DATA (use this to answer the user's question) ---\nAnalysis type: ${analyticsResult.type}\nSummary: ${analyticsResult.summary}\nDetailed data: ${dataStr}\n--- END ANALYTICS DATA ---${noDataFallback}`;
         systemPrompt += analyticsInjection;
 
         const historyMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
