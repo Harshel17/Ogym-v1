@@ -79,94 +79,94 @@ interface OverlayRegion {
 }
 
 const frontRegions: OverlayRegion[] = [
-  { id: "shoulders", label: "Delts", tooltipPos: [50, 24],
+  { id: "shoulders", label: "Delts", tooltipPos: [50, 16],
     shapes: [
-      { type: "ellipse", cx: 34, cy: 28, rx: 6, ry: 3.5 },
-      { type: "ellipse", cx: 66, cy: 28, rx: 6, ry: 3.5 },
+      { type: "ellipse", cx: 31, cy: 20, rx: 5, ry: 2.5 },
+      { type: "ellipse", cx: 69, cy: 20, rx: 5, ry: 2.5 },
     ]},
-  { id: "chest", label: "Chest", tooltipPos: [50, 33],
+  { id: "chest", label: "Chest", tooltipPos: [50, 22],
     shapes: [
-      { type: "ellipse", cx: 43, cy: 38, rx: 7, ry: 5 },
-      { type: "ellipse", cx: 57, cy: 38, rx: 7, ry: 5 },
+      { type: "ellipse", cx: 43, cy: 27, rx: 6, ry: 4 },
+      { type: "ellipse", cx: 57, cy: 27, rx: 6, ry: 4 },
     ]},
-  { id: "biceps", label: "Biceps", tooltipPos: [25, 37],
+  { id: "biceps", label: "Biceps", tooltipPos: [24, 27],
     shapes: [
-      { type: "ellipse", cx: 29, cy: 42, rx: 3.5, ry: 7 },
-      { type: "ellipse", cx: 71, cy: 42, rx: 3.5, ry: 7 },
+      { type: "ellipse", cx: 27, cy: 31, rx: 3, ry: 5 },
+      { type: "ellipse", cx: 73, cy: 31, rx: 3, ry: 5 },
     ]},
-  { id: "forearms", label: "Forearms", tooltipPos: [22, 54],
+  { id: "forearms", label: "Forearms", tooltipPos: [21, 41],
     shapes: [
-      { type: "ellipse", cx: 25, cy: 59, rx: 3, ry: 7 },
-      { type: "ellipse", cx: 75, cy: 59, rx: 3, ry: 7 },
+      { type: "ellipse", cx: 23, cy: 44, rx: 2.5, ry: 5 },
+      { type: "ellipse", cx: 77, cy: 44, rx: 2.5, ry: 5 },
     ]},
-  { id: "abs", label: "Abs", tooltipPos: [50, 46],
+  { id: "abs", label: "Abs", tooltipPos: [50, 33],
     shapes: [
-      { type: "rect", x: 44, y: 44, w: 12, h: 16, rx: 2 },
+      { type: "rect", x: 44, y: 34, w: 12, h: 11, rx: 2 },
     ]},
-  { id: "obliques", label: "Obliques", tooltipPos: [38, 50],
+  { id: "obliques", label: "Obliques", tooltipPos: [38, 37],
     shapes: [
-      { type: "ellipse", cx: 41, cy: 53, rx: 3, ry: 6 },
-      { type: "ellipse", cx: 59, cy: 53, rx: 3, ry: 6 },
+      { type: "ellipse", cx: 40, cy: 39, rx: 3, ry: 4.5 },
+      { type: "ellipse", cx: 60, cy: 39, rx: 3, ry: 4.5 },
     ]},
-  { id: "quads", label: "Quads", tooltipPos: [50, 72],
+  { id: "quads", label: "Quads", tooltipPos: [50, 53],
     shapes: [
-      { type: "ellipse", cx: 43, cy: 80, rx: 5, ry: 11 },
-      { type: "ellipse", cx: 57, cy: 80, rx: 5, ry: 11 },
+      { type: "ellipse", cx: 42, cy: 59, rx: 5, ry: 8 },
+      { type: "ellipse", cx: 58, cy: 59, rx: 5, ry: 8 },
     ]},
-  { id: "calves", label: "Calves", tooltipPos: [50, 97],
+  { id: "calves", label: "Calves", tooltipPos: [50, 72],
     shapes: [
-      { type: "ellipse", cx: 43, cy: 105, rx: 3.5, ry: 8 },
-      { type: "ellipse", cx: 57, cy: 105, rx: 3.5, ry: 8 },
+      { type: "ellipse", cx: 42, cy: 78, rx: 3.5, ry: 6 },
+      { type: "ellipse", cx: 58, cy: 78, rx: 3.5, ry: 6 },
     ]},
 ];
 
 const backRegions: OverlayRegion[] = [
-  { id: "shoulders", label: "Delts", tooltipPos: [50, 24],
+  { id: "shoulders", label: "Delts", tooltipPos: [50, 16],
     shapes: [
-      { type: "ellipse", cx: 34, cy: 28, rx: 6, ry: 3.5 },
-      { type: "ellipse", cx: 66, cy: 28, rx: 6, ry: 3.5 },
+      { type: "ellipse", cx: 31, cy: 20, rx: 5, ry: 2.5 },
+      { type: "ellipse", cx: 69, cy: 20, rx: 5, ry: 2.5 },
     ]},
-  { id: "upper-back", label: "Upper Back", tooltipPos: [50, 33],
+  { id: "upper-back", label: "Upper Back", tooltipPos: [50, 22],
     shapes: [
-      { type: "rect", x: 38, y: 32, w: 24, h: 12, rx: 3 },
+      { type: "rect", x: 39, y: 23, w: 22, h: 10, rx: 3 },
     ]},
-  { id: "lats", label: "Lats", tooltipPos: [38, 48],
+  { id: "lats", label: "Lats", tooltipPos: [38, 35],
     shapes: [
-      { type: "ellipse", cx: 40, cy: 50, rx: 5, ry: 7 },
-      { type: "ellipse", cx: 60, cy: 50, rx: 5, ry: 7 },
+      { type: "ellipse", cx: 40, cy: 38, rx: 5, ry: 5 },
+      { type: "ellipse", cx: 60, cy: 38, rx: 5, ry: 5 },
     ]},
-  { id: "triceps", label: "Triceps", tooltipPos: [25, 37],
+  { id: "triceps", label: "Triceps", tooltipPos: [24, 27],
     shapes: [
-      { type: "ellipse", cx: 29, cy: 42, rx: 3.5, ry: 7 },
-      { type: "ellipse", cx: 71, cy: 42, rx: 3.5, ry: 7 },
+      { type: "ellipse", cx: 27, cy: 31, rx: 3, ry: 5 },
+      { type: "ellipse", cx: 73, cy: 31, rx: 3, ry: 5 },
     ]},
-  { id: "glutes", label: "Glutes", tooltipPos: [50, 62],
+  { id: "glutes", label: "Glutes", tooltipPos: [50, 47],
     shapes: [
-      { type: "ellipse", cx: 44, cy: 68, rx: 6, ry: 5 },
-      { type: "ellipse", cx: 56, cy: 68, rx: 6, ry: 5 },
+      { type: "ellipse", cx: 44, cy: 51, rx: 5.5, ry: 4 },
+      { type: "ellipse", cx: 56, cy: 51, rx: 5.5, ry: 4 },
     ]},
-  { id: "hamstrings", label: "Hamstrings", tooltipPos: [50, 76],
+  { id: "hamstrings", label: "Hamstrings", tooltipPos: [50, 56],
     shapes: [
-      { type: "ellipse", cx: 43, cy: 83, rx: 5, ry: 10 },
-      { type: "ellipse", cx: 57, cy: 83, rx: 5, ry: 10 },
+      { type: "ellipse", cx: 43, cy: 62, rx: 4.5, ry: 8 },
+      { type: "ellipse", cx: 57, cy: 62, rx: 4.5, ry: 8 },
     ]},
-  { id: "calves", label: "Calves", tooltipPos: [50, 97],
+  { id: "calves", label: "Calves", tooltipPos: [50, 72],
     shapes: [
-      { type: "ellipse", cx: 43, cy: 105, rx: 4, ry: 8 },
-      { type: "ellipse", cx: 57, cy: 105, rx: 4, ry: 8 },
+      { type: "ellipse", cx: 42, cy: 78, rx: 3.5, ry: 6 },
+      { type: "ellipse", cx: 58, cy: 78, rx: 3.5, ry: 6 },
     ]},
 ];
 
 function Tooltip({ x, y, label }: { x: number; y: number; label: string }) {
-  const w = label.length * 1.8 + 5;
+  const w = label.length * 1.4 + 4;
   return (
     <g className="pointer-events-none">
-      <rect x={x - w / 2} y={y - 5} width={w} height={4.5} rx={1.5}
-        fill="hsl(var(--popover))" stroke="hsl(var(--border))" strokeWidth={0.2}
-        style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.3))" }} />
-      <polygon points={`${x - 1},${y - 0.5} ${x + 1},${y - 0.5} ${x},${y + 0.5}`} fill="hsl(var(--popover))" />
-      <text x={x} y={y - 2.2} textAnchor="middle" fill="hsl(var(--popover-foreground))"
-        fontSize="2.5" fontWeight="600" fontFamily="system-ui, -apple-system, sans-serif" letterSpacing="0.05">
+      <rect x={x - w / 2} y={y - 4} width={w} height={3.5} rx={1}
+        fill="hsl(var(--popover))" stroke="hsl(var(--border))" strokeWidth={0.15}
+        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))" }} />
+      <polygon points={`${x - 0.8},${y - 0.5} ${x + 0.8},${y - 0.5} ${x},${y + 0.3}`} fill="hsl(var(--popover))" />
+      <text x={x} y={y - 1.8} textAnchor="middle" fill="hsl(var(--popover-foreground))"
+        fontSize="2" fontWeight="600" fontFamily="system-ui, -apple-system, sans-serif" letterSpacing="0.03">
         {label}
       </text>
     </g>
@@ -197,7 +197,7 @@ function BodyMapView({ imageSrc, regions, highlightedMuscles, onMuscleClick, sel
     <div className={`relative inline-block ${className}`} style={{ maxWidth: 160 }} data-testid={testId}>
       <img src={imageSrc} alt="" className="w-full h-auto block rounded-lg" draggable={false}
         style={{ imageRendering: "auto" }} />
-      <svg viewBox="0 0 100 133" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+      <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
         <defs>
           <filter id={`glow-${testId}`} x="-40%" y="-40%" width="180%" height="180%">
             <feGaussianBlur stdDeviation="1.5" result="b"/>
