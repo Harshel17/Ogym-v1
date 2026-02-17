@@ -176,7 +176,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       label: "Payments", 
       href: "/payments", 
       icon: CreditCard,
-      visible: ((isOwner && hasGym) && !isIOSNativeApp) || isMember,
+      visible: ((isOwner && hasGym) && !isIOSNativeApp) || (isMember && !isIOSNativeApp),
       badge: 0
     },
     { 
