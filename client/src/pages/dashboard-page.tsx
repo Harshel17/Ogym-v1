@@ -1940,6 +1940,8 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       {/* Greeting Banner */}
       <GreetingBanner greeting={greeting} greetingIcon={greetingIcon} username={username} motiveLine={motiveLine} />
 
+      <PerformanceIntelligenceCard />
+
       <FeatureDiscoveryTips role="member" isPersonalMode={isPersonalMode} />
 
       {/* Today's Workout */}
