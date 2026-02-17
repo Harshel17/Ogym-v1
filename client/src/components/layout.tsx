@@ -49,6 +49,7 @@ import {
   Apple,
   Salad,
   Medal,
+  Target,
   type LucideIcon
 } from "lucide-react";
 
@@ -249,6 +250,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       badge: 0
     },
     { 
+      label: "My Goals", 
+      href: "/goals", 
+      icon: Target,
+      visible: isMember || isPersonalMode,
+      badge: 0
+    },
+    { 
       label: "Health", 
       href: "/health", 
       icon: HeartPulse,
@@ -443,6 +451,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Feed", href: "/feed", icon: Activity },
           { label: "Tournaments", href: "/tournaments", icon: Trophy },
           { label: "Sports Mode", href: "/sports-mode", icon: Medal },
+          { label: "My Goals", href: "/goals", icon: Target },
           { label: "Profile", href: "/profile", icon: UserCircle },
           { label: "Help", href: "/help", icon: HelpCircle },
           { label: "Support", href: "/support", icon: MessageSquare },
@@ -461,6 +470,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Progress", href: "/progress", icon: TrendingUp },
           { label: "My Body", href: "/my-body", icon: HeartPulse },
           { label: "Sports Mode", href: "/sports-mode", icon: Medal },
+          { label: "My Goals", href: "/goals", icon: Target },
           { label: "Profile", href: "/profile", icon: UserCircle },
           { label: "Join Gym", href: "/join-gym", icon: Building2 },
           { label: "Help", href: "/help", icon: HelpCircle },
