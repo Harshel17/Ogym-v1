@@ -16,7 +16,8 @@ import {
   healthData,
   sportProfiles,
   sportPrograms,
-  matchLogs
+  matchLogs,
+  userGoals
 } from "@shared/schema";
 import { eq, and, gte, lte, desc, sql, inArray, isNull, or, not, count } from "drizzle-orm";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
@@ -615,6 +616,16 @@ interface MemberContext {
     completedCount: number;
   } | null;
   activeGoals: Array<{ title: string; category: string; targetValue: number | null; currentValue: number | null; targetUnit: string | null }>;
+  fitnessGoals: {
+    primaryGoal: string | null;
+    targetWeight: string | null;
+    targetWeightUnit: string | null;
+    dailyCalorieTarget: number | null;
+    dailyProteinTarget: number | null;
+    weeklyWorkoutDays: number | null;
+    customGoalText: string | null;
+    hasGoals: boolean;
+  };
   sportsMode: {
     profile: {
       sport: string;
@@ -1167,6 +1178,20 @@ async function getMemberDataContext(userId: number, gymId: number | null, localD
     nutrition: await getTodayNutritionSummary(userId, localDate),
     todayWorkout: todayWorkoutContext,
     activeGoals: await getActiveGoals(userId),
+    fitnessGoals: await (async () => {
+      const [goalsRow] = await db.select().from(userGoals).where(eq(userGoals.userId, userId)).limit(1);
+      if (!goalsRow) return { primaryGoal: null, targetWeight: null, targetWeightUnit: null, dailyCalorieTarget: null, dailyProteinTarget: null, weeklyWorkoutDays: null, customGoalText: null, hasGoals: false };
+      return {
+        primaryGoal: goalsRow.primaryGoal,
+        targetWeight: goalsRow.targetWeight,
+        targetWeightUnit: goalsRow.targetWeightUnit,
+        dailyCalorieTarget: goalsRow.dailyCalorieTarget,
+        dailyProteinTarget: goalsRow.dailyProteinTarget,
+        weeklyWorkoutDays: goalsRow.weeklyWorkoutDays,
+        customGoalText: goalsRow.customGoalText,
+        hasGoals: !!(goalsRow.primaryGoal || goalsRow.targetWeight || goalsRow.dailyCalorieTarget || goalsRow.dailyProteinTarget || goalsRow.weeklyWorkoutDays || goalsRow.customGoalText),
+      };
+    })(),
     sportsMode: sportsModeContext,
   };
 }
@@ -1590,6 +1615,18 @@ ACTIVE GOALS:
 ${ctx.activeGoals.map(g => `- ${g.title}${g.targetValue ? ` (target: ${g.targetValue}${g.targetUnit || ''})` : ''}${g.currentValue ? ` — currently at ${g.currentValue}${g.targetUnit || ''}` : ''}`).join('\n')}
 When relevant to the conversation, mention the user's goals and progress. Be encouraging!
 ` : ''}
+${ctx.fitnessGoals.hasGoals ? `
+FITNESS GOALS (user-defined targets):
+${ctx.fitnessGoals.primaryGoal ? `- Primary focus: ${ctx.fitnessGoals.primaryGoal.replace('_', ' ')}` : ''}
+${ctx.fitnessGoals.targetWeight ? `- Target weight: ${ctx.fitnessGoals.targetWeight} ${ctx.fitnessGoals.targetWeightUnit || 'kg'}` : ''}
+${ctx.fitnessGoals.dailyCalorieTarget ? `- Daily calorie target: ${ctx.fitnessGoals.dailyCalorieTarget} kcal` : ''}
+${ctx.fitnessGoals.dailyProteinTarget ? `- Daily protein target: ${ctx.fitnessGoals.dailyProteinTarget}g` : ''}
+${ctx.fitnessGoals.weeklyWorkoutDays ? `- Workout frequency goal: ${ctx.fitnessGoals.weeklyWorkoutDays} days/week` : ''}
+${ctx.fitnessGoals.customGoalText ? `- Personal goal: ${ctx.fitnessGoals.customGoalText}` : ''}
+Use these goals to give personalized advice. Compare their actual performance against their targets. If they're off track, gently mention it.
+` : `
+The user has NOT set any fitness goals yet. If it comes up naturally in conversation (e.g. they ask about progress or what to improve), casually suggest they check out their Goals page to set some targets — it'll make your advice way more personalized. Don't force it — just mention it when it makes sense.
+`}
 ${ctx.sportsMode.profile ? (() => {
   const sp = ctx.sportsMode;
   const mh = sp.matchHistory;

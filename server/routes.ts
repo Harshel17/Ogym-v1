@@ -3798,6 +3798,30 @@ export async function registerRoutes(
     res.status(201).json(cycle);
   });
 
+  // === USER FITNESS GOALS ===
+
+  app.get("/api/user/goals", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+    const goals = await storage.getUserGoals(req.user.id);
+    res.json(goals || null);
+  });
+
+  app.put("/api/user/goals", async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+    const schema = z.object({
+      targetWeight: z.string().nullable().optional(),
+      targetWeightUnit: z.enum(["kg", "lbs"]).nullable().optional(),
+      dailyCalorieTarget: z.number().min(500).max(10000).nullable().optional(),
+      dailyProteinTarget: z.number().min(10).max(500).nullable().optional(),
+      weeklyWorkoutDays: z.number().min(1).max(7).nullable().optional(),
+      primaryGoal: z.enum(["lose_fat", "build_muscle", "maintain", "improve_endurance", "general_health"]).nullable().optional(),
+      customGoalText: z.string().max(500).nullable().optional(),
+    });
+    const input = schema.parse(req.body);
+    const goals = await storage.upsertUserGoals(req.user.id, input);
+    res.json(goals);
+  });
+
   // === NUTRITION / CALORIE TRACKING ===
   
   app.get("/api/nutrition/goal", requireRole(["member"]), async (req, res) => {

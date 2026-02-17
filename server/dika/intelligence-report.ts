@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { eq, and, gte, desc, sql, asc, count } from "drizzle-orm";
-import { users, userProfiles, workoutCompletions, workoutItems, foodLogs, bodyMeasurements, healthData, matchLogs, attendance, memberSubscriptions, payments, gyms, trainerMembers } from "@shared/schema";
+import { users, userProfiles, workoutCompletions, workoutItems, foodLogs, bodyMeasurements, healthData, matchLogs, attendance, memberSubscriptions, payments, gyms, trainerMembers, userGoals } from "@shared/schema";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -268,13 +268,17 @@ async function gatherTrainerData(userId: number, gymId: number, days: number = 2
 async function generateNarrativeWithGPT(role: string, rawData: any): Promise<{ patterns: string[]; projection: string; adjustment: string; narrative: string }> {
   const dataStr = JSON.stringify(rawData, null, 0).slice(0, 3000);
 
+  const goalsNote = rawData.userGoals
+    ? `\nThe user has set these fitness goals: ${JSON.stringify(rawData.userGoals)}. Reference their goals when giving projections and adjustments — compare actual performance against their targets.`
+    : `\nThe user has not set any fitness goals yet. Gently suggest setting goals for more personalized coaching.`;
+
   const prompt = role === "member"
     ? `You are a fitness coach AI analyzing a member's last ${rawData.days} days of data. Based on this data, provide:
 1. Exactly 2 pattern observations (things you notice in the data - correlations, habits, trends)
 2. Exactly 1 forward projection (where things are heading if current patterns continue)
 3. Exactly 1 actionable adjustment (specific thing to change this week)
 4. A brief narrative summary (2-3 sentences, conversational coaching tone: "Here's what happened. Here's why. Here's what to do next.")
-
+${goalsNote}
 Data: ${dataStr}
 
 Respond in JSON: {"patterns":["...","..."],"projection":"...","adjustment":"...","narrative":"..."}`
@@ -335,7 +339,23 @@ export async function generateMemberReport(userId: number, days: number = 28): P
   if (cached) return cached;
 
   const data = await gatherMemberData(userId, days);
-  const gpt = await generateNarrativeWithGPT("member", data);
+
+  const [goalsRow] = await db.select().from(userGoals).where(eq(userGoals.userId, userId)).limit(1);
+  const goalsContext: Record<string, unknown> = {};
+  if (goalsRow) {
+    if (goalsRow.primaryGoal) goalsContext.primaryGoal = goalsRow.primaryGoal;
+    if (goalsRow.targetWeight) goalsContext.targetWeight = `${goalsRow.targetWeight} ${goalsRow.targetWeightUnit || "kg"}`;
+    if (goalsRow.dailyCalorieTarget) goalsContext.dailyCalorieTarget = goalsRow.dailyCalorieTarget;
+    if (goalsRow.dailyProteinTarget) goalsContext.dailyProteinTarget = goalsRow.dailyProteinTarget;
+    if (goalsRow.weeklyWorkoutDays) goalsContext.weeklyWorkoutTarget = goalsRow.weeklyWorkoutDays;
+    if (goalsRow.customGoalText) goalsContext.customGoal = goalsRow.customGoalText;
+  }
+
+  const dataWithGoals = Object.keys(goalsContext).length > 0
+    ? { ...data, userGoals: goalsContext }
+    : data;
+
+  const gpt = await generateNarrativeWithGPT("member", dataWithGoals);
 
   const sections: ReportSection[] = [
     {

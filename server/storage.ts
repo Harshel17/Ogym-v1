@@ -64,6 +64,7 @@ import {
   type PostReport, type InsertPostReport,
   type UserBlock, type InsertUserBlock,
   type WaterLog, type InsertWaterLog, insertWaterLogSchema,
+  userGoals, type UserGoal, type InsertUserGoal,
   dikaConversations, fitnessGoals,
   sportProfiles, sportPrograms, matchLogs,
   type SportProfile, type InsertSportProfile,
@@ -766,6 +767,8 @@ export interface IStorage {
   getAuditLogs(filters?: { entityType?: string; entityId?: number; adminId?: number }): Promise<(AuditLog & { adminName: string })[]>;
   
   // Calorie Tracking
+  getUserGoals(userId: number): Promise<UserGoal | undefined>;
+  upsertUserGoals(userId: number, data: Partial<InsertUserGoal>): Promise<UserGoal>;
   getCalorieGoal(userId: number): Promise<CalorieGoal | undefined>;
   createCalorieGoal(data: InsertCalorieGoal): Promise<CalorieGoal>;
   updateCalorieGoal(goalId: number, data: Partial<InsertCalorieGoal>): Promise<CalorieGoal>;
@@ -8715,6 +8718,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   // === CALORIE TRACKING ===
+
+  async getUserGoals(userId: number): Promise<UserGoal | undefined> {
+    const [goal] = await db.select().from(userGoals)
+      .where(eq(userGoals.userId, userId))
+      .limit(1);
+    return goal;
+  }
+
+  async upsertUserGoals(userId: number, data: Partial<InsertUserGoal>): Promise<UserGoal> {
+    const existing = await this.getUserGoals(userId);
+    if (existing) {
+      const [updated] = await db.update(userGoals)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(userGoals.userId, userId))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(userGoals)
+      .values({ ...data, userId })
+      .returning();
+    return created;
+  }
 
   async getCalorieGoal(userId: number): Promise<CalorieGoal | undefined> {
     const [goal] = await db.select().from(calorieGoals)

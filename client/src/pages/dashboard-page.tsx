@@ -19,6 +19,7 @@ import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkelet
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
 import { FeatureDiscoveryTips } from "@/components/feature-discovery-tips";
 import { PerformanceIntelligenceCard } from "@/components/performance-intelligence-card";
+import { GoalsNudge } from "@/components/goals-nudge";
 import { useHealthStatus, useHealthDataToday } from "@/hooks/use-health-data";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { isIOS, isNative } from "@/lib/capacitor-init";
@@ -2742,6 +2743,8 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       <MemberCalendarWidget />
 
       <PerformanceIntelligenceCard />
+
+      <GoalsNudge />
 
       {/* Trainer & Membership Info */}
       {memberProfile && (memberProfile.trainerName || memberProfile.cycleEndDate) && (
