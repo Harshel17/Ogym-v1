@@ -8,6 +8,20 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+const reportCache = new Map<string, { data: IntelligenceReport; expiresAt: number }>();
+const CACHE_TTL_MS = 4 * 60 * 60 * 1000;
+
+function getCachedReport(key: string): IntelligenceReport | null {
+  const entry = reportCache.get(key);
+  if (entry && Date.now() < entry.expiresAt) return entry.data;
+  if (entry) reportCache.delete(key);
+  return null;
+}
+
+function setCachedReport(key: string, data: IntelligenceReport) {
+  reportCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
 function getDateNDaysAgo(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n);
@@ -316,6 +330,10 @@ Respond in JSON: {"patterns":["...","..."],"projection":"...","adjustment":"..."
 }
 
 export async function generateMemberReport(userId: number, days: number = 28): Promise<IntelligenceReport> {
+  const cacheKey = `member_${userId}_${days}`;
+  const cached = getCachedReport(cacheKey);
+  if (cached) return cached;
+
   const data = await gatherMemberData(userId, days);
   const gpt = await generateNarrativeWithGPT("member", data);
 
@@ -355,7 +373,7 @@ export async function generateMemberReport(userId: number, days: number = 28): P
     });
   }
 
-  return {
+  const report: IntelligenceReport = {
     role: "member",
     period: `${days} days`,
     generatedAt: new Date().toISOString(),
@@ -365,9 +383,15 @@ export async function generateMemberReport(userId: number, days: number = 28): P
     adjustment: gpt.adjustment,
     narrative: gpt.narrative,
   };
+  setCachedReport(cacheKey, report);
+  return report;
 }
 
 export async function generateOwnerReport(gymId: number, days: number = 28): Promise<IntelligenceReport> {
+  const cacheKey = `owner_${gymId}_${days}`;
+  const cached = getCachedReport(cacheKey);
+  if (cached) return cached;
+
   const data = await gatherOwnerData(gymId, days);
   const gpt = await generateNarrativeWithGPT("owner", data);
 
@@ -392,7 +416,7 @@ export async function generateOwnerReport(gymId: number, days: number = 28): Pro
     },
   ];
 
-  return {
+  const report: IntelligenceReport = {
     role: "owner",
     period: `${days} days`,
     generatedAt: new Date().toISOString(),
@@ -402,9 +426,15 @@ export async function generateOwnerReport(gymId: number, days: number = 28): Pro
     adjustment: gpt.adjustment,
     narrative: gpt.narrative,
   };
+  setCachedReport(cacheKey, report);
+  return report;
 }
 
 export async function generateTrainerReport(userId: number, gymId: number, days: number = 28): Promise<IntelligenceReport> {
+  const cacheKey = `trainer_${userId}_${gymId}_${days}`;
+  const cached = getCachedReport(cacheKey);
+  if (cached) return cached;
+
   const data = await gatherTrainerData(userId, gymId, days);
 
   if (data.rosterSize === 0) {
@@ -449,7 +479,7 @@ export async function generateTrainerReport(userId: number, gymId: number, days:
     },
   ];
 
-  return {
+  const report: IntelligenceReport = {
     role: "trainer",
     period: `${days} days`,
     generatedAt: new Date().toISOString(),
@@ -459,4 +489,6 @@ export async function generateTrainerReport(userId: number, gymId: number, days:
     adjustment: gpt.adjustment,
     narrative: gpt.narrative,
   };
+  setCachedReport(cacheKey, report);
+  return report;
 }
