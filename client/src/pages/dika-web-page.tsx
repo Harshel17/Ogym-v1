@@ -18,6 +18,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { AiDataConsentDialog, useAiConsent } from '@/components/ai-data-consent-dialog';
 
 interface DikaChat {
   id: number;
@@ -258,6 +259,10 @@ export default function DikaWebPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  const { hasConsent, isLoading: consentLoading } = useAiConsent();
+  const [showConsentDialog, setShowConsentDialog] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState<{ text: string; imageBase64?: string } | null>(null);
+
   const { data: chatsData, isLoading: chatsLoading } = useQuery<{ chats: DikaChat[] }>({
     queryKey: ['/api/dika/chats'],
   });
@@ -374,7 +379,7 @@ export default function DikaWebPage() {
     },
   });
 
-  const handleSendMessage = useCallback(async (text?: string) => {
+  const doSendMessage = useCallback(async (text?: string, imgBase64?: string) => {
     const msg = text || messageInput.trim();
     if (!msg) return;
     setMessageInput('');
@@ -405,8 +410,21 @@ export default function DikaWebPage() {
     };
     setOptimisticMessages([optimistic]);
     setIsSending(true);
-    sendMessageMutation.mutate({ chatId: chatId!, message: msg });
+    if (imgBase64) {
+      sendMessageMutation.mutate({ chatId: chatId!, message: msg, imageBase64: imgBase64 });
+    } else {
+      sendMessageMutation.mutate({ chatId: chatId!, message: msg });
+    }
   }, [messageInput, activeChatId, sendMessageMutation, toast]);
+
+  const handleSendMessage = useCallback((text?: string) => {
+    if (!hasConsent) {
+      setPendingMessage({ text: text || messageInput.trim() });
+      setShowConsentDialog(true);
+      return;
+    }
+    doSendMessage(text);
+  }, [hasConsent, doSendMessage, messageInput]);
 
   const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -419,6 +437,12 @@ export default function DikaWebPage() {
     reader.onload = async () => {
       const base64 = reader.result as string;
       const msg = "Analyze this food photo and log it";
+
+      if (!hasConsent) {
+        setPendingMessage({ text: msg, imageBase64: base64 });
+        setShowConsentDialog(true);
+        return;
+      }
 
       let chatId = activeChatId;
       if (!chatId) {
@@ -450,7 +474,7 @@ export default function DikaWebPage() {
     };
     reader.readAsDataURL(file);
     if (photoInputRef.current) photoInputRef.current.value = "";
-  }, [activeChatId, sendMessageMutation, toast]);
+  }, [activeChatId, sendMessageMutation, toast, hasConsent]);
 
   const handleNewChat = useCallback(() => {
     setActiveChatId(null);
@@ -849,6 +873,21 @@ export default function DikaWebPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AiDataConsentDialog
+        open={showConsentDialog}
+        onConsentGranted={() => {
+          setShowConsentDialog(false);
+          if (pendingMessage) {
+            doSendMessage(pendingMessage.text, pendingMessage.imageBase64);
+            setPendingMessage(null);
+          }
+        }}
+        onDeclined={() => {
+          setShowConsentDialog(false);
+          setPendingMessage(null);
+        }}
+      />
     </div>
   );
 }

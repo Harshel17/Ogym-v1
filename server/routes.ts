@@ -4988,6 +4988,12 @@ Return ONLY JSON.`
     if (!input.success) {
       return res.status(400).json({ message: "Invalid request", errors: input.error.errors });
     }
+
+    const [consentCheck] = await db.select({ aiDataConsent: users.aiDataConsent })
+      .from(users).where(eq(users.id, req.user!.id));
+    if (!consentCheck?.aiDataConsent) {
+      return res.status(403).json({ message: "AI_CONSENT_REQUIRED" });
+    }
     
     const user = req.user!;
     const role = user.role as 'member' | 'trainer' | 'owner';
@@ -5082,6 +5088,34 @@ Return ONLY JSON.`
     }
     
     res.json({ success: true });
+  });
+
+  app.get("/api/ai-consent", requireAuth, async (req, res) => {
+    const [user] = await db.select({
+      aiDataConsent: users.aiDataConsent,
+      aiDataConsentDate: users.aiDataConsentDate,
+    }).from(users).where(eq(users.id, req.user!.id));
+    res.json({ 
+      consented: user?.aiDataConsent || false,
+      consentDate: user?.aiDataConsentDate || null,
+    });
+  });
+
+  app.post("/api/ai-consent", requireAuth, async (req, res) => {
+    const schema = z.object({
+      consent: z.boolean(),
+    });
+    const input = schema.safeParse(req.body);
+    if (!input.success) return res.status(400).json({ message: "Invalid request" });
+
+    await db.update(users)
+      .set({ 
+        aiDataConsent: input.data.consent,
+        aiDataConsentDate: input.data.consent ? new Date() : null,
+      })
+      .where(eq(users.id, req.user!.id));
+
+    res.json({ success: true, consented: input.data.consent });
   });
 
   app.get("/api/dika/conversations", requireAuth, async (req, res) => {
@@ -5311,6 +5345,12 @@ Return ONLY JSON.`
   });
 
   app.post("/api/dika/chats/:chatId/messages", requireAuth, async (req, res) => {
+    const [webConsentCheck] = await db.select({ aiDataConsent: users.aiDataConsent })
+      .from(users).where(eq(users.id, req.user!.id));
+    if (!webConsentCheck?.aiDataConsent) {
+      return res.status(403).json({ message: "AI_CONSENT_REQUIRED" });
+    }
+
     const chatId = parseInt(req.params.chatId);
     const schema = z.object({
       message: z.string().min(1).max(2000),

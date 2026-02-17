@@ -14,6 +14,7 @@ import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { useTrainingMode } from '@/hooks/use-gym';
 import { isNative, isIOS } from '@/lib/capacitor-init';
+import { AiDataConsentDialog, useAiConsent } from '@/components/ai-data-consent-dialog';
 
 interface GeneratedWorkoutPlan {
   name: string;
@@ -918,6 +919,10 @@ export function DikaDrawer({
   const { data: trainingModeData } = useTrainingMode();
   const isTrainerLed = user?.gymId && trainingModeData?.trainingMode === 'trainer_led';
   const canManageOwnWorkouts = !isTrainerLed;
+
+  const { hasConsent, isLoading: consentLoading } = useAiConsent();
+  const [showConsentDialog, setShowConsentDialog] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState<{ text: string; imageBase64?: string } | null>(null);
   
   const [savingMessageId, setSavingMessageId] = useState<string | null>(null);
   
@@ -1076,10 +1081,19 @@ export function DikaDrawer({
     });
   }, []);
 
+  const trySend = useCallback((text: string, imageBase64?: string) => {
+    if (!hasConsent) {
+      setPendingMessage({ text, imageBase64 });
+      setShowConsentDialog(true);
+      return;
+    }
+    onSend(text, imageBase64);
+  }, [hasConsent, onSend]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
-      onSend(input.trim());
+      trySend(input.trim());
       setInput('');
     }
   };
@@ -1094,14 +1108,14 @@ export function DikaDrawer({
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
-      onSend("Analyze this food photo and log it", base64);
+      trySend("Analyze this food photo and log it", base64);
     };
     reader.readAsDataURL(file);
     if (photoInputRef.current) photoInputRef.current.value = "";
-  }, [onSend, toast]);
+  }, [trySend, toast]);
 
   const handleSuggestionClick = (suggestion: string) => {
-    onSend(suggestion);
+    trySend(suggestion);
   };
 
   const iconOptions: { value: DikaIcon; icon: React.FC<{ className?: string }>; label: string }[] = [
@@ -1505,6 +1519,21 @@ export function DikaDrawer({
           </Button>
         </form>
       </div>
+
+      <AiDataConsentDialog
+        open={showConsentDialog}
+        onConsentGranted={() => {
+          setShowConsentDialog(false);
+          if (pendingMessage) {
+            onSend(pendingMessage.text, pendingMessage.imageBase64);
+            setPendingMessage(null);
+          }
+        }}
+        onDeclined={() => {
+          setShowConsentDialog(false);
+          setPendingMessage(null);
+        }}
+      />
     </>
   );
 }
