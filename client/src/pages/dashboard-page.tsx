@@ -18,6 +18,7 @@ import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgre
 import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
 import { FeatureDiscoveryTips } from "@/components/feature-discovery-tips";
+import { PerformanceIntelligenceCard } from "@/components/performance-intelligence-card";
 import { useHealthStatus, useHealthDataToday } from "@/hooks/use-health-data";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { isIOS, isNative } from "@/lib/capacitor-init";
@@ -671,6 +672,7 @@ function OwnerDashboard() {
 
   return (
     <div className="space-y-3">
+      <PerformanceIntelligenceCard />
       <div className="grid gap-2.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <StatCard 
           title="Total Members" 
@@ -915,6 +917,7 @@ function TrainerDashboard() {
 
   return (
     <div className="space-y-3">
+      <PerformanceIntelligenceCard />
       <div className="grid gap-2.5 md:grid-cols-3">
         <StatCard 
           title="My Members" 

@@ -642,6 +642,18 @@ function DikaPageInner({ userId }: { userId: number }) {
     sendMessage(prompt);
   }, [isLoading, sendMessage]);
 
+  const lastPromptQuery = useRef<string | null>(null);
+  useEffect(() => {
+    if (isLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    const promptParam = params.get('prompt');
+    if (!promptParam) return;
+    if (lastPromptQuery.current === promptParam) return;
+    lastPromptQuery.current = promptParam;
+    window.history.replaceState({}, '', '/dika');
+    sendMessage(decodeURIComponent(promptParam));
+  }, [isLoading, sendMessage]);
+
   const handleFindFood = useCallback(async (messageId: string) => {
     setFindFoodState(prev => ({ ...prev, [messageId]: 'loading' }));
     try {

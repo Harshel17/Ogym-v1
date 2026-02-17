@@ -5703,6 +5703,31 @@ Return ONLY JSON.`
     }
   });
 
+  app.get("/api/intelligence-report", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const role = req.user!.role;
+      const gymId = req.user!.gymId;
+      const days = parseInt(req.query.days as string) || 28;
+
+      const { generateMemberReport, generateOwnerReport, generateTrainerReport } = await import("./dika/intelligence-report");
+
+      let report;
+      if (role === "owner" && gymId) {
+        report = await generateOwnerReport(gymId, days);
+      } else if (role === "trainer" && gymId) {
+        report = await generateTrainerReport(userId, gymId, days);
+      } else {
+        report = await generateMemberReport(userId, days);
+      }
+
+      res.json(report);
+    } catch (error) {
+      console.error("Intelligence report error:", error);
+      res.status(500).json({ message: "Failed to generate intelligence report" });
+    }
+  });
+
   app.post("/api/dika/find-food", requireAuth, async (req, res) => {
     try {
       const schema = z.object({
