@@ -22,7 +22,7 @@ export const gyms = pgTable("gyms", {
   onboardingData: jsonb("onboarding_data"),
   paymentLinks: jsonb("payment_links"), // Stores payment methods: { upi, venmo, cashapp, zelle, paypal, bankDetails, customLink }
   dayPassPrice: integer("day_pass_price"), // Price in smallest unit (paise/cents)
-  ownerUserId: integer("owner_user_id"),
+  ownerUserId: integer("owner_user_id").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -84,7 +84,9 @@ export const users = pgTable("users", {
   aiDataConsent: boolean("ai_data_consent").default(false),
   aiDataConsentDate: timestamp("ai_data_consent_date"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  gymIdIdx: index("users_gym_id_idx").on(table.gymId),
+}));
 
 // User Profiles (extended profile data for members)
 export const userProfiles = pgTable("user_profiles", {
@@ -133,6 +135,7 @@ export const trainerMembers = pgTable("trainer_members", {
   memberId: integer("member_id").references(() => users.id).notNull(),
 }, (table) => ({
   uniqueMemberPerGym: uniqueIndex("unique_member_per_gym").on(table.gymId, table.memberId),
+  trainerIdIdx: index("trainer_members_trainer_id_idx").on(table.trainerId),
 }));
 
 export const trainerMemberAssignments = pgTable("trainer_member_assignments", {
@@ -176,6 +179,7 @@ export const payments = pgTable("payments", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   gymUpdatedAtIdx: index("payments_gym_updated_at_idx").on(table.gymId, table.updatedAt),
+  memberIdIdx: index("payments_member_id_idx").on(table.memberId),
 }));
 
 export const workoutCycles = pgTable("workout_cycles", {
@@ -213,8 +217,10 @@ export const workoutItems = pgTable("workout_items", {
   distanceKm: text("distance_km"), // For cardio exercises (text to allow "5km", "3.2mi" etc)
   orderIndex: integer("order_index").default(0),
   isDeleted: boolean("is_deleted").default(false),
-  sportProgramId: integer("sport_program_id"),
-});
+  sportProgramId: integer("sport_program_id").references(() => sportPrograms.id),
+}, (table) => ({
+  cycleIdIdx: index("workout_items_cycle_id_idx").on(table.cycleId),
+}));
 
 export const workoutCompletions = pgTable("workout_completions", {
   id: serial("id").primaryKey(),
@@ -525,7 +531,9 @@ export const memberSubscriptions = pgTable("member_subscriptions", {
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  memberIdIdx: index("member_subscriptions_member_id_idx").on(table.memberId),
+}));
 
 export const paymentTransactions = pgTable("payment_transactions", {
   id: serial("id").primaryKey(),

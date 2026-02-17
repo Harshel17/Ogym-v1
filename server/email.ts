@@ -1,5 +1,6 @@
 // Email service using Resend - prioritizes RESEND_API_KEY env var, falls back to Replit connector
 import { Resend } from 'resend';
+import { resendBreaker } from './circuit-breaker';
 
 interface EmailOptions {
   to: string;
@@ -73,13 +74,15 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
   try {
     console.log(`[EMAIL] Sending email from: ${credentials.fromEmail} to: ${options.to}`);
-    const resend = new Resend(credentials.apiKey);
-    const result = await resend.emails.send({
-      from: credentials.fromEmail,
-      to: options.to,
-      subject: options.subject,
-      text: options.text,
-      html: options.html,
+    const result = await resendBreaker.execute(async () => {
+      const resend = new Resend(credentials.apiKey);
+      return resend.emails.send({
+        from: credentials.fromEmail,
+        to: options.to,
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+      });
     });
     
     if (result.error) {
@@ -89,8 +92,8 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     
     console.log(`[EMAIL] Email sent successfully to ${options.to}, ID: ${result.data?.id}`);
     return true;
-  } catch (error) {
-    console.error("[EMAIL] Failed to send email:", error);
+  } catch (error: any) {
+    console.error("[EMAIL] Failed to send email:", error?.message || error);
     return false;
   }
 }

@@ -3768,7 +3768,7 @@ export async function registerRoutes(
     }
     
     // Create cycle with user-provided dates or defaults
-    const startDate = input.startDate || new Date().toISOString().split('T')[0];
+    const startDate = input.startDate || getLocalDate(req);
     const endDate = input.endDate || new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const progressionMode = input.progressionMode || 'calendar';
     
@@ -3864,7 +3864,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/nutrition/logs", requireRole(["member"]), async (req, res) => {
-    const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const date = (req.query.date as string) || getLocalDate(req);
     const logs = await storage.getFoodLogs(req.user!.id, date);
     res.json(logs);
   });
@@ -3893,7 +3893,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/nutrition/summary", requireRole(["member"]), async (req, res) => {
-    const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const date = (req.query.date as string) || getLocalDate(req);
     const [summary, goal] = await Promise.all([
       storage.getDailySummary(req.user!.id, date),
       storage.getCalorieGoal(req.user!.id),
@@ -3903,7 +3903,7 @@ export async function registerRoutes(
 
   app.get("/api/nutrition/page-data", requireRole(["member"]), async (req, res) => {
     const startTime = Date.now();
-    const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const date = (req.query.date as string) || getLocalDate(req);
     const userId = req.user!.id;
 
     const t1 = Date.now();
@@ -4115,7 +4115,7 @@ export async function registerRoutes(
 
   // Water tracking
   app.get("/api/nutrition/water", requireRole(["member"]), async (req, res) => {
-    const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const date = (req.query.date as string) || getLocalDate(req);
     const logs = await storage.getWaterLogs(req.user!.id, date);
     const totalOz = await storage.getWaterTotal(req.user!.id, date);
     res.json({ logs, totalOz, totalCups: Math.round(totalOz / 8 * 10) / 10 });
@@ -4491,28 +4491,25 @@ Return ONLY JSON.`
       let data: any = null;
       let lastError: Error | null = null;
 
+      const { overpassBreaker } = await import("./circuit-breaker");
       for (const server of overpassServers) {
         try {
           const overpassUrl = `${server}?data=${encodeURIComponent(overpassQuery)}`;
-          console.log(`Trying Overpass server: ${server}`);
           
-          const response = await fetch(overpassUrl, {
-            headers: {
-              'User-Agent': 'OGym-FitnessApp/1.0 (contact@ogym.fitness)'
-            }
+          data = await overpassBreaker.execute(async () => {
+            const response = await fetch(overpassUrl, {
+              headers: {
+                'User-Agent': 'OGym-FitnessApp/1.0 (contact@ogym.fitness)'
+              }
+            });
+            if (!response.ok) throw new Error(`${server} returned ${response.status}`);
+            return response.json();
           });
-          
-          if (response.ok) {
-            data = await response.json();
-            console.log(`Successfully fetched from: ${server}`);
-            break;
-          } else {
-            console.warn(`Overpass server ${server} returned ${response.status}, trying next...`);
-            lastError = new Error(`${server} returned ${response.status}`);
-          }
-        } catch (err) {
-          console.warn(`Overpass server ${server} failed:`, err);
+          break;
+        } catch (err: any) {
+          console.warn(`Overpass server ${server} failed:`, err?.message);
           lastError = err as Error;
+          if (err?.message?.includes("Circuit breaker")) break;
         }
       }
 
@@ -4580,7 +4577,7 @@ Return ONLY JSON.`
   
   // Get today's health data
   app.get("/api/health/today", requireRole(["member"]), async (req, res) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDate(req);
     const data = await storage.getHealthData(req.user!.id, today);
     res.json(data || null);
   });
@@ -5004,7 +5001,7 @@ Return ONLY JSON.`
   // === DIKA AI ASSISTANT ===
   app.get("/api/exercise-info", requireAuth, async (req, res) => {
     const name = req.query.name as string;
-    if (!name) return res.status(400).json({ error: "Missing exercise name" });
+    if (!name) return res.status(400).json({ message: "Missing exercise name" });
     const exercise = findExercise(name);
     if (!exercise) return res.json({ found: false });
     const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(exercise.youtubeSearchQuery)}`;
@@ -5736,12 +5733,21 @@ Return ONLY JSON.`
     }
   });
 
+  const intelligenceReportCache = new Map<string, { data: any; expiresAt: number }>();
+  const REPORT_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
   app.get("/api/intelligence-report", requireAuth, requireAiConsent, async (req, res) => {
     try {
       const userId = req.user!.id;
       const role = req.user!.role;
       const gymId = req.user!.gymId;
       const days = parseInt(req.query.days as string) || 28;
+
+      const cacheKey = `${userId}-${role}-${gymId}-${days}`;
+      const cached = intelligenceReportCache.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now()) {
+        return res.json(cached.data);
+      }
 
       const { generateMemberReport, generateOwnerReport, generateTrainerReport } = await import("./dika/intelligence-report");
 
@@ -5753,6 +5759,8 @@ Return ONLY JSON.`
       } else {
         report = await generateMemberReport(userId, days);
       }
+
+      intelligenceReportCache.set(cacheKey, { data: report, expiresAt: Date.now() + REPORT_CACHE_TTL });
 
       res.json(report);
     } catch (error) {
@@ -7717,7 +7725,7 @@ Return ONLY JSON.`
       // Create payment lookup
       const paymentMap = new Map(paymentTotals.map(p => [p.subscriptionId, Number(p.totalPaid)]));
       
-      const today = new Date().toISOString().split("T")[0];
+      const today = getLocalDate(req);
       const next7Days = new Date();
       next7Days.setDate(next7Days.getDate() + 7);
       const next30Days = new Date();
@@ -7808,10 +7816,10 @@ Return ONLY JSON.`
         // Also handle aggregated - look up by email if passed as string
         emails = Array.from(new Set(visitorEmails));
       } else {
-        // For inactive and payments, member_ids are user IDs
-        const members = await Promise.all(member_ids.map(id => storage.getUser(id)));
+        // For inactive and payments, member_ids are user IDs — batch query
+        const members = await storage.getUsersByIds(member_ids);
         emails = members
-          .filter((m): m is NonNullable<typeof m> => m !== null && m !== undefined && m.gymId === gymId && !!m.email)
+          .filter(m => m.gymId === gymId && !!m.email)
           .map(m => m.email!);
       }
       
@@ -8056,7 +8064,7 @@ Return ONLY JSON.`
       }
       
       // Create walk-in visitor entry
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDate(req);
       const visitorNameVal = name || email.split("@")[0];
       const visitor = await storage.createWalkInVisitor({
         gymId: session.gymId,
@@ -9251,8 +9259,7 @@ Return ONLY JSON.`
   });
 
   // Authenticated user support ticket creation
-  app.post("/api/support", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.post("/api/support", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
       
@@ -9288,8 +9295,7 @@ Return ONLY JSON.`
   });
 
   // Get current user's support tickets
-  app.get("/api/support/my-tickets", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get("/api/support/my-tickets", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
       const tickets = await storage.getUserSupportTickets(user.id);
@@ -9301,8 +9307,7 @@ Return ONLY JSON.`
   });
 
   // Get a specific ticket (for the ticket owner)
-  app.get("/api/support/ticket/:id", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get("/api/support/ticket/:id", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
       const ticketId = parseInt(req.params.id);
@@ -9325,8 +9330,7 @@ Return ONLY JSON.`
   });
 
   // User adds a message to their ticket
-  app.post("/api/support/ticket/:id/message", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.post("/api/support/ticket/:id/message", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
       const ticketId = parseInt(req.params.id);
@@ -10692,7 +10696,7 @@ Only return valid JSON.`;
       if (cycleId) {
         const sportItems = (await storage.getWorkoutItems(cycleId)).filter(i => i.sportProgramId === program.id);
         if (sportItems.length > 0) {
-          const today = new Date().toISOString().split("T")[0];
+          const today = getLocalDate(req);
           const createdDate = program.createdAt ? new Date(program.createdAt).toISOString().split("T")[0] : today;
           
           const completions = await db.select().from(workoutCompletions).where(
