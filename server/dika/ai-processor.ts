@@ -114,7 +114,7 @@ function parseMatchTiming(message: string): 'today' | 'tomorrow' | 'yesterday' |
   return null;
 }
 
-function getMatchAction(timing: string): string {
+function getMatchAction(timing: string): 'rest' | 'warmup' | 'recovery' | 'normal' {
   if (timing === 'tomorrow') return 'rest';
   if (timing === 'yesterday') return 'recovery';
   return 'warmup';
@@ -905,6 +905,14 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
     totalSportExercises: 0,
     totalCycleExercises: 0,
     impactScore: 0,
+    matchHistory: {
+      todayMatch: null,
+      recentMatches: [],
+      thisWeekCount: 0,
+      thisMonthCount: 0,
+      totalCaloriesBurned: 0,
+      avgDuration: 0,
+    },
   };
 
   try {
@@ -1755,6 +1763,24 @@ export async function processWithAI(
     }
   }
 
+  if (role === 'member' && detectMatchLogRequest(message)) {
+    try {
+      const result = await processMatchLogConversation(userId, message, conversationHistory, localDate);
+      if (result) return result;
+    } catch (error) {
+      console.error('Match log conversation failed:', error);
+    }
+  }
+
+  if (role === 'member' && detectPendingMatchFlow(conversationHistory)) {
+    try {
+      const result = await processMatchFollowUp(userId, message, conversationHistory, localDate);
+      if (result) return result;
+    } catch (error) {
+      console.error('Match follow-up failed:', error);
+    }
+  }
+
   if (role === 'member') {
     const pendingFoodType = detectPendingFoodTypeFollowUp(conversationHistory);
     if (pendingFoodType) {
@@ -1830,24 +1856,6 @@ export async function processWithAI(
       } catch (error) {
         console.error('Member action processing failed:', error);
       }
-    }
-  }
-
-  if (role === 'member' && detectMatchLogRequest(message)) {
-    try {
-      const result = await processMatchLogConversation(userId, message, conversationHistory, localDate);
-      if (result) return result;
-    } catch (error) {
-      console.error('Match log conversation failed:', error);
-    }
-  }
-
-  if (role === 'member' && detectPendingMatchFlow(conversationHistory)) {
-    try {
-      const result = await processMatchFollowUp(userId, message, conversationHistory, localDate);
-      if (result) return result;
-    } catch (error) {
-      console.error('Match follow-up failed:', error);
     }
   }
 

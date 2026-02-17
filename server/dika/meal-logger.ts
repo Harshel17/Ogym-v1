@@ -61,6 +61,18 @@ export function detectMealLogRequest(message: string): boolean {
     'got a question',
     'need help',
     'help me',
+    'match tomorrow',
+    'match today',
+    'match yesterday',
+    'game tomorrow',
+    'game today',
+    'game yesterday',
+    'have a match',
+    'have a game',
+    'played a match',
+    'played a game',
+    'match day',
+    'game day',
   ];
   if (nonMealKeywords.some(kw => lower.includes(kw))) return false;
 
