@@ -474,22 +474,28 @@ export default function AuthPage() {
         >
         {/* Spacer for vertical centering when content fits */}
         <div className="flex-1 min-h-0" />
-        <div className="w-full max-w-md space-y-8 relative z-10">
-          <div className="lg:hidden flex items-center justify-center gap-2 mb-8 animate-slide-in-up">
-            <div className="w-10 h-10 rounded-xl shadow-lg shadow-primary/25 overflow-hidden">
-              <img 
-                src={ogymLogo} 
-                alt="OGym Logo" 
-                className="w-full h-full object-cover"
-              />
+        <div className="w-full max-w-md space-y-6 relative z-10">
+          <div className="lg:hidden flex flex-col items-center gap-3 mb-4 animate-slide-in-up">
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl scale-150" />
+              <div className="relative w-16 h-16 rounded-2xl shadow-xl shadow-primary/30 overflow-hidden ring-2 ring-primary/20">
+                <img 
+                  src={ogymLogo} 
+                  alt="OGym Logo" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
             </div>
-            <span className="text-2xl font-bold font-display magic-text">OGym</span>
+            <div className="text-center">
+              <h1 className="text-3xl font-bold font-display magic-text">OGym</h1>
+              <p className="text-sm text-muted-foreground mt-1">Your fitness, simplified</p>
+            </div>
           </div>
 
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8 h-12">
-              <TabsTrigger value="login" className="text-base" data-testid="tab-login">Sign In</TabsTrigger>
-              <TabsTrigger value="register" className="text-base" data-testid="tab-register">Create Account</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-6 h-12 bg-muted/60 backdrop-blur-sm">
+              <TabsTrigger value="login" className="text-base data-[state=active]:shadow-md" data-testid="tab-login">Sign In</TabsTrigger>
+              <TabsTrigger value="register" className="text-base data-[state=active]:shadow-md" data-testid="tab-register">Create Account</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login" className="animate-in fade-in slide-in-from-right-4 duration-300">

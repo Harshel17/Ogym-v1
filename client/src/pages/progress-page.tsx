@@ -19,9 +19,16 @@ export default function ProgressPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">My Progress</h2>
-        <p className="text-muted-foreground mt-1">Track your workout history and view your stats.</p>
+      <div className="page-header-gradient">
+        <div className="flex items-center gap-3">
+          <div className="icon-badge icon-badge-green">
+            <BarChart3 className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold font-display">My Progress</h2>
+            <p className="text-xs text-muted-foreground">Track your workout history and view your stats</p>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

@@ -31,23 +31,28 @@ export function GuidedEmptyState({
   iconGradient = "from-primary to-indigo-600",
 }: GuidedEmptyStateProps) {
   return (
-    <Card className="border-0 bg-gradient-to-br from-muted/30 to-muted/10 overflow-visible" data-testid="guided-empty-state">
-      <CardContent className="py-8 px-6">
+    <Card className="border border-dashed border-border/60 bg-gradient-to-br from-muted/20 to-transparent rounded-2xl overflow-visible" data-testid="guided-empty-state">
+      <CardContent className="py-10 px-6">
         <div className="flex flex-col items-center text-center max-w-sm mx-auto">
-          <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${iconGradient} flex items-center justify-center mb-4 shadow-lg shadow-primary/20`}>
-            <Icon className="w-8 h-8 text-white" />
+          <div className="relative mb-5">
+            <div className={`absolute inset-0 bg-gradient-to-br ${iconGradient} rounded-2xl blur-xl opacity-20 scale-150`} />
+            <div className={`relative w-16 h-16 rounded-2xl bg-gradient-to-br ${iconGradient} flex items-center justify-center shadow-xl shadow-primary/25`}>
+              <Icon className="w-8 h-8 text-white" />
+            </div>
           </div>
 
-          <h3 className="text-lg font-semibold mb-2" data-testid="text-empty-title">{title}</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed mb-4" data-testid="text-empty-description">{description}</p>
+          <h3 className="text-lg font-bold font-display mb-2" data-testid="text-empty-title">{title}</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-5" data-testid="text-empty-description">{description}</p>
 
           {features && features.length > 0 && (
-            <div className={`w-full rounded-xl bg-gradient-to-br ${gradient} p-4 mb-5`}>
-              <p className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-2.5">What you can do</p>
-              <ul className="space-y-2 text-left">
+            <div className={`w-full rounded-2xl bg-gradient-to-br ${gradient} p-4 mb-6 border border-primary/5`}>
+              <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mb-3">What you can do</p>
+              <ul className="space-y-2.5 text-left">
                 {features.map((feature, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-xs">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1 shrink-0" />
+                    <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center mt-0.5 shrink-0">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    </div>
                     <span className="text-muted-foreground leading-relaxed">{feature}</span>
                   </li>
                 ))}
@@ -55,17 +60,17 @@ export function GuidedEmptyState({
             </div>
           )}
 
-          <div className="flex flex-col gap-2 w-full">
+          <div className="flex flex-col gap-2.5 w-full">
             {actionLabel && actionHref && (
               <Link href={actionHref}>
-                <Button className="w-full" data-testid="button-empty-action">
+                <Button className="w-full font-semibold shadow-lg shadow-primary/20" data-testid="button-empty-action">
                   {actionLabel}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
             )}
             {actionLabel && onAction && !actionHref && (
-              <Button className="w-full" onClick={onAction} data-testid="button-empty-action">
+              <Button className="w-full font-semibold shadow-lg shadow-primary/20" onClick={onAction} data-testid="button-empty-action">
                 {actionLabel}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>

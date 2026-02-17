@@ -564,9 +564,16 @@ export default function MemberWorkoutPage() {
 
   return (
     <div className="space-y-3">
-      <div>
-        <h2 className="text-lg font-bold tracking-tight">My Workout</h2>
-        <p className="text-xs text-muted-foreground">Your personalized training program</p>
+      <div className="page-header-gradient">
+        <div className="flex items-center gap-3">
+          <div className="icon-badge icon-badge-blue">
+            <Dumbbell className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold font-display">My Workout</h2>
+            <p className="text-xs text-muted-foreground">Your personalized training program</p>
+          </div>
+        </div>
       </div>
 
       {today?.wasAutoReset && (

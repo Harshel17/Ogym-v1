@@ -178,16 +178,25 @@ function MemberProfileView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">My Profile</h2>
-        <p className="text-muted-foreground mt-1">View and manage your account details.</p>
+      <div className="page-header-gradient">
+        <div className="flex items-center gap-3">
+          <div className="icon-badge icon-badge-primary">
+            <UserCircle className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold font-display">My Profile</h2>
+            <p className="text-xs text-muted-foreground">View and manage your account details</p>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <UserCircle className="w-5 h-5" />
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <UserCircle className="w-3.5 h-3.5 text-primary" />
+              </div>
               Account Information
             </CardTitle>
             <CardDescription>Read-only account details</CardDescription>
@@ -218,10 +227,12 @@ function MemberProfileView() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Building2 className="w-5 h-5" />
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <Building2 className="w-3.5 h-3.5 text-primary" />
+              </div>
               Gym Information
             </CardTitle>
           </CardHeader>
@@ -285,11 +296,13 @@ function MemberProfileView() {
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-2">
+        <Card className="card-elevated md:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Edit2 className="w-5 h-5" />
+                <div className="p-1.5 rounded-lg bg-primary/10">
+                  <Edit2 className="w-3.5 h-3.5 text-primary" />
+                </div>
                 Contact Information
               </CardTitle>
               <CardDescription>You can edit these fields</CardDescription>
@@ -369,10 +382,12 @@ function MemberProfileView() {
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-2">
+        <Card className="card-elevated md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Lock className="w-5 h-5" />
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <Lock className="w-3.5 h-3.5 text-primary" />
+              </div>
               Restricted Fields
             </CardTitle>
             <CardDescription>These require a change request to modify</CardDescription>
@@ -537,9 +552,16 @@ function OwnerProfileView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">{isNative() && isIOS() ? "Profile" : "Owner Profile"}</h2>
-        <p className="text-muted-foreground mt-1">Manage your account and gym details.</p>
+      <div className="page-header-gradient">
+        <div className="flex items-center gap-3">
+          <div className="icon-badge icon-badge-primary">
+            <Building2 className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold font-display">{isNative() && isIOS() ? "Profile" : "Owner Profile"}</h2>
+            <p className="text-xs text-muted-foreground">Manage your account and gym details</p>
+          </div>
+        </div>
       </div>
 
       {profile.gym && (
@@ -836,9 +858,16 @@ function TrainerProfileView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">My Profile</h2>
-        <p className="text-muted-foreground mt-1">View and manage your account details.</p>
+      <div className="page-header-gradient">
+        <div className="flex items-center gap-3">
+          <div className="icon-badge icon-badge-primary">
+            <UserCircle className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold font-display">My Profile</h2>
+            <p className="text-xs text-muted-foreground">View and manage your account details</p>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -1019,10 +1048,12 @@ function TransferGymCard() {
   };
 
   return (
-    <Card className="md:col-span-2">
+    <Card className="card-elevated md:col-span-2">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <ArrowRightLeft className="w-5 h-5" />
+          <div className="p-1.5 rounded-lg bg-primary/10">
+            <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
+          </div>
           Transfer Gym
         </CardTitle>
         <CardDescription>Request to transfer to a different gym</CardDescription>
@@ -1125,10 +1156,12 @@ function AutoPostSettingsCard() {
   });
 
   return (
-    <Card className="md:col-span-2">
+    <Card className="card-elevated md:col-span-2">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Settings className="w-5 h-5" />
+          <div className="p-1.5 rounded-lg bg-primary/10">
+            <Settings className="w-3.5 h-3.5 text-primary" />
+          </div>
           Feed Settings
         </CardTitle>
         <CardDescription>Control how your activity appears on the gym feed</CardDescription>
@@ -1169,10 +1202,12 @@ function TrainingModeSettingsCard() {
   if (!user?.gymId) return null;
 
   return (
-    <Card className="md:col-span-2">
+    <Card className="card-elevated md:col-span-2">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Dumbbell className="w-5 h-5" />
+          <div className="p-1.5 rounded-lg bg-primary/10">
+            <Dumbbell className="w-3.5 h-3.5 text-primary" />
+          </div>
           Training Mode
         </CardTitle>
         <CardDescription>Your current workout management mode</CardDescription>
@@ -1232,10 +1267,12 @@ function DikaSettingsCard() {
   });
 
   return (
-    <Card className="md:col-span-2">
+    <Card className="card-elevated md:col-span-2">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <MessageSquare className="w-5 h-5" />
+          <div className="p-1.5 rounded-lg bg-primary/10">
+            <MessageSquare className="w-3.5 h-3.5 text-primary" />
+          </div>
           Dika Assistant
         </CardTitle>
         <CardDescription>Your gym's memory - answers questions about workouts, attendance, and payments</CardDescription>
@@ -1307,10 +1344,12 @@ function MyPostsCard() {
   };
 
   return (
-    <Card className="md:col-span-2">
+    <Card className="card-elevated md:col-span-2">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <MessageSquare className="w-5 h-5" />
+          <div className="p-1.5 rounded-lg bg-primary/10">
+            <MessageSquare className="w-3.5 h-3.5 text-primary" />
+          </div>
           My Posts
         </CardTitle>
         <CardDescription>Your activity and posts on the gym feed</CardDescription>
@@ -1393,10 +1432,12 @@ function DeleteAccountCard() {
   };
 
   return (
-    <Card className="md:col-span-2 border-destructive/20">
+    <Card className="card-elevated md:col-span-2 border-destructive/20">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-destructive">
-          <Trash2 className="w-5 h-5" />
+          <div className="p-1.5 rounded-lg bg-destructive/10">
+            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+          </div>
           Delete Account
         </CardTitle>
         <CardDescription>Permanently delete your account and all associated data</CardDescription>
@@ -1487,10 +1528,12 @@ function PrivacyPolicyCard() {
   };
 
   return (
-    <Card className="md:col-span-2" data-testid="card-privacy-policy">
+    <Card className="card-elevated md:col-span-2" data-testid="card-privacy-policy">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <ExternalLink className="w-5 h-5" />
+          <div className="p-1.5 rounded-lg bg-primary/10">
+            <ExternalLink className="w-3.5 h-3.5 text-primary" />
+          </div>
           Privacy & Legal
         </CardTitle>
         <CardDescription>View our privacy policy and terms of service</CardDescription>
@@ -1560,10 +1603,12 @@ function NotificationSettingsCard() {
   };
 
   return (
-    <Card className="md:col-span-2" data-testid="card-notification-settings">
+    <Card className="card-elevated md:col-span-2" data-testid="card-notification-settings">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Bell className="w-5 h-5" />
+          <div className="p-1.5 rounded-lg bg-primary/10">
+            <Bell className="w-3.5 h-3.5 text-primary" />
+          </div>
           Notifications
         </CardTitle>
         <CardDescription>Manage how you receive updates</CardDescription>

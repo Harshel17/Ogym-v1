@@ -155,6 +155,19 @@ html.capacitor-native body[data-scroll-locked] {
   border-color: rgba(255, 255, 255, 0.06);
 }
 
+/* Frosted glass tab bar */
+.glass-tab-bar {
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  background-color: rgba(255, 255, 255, 0.78);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.dark .glass-tab-bar {
+  background-color: rgba(11, 18, 32, 0.82);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 /* Mobile header and tab bar - no longer fixed, these classes are removed */
 
 /* DEPRECATED - keeping for backwards compatibility */
@@ -877,6 +890,120 @@ html.capacitor-native body[data-scroll-locked] {
   .stat-card-magic:hover::after {
     opacity: 1;
   }
+
+  .page-header-gradient {
+    @apply relative overflow-hidden rounded-2xl p-4 mb-4;
+  }
+
+  .page-header-gradient::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.08) 0%, hsl(var(--primary) / 0.03) 40%, transparent 70%, hsl(280 80% 60% / 0.05) 100%);
+    z-index: 0;
+  }
+
+  .page-header-gradient > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .gradient-progress-bar {
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(262 83% 58%), hsl(var(--primary)));
+    background-size: 200% 100%;
+    animation: gradientShift 4s ease infinite;
+    border-radius: 9999px;
+  }
+
+  .zero-state-value {
+    @apply text-muted-foreground/40;
+  }
+
+  .zero-state-card {
+    @apply border-dashed border-muted-foreground/15;
+  }
+
+  .icon-badge {
+    @apply w-8 h-8 rounded-lg flex items-center justify-center shrink-0;
+  }
+
+  .icon-badge-sm {
+    @apply w-6 h-6 rounded-md flex items-center justify-center shrink-0;
+  }
+
+  .icon-badge-primary {
+    @apply bg-primary/10 text-primary;
+  }
+
+  .icon-badge-green {
+    @apply bg-emerald-500/10 text-emerald-600 dark:text-emerald-400;
+  }
+
+  .icon-badge-amber {
+    @apply bg-amber-500/10 text-amber-600 dark:text-amber-400;
+  }
+
+  .icon-badge-red {
+    @apply bg-red-500/10 text-red-600 dark:text-red-400;
+  }
+
+  .icon-badge-purple {
+    @apply bg-purple-500/10 text-purple-600 dark:text-purple-400;
+  }
+
+  .icon-badge-blue {
+    @apply bg-blue-500/10 text-blue-600 dark:text-blue-400;
+  }
+
+  .section-header {
+    @apply flex items-center gap-2 text-sm font-semibold text-foreground mb-3;
+  }
+
+  .card-elevated {
+    @apply bg-card rounded-2xl border border-border/60 shadow-sm shadow-black/[0.03] dark:shadow-black/[0.15];
+  }
+
+  .card-elevated-interactive {
+    @apply card-elevated transition-all duration-200 hover:shadow-md hover:border-border active:scale-[0.99];
+  }
+
+  .gradient-badge {
+    @apply bg-gradient-to-r from-primary to-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full;
+  }
+
+  .gradient-border-top {
+    position: relative;
+  }
+  .gradient-border-top::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, hsl(var(--primary)), transparent);
+    border-radius: 9999px;
+    opacity: 0.5;
+  }
+
+  .progress-bar-gradient {
+    @apply h-2 rounded-full overflow-hidden bg-muted/50;
+  }
+
+  .stat-value-lg {
+    @apply text-3xl font-bold tracking-tight tabular-nums bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text;
+  }
+
+  .list-item-polished {
+    @apply flex items-center gap-3 p-3 rounded-xl bg-muted/20 border border-border/40 transition-all duration-150 active:scale-[0.99];
+  }
+}
+
+.progress-bar-gradient > div {
+  height: 100%;
+  border-radius: 9999px;
+  transition: all 0.5s;
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(262 83% 58%));
 }
 
 /* ========================================

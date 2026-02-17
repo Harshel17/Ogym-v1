@@ -663,8 +663,16 @@ export default function NutritionPage() {
   return (
     <div className="space-y-3 pb-24 stagger-list">
       <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-lg font-bold tracking-tight">Nutrition</h1>
+        <div className="page-header-gradient flex-1">
+          <div className="flex items-center gap-3">
+            <div className="icon-badge icon-badge-green">
+              <Apple className="w-4 h-4" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold font-display">Nutrition</h1>
+              <p className="text-xs text-muted-foreground">Track your meals & macros</p>
+            </div>
+          </div>
         </div>
         <Dialog open={isGoalDialogOpen} onOpenChange={setIsGoalDialogOpen}>
           <DialogTrigger asChild>

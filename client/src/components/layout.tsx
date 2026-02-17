@@ -582,9 +582,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {/* Mobile Bottom Tab Bar - fixed at bottom, hidden when Dika keyboard is open */}
+      {/* Mobile Bottom Tab Bar - frosted glass, fixed at bottom */}
       <nav 
-        className={cn("md:hidden border-t border-border/50 bg-background fixed bottom-0 left-0 right-0 z-50 transition-transform duration-200", isDikaWithKeyboard && "translate-y-full")}
+        className={cn("md:hidden fixed bottom-0 left-0 right-0 z-50 transition-transform duration-200 glass-tab-bar", isDikaWithKeyboard && "translate-y-full")}
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
         <div className="flex justify-around items-center w-full h-14">
@@ -594,117 +594,122 @@ export function Layout({ children }: { children: React.ReactNode }) {
             return (
               <Link key={item.href} href={item.href}>
                 <div 
-                  className={`relative flex flex-col items-center gap-1 min-w-[56px] cursor-pointer transition-all duration-200 ${
+                  className={`relative flex flex-col items-center gap-0.5 min-w-[56px] cursor-pointer transition-all duration-200 ${
                     isActive ? "text-primary" : "text-muted-foreground"
                   }`}
                   data-testid={`tab-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                 >
-                  {isActive && (
-                    <div className="absolute -top-2 w-5 h-[3px] rounded-full bg-primary transition-all duration-200" />
-                  )}
-                  <div className="relative">
-                    <item.icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? "stroke-[2.5] scale-105" : ""}`} />
+                  <div className={`relative flex items-center justify-center w-10 h-7 rounded-full transition-all duration-300 ${isActive ? "bg-primary/12 dark:bg-primary/20" : ""}`}>
+                    <item.icon className={`w-[18px] h-[18px] transition-all duration-200 ${isActive ? "stroke-[2.5] scale-110" : ""}`} />
                     {(item.badge ?? 0) > 0 && (
-                      <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-0.5">
+                      <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5">
                         {(item.badge ?? 0) > 99 ? '99+' : item.badge}
                       </span>
                     )}
                   </div>
-                  <span className={`text-[10px] leading-tight truncate max-w-[60px] ${isActive ? "font-semibold" : "font-normal opacity-70"}`}>{item.label}</span>
+                  <span className={`text-[10px] leading-tight truncate max-w-[60px] ${isActive ? "font-semibold" : "font-normal opacity-60"}`}>{item.label}</span>
                 </div>
               </Link>
             );
           })}
           {hasMoreMenu && (
             <div 
-              className={`relative flex flex-col items-center gap-1 min-w-[56px] cursor-pointer transition-colors text-muted-foreground`}
+              className="relative flex flex-col items-center gap-0.5 min-w-[56px] cursor-pointer transition-colors text-muted-foreground"
               onClick={() => setMoreMenuOpen(true)}
               data-testid="tab-more"
             >
-              <div className="relative">
-                <Menu className="w-5 h-5" />
+              <div className="relative flex items-center justify-center w-10 h-7 rounded-full">
+                <Menu className="w-[18px] h-[18px]" />
                 {secondaryBadgeCount > 0 && (
-                  <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-0.5">
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5">
                     {secondaryBadgeCount > 99 ? '99+' : secondaryBadgeCount}
                   </span>
                 )}
               </div>
-              <span className="text-[10px] leading-tight font-normal opacity-70">More</span>
+              <span className="text-[10px] leading-tight font-normal opacity-60">More</span>
             </div>
           )}
         </div>
       </nav>
 
-      {/* More Menu Drawer */}
+      {/* More Menu Drawer - polished with grouped sections */}
       <Drawer open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
-        <DrawerContent className="bg-background" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}>
-          <DrawerHeader className="pb-2">
+        <DrawerContent className="bg-background/95 backdrop-blur-xl" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}>
+          <DrawerHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl shadow-lg shadow-primary/25 overflow-hidden flex items-center justify-center">
+                <div className="w-11 h-11 rounded-2xl shadow-lg shadow-primary/25 overflow-hidden flex items-center justify-center ring-2 ring-primary/10">
                   <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-display font-bold text-lg magic-text">OGym</span>
-                    <div className="flex items-center gap-1 px-1 pr-2 py-0.5 rounded-md bg-slate-100/80 dark:bg-slate-800/80 border border-amber-500/20">
+                    <div className="flex items-center gap-1 px-1.5 pr-2 py-0.5 rounded-md bg-slate-100/80 dark:bg-slate-800/80 border border-amber-500/20">
                       <div className="w-4 h-4 rounded bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
                         <RoboDIcon className="w-3 h-3 text-white" />
                       </div>
                       <span className="text-[9px] font-mono font-bold tracking-wider text-amber-600 dark:text-amber-400 uppercase">AI</span>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">{user.username} &middot; <span className="capitalize">{user.role}</span></p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{user.username} &middot; <span className="capitalize">{user.role}</span></p>
                 </div>
               </div>
               <ThemeToggle />
             </div>
           </DrawerHeader>
-          <div className="px-4 space-y-1 max-h-[50vh] overflow-y-auto">
-            {secondaryTabs.map((item) => {
-              const isActive = location === item.href || 
-                (item.href !== "/" && location.startsWith(item.href));
-              return (
-                <div 
-                  key={item.href}
-                  className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg cursor-pointer transition-colors ${
-                    isActive 
-                      ? "bg-primary text-primary-foreground" 
-                      : "text-foreground hover:bg-secondary"
-                  }`}
-                  onClick={() => {
-                    navigate(item.href);
-                    setMoreMenuOpen(false);
-                  }}
-                  data-testid={`more-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <item.icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
-                  </div>
-                  {(item.badge ?? 0) > 0 && (
-                    <Badge 
-                      variant="secondary" 
-                      className={`text-xs ${isActive ? "bg-white/20 text-primary-foreground" : "bg-primary text-primary-foreground"}`}
+          <div className="px-4 max-h-[50vh] overflow-y-auto space-y-4">
+            {secondaryTabs.length > 0 && (
+              <div className="space-y-1">
+                {secondaryTabs.map((item) => {
+                  const isActive = location === item.href || 
+                    (item.href !== "/" && location.startsWith(item.href));
+                  return (
+                    <div 
+                      key={item.href}
+                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 ${
+                        isActive 
+                          ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" 
+                          : "text-foreground hover:bg-secondary/80 active:scale-[0.98]"
+                      }`}
+                      onClick={() => {
+                        navigate(item.href);
+                        setMoreMenuOpen(false);
+                      }}
+                      data-testid={`more-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                     >
-                      {item.badge}
-                    </Badge>
-                  )}
-                </div>
-              );
-            })}
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActive ? "bg-white/20" : "bg-muted/60"}`}>
+                          <item.icon className="w-4 h-4" />
+                        </div>
+                        <span className="text-sm font-medium">{item.label}</span>
+                      </div>
+                      {(item.badge ?? 0) > 0 && (
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-[10px] px-1.5 min-w-[20px] ${isActive ? "bg-white/20 text-primary-foreground" : "bg-primary text-primary-foreground"}`}
+                        >
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          <div className="px-4 pt-3 pb-4 border-t border-border/50 mt-2 flex-shrink-0">
+          <div className="px-4 pt-3 pb-4 border-t border-border/30 mt-3 flex-shrink-0">
             <div 
-              className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer text-destructive hover:bg-destructive/10 transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-destructive hover:bg-destructive/10 active:scale-[0.98] transition-all duration-200"
               onClick={() => {
                 setMoreMenuOpen(false);
                 logoutMutation.mutate();
               }}
               data-testid="more-sign-out"
             >
-              <LogOut className="w-5 h-5" />
-              <span className="font-medium">Sign Out</span>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-destructive/10">
+                <LogOut className="w-4 h-4" />
+              </div>
+              <span className="text-sm font-medium">Sign Out</span>
             </div>
           </div>
         </DrawerContent>

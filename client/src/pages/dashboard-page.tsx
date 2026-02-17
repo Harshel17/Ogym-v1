@@ -187,7 +187,7 @@ function HealthActivityDashboard() {
 
   return (
     <Link href="/health">
-      <Card className="overflow-hidden border-0 shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300" data-testid="card-health-activity">
+      <Card className="overflow-hidden border-0 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300" data-testid="card-health-activity">
         <div className="bg-gradient-to-br from-card via-card to-muted/20">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -343,21 +343,23 @@ function StatCard({ title, value, icon: Icon, description, onClick, color = "pri
 
   const colorConfig = colorClasses[color] || colorClasses.primary;
   
+  const isZero = value === 0 || value === "0";
+  
   return (
     <Card 
-      className={`overflow-visible border-0 ${colorConfig.bg} hover-elevate transition-all duration-200 ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}`}
+      className={`overflow-visible border-0 rounded-2xl ${colorConfig.bg} hover-elevate transition-all duration-200 shadow-sm ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}`}
       onClick={onClick}
     >
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3">
         <CardTitle className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
           {title}
         </CardTitle>
-        <div className={`p-1.5 rounded-lg ${colorConfig.icon}`}>
-          <Icon className="h-3.5 w-3.5" />
+        <div className={`p-2 rounded-xl ${colorConfig.icon}`}>
+          <Icon className="h-4 w-4" />
         </div>
       </CardHeader>
       <CardContent className="pt-0 pb-3 px-3">
-        <div className="text-2xl font-bold tracking-tight tabular-nums">{value}</div>
+        <div className={`text-2xl font-bold tracking-tight tabular-nums ${isZero ? 'zero-state-value' : ''}`}>{value}</div>
         <p className="text-[11px] text-muted-foreground/70 mt-0.5 font-medium">
           {description}
         </p>
@@ -397,7 +399,7 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
 
   if (isLoading) {
     return (
-      <Card className="bg-muted/30">
+      <Card className="card-elevated">
         <CardContent className="py-6">
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -410,17 +412,17 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
 
   if (!activity || totalItems === 0) {
     return (
-      <Card className="bg-muted/30">
+      <Card className="card-elevated zero-state-card">
         <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <div className="p-1.5 rounded-lg bg-primary/15">
-              <Activity className="w-3.5 h-3.5 text-primary" />
+            <div className="p-2 rounded-xl bg-primary/10">
+              <Activity className="w-4 h-4 text-primary" />
             </div>
             Today's Activity
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0 pb-3 px-3">
-          <p className="text-xs text-muted-foreground text-center py-3">No activity yet today. Check back later!</p>
+          <p className="text-xs text-muted-foreground text-center py-3 zero-state-value">No activity yet today. Check back later!</p>
         </CardContent>
       </Card>
     );
@@ -430,11 +432,11 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
   const totalPaymentAmount = payments.reduce((sum, p) => sum + p.amountPaid, 0);
 
   return (
-    <Card className="bg-muted/30">
+    <Card className="card-elevated">
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <div className="p-1.5 rounded-lg bg-primary/15">
-            <Activity className="w-3.5 h-3.5 text-primary" />
+          <div className="p-2 rounded-xl bg-primary/10">
+            <Activity className="w-4 h-4 text-primary" />
           </div>
           Today's Activity
         </CardTitle>
@@ -790,9 +792,14 @@ function OwnerDashboard() {
       </div>
 
       <div className="grid gap-2.5 md:grid-cols-2">
-        <Card className="bg-muted/30">
+        <Card className="card-elevated">
           <CardHeader className="pb-2 pt-3 px-3">
-            <CardTitle className="text-sm font-semibold">Attendance (Last 7 days)</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <CalendarCheck className="w-3.5 h-3.5 text-primary" />
+              </div>
+              Attendance (Last 7 days)
+            </CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3">
             <div className="h-[180px] w-full">
@@ -827,9 +834,14 @@ function OwnerDashboard() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-muted/30">
+        <Card className="card-elevated">
           <CardHeader className="pb-2 pt-3 px-3">
-            <CardTitle className="text-sm font-semibold">Recent Activity</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                <Clock className="w-3.5 h-3.5 text-emerald-500" />
+              </div>
+              Recent Activity
+            </CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3">
             <div className="space-y-2">
@@ -1962,7 +1974,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
               return (
                 <div className="space-y-3">
                   {todayMatchLog.workoutAction === "rest" ? (
-                    <div className="rounded-xl bg-muted/30 p-4 space-y-3">
+                    <div className="rounded-2xl bg-muted/20 border border-border/40 p-4 space-y-3">
                       <div className="flex items-center gap-2">
                         <Trophy className="w-4 h-4 text-primary" />
                         <span className="text-sm font-medium">{todayMatchLog.sport}</span>
@@ -2030,7 +2042,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                       )}
                     </>
                   ) : (
-                    <div className="rounded-xl bg-muted/30 p-4">
+                    <div className="rounded-2xl bg-muted/20 border border-border/40 p-4">
                       <p className="text-sm text-muted-foreground">
                         {todayMatchLog.workoutAction === "warmup"
                           ? "Light dynamic stretching and mobility work to prepare for your match."
