@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { Loader2 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, useCallback } from "react";
 import { refreshStatusBar, isIOS, isNative } from "@/lib/capacitor-init";
+import { AiDataConsentDialog } from "@/components/ai-data-consent-dialog";
 
 import AuthPage from "@/pages/auth-page";
 import DashboardPage from "@/pages/dashboard-page";
@@ -570,6 +571,24 @@ function Router() {
   );
 }
 
+function GlobalAiConsentHandler() {
+  const [showConsent, setShowConsent] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setShowConsent(true);
+    window.addEventListener("ai-consent-required", handler);
+    return () => window.removeEventListener("ai-consent-required", handler);
+  }, []);
+
+  return (
+    <AiDataConsentDialog
+      open={showConsent}
+      onConsentGranted={() => setShowConsent(false)}
+      onDeclined={() => setShowConsent(false)}
+    />
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -580,6 +599,7 @@ function App() {
               <Router />
             </SwipeNavigationProvider>
             <Toaster />
+            <GlobalAiConsentHandler />
           </AuthProvider>
         </ErrorBoundary>
       </ThemeProvider>

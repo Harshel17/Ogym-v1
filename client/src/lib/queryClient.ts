@@ -16,6 +16,17 @@ function getNetworkErrorMessage(error: unknown): string {
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
+
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed?.code === "AI_CONSENT_REQUIRED") {
+        window.dispatchEvent(new CustomEvent("ai-consent-required"));
+        throw new Error("AI data consent is required. Please accept the consent dialog to use AI features.");
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("AI data consent")) throw e;
+    }
+
     const friendlyMessages: Record<number, string> = {
       400: "Invalid request. Please check your input.",
       401: "Please log in to continue.",

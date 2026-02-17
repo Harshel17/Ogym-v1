@@ -426,8 +426,20 @@ export default function NutritionPage() {
         const res = await fetch("/api/nutrition/food/restaurant-search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ restaurant: restaurantName.trim(), query: searchQuery }),
         });
+        if (res.status === 403) {
+          const errData = await res.json();
+          if (errData?.code === "AI_CONSENT_REQUIRED") {
+            window.dispatchEvent(new CustomEvent("ai-consent-required"));
+            setIsSearching(false);
+            return;
+          }
+          toast({ title: "Permission denied", variant: "destructive" });
+          setIsSearching(false);
+          return;
+        }
         const data = await res.json();
         setSearchResults(data.products || []);
       } else {
@@ -1965,11 +1977,22 @@ export default function NutritionPage() {
                         const res = await fetch("/api/nutrition/food/estimate", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
+                          credentials: "include",
                           body: JSON.stringify({ 
                             description: searchQuery,
                             restaurant: restaurantName.trim() || undefined,
                           }),
                         });
+                        if (res.status === 403) {
+                          const errData = await res.json();
+                          if (errData?.code === "AI_CONSENT_REQUIRED") {
+                            window.dispatchEvent(new CustomEvent("ai-consent-required"));
+                          } else {
+                            toast({ title: "Permission denied", variant: "destructive" });
+                          }
+                          setIsSearching(false);
+                          return;
+                        }
                         if (res.ok) {
                           const estimated = await res.json();
                           setSelectedFood(estimated);

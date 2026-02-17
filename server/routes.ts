@@ -564,6 +564,15 @@ export async function registerRoutes(
     next();
   };
 
+  const requireAiConsent = async (req: any, res: any, next: any) => {
+    if (!req.user) return res.sendStatus(401);
+    const [user] = await db.select({ aiDataConsent: users.aiDataConsent }).from(users).where(eq(users.id, req.user.id));
+    if (!user?.aiDataConsent) {
+      return res.status(403).json({ message: "AI data consent required", code: "AI_CONSENT_REQUIRED" });
+    }
+    next();
+  };
+
   // === OWNER ROUTES ===
   app.get("/api/owner/members", requireRole(["owner"]), async (req, res) => {
     const members = await storage.getGymMembers(req.user!.gymId!);
@@ -4095,7 +4104,7 @@ export async function registerRoutes(
   });
 
   // AI-powered nutrition estimation
-  app.post("/api/nutrition/food/estimate", requireRole(["member"]), async (req, res) => {
+  app.post("/api/nutrition/food/estimate", requireRole(["member"]), requireAiConsent, async (req, res) => {
     const schema = z.object({
       description: z.string().min(2).max(200),
       servingSize: z.string().optional(),
@@ -4178,7 +4187,7 @@ Return ONLY the JSON, no explanation.`;
     }
   });
 
-  app.post("/api/nutrition/food/photo-analyze", requireRole(["member"]), async (req, res) => {
+  app.post("/api/nutrition/food/photo-analyze", requireRole(["member"]), requireAiConsent, async (req, res) => {
     const schema = z.object({
       imageBase64: z.string().min(100),
       mealType: z.string().optional(),
@@ -4314,7 +4323,7 @@ Return ONLY JSON:
     }
   });
 
-  app.post("/api/nutrition/food/restaurant-search", requireRole(["member"]), async (req, res) => {
+  app.post("/api/nutrition/food/restaurant-search", requireRole(["member"]), requireAiConsent, async (req, res) => {
     const schema = z.object({
       restaurant: z.string().min(2).max(100),
       query: z.string().min(2).max(200),
@@ -4973,7 +4982,7 @@ Return ONLY JSON.`
     });
   });
 
-  app.post("/api/dika/ask", requireAuth, async (req, res) => {
+  app.post("/api/dika/ask", requireAuth, requireAiConsent, async (req, res) => {
     const schema = z.object({
       message: z.string().min(1).max(500),
       conversationHistory: z.array(z.object({
@@ -5344,13 +5353,7 @@ Return ONLY JSON.`
     }
   });
 
-  app.post("/api/dika/chats/:chatId/messages", requireAuth, async (req, res) => {
-    const [webConsentCheck] = await db.select({ aiDataConsent: users.aiDataConsent })
-      .from(users).where(eq(users.id, req.user!.id));
-    if (!webConsentCheck?.aiDataConsent) {
-      return res.status(403).json({ message: "AI_CONSENT_REQUIRED" });
-    }
-
+  app.post("/api/dika/chats/:chatId/messages", requireAuth, requireAiConsent, async (req, res) => {
     const chatId = parseInt(req.params.chatId);
     const schema = z.object({
       message: z.string().min(1).max(2000),
@@ -10180,7 +10183,7 @@ Return ONLY JSON.`
     }
   });
 
-  app.post("/api/sport/preview-modifications", requireAuth, async (req, res) => {
+  app.post("/api/sport/preview-modifications", requireAuth, requireAiConsent, async (req, res) => {
     try {
       if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
         return res.status(403).json({ message: "Sports Mode cycle modifications are only available for Self-Guided and Personal Mode members" });
@@ -10423,7 +10426,7 @@ Only return valid JSON.`;
     }
   });
 
-  app.post("/api/sport/create-full-cycle", requireAuth, async (req, res) => {
+  app.post("/api/sport/create-full-cycle", requireAuth, requireAiConsent, async (req, res) => {
     try {
       if (req.user!.gymId && req.user!.trainingMode === 'trainer_led') {
         return res.status(403).json({ message: "Only Self-Guided and Personal Mode members" });
