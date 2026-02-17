@@ -154,7 +154,12 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        const sanitized = JSON.parse(JSON.stringify(capturedJsonResponse, (key, value) => {
+          if (key === 'password' || key === 'password_hash' || key === 'verificationCode') return '[REDACTED]';
+          return value;
+        }));
+        const responseStr = JSON.stringify(sanitized);
+        logLine += ` :: ${responseStr.length > 2000 ? responseStr.slice(0, 2000) + '...[truncated]' : responseStr}`;
       }
 
       log(logLine);

@@ -1,0 +1,113 @@
+You are a senior full-stack QA + integration engineer.
+
+Task: Perform a FULL application audit and produce a structured REPORT of issues + fixes. I want you to actually inspect the codebase, not guess.
+
+Output format must be:
+1) System Map
+2) Audit Findings (grouped by category, each with Severity P0/P1/P2, Evidence, Root Cause, Fix)
+3) Quick Win Fix List
+4) Risky/Breaking Changes List
+5) Test Plan (step-by-step manual + minimal automated checks)
+6) Final “Ready to Freeze?” verdict
+
+---------------------------
+PHASE 0 — Repo Understanding
+---------------------------
+- Identify the frontend, backend, and database layers.
+- List key folders/files for:
+  - API calls on frontend
+  - Backend routers/controllers
+  - Models/schemas (Pydantic/DTOs)
+  - Auth middleware / dependencies
+  - Date/time utilities
+  - Export modules (CSV/PDF) if any
+- Produce a “System Map” diagram in text (Frontend pages -> API endpoints -> DB tables/models).
+
+-------------------------------------
+PHASE 1 — API Contract + Mismatch Audit
+-------------------------------------
+1) Build an API contract table from backend as source of truth:
+- For every endpoint: method, path, auth requirements, request schema, query params, response schema, status codes, and error shapes.
+
+2) Cross-check frontend usage:
+- Find every fetch/axios call in frontend and map it to an endpoint.
+- Verify: URL path, method, headers, body keys/types, query params names, response keys used in UI.
+- Flag mismatches:
+  - snake_case vs camelCase
+  - missing/extra fields
+  - wrong types (string vs number)
+  - wrong endpoint paths
+  - wrong pagination/filter param names
+  - assuming fields always exist when optional
+- For each mismatch, include:
+  - Evidence (file path + function/line region)
+  - Impact (what breaks)
+  - Fix (backend or frontend, and why)
+
+--------------------------------
+PHASE 2 — Time/Date/Timezone Audit
+--------------------------------
+- Locate every timestamp field (created_at, updated_at, generated_at, etc.).
+- Check backend:
+  - How dates are created (UTC vs local vs naive datetime)
+  - How dates are serialized to JSON (ISO 8601? timezone included?)
+  - Any timezone-naive datetime use
+- Check frontend:
+  - Parsing + display utilities (toLocaleString, custom converters)
+  - Any double conversions (UTC->local twice)
+  - Any “date-only” rendering that can shift by a day in US timezones
+- Output concrete recommendations and code changes:
+  - Ensure backend returns ISO 8601 with timezone (prefer UTC “Z”)
+  - Ensure frontend converts only for display
+
+---------------------------------------
+PHASE 3 — Auth / Roles / CORS / Security
+---------------------------------------
+- Confirm all protected endpoints require auth server-side.
+- Verify role-based access (manager/admin routes).
+- Confirm CORS settings are env-driven and correct.
+- Ensure tokens are attached everywhere needed on frontend.
+- Look for sensitive data leakage in responses or logs.
+- Confirm password hashing and JWT configuration are sane.
+
+--------------------------------------
+PHASE 4 — Data Integrity & DB Consistency
+--------------------------------------
+- Verify models match DB reality (columns, types, nullable, relationships).
+- Check for orphan risks and missing FK constraints.
+- Check “move staging -> permanent” style operations for double insert risk.
+- Check queries for N+1 patterns and missing indexes on common filters.
+
+--------------------------------------
+PHASE 5 — Error Handling & UX Consistency
+--------------------------------------
+- Backend error format consistency (detail/error/message).
+- Frontend handling for 401/403/404/422/500.
+- Confirm loading states, empty states, and no infinite refetch loops.
+- Confirm formatting consistency (currency, right-aligned numbers, date display).
+
+--------------------------------------
+PHASE 6 — Performance & Reliability Audit
+--------------------------------------
+- Identify endpoints/pages likely to be slow.
+- Check for repeated network calls per row (N+1 from frontend).
+- Recommend caching, pagination, batching, or backend join endpoints.
+
+--------------------------------------
+PHASE 7 — Deliverables (REQUIRED)
+--------------------------------------
+A) Write the Audit Report in a single markdown file named:
+   AUDIT_REPORT.md
+B) Add a checklist file named:
+   RELEASE_CHECKLIST.md
+C) If you find P0/P1 issues, implement fixes in code:
+   - Keep fixes minimal and safe
+   - Note all changed files in the report
+D) Add a small “integration test checklist” with steps I can click through.
+
+Rules:
+- Do not hand-wave. Every finding must cite evidence (file path + snippet).
+- Prefer minimal changes over refactors unless necessary.
+- If you’re unsure, mark it explicitly as “Needs confirmation” and explain why.
+
+Start now by scanning the repo and generating the System Map first, then proceed through phases in order.

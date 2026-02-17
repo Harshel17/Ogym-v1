@@ -22,6 +22,15 @@ import { lookupBarcodeLocal } from "./nutrition/barcode-database";
 import { findRestaurantSuggestion, getSuggestionForGoal, getGeneralDikaMessage, GoalType } from "./nutrition/restaurant-suggestions";
 import { insertFoodLogSchema, insertCalorieGoalSchema } from "@shared/schema";
 
+function sanitizeUser<T extends Record<string, any>>(user: T): Omit<T, 'password'> {
+  const { password, ...safeUser } = user;
+  return safeUser;
+}
+
+function sanitizeUsers<T extends Record<string, any>>(users: T[]): Omit<T, 'password'>[] {
+  return users.map(u => sanitizeUser(u));
+}
+
 function getAdminJwtSecret(): string {
   const secret = process.env.SESSION_SECRET;
   if (!secret && process.env.NODE_ENV === "production") {
@@ -392,7 +401,7 @@ export async function registerRoutes(
     }
     
     res.json({
-      ...user,
+      ...sanitizeUser(user!),
       subscriptionStatus
     });
   });
@@ -583,7 +592,7 @@ export async function registerRoutes(
   // === OWNER ROUTES ===
   app.get("/api/owner/members", requireRole(["owner"]), async (req, res) => {
     const members = await storage.getGymMembers(req.user!.gymId!);
-    res.json(members);
+    res.json(sanitizeUsers(members));
   });
 
   app.get("/api/owner/members-details", requireRole(["owner"]), async (req, res) => {
@@ -601,7 +610,7 @@ export async function registerRoutes(
 
   app.get("/api/owner/trainers", requireRole(["owner"]), async (req, res) => {
     const trainers = await storage.getGymTrainers(req.user!.gymId!);
-    res.json(trainers);
+    res.json(sanitizeUsers(trainers));
   });
 
   app.get("/api/owner/trainers-overview", requireRole(["owner"]), async (req, res) => {
@@ -954,7 +963,7 @@ export async function registerRoutes(
     const memberIds = assignments.map(a => a.memberId);
     const allMembers = await storage.getGymMembers(req.user!.gymId!);
     const assignedMembers = allMembers.filter(m => memberIds.includes(m.id));
-    res.json(assignedMembers);
+    res.json(sanitizeUsers(assignedMembers));
   });
 
   app.get("/api/trainer/new-members", requireRole(["trainer"]), async (req, res) => {
@@ -968,7 +977,7 @@ export async function registerRoutes(
       const membersWithCycles = new Set(cycles.map((c: any) => c.memberId));
       
       const newMembers = assignedMembers.filter(m => !membersWithCycles.has(m.id));
-      res.json(newMembers);
+      res.json(sanitizeUsers(newMembers));
     } catch (err) {
       console.error("Error fetching new members:", err);
       res.status(500).json({ message: "Failed to fetch new members" });
@@ -5964,7 +5973,7 @@ Return ONLY JSON.`
       res.json(profile);
     } else {
       const user = await storage.getUser(req.user!.id);
-      res.json(user);
+      res.json(user ? sanitizeUser(user) : null);
     }
   });
 
@@ -9524,7 +9533,7 @@ Return ONLY JSON.`
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json(user);
+      res.json(sanitizeUser(user));
     } catch (err) {
       console.error("Admin get user error:", err);
       res.status(500).json({ message: "Failed to get user" });
@@ -9565,7 +9574,7 @@ Return ONLY JSON.`
         reason: reason,
       });
       
-      res.json(updatedUser);
+      res.json(sanitizeUser(updatedUser));
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
@@ -9646,7 +9655,7 @@ Return ONLY JSON.`
         reason: input.reason,
       });
       
-      res.json(updatedUser);
+      res.json(sanitizeUser(updatedUser));
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
@@ -9686,7 +9695,7 @@ Return ONLY JSON.`
         reason: input.reason,
       });
       
-      res.json(updatedUser);
+      res.json(sanitizeUser(updatedUser));
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
