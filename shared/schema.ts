@@ -1104,6 +1104,7 @@ export const sportProfiles = pgTable("sport_profiles", {
   fitnessScore: integer("fitness_score"),
   testAnswers: jsonb("test_answers"),
   isActive: boolean("is_active").default(true),
+  endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   userIdx: index("sport_profiles_user_idx").on(table.userId),

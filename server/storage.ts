@@ -811,6 +811,8 @@ export interface IStorage {
   getSportProfile(userId: number): Promise<SportProfile | undefined>;
   createSportProfile(data: InsertSportProfile): Promise<SportProfile>;
   updateSportProfile(id: number, data: Partial<InsertSportProfile>): Promise<SportProfile>;
+  endSportProfile(profileId: number): Promise<SportProfile>;
+  getSportProfileHistory(userId: number): Promise<SportProfile[]>;
   getSportPrograms(userId: number): Promise<SportProgram[]>;
   getSportProgram(id: number): Promise<SportProgram | undefined>;
   createSportProgram(data: InsertSportProgram): Promise<SportProgram>;
@@ -9197,6 +9199,23 @@ export class DatabaseStorage implements IStorage {
   async updateSportProfile(id: number, data: Partial<InsertSportProfile>): Promise<SportProfile> {
     const [profile] = await db.update(sportProfiles).set(data).where(eq(sportProfiles.id, id)).returning();
     return profile;
+  }
+
+  async endSportProfile(profileId: number): Promise<SportProfile> {
+    await db.update(sportPrograms)
+      .set({ isActive: false })
+      .where(and(eq(sportPrograms.sportProfileId, profileId), eq(sportPrograms.isActive, true)));
+    const [profile] = await db.update(sportProfiles)
+      .set({ isActive: false, endedAt: new Date() })
+      .where(eq(sportProfiles.id, profileId))
+      .returning();
+    return profile;
+  }
+
+  async getSportProfileHistory(userId: number): Promise<SportProfile[]> {
+    return db.select().from(sportProfiles)
+      .where(and(eq(sportProfiles.userId, userId), eq(sportProfiles.isActive, false)))
+      .orderBy(desc(sportProfiles.createdAt));
   }
 
   async getSportPrograms(userId: number): Promise<SportProgram[]> {

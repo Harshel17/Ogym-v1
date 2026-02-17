@@ -10216,6 +10216,30 @@ Return ONLY JSON.`
     }
   });
 
+  app.post("/api/sport/profile/end", requireAuth, async (req, res) => {
+    try {
+      const profile = await storage.getSportProfile(req.user!.id);
+      if (!profile) {
+        return res.status(404).json({ message: "No active sport profile found" });
+      }
+      const ended = await storage.endSportProfile(profile.id);
+      res.json(ended);
+    } catch (err) {
+      console.error("End sport profile error:", err);
+      res.status(500).json({ message: "Failed to end sport profile" });
+    }
+  });
+
+  app.get("/api/sport/profile/history", requireAuth, async (req, res) => {
+    try {
+      const history = await storage.getSportProfileHistory(req.user!.id);
+      res.json(history);
+    } catch (err) {
+      console.error("Get sport profile history error:", err);
+      res.status(500).json({ message: "Failed to get sport profile history" });
+    }
+  });
+
   app.get("/api/sport/programs", requireAuth, async (req, res) => {
     try {
       const programs = await storage.getSportPrograms(req.user!.id);
