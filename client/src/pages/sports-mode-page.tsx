@@ -10,8 +10,14 @@ import {
   ArrowLeft, ArrowRight, Activity, Medal, Brain, Waves, Swords, Crosshair,
   Check, X, AlertTriangle, ChevronDown, ChevronUp, Calendar, BarChart3,
   TrendingUp, TrendingDown, Minus, Timer, Flame, PieChart, Sparkles, Star,
+  Power, History, Clock,
   type LucideIcon
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -592,6 +598,32 @@ export default function SportsModePage() {
     },
   });
 
+  const endSportProfile = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/sport/profile/end");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sport/profile"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sport/programs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sport/profile/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/calendar/enhanced"] });
+      toast({ title: "Sports Mode Ended", description: "Your sport profile has been saved to history." });
+      setStep("select-sport");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to end sports mode.", variant: "destructive" });
+    },
+  });
+
+  const { data: profileHistory } = useQuery<SportProfile[]>({
+    queryKey: ["/api/sport/profile/history"],
+  });
+
+  const [showHistory, setShowHistory] = useState(false);
+
   if (profileLoading || programsLoading) {
     if (step === "loading") {
       return (
@@ -694,6 +726,47 @@ export default function SportsModePage() {
             );
           })}
         </div>
+
+        {profileHistory && profileHistory.length > 0 && (
+          <div className="mt-8" data-testid="sport-history-select-screen">
+            <button
+              className="flex items-center gap-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-3 w-full"
+              onClick={() => setShowHistory(!showHistory)}
+              data-testid="toggle-sport-history-select"
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>Past Sports ({profileHistory.length})</span>
+              {showHistory ? <ChevronUp className="w-3.5 h-3.5 ml-auto" /> : <ChevronDown className="w-3.5 h-3.5 ml-auto" />}
+            </button>
+            {showHistory && (
+              <div className="space-y-2">
+                {profileHistory.map((past) => {
+                  const pc = getColors(past.sport);
+                  const startDate = new Date(past.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                  const endDate = past.endedAt ? new Date(past.endedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Switched";
+                  return (
+                    <div key={past.id} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 flex items-center gap-3" data-testid={`history-item-select-${past.id}`}>
+                      <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${pc.gradient} flex items-center justify-center opacity-60 flex-shrink-0`}>
+                        <SportIcon sport={past.sport} className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-zinc-300 truncate">{past.sport}</p>
+                        <span className="text-[11px] text-zinc-500">{past.role}</span>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="flex items-center gap-1 text-[10px] text-zinc-600">
+                          <Clock className="w-3 h-3" />
+                          <span>{startDate}</span>
+                        </div>
+                        <div className="text-[10px] text-zinc-600 mt-0.5">to {endDate}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </PageShell>
     );
   }
@@ -1232,7 +1305,7 @@ export default function SportsModePage() {
         </div>
       )}
 
-      <div className="mt-6">
+      <div className="mt-6 space-y-3">
         <Button
           variant="outline"
           className="w-full border-white/10 text-zinc-400 rounded-xl"
@@ -1241,7 +1314,85 @@ export default function SportsModePage() {
         >
           Change Sport / Role
         </Button>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full border-red-500/20 text-red-400 rounded-xl"
+              data-testid="end-sports-mode"
+            >
+              <Power className="w-4 h-4 mr-2" /> End Sports Mode
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="bg-zinc-900 border-white/10">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white">End Sports Mode?</AlertDialogTitle>
+              <AlertDialogDescription className="text-zinc-400">
+                This will deactivate your current sport profile ({profile?.sport} - {profile?.role}) and all associated workout modifications. Your progress will be saved to history.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="border-white/10 text-zinc-300" data-testid="cancel-end-sports">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-500 text-white"
+                onClick={() => endSportProfile.mutate()}
+                disabled={endSportProfile.isPending}
+                data-testid="confirm-end-sports"
+              >
+                {endSportProfile.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                End Sports Mode
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
+
+      {profileHistory && profileHistory.length > 0 && (
+        <div className="mt-8" data-testid="sport-history-section">
+          <button
+            className="flex items-center gap-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-3 w-full"
+            onClick={() => setShowHistory(!showHistory)}
+            data-testid="toggle-sport-history"
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>Past Sports ({profileHistory.length})</span>
+            {showHistory ? <ChevronUp className="w-3.5 h-3.5 ml-auto" /> : <ChevronDown className="w-3.5 h-3.5 ml-auto" />}
+          </button>
+          {showHistory && (
+            <div className="space-y-2">
+              {profileHistory.map((past) => {
+                const pc = getColors(past.sport);
+                const startDate = new Date(past.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                const endDate = past.endedAt ? new Date(past.endedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Switched";
+                return (
+                  <div key={past.id} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 flex items-center gap-3" data-testid={`history-item-${past.id}`}>
+                    <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${pc.gradient} flex items-center justify-center opacity-60 flex-shrink-0`}>
+                      <SportIcon sport={past.sport} className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-zinc-300 truncate">{past.sport}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[11px] text-zinc-500">{past.role}</span>
+                        {past.fitnessScore && (
+                          <span className="text-[11px] text-zinc-500">{past.fitnessScore}/100</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="flex items-center gap-1 text-[10px] text-zinc-600">
+                        <Clock className="w-3 h-3" />
+                        <span>{startDate}</span>
+                      </div>
+                      <div className="text-[10px] text-zinc-600 mt-0.5">to {endDate}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </PageShell>
   );
 }
