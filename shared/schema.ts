@@ -1185,6 +1185,24 @@ export const fitnessGoals = pgTable("fitness_goals", {
 
 export const insertFitnessGoalSchema = createInsertSchema(fitnessGoals).omit({ id: true, createdAt: true, completedAt: true });
 
+export const userGoals = pgTable("user_goals", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull().unique(),
+  targetWeight: text("target_weight"),
+  targetWeightUnit: text("target_weight_unit", { enum: ["kg", "lbs"] }).default("kg"),
+  dailyCalorieTarget: integer("daily_calorie_target"),
+  dailyProteinTarget: integer("daily_protein_target"),
+  weeklyWorkoutDays: integer("weekly_workout_days"),
+  primaryGoal: text("primary_goal", { enum: ["lose_fat", "build_muscle", "maintain", "improve_endurance", "general_health"] }),
+  customGoalText: text("custom_goal_text"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("user_goals_user_idx").on(table.userId),
+}));
+
+export const insertUserGoalsSchema = createInsertSchema(userGoals).omit({ id: true, createdAt: true, updatedAt: true });
+
 // Payment Links type for gym settings
 export const paymentLinksSchema = z.object({
   upi: z.string().optional(),
@@ -1342,6 +1360,9 @@ export type InsertWeeklyReport = z.infer<typeof insertWeeklyReportSchema>;
 
 export type FitnessGoal = typeof fitnessGoals.$inferSelect;
 export type InsertFitnessGoal = z.infer<typeof insertFitnessGoalSchema>;
+
+export type UserGoal = typeof userGoals.$inferSelect;
+export type InsertUserGoal = z.infer<typeof insertUserGoalsSchema>;
 
 export type DikaChat = typeof dikaChats.$inferSelect;
 export type InsertDikaChat = z.infer<typeof insertDikaChatSchema>;
