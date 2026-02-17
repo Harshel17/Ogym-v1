@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle, Dumbbell } from "lucide-react";
+import { Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle, Dumbbell, Shield, ChevronDown, ChevronUp } from "lucide-react";
 import { isIOS, isNative } from "@/lib/capacitor-init";
 
 // Helper: Check if we're running on iOS native app (not web)
@@ -38,6 +38,7 @@ const registerSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.enum(["owner", "trainer", "member"]),
   gymCode: z.string().optional(),
+  aiDataConsent: z.boolean().default(false),
 }).refine((data) => {
   if (data.role === "trainer") {
     return data.gymCode && data.gymCode.length > 0;
@@ -102,6 +103,7 @@ export default function AuthPage() {
   const [supportPriority, setSupportPriority] = useState<"low" | "medium" | "high">("medium");
   const [supportDescription, setSupportDescription] = useState("");
   const [supportError, setSupportError] = useState("");
+  const [showAiDetails, setShowAiDetails] = useState(false);
   
   const { toast } = useToast();
   
@@ -147,7 +149,8 @@ export default function AuthPage() {
       email: "", 
       password: "", 
       role: "member",
-      gymCode: ""
+      gymCode: "",
+      aiDataConsent: false,
     },
   });
 
@@ -682,6 +685,72 @@ export default function AuthPage() {
                           </FormItem>
                         )}
                       />
+
+                      <div className="rounded-lg border p-3 space-y-3 mt-2" data-testid="ai-consent-section">
+                        <div className="flex items-start gap-2">
+                          <Shield className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium">AI-Powered Features</p>
+                            <p className="text-xs text-muted-foreground">
+                              OGym uses AI powered by <strong>OpenAI</strong> for features like your personal fitness assistant, 
+                              nutrition analysis, photo-based food logging, and sport training programs. 
+                              When you use these features, data such as your messages, workout info, nutrition logs, 
+                              and fitness goals is sent to OpenAI to generate personalized responses.
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowAiDetails(!showAiDetails)}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors ml-6"
+                          data-testid="toggle-ai-details"
+                        >
+                          {showAiDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                          {showAiDetails ? 'Hide details' : 'What data is shared & how?'}
+                        </button>
+
+                        {showAiDetails && (
+                          <div className="ml-6 rounded-md bg-muted/50 p-3 text-xs text-muted-foreground space-y-2">
+                            <p><strong>Who receives your data:</strong> Your data is sent to <strong>OpenAI</strong> (openai.com) to process your requests and generate responses.</p>
+                            <p><strong>What data may be shared:</strong></p>
+                            <ul className="list-disc pl-4 space-y-0.5">
+                              <li>Messages you send to the AI assistant</li>
+                              <li>Workout and exercise data</li>
+                              <li>Nutrition and meal logs</li>
+                              <li>Body measurements and fitness goals</li>
+                              <li>Health and activity data (if connected)</li>
+                              <li>Sports and match history</li>
+                            </ul>
+                            <p><strong>How it's used:</strong> Only to generate personalized fitness advice, nutrition analysis, and training recommendations for you.</p>
+                            <p><strong>Data protection:</strong> Your name, email, and account credentials are never sent. OpenAI does not use API data to train their models. Data may be retained up to 30 days for abuse monitoring only.</p>
+                            <p><strong>Your control:</strong> You can revoke consent anytime from your Profile settings. This will disable AI features but won't affect other app functionality.</p>
+                            <p>For full details, see our <a href="/privacy" className="text-primary hover:underline" target="_blank">Privacy Policy</a>.</p>
+                          </div>
+                        )}
+
+                        <FormField
+                          control={registerForm.control}
+                          name="aiDataConsent"
+                          render={({ field }) => (
+                            <FormItem className="flex items-start gap-2 ml-6 space-y-0">
+                              <FormControl>
+                                <input
+                                  type="checkbox"
+                                  checked={field.value}
+                                  onChange={(e) => field.onChange(e.target.checked)}
+                                  className="mt-0.5 h-4 w-4 rounded border-border accent-primary cursor-pointer shrink-0"
+                                  data-testid="checkbox-ai-consent"
+                                />
+                              </FormControl>
+                              <FormLabel className="text-xs text-muted-foreground font-normal leading-snug cursor-pointer">
+                                I agree to share my data with OpenAI as described above to enable AI-powered features. 
+                                <span className="text-muted-foreground/70"> (Optional — you can enable this later)</span>
+                              </FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
 
                       <Button 
                         type="submit" 

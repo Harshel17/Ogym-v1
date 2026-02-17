@@ -99,6 +99,7 @@ export async function registerRoutes(
         password: z.string().min(8, "Password must be at least 8 characters"),
         role: z.enum(["owner", "trainer", "member"]),
         gymCode: z.string().optional(),
+        aiDataConsent: z.boolean().optional().default(false),
       }).refine((data) => {
         if (data.role === "trainer") {
           return data.gymCode && data.gymCode.length > 0;
@@ -142,6 +143,12 @@ export async function registerRoutes(
         gymId: null,
         emailVerified: shouldBypassVerification, // Auto-verify if bypass enabled
       });
+
+      if (input.aiDataConsent) {
+        await db.update(users)
+          .set({ aiDataConsent: true, aiDataConsentDate: new Date() })
+          .where(eq(users.id, user.id));
+      }
 
       // Only generate and send OTP if email verification is NOT bypassed
       if (!shouldBypassVerification) {
