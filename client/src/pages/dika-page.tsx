@@ -63,23 +63,23 @@ const muscleColorMap: Record<string, string> = {
 
 function WorkoutPlanCard({ plan, onSave, isSaving, isSaved }: { plan: GeneratedWorkoutPlan; onSave?: () => void; isSaving?: boolean; isSaved?: boolean }) {
   return (
-    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div className="px-3 py-2 bg-gradient-to-r from-slate-700 to-slate-800 text-white">
+    <div className="mt-3 bg-card rounded-lg border border-border overflow-hidden">
+      <div className="px-3 py-2 bg-gradient-to-r from-primary/90 to-primary text-white">
         <h3 className="font-semibold text-sm">{plan.name}</h3>
-        <p className="text-xs text-white/80">{plan.cycleLength} day cycle</p>
+        <p className="text-xs text-primary-foreground/80">{plan.cycleLength} day cycle</p>
       </div>
-      <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[250px] overflow-y-auto">
+      <div className="divide-y divide-border/50 max-h-[250px] overflow-y-auto">
         {plan.days.map((day) => (
           <div key={day.dayIndex} className="px-3 py-2">
-            <div className="font-medium text-xs text-gray-700 dark:text-gray-300 mb-1.5">{day.dayLabel}</div>
+            <div className="font-medium text-xs text-foreground mb-1.5">{day.dayLabel}</div>
             <div className="space-y-1">
               {day.exercises.map((ex, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-600 dark:text-gray-400">{ex.exerciseName}</span>
-                    <span className="text-gray-400 dark:text-gray-500">{ex.sets}x{ex.reps}</span>
+                    <span className="text-muted-foreground">{ex.exerciseName}</span>
+                    <span className="text-muted-foreground/60">{ex.sets}x{ex.reps}</span>
                   </div>
-                  <span className={cn("px-1.5 py-0.5 rounded text-xs font-medium", muscleColorMap[ex.muscleType] || 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400')}>{ex.muscleType}</span>
+                  <span className={cn("px-1.5 py-0.5 rounded text-xs font-medium", muscleColorMap[ex.muscleType] || 'bg-muted text-muted-foreground')}>{ex.muscleType}</span>
                 </div>
               ))}
             </div>
@@ -87,12 +87,12 @@ function WorkoutPlanCard({ plan, onSave, isSaving, isSaved }: { plan: GeneratedW
         ))}
         {plan.restDays.length > 0 && (
           <div className="px-3 py-2">
-            <div className="font-medium text-xs text-gray-500 dark:text-gray-400">Rest Days: Day {plan.restDays.map(d => d + 1).join(', Day ')}</div>
+            <div className="font-medium text-xs text-muted-foreground">Rest Days: Day {plan.restDays.map(d => d + 1).join(', Day ')}</div>
           </div>
         )}
       </div>
       {onSave && (
-        <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+        <div className="px-3 py-2 border-t border-border/50 bg-muted/50">
           <Button onClick={onSave} disabled={isSaving || isSaved} size="sm" className={cn("w-full", isSaved ? "bg-green-500 text-white" : "bg-gradient-to-br from-amber-500 to-orange-600")} data-testid="button-save-workout-card">
             {isSaved ? (<><CheckCircle className="w-4 h-4 mr-2" />Saved!</>) : isSaving ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>) : (<><Save className="w-4 h-4 mr-2" />Save to My Workouts</>)}
           </Button>
@@ -129,33 +129,33 @@ function stripMealLogTag(content: string): string {
 function MealLoggedCard({ meal }: { meal: MealLogData }) {
   const progressPercent = meal.dailyTotals.calorieGoal ? Math.min(100, Math.round((meal.dailyTotals.calories / meal.dailyTotals.calorieGoal) * 100)) : null;
   return (
-    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-amber-200 dark:border-amber-800/40 overflow-hidden" data-testid="card-meal-logged">
+    <div className="mt-3 bg-card rounded-lg border border-amber-200 dark:border-amber-800/40 overflow-hidden" data-testid="card-meal-logged">
       <div className="px-3 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white">
         <div className="flex items-center gap-2"><Utensils className="w-4 h-4" /><h3 className="font-semibold text-sm">{meal.mealLabel} Logged</h3></div>
       </div>
       <div className="px-3 py-2 space-y-2">
         {meal.items.map((item, i) => (
-          <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-gray-100 dark:border-gray-700/50 last:border-0">
-            <span className="text-gray-700 dark:text-gray-300 font-medium">{item.servingQuantity > 1 ? `${item.servingQuantity}x ` : ''}{item.foodName}</span>
-            <span className="text-gray-500 dark:text-gray-400 tabular-nums">{item.calories} cal</span>
+          <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-border/50 last:border-0">
+            <span className="text-foreground font-medium">{item.servingQuantity > 1 ? `${item.servingQuantity}x ` : ''}{item.foodName}</span>
+            <span className="text-muted-foreground tabular-nums">{item.calories} cal</span>
           </div>
         ))}
       </div>
-      <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-100 dark:border-gray-700/50">
+      <div className="px-3 py-2 bg-muted/50 border-t border-border/50">
         <div className="grid grid-cols-4 gap-2 text-center">
-          <div><div className="flex items-center justify-center gap-1 mb-0.5"><Flame className="w-3 h-3 text-orange-500" /></div><span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{meal.totalCalories}</span><span className="text-[10px] text-gray-400 block">cal</span></div>
-          <div><div className="flex items-center justify-center gap-1 mb-0.5"><Beef className="w-3 h-3 text-red-500" /></div><span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{meal.totalProtein}g</span><span className="text-[10px] text-gray-400 block">protein</span></div>
-          <div><div className="flex items-center justify-center gap-1 mb-0.5"><Wheat className="w-3 h-3 text-amber-600" /></div><span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{meal.totalCarbs}g</span><span className="text-[10px] text-gray-400 block">carbs</span></div>
-          <div><div className="flex items-center justify-center gap-1 mb-0.5"><Droplets className="w-3 h-3 text-blue-500" /></div><span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{meal.totalFat}g</span><span className="text-[10px] text-gray-400 block">fat</span></div>
+          <div><div className="flex items-center justify-center gap-1 mb-0.5"><Flame className="w-3 h-3 text-orange-500" /></div><span className="text-xs font-semibold text-foreground">{meal.totalCalories}</span><span className="text-[10px] text-muted-foreground/60 block">cal</span></div>
+          <div><div className="flex items-center justify-center gap-1 mb-0.5"><Beef className="w-3 h-3 text-red-500" /></div><span className="text-xs font-semibold text-foreground">{meal.totalProtein}g</span><span className="text-[10px] text-muted-foreground/60 block">protein</span></div>
+          <div><div className="flex items-center justify-center gap-1 mb-0.5"><Wheat className="w-3 h-3 text-amber-600" /></div><span className="text-xs font-semibold text-foreground">{meal.totalCarbs}g</span><span className="text-[10px] text-muted-foreground/60 block">carbs</span></div>
+          <div><div className="flex items-center justify-center gap-1 mb-0.5"><Droplets className="w-3 h-3 text-blue-500" /></div><span className="text-xs font-semibold text-foreground">{meal.totalFat}g</span><span className="text-[10px] text-muted-foreground/60 block">fat</span></div>
         </div>
       </div>
       {progressPercent !== null && (
-        <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-700/50">
+        <div className="px-3 py-2 border-t border-border/50">
           <div className="flex items-center justify-between text-xs mb-1">
-            <span className="text-gray-500 dark:text-gray-400">Daily progress</span>
-            <span className="font-medium text-gray-700 dark:text-gray-300">{meal.dailyTotals.calories.toLocaleString()} / {meal.dailyTotals.calorieGoal!.toLocaleString()} cal</span>
+            <span className="text-muted-foreground">Daily progress</span>
+            <span className="font-medium text-foreground">{meal.dailyTotals.calories.toLocaleString()} / {meal.dailyTotals.calorieGoal!.toLocaleString()} cal</span>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+          <div className="w-full bg-muted rounded-full h-1.5">
             <div className={cn("h-1.5 rounded-full transition-all", progressPercent >= 100 ? "bg-red-500" : progressPercent >= 80 ? "bg-amber-500" : "bg-green-500")} style={{ width: `${progressPercent}%` }} />
           </div>
         </div>
@@ -192,15 +192,15 @@ const ACTION_GRADIENTS: Record<string, string> = { add_member: 'from-emerald-500
 function ActionCard({ action, onConfirm, onCancel, isExecuting, executionResult }: { action: OwnerActionData; onConfirm: () => void; onCancel: () => void; isExecuting: boolean; executionResult: { success: boolean; message: string } | null }) {
   const Icon = ACTION_ICONS[action.actionType] || Cpu;
   const label = ACTION_LABELS[action.actionType] || 'Action';
-  const gradient = ACTION_GRADIENTS[action.actionType] || 'from-gray-500 to-gray-600';
+  const gradient = ACTION_GRADIENTS[action.actionType] || 'from-primary/70 to-primary/80';
 
   if (executionResult) {
     return (
-      <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden" data-testid="card-action-result">
+      <div className="mt-3 bg-card rounded-lg border border-border overflow-hidden" data-testid="card-action-result">
         <div className={cn("px-3 py-2.5 text-white bg-gradient-to-r", executionResult.success ? 'from-green-500 to-emerald-600' : 'from-red-500 to-rose-600')}>
           <div className="flex items-center gap-2">{executionResult.success ? <CheckCheck className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}<h3 className="font-semibold text-sm">{executionResult.success ? 'Done' : 'Failed'}</h3></div>
         </div>
-        <div className="px-3 py-3 text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+        <div className="px-3 py-3 text-xs text-foreground leading-relaxed">
           {executionResult.message.split('\n').map((line, i) => {
             const boldParsed = line.split(/\*\*(.+?)\*\*/).map((part, j) => j % 2 === 1 ? <strong key={j} className="font-semibold">{part}</strong> : part);
             return <span key={i} className="block">{boldParsed}</span>;
@@ -211,7 +211,7 @@ function ActionCard({ action, onConfirm, onCancel, isExecuting, executionResult 
   }
 
   return (
-    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden" data-testid="card-action-confirm">
+    <div className="mt-3 bg-card rounded-lg border border-border overflow-hidden" data-testid="card-action-confirm">
       <div className={cn("px-3 py-2.5 text-white bg-gradient-to-r", gradient)}>
         <div className="flex items-center gap-2"><Icon className="w-4 h-4" /><h3 className="font-semibold text-sm">{label}</h3></div>
       </div>
@@ -226,14 +226,14 @@ function ActionCard({ action, onConfirm, onCancel, isExecuting, executionResult 
           return (
             <div key={key}>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500 dark:text-gray-400">{displayKey}</span>
-                <span className="font-medium text-right max-w-[60%] truncate text-gray-800 dark:text-gray-200">{displayValue}</span>
+                <span className="text-muted-foreground">{displayKey}</span>
+                <span className="font-medium text-right max-w-[60%] truncate text-foreground">{displayValue}</span>
               </div>
             </div>
           );
         })}
       </div>
-      <div className="px-3 py-2.5 border-t border-gray-100 dark:border-gray-700 flex gap-2">
+      <div className="px-3 py-2.5 border-t border-border/50 flex gap-2">
         <Button onClick={onCancel} variant="outline" size="sm" className="flex-1" disabled={isExecuting} data-testid="button-action-cancel"><X className="w-3.5 h-3.5 mr-1" />Cancel</Button>
         <Button onClick={onConfirm} size="sm" className={cn("flex-1 text-white bg-gradient-to-r", gradient)} disabled={isExecuting} data-testid="button-action-confirm">
           {isExecuting ? (<><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />Executing...</>) : (<><CheckCheck className="w-3.5 h-3.5 mr-1" />Confirm</>)}
@@ -268,7 +268,7 @@ function WeeklyReportCard({ report }: { report: WeeklyReportData }) {
   };
   const formatDate = (d: string) => { const date = new Date(d + 'T00:00:00'); return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
   return (
-    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-indigo-200 dark:border-indigo-800/40 overflow-hidden" data-testid="card-weekly-report">
+    <div className="mt-3 bg-card rounded-lg border border-indigo-200 dark:border-indigo-800/40 overflow-hidden" data-testid="card-weekly-report">
       <div className={cn("px-3 py-2.5 bg-gradient-to-r text-white", gradeBg)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2"><FileText className="w-4 h-4" /><h3 className="font-semibold text-sm">Weekly Report</h3></div>
@@ -276,11 +276,11 @@ function WeeklyReportCard({ report }: { report: WeeklyReportData }) {
         </div>
       </div>
       <div className="px-3 py-2.5">
-        <div className="flex items-center justify-between mb-2"><span className="text-xs text-gray-500 dark:text-gray-400">Overall Grade</span><span className={cn("text-xl font-bold", gradeColor)}>{report.overallGrade}</span></div>
+        <div className="flex items-center justify-between mb-2"><span className="text-xs text-muted-foreground">Overall Grade</span><span className={cn("text-xl font-bold", gradeColor)}>{report.overallGrade}</span></div>
         <div className="grid grid-cols-3 gap-2 text-center mb-3">
-          <div className="bg-gray-50 dark:bg-gray-900/40 rounded-md py-1.5 px-1"><div className="flex items-center justify-center mb-0.5"><Dumbbell className="w-3 h-3 text-indigo-500" /></div><span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{report.workoutDays}</span><span className="text-[10px] text-gray-400 block">workouts</span></div>
-          <div className="bg-gray-50 dark:bg-gray-900/40 rounded-md py-1.5 px-1"><div className="flex items-center justify-center mb-0.5"><Flame className="w-3 h-3 text-orange-500" /></div><span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{report.avgDailyCalories}</span><span className="text-[10px] text-gray-400 block">avg cal/day</span></div>
-          <div className="bg-gray-50 dark:bg-gray-900/40 rounded-md py-1.5 px-1"><div className="flex items-center justify-center mb-0.5"><Beef className="w-3 h-3 text-red-500" /></div><span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{report.avgDailyProtein}g</span><span className="text-[10px] text-gray-400 block">avg protein</span></div>
+          <div className="bg-muted/50 rounded-md py-1.5 px-1"><div className="flex items-center justify-center mb-0.5"><Dumbbell className="w-3 h-3 text-indigo-500" /></div><span className="text-xs font-semibold text-foreground">{report.workoutDays}</span><span className="text-[10px] text-muted-foreground/60 block">workouts</span></div>
+          <div className="bg-muted/50 rounded-md py-1.5 px-1"><div className="flex items-center justify-center mb-0.5"><Flame className="w-3 h-3 text-orange-500" /></div><span className="text-xs font-semibold text-foreground">{report.avgDailyCalories}</span><span className="text-[10px] text-muted-foreground/60 block">avg cal/day</span></div>
+          <div className="bg-muted/50 rounded-md py-1.5 px-1"><div className="flex items-center justify-center mb-0.5"><Beef className="w-3 h-3 text-red-500" /></div><span className="text-xs font-semibold text-foreground">{report.avgDailyProtein}g</span><span className="text-[10px] text-muted-foreground/60 block">avg protein</span></div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setLocation(`/report/${report.token}`)} className="flex-1 text-xs" data-testid="button-view-report"><ExternalLink className="w-3 h-3 mr-1" />View Report</Button>
@@ -327,12 +327,12 @@ function getCategoryIcon(category: string) {
 
 function FindFoodCard({ onSearch }: { onSearch: () => void }) {
   return (
-    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-800/40 overflow-hidden" data-testid="card-find-food-prompt">
+    <div className="mt-3 bg-card rounded-lg border border-emerald-200 dark:border-emerald-800/40 overflow-hidden" data-testid="card-find-food-prompt">
       <div className="px-3 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
         <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><h3 className="font-semibold text-sm">Find Healthy Food Nearby</h3></div>
       </div>
       <div className="px-3 py-3">
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">I need your location to find the best food options based on your nutrition goals. Your location is only used for this search.</p>
+        <p className="text-xs text-muted-foreground mb-3">I need your location to find the best food options based on your nutrition goals. Your location is only used for this search.</p>
         <Button onClick={onSearch} className="w-full gap-2" size="sm" data-testid="button-dika-find-food">
           <MapPin className="w-3.5 h-3.5" />
           Share Location & Find Food
@@ -344,13 +344,13 @@ function FindFoodCard({ onSearch }: { onSearch: () => void }) {
 
 function FindFoodLoadingCard() {
   return (
-    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-800/40 overflow-hidden" data-testid="card-find-food-loading">
+    <div className="mt-3 bg-card rounded-lg border border-emerald-200 dark:border-emerald-800/40 overflow-hidden" data-testid="card-find-food-loading">
       <div className="px-3 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
         <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><h3 className="font-semibold text-sm">Finding Food Near You</h3></div>
       </div>
       <div className="px-4 py-6 flex flex-col items-center gap-2">
         <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-        <p className="text-xs text-gray-500 dark:text-gray-400">Searching for restaurants and finding the best options for your goals...</p>
+        <p className="text-xs text-muted-foreground">Searching for restaurants and finding the best options for your goals...</p>
       </div>
     </div>
   );
@@ -363,17 +363,17 @@ function FindFoodResultsCard({ restaurants, dikaMessage, goalType, remainingCalo
 
   if (restaurants.length === 0) {
     return (
-      <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden" data-testid="card-find-food-empty">
-        <div className="px-3 py-2.5 bg-gradient-to-r from-gray-400 to-gray-500 text-white">
+      <div className="mt-3 bg-card rounded-lg border border-border overflow-hidden" data-testid="card-find-food-empty">
+        <div className="px-3 py-2.5 bg-gradient-to-r from-muted-foreground/60 to-muted-foreground/80 text-white">
           <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><h3 className="font-semibold text-sm">No Results</h3></div>
         </div>
-        <div className="px-3 py-3 text-xs text-gray-500 dark:text-gray-400">No recognized restaurants found nearby. Try the Find My Food page for a wider search.</div>
+        <div className="px-3 py-3 text-xs text-muted-foreground">No recognized restaurants found nearby. Try the Find My Food page for a wider search.</div>
       </div>
     );
   }
 
   return (
-    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-800/40 overflow-hidden" data-testid="card-find-food-results">
+    <div className="mt-3 bg-card rounded-lg border border-emerald-200 dark:border-emerald-800/40 overflow-hidden" data-testid="card-find-food-results">
       <div className="px-3 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><h3 className="font-semibold text-sm">Best Options Near You</h3></div>
@@ -381,10 +381,10 @@ function FindFoodResultsCard({ restaurants, dikaMessage, goalType, remainingCalo
         </div>
       </div>
       <div className="px-3 py-2">
-        <div className="flex items-center justify-between mb-2 bg-gray-50 dark:bg-gray-900/40 rounded-md px-2.5 py-1.5">
+        <div className="flex items-center justify-between mb-2 bg-muted/50 rounded-md px-2.5 py-1.5">
           <div className="flex items-center gap-1.5">
             <Flame className="w-3 h-3 text-orange-500" />
-            <span className="text-[11px] text-gray-500 dark:text-gray-400">{remainingCalories} cal remaining</span>
+            <span className="text-[11px] text-muted-foreground">{remainingCalories} cal remaining</span>
           </div>
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0"><span className={goalColor}>{goalLabel}</span></Badge>
         </div>
@@ -393,31 +393,31 @@ function FindFoodResultsCard({ restaurants, dikaMessage, goalType, remainingCalo
           {restaurants.map((r, i) => (
             <div
               key={`${r.name}-${i}`}
-              className={cn("rounded-md border transition-all cursor-pointer", expanded === r.name ? "border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/20" : "border-gray-100 dark:border-gray-800 hover-elevate")}
+              className={cn("rounded-md border transition-all cursor-pointer", expanded === r.name ? "border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/20" : "border-border/50 hover-elevate")}
               onClick={() => setExpanded(expanded === r.name ? null : r.name)}
               data-testid={`card-restaurant-${i}`}
             >
               <div className="flex items-center gap-2 px-2.5 py-2">
-                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-muted flex items-center justify-center">
                   {getCategoryIcon(r.category)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{r.name}</span>
-                    <span className="text-[10px] text-gray-400 flex-shrink-0">{r.distanceText}</span>
+                    <span className="text-xs font-medium text-foreground truncate">{r.name}</span>
+                    <span className="text-[10px] text-muted-foreground/60 flex-shrink-0">{r.distanceText}</span>
                   </div>
                   {r.suggestion && (
                     <div className="flex items-center gap-1 mt-0.5">
                       <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
-                      <span className="text-[11px] text-gray-600 dark:text-gray-400 truncate">{r.suggestion.item}</span>
+                      <span className="text-[11px] text-muted-foreground truncate">{r.suggestion.item}</span>
                       <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex-shrink-0">{r.suggestion.approxCalories}</span>
                     </div>
                   )}
                 </div>
               </div>
               {expanded === r.name && r.suggestion && (
-                <div className="px-2.5 pb-2.5 pt-0.5 border-t border-gray-100 dark:border-gray-800">
-                  <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed mb-2">{r.suggestion.reason}</p>
+                <div className="px-2.5 pb-2.5 pt-0.5 border-t border-border/50">
+                  <p className="text-[11px] text-muted-foreground leading-relaxed mb-2">{r.suggestion.reason}</p>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -943,7 +943,7 @@ function DikaPageInner({ userId }: { userId: number }) {
               <div className={cn(
                 "max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm group relative transition-shadow duration-200",
                 message.role === 'user'
-                  ? 'bg-gradient-to-br from-slate-700 to-slate-800 dark:from-slate-600 dark:to-slate-700 text-white rounded-br-sm shadow-md shadow-slate-900/10'
+                  ? 'bg-gradient-to-br from-primary/90 to-primary text-white rounded-br-sm shadow-md shadow-slate-900/10'
                   : 'bg-white/90 dark:bg-slate-800/90 border border-slate-200/50 dark:border-slate-700/50 rounded-bl-sm shadow-md shadow-slate-200/50 dark:shadow-slate-900/30 backdrop-blur-sm'
               )} data-testid={`message-${message.role}`}>
                 {message.role === 'assistant' ? (

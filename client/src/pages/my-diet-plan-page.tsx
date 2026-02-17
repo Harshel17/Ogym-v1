@@ -67,8 +67,8 @@ export default function MyDietPlanPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">My Diet Plan</h2>
-          <p className="text-muted-foreground mt-1">Your personalized diet plan from your trainer.</p>
+          <h2 className="text-2xl font-bold font-display text-foreground">My Diet Plan</h2>
+          <p className="text-sm text-muted-foreground mt-1">Your personalized diet plan from your trainer.</p>
         </div>
         <Card>
           <CardContent className="py-12 text-center">
@@ -90,8 +90,8 @@ export default function MyDietPlanPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">My Diet Plan</h2>
-        <p className="text-muted-foreground mt-1">Your personalized diet plan from your trainer.</p>
+        <h2 className="text-2xl font-bold font-display text-foreground">My Diet Plan</h2>
+        <p className="text-sm text-muted-foreground mt-1">Your personalized diet plan from your trainer.</p>
       </div>
 
       <Card>

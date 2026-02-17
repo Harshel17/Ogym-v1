@@ -201,8 +201,8 @@ export default function WorkoutTemplatesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Workout Templates</h2>
-          <p className="text-muted-foreground mt-1">Create reusable workout plans and assign them to members.</p>
+          <h2 className="text-2xl font-bold font-display text-foreground">Workout Templates</h2>
+          <p className="text-sm text-muted-foreground mt-1">Create reusable workout plans and assign them to members.</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>

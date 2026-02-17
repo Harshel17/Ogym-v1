@@ -894,8 +894,8 @@ export default function OwnerFollowUpsPage() {
     <div className="space-y-6 pb-24">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold font-display text-foreground">Follow-ups</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Send targeted emails to your members</p>
+          <h1 className="text-2xl font-bold font-display text-foreground">Follow-ups</h1>
+          <p className="text-sm text-muted-foreground">Send targeted emails to your members</p>
         </div>
         <div className="flex gap-2">
           <Link href="/owner/member-analytics?tab=inactive">

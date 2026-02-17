@@ -19,7 +19,7 @@ export default function SubscriptionExpiredPage() {
           <div className="mx-auto w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
             <AlertTriangle className="w-8 h-8 text-destructive" />
           </div>
-          <CardTitle className="text-xl" data-testid="text-subscription-expired-title">
+          <CardTitle className="text-lg" data-testid="text-subscription-expired-title">
             {isIOSNativeApp ? "Access Temporarily Unavailable" : "Subscription Expired"}
           </CardTitle>
           <CardDescription>

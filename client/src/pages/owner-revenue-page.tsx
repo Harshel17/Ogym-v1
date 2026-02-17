@@ -121,8 +121,8 @@ export default function OwnerRevenuePage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-display">Revenue Analytics</h1>
-          <p className="text-muted-foreground">Track your gym's payment collections</p>
+          <h1 className="text-2xl font-bold font-display">Revenue Analytics</h1>
+          <p className="text-sm text-muted-foreground">Track your gym's payment collections</p>
         </div>
         <Button variant="outline" data-testid="button-back-dashboard" onClick={goBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -134,7 +134,7 @@ export default function OwnerRevenuePage() {
         <Button variant="outline" size="icon" onClick={goToPreviousMonth} data-testid="button-prev-month">
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-xl font-semibold min-w-[160px] text-center">
+        <h2 className="text-lg font-semibold min-w-[160px] text-center">
           {format(selectedDate, 'MMMM yyyy')}
         </h2>
         <Button 

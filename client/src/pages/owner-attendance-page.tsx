@@ -82,8 +82,8 @@ export default function OwnerAttendancePage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Attendance Analytics</h2>
-          <p className="text-muted-foreground mt-1">View and analyze member attendance patterns</p>
+          <h2 className="text-2xl font-bold font-display text-foreground">Attendance Analytics</h2>
+          <p className="text-sm text-muted-foreground mt-1">View and analyze member attendance patterns</p>
         </div>
       </div>
 

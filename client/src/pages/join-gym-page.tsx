@@ -81,8 +81,8 @@ export default function JoinGymPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Join a Gym</h2>
-          <p className="text-muted-foreground mt-1">Your request is being reviewed by the gym owner.</p>
+          <h2 className="text-2xl font-bold font-display text-foreground">Join a Gym</h2>
+          <p className="text-sm text-muted-foreground mt-1">Your request is being reviewed by the gym owner.</p>
         </div>
 
         <Card>
@@ -122,8 +122,8 @@ export default function JoinGymPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Join a Gym</h2>
-          <p className="text-muted-foreground mt-1">Your previous request was declined.</p>
+          <h2 className="text-2xl font-bold font-display text-foreground">Join a Gym</h2>
+          <p className="text-sm text-muted-foreground mt-1">Your previous request was declined.</p>
         </div>
 
         <Card>
@@ -152,8 +152,8 @@ export default function JoinGymPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">Join a Gym</h2>
-        <p className="text-muted-foreground mt-1">Enter a gym code to request access.</p>
+        <h2 className="text-2xl font-bold font-display text-foreground">Join a Gym</h2>
+        <p className="text-sm text-muted-foreground mt-1">Enter a gym code to request access.</p>
       </div>
 
       <Card>

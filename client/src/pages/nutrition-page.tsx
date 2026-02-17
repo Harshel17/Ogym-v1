@@ -669,8 +669,8 @@ export default function NutritionPage() {
               <Apple className="w-4 h-4" />
             </div>
             <div>
-              <h1 className="text-xl font-bold font-display">Nutrition</h1>
-              <p className="text-xs text-muted-foreground">Track your meals & macros</p>
+              <h1 className="text-2xl font-bold font-display">Nutrition</h1>
+              <p className="text-sm text-muted-foreground">Track your meals & macros</p>
             </div>
           </div>
         </div>

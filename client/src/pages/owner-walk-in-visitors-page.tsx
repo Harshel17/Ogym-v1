@@ -223,8 +223,8 @@ export default function OwnerWalkInVisitorsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Walk-in Visitors</h2>
-          <p className="text-muted-foreground mt-1">Track day pass visitors, trials, and enquiries</p>
+          <h2 className="text-2xl font-bold font-display text-foreground">Walk-in Visitors</h2>
+          <p className="text-sm text-muted-foreground mt-1">Track day pass visitors, trials, and enquiries</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>

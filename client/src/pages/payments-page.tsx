@@ -65,11 +65,9 @@ function OwnerPaymentsView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Membership & Payments</h2>
-          <p className="text-muted-foreground mt-1">Manage membership plans, subscriptions, and payment tracking</p>
-        </div>
+      <div className="page-header-gradient">
+        <h2 className="text-2xl font-bold font-display text-foreground">Membership & Payments</h2>
+        <p className="text-sm text-muted-foreground mt-1">Manage membership plans, subscriptions, and payment tracking</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2039,9 +2037,9 @@ function MemberPaymentsView() {
   if (!subscription) {
     return (
       <div className="space-y-6">
-        <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">My Subscription</h2>
-          <p className="text-muted-foreground mt-1">View your membership details</p>
+        <div className="page-header-gradient">
+          <h2 className="text-2xl font-bold font-display text-foreground">My Subscription</h2>
+          <p className="text-sm text-muted-foreground mt-1">View your membership details</p>
         </div>
         <Card>
           <CardContent className="py-12 text-center">
@@ -2057,9 +2055,9 @@ function MemberPaymentsView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">My Subscription</h2>
-        <p className="text-muted-foreground mt-1">View your membership details</p>
+      <div className="page-header-gradient">
+        <h2 className="text-2xl font-bold font-display text-foreground">My Subscription</h2>
+        <p className="text-sm text-muted-foreground mt-1">View your membership details</p>
       </div>
       
       <Card>

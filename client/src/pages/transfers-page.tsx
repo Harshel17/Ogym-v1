@@ -88,9 +88,9 @@ export default function TransfersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">Transfers</h2>
-        <p className="text-muted-foreground mt-1">
+      <div className="page-header-gradient">
+        <h2 className="text-2xl font-bold font-display text-foreground">Transfers</h2>
+        <p className="text-sm text-muted-foreground mt-1">
           Review transfer requests and member history.
         </p>
       </div>
@@ -113,7 +113,7 @@ export default function TransfersPage() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : requests.length === 0 ? (
-            <Card>
+            <Card className="card-elevated">
               <CardContent className="py-12 text-center">
                 <ArrowRightLeft className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-semibold text-lg">No Pending Transfers</h3>
@@ -129,7 +129,7 @@ export default function TransfersPage() {
                 const otherApproved = isFromGym ? request.approvedByToOwner : request.approvedByFromOwner;
 
                 return (
-                  <Card key={request.id} data-testid={`card-transfer-${request.id}`}>
+                  <Card key={request.id} className="card-elevated" data-testid={`card-transfer-${request.id}`}>
                     <CardHeader>
                       <div className="flex items-start justify-between gap-4 flex-wrap">
                         <div className="space-y-1">
@@ -218,7 +218,7 @@ export default function TransfersPage() {
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <History className="w-5 h-5" />

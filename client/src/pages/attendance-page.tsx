@@ -79,12 +79,14 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Attendance</h2>
-          <p className="text-muted-foreground mt-1">Track daily check-ins and history.</p>
+      <div className="page-header-gradient">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold font-display text-foreground">Attendance</h2>
+            <p className="text-sm text-muted-foreground mt-1">Track daily check-ins and history.</p>
+          </div>
+          {isMember && <CheckinDialog />}
         </div>
-        {isMember && <CheckinDialog />}
       </div>
 
       <div className="grid lg:grid-cols-4 gap-6">

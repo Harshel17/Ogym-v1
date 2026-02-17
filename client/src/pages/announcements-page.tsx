@@ -54,9 +54,9 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">Announcements</h2>
-        <p className="text-muted-foreground mt-1">Stay updated with news from your gym</p>
+      <div className="page-header-gradient">
+        <h2 className="text-2xl font-bold font-display text-foreground">Announcements</h2>
+        <p className="text-sm text-muted-foreground mt-1">Stay updated with news from your gym</p>
       </div>
 
       {isLoading ? (
@@ -64,7 +64,7 @@ export default function AnnouncementsPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : announcements.length === 0 ? (
-        <Card>
+        <Card className="card-elevated">
           <CardContent className="py-12 text-center">
             <Megaphone className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg font-medium">No announcements</p>
@@ -74,7 +74,7 @@ export default function AnnouncementsPage() {
       ) : (
         <div className="space-y-4">
           {announcements.map((announcement) => (
-            <Card key={announcement.id} data-testid={`announcement-${announcement.id}`}>
+            <Card key={announcement.id} className="card-elevated" data-testid={`announcement-${announcement.id}`}>
               <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">

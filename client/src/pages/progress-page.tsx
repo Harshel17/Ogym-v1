@@ -25,8 +25,8 @@ export default function ProgressPage() {
             <BarChart3 className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-xl font-bold font-display">My Progress</h2>
-            <p className="text-xs text-muted-foreground">Track your workout history and view your stats</p>
+            <h2 className="text-2xl font-bold font-display">My Progress</h2>
+            <p className="text-sm text-muted-foreground">Track your workout history and view your stats</p>
           </div>
         </div>
       </div>

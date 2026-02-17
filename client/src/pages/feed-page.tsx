@@ -93,7 +93,7 @@ function PostCard({ post }: { post: FeedPost }) {
   const canModerate = user?.role === "owner" || user?.role === "trainer";
   
   return (
-    <Card data-testid={`card-feed-post-${post.id}`}>
+    <Card className="card-elevated" data-testid={`card-feed-post-${post.id}`}>
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
         <div className="flex items-center gap-3">
           <Avatar>
@@ -266,7 +266,7 @@ export default function FeedPage() {
         <h1 className="text-2xl font-bold" data-testid="text-page-title">Gym Feed</h1>
       </div>
       
-      <Card>
+      <Card className="card-elevated">
         <CardContent className="pt-4">
           <div className="flex gap-2">
             <Input

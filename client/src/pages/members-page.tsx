@@ -157,15 +157,13 @@ export default function MembersPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">
-            {isOwner ? "Member Management" : "My Assigned Members"}
-          </h2>
-          <p className="text-muted-foreground mt-1">
-            {isOwner ? "View and manage all members in your gym." : "Members assigned to you for training."}
-          </p>
-        </div>
+      <div className="page-header-gradient">
+        <h2 className="text-2xl font-bold font-display text-foreground">
+          {isOwner ? "Member Management" : "My Assigned Members"}
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          {isOwner ? "View and manage all members in your gym." : "Members assigned to you for training."}
+        </p>
       </div>
 
       <Card className="dashboard-card">

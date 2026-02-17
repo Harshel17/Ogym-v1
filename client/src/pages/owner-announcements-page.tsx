@@ -99,8 +99,8 @@ export default function OwnerAnnouncementsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Announcements</h2>
-          <p className="text-muted-foreground mt-1">Create and manage gym announcements</p>
+          <h2 className="text-2xl font-bold font-display text-foreground">Announcements</h2>
+          <p className="text-sm text-muted-foreground mt-1">Create and manage gym announcements</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>

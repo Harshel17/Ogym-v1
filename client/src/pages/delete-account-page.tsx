@@ -51,7 +51,7 @@ export default function DeleteAccountPage() {
         <div className="max-w-2xl mx-auto mt-12">
           <Card>
             <CardHeader className="text-center">
-              <CardTitle className="text-xl">Account Deleted</CardTitle>
+              <CardTitle className="text-lg">Account Deleted</CardTitle>
               <CardDescription>
                 Your account and all associated data have been permanently deleted.
               </CardDescription>
@@ -74,7 +74,7 @@ export default function DeleteAccountPage() {
         <div className="max-w-2xl mx-auto mt-12">
           <Card>
             <CardHeader className="text-center">
-              <CardTitle className="text-xl">Delete Your Account</CardTitle>
+              <CardTitle className="text-lg">Delete Your Account</CardTitle>
               <CardDescription>
                 You need to be logged in to delete your account.
               </CardDescription>

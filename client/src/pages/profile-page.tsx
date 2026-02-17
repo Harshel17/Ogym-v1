@@ -179,13 +179,21 @@ function MemberProfileView() {
   return (
     <div className="space-y-6">
       <div className="page-header-gradient">
-        <div className="flex items-center gap-3">
-          <div className="icon-badge icon-badge-primary">
-            <UserCircle className="w-4 h-4" />
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/80 to-indigo-600 flex items-center justify-center shadow-lg shadow-primary/25 ring-2 ring-background" data-testid="avatar-initials-member">
+            <span className="text-xl font-bold text-white font-display">
+              {(profile?.username || "U").slice(0, 2).toUpperCase()}
+            </span>
           </div>
           <div>
-            <h2 className="text-xl font-bold font-display">My Profile</h2>
-            <p className="text-xs text-muted-foreground">View and manage your account details</p>
+            <h2 className="text-2xl font-bold font-display">{profile?.username || "My Profile"}</h2>
+            <p className="text-sm text-muted-foreground">{profile?.email || "View and manage your account"}</p>
+            {profile?.gym && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <Building2 className="w-3 h-3 text-muted-foreground/60" />
+                <span className="text-xs text-muted-foreground/80">{profile.gym.name}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -553,13 +561,21 @@ function OwnerProfileView() {
   return (
     <div className="space-y-6">
       <div className="page-header-gradient">
-        <div className="flex items-center gap-3">
-          <div className="icon-badge icon-badge-primary">
-            <Building2 className="w-4 h-4" />
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/80 to-indigo-600 flex items-center justify-center shadow-lg shadow-primary/25 ring-2 ring-background" data-testid="avatar-initials-owner">
+            <span className="text-xl font-bold text-white font-display">
+              {(profile?.username || "O").slice(0, 2).toUpperCase()}
+            </span>
           </div>
           <div>
-            <h2 className="text-xl font-bold font-display">{isNative() && isIOS() ? "Profile" : "Owner Profile"}</h2>
-            <p className="text-xs text-muted-foreground">Manage your account and gym details</p>
+            <h2 className="text-2xl font-bold font-display">{profile?.username || (isNative() && isIOS() ? "Profile" : "Owner Profile")}</h2>
+            <p className="text-sm text-muted-foreground">{profile?.email || "Manage your account and gym details"}</p>
+            {profile?.gym && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <Building2 className="w-3 h-3 text-muted-foreground/60" />
+                <span className="text-xs text-muted-foreground/80">{profile.gym.name}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -859,22 +875,32 @@ function TrainerProfileView() {
   return (
     <div className="space-y-6">
       <div className="page-header-gradient">
-        <div className="flex items-center gap-3">
-          <div className="icon-badge icon-badge-primary">
-            <UserCircle className="w-4 h-4" />
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/80 to-indigo-600 flex items-center justify-center shadow-lg shadow-primary/25 ring-2 ring-background" data-testid="avatar-initials-trainer">
+            <span className="text-xl font-bold text-white font-display">
+              {(profile?.username || "T").slice(0, 2).toUpperCase()}
+            </span>
           </div>
           <div>
-            <h2 className="text-xl font-bold font-display">My Profile</h2>
-            <p className="text-xs text-muted-foreground">View and manage your account details</p>
+            <h2 className="text-2xl font-bold font-display">{profile?.username || "My Profile"}</h2>
+            <p className="text-sm text-muted-foreground">{profile?.email || "View and manage your account details"}</p>
+            {profile?.gym && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <Building2 className="w-3 h-3 text-muted-foreground/60" />
+                <span className="text-xs text-muted-foreground/80">{profile.gym.name}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <UserCircle className="w-5 h-5" />
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <UserCircle className="w-3.5 h-3.5 text-primary" />
+              </div>
               Account Information
             </CardTitle>
           </CardHeader>

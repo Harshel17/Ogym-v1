@@ -77,8 +77,8 @@ export default function OwnerJoinRequestsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">Join Requests</h2>
-        <p className="text-muted-foreground mt-1">
+        <h2 className="text-2xl font-bold font-display text-foreground">Join Requests</h2>
+        <p className="text-sm text-muted-foreground mt-1">
           Approve or reject requests from trainers and members to join your gym.
         </p>
       </div>

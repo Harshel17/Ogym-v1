@@ -176,7 +176,7 @@ function GymRequestsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold">Gym Registration Requests</h2>
+        <h2 className="text-lg font-semibold">Gym Registration Requests</h2>
         <Badge variant="outline">{requests.filter(r => r.status === "pending").length} pending</Badge>
       </div>
       
@@ -586,7 +586,7 @@ function GymsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold">All Gyms</h2>
+        <h2 className="text-lg font-semibold">All Gyms</h2>
         <Badge variant="outline">{gyms.length} gyms</Badge>
       </div>
       
@@ -1195,7 +1195,7 @@ function SubscriptionsTab() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold">Gym Subscriptions</h2>
+        <h2 className="text-lg font-semibold">Gym Subscriptions</h2>
         <Badge variant="outline">{subscriptions.length} active</Badge>
       </div>
 
@@ -2533,7 +2533,7 @@ export default function AdminDashboardPage() {
             <div className="p-2 rounded-md bg-primary/10">
               <Shield className="h-5 w-5 text-primary" />
             </div>
-            <h1 className="text-xl font-semibold">OGym Admin</h1>
+            <h1 className="text-2xl font-bold font-display">OGym Admin</h1>
           </div>
           <Button variant="outline" size="sm" onClick={handleLogout} data-testid="button-admin-logout">
             <LogOut className="h-4 w-4 mr-2" />

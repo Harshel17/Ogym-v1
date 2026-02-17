@@ -111,8 +111,8 @@ export default function OwnerAutomatedEmailsPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold font-display text-foreground">Automated Emails</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Manage subscription reminders and weekly reports</p>
+          <h1 className="text-2xl font-bold font-display text-foreground">Automated Emails</h1>
+          <p className="text-sm text-muted-foreground">Manage subscription reminders and weekly reports</p>
         </div>
       </div>
 

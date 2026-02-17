@@ -144,8 +144,8 @@ export default function OwnerMemberAnalyticsPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-display">Member Analytics</h1>
-          <p className="text-muted-foreground">Overview of all gym members by status</p>
+          <h1 className="text-2xl font-bold font-display">Member Analytics</h1>
+          <p className="text-sm text-muted-foreground">Overview of all gym members by status</p>
         </div>
         <Button variant="outline" data-testid="button-back-dashboard" onClick={goBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />

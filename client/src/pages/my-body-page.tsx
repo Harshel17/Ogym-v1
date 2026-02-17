@@ -125,12 +125,13 @@ export default function MyBodyPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">My Body</h2>
-          <p className="text-muted-foreground mt-1">Track your body measurements and progress over time.</p>
-        </div>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <div className="page-header-gradient">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-2xl font-bold font-display text-foreground">My Body</h2>
+            <p className="text-sm text-muted-foreground mt-1">Track your body measurements and progress over time.</p>
+          </div>
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-measurement">
               <Plus className="w-4 h-4 mr-2" />
@@ -260,13 +261,14 @@ export default function MyBodyPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <ConnectHealth />
 
       {latest && (
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card className="card-elevated">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -284,7 +286,7 @@ export default function MyBodyPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="card-elevated">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -301,7 +303,7 @@ export default function MyBodyPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="card-elevated">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -319,7 +321,7 @@ export default function MyBodyPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="card-elevated">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -340,7 +342,7 @@ export default function MyBodyPage() {
       )}
 
       {chartData.length > 1 && (
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5" />
@@ -370,7 +372,7 @@ export default function MyBodyPage() {
         </Card>
       )}
 
-      <Card>
+      <Card className="card-elevated">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />

@@ -39,7 +39,7 @@ function TournamentCard({ tournament, onSelect }: { tournament: Tournament; onSe
   const StatusIcon = statusIcons[tournament.status] || Clock;
   
   return (
-    <Card className="hover-elevate cursor-pointer" onClick={onSelect} data-testid={`card-tournament-${tournament.id}`}>
+    <Card className="card-elevated hover-elevate cursor-pointer" onClick={onSelect} data-testid={`card-tournament-${tournament.id}`}>
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -112,7 +112,7 @@ function TournamentDetail({ tournamentId, onClose }: { tournamentId: number; onC
       </div>
       
       <div className="grid grid-cols-2 gap-4">
-        <Card>
+        <Card className="card-elevated">
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 mb-1">
               <Award className="h-4 w-4 text-muted-foreground" />
@@ -121,7 +121,7 @@ function TournamentDetail({ tournamentId, onClose }: { tournamentId: number; onC
             <p className="font-medium">{metricLabels[tournament.metricType]}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="card-elevated">
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 mb-1">
               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -172,7 +172,7 @@ function TournamentDetail({ tournamentId, onClose }: { tournamentId: number; onC
         {tournament.leaderboard && tournament.leaderboard.length > 0 ? (
           <div className="space-y-2">
             {tournament.leaderboard.map((entry, idx) => (
-              <Card key={entry.userId} className={entry.userId === user?.id ? "ring-2 ring-primary" : ""} data-testid={`card-leaderboard-${entry.userId}`}>
+              <Card key={entry.userId} className={`card-elevated ${entry.userId === user?.id ? "ring-2 ring-primary" : ""}`} data-testid={`card-leaderboard-${entry.userId}`}>
                 <CardContent className="flex items-center justify-between py-3">
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
@@ -195,7 +195,7 @@ function TournamentDetail({ tournamentId, onClose }: { tournamentId: number; onC
             ))}
           </div>
         ) : (
-          <Card>
+          <Card className="card-elevated">
             <CardContent className="py-8 text-center text-muted-foreground">
               <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>No participants yet</p>

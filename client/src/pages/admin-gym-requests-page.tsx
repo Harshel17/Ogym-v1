@@ -93,8 +93,8 @@ export default function AdminGymRequestsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">Gym Registration Requests</h2>
-        <p className="text-muted-foreground mt-1">
+        <h2 className="text-2xl font-bold font-display text-foreground">Gym Registration Requests</h2>
+        <p className="text-sm text-muted-foreground mt-1">
           Review and approve new gym registrations. (Admin function)
         </p>
       </div>

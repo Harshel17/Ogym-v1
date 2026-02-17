@@ -428,7 +428,7 @@ export default function HealthPage() {
       <div className="p-4 space-y-4 max-w-lg mx-auto">
         <div className="flex items-center gap-3 mb-6">
           <Activity className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-bold">Health & Activity</h1>
+          <h1 className="text-2xl font-bold font-display">Health & Activity</h1>
         </div>
         <Skeleton className="h-48 rounded-2xl" />
         <Skeleton className="h-32 rounded-2xl" />
@@ -442,7 +442,7 @@ export default function HealthPage() {
       <div className="p-4 space-y-6 max-w-lg mx-auto">
         <div className="flex items-center gap-3 mb-2">
           <Activity className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-bold">Health & Activity</h1>
+          <h1 className="text-2xl font-bold font-display">Health & Activity</h1>
         </div>
 
         <Card className="border-dashed border-2 overflow-hidden relative" data-testid="card-health-web-notice">
@@ -488,7 +488,7 @@ export default function HealthPage() {
       <div className="p-4 space-y-6 max-w-lg mx-auto">
         <div className="flex items-center gap-3 mb-2">
           <Activity className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-bold">Health & Activity</h1>
+          <h1 className="text-2xl font-bold font-display">Health & Activity</h1>
         </div>
 
         <Card className="overflow-hidden">

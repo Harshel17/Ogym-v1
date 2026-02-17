@@ -570,8 +570,8 @@ export default function MemberWorkoutPage() {
             <Dumbbell className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-xl font-bold font-display">My Workout</h2>
-            <p className="text-xs text-muted-foreground">Your personalized training program</p>
+            <h2 className="text-2xl font-bold font-display">My Workout</h2>
+            <p className="text-sm text-muted-foreground">Your personalized training program</p>
           </div>
         </div>
       </div>

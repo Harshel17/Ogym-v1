@@ -92,12 +92,13 @@ function MemberRequestsView() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">My Requests</h2>
-          <p className="text-muted-foreground mt-1">Send feedback or requests to your trainer.</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+      <div className="page-header-gradient">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold font-display text-foreground">My Requests</h2>
+            <p className="text-sm text-muted-foreground mt-1">Send feedback or requests to your trainer.</p>
+          </div>
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-new-request">
               <Send className="w-4 h-4 mr-2" />
@@ -162,6 +163,7 @@ function MemberRequestsView() {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {isLoading ? (
@@ -237,9 +239,9 @@ function TrainerRequestsView() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">Member Requests</h2>
-        <p className="text-muted-foreground mt-1">View and respond to requests from your members.</p>
+      <div className="page-header-gradient">
+        <h2 className="text-2xl font-bold font-display text-foreground">Member Requests</h2>
+        <p className="text-sm text-muted-foreground mt-1">View and respond to requests from your members.</p>
       </div>
 
       {isLoading ? (

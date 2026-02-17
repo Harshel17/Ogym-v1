@@ -166,8 +166,8 @@ export default function GymRequestPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Gym Request</h2>
-          <p className="text-muted-foreground mt-1">Your gym request is being reviewed.</p>
+          <h2 className="text-2xl font-bold font-display text-foreground">Gym Request</h2>
+          <p className="text-sm text-muted-foreground mt-1">Your gym request is being reviewed.</p>
         </div>
 
         <Card>
@@ -203,8 +203,8 @@ export default function GymRequestPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Gym Request</h2>
-          <p className="text-muted-foreground mt-1">Your previous request was declined.</p>
+          <h2 className="text-2xl font-bold font-display text-foreground">Gym Request</h2>
+          <p className="text-sm text-muted-foreground mt-1">Your previous request was declined.</p>
         </div>
 
         <Card>
@@ -235,8 +235,8 @@ export default function GymRequestPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">Register Your Gym</h2>
-        <p className="text-muted-foreground mt-1">Submit a request to create your gym on our platform.</p>
+        <h2 className="text-2xl font-bold font-display text-foreground">Register Your Gym</h2>
+        <p className="text-sm text-muted-foreground mt-1">Submit a request to create your gym on our platform.</p>
       </div>
 
       <Card>

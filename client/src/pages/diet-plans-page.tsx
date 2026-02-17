@@ -105,13 +105,14 @@ export default function DietPlansPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h2 className="text-3xl font-bold font-display text-foreground">Diet Plans</h2>
-          <p className="text-muted-foreground mt-1">Create and manage diet plans for your star members.</p>
-        </div>
-        
-        <Dialog open={open} onOpenChange={setOpen}>
+      <div className="page-header-gradient">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h2 className="text-2xl font-bold font-display text-foreground">Diet Plans</h2>
+            <p className="text-sm text-muted-foreground mt-1">Create and manage diet plans for your star members.</p>
+          </div>
+          
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-create-diet-plan">
               <Plus className="w-4 h-4 mr-2" />
@@ -215,6 +216,7 @@ export default function DietPlansPage() {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {starMembersList.length === 0 && (
@@ -237,7 +239,7 @@ export default function DietPlansPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : dietPlans.length === 0 ? (
-        <Card>
+        <Card className="card-elevated">
           <CardContent className="py-12 text-center">
             <Utensils className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-semibold text-lg">No Diet Plans Yet</h3>
@@ -247,7 +249,7 @@ export default function DietPlansPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {dietPlans.map((plan) => (
-            <Card key={plan.id} data-testid={`card-diet-plan-${plan.id}`}>
+            <Card key={plan.id} className="card-elevated" data-testid={`card-diet-plan-${plan.id}`}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <div>

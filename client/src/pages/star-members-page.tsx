@@ -89,9 +89,9 @@ export default function StarMembersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold font-display text-foreground">Star Members</h2>
-        <p className="text-muted-foreground mt-1">
+      <div className="page-header-gradient">
+        <h2 className="text-2xl font-bold font-display text-foreground">Star Members</h2>
+        <p className="text-sm text-muted-foreground mt-1">
           Mark your top performers as stars to track their progress and create diet plans for them.
         </p>
       </div>
