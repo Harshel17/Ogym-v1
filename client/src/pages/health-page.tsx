@@ -397,8 +397,11 @@ export default function HealthPage() {
     try {
       await connectHealth.mutateAsync();
       toast({ title: 'Connected', description: `Successfully connected to ${platform === 'ios' ? 'Apple Health' : 'Google Fit'}` });
-    } catch {
-      toast({ title: 'Connection failed', description: 'Could not connect to health service. Please check permissions.', variant: 'destructive' });
+    } catch (error: any) {
+      const message = platform === 'ios' 
+        ? 'Could not connect to Apple Health. Please make sure Health is enabled in Settings > Privacy > Health.'
+        : 'Could not connect to Google Fit. Please make sure Google Fit is installed and permissions are granted.';
+      toast({ title: 'Connection failed', description: message, variant: 'destructive' });
     }
   };
 

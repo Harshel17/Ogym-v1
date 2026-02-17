@@ -40,9 +40,15 @@ class HealthService {
       return false;
     }
 
+    if (this.healthPlugin) return true;
+
     try {
-      const { Health } = await import('capacitor-health');
-      this.healthPlugin = Health;
+      const mod = await import('capacitor-health');
+      this.healthPlugin = mod.Health || mod.default?.Health || mod.default;
+      if (!this.healthPlugin) {
+        console.error('Health plugin loaded but Health class not found');
+        return false;
+      }
       return true;
     } catch (error) {
       console.error('Failed to initialize health plugin:', error);
@@ -76,13 +82,14 @@ class HealthService {
   }
 
   async requestPermissions(): Promise<boolean> {
-    if (!this.healthPlugin) {
-      await this.initialize();
-    }
-    
-    if (!this.healthPlugin) return false;
-
     try {
+      if (!this.healthPlugin) {
+        const initialized = await this.initialize();
+        if (!initialized) return false;
+      }
+      
+      if (!this.healthPlugin) return false;
+
       const permissions = [
         'READ_STEPS',
         'READ_ACTIVE_CALORIES', 
@@ -224,8 +231,13 @@ class HealthService {
     const source = this.getAvailableSource();
     if (!source) return false;
 
-    const authorized = await this.requestPermissions();
-    if (!authorized) return false;
+    try {
+      const authorized = await this.requestPermissions();
+      if (!authorized) return false;
+    } catch (error) {
+      console.error('Health permissions request failed (plugin may not be configured):', error);
+      return false;
+    }
 
     try {
       await apiRequest('POST', '/api/health/connect', {
