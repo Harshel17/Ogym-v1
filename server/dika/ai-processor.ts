@@ -28,6 +28,8 @@ import { detectWeeklyReportRequest, generateWeeklyReport, formatWeeklyReportResp
 import { findRestaurantSuggestion, getSuggestionForGoal, getGeneralDikaMessage, GoalType } from "../nutrition/restaurant-suggestions";
 import { detectMemberAction, detectPendingMemberAction, processBodyMeasurement, processExerciseSwap, processGoalAction, processMealSuggestion, getActiveGoals } from "./member-actions";
 import { fitnessGoals } from "@shared/schema";
+import { classifyAnalyticsIntent } from "./intent-classifier";
+import { executeAnalytics, type AnalyticsResult } from "./analytics-engine";
 
 export function detectFindFoodRequest(message: string): boolean {
   const patterns = [
@@ -2176,7 +2178,26 @@ export async function processWithAI(
     setCachedContext(userId, role, gymId, dataContext, userContext);
   }
   
-  const systemPrompt = buildSystemPrompt(userContext, dataContext, isIOSNative);
+  let analyticsResult: AnalyticsResult | null = null;
+  try {
+    const classifiedIntent = await classifyAnalyticsIntent(message, role);
+    if (classifiedIntent && classifiedIntent.confidence >= 0.6) {
+      console.log(`[Dika Analytics] Intent: ${classifiedIntent.intent}, confidence: ${classifiedIntent.confidence}`);
+      analyticsResult = await executeAnalytics(classifiedIntent.intent, userId, gymId, classifiedIntent.params);
+      if (analyticsResult) {
+        console.log(`[Dika Analytics] Computed: ${analyticsResult.type}, summary length: ${analyticsResult.summary.length}`);
+      }
+    }
+  } catch (error) {
+    console.error('[Dika Analytics] Intent classification or computation failed:', error);
+  }
+
+  let systemPrompt = buildSystemPrompt(userContext, dataContext, isIOSNative);
+
+  if (analyticsResult) {
+    const analyticsInjection = `\n\n--- COMPUTED ANALYTICS DATA (use this to answer the user's question) ---\nAnalysis type: ${analyticsResult.type}\nSummary: ${analyticsResult.summary}\nDetailed data: ${JSON.stringify(analyticsResult.data, null, 0).slice(0, 2000)}\n--- END ANALYTICS DATA ---\n\nIMPORTANT: The above analytics data was computed from real historical records. Use it to give a specific, data-driven answer. Reference actual numbers, percentages, and trends. Don't make up numbers — only use what's provided above. Be conversational but precise.`;
+    systemPrompt += analyticsInjection;
+  }
   
   try {
     const historyMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
@@ -2198,6 +2219,8 @@ export async function processWithAI(
       }
     }
 
+    const maxTokens = analyticsResult ? 700 : 500;
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -2205,7 +2228,7 @@ export async function processWithAI(
         ...historyMessages,
         { role: "user", content: message }
       ],
-      max_completion_tokens: 500,
+      max_completion_tokens: maxTokens,
     });
     
     let rawAnswer = response.choices[0]?.message?.content || "I'm having trouble understanding that. Could you rephrase?";
