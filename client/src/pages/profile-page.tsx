@@ -1272,6 +1272,12 @@ function TrainingModeSettingsCard() {
 function DikaSettingsCard() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+
+  const { data: aiConsent, isLoading: consentLoading } = useQuery<{ consented: boolean; consentDate: string | null }>({
+    queryKey: ['/api/ai-consent'],
+    staleTime: 5 * 60 * 1000,
+  });
   
   const toggleMutation = useMutation({
     mutationFn: async (hideDika: boolean) => {
@@ -1292,8 +1298,29 @@ function DikaSettingsCard() {
     }
   });
 
+  const consentMutation = useMutation({
+    mutationFn: async (consent: boolean) => {
+      const res = await apiRequest('POST', '/api/ai-consent', { consent });
+      return res.json();
+    },
+    onSuccess: (_, consent) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/ai-consent'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setRevokeDialogOpen(false);
+      toast({
+        title: consent ? "AI data sharing enabled" : "AI data sharing disabled",
+        description: consent 
+          ? "Dika can now use your fitness data to provide personalized insights"
+          : "AI features like Dika chat and nutrition estimation are now disabled",
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to update AI consent", variant: "destructive" });
+    }
+  });
+
   return (
-    <Card className="card-elevated md:col-span-2">
+    <Card className="card-elevated md:col-span-2" data-testid="card-dika-settings">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-primary/10">
@@ -1303,7 +1330,7 @@ function DikaSettingsCard() {
         </CardTitle>
         <CardDescription>Your gym's memory - answers questions about workouts, attendance, and payments</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-3">
         <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
           <div>
             <p className="font-medium">Show Dika button</p>
@@ -1318,7 +1345,63 @@ function DikaSettingsCard() {
             data-testid="switch-dika"
           />
         </div>
+
+        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+          <div>
+            <p className="font-medium">AI data sharing</p>
+            <p className="text-sm text-muted-foreground">
+              {aiConsent?.consented
+                ? "Your fitness data is shared with OpenAI to power Dika's personalized insights"
+                : "Enable to allow Dika to use your data for personalized AI-powered advice"}
+            </p>
+            {aiConsent?.consented && aiConsent.consentDate && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Consented {formatDistanceToNow(new Date(aiConsent.consentDate), { addSuffix: true })}
+              </p>
+            )}
+          </div>
+          <Switch
+            checked={aiConsent?.consented ?? false}
+            onCheckedChange={(checked) => {
+              if (!checked) {
+                setRevokeDialogOpen(true);
+              } else {
+                consentMutation.mutate(true);
+              }
+            }}
+            disabled={consentLoading || consentMutation.isPending}
+            data-testid="switch-ai-consent"
+          />
+        </div>
       </CardContent>
+
+      <Dialog open={revokeDialogOpen} onOpenChange={setRevokeDialogOpen}>
+        <DialogContent className="max-w-sm" data-testid="dialog-revoke-consent">
+          <DialogHeader>
+            <DialogTitle>Disable AI Data Sharing?</DialogTitle>
+            <DialogDescription>
+              This will turn off AI-powered features including Dika chat, nutrition estimation, and intelligence reports. Your existing data won't be deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => setRevokeDialogOpen(false)}
+              data-testid="btn-cancel-revoke"
+            >
+              Keep Enabled
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => consentMutation.mutate(false)}
+              disabled={consentMutation.isPending}
+              data-testid="btn-confirm-revoke"
+            >
+              {consentMutation.isPending ? "Disabling..." : "Disable AI Sharing"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

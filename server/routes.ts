@@ -5727,7 +5727,7 @@ Return ONLY JSON.`
     }
   });
 
-  app.get("/api/intelligence-report", requireAuth, async (req, res) => {
+  app.get("/api/intelligence-report", requireAuth, requireAiConsent, async (req, res) => {
     try {
       const userId = req.user!.id;
       const role = req.user!.role;

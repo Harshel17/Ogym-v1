@@ -445,7 +445,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Progress", href: "/progress", icon: TrendingUp },
           { label: "My Body", href: "/my-body", icon: Scale },
           { label: "My Diet", href: "/my-diet-plan", icon: Utensils },
-          { label: "Payments", href: "/payments", icon: CreditCard },
+          ...(!isIOSNativeApp ? [{ label: "Payments", href: "/payments", icon: CreditCard }] : []),
           { label: "Requests", href: "/requests", icon: MessageSquare, badge: notificationCounts?.pendingRequests || 0 },
           { label: "Announcements", href: "/announcements", icon: Megaphone, badge: notificationCounts?.unreadAnnouncements || 0 },
           { label: "Feed", href: "/feed", icon: Activity },

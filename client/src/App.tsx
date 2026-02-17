@@ -89,9 +89,10 @@ type ProtectedRouteProps = {
   allowWithExpiredSubscription?: boolean;
   requiredRole?: "owner" | "trainer" | "member";
   blockOnIOSOwner?: boolean;
+  blockOnIOS?: boolean;
 };
 
-function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWithoutOnboarding = false, allowWithExpiredSubscription = false, requiredRole, blockOnIOSOwner = false }: ProtectedRouteProps) {
+function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWithoutOnboarding = false, allowWithExpiredSubscription = false, requiredRole, blockOnIOSOwner = false, blockOnIOS = false }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -104,6 +105,11 @@ function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWi
 
   if (!user) {
     return <Redirect to="/auth" />;
+  }
+
+  // Block all users from payment/subscription pages on iOS native app (Apple Guideline 3.1.1)
+  if (blockOnIOS && isNative() && isIOS()) {
+    return <Redirect to="/" />;
   }
 
   // Block owner access to business/payment pages on iOS native app (Apple Guideline 3.1.1)
@@ -131,7 +137,8 @@ function ProtectedRoute({ component: Component, allowWithoutGym = false, allowWi
   }
 
   // Check subscription status - block access if expired (unless explicitly allowed)
-  if (user.gymId && !allowWithExpiredSubscription && user.subscriptionStatus) {
+  // Skip on iOS native app - Apple Guideline 3.1.1 prohibits blocking access for external payments
+  if (user.gymId && !allowWithExpiredSubscription && user.subscriptionStatus && !(isNative() && isIOS())) {
     const { isActive, status } = user.subscriptionStatus;
     if (!isActive && (status === "expired" || status === "no_subscription")) {
       return <SubscriptionExpiredPage />;
@@ -375,7 +382,7 @@ function Router() {
       </Route>
       
       <Route path="/payments">
-        <ProtectedRoute component={PaymentsPage} blockOnIOSOwner />
+        <ProtectedRoute component={PaymentsPage} blockOnIOS />
       </Route>
 
       <Route path="/workouts">
