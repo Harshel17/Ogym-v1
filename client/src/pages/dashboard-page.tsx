@@ -2146,16 +2146,18 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                   <Badge key={mt} variant="outline" className="text-[10px] py-0 px-1.5 border-primary/20 text-primary/80 no-default-hover-elevate no-default-active-elevate">{mt}</Badge>
                 ))}
                 <div className="flex items-center gap-1.5 ml-auto">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-[11px] h-7 border-amber-500/30 text-amber-500"
-                    onClick={(e) => { e.stopPropagation(); openMatchDialog(); }}
-                    data-testid="button-log-match"
-                  >
-                    <Trophy className="w-3 h-3 mr-1" />
-                    Match
-                  </Button>
+                  {sportProfile && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-[11px] h-7 border-amber-500/30 text-amber-500"
+                      onClick={(e) => { e.stopPropagation(); openMatchDialog(); }}
+                      data-testid="button-log-match"
+                    >
+                      <Trophy className="w-3 h-3 mr-1" />
+                      Match
+                    </Button>
+                  )}
                   {!allCompleted && (
                     <Button 
                       size="sm"
@@ -2177,16 +2179,18 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                 <BedDouble className="w-4 h-4 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">Rest day - recover and recharge</span>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full text-xs h-8 border-amber-500/30 text-amber-500"
-                onClick={openMatchDialog}
-                data-testid="button-log-match-rest"
-              >
-                <Trophy className="w-3.5 h-3.5 mr-1.5" />
-                Log a Match
-              </Button>
+              {sportProfile && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full text-xs h-8 border-amber-500/30 text-amber-500"
+                  onClick={openMatchDialog}
+                  data-testid="button-log-match-rest"
+                >
+                  <Trophy className="w-3.5 h-3.5 mr-1.5" />
+                  Log a Match
+                </Button>
+              )}
             </div>
           )}
           
