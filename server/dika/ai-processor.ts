@@ -60,16 +60,20 @@ export function detectFindFoodRequest(message: string): boolean {
   return patterns.some(p => p.test(message));
 }
 
+const TOMORROW_PATTERN = /(?:tom+or+ow|tomm?rw|tom+orow|tmrw|tmrrow|2moro?w?)/i;
+const MATCH_WORD = /(?:match|game|tournament|bout|fight|meet)/i;
+
 const MATCH_LOG_PATTERNS = [
-  /i\s+(?:have|got|has)\s+(?:a\s+)?(?:match|game|tournament|bout|fight|meet)\s+(?:tomorrow|today|yesterday|coming up|this weekend|on\s+\w+day)/i,
-  /(?:match|game|tournament|bout|fight|meet)\s+(?:is\s+)?(?:tomorrow|today|yesterday|coming up|this weekend|on\s+\w+day)/i,
+  /(?:i\s+)?(?:have|got|has)\s+(?:a\s+)?(?:match|game|tournament|bout|fight|meet)\s+(?:tom|today|yesterday|coming|this|on\s)/i,
+  /(?:match|game|tournament|bout|fight|meet)\s+(?:is\s+)?(?:tom|today|yesterday|coming|this|on\s)/i,
   /(?:playing|play|played)\s+(?:a\s+)?(?:match|game|tournament)/i,
   /(?:just\s+)?(?:played|finished|done\s+with|came\s+back\s+from|had)\s+(?:a\s+)?(?:match|game|my\s+game|my\s+match|the\s+game|the\s+match)/i,
   /(?:log|record|add)\s+(?:a\s+|my\s+)?(?:match|game)/i,
   /(?:match|game)\s+(?:day|tonight|this\s+(?:morning|evening|afternoon))/i,
-  /(?:tomorrow|today|yesterday)\s+(?:is|was)\s+(?:match|game)\s+day/i,
+  /(?:tom|today|yesterday)\S*\s+(?:is|was)\s+(?:match|game)\s+day/i,
   /(?:i'm|im|i\s+am)\s+(?:playing|going\s+to\s+play)\s+(?:a\s+)?(?:match|game|my\s+game|my\s+match)/i,
   /(?:we\s+)?(?:have|got)\s+(?:a\s+)?(?:match|game)\s+(?:at|in|on)/i,
+  /have\s+(?:a\s+)?(?:match|game)/i,
 ];
 
 function detectMatchLogRequest(message: string): boolean {
@@ -105,7 +109,7 @@ function extractPendingMatchData(
 
 function parseMatchTiming(message: string): 'today' | 'tomorrow' | 'yesterday' | null {
   const lower = message.toLowerCase();
-  if (/tomorrow|coming up|upcoming/i.test(lower)) return 'tomorrow';
+  if (/tom+or+ow|tomm?rw|tom+orow|tmrw|tmrrow|2moro?w?|coming\s+up|upcoming/i.test(lower)) return 'tomorrow';
   if (/yesterday|last\s+(?:night|evening)|came\s+back|just\s+(?:played|finished|had)/i.test(lower)) return 'yesterday';
   if (/today|tonight|this\s+(?:morning|evening|afternoon)|right\s+now|match\s+day|game\s+day/i.test(lower)) return 'today';
   if (/(?:have|got|has)\s+(?:a\s+)?(?:match|game)/i.test(lower)) return 'tomorrow';
@@ -258,7 +262,7 @@ async function processMatchFollowUp(
   const lower = message.toLowerCase().trim();
 
   if (pendingData.step === 'timing') {
-    const timing = /tomorrow|tmrw/i.test(lower) ? 'tomorrow' : /yesterday|last/i.test(lower) ? 'yesterday' : /today|now/i.test(lower) ? 'today' : null;
+    const timing = /tom+or+ow|tomm?rw|tmrw|tmrrow|2moro/i.test(lower) ? 'tomorrow' : /yesterday|last/i.test(lower) ? 'yesterday' : /today|now/i.test(lower) ? 'today' : null;
     if (!timing) return null;
 
     const action = getMatchAction(timing);
