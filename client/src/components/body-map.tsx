@@ -64,280 +64,267 @@ export const regionToMuscle: Record<string, string> = {
 };
 
 const regionLabels: Record<string, string> = {
-  "chest": "Chest",
-  "upper-back": "Upper Back",
-  "lats": "Lats",
-  "shoulders": "Delts",
-  "biceps": "Biceps",
-  "triceps": "Triceps",
-  "forearms": "Forearms",
-  "quads": "Quads",
-  "hamstrings": "Hamstrings",
-  "calves": "Calves",
-  "glutes": "Glutes",
-  "abs": "Abs",
-  "obliques": "Obliques"
+  "chest": "Chest", "upper-back": "Upper Back", "lats": "Lats",
+  "shoulders": "Delts", "biceps": "Biceps", "triceps": "Triceps",
+  "forearms": "Forearms", "quads": "Quads", "hamstrings": "Hamstrings",
+  "calves": "Calves", "glutes": "Glutes", "abs": "Abs", "obliques": "Obliques"
 };
 
-function Tooltip({ x, y, label, visible }: { x: number; y: number; label: string; visible: boolean }) {
-  if (!visible) return null;
-  const textLen = label.length * 4.2 + 12;
+function useRegionInteraction(highlightedMuscles: string[], selectedMuscle?: string | null) {
+  const [hovered, setHovered] = useState<string | null>(null);
+
+  const getFill = useCallback((region: string): string => {
+    if (selectedMuscle === region) return "hsl(var(--primary))";
+    if (highlightedMuscles.includes(region)) return "hsl(var(--primary))";
+    return "hsl(var(--muted-foreground))";
+  }, [highlightedMuscles, selectedMuscle]);
+
+  const getOpacity = useCallback((region: string): number => {
+    const isHov = hovered === region;
+    if (selectedMuscle === region) return 1;
+    if (highlightedMuscles.includes(region)) return isHov ? 0.8 : 0.6;
+    return isHov ? 0.18 : 0.1;
+  }, [highlightedMuscles, selectedMuscle, hovered]);
+
+  const getFilter = useCallback((region: string): string => {
+    if (selectedMuscle === region) return "url(#glow)";
+    if (highlightedMuscles.includes(region) && hovered === region) return "url(#glow)";
+    return "none";
+  }, [highlightedMuscles, selectedMuscle, hovered]);
+
+  return { hovered, setHovered, getFill, getOpacity, getFilter };
+}
+
+function Tooltip({ x, y, label }: { x: number; y: number; label: string }) {
+  const w = label.length * 7.5 + 18;
   return (
-    <g className="pointer-events-none" style={{ opacity: 1, transition: "opacity 0.2s" }}>
-      <rect x={x - textLen / 2} y={y - 18} width={textLen} height={16} rx={4}
-        fill="hsl(var(--popover))" stroke="hsl(var(--border))" strokeWidth={0.6}
-        style={{ filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.15))" }} />
-      <polygon points={`${x - 3},${y - 2} ${x + 3},${y - 2} ${x},${y + 2}`} fill="hsl(var(--popover))" />
-      <text x={x} y={y - 8} textAnchor="middle" fill="hsl(var(--popover-foreground))"
-        fontSize="7" fontWeight="600" fontFamily="system-ui, sans-serif" letterSpacing="0.2">
+    <g className="pointer-events-none">
+      <rect x={x - w / 2} y={y - 26} width={w} height={22} rx={6}
+        fill="hsl(var(--popover))" stroke="hsl(var(--border))" strokeWidth={0.5}
+        style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.15))" }} />
+      <polygon points={`${x - 4},${y - 4} ${x + 4},${y - 4} ${x},${y + 1}`} fill="hsl(var(--popover))" />
+      <text x={x} y={y - 12.5} textAnchor="middle" fill="hsl(var(--popover-foreground))"
+        fontSize="9.5" fontWeight="600" fontFamily="system-ui, -apple-system, sans-serif" letterSpacing="0.2">
         {label}
       </text>
     </g>
   );
 }
 
-function LabelLine({ x1, y1, x2, y2, label, anchor }: { x1: number; y1: number; x2: number; y2: number; label: string; anchor: "start" | "end" }) {
+interface RegionProps {
+  region: string;
+  fill: string;
+  opacity: number;
+  filter: string;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  onClick: () => void;
+  children: React.ReactNode;
+  testId?: string;
+}
+
+function Region({ region, fill, opacity, filter, onMouseEnter, onMouseLeave, onClick, children, testId }: RegionProps) {
   return (
-    <>
-      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="hsl(var(--primary) / 0.4)" strokeWidth="0.5" strokeDasharray="1.5 1" />
-      <circle cx={x2} cy={y2} r="1" fill="hsl(var(--primary))" />
-      <text x={anchor === "start" ? x2 + 3 : x2 - 3} y={y2 - 2} textAnchor={anchor}
-        fill="hsl(var(--primary))" fontSize="5.5" fontWeight="700" fontFamily="system-ui" letterSpacing="0.4" opacity="0.8">
-        {label}
-      </text>
-    </>
+    <g data-region={region} data-testid={testId || `region-${region}`}
+       style={{ cursor: "pointer", transition: "opacity 0.2s ease, filter 0.2s ease" }}
+       fill={fill} opacity={opacity} filter={filter}
+       onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onClick={onClick}>
+      {children}
+    </g>
   );
 }
 
-function useMuscleStyle(
-  isHighlighted: (r: string) => boolean,
-  isSelected: (r: string) => boolean,
-  isHovered: (r: string) => boolean,
-  suffix: string
-) {
-  return useCallback((region: string): React.CSSProperties => {
-    const base: React.CSSProperties = { cursor: "pointer", transition: "all 0.3s ease" };
-    if (isSelected(region)) {
-      return { ...base, fill: `url(#selGrad${suffix})`, stroke: "hsl(var(--primary))", strokeWidth: 1.2, filter: `url(#glow${suffix})` };
-    }
-    if (isHighlighted(region)) {
-      return { ...base, fill: `url(#hlGrad${suffix})`, stroke: "hsl(var(--primary) / 0.5)", strokeWidth: 0.8,
-        filter: isHovered(region) ? `url(#glow${suffix})` : `url(#sglow${suffix})` };
-    }
-    return { ...base, fill: `url(#skinGrad${suffix})`, stroke: "hsl(var(--muted-foreground) / 0.15)", strokeWidth: 0.4 };
-  }, [isHighlighted, isSelected, isHovered, suffix]);
+function GlowFilter() {
+  return (
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.4"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  );
 }
 
-function SharedDefs({ s }: { s: string }) {
+function Joints() {
   return (
-    <defs>
-      <linearGradient id={`hlGrad${s}`} x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.85" />
-        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.55" />
-      </linearGradient>
-      <linearGradient id={`selGrad${s}`} x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="1" />
-        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.8" />
-      </linearGradient>
-      <radialGradient id={`skinGrad${s}`} cx="50%" cy="40%" r="55%">
-        <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.22" />
-        <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.08" />
-      </radialGradient>
-      <radialGradient id={`bodyGrad${s}`} cx="50%" cy="35%" r="60%">
-        <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.18" />
-        <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.06" />
-      </radialGradient>
-      <filter id={`glow${s}`} x="-40%" y="-40%" width="180%" height="180%">
-        <feGaussianBlur stdDeviation="3" result="b"/>
-        <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.35"/>
-        <feComposite in2="b" operator="in"/>
-        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
-      <filter id={`sglow${s}`} x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur stdDeviation="1.5" result="b"/>
-        <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.12"/>
-        <feComposite in2="b" operator="in"/>
-        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
-    </defs>
+    <g className="joints pointer-events-none" fill="hsl(var(--muted-foreground))" opacity="0.08">
+      <circle cx={55} cy={55} r={4} />
+      <circle cx={145} cy={55} r={4} />
+      <circle cx={47} cy={110} r={3.5} />
+      <circle cx={153} cy={110} r={3.5} />
+      <circle cx={83} cy={150} r={4} />
+      <circle cx={117} cy={150} r={4} />
+      <circle cx={83} cy={248} r={4.5} />
+      <circle cx={117} cy={248} r={4.5} />
+    </g>
   );
 }
 
 export function BodyMapFront({ highlightedMuscles, onMuscleClick, selectedMuscle, className = "" }: BodyMapProps) {
-  const [hov, setHov] = useState<string | null>(null);
-  const isH = (r: string) => highlightedMuscles.includes(r);
-  const isS = (r: string) => selectedMuscle === r;
-  const isV = (r: string) => hov === r;
-  const gs = useMuscleStyle(isH, isS, isV, "F");
-  const onE = useCallback((r: string) => setHov(r), []);
-  const onL = useCallback(() => setHov(null), []);
+  const { hovered, setHovered, getFill, getOpacity, getFilter } = useRegionInteraction(highlightedMuscles, selectedMuscle);
+  const onE = useCallback((r: string) => () => setHovered(r), [setHovered]);
+  const onL = useCallback(() => setHovered(null), [setHovered]);
+  const onC = useCallback((r: string) => () => onMuscleClick?.(r), [onMuscleClick]);
 
-  const tp: Record<string, { x: number; y: number }> = {
-    shoulders: { x: 75, y: 68 }, chest: { x: 75, y: 88 }, biceps: { x: 40, y: 115 },
-    forearms: { x: 36, y: 155 }, abs: { x: 75, y: 155 }, obliques: { x: 60, y: 155 },
-    quads: { x: 75, y: 265 }, calves: { x: 75, y: 360 },
+  const tp: Record<string, [number, number]> = {
+    shoulders: [100, 42], chest: [100, 68], biceps: [40, 76],
+    forearms: [36, 128], abs: [100, 112], obliques: [68, 112],
+    quads: [100, 196], calves: [100, 276],
   };
 
   return (
-    <svg viewBox="0 0 150 460" className={`w-full max-w-[140px] ${className}`} data-testid="body-map-front">
-      <SharedDefs s="F" />
+    <svg viewBox="0 0 200 340" className={`w-full max-w-[170px] ${className}`} data-testid="body-map-front">
+      <defs><GlowFilter /></defs>
 
-      <g className="body-silhouette">
-        <ellipse cx="75" cy="22" rx="11" ry="14" fill="url(#bodyGradF)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="0.6" data-testid="head-front" />
-        <rect x="71" y="36" width="8" height="10" rx="3" fill="url(#bodyGradF)" stroke="none" />
-        <path d="M56 48 Q48 50 42 58 Q38 68 36 82 Q34 98 36 116 Q38 128 40 136 Q42 142 44 150 Q46 158 48 168
-                 M94 48 Q102 50 108 58 Q112 68 114 82 Q116 98 114 116 Q112 128 110 136 Q108 142 106 150 Q104 158 102 168"
-              fill="none" stroke="hsl(var(--muted-foreground) / 0.18)" strokeWidth="0.5" />
-        <path d="M60 48 L90 48 Q96 52 98 62 Q100 80 100 100 Q100 120 98 140 Q96 155 94 168 Q92 180 90 195
-                 Q88 210 86 220 Q84 230 84 245 Q84 270 86 300 Q88 330 90 355 Q92 370 92 390 Q92 400 88 410 L82 416
-                 Q78 390 76 370 L75 355 L74 370 Q72 390 68 416 L62 410
-                 Q58 400 58 390 Q58 370 60 355 Q62 330 64 300 Q66 270 66 245 Q66 230 64 220 Q62 210 60 195
-                 Q58 180 56 168 Q54 155 52 140 Q50 120 50 100 Q50 80 52 62 Q54 52 60 48 Z"
-              fill="url(#bodyGradF)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="0.6" />
+      <g className="head-neck pointer-events-none" fill="hsl(var(--muted-foreground))" opacity="0.1">
+        <ellipse cx={100} cy={18} rx={12} ry={15} />
+        <rect x={95} y={33} width={10} height={10} rx={3} />
       </g>
 
-      <g className="muscles">
-        <path data-region="shoulders" data-testid="region-shoulders-front"
-          d="M56 48 Q50 52 46 60 Q42 70 44 80 Q48 78 52 72 Q56 64 60 54 Q58 48 56 48 Z
-             M94 48 Q100 52 104 60 Q108 70 106 80 Q102 78 98 72 Q94 64 90 54 Q92 48 94 48 Z"
-          style={gs("shoulders")} onMouseEnter={() => onE("shoulders")} onMouseLeave={onL} onClick={() => onMuscleClick?.("shoulders")} />
+      <Joints />
 
-        <path data-region="chest" data-testid="region-chest"
-          d="M62 52 Q58 60 56 72 Q54 84 58 94 Q62 100 70 102 L75 104 L80 102 Q88 100 92 94 Q96 84 94 72 Q92 60 88 52 Q82 48 75 46 Q68 48 62 52 Z"
-          style={gs("chest")} onMouseEnter={() => onE("chest")} onMouseLeave={onL} onClick={() => onMuscleClick?.("chest")} />
-
-        <path data-region="biceps" data-testid="region-biceps"
-          d="M42 80 Q40 90 38 102 Q36 112 38 118 Q42 116 46 110 Q50 100 52 88 Q50 80 46 80 Z
-             M108 80 Q110 90 112 102 Q114 112 112 118 Q108 116 104 110 Q100 100 98 88 Q100 80 104 80 Z"
-          style={gs("biceps")} onMouseEnter={() => onE("biceps")} onMouseLeave={onL} onClick={() => onMuscleClick?.("biceps")} />
-
-        <path data-region="forearms" data-testid="region-forearms"
-          d="M38 120 Q36 132 34 146 Q34 156 38 160 Q42 158 44 150 Q46 138 48 124 Q46 118 40 118 Z
-             M112 120 Q114 132 116 146 Q116 156 112 160 Q108 158 106 150 Q104 138 102 124 Q104 118 110 118 Z"
-          style={gs("forearms")} onMouseEnter={() => onE("forearms")} onMouseLeave={onL} onClick={() => onMuscleClick?.("forearms")} />
-
-        <path data-region="abs" data-testid="region-abs"
-          d="M68 102 Q66 115 64 130 Q62 148 64 165 Q66 172 72 176 L75 178 L78 176 Q84 172 86 165 Q88 148 86 130 Q84 115 82 102 Q78 100 75 102 Q72 100 68 102 Z"
-          style={gs("abs")} onMouseEnter={() => onE("abs")} onMouseLeave={onL} onClick={() => onMuscleClick?.("abs")} />
-
-        <path data-region="obliques" data-testid="region-obliques"
-          d="M56 96 Q54 112 52 130 Q50 150 52 168 Q56 174 62 176 Q64 170 64 165 Q62 148 64 130 Q66 115 68 102 Q64 96 58 96 Z
-             M94 96 Q96 112 98 130 Q100 150 98 168 Q94 174 88 176 Q86 170 86 165 Q88 148 86 130 Q84 115 82 102 Q86 96 92 96 Z"
-          style={gs("obliques")} onMouseEnter={() => onE("obliques")} onMouseLeave={onL} onClick={() => onMuscleClick?.("obliques")} />
-
-        <path data-region="quads" data-testid="region-quads"
-          d="M64 195 Q62 220 60 248 Q60 270 64 290 Q68 300 72 296 Q74 280 75 260 L75 225 L75 200 Q70 194 64 195 Z
-             M86 195 Q88 220 90 248 Q90 270 86 290 Q82 300 78 296 Q76 280 75 260 L75 225 L75 200 Q80 194 86 195 Z"
-          style={gs("quads")} onMouseEnter={() => onE("quads")} onMouseLeave={onL} onClick={() => onMuscleClick?.("quads")} />
-
-        <path data-region="calves" data-testid="region-calves"
-          d="M62 320 Q60 338 58 355 Q58 366 62 372 Q66 376 70 370 Q72 356 74 340 Q72 322 66 318 Z
-             M88 320 Q90 338 92 355 Q92 366 88 372 Q84 376 80 370 Q78 356 76 340 Q78 322 84 318 Z"
-          style={gs("calves")} onMouseEnter={() => onE("calves")} onMouseLeave={onL} onClick={() => onMuscleClick?.("calves")} />
+      <g className="non-interactive pointer-events-none" fill="hsl(var(--muted-foreground))" opacity="0.06">
+        <rect x={78} y={136} width={44} height={12} rx={5} />
       </g>
 
-      <g className="labels pointer-events-none">
-        {isH("shoulders") && <LabelLine x1={48} y1={64} x2={20} y2={58} label="DELTS" anchor="end" />}
-        {isH("chest") && <LabelLine x1={92} y1={76} x2={128} y2={70} label="CHEST" anchor="start" />}
-        {isH("biceps") && <LabelLine x1={110} y1={100} x2={132} y2={94} label="BICEPS" anchor="start" />}
-        {isH("forearms") && <LabelLine x1={36} y1={142} x2={16} y2={148} label="FOREARMS" anchor="end" />}
-        {isH("abs") && <LabelLine x1={84} y1={140} x2={128} y2={136} label="ABS" anchor="start" />}
-        {isH("obliques") && <LabelLine x1={54} y1={135} x2={20} y2={130} label="OBLIQUES" anchor="end" />}
-        {isH("quads") && <LabelLine x1={88} y1={248} x2={124} y2={244} label="QUADS" anchor="start" />}
-        {isH("calves") && <LabelLine x1={60} y1={350} x2={30} y2={346} label="CALVES" anchor="end" />}
+      <Region region="shoulders" testId="region-shoulders-front" fill={getFill("shoulders")} opacity={getOpacity("shoulders")} filter={getFilter("shoulders")}
+        onMouseEnter={onE("shoulders")} onMouseLeave={onL} onClick={onC("shoulders")}>
+        <ellipse cx={62} cy={52} rx={14} ry={9} />
+        <ellipse cx={138} cy={52} rx={14} ry={9} />
+      </Region>
+
+      <Region region="chest" testId="region-chest" fill={getFill("chest")} opacity={getOpacity("chest")} filter={getFilter("chest")}
+        onMouseEnter={onE("chest")} onMouseLeave={onL} onClick={onC("chest")}>
+        <rect x={74} y={46} width={52} height={38} rx={7} />
+        <line x1={100} y1={50} x2={100} y2={80} stroke="hsl(var(--background))" strokeWidth="1" opacity="0.3" />
+      </Region>
+
+      <Region region="biceps" testId="region-biceps" fill={getFill("biceps")} opacity={getOpacity("biceps")} filter={getFilter("biceps")}
+        onMouseEnter={onE("biceps")} onMouseLeave={onL} onClick={onC("biceps")}>
+        <rect x={42} y={58} width={12} height={48} rx={6} />
+        <rect x={146} y={58} width={12} height={48} rx={6} />
+      </Region>
+
+      <Region region="forearms" testId="region-forearms" fill={getFill("forearms")} opacity={getOpacity("forearms")} filter={getFilter("forearms")}
+        onMouseEnter={onE("forearms")} onMouseLeave={onL} onClick={onC("forearms")}>
+        <rect x={38} y={110} width={11} height={44} rx={5.5} />
+        <rect x={151} y={110} width={11} height={44} rx={5.5} />
+      </Region>
+
+      <Region region="abs" testId="region-abs" fill={getFill("abs")} opacity={getOpacity("abs")} filter={getFilter("abs")}
+        onMouseEnter={onE("abs")} onMouseLeave={onL} onClick={onC("abs")}>
+        <rect x={84} y={86} width={32} height={48} rx={5} />
+        <line x1={100} y1={90} x2={100} y2={130} stroke="hsl(var(--background))" strokeWidth="0.8" opacity="0.25" />
+        <line x1={86} y1={98} x2={114} y2={98} stroke="hsl(var(--background))" strokeWidth="0.6" opacity="0.15" />
+        <line x1={86} y1={110} x2={114} y2={110} stroke="hsl(var(--background))" strokeWidth="0.6" opacity="0.15" />
+        <line x1={86} y1={122} x2={114} y2={122} stroke="hsl(var(--background))" strokeWidth="0.6" opacity="0.15" />
+      </Region>
+
+      <Region region="obliques" testId="region-obliques" fill={getFill("obliques")} opacity={getOpacity("obliques")} filter={getFilter("obliques")}
+        onMouseEnter={onE("obliques")} onMouseLeave={onL} onClick={onC("obliques")}>
+        <rect x={74} y={86} width={10} height={48} rx={4} />
+        <rect x={116} y={86} width={10} height={48} rx={4} />
+      </Region>
+
+      <Region region="quads" testId="region-quads" fill={getFill("quads")} opacity={getOpacity("quads")} filter={getFilter("quads")}
+        onMouseEnter={onE("quads")} onMouseLeave={onL} onClick={onC("quads")}>
+        <rect x={74} y={152} width={18} height={90} rx={8} />
+        <rect x={108} y={152} width={18} height={90} rx={8} />
+      </Region>
+
+      <Region region="calves" testId="region-calves" fill={getFill("calves")} opacity={getOpacity("calves")} filter={getFilter("calves")}
+        onMouseEnter={onE("calves")} onMouseLeave={onL} onClick={onC("calves")}>
+        <rect x={76} y={256} width={14} height={56} rx={7} />
+        <rect x={110} y={256} width={14} height={56} rx={7} />
+      </Region>
+
+      <g className="feet pointer-events-none" fill="hsl(var(--muted-foreground))" opacity="0.08">
+        <ellipse cx={83} cy={318} rx={9} ry={4} />
+        <ellipse cx={117} cy={318} rx={9} ry={4} />
       </g>
 
-      {hov && tp[hov] && <Tooltip x={tp[hov].x} y={tp[hov].y} label={regionLabels[hov] || hov} visible={true} />}
+      {hovered && tp[hovered] && <Tooltip x={tp[hovered][0]} y={tp[hovered][1]} label={regionLabels[hovered] || hovered} />}
     </svg>
   );
 }
 
 export function BodyMapBack({ highlightedMuscles, onMuscleClick, selectedMuscle, className = "" }: BodyMapProps) {
-  const [hov, setHov] = useState<string | null>(null);
-  const isH = (r: string) => highlightedMuscles.includes(r);
-  const isS = (r: string) => selectedMuscle === r;
-  const isV = (r: string) => hov === r;
-  const gs = useMuscleStyle(isH, isS, isV, "B");
-  const onE = useCallback((r: string) => setHov(r), []);
-  const onL = useCallback(() => setHov(null), []);
+  const { hovered, setHovered, getFill, getOpacity, getFilter } = useRegionInteraction(highlightedMuscles, selectedMuscle);
+  const onE = useCallback((r: string) => () => setHovered(r), [setHovered]);
+  const onL = useCallback(() => setHovered(null), [setHovered]);
+  const onC = useCallback((r: string) => () => onMuscleClick?.(r), [onMuscleClick]);
 
-  const tp: Record<string, { x: number; y: number }> = {
-    shoulders: { x: 75, y: 68 }, "upper-back": { x: 75, y: 88 }, lats: { x: 55, y: 128 },
-    triceps: { x: 40, y: 115 }, glutes: { x: 75, y: 195 }, hamstrings: { x: 75, y: 260 },
-    calves: { x: 75, y: 360 },
+  const tp: Record<string, [number, number]> = {
+    shoulders: [100, 42], "upper-back": [100, 68], lats: [68, 108],
+    triceps: [40, 76], glutes: [100, 148], hamstrings: [100, 196],
+    calves: [100, 276],
   };
 
   return (
-    <svg viewBox="0 0 150 460" className={`w-full max-w-[140px] ${className}`} data-testid="body-map-back">
-      <SharedDefs s="B" />
+    <svg viewBox="0 0 200 340" className={`w-full max-w-[170px] ${className}`} data-testid="body-map-back">
+      <defs><GlowFilter /></defs>
 
-      <g className="body-silhouette">
-        <ellipse cx="75" cy="22" rx="11" ry="14" fill="url(#bodyGradB)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="0.6" data-testid="head-back" />
-        <rect x="71" y="36" width="8" height="10" rx="3" fill="url(#bodyGradB)" stroke="none" />
-        <path d="M56 48 Q48 50 42 58 Q38 68 36 82 Q34 98 36 116 Q38 128 40 136 Q42 142 44 150 Q46 158 48 168
-                 M94 48 Q102 50 108 58 Q112 68 114 82 Q116 98 114 116 Q112 128 110 136 Q108 142 106 150 Q104 158 102 168"
-              fill="none" stroke="hsl(var(--muted-foreground) / 0.18)" strokeWidth="0.5" />
-        <path d="M60 48 L90 48 Q96 52 98 62 Q100 80 100 100 Q100 120 98 140 Q96 155 94 168 Q92 180 90 195
-                 Q88 210 86 220 Q84 230 84 245 Q84 270 86 300 Q88 330 90 355 Q92 370 92 390 Q92 400 88 410 L82 416
-                 Q78 390 76 370 L75 355 L74 370 Q72 390 68 416 L62 410
-                 Q58 400 58 390 Q58 370 60 355 Q62 330 64 300 Q66 270 66 245 Q66 230 64 220 Q62 210 60 195
-                 Q58 180 56 168 Q54 155 52 140 Q50 120 50 100 Q50 80 52 62 Q54 52 60 48 Z"
-              fill="url(#bodyGradB)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="0.6" />
+      <g className="head-neck pointer-events-none" fill="hsl(var(--muted-foreground))" opacity="0.1">
+        <ellipse cx={100} cy={18} rx={12} ry={15} />
+        <rect x={95} y={33} width={10} height={10} rx={3} />
       </g>
 
-      <g className="spine pointer-events-none" opacity="0.18">
-        <path d="M75 40 L75 195" stroke="hsl(var(--muted-foreground))" strokeWidth="0.8" fill="none" strokeDasharray="2.5 1.5" />
-        {[48, 60, 72, 84, 96, 108, 120, 132, 144, 156, 168, 180, 192].map(y => (
-          <circle key={y} cx={75} cy={y} r={0.9} fill="hsl(var(--muted-foreground))" />
+      <Joints />
+
+      <g className="spine pointer-events-none" opacity="0.1">
+        <line x1={100} y1={43} x2={100} y2={145} stroke="hsl(var(--muted-foreground))" strokeWidth="1.2" strokeDasharray="3 2.5" />
+        {[50, 62, 74, 86, 98, 110, 122, 134].map(y => (
+          <circle key={y} cx={100} cy={y} r={1.2} fill="hsl(var(--muted-foreground))" />
         ))}
       </g>
 
-      <g className="muscles">
-        <path data-region="shoulders" data-testid="region-shoulders-back"
-          d="M56 48 Q50 52 46 60 Q42 70 44 80 Q48 78 52 72 Q56 64 60 54 Q58 48 56 48 Z
-             M94 48 Q100 52 104 60 Q108 70 106 80 Q102 78 98 72 Q94 64 90 54 Q92 48 94 48 Z"
-          style={gs("shoulders")} onMouseEnter={() => onE("shoulders")} onMouseLeave={onL} onClick={() => onMuscleClick?.("shoulders")} />
+      <Region region="shoulders" testId="region-shoulders-back" fill={getFill("shoulders")} opacity={getOpacity("shoulders")} filter={getFilter("shoulders")}
+        onMouseEnter={onE("shoulders")} onMouseLeave={onL} onClick={onC("shoulders")}>
+        <ellipse cx={62} cy={52} rx={14} ry={9} />
+        <ellipse cx={138} cy={52} rx={14} ry={9} />
+      </Region>
 
-        <path data-region="upper-back" data-testid="region-upper-back"
-          d="M62 52 Q58 60 56 72 Q54 84 58 94 Q62 100 70 102 L75 104 L80 102 Q88 100 92 94 Q96 84 94 72 Q92 60 88 52 Q82 48 75 46 Q68 48 62 52 Z"
-          style={gs("upper-back")} onMouseEnter={() => onE("upper-back")} onMouseLeave={onL} onClick={() => onMuscleClick?.("upper-back")} />
+      <Region region="upper-back" testId="region-upper-back" fill={getFill("upper-back")} opacity={getOpacity("upper-back")} filter={getFilter("upper-back")}
+        onMouseEnter={onE("upper-back")} onMouseLeave={onL} onClick={onC("upper-back")}>
+        <rect x={74} y={46} width={52} height={38} rx={7} />
+      </Region>
 
-        <path data-region="lats" data-testid="region-lats"
-          d="M54 96 Q52 112 50 130 Q50 140 54 148 Q58 146 62 138 Q66 126 68 108 Q64 100 56 96 Z
-             M96 96 Q98 112 100 130 Q100 140 96 148 Q92 146 88 138 Q84 126 82 108 Q86 100 94 96 Z"
-          style={gs("lats")} onMouseEnter={() => onE("lats")} onMouseLeave={onL} onClick={() => onMuscleClick?.("lats")} />
+      <Region region="lats" testId="region-lats" fill={getFill("lats")} opacity={getOpacity("lats")} filter={getFilter("lats")}
+        onMouseEnter={onE("lats")} onMouseLeave={onL} onClick={onC("lats")}>
+        <rect x={74} y={86} width={12} height={48} rx={5} />
+        <rect x={114} y={86} width={12} height={48} rx={5} />
+      </Region>
 
-        <path data-region="triceps" data-testid="region-triceps"
-          d="M42 80 Q40 90 38 102 Q36 112 38 118 Q42 116 46 110 Q50 100 52 88 Q50 80 46 80 Z
-             M108 80 Q110 90 112 102 Q114 112 112 118 Q108 116 104 110 Q100 100 98 88 Q100 80 104 80 Z"
-          style={gs("triceps")} onMouseEnter={() => onE("triceps")} onMouseLeave={onL} onClick={() => onMuscleClick?.("triceps")} />
+      <Region region="triceps" testId="region-triceps" fill={getFill("triceps")} opacity={getOpacity("triceps")} filter={getFilter("triceps")}
+        onMouseEnter={onE("triceps")} onMouseLeave={onL} onClick={onC("triceps")}>
+        <rect x={42} y={58} width={12} height={48} rx={6} />
+        <rect x={146} y={58} width={12} height={48} rx={6} />
+      </Region>
 
-        <path data-region="glutes" data-testid="region-glutes"
-          d="M60 180 Q56 192 58 204 Q60 214 68 218 Q72 220 75 218 Q78 220 82 218 Q90 214 92 204 Q94 192 90 180 Q84 184 75 186 Q66 184 60 180 Z"
-          style={gs("glutes")} onMouseEnter={() => onE("glutes")} onMouseLeave={onL} onClick={() => onMuscleClick?.("glutes")} />
+      <Region region="glutes" testId="region-glutes" fill={getFill("glutes")} opacity={getOpacity("glutes")} filter={getFilter("glutes")}
+        onMouseEnter={onE("glutes")} onMouseLeave={onL} onClick={onC("glutes")}>
+        <ellipse cx={88} cy={145} rx={12} ry={10} />
+        <ellipse cx={112} cy={145} rx={12} ry={10} />
+      </Region>
 
-        <path data-region="hamstrings" data-testid="region-hamstrings"
-          d="M64 222 Q62 242 60 265 Q60 280 64 296 Q68 304 72 298 L74 270 L75 240 Q70 224 64 222 Z
-             M86 222 Q88 242 90 265 Q90 280 86 296 Q82 304 78 298 L76 270 L75 240 Q80 224 86 222 Z"
-          style={gs("hamstrings")} onMouseEnter={() => onE("hamstrings")} onMouseLeave={onL} onClick={() => onMuscleClick?.("hamstrings")} />
+      <Region region="hamstrings" testId="region-hamstrings" fill={getFill("hamstrings")} opacity={getOpacity("hamstrings")} filter={getFilter("hamstrings")}
+        onMouseEnter={onE("hamstrings")} onMouseLeave={onL} onClick={onC("hamstrings")}>
+        <rect x={74} y={158} width={18} height={84} rx={8} />
+        <rect x={108} y={158} width={18} height={84} rx={8} />
+      </Region>
 
-        <path data-region="calves" data-testid="region-calves-back"
-          d="M62 320 Q60 338 58 355 Q58 366 62 372 Q66 376 70 370 Q72 356 74 340 Q72 322 66 318 Z
-             M88 320 Q90 338 92 355 Q92 366 88 372 Q84 376 80 370 Q78 356 76 340 Q78 322 84 318 Z"
-          style={gs("calves")} onMouseEnter={() => onE("calves")} onMouseLeave={onL} onClick={() => onMuscleClick?.("calves")} />
+      <Region region="calves" testId="region-calves-back" fill={getFill("calves")} opacity={getOpacity("calves")} filter={getFilter("calves")}
+        onMouseEnter={onE("calves")} onMouseLeave={onL} onClick={onC("calves")}>
+        <rect x={76} y={256} width={14} height={56} rx={7} />
+        <rect x={110} y={256} width={14} height={56} rx={7} />
+      </Region>
+
+      <g className="feet pointer-events-none" fill="hsl(var(--muted-foreground))" opacity="0.08">
+        <ellipse cx={83} cy={318} rx={9} ry={4} />
+        <ellipse cx={117} cy={318} rx={9} ry={4} />
       </g>
 
-      <g className="labels pointer-events-none">
-        {isH("shoulders") && <LabelLine x1={48} y1={64} x2={20} y2={58} label="DELTS" anchor="end" />}
-        {isH("upper-back") && <LabelLine x1={92} y1={76} x2={128} y2={70} label="BACK" anchor="start" />}
-        {isH("lats") && <LabelLine x1={52} y1={125} x2={20} y2={120} label="LATS" anchor="end" />}
-        {isH("triceps") && <LabelLine x1={110} y1={100} x2={132} y2={94} label="TRICEPS" anchor="start" />}
-        {isH("glutes") && <LabelLine x1={90} y1={200} x2={124} y2={196} label="GLUTES" anchor="start" />}
-        {isH("hamstrings") && <LabelLine x1={62} y1={260} x2={28} y2={256} label="HAMS" anchor="end" />}
-        {isH("calves") && <LabelLine x1={90} y1={350} x2={122} y2={346} label="CALVES" anchor="start" />}
-      </g>
-
-      {hov && tp[hov] && <Tooltip x={tp[hov].x} y={tp[hov].y} label={regionLabels[hov] || hov} visible={true} />}
+      {hovered && tp[hovered] && <Tooltip x={tp[hovered][0]} y={tp[hovered][1]} label={regionLabels[hovered] || hovered} />}
     </svg>
   );
 }
@@ -349,13 +336,13 @@ export function BodyMap(props: BodyMapProps & { view?: "front" | "back" | "both"
   if (view === "back") return <BodyMapBack {...mapProps} />;
 
   return (
-    <div className="flex justify-center items-start gap-4 py-3">
+    <div className="flex justify-center items-start gap-6 py-2">
       <div className="text-center">
-        <p className="text-[9px] font-semibold text-foreground/40 mb-1.5 uppercase tracking-[0.2em]">Front</p>
+        <p className="text-[9px] font-semibold text-muted-foreground/50 mb-2 uppercase tracking-[0.15em]">Front</p>
         <BodyMapFront {...mapProps} />
       </div>
       <div className="text-center">
-        <p className="text-[9px] font-semibold text-foreground/40 mb-1.5 uppercase tracking-[0.2em]">Back</p>
+        <p className="text-[9px] font-semibold text-muted-foreground/50 mb-2 uppercase tracking-[0.15em]">Back</p>
         <BodyMapBack {...mapProps} />
       </div>
     </div>
