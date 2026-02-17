@@ -767,42 +767,40 @@ export default function NutritionPage() {
         </div>
       </div>
 
-      <Card className={`card-glow-green rounded-2xl shadow-lg shadow-primary/5 relative overflow-hidden ${allMealsLogged ? 'card-shine' : ''}`} data-testid="card-calorie-summary">
-        <CardContent className="pt-5 pb-5 px-4 relative">
-          <div className="flex items-center justify-between mb-4 gap-4">
-            <div className="text-center flex-1" style={{ animation: 'slideUp 0.5s ease-out' }}>
-              <div className="text-3xl font-bold tracking-tight" data-testid="text-calories-eaten">{summary.calories}</div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium mt-0.5">Eaten</div>
+      {foodLogs.length > 0 && (
+        <div className="flex items-center gap-2 justify-center -mt-1" data-testid="analytics-peek">
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/8 border border-primary/10">
+            <TrendingUp className="w-3 h-3 text-primary" />
+            <span className="text-[10px] font-semibold text-primary">{foodLogs.length} items logged</span>
+          </div>
+          {allMealsLogged && (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/15">
+              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">All meals</span>
             </div>
-            <div className="relative w-28 h-28 flex-shrink-0">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 112 112">
+          )}
+        </div>
+      )}
+
+      <Card className={`card-glow-green rounded-2xl shadow-lg shadow-primary/5 relative overflow-hidden ${allMealsLogged ? 'card-shine' : ''}`} data-testid="card-calorie-summary">
+        <CardContent className="pt-6 pb-5 px-4 relative">
+          <div className="flex flex-col items-center mb-3">
+            <div className="relative flex-shrink-0" style={{ width: 160, height: 160 }}>
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
+                <circle cx="80" cy="80" r="68" stroke="currentColor" strokeWidth="6" fill="none" className="text-muted/15" />
+                <circle cx="80" cy="80" r="68" stroke="currentColor" strokeWidth="6" fill="none" className="text-muted/8" strokeDasharray="4 8" />
                 <circle
-                  cx="56" cy="56" r="48"
-                  stroke="currentColor"
-                  strokeWidth="5"
+                  cx="80" cy="80" r="68"
+                  strokeWidth="8"
                   fill="none"
-                  className="text-muted/20"
-                />
-                <circle
-                  cx="56" cy="56" r="48"
-                  stroke="currentColor"
-                  strokeWidth="5"
-                  fill="none"
-                  className="text-muted/10"
-                  strokeDasharray="4 8"
-                />
-                <circle
-                  cx="56" cy="56" r="48"
-                  strokeWidth="7"
-                  fill="none"
-                  strokeDasharray={`${(caloriePercent / 100) * 301.6} 301.6`}
+                  strokeDasharray={`${(caloriePercent / 100) * 427.3} 427.3`}
                   strokeLinecap="round"
                   className="nutrition-ring-progress"
                   style={{
                     stroke: remaining >= 0 ? 'url(#calorieGradient)' : 'hsl(var(--destructive))',
                     filter: remaining >= 0 
-                      ? `drop-shadow(0 0 ${caloriePercent > 60 ? 8 : 4}px hsl(var(--primary) / ${caloriePercent > 60 ? 0.5 : 0.3}))` 
-                      : 'drop-shadow(0 0 8px hsl(var(--destructive) / 0.5))',
+                      ? `drop-shadow(0 0 ${caloriePercent > 60 ? 10 : 5}px hsl(var(--primary) / ${caloriePercent > 60 ? 0.5 : 0.3}))` 
+                      : 'drop-shadow(0 0 10px hsl(var(--destructive) / 0.5))',
                     transition: 'stroke-dasharray 0.8s ease-out, filter 0.5s ease',
                   }}
                 />
@@ -815,59 +813,33 @@ export default function NutritionPage() {
                 </defs>
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <div className="text-center">
-                  <Flame 
-                    className={`w-4 h-4 mx-auto text-orange-500 ${caloriePercent > 0 ? 'streak-flame' : ''}`}
-                  />
-                  <div className="text-base font-bold leading-none mt-0.5" data-testid="text-calorie-percent">
-                    {Math.round(caloriePercent)}%
-                  </div>
-                  <div className="text-[8px] text-muted-foreground mt-0.5">of {calorieGoal}</div>
+                <Flame className={`w-4 h-4 text-orange-500 ${caloriePercent > 0 ? 'streak-flame' : ''}`} />
+                <div className="text-3xl font-bold tracking-tight mt-0.5 leading-none" data-testid="text-calories-eaten">{summary.calories}</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium mt-1">of {calorieGoal} cal</div>
+                <div className={`text-xs font-semibold mt-1 ${remaining < 0 ? "text-destructive" : "text-muted-foreground"}`} data-testid="text-calories-remaining">
+                  {remaining >= 0 ? `${remaining} left` : `${Math.abs(remaining)} over`}
                 </div>
               </div>
             </div>
-            <div className="text-center flex-1" style={{ animation: 'slideUp 0.5s ease-out 0.15s both' }}>
-              <div className={`text-3xl font-bold tracking-tight ${remaining < 0 ? "text-destructive" : ""}`} data-testid="text-calories-remaining">
-                {Math.abs(remaining)}
-              </div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium mt-0.5">
-                {remaining >= 0 ? "Remaining" : "Over"}
-              </div>
-            </div>
-          </div>
 
-          {(() => {
-            const StatusIcon = calorieStatus.icon;
-            return (
-              <div 
-                className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full ${calorieStatus.bg} mb-4`}
-                style={{ animation: 'fadeIn 0.6s ease-out 0.3s both' }}
-                data-testid="text-calorie-status"
-              >
-                <StatusIcon className={`w-3 h-3 ${calorieStatus.color}`} style={calorieStatus.glow ? { animation: 'breathe 2s ease-in-out infinite' } : undefined} />
-                <span className={`text-[11px] font-semibold ${calorieStatus.color}`}>{calorieStatus.label}</span>
-                {calorieStatus.glow && <span className="pulse-dot ml-1" />}
-              </div>
-            );
-          })()}
-
-          <div className="flex items-center justify-center gap-1.5 py-2 px-3 bg-gradient-to-r from-red-500/8 via-red-500/12 to-red-500/8 rounded-xl border border-red-500/10" style={{ animation: 'slideUp 0.5s ease-out 0.4s both' }}>
-            <div className="p-1.5 rounded-lg bg-red-500/15">
-              <Beef className="w-3.5 h-3.5 text-red-500" />
-            </div>
-            <span className="text-xs font-semibold">
-              Protein: <span className="text-red-500">{totalProteinToday}g</span>
-              {goalData?.dailyProteinTarget && (
-                <span className="text-muted-foreground font-normal"> / {proteinGoal}g</span>
-              )}
-            </span>
-            {goalData?.dailyProteinTarget && totalProteinToday >= proteinGoal && (
-              <Badge variant="default" className="text-[9px] px-1.5 py-0 bg-emerald-600 dark:bg-emerald-700 no-default-hover-elevate no-default-active-elevate ml-auto" style={{ animation: 'checkPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' }}>Hit</Badge>
-            )}
+            {(() => {
+              const StatusIcon = calorieStatus.icon;
+              return (
+                <div 
+                  className={`flex items-center justify-center gap-1.5 py-1.5 px-4 rounded-full ${calorieStatus.bg} mt-2`}
+                  style={{ animation: 'fadeIn 0.6s ease-out 0.3s both' }}
+                  data-testid="text-calorie-status"
+                >
+                  <StatusIcon className={`w-3 h-3 ${calorieStatus.color}`} style={calorieStatus.glow ? { animation: 'breathe 2s ease-in-out infinite' } : undefined} />
+                  <span className={`text-[11px] font-semibold ${calorieStatus.color}`}>{calorieStatus.label}</span>
+                  {calorieStatus.glow && <span className="pulse-dot ml-1" />}
+                </div>
+              );
+            })()}
           </div>
 
           {healthStatus?.connected && healthData?.caloriesBurned && (
-            <div className="flex items-center justify-center gap-1.5 mt-2 py-2 px-3 bg-gradient-to-r from-orange-500/8 via-orange-500/12 to-orange-500/8 rounded-xl border border-orange-500/10">
+            <div className="flex items-center justify-center gap-1.5 mb-3 py-2 px-3 bg-gradient-to-r from-orange-500/8 via-orange-500/12 to-orange-500/8 rounded-xl border border-orange-500/10">
               <div className="p-1.5 rounded-lg bg-orange-500/15">
                 <Watch className="w-3.5 h-3.5 text-orange-500" />
               </div>
@@ -879,14 +851,103 @@ export default function NutritionPage() {
               </span>
             </div>
           )}
+
+          <div className="space-y-2.5 pt-3 border-t border-border/30">
+            <InlineMacroBar label="Protein" value={summary.protein} goal={proteinGoal} color="#ef4444" icon={Beef} />
+            <InlineMacroBar label="Carbs" value={summary.carbs} goal={carbsGoal} color="#f59e0b" icon={Wheat} />
+            <InlineMacroBar label="Fat" value={summary.fat} goal={fatGoal} color="#3b82f6" icon={Droplet} />
+          </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-3 gap-2" style={{ animation: 'slideUp 0.5s ease-out 0.5s both' }}>
-        <MacroProgress label="Protein" value={summary.protein} goal={proteinGoal} percent={proteinPercent} icon={Beef} color="text-red-500" bgColor="bg-red-500" />
-        <MacroProgress label="Carbs" value={summary.carbs} goal={carbsGoal} percent={carbsPercent} icon={Wheat} color="text-amber-500" bgColor="bg-amber-500" />
-        <MacroProgress label="Fat" value={summary.fat} goal={fatGoal} percent={fatPercent} icon={Droplet} color="text-blue-500" bgColor="bg-blue-500" />
-      </div>
+      {calorieGoal > 0 && summary.calories > 0 && (
+        <div className="space-y-2" data-testid="section-calorie-budget">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Calorie Budget</span>
+            <span className="text-[10px] text-muted-foreground font-medium">{summary.calories} / {calorieGoal} cal</span>
+          </div>
+          <div className="h-3 rounded-full bg-muted/20 overflow-hidden flex">
+            {(() => {
+              const mealColors: Record<string, string> = { breakfast: '#f59e0b', lunch: '#3b82f6', dinner: '#8b5cf6', snack: '#10b981' };
+              const segments = MEAL_TYPES.map(meal => {
+                const cals = groupedLogs[meal]?.reduce((s: number, l: any) => s + l.calories, 0) || 0;
+                return { meal, cals, pct: calorieGoal > 0 ? Math.min((cals / calorieGoal) * 100, 100) : 0 };
+              }).filter(s => s.cals > 0);
+              const totalPct = segments.reduce((s, seg) => s + seg.pct, 0);
+              const scale = totalPct > 100 ? 100 / totalPct : 1;
+              return segments.map((seg, i) => (
+                <div
+                  key={seg.meal}
+                  className="h-full transition-all duration-700 ease-out first:rounded-l-full last:rounded-r-full"
+                  style={{
+                    width: `${seg.pct * scale}%`,
+                    backgroundColor: mealColors[seg.meal] || '#6b7280',
+                    marginLeft: i > 0 ? '1px' : undefined,
+                  }}
+                  title={`${seg.meal}: ${seg.cals} cal`}
+                />
+              ));
+            })()}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {[
+              { meal: 'breakfast', label: 'B', color: '#f59e0b' },
+              { meal: 'lunch', label: 'L', color: '#3b82f6' },
+              { meal: 'dinner', label: 'D', color: '#8b5cf6' },
+              { meal: 'snack', label: 'S', color: '#10b981' },
+            ].map(({ meal, label, color }) => {
+              const cals = groupedLogs[meal]?.reduce((s: number, l: any) => s + l.calories, 0) || 0;
+              if (cals === 0) return null;
+              return (
+                <div key={meal} className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                  <span className="text-[10px] text-muted-foreground">{label}: {cals}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {(() => {
+        const proteinPct = proteinGoal > 0 ? (summary.protein / proteinGoal) * 100 : 0;
+        const hour = new Date().getHours();
+        let insight = '';
+        let insightIcon = '💡';
+        
+        if (summary.calories === 0) {
+          insight = hour < 12 ? "Start your day with a balanced breakfast!" : "Log your first meal to track your progress.";
+          insightIcon = '🌅';
+        } else if (remaining < 0) {
+          insight = `You're ${Math.abs(remaining)} cal over your goal. Consider lighter meals for the rest of the day.`;
+          insightIcon = '⚠️';
+        } else if (remaining > 0 && remaining < 200 && caloriePercent > 85) {
+          insight = `Almost there! Just ${remaining} cal left — a light snack would round out your day.`;
+          insightIcon = '🎯';
+        } else if (proteinPct >= 100) {
+          insight = "Great job hitting your protein target today!";
+          insightIcon = '💪';
+        } else if (proteinPct < 50 && hour > 15) {
+          insight = `You've had ${summary.protein}g protein. Consider a protein-rich dinner or shake.`;
+          insightIcon = '🥩';
+        } else if (caloriePercent > 50 && caloriePercent < 80) {
+          insight = `You're on pace. About ${remaining} cal left for ${hour < 15 ? 'lunch and dinner' : 'dinner'}.`;
+          insightIcon = '✅';
+        } else if (caloriePercent <= 30 && hour > 14) {
+          insight = "You're eating light today — make sure to get enough nutrients!";
+          insightIcon = '🍽️';
+        } else {
+          insight = `Keep logging! You've tracked ${summary.calories} cal so far.`;
+          insightIcon = '📊';
+        }
+
+        return (
+          <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-gradient-to-r from-primary/5 via-primary/8 to-primary/5 border border-primary/10" data-testid="card-smart-insight">
+            <span className="text-sm mt-0.5 shrink-0">{insightIcon}</span>
+            <p className="text-xs text-muted-foreground leading-relaxed">{insight}</p>
+          </div>
+        );
+      })()}
 
       {recentFoods.length > 0 && (
         <div data-testid="section-quick-relog" style={{ animation: 'slideUp 0.4s ease-out 0.3s both' }}>
@@ -919,15 +980,22 @@ export default function NutritionPage() {
                   });
                 }}
                 disabled={logFoodMutation.isPending}
-                className="flex-shrink-0 flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl border border-border/50 bg-gradient-to-br from-card to-muted/20 shadow-sm hover-elevate active:scale-[0.97] transition-transform"
+                className="flex-shrink-0 flex flex-col gap-1.5 px-3.5 py-3 rounded-2xl border border-border/50 bg-gradient-to-br from-card to-muted/20 shadow-sm hover-elevate active:scale-[0.97] transition-transform min-w-[120px]"
                 data-testid={`button-quick-relog-${i}`}
               >
-                <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Plus className="w-3 h-3 text-primary" />
+                <div className="flex items-center gap-2 w-full">
+                  <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Plus className="w-3 h-3 text-primary" />
+                  </div>
+                  <p className="text-xs font-semibold truncate max-w-[80px] text-left">{food.foodName || food.food_name}</p>
                 </div>
-                <div className="text-left">
-                  <p className="text-xs font-semibold truncate max-w-[100px]">{food.foodName || food.food_name}</p>
-                  <p className="text-[10px] text-muted-foreground font-medium">{food.calories} cal</p>
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-[10px] font-bold">{food.calories} cal</span>
+                  <div className="flex items-center gap-1">
+                    {(food.protein || 0) > 0 && <div className="w-1.5 h-1.5 rounded-full bg-red-400" title={`P: ${food.protein}g`} />}
+                    {(food.carbs || 0) > 0 && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" title={`C: ${food.carbs}g`} />}
+                    {(food.fat || 0) > 0 && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" title={`F: ${food.fat}g`} />}
+                  </div>
                 </div>
               </button>
             ))}
@@ -944,77 +1012,104 @@ export default function NutritionPage() {
 
       <Card className="card-glow-blue rounded-2xl shadow-sm relative overflow-hidden" data-testid="card-water-tracker" style={{ animation: 'slideUp 0.4s ease-out 0.5s both' }}>
         <CardContent className="pt-4 pb-4 px-4 relative">
-          <div className="flex items-center gap-4">
-            {(() => {
-              const waterOz = waterData?.totalOz || 0;
-              const waterGoal = 64;
-              const waterPercent = Math.min((waterOz / waterGoal) * 100, 100);
-              const wSize = 72;
-              const wStroke = 5;
-              const wRadius = (wSize - wStroke) / 2;
-              const wCircumference = 2 * Math.PI * wRadius;
-              const wOffset = wCircumference - (waterPercent / 100) * wCircumference;
-              const isFull = waterOz >= waterGoal;
-              const waterColor = isFull ? "#10b981" : "#3b82f6";
-              return (
-                <div className="relative flex-shrink-0" style={{ width: wSize, height: wSize }}>
-                  <svg width={wSize} height={wSize} className="-rotate-90">
-                    <circle cx={wSize / 2} cy={wSize / 2} r={wRadius} fill="none" stroke="currentColor" strokeWidth={wStroke} className="text-muted/20" />
-                    <circle cx={wSize / 2} cy={wSize / 2} r={wRadius} fill="none" stroke={waterColor} strokeWidth={wStroke + 1} strokeDasharray={wCircumference} strokeDashoffset={wOffset} strokeLinecap="round" className="transition-all duration-1000 ease-out" style={{ filter: `drop-shadow(0 0 4px ${waterColor}50)` }} />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+          {(() => {
+            const waterOz = waterData?.totalOz || 0;
+            const waterGoal = 64;
+            const waterPercent = Math.min((waterOz / waterGoal) * 100, 100);
+            const isFull = waterOz >= waterGoal;
+            const glassCount = 8;
+            const ozPerGlass = waterGoal / glassCount;
+            const filledGlasses = Math.min(Math.floor(waterOz / ozPerGlass), glassCount);
+            const partialFill = ((waterOz % ozPerGlass) / ozPerGlass);
+            return (
+              <>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2">
                     <Droplets className="w-4 h-4 text-blue-500" style={{ animation: waterOz > 0 ? 'breathe 3s ease-in-out infinite' : undefined }} />
-                    <span className="text-[9px] font-bold mt-0.5 tabular-nums" data-testid="text-water-ring-percent">{Math.round(waterPercent)}%</span>
+                    <span className="text-sm font-bold">Water</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold tabular-nums">
+                      {waterOz}<span className="text-muted-foreground font-normal">oz / {waterGoal}oz</span>
+                    </span>
+                    {isFull && (
+                      <Badge variant="default" className="text-[9px] px-1.5 py-0 bg-blue-600 dark:bg-blue-700 no-default-hover-elevate no-default-active-elevate" style={{ animation: 'checkPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' }}>Full</Badge>
+                    )}
                   </div>
                 </div>
-              );
-            })()}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2 mb-2.5">
-                <span className="text-sm font-bold">Water</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold tabular-nums">
-                    {waterData?.totalOz || 0}<span className="text-muted-foreground font-normal">oz / 64oz</span>
-                  </span>
-                  {(waterData?.totalOz || 0) >= 64 && (
-                    <Badge variant="default" className="text-[9px] px-1.5 py-0 bg-blue-600 dark:bg-blue-700 no-default-hover-elevate no-default-active-elevate" style={{ animation: 'checkPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' }}>Full</Badge>
-                  )}
+                <div className="flex items-end justify-center gap-1.5 mb-3 py-2">
+                  {Array.from({ length: glassCount }).map((_, i) => {
+                    const filled = i < filledGlasses;
+                    const isPartial = i === filledGlasses && partialFill > 0;
+                    const fillHeight = filled ? 100 : isPartial ? partialFill * 100 : 0;
+                    return (
+                      <div key={i} className="relative flex flex-col items-center">
+                        <div
+                          className="w-5 h-8 rounded-b-md border-2 relative overflow-hidden transition-all duration-500"
+                          style={{
+                            borderColor: filled ? '#3b82f6' : isPartial ? '#93c5fd' : 'hsl(var(--border))',
+                          }}
+                          data-testid={`water-glass-${i}`}
+                        >
+                          <div
+                            className="absolute bottom-0 left-0 right-0 transition-all duration-700 ease-out rounded-b-[2px]"
+                            style={{
+                              height: `${fillHeight}%`,
+                              background: filled ? 'linear-gradient(to top, #2563eb, #60a5fa)' : 'linear-gradient(to top, #93c5fd, #bfdbfe)',
+                              opacity: fillHeight > 0 ? 1 : 0,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-              <div className="grid grid-cols-4 gap-1.5">
-                {[{ oz: 8, label: "8oz" }, { oz: 12, label: "12oz" }, { oz: 16, label: "16oz" }, { oz: 24, label: "24oz" }].map(({ oz, label }) => (
+                <div className="w-full h-2 rounded-full bg-muted/20 overflow-hidden mb-3">
+                  <div
+                    className="h-full rounded-full transition-all duration-1000 ease-out"
+                    style={{
+                      width: `${waterPercent}%`,
+                      background: isFull ? 'linear-gradient(90deg, #10b981, #34d399)' : 'linear-gradient(90deg, #2563eb, #60a5fa)',
+                      boxShadow: `0 0 8px ${isFull ? '#10b98140' : '#3b82f640'}`,
+                    }}
+                    data-testid="text-water-ring-percent"
+                  />
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[{ oz: 8, label: "8oz" }, { oz: 12, label: "12oz" }, { oz: 16, label: "16oz" }, { oz: 24, label: "24oz" }].map(({ oz, label }) => (
+                    <Button
+                      key={oz}
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl text-[11px] px-0"
+                      onClick={() => addWaterMutation.mutate(oz)}
+                      disabled={addWaterMutation.isPending}
+                      data-testid={`button-add-water-${oz}`}
+                    >
+                      <Plus className="w-3 h-3 mr-0.5" />
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                {waterData?.logs && waterData.logs.length > 0 && (
                   <Button
-                    key={oz}
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="rounded-xl text-[11px] px-0"
-                    onClick={() => addWaterMutation.mutate(oz)}
-                    disabled={addWaterMutation.isPending}
-                    data-testid={`button-add-water-${oz}`}
+                    className="mt-1.5 text-muted-foreground text-[11px]"
+                    onClick={() => {
+                      const lastLog = waterData.logs[waterData.logs.length - 1];
+                      if (lastLog) deleteWaterMutation.mutate(lastLog.id);
+                    }}
+                    disabled={deleteWaterMutation.isPending}
+                    data-testid="button-undo-water"
                   >
-                    <Plus className="w-3 h-3 mr-0.5" />
-                    {label}
+                    <Undo2 className="w-3 h-3 mr-0.5" />
+                    Undo last
                   </Button>
-                ))}
-              </div>
-              {waterData?.logs && waterData.logs.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-1.5 text-muted-foreground text-[11px]"
-                  onClick={() => {
-                    const lastLog = waterData.logs[waterData.logs.length - 1];
-                    if (lastLog) deleteWaterMutation.mutate(lastLog.id);
-                  }}
-                  disabled={deleteWaterMutation.isPending}
-                  data-testid="button-undo-water"
-                >
-                  <Undo2 className="w-3 h-3 mr-0.5" />
-                  Undo last
-                </Button>
-              )}
-            </div>
-          </div>
+                )}
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
 
@@ -1058,7 +1153,19 @@ export default function NutritionPage() {
                 <div>
                   <CardTitle className="text-sm font-bold">{MEAL_LABELS[meal]}</CardTitle>
                   {hasFood && (
-                    <span className="text-[10px] text-muted-foreground font-medium" data-testid={`text-meal-cal-${meal}`}>{mealCalories} cal logged</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] text-muted-foreground font-medium" data-testid={`text-meal-cal-${meal}`}>{mealCalories} cal</span>
+                      <span className="text-[10px] text-muted-foreground/40">·</span>
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        P:{groupedLogs[meal].reduce((s, l) => s + (l.protein || 0), 0)}g
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        C:{groupedLogs[meal].reduce((s, l) => s + (l.carbs || 0), 0)}g
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        F:{groupedLogs[meal].reduce((s, l) => s + (l.fat || 0), 0)}g
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1104,6 +1211,11 @@ export default function NutritionPage() {
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
+                        {log.createdAt && (
+                          <span className="text-muted-foreground/60 mr-1">
+                            {new Date(log.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                          </span>
+                        )}
                         {log.quantity > 1 && `${log.quantity}x `}
                         {log.servingSize || "1 serving"}
                         {log.brandName && ` · ${log.brandName}`}
@@ -2684,50 +2796,35 @@ function NutritionAnalytics() {
   );
 }
 
-function MacroProgress({ label, value, goal, percent, icon: Icon, color, bgColor }: { 
-  label: string; 
-  value: number; 
-  goal: number; 
-  percent: number; 
-  icon: any; 
+function InlineMacroBar({ label, value, goal, color, icon: Icon }: {
+  label: string;
+  value: number;
+  goal: number;
   color: string;
-  bgColor: string;
+  icon: any;
 }) {
-  const clampedPercent = Math.min(Math.max(percent, 0), 100);
+  const percent = Math.min((value / (goal || 1)) * 100, 100);
   const isOver = value > goal && goal > 0;
-
-  const colorMap: Record<string, string> = {
-    "text-red-500": "#ef4444",
-    "text-amber-500": "#f59e0b",
-    "text-blue-500": "#3b82f6",
-  };
-  const barColor = isOver ? "#ef4444" : (colorMap[color] || "#10b981");
-
-  const bgMap: Record<string, string> = {
-    "bg-red-500": "from-red-500/5 to-red-500/10",
-    "bg-amber-500": "from-amber-500/5 to-amber-500/10",
-    "bg-blue-500": "from-blue-500/5 to-blue-500/10",
-  };
-  const cardBg = bgMap[bgColor] || "from-muted/10 to-muted/20";
+  const barColor = isOver ? "#ef4444" : color;
 
   return (
-    <div className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-gradient-to-br ${cardBg} border border-border/30`} data-testid={`macro-ring-${label.toLowerCase()}`}>
-      <div className={`p-1.5 rounded-xl ${bgColor}/15`}>
-        <Icon className={`w-4 h-4 ${isOver ? "text-red-500" : color}`} />
+    <div className="flex items-center gap-3" data-testid={`macro-bar-${label.toLowerCase()}`}>
+      <div className="flex items-center gap-1.5 w-[72px] shrink-0">
+        <Icon className="w-3.5 h-3.5" style={{ color: barColor }} />
+        <span className="text-[11px] font-semibold text-muted-foreground">{label}</span>
       </div>
-      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
-      <div className="w-full h-1.5 rounded-full bg-muted/30 overflow-hidden">
-        <div 
+      <div className="flex-1 h-2 rounded-full bg-muted/25 overflow-hidden">
+        <div
           className="h-full rounded-full transition-all duration-1000 ease-out"
-          style={{ 
-            width: `${clampedPercent}%`, 
+          style={{
+            width: `${percent}%`,
             backgroundColor: barColor,
-            boxShadow: `0 0 6px ${barColor}40`
-          }} 
+            boxShadow: `0 0 6px ${barColor}30`,
+          }}
         />
       </div>
-      <div className="leading-none text-center">
-        <span className={`text-sm font-bold tabular-nums ${isOver ? "text-red-500" : ""}`} data-testid={`text-macro-ring-${label.toLowerCase()}-percent`}>{value}g</span>
+      <div className="w-[72px] text-right shrink-0">
+        <span className={`text-xs font-bold tabular-nums ${isOver ? "text-red-500" : ""}`}>{value}g</span>
         <span className="text-[10px] text-muted-foreground"> / {goal}g</span>
       </div>
     </div>
