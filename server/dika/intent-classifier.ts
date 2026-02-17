@@ -87,9 +87,18 @@ export async function classifyAnalyticsIntent(
     { pattern: /match\s+(?:frequency|history|trend|log|stats)/i, intent: "match_frequency_trend" },
     { pattern: /how\s+many\s+(?:match|game)/i, intent: "match_frequency_trend" },
     { pattern: /(?:sport|match)\s+(?:performance|recovery|correlation)/i, intent: "sport_performance_correlation" },
-    { pattern: /(?:compare|comparison|vs|versus)\s+(?:this|last|previous)\s+(?:month|week|period)/i, intent: "period_comparison" },
+    { pattern: /(?:compare|comparison|vs|versus)\s+(?:my\s+)?(?:this|last|previous)\s+(?:\d+\s+)?(?:month|week|period|day)/i, intent: "period_comparison" },
+    { pattern: /compare\s+(?:my\s+)?(?:last|past)\s+\d+\s+(?:week|month|day)/i, intent: "period_comparison" },
+    { pattern: /which\s+week\s+was\s+(?:my\s+)?(?:strong|best|worst|busiest)/i, intent: "period_comparison" },
     { pattern: /this\s+month\s+(?:vs|compared\s+to|versus)\s+last/i, intent: "period_comparison" },
     { pattern: /(?:month|week)\s+over\s+(?:month|week)/i, intent: "period_comparison" },
+    { pattern: /(?:when|what\s+day|which\s+day)\s+(?:do\s+i\s+)?(?:usually\s+)?(?:skip|miss)\s+(?:my\s+)?(?:workout|training|gym|session)/i, intent: "day_of_week_patterns" },
+    { pattern: /(?:skip|miss)\s+(?:my\s+)?(?:workout|training|gym)/i, intent: "workout_completion_rate" },
+    { pattern: /(?:what|how).{0,20}(?:trend|progress|pattern).{0,20}(?:recovery|sleep|rest)/i, intent: "recovery_score_history" },
+    { pattern: /(?:last|past)\s+\d+\s+(?:day|week|month).{0,30}(?:muscle|undertraining|overtrain)/i, intent: "muscle_volume_analysis" },
+    { pattern: /(?:muscle\s+group|body\s+part).{0,20}(?:undertraining|neglect|miss|skip|weak)/i, intent: "muscle_volume_analysis" },
+    { pattern: /(?:strength|how\s+(?:has\s+)?(?:my\s+)?strength)\s+(?:has\s+)?(?:progressed|improved|changed)/i, intent: "strength_progression" },
+    { pattern: /(?:how\s+(?:is|has)\s+my)\s+(?:training|workout|fitness)\s+(?:going|been|progress)/i, intent: "workout_frequency_trend" },
   ];
 
   if (isOwner) {

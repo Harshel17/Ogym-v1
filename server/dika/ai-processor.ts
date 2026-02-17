@@ -1843,6 +1843,92 @@ export async function processWithAI(
     }
   }
   
+  // --- Analytics Intent Detection (runs early to avoid being hijacked by specialized handlers) ---
+  try {
+    const classifiedIntent = await classifyAnalyticsIntent(message, role);
+    if (classifiedIntent && classifiedIntent.confidence >= 0.6) {
+      console.log(`[Dika Analytics] Intent: ${classifiedIntent.intent}, confidence: ${classifiedIntent.confidence}, params:`, classifiedIntent.params);
+      const analyticsResult = await executeAnalytics(classifiedIntent.intent, userId, gymId, classifiedIntent.params);
+      if (analyticsResult) {
+        console.log(`[Dika Analytics] Computed: ${analyticsResult.type}, summary length: ${analyticsResult.summary.length}`);
+        
+        const cached = getCachedContext(userId, role, gymId);
+        let userContext: UserContext;
+        let dataContext: MemberContext | OwnerContext | TrainerContext;
+        if (cached) {
+          userContext = cached.userContext;
+          dataContext = cached.data;
+        } else {
+          const [user] = await db.select({ username: users.username }).from(users).where(eq(users.id, userId));
+          const [profile] = await db.select({ fullName: userProfiles.fullName }).from(userProfiles).where(eq(userProfiles.userId, userId));
+          let gymName: string | undefined;
+          let gymCurrency: string | undefined;
+          if (gymId) {
+            const [gym] = await db.select({ name: gyms.name, currency: gyms.currency }).from(gyms).where(eq(gyms.id, gymId));
+            if (gym) { gymName = gym.name; gymCurrency = gym.currency || undefined; }
+          }
+          userContext = { role, gymId, userId, userName: profile?.fullName || user?.username || 'User', gymName, gymCurrency };
+          if (role === 'owner' && gymId) {
+            dataContext = await getOwnerDataContext(gymId);
+          } else if (role === 'trainer' && gymId) {
+            dataContext = await getTrainerDataContext(userId, gymId);
+          } else {
+            dataContext = await getMemberDataContext(userId, gymId, localDate);
+          }
+          setCachedContext(userId, role, gymId, dataContext, userContext);
+        }
+
+        let systemPrompt = buildSystemPrompt(userContext, dataContext, isIOSNative);
+        const analyticsInjection = `\n\n--- COMPUTED ANALYTICS DATA (use this to answer the user's question) ---\nAnalysis type: ${analyticsResult.type}\nSummary: ${analyticsResult.summary}\nDetailed data: ${JSON.stringify(analyticsResult.data, null, 0).slice(0, 2000)}\n--- END ANALYTICS DATA ---\n\nIMPORTANT: The above analytics data was computed from real historical records. Use it to give a specific, data-driven answer. Reference actual numbers, percentages, and trends. Don't make up numbers — only use what's provided above. Be conversational but precise.`;
+        systemPrompt += analyticsInjection;
+
+        const historyMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+        if (conversationHistory && conversationHistory.length > 0) {
+          const recentHistory = conversationHistory.slice(-6);
+          for (const msg of recentHistory) {
+            const cleanContent = msg.content
+              .replace(/<!-- MEAL_LOG_DATA:[\s\S]+? -->/g, '[meal logged]')
+              .replace(/<!-- DIKA_ACTION_DATA:[\s\S]+? -->/g, '[action taken]')
+              .replace(/<!-- WEEKLY_REPORT_DATA:[\s\S]+? -->/g, '[report generated]')
+              .replace(/<!-- WORKOUT_PLAN_DATA:[\s\S]+? -->/g, '[workout plan]')
+              .replace(/<!-- DIKA_FIND_FOOD -->/g, '[food search]')
+              .replace(/<!-- PENDING_BODY_MEASUREMENT:[\s\S]+? -->/g, '[awaiting confirmation]')
+              .replace(/<!-- PENDING_EXERCISE_SWAP:[\s\S]+? -->/g, '[awaiting swap choice]')
+              .replace(/<!-- PENDING_GOAL:[\s\S]+? -->/g, '[awaiting goal confirmation]')
+              .replace(/<!-- PENDING_MEAL_SUGGESTION:[\s\S]+? -->/g, '[meal suggestions shown]')
+              .replace(/<!-- PENDING_MATCH_LOG:[\s\S]+? -->/g, '');
+            historyMessages.push({ role: msg.role, content: cleanContent });
+          }
+        }
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...historyMessages,
+            { role: "user", content: message }
+          ],
+          max_completion_tokens: 700,
+        });
+
+        let rawAnswer = response.choices[0]?.message?.content || "I'm having trouble understanding that. Could you rephrase?";
+        let followUpChips: string[] = [];
+        const chipMatch = rawAnswer.match(/\[chips?:\s*"([^"]+)"(?:\s*,\s*"([^"]+)")?(?:\s*,\s*"([^"]+)")?\s*\]/i);
+        if (chipMatch) {
+          followUpChips = [chipMatch[1], chipMatch[2], chipMatch[3]].filter(Boolean) as string[];
+          rawAnswer = rawAnswer.replace(/\n?\[chips?:\s*"[^"]+".+?\]/i, '').trim();
+        }
+        if (followUpChips.length === 0) {
+          followUpChips = generateFollowUpChips(role, message, rawAnswer, gymId, isIOSNative);
+        }
+        return { answer: rawAnswer, followUpChips };
+      }
+    }
+  } catch (error) {
+    console.error('[Dika Analytics] Intent classification or computation failed:', error);
+  }
+  // --- End Analytics Intent Detection ---
+
   if (role === 'member') {
     const pendingMealContext = detectPendingMealFromHistory(conversationHistory);
     if (pendingMealContext) {
@@ -2177,27 +2263,8 @@ export async function processWithAI(
 
     setCachedContext(userId, role, gymId, dataContext, userContext);
   }
-  
-  let analyticsResult: AnalyticsResult | null = null;
-  try {
-    const classifiedIntent = await classifyAnalyticsIntent(message, role);
-    if (classifiedIntent && classifiedIntent.confidence >= 0.6) {
-      console.log(`[Dika Analytics] Intent: ${classifiedIntent.intent}, confidence: ${classifiedIntent.confidence}`);
-      analyticsResult = await executeAnalytics(classifiedIntent.intent, userId, gymId, classifiedIntent.params);
-      if (analyticsResult) {
-        console.log(`[Dika Analytics] Computed: ${analyticsResult.type}, summary length: ${analyticsResult.summary.length}`);
-      }
-    }
-  } catch (error) {
-    console.error('[Dika Analytics] Intent classification or computation failed:', error);
-  }
 
   let systemPrompt = buildSystemPrompt(userContext, dataContext, isIOSNative);
-
-  if (analyticsResult) {
-    const analyticsInjection = `\n\n--- COMPUTED ANALYTICS DATA (use this to answer the user's question) ---\nAnalysis type: ${analyticsResult.type}\nSummary: ${analyticsResult.summary}\nDetailed data: ${JSON.stringify(analyticsResult.data, null, 0).slice(0, 2000)}\n--- END ANALYTICS DATA ---\n\nIMPORTANT: The above analytics data was computed from real historical records. Use it to give a specific, data-driven answer. Reference actual numbers, percentages, and trends. Don't make up numbers — only use what's provided above. Be conversational but precise.`;
-    systemPrompt += analyticsInjection;
-  }
   
   try {
     const historyMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
@@ -2219,8 +2286,6 @@ export async function processWithAI(
       }
     }
 
-    const maxTokens = analyticsResult ? 700 : 500;
-
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -2228,7 +2293,7 @@ export async function processWithAI(
         ...historyMessages,
         { role: "user", content: message }
       ],
-      max_completion_tokens: maxTokens,
+      max_completion_tokens: 500,
     });
     
     let rawAnswer = response.choices[0]?.message?.content || "I'm having trouble understanding that. Could you rephrase?";
