@@ -15,9 +15,10 @@ import {
   memberSubscriptions,
   healthData,
   sportProfiles,
-  sportPrograms
+  sportPrograms,
+  matchLogs
 } from "@shared/schema";
-import { eq, and, gte, lte, desc, sql, inArray, isNull, or } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, inArray, isNull, or, not, count } from "drizzle-orm";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
 import { detectWorkoutGenerationRequest, generateWorkoutPlan } from "./workout-generator";
 import { detectMealLogRequest, parseMealFromMessage, logMealForUser, getTodayNutritionSummary, formatMealLogResponse, detectRestaurantInMessage, looksLikeRestaurantFood } from "./meal-logger";
@@ -57,6 +58,267 @@ export function detectFindFoodRequest(message: string): boolean {
     /search\s+(for\s+)?(food|restaurant)/i,
   ];
   return patterns.some(p => p.test(message));
+}
+
+const MATCH_LOG_PATTERNS = [
+  /i\s+(?:have|got|has)\s+(?:a\s+)?(?:match|game|tournament|bout|fight|meet)\s+(?:tomorrow|today|yesterday|coming up|this weekend|on\s+\w+day)/i,
+  /(?:match|game|tournament|bout|fight|meet)\s+(?:is\s+)?(?:tomorrow|today|yesterday|coming up|this weekend|on\s+\w+day)/i,
+  /(?:playing|play|played)\s+(?:a\s+)?(?:match|game|tournament)/i,
+  /(?:just\s+)?(?:played|finished|done\s+with|came\s+back\s+from|had)\s+(?:a\s+)?(?:match|game|my\s+game|my\s+match|the\s+game|the\s+match)/i,
+  /(?:log|record|add)\s+(?:a\s+|my\s+)?(?:match|game)/i,
+  /(?:match|game)\s+(?:day|tonight|this\s+(?:morning|evening|afternoon))/i,
+  /(?:tomorrow|today|yesterday)\s+(?:is|was)\s+(?:match|game)\s+day/i,
+  /(?:i'm|im|i\s+am)\s+(?:playing|going\s+to\s+play)\s+(?:a\s+)?(?:match|game|my\s+game|my\s+match)/i,
+  /(?:we\s+)?(?:have|got)\s+(?:a\s+)?(?:match|game)\s+(?:at|in|on)/i,
+];
+
+function detectMatchLogRequest(message: string): boolean {
+  const lower = message.toLowerCase().trim();
+  if (lower.length < 8) return false;
+  const nonMatchKeywords = [
+    'how many matches', 'match history', 'match stats', 'my matches',
+    'when was my last', 'how did my match', 'show me my match',
+  ];
+  if (nonMatchKeywords.some(kw => lower.includes(kw))) return false;
+  return MATCH_LOG_PATTERNS.some(p => p.test(lower));
+}
+
+function detectPendingMatchFlow(
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+): boolean {
+  if (!conversationHistory || conversationHistory.length < 1) return false;
+  const lastAssistant = [...conversationHistory].reverse().find(m => m.role === 'assistant');
+  if (!lastAssistant) return false;
+  return lastAssistant.content.includes('<!-- PENDING_MATCH_LOG:');
+}
+
+function extractPendingMatchData(
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+): any | null {
+  if (!conversationHistory) return null;
+  const lastAssistant = [...conversationHistory].reverse().find(m => m.role === 'assistant');
+  if (!lastAssistant) return null;
+  const match = lastAssistant.content.match(/<!-- PENDING_MATCH_LOG:([\s\S]+?) -->/);
+  if (!match) return null;
+  try { return JSON.parse(match[1]); } catch { return null; }
+}
+
+function parseMatchTiming(message: string): 'today' | 'tomorrow' | 'yesterday' | null {
+  const lower = message.toLowerCase();
+  if (/tomorrow|coming up|upcoming/i.test(lower)) return 'tomorrow';
+  if (/yesterday|last\s+(?:night|evening)|came\s+back|just\s+(?:played|finished|had)/i.test(lower)) return 'yesterday';
+  if (/today|tonight|this\s+(?:morning|evening|afternoon)|right\s+now|match\s+day|game\s+day/i.test(lower)) return 'today';
+  if (/(?:have|got|has)\s+(?:a\s+)?(?:match|game)/i.test(lower)) return 'tomorrow';
+  if (/(?:played|finished|done)/i.test(lower)) return 'yesterday';
+  if (/(?:playing|going\s+to\s+play)/i.test(lower)) return 'today';
+  return null;
+}
+
+function getMatchAction(timing: string): string {
+  if (timing === 'tomorrow') return 'rest';
+  if (timing === 'yesterday') return 'recovery';
+  return 'warmup';
+}
+
+function estimateCalories(sport: string, duration: number, intensity: string): number {
+  const baseRates: Record<string, number> = {
+    'Football': 9, 'Basketball': 8, 'Tennis': 7, 'Swimming': 10,
+    'Boxing': 12, 'MMA': 11, 'Cricket': 5, 'Volleyball': 6,
+  };
+  const rate = baseRates[sport] || 7;
+  const multiplier = intensity === 'competitive' ? 1.3 : 1.0;
+  return Math.round(duration * rate * multiplier);
+}
+
+function computeMatchDate(timing: string, localDate?: string): string {
+  const base = localDate ? new Date(localDate + 'T12:00:00Z') : new Date();
+  if (timing === 'tomorrow') {
+    base.setUTCDate(base.getUTCDate() + 1);
+  } else if (timing === 'yesterday') {
+    base.setUTCDate(base.getUTCDate() - 1);
+  }
+  return base.toISOString().split('T')[0];
+}
+
+async function processMatchLogConversation(
+  userId: number,
+  message: string,
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+  localDate?: string
+): Promise<{ answer: string; followUpChips: string[] } | null> {
+  const [sportProfile] = await db.select()
+    .from(sportProfiles)
+    .where(and(eq(sportProfiles.userId, userId), eq(sportProfiles.isActive, true)))
+    .limit(1);
+
+  if (!sportProfile) {
+    return {
+      answer: "you need to set up your sport profile first before logging matches! head over to Sports Mode to pick your sport and position.",
+      followUpChips: ['Go to Sports Mode', 'What is Sports Mode?', 'My workout progress']
+    };
+  }
+
+  const timing = parseMatchTiming(message);
+  const matchDate = timing ? computeMatchDate(timing, localDate) : (localDate || new Date().toISOString().split('T')[0]);
+
+  const [existingMatch] = await db.select()
+    .from(matchLogs)
+    .where(and(
+      eq(matchLogs.userId, userId),
+      eq(matchLogs.matchDate, matchDate),
+      eq(matchLogs.cancelled, false)
+    ))
+    .limit(1);
+
+  if (existingMatch) {
+    const actionLabel = existingMatch.workoutAction === 'rest' ? 'resting' : existingMatch.workoutAction === 'warmup' ? 'warming up' : existingMatch.workoutAction === 'recovery' ? 'recovering' : 'training';
+    const dateLabel = timing === 'tomorrow' ? 'tomorrow' : timing === 'yesterday' ? 'yesterday' : 'today';
+    return {
+      answer: `you already have a ${existingMatch.sport} match logged for ${dateLabel} — you're ${actionLabel}${existingMatch.intensity ? ` (${existingMatch.intensity})` : ''}. want me to cancel it and log a new one instead?`,
+      followUpChips: ['Cancel and re-log', 'Keep it', 'How should I prepare?']
+    };
+  }
+
+  if (!timing) {
+    const pendingData = JSON.stringify({ sport: sportProfile.sport, sportProfileId: sportProfile.id, step: 'timing' });
+    return {
+      answer: `got it — ${sportProfile.sport} match! when is it? today, tomorrow, or was it yesterday?\n\n<!-- PENDING_MATCH_LOG:${pendingData} -->`,
+      followUpChips: ['Today', 'Tomorrow', 'Yesterday']
+    };
+  }
+
+  const action = getMatchAction(timing);
+  const lower = message.toLowerCase();
+  const intensity = /competitive|serious|intense|important|big\s+game|final/i.test(lower) ? 'competitive' : /casual|friendly|fun|practice|pickup|pick-up/i.test(lower) ? 'casual' : null;
+  const durationMatch = lower.match(/(\d+)\s*(?:min|minutes|hrs?|hours?)/);
+  const duration = durationMatch ? parseInt(durationMatch[1]) * (durationMatch[0].includes('h') ? 60 : 1) : null;
+
+  if (intensity && duration) {
+    const calories = estimateCalories(sportProfile.sport, duration, intensity);
+    await db.insert(matchLogs).values({
+      userId,
+      sportProfileId: sportProfile.id,
+      sport: sportProfile.sport,
+      matchDate,
+      matchTiming: timing,
+      status: timing === 'yesterday' ? 'done' : timing === 'today' ? 'going' : 'scheduled',
+      duration,
+      intensity,
+      caloriesBurned: calories,
+      workoutAction: action,
+    });
+
+    const actionMsg = action === 'rest' ? "I've set you to rest today — save that energy for tomorrow's match" :
+      action === 'recovery' ? "recovery mode activated — light stretching and easy movement today" :
+      "warm-up mode on — light exercises to get you ready";
+    return {
+      answer: `${sportProfile.sport} match logged! 🏆 ${actionMsg}.\n\n${duration} min ${intensity} match → ~${calories} cal burned.${action === 'rest' ? '\n\nstay hydrated, eat well, and get good sleep tonight!' : action === 'recovery' ? '\n\nfocus on protein and carbs to help your body recover.' : '\n\ndon\'t go too hard — save it for the real thing!'}`,
+      followUpChips: [
+        action === 'rest' ? 'What should I eat tonight?' : action === 'recovery' ? 'Recovery meal ideas' : 'Pre-match meal tips',
+        'My match history',
+        'How am I doing this week?'
+      ]
+    };
+  }
+
+  const pendingData = JSON.stringify({
+    sport: sportProfile.sport,
+    sportProfileId: sportProfile.id,
+    timing,
+    action,
+    intensity: intensity || undefined,
+    duration: duration || undefined,
+    step: !intensity ? 'intensity' : 'duration'
+  });
+
+  if (!intensity) {
+    const timingLabel = timing === 'tomorrow' ? 'tomorrow' : timing === 'yesterday' ? 'yesterday' : 'today';
+    return {
+      answer: `${sportProfile.sport} match ${timingLabel} — nice! was it casual or competitive?${duration ? ` (${duration} min, got it)` : ''}\n\n<!-- PENDING_MATCH_LOG:${pendingData} -->`,
+      followUpChips: ['Casual', 'Competitive']
+    };
+  }
+
+  const timingLabel2 = timing === 'tomorrow' ? 'tomorrow' : timing === 'yesterday' ? 'yesterday' : 'today';
+  return {
+    answer: `${intensity} ${sportProfile.sport} match ${timingLabel2} — how long was/will it be? (in minutes)\n\n<!-- PENDING_MATCH_LOG:${pendingData} -->`,
+    followUpChips: ['30 minutes', '60 minutes', '90 minutes']
+  };
+}
+
+async function processMatchFollowUp(
+  userId: number,
+  message: string,
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+  localDate?: string
+): Promise<{ answer: string; followUpChips: string[] } | null> {
+  const pendingData = extractPendingMatchData(conversationHistory);
+  if (!pendingData) return null;
+
+  const lower = message.toLowerCase().trim();
+
+  if (pendingData.step === 'timing') {
+    const timing = /tomorrow|tmrw/i.test(lower) ? 'tomorrow' : /yesterday|last/i.test(lower) ? 'yesterday' : /today|now/i.test(lower) ? 'today' : null;
+    if (!timing) return null;
+
+    const action = getMatchAction(timing);
+    const newPending = JSON.stringify({ ...pendingData, timing, action, step: 'intensity' });
+    return {
+      answer: `got it — ${timing}! was it casual or competitive?\n\n<!-- PENDING_MATCH_LOG:${newPending} -->`,
+      followUpChips: ['Casual', 'Competitive']
+    };
+  }
+
+  if (pendingData.step === 'intensity') {
+    const intensity = /competitive|serious|intense|comp/i.test(lower) ? 'competitive' : /casual|friendly|fun|chill|easy/i.test(lower) ? 'casual' : null;
+    if (!intensity) return null;
+
+    const newPending = JSON.stringify({ ...pendingData, intensity, step: 'duration' });
+    return {
+      answer: `${intensity} — got it! how long${pendingData.timing === 'yesterday' ? ' was' : ' will'} the match${pendingData.timing === 'yesterday' ? '' : ' be'}? (in minutes)\n\n<!-- PENDING_MATCH_LOG:${newPending} -->`,
+      followUpChips: ['30 minutes', '60 minutes', '90 minutes']
+    };
+  }
+
+  if (pendingData.step === 'duration') {
+    const durationMatch = lower.match(/(\d+)/);
+    if (!durationMatch) return null;
+    let duration = parseInt(durationMatch[1]);
+    if (duration <= 5) duration = duration * 60;
+
+    const intensity = pendingData.intensity || 'casual';
+    const timing = pendingData.timing || 'today';
+    const action = pendingData.action || getMatchAction(timing);
+    const calories = estimateCalories(pendingData.sport, duration, intensity);
+    const matchDate = computeMatchDate(timing, localDate);
+
+    await db.insert(matchLogs).values({
+      userId,
+      sportProfileId: pendingData.sportProfileId,
+      sport: pendingData.sport,
+      matchDate,
+      matchTiming: timing,
+      status: timing === 'yesterday' ? 'done' : timing === 'today' ? 'going' : 'scheduled',
+      duration,
+      intensity,
+      caloriesBurned: calories,
+      workoutAction: action,
+    });
+
+    const actionMsg = action === 'rest' ? "rest mode on — save your energy for the match" :
+      action === 'recovery' ? "recovery mode activated — take it easy today" :
+      "warm-up mode — light exercises to get game-ready";
+    return {
+      answer: `done! ${pendingData.sport} match logged 🏆\n\n${actionMsg}\n${duration} min ${intensity} → ~${calories} cal burned${action === 'rest' ? '\n\nhydrate up and get good sleep!' : action === 'recovery' ? '\n\nprotein + carbs for recovery. stretch it out!' : '\n\ndon\'t overdo the warm-up — save it for game time!'}`,
+      followUpChips: [
+        action === 'rest' ? 'Pre-match nutrition tips' : action === 'recovery' ? 'Recovery meal ideas' : 'Pre-match meal tips',
+        'My match history',
+        'How am I doing?'
+      ]
+    };
+  }
+
+  return null;
 }
 
 function detectPendingMealFromHistory(
@@ -324,6 +586,30 @@ interface MemberContext {
     totalSportExercises: number;
     totalCycleExercises: number;
     impactScore: number;
+    matchHistory: {
+      todayMatch: {
+        sport: string;
+        timing: string;
+        action: string;
+        intensity: string | null;
+        duration: number | null;
+        caloriesBurned: number | null;
+        cancelled: boolean;
+      } | null;
+      recentMatches: Array<{
+        sport: string;
+        date: string;
+        timing: string;
+        action: string;
+        intensity: string | null;
+        duration: number | null;
+        caloriesBurned: number | null;
+      }>;
+      thisWeekCount: number;
+      thisMonthCount: number;
+      totalCaloriesBurned: number;
+      avgDuration: number;
+    };
   };
 }
 
@@ -682,6 +968,91 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
   } catch (err) {
     console.error('Failed to fetch sports mode context for Dika:', err);
   }
+
+  let matchHistoryContext: MemberContext['sportsMode']['matchHistory'] = {
+    todayMatch: null,
+    recentMatches: [],
+    thisWeekCount: 0,
+    thisMonthCount: 0,
+    totalCaloriesBurned: 0,
+    avgDuration: 0,
+  };
+
+  try {
+    const [todayMatch] = await db.select()
+      .from(matchLogs)
+      .where(and(
+        eq(matchLogs.userId, userId),
+        eq(matchLogs.matchDate, dates.today),
+        eq(matchLogs.cancelled, false)
+      ))
+      .orderBy(desc(matchLogs.createdAt))
+      .limit(1);
+
+    if (todayMatch) {
+      matchHistoryContext.todayMatch = {
+        sport: todayMatch.sport,
+        timing: todayMatch.matchTiming,
+        action: todayMatch.workoutAction,
+        intensity: todayMatch.intensity,
+        duration: todayMatch.duration,
+        caloriesBurned: todayMatch.caloriesBurned,
+        cancelled: false,
+      };
+    }
+
+    const recentLogs = await db.select()
+      .from(matchLogs)
+      .where(and(
+        eq(matchLogs.userId, userId),
+        eq(matchLogs.cancelled, false),
+        not(eq(matchLogs.matchDate, dates.today))
+      ))
+      .orderBy(desc(matchLogs.createdAt))
+      .limit(5);
+
+    matchHistoryContext.recentMatches = recentLogs.map(m => ({
+      sport: m.sport,
+      date: m.matchDate,
+      timing: m.matchTiming,
+      action: m.workoutAction,
+      intensity: m.intensity,
+      duration: m.duration,
+      caloriesBurned: m.caloriesBurned,
+    }));
+
+    const [weekStats] = await db.select({
+      count: count(),
+      totalCalories: sql<number>`coalesce(sum(${matchLogs.caloriesBurned}), 0)`,
+      avgDuration: sql<number>`coalesce(avg(${matchLogs.duration}), 0)`,
+    })
+    .from(matchLogs)
+    .where(and(
+      eq(matchLogs.userId, userId),
+      eq(matchLogs.cancelled, false),
+      gte(matchLogs.matchDate, dates.weekStart)
+    ));
+
+    const [monthStats] = await db.select({
+      count: count(),
+      totalCalories: sql<number>`coalesce(sum(${matchLogs.caloriesBurned}), 0)`,
+    })
+    .from(matchLogs)
+    .where(and(
+      eq(matchLogs.userId, userId),
+      eq(matchLogs.cancelled, false),
+      gte(matchLogs.matchDate, dates.monthStart)
+    ));
+
+    matchHistoryContext.thisWeekCount = weekStats?.count || 0;
+    matchHistoryContext.thisMonthCount = monthStats?.count || 0;
+    matchHistoryContext.avgDuration = Math.round(Number(weekStats?.avgDuration) || 0);
+    matchHistoryContext.totalCaloriesBurned = Number(monthStats?.totalCalories) || 0;
+  } catch (err) {
+    console.error('Failed to fetch match history for Dika:', err);
+  }
+
+  sportsModeContext.matchHistory = matchHistoryContext;
 
   return {
     workoutsThisWeek: weeklyWorkouts?.count || 0,
@@ -1083,19 +1454,60 @@ ACTIVE GOALS:
 ${ctx.activeGoals.map(g => `- ${g.title}${g.targetValue ? ` (target: ${g.targetValue}${g.targetUnit || ''})` : ''}${g.currentValue ? ` — currently at ${g.currentValue}${g.targetUnit || ''}` : ''}`).join('\n')}
 When relevant to the conversation, mention the user's goals and progress. Be encouraging!
 ` : ''}
-${ctx.sportsMode.profile ? `
+${ctx.sportsMode.profile ? (() => {
+  const sp = ctx.sportsMode;
+  const mh = sp.matchHistory;
+  const sport = sp.profile!.sport;
+  const role = sp.profile!.role;
+
+  const todayMatchSection = mh.todayMatch && !mh.todayMatch.cancelled
+    ? `\nTODAY'S MATCH STATUS:
+${mh.todayMatch.timing === 'tomorrow' ? `They logged a match for tomorrow. Today's action: ${mh.todayMatch.action}${mh.todayMatch.action === 'rest' ? ' (resting to save energy)' : mh.todayMatch.action === 'warmup' ? ' (light warm-up today)' : ''}.` : ''}${mh.todayMatch.timing === 'today' ? `Match day! Status: ${mh.todayMatch.action}${mh.todayMatch.intensity ? `, ${mh.todayMatch.intensity} intensity` : ''}${mh.todayMatch.duration ? `, ${mh.todayMatch.duration} min` : ''}${mh.todayMatch.caloriesBurned ? `, ~${mh.todayMatch.caloriesBurned} cal burned` : ''}.` : ''}${mh.todayMatch.timing === 'yesterday' ? `Post-match recovery day. Yesterday's match: ${mh.todayMatch.action}${mh.todayMatch.intensity ? `, ${mh.todayMatch.intensity}` : ''}${mh.todayMatch.duration ? `, ${mh.todayMatch.duration} min` : ''}.` : ''}
+- Be aware of their match day state. If they're resting for tomorrow's match, encourage rest and hydration. If it's match day, be hyped. If post-match, focus on recovery.`
+    : '';
+
+  const recentMatchSection = mh.recentMatches.length > 0
+    ? `\nRECENT MATCHES:
+${mh.recentMatches.map(m => `- ${m.date}: ${m.sport}${m.intensity ? ` (${m.intensity})` : ''}${m.duration ? `, ${m.duration} min` : ''}${m.caloriesBurned ? `, ~${m.caloriesBurned} cal` : ''}`).join('\n')}`
+    : '';
+
+  const matchStatsSection = (mh.thisWeekCount > 0 || mh.thisMonthCount > 0)
+    ? `\nMATCH STATS: ${mh.thisWeekCount} match${mh.thisWeekCount !== 1 ? 'es' : ''} this week, ${mh.thisMonthCount} this month${mh.avgDuration > 0 ? `, avg ${mh.avgDuration} min` : ''}${mh.totalCaloriesBurned > 0 ? `, ${mh.totalCaloriesBurned} total cal burned from matches` : ''}.`
+    : '';
+
+  const nutritionCrossRef = mh.todayMatch && !mh.todayMatch.cancelled
+    ? `\nSPORTS-NUTRITION AWARENESS:
+- If they ask about food/calories, factor in their match activity. A match day burns extra calories — they may need to eat more.
+- Pre-match: recommend carb-loading, hydration, light easily digestible meals. Avoid heavy/fatty foods.
+- Post-match: recommend protein for recovery, complex carbs to replenish glycogen, anti-inflammatory foods.
+- If their calorie intake looks low on a match day, proactively mention it: "you burned a lot in that match — make sure you're fueling up"`
+    : '';
+
+  const workoutCrossRef = mh.todayMatch && !mh.todayMatch.cancelled
+    ? `\nSPORTS-WORKOUT AWARENESS:
+- If they have a match tomorrow and ask about today's workout, suggest lighter intensity or focusing on upper body if their sport is leg-heavy (and vice versa).
+- Post-match: suggest they go lighter on muscles heavily used in their sport. ${sport === 'Football' || sport === 'Basketball' || sport === 'Tennis' || sport === 'Cricket' ? 'Especially legs — those sports hammer the lower body.' : ''}${sport === 'Swimming' || sport === 'Boxing' || sport === 'MMA' || sport === 'Volleyball' ? 'Especially shoulders and core — those sports are upper body intensive.' : ''}
+- If they played 3+ matches this week, mention recovery: "you've been playing a lot — your body might appreciate an extra rest day"`
+    : '';
+
+  return `
 SPORTS MODE:
-This user plays ${ctx.sportsMode.profile.sport} as a ${ctx.sportsMode.profile.role}${ctx.sportsMode.profile.fitnessScore !== null ? ` (fitness score: ${ctx.sportsMode.profile.fitnessScore}/100)` : ''}.
-${ctx.sportsMode.impactScore}% of their workout cycle is sport-targeted (${ctx.sportsMode.totalSportExercises} of ${ctx.sportsMode.totalCycleExercises} exercises).
-${ctx.sportsMode.activeModifications.length > 0 ? `They're actively working on:
-${ctx.sportsMode.activeModifications.map(m => `- ${m.skillName} (${m.skillCategory}) at ${m.priority}% priority, ${m.daysActive} days in${m.targetMuscles.length > 0 ? ` — hitting ${m.targetMuscles.join(', ')}` : ''}${m.sportExercises.length > 0 ? ` — doing ${m.sportExercises.join(', ')}` : ''}`).join('\n')}` : 'No active skill modifications yet.'}
+This user plays ${sport} as a ${role}${sp.profile!.fitnessScore !== null ? ` (fitness score: ${sp.profile!.fitnessScore}/100)` : ''}.
+${sp.impactScore}% of their workout cycle is sport-targeted (${sp.totalSportExercises} of ${sp.totalCycleExercises} exercises).
+${sp.activeModifications.length > 0 ? `They're actively working on:
+${sp.activeModifications.map(m => `- ${m.skillName} (${m.skillCategory}) at ${m.priority}% priority, ${m.daysActive} days in${m.targetMuscles.length > 0 ? ` — hitting ${m.targetMuscles.join(', ')}` : ''}${m.sportExercises.length > 0 ? ` — doing ${m.sportExercises.join(', ')}` : ''}`).join('\n')}` : 'No active skill modifications yet.'}
+${todayMatchSection}${recentMatchSection}${matchStatsSection}${nutritionCrossRef}${workoutCrossRef}
 SPORTS CONVERSATION STYLE:
-- Talk about their sport like you actually watch and play it. Use the right terms for ${ctx.sportsMode.profile.sport}.
-- Reference their specific skill work naturally: "how's the ${ctx.sportsMode.activeModifications[0]?.skillName || 'training'} coming along?" not "Your sport skill progress is..."
-- If they've been training a skill for a while, acknowledge the commitment: "${ctx.sportsMode.activeModifications[0]?.daysActive || 0} days on ${ctx.sportsMode.activeModifications[0]?.skillName || 'this'} — that consistency matters"
+- Talk about their sport like you actually watch and play it. Use the right terms for ${sport}.
+- Reference their specific skill work naturally: "how's the ${sp.activeModifications[0]?.skillName || 'training'} coming along?" not "Your sport skill progress is..."
+- If they've been training a skill for a while, acknowledge the commitment: "${sp.activeModifications[0]?.daysActive || 0} days on ${sp.activeModifications[0]?.skillName || 'this'} — that consistency matters"
 - Connect their gym exercises to their sport performance: "those lateral lunges are gonna help your court movement"
 - When [Sport] exercises show up in their workout, mention how they tie back to their game
-` : ''}
+- If they mention a match or game, respond with sport-specific knowledge. Know what positions do, what skills matter, and what recovery looks like for ${sport}.
+- When they talk about match performance, connect it to their training: "all those agility drills are clearly paying off"
+- If they're playing frequently (3+ per week), be mindful of overtraining and suggest active recovery
+`;
+})() : ''}
 You can help this member with:
 - Workout progress and consistency analysis
 - Attendance patterns
@@ -1109,7 +1521,10 @@ ${ctx.healthData.connected ? `- Fitness device data analysis (steps, calories bu
 - Weekly health trends and averages
 - Recovery score analysis and workout intensity recommendations
 - Cross-analysis between workouts, nutrition, and health metrics (e.g. "you burned 500 cal but only ate 300")` : ''}
-${ctx.sportsMode.profile ? '- Sports Mode progress, sport training insights, and skill improvement tracking' : ''}
+${ctx.sportsMode.profile ? `- Sports Mode progress, sport training insights, and skill improvement tracking
+- Match day advice: pre-match prep, post-match recovery, nutrition for game days
+- Match history and performance tracking
+- Cross-analysis: how matches affect workouts, calories, and recovery` : ''}
 - Motivation and encouragement based on their data
 - Creating support tickets to report issues or request help
 
@@ -1418,6 +1833,24 @@ export async function processWithAI(
     }
   }
 
+  if (role === 'member' && detectMatchLogRequest(message)) {
+    try {
+      const result = await processMatchLogConversation(userId, message, conversationHistory, localDate);
+      if (result) return result;
+    } catch (error) {
+      console.error('Match log conversation failed:', error);
+    }
+  }
+
+  if (role === 'member' && detectPendingMatchFlow(conversationHistory)) {
+    try {
+      const result = await processMatchFollowUp(userId, message, conversationHistory, localDate);
+      if (result) return result;
+    } catch (error) {
+      console.error('Match follow-up failed:', error);
+    }
+  }
+
   if (role === 'member' && detectFindFoodRequest(message)) {
     const answer = `I'll help you find the best food options nearby! Let me check what's around you.\n\n<!-- DIKA_FIND_FOOD -->`;
     const followUpChips = [
@@ -1634,7 +2067,8 @@ export async function processWithAI(
           .replace(/<!-- PENDING_BODY_MEASUREMENT:[\s\S]+? -->/g, '[awaiting confirmation]')
           .replace(/<!-- PENDING_EXERCISE_SWAP:[\s\S]+? -->/g, '[awaiting swap choice]')
           .replace(/<!-- PENDING_GOAL:[\s\S]+? -->/g, '[awaiting goal confirmation]')
-          .replace(/<!-- PENDING_MEAL_SUGGESTION:[\s\S]+? -->/g, '[meal suggestions shown]');
+          .replace(/<!-- PENDING_MEAL_SUGGESTION:[\s\S]+? -->/g, '[meal suggestions shown]')
+          .replace(/<!-- PENDING_MATCH_LOG:[\s\S]+? -->/g, '');
         historyMessages.push({ role: msg.role, content: cleanContent });
       }
     }
@@ -1687,14 +2121,30 @@ function generateFollowUpChips(role: UserRole, lastMessage: string, aiResponse: 
       body: /weight|body|measurement|progress|fat|lean|bmi/.test(combined),
       attendance: /attendance|check.?in|consistent|streak|skip|miss/.test(combined),
       subscription: /subscription|expir|renew|plan|membership/.test(combined),
+      match: /match|game|tournament|played|playing|bout|fight|meet\b/.test(combined),
+      sport: /sport|football|basketball|tennis|swimming|boxing|mma|cricket|volleyball|skill|training\s+program/.test(combined),
+      recovery: /recovery|recover|rest|sore|tired|fatigue|overtraining/.test(combined),
     };
 
     const chips: string[] = [];
-    if (topics.nutrition) {
+    if (topics.match) {
+      chips.push('My match history');
+      if (!topics.nutrition) chips.push('Pre-match nutrition tips');
+      if (!topics.workout) chips.push('How am I doing this week?');
+    }
+    if (topics.sport && !topics.match) {
+      chips.push('Log a match');
+      chips.push('My sport progress');
+    }
+    if (topics.recovery) {
+      chips.push('Recovery meal ideas');
+      if (!topics.workout) chips.push('Should I train today?');
+    }
+    if (topics.nutrition && !topics.match) {
       chips.push('How many calories left today?');
       if (!topics.workout) chips.push('What\'s my workout today?');
     }
-    if (topics.workout) {
+    if (topics.workout && !topics.match) {
       chips.push('Show my body measurements');
       if (!topics.nutrition) chips.push('How\'s my nutrition today?');
     }
