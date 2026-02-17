@@ -661,7 +661,7 @@ export default function NutritionPage() {
   }
 
   return (
-    <div className="space-y-3 pb-24 stagger-list">
+    <div className="space-y-3 pb-36 stagger-list">
       <div className="flex items-center justify-between gap-2">
         <div className="page-header-gradient flex-1">
           <div className="flex items-center gap-3">
@@ -693,23 +693,31 @@ export default function NutritionPage() {
         </Dialog>
       </div>
 
-      <div className="flex items-center justify-between gap-1 rounded-lg bg-muted/30 px-1 py-1">
+      <div className="flex items-center justify-between gap-1 rounded-2xl bg-muted/20 border border-border/40 px-1.5 py-1.5">
         <Button 
           variant="ghost" 
           size="icon"
+          className="rounded-xl"
           onClick={() => setSelectedDate(subDays(selectedDate, 1))}
           data-testid="button-prev-day"
         >
           <ChevronLeft className="w-4 h-4" />
         </Button>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-medium">
-            {format(selectedDate, "EEE, MMM d, yyyy")}
-          </span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-background/80 rounded-xl px-3 py-1.5 border border-border/30 shadow-sm">
+            <Calendar className="w-3 h-3 text-primary" />
+            <span className="text-xs font-semibold">
+              {isToday(selectedDate) ? "Today" : format(selectedDate, "EEE, MMM d")}
+            </span>
+            {!isToday(selectedDate) && (
+              <span className="text-[10px] text-muted-foreground">{format(selectedDate, "yyyy")}</span>
+            )}
+          </div>
           {!isToday(selectedDate) && (
             <Button
               variant="outline"
               size="sm"
+              className="rounded-xl text-[11px] px-2.5"
               onClick={() => setSelectedDate(new Date())}
               data-testid="button-go-to-today"
             >
@@ -721,6 +729,7 @@ export default function NutritionPage() {
           <Button 
             variant="ghost" 
             size="icon"
+            className="rounded-xl"
             onClick={() => setSelectedDate(addDays(selectedDate, 1))}
             data-testid="button-next-day"
           >
@@ -730,6 +739,7 @@ export default function NutritionPage() {
             <Button
               variant="ghost"
               size="icon"
+              className="rounded-xl"
               onClick={() => {
                 const input = document.getElementById('nutrition-date-picker') as HTMLInputElement;
                 input?.showPicker?.();
@@ -757,34 +767,42 @@ export default function NutritionPage() {
         </div>
       </div>
 
-      <Card className={`card-glow-green shadow-lg shadow-primary/5 relative ${allMealsLogged ? 'card-shine' : ''}`} data-testid="card-calorie-summary">
-        <CardContent className="pt-4 pb-4 relative">
-          <div className="flex items-center justify-between mb-3 gap-3">
+      <Card className={`card-glow-green rounded-2xl shadow-lg shadow-primary/5 relative overflow-hidden ${allMealsLogged ? 'card-shine' : ''}`} data-testid="card-calorie-summary">
+        <CardContent className="pt-5 pb-5 px-4 relative">
+          <div className="flex items-center justify-between mb-4 gap-4">
             <div className="text-center flex-1" style={{ animation: 'slideUp 0.5s ease-out' }}>
-              <div className="text-2xl font-bold tracking-tight" data-testid="text-calories-eaten">{summary.calories}</div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Eaten</div>
+              <div className="text-3xl font-bold tracking-tight" data-testid="text-calories-eaten">{summary.calories}</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium mt-0.5">Eaten</div>
             </div>
-            <div className="relative w-24 h-24 flex-shrink-0">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 96 96">
+            <div className="relative w-28 h-28 flex-shrink-0">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 112 112">
                 <circle
-                  cx="48" cy="48" r="40"
+                  cx="56" cy="56" r="48"
                   stroke="currentColor"
                   strokeWidth="5"
                   fill="none"
-                  className="text-muted/30"
+                  className="text-muted/20"
                 />
                 <circle
-                  cx="48" cy="48" r="40"
-                  strokeWidth="6"
+                  cx="56" cy="56" r="48"
+                  stroke="currentColor"
+                  strokeWidth="5"
                   fill="none"
-                  strokeDasharray={`${(caloriePercent / 100) * 251} 251`}
+                  className="text-muted/10"
+                  strokeDasharray="4 8"
+                />
+                <circle
+                  cx="56" cy="56" r="48"
+                  strokeWidth="7"
+                  fill="none"
+                  strokeDasharray={`${(caloriePercent / 100) * 301.6} 301.6`}
                   strokeLinecap="round"
                   className="nutrition-ring-progress"
                   style={{
                     stroke: remaining >= 0 ? 'url(#calorieGradient)' : 'hsl(var(--destructive))',
                     filter: remaining >= 0 
-                      ? `drop-shadow(0 0 ${caloriePercent > 60 ? 6 : 3}px hsl(var(--primary) / ${caloriePercent > 60 ? 0.5 : 0.3}))` 
-                      : 'drop-shadow(0 0 6px hsl(var(--destructive) / 0.5))',
+                      ? `drop-shadow(0 0 ${caloriePercent > 60 ? 8 : 4}px hsl(var(--primary) / ${caloriePercent > 60 ? 0.5 : 0.3}))` 
+                      : 'drop-shadow(0 0 8px hsl(var(--destructive) / 0.5))',
                     transition: 'stroke-dasharray 0.8s ease-out, filter 0.5s ease',
                   }}
                 />
@@ -798,20 +816,21 @@ export default function NutritionPage() {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <div className="text-center">
-                  <div className="text-sm font-bold leading-none" data-testid="text-calorie-percent">
+                  <Flame 
+                    className={`w-4 h-4 mx-auto text-orange-500 ${caloriePercent > 0 ? 'streak-flame' : ''}`}
+                  />
+                  <div className="text-base font-bold leading-none mt-0.5" data-testid="text-calorie-percent">
                     {Math.round(caloriePercent)}%
                   </div>
-                  <Flame 
-                    className={`w-3.5 h-3.5 mx-auto mt-0.5 text-orange-500 ${caloriePercent > 0 ? 'streak-flame' : ''}`}
-                  />
+                  <div className="text-[8px] text-muted-foreground mt-0.5">of {calorieGoal}</div>
                 </div>
               </div>
             </div>
             <div className="text-center flex-1" style={{ animation: 'slideUp 0.5s ease-out 0.15s both' }}>
-              <div className={`text-2xl font-bold tracking-tight ${remaining < 0 ? "text-destructive" : ""}`} data-testid="text-calories-remaining">
+              <div className={`text-3xl font-bold tracking-tight ${remaining < 0 ? "text-destructive" : ""}`} data-testid="text-calories-remaining">
                 {Math.abs(remaining)}
               </div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium mt-0.5">
                 {remaining >= 0 ? "Remaining" : "Over"}
               </div>
             </div>
@@ -821,7 +840,7 @@ export default function NutritionPage() {
             const StatusIcon = calorieStatus.icon;
             return (
               <div 
-                className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full ${calorieStatus.bg} mb-3`}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full ${calorieStatus.bg} mb-4`}
                 style={{ animation: 'fadeIn 0.6s ease-out 0.3s both' }}
                 data-testid="text-calorie-status"
               >
@@ -832,9 +851,9 @@ export default function NutritionPage() {
             );
           })()}
 
-          <div className="flex items-center justify-center gap-1.5 py-2 px-3 bg-gradient-to-r from-red-500/8 via-red-500/12 to-red-500/8 rounded-lg border border-red-500/10" style={{ animation: 'slideUp 0.5s ease-out 0.4s both' }}>
-            <div className="p-1 rounded-md bg-red-500/15">
-              <Beef className="w-3 h-3 text-red-500" />
+          <div className="flex items-center justify-center gap-1.5 py-2 px-3 bg-gradient-to-r from-red-500/8 via-red-500/12 to-red-500/8 rounded-xl border border-red-500/10" style={{ animation: 'slideUp 0.5s ease-out 0.4s both' }}>
+            <div className="p-1.5 rounded-lg bg-red-500/15">
+              <Beef className="w-3.5 h-3.5 text-red-500" />
             </div>
             <span className="text-xs font-semibold">
               Protein: <span className="text-red-500">{totalProteinToday}g</span>
@@ -848,9 +867,9 @@ export default function NutritionPage() {
           </div>
 
           {healthStatus?.connected && healthData?.caloriesBurned && (
-            <div className="flex items-center justify-center gap-1.5 mt-2 py-2 px-3 bg-gradient-to-r from-orange-500/8 via-orange-500/12 to-orange-500/8 rounded-lg border border-orange-500/10">
-              <div className="p-1 rounded-md bg-orange-500/15">
-                <Watch className="w-3 h-3 text-orange-500" />
+            <div className="flex items-center justify-center gap-1.5 mt-2 py-2 px-3 bg-gradient-to-r from-orange-500/8 via-orange-500/12 to-orange-500/8 rounded-xl border border-orange-500/10">
+              <div className="p-1.5 rounded-lg bg-orange-500/15">
+                <Watch className="w-3.5 h-3.5 text-orange-500" />
               </div>
               <span className="text-xs font-semibold">
                 Burned: <span className="text-orange-500">{healthData.caloriesBurned.toLocaleString()} cal</span>
@@ -860,53 +879,26 @@ export default function NutritionPage() {
               </span>
             </div>
           )}
-
-          <div className="grid grid-cols-3 gap-3 mt-4" style={{ animation: 'slideUp 0.5s ease-out 0.5s both' }}>
-            <MacroProgress label="Protein" value={summary.protein} goal={proteinGoal} percent={proteinPercent} icon={Beef} color="text-red-500" bgColor="bg-red-500" />
-            <MacroProgress label="Carbs" value={summary.carbs} goal={carbsGoal} percent={carbsPercent} icon={Wheat} color="text-amber-500" bgColor="bg-amber-500" />
-            <MacroProgress label="Fat" value={summary.fat} goal={fatGoal} percent={fatPercent} icon={Droplet} color="text-blue-500" bgColor="bg-blue-500" />
-          </div>
         </CardContent>
       </Card>
 
-      <div className="flex gap-2">
-        <Button 
-          onClick={openGlobalAddFood}
-          className={`flex-1 bg-gradient-to-r from-primary to-primary/80 shadow-md shadow-primary/20 ${summary.calories === 0 ? 'nutrition-cta-pulse' : ''}`}
-          data-testid="button-global-add-food"
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          Add Food
-        </Button>
-        <input
-          ref={photoInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={handlePhotoSelect}
-          data-testid="input-photo-food"
-        />
-        <Button
-          variant="outline"
-          onClick={() => photoInputRef.current?.click()}
-          className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/20 text-violet-600 dark:text-violet-400 shadow-sm"
-          data-testid="button-photo-food"
-        >
-          <Camera className="w-4 h-4 mr-1.5" />
-          Photo
-        </Button>
+      <div className="grid grid-cols-3 gap-2" style={{ animation: 'slideUp 0.5s ease-out 0.5s both' }}>
+        <MacroProgress label="Protein" value={summary.protein} goal={proteinGoal} percent={proteinPercent} icon={Beef} color="text-red-500" bgColor="bg-red-500" />
+        <MacroProgress label="Carbs" value={summary.carbs} goal={carbsGoal} percent={carbsPercent} icon={Wheat} color="text-amber-500" bgColor="bg-amber-500" />
+        <MacroProgress label="Fat" value={summary.fat} goal={fatGoal} percent={fatPercent} icon={Droplet} color="text-blue-500" bgColor="bg-blue-500" />
       </div>
 
       {recentFoods.length > 0 && (
         <div data-testid="section-quick-relog" style={{ animation: 'slideUp 0.4s ease-out 0.3s both' }}>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-3 h-3 text-muted-foreground" />
-              <span className="text-xs font-semibold text-muted-foreground">Quick re-log</span>
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center gap-2">
+              <div className="p-1 rounded-md bg-primary/10">
+                <Zap className="w-3 h-3 text-primary" />
+              </div>
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quick Re-log</span>
             </div>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-hide">
             {recentFoods.slice(0, 6).map((food: any, i: number) => (
               <button
                 key={`quick-${i}`}
@@ -927,13 +919,15 @@ export default function NutritionPage() {
                   });
                 }}
                 disabled={logFoodMutation.isPending}
-                className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg border bg-card hover-elevate active:scale-[0.97] transition-transform"
+                className="flex-shrink-0 flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl border border-border/50 bg-gradient-to-br from-card to-muted/20 shadow-sm hover-elevate active:scale-[0.97] transition-transform"
                 data-testid={`button-quick-relog-${i}`}
               >
-                <Plus className="w-3 h-3 text-primary flex-shrink-0" />
+                <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Plus className="w-3 h-3 text-primary" />
+                </div>
                 <div className="text-left">
-                  <p className="text-xs font-medium truncate max-w-[100px]">{food.foodName || food.food_name}</p>
-                  <p className="text-[10px] text-muted-foreground">{food.calories} cal</p>
+                  <p className="text-xs font-semibold truncate max-w-[100px]">{food.foodName || food.food_name}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">{food.calories} cal</p>
                 </div>
               </button>
             ))}
@@ -941,15 +935,22 @@ export default function NutritionPage() {
         </div>
       )}
 
-      <Card className="card-glow-blue shadow-sm relative" data-testid="card-water-tracker" style={{ animation: 'slideUp 0.4s ease-out 0.5s both' }}>
-        <CardContent className="pt-3 pb-3 relative">
-          <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 mt-1">
+        <div className="p-1 rounded-md bg-blue-500/10">
+          <Droplets className="w-3 h-3 text-blue-500" />
+        </div>
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Hydration</span>
+      </div>
+
+      <Card className="card-glow-blue rounded-2xl shadow-sm relative overflow-hidden" data-testid="card-water-tracker" style={{ animation: 'slideUp 0.4s ease-out 0.5s both' }}>
+        <CardContent className="pt-4 pb-4 px-4 relative">
+          <div className="flex items-center gap-4">
             {(() => {
               const waterOz = waterData?.totalOz || 0;
               const waterGoal = 64;
               const waterPercent = Math.min((waterOz / waterGoal) * 100, 100);
-              const wSize = 60;
-              const wStroke = 4.5;
+              const wSize = 72;
+              const wStroke = 5;
               const wRadius = (wSize - wStroke) / 2;
               const wCircumference = 2 * Math.PI * wRadius;
               const wOffset = wCircumference - (waterPercent / 100) * wCircumference;
@@ -958,21 +959,21 @@ export default function NutritionPage() {
               return (
                 <div className="relative flex-shrink-0" style={{ width: wSize, height: wSize }}>
                   <svg width={wSize} height={wSize} className="-rotate-90">
-                    <circle cx={wSize / 2} cy={wSize / 2} r={wRadius} fill="none" stroke="currentColor" strokeWidth={wStroke} className="text-muted/30" />
-                    <circle cx={wSize / 2} cy={wSize / 2} r={wRadius} fill="none" stroke={waterColor} strokeWidth={wStroke} strokeDasharray={wCircumference} strokeDashoffset={wOffset} strokeLinecap="round" className="transition-all duration-1000 ease-out" style={{ filter: `drop-shadow(0 0 3px ${waterColor}40)` }} />
+                    <circle cx={wSize / 2} cy={wSize / 2} r={wRadius} fill="none" stroke="currentColor" strokeWidth={wStroke} className="text-muted/20" />
+                    <circle cx={wSize / 2} cy={wSize / 2} r={wRadius} fill="none" stroke={waterColor} strokeWidth={wStroke + 1} strokeDasharray={wCircumference} strokeDashoffset={wOffset} strokeLinecap="round" className="transition-all duration-1000 ease-out" style={{ filter: `drop-shadow(0 0 4px ${waterColor}50)` }} />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <Droplets className="w-3.5 h-3.5 text-blue-500" style={{ animation: waterOz > 0 ? 'breathe 3s ease-in-out infinite' : undefined }} />
-                    <span className="text-[8px] font-bold mt-0.5 tabular-nums" data-testid="text-water-ring-percent">{Math.round(waterPercent)}%</span>
+                    <Droplets className="w-4 h-4 text-blue-500" style={{ animation: waterOz > 0 ? 'breathe 3s ease-in-out infinite' : undefined }} />
+                    <span className="text-[9px] font-bold mt-0.5 tabular-nums" data-testid="text-water-ring-percent">{Math.round(waterPercent)}%</span>
                   </div>
                 </div>
               );
             })()}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center justify-between gap-2 mb-2.5">
                 <span className="text-sm font-bold">Water</span>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold">
+                  <span className="text-xs font-semibold tabular-nums">
                     {waterData?.totalOz || 0}<span className="text-muted-foreground font-normal">oz / 64oz</span>
                   </span>
                   {(waterData?.totalOz || 0) >= 64 && (
@@ -980,12 +981,13 @@ export default function NutritionPage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="grid grid-cols-4 gap-1.5">
                 {[{ oz: 8, label: "8oz" }, { oz: 12, label: "12oz" }, { oz: 16, label: "16oz" }, { oz: 24, label: "24oz" }].map(({ oz, label }) => (
                   <Button
                     key={oz}
                     variant="outline"
                     size="sm"
+                    className="rounded-xl text-[11px] px-0"
                     onClick={() => addWaterMutation.mutate(oz)}
                     disabled={addWaterMutation.isPending}
                     data-testid={`button-add-water-${oz}`}
@@ -994,23 +996,23 @@ export default function NutritionPage() {
                     {label}
                   </Button>
                 ))}
-                {waterData?.logs && waterData.logs.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="ml-auto text-muted-foreground"
-                    onClick={() => {
-                      const lastLog = waterData.logs[waterData.logs.length - 1];
-                      if (lastLog) deleteWaterMutation.mutate(lastLog.id);
-                    }}
-                    disabled={deleteWaterMutation.isPending}
-                    data-testid="button-undo-water"
-                  >
-                    <Undo2 className="w-3 h-3 mr-0.5" />
-                    Undo
-                  </Button>
-                )}
               </div>
+              {waterData?.logs && waterData.logs.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1.5 text-muted-foreground text-[11px]"
+                  onClick={() => {
+                    const lastLog = waterData.logs[waterData.logs.length - 1];
+                    if (lastLog) deleteWaterMutation.mutate(lastLog.id);
+                  }}
+                  disabled={deleteWaterMutation.isPending}
+                  data-testid="button-undo-water"
+                >
+                  <Undo2 className="w-3 h-3 mr-0.5" />
+                  Undo last
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -1026,6 +1028,13 @@ export default function NutritionPage() {
         }}
       />
 
+      <div className="flex items-center gap-2 mt-1">
+        <div className="p-1 rounded-md bg-amber-500/10">
+          <Flame className="w-3 h-3 text-amber-500" />
+        </div>
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Meals</span>
+      </div>
+
       {MEAL_TYPES.map((meal, mealIndex) => {
         const mealCalories = groupedLogs[meal].reduce((sum, log) => sum + log.calories, 0);
         const mealIconConfig: Record<string, { icon: typeof Apple; color: string; bg: string; glow: string }> = {
@@ -1038,22 +1047,25 @@ export default function NutritionPage() {
         const MealIcon = config.icon;
         const hasFood = groupedLogs[meal].length > 0;
         return (
-        <Card key={meal} className={`overflow-hidden shadow-sm relative ${hasFood ? config.glow : ''}`} style={{ animation: `slideUp 0.4s ease-out ${0.1 * mealIndex}s both` }}>
+        <Card key={meal} className={`overflow-hidden rounded-2xl shadow-sm relative ${hasFood ? config.glow : 'border-dashed border-border/50'}`} style={{ animation: `slideUp 0.4s ease-out ${0.1 * mealIndex}s both` }}>
           {hasFood && <div className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r ${meal === 'breakfast' ? 'from-amber-500/60 to-amber-400/20' : meal === 'lunch' ? 'from-green-500/60 to-green-400/20' : meal === 'dinner' ? 'from-orange-500/60 to-orange-400/20' : 'from-purple-500/60 to-purple-400/20'}`} />}
           <CardHeader className="pb-1 pt-3 px-3">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <div className={`p-1 rounded-md ${config.bg}`}>
-                  <MealIcon className={`w-3.5 h-3.5 ${config.color}`} />
+              <div className="flex items-center gap-2">
+                <div className={`p-1.5 rounded-xl ${config.bg}`}>
+                  <MealIcon className={`w-4 h-4 ${config.color}`} />
                 </div>
-                <CardTitle className="text-sm font-bold">{MEAL_LABELS[meal]}</CardTitle>
-                {hasFood && (
-                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 no-default-hover-elevate no-default-active-elevate" data-testid={`text-meal-cal-${meal}`}>{mealCalories} cal</Badge>
-                )}
+                <div>
+                  <CardTitle className="text-sm font-bold">{MEAL_LABELS[meal]}</CardTitle>
+                  {hasFood && (
+                    <span className="text-[10px] text-muted-foreground font-medium" data-testid={`text-meal-cal-${meal}`}>{mealCalories} cal logged</span>
+                  )}
+                </div>
               </div>
               <Button 
                 variant="ghost" 
                 size="sm"
+                className="rounded-xl"
                 onClick={() => openAddFoodForMeal(meal)}
                 data-testid={`button-add-${meal}`}
               >
@@ -1064,15 +1076,18 @@ export default function NutritionPage() {
           </CardHeader>
           <CardContent className="px-3 pb-3">
             {groupedLogs[meal].length === 0 ? (
-              <Button 
-                variant="ghost"
+              <button 
                 onClick={() => openAddFoodForMeal(meal)}
-                className="w-full py-3 border border-dashed border-border/60 text-xs text-muted-foreground"
+                className="w-full flex flex-col items-center gap-1.5 py-4 cursor-pointer rounded-xl border border-dashed border-border/40 bg-muted/10"
                 data-testid={`button-empty-${meal}`}
               >
-                <Plus className="w-3 h-3 mr-1" />
-                Tap to add {MEAL_LABELS[meal].toLowerCase()}
-              </Button>
+                <div className={`w-8 h-8 rounded-full ${config.bg} flex items-center justify-center`}>
+                  <Plus className={`w-4 h-4 ${config.color}`} />
+                </div>
+                <span className="text-[11px] text-muted-foreground/60 font-medium">
+                  Tap to add {MEAL_LABELS[meal].toLowerCase()}
+                </span>
+              </button>
             ) : (
               <div className="space-y-0.5">
                 {groupedLogs[meal].map((log) => (
@@ -1231,6 +1246,37 @@ export default function NutritionPage() {
           </CardContent>
         </Card>
       )}
+
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+68px)] left-0 right-0 z-30 px-4 pointer-events-none" data-testid="floating-add-food-bar">
+        <div className="max-w-lg mx-auto flex gap-2 pointer-events-auto">
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handlePhotoSelect}
+            data-testid="input-photo-food"
+          />
+          <Button 
+            onClick={openGlobalAddFood}
+            className={`flex-1 rounded-2xl shadow-xl shadow-primary/25 bg-gradient-to-r from-primary to-primary/80 ${summary.calories === 0 ? 'nutrition-cta-pulse' : ''}`}
+            data-testid="button-global-add-food"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add Food
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => photoInputRef.current?.click()}
+            className="rounded-2xl bg-card/95 backdrop-blur-sm border-violet-500/20 text-violet-600 dark:text-violet-400 shadow-xl"
+            data-testid="button-photo-food"
+          >
+            <Camera className="w-4 h-4 mr-1.5" />
+            Photo
+          </Button>
+        </div>
+      </div>
 
       <Dialog open={isPhotoDialogOpen} onOpenChange={(open) => { setIsPhotoDialogOpen(open); if (!open) { setPhotoResults(null); setPhotoPreview(null); } }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -2647,12 +2693,7 @@ function MacroProgress({ label, value, goal, percent, icon: Icon, color, bgColor
   color: string;
   bgColor: string;
 }) {
-  const size = 64;
-  const strokeWidth = 4.5;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
   const clampedPercent = Math.min(Math.max(percent, 0), 100);
-  const offset = circumference - (clampedPercent / 100) * circumference;
   const isOver = value > goal && goal > 0;
 
   const colorMap: Record<string, string> = {
@@ -2660,44 +2701,34 @@ function MacroProgress({ label, value, goal, percent, icon: Icon, color, bgColor
     "text-amber-500": "#f59e0b",
     "text-blue-500": "#3b82f6",
   };
-  const strokeColor = isOver ? "#ef4444" : (colorMap[color] || "#10b981");
+  const barColor = isOver ? "#ef4444" : (colorMap[color] || "#10b981");
+
+  const bgMap: Record<string, string> = {
+    "bg-red-500": "from-red-500/5 to-red-500/10",
+    "bg-amber-500": "from-amber-500/5 to-amber-500/10",
+    "bg-blue-500": "from-blue-500/5 to-blue-500/10",
+  };
+  const cardBg = bgMap[bgColor] || "from-muted/10 to-muted/20";
 
   return (
-    <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-muted/20" data-testid={`macro-ring-${label.toLowerCase()}`}>
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={strokeWidth}
-            className="text-muted/30"
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={strokeColor}
-            strokeWidth={strokeWidth}
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            strokeLinecap="round"
-            className="transition-all duration-1000 ease-out"
-            style={{ filter: `drop-shadow(0 0 3px ${strokeColor}40)` }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <Icon className={`w-3.5 h-3.5 ${isOver ? "text-red-500" : color}`} />
-          <span className={`text-[9px] font-bold mt-0.5 tabular-nums ${isOver ? "text-red-500" : ""}`} data-testid={`text-macro-ring-${label.toLowerCase()}-percent`}>{Math.round(clampedPercent)}%</span>
-        </div>
+    <div className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-gradient-to-br ${cardBg} border border-border/30`} data-testid={`macro-ring-${label.toLowerCase()}`}>
+      <div className={`p-1.5 rounded-xl ${bgColor}/15`}>
+        <Icon className={`w-4 h-4 ${isOver ? "text-red-500" : color}`} />
       </div>
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
-      <div className="leading-none">
-        <span className={`text-xs font-bold tabular-nums ${isOver ? "text-red-500" : ""}`}>{value}g</span>
-        <span className="text-[9px] text-muted-foreground"> / {goal}g</span>
+      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="w-full h-1.5 rounded-full bg-muted/30 overflow-hidden">
+        <div 
+          className="h-full rounded-full transition-all duration-1000 ease-out"
+          style={{ 
+            width: `${clampedPercent}%`, 
+            backgroundColor: barColor,
+            boxShadow: `0 0 6px ${barColor}40`
+          }} 
+        />
+      </div>
+      <div className="leading-none text-center">
+        <span className={`text-sm font-bold tabular-nums ${isOver ? "text-red-500" : ""}`} data-testid={`text-macro-ring-${label.toLowerCase()}-percent`}>{value}g</span>
+        <span className="text-[10px] text-muted-foreground"> / {goal}g</span>
       </div>
     </div>
   );
