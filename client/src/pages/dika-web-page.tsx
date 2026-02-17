@@ -110,6 +110,8 @@ function stripSpecialTags(content: string): string {
     .replace(/\n?&lt;!-- PENDING_GOAL:[\s\S]+? --&gt;/g, '')
     .replace(/\n?<!-- PENDING_MEAL_SUGGESTION:[\s\S]+? -->/g, '')
     .replace(/\n?&lt;!-- PENDING_MEAL_SUGGESTION:[\s\S]+? --&gt;/g, '')
+    .replace(/\n?<!-- PENDING_MATCH_LOG:[\s\S]+? -->/g, '')
+    .replace(/\n?&lt;!-- PENDING_MATCH_LOG:[\s\S]+? --&gt;/g, '')
     .trim();
 }
 

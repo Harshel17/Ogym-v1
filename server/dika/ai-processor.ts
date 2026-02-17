@@ -610,9 +610,11 @@ interface MemberContext {
         caloriesBurned: number | null;
       }>;
       thisWeekCount: number;
+      lastWeekCount: number;
       thisMonthCount: number;
       totalCaloriesBurned: number;
       avgDuration: number;
+      consecutiveMatchDays: number;
     };
   };
 }
@@ -985,9 +987,11 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
     todayMatch: null,
     recentMatches: [],
     thisWeekCount: 0,
+    lastWeekCount: 0,
     thisMonthCount: 0,
     totalCaloriesBurned: 0,
     avgDuration: 0,
+    consecutiveMatchDays: 0,
   };
 
   try {
@@ -1056,10 +1060,39 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
       gte(matchLogs.matchDate, dates.monthStart)
     ));
 
+    const lastWeekStart = new Date(new Date(dates.weekStart).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const [lastWeekStats] = await db.select({
+      count: count(),
+    })
+    .from(matchLogs)
+    .where(and(
+      eq(matchLogs.userId, userId),
+      eq(matchLogs.cancelled, false),
+      gte(matchLogs.matchDate, lastWeekStart),
+      sql`${matchLogs.matchDate} < ${dates.weekStart}`
+    ));
+
+    let consecutiveDays = 0;
+    const allRecentDates = [todayMatch, ...recentLogs]
+      .filter(Boolean)
+      .map(m => m!.matchDate)
+      .sort()
+      .reverse();
+    if (allRecentDates.length > 0) {
+      const todayDate = new Date(dates.today);
+      for (let i = 0; i < allRecentDates.length; i++) {
+        const expected = new Date(todayDate.getTime() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        if (allRecentDates.includes(expected)) consecutiveDays++;
+        else break;
+      }
+    }
+
     matchHistoryContext.thisWeekCount = weekStats?.count || 0;
+    matchHistoryContext.lastWeekCount = lastWeekStats?.count || 0;
     matchHistoryContext.thisMonthCount = monthStats?.count || 0;
     matchHistoryContext.avgDuration = Math.round(Number(weekStats?.avgDuration) || 0);
     matchHistoryContext.totalCaloriesBurned = Number(monthStats?.totalCalories) || 0;
+    matchHistoryContext.consecutiveMatchDays = consecutiveDays;
   } catch (err) {
     console.error('Failed to fetch match history for Dika:', err);
   }
@@ -1484,22 +1517,44 @@ ${mh.recentMatches.map(m => `- ${m.date}: ${m.sport}${m.intensity ? ` (${m.inten
     : '';
 
   const matchStatsSection = (mh.thisWeekCount > 0 || mh.thisMonthCount > 0)
-    ? `\nMATCH STATS: ${mh.thisWeekCount} match${mh.thisWeekCount !== 1 ? 'es' : ''} this week, ${mh.thisMonthCount} this month${mh.avgDuration > 0 ? `, avg ${mh.avgDuration} min` : ''}${mh.totalCaloriesBurned > 0 ? `, ${mh.totalCaloriesBurned} total cal burned from matches` : ''}.`
+    ? `\nMATCH STATS: ${mh.thisWeekCount} match${mh.thisWeekCount !== 1 ? 'es' : ''} this week${mh.lastWeekCount > 0 ? ` (last week: ${mh.lastWeekCount})` : ''}, ${mh.thisMonthCount} this month${mh.avgDuration > 0 ? `, avg ${mh.avgDuration} min` : ''}${mh.totalCaloriesBurned > 0 ? `, ${mh.totalCaloriesBurned} total cal burned from matches` : ''}.`
     : '';
+
+  const matchPatternSection = (() => {
+    const patterns: string[] = [];
+    if (mh.consecutiveMatchDays >= 3) {
+      patterns.push(`OVERTRAINING ALERT: ${mh.consecutiveMatchDays} consecutive days with matches. Strongly recommend rest day to prevent injury.`);
+    } else if (mh.consecutiveMatchDays === 2) {
+      patterns.push(`Back-to-back match days (${mh.consecutiveMatchDays}). Monitor fatigue — suggest lighter training today.`);
+    }
+    if (mh.thisWeekCount > mh.lastWeekCount && mh.lastWeekCount > 0) {
+      patterns.push(`Match frequency increasing: ${mh.lastWeekCount} last week → ${mh.thisWeekCount} this week.`);
+    } else if (mh.thisWeekCount < mh.lastWeekCount && mh.lastWeekCount >= 3) {
+      patterns.push(`Match frequency decreasing: ${mh.lastWeekCount} last week → ${mh.thisWeekCount} this week. Good if intentional recovery.`);
+    }
+    if (mh.thisWeekCount >= 4) {
+      patterns.push(`Heavy match week (${mh.thisWeekCount} matches). Prioritize recovery, sleep, and nutrition.`);
+    }
+    return patterns.length > 0 ? `\nMATCH PATTERNS:\n${patterns.map(p => `- ${p}`).join('\n')}` : '';
+  })();
 
   const nutritionCrossRef = mh.todayMatch && !mh.todayMatch.cancelled
     ? `\nSPORTS-NUTRITION AWARENESS:
-- If they ask about food/calories, factor in their match activity. A match day burns extra calories — they may need to eat more.
-- Pre-match: recommend carb-loading, hydration, light easily digestible meals. Avoid heavy/fatty foods.
-- Post-match: recommend protein for recovery, complex carbs to replenish glycogen, anti-inflammatory foods.
-- If their calorie intake looks low on a match day, proactively mention it: "you burned a lot in that match — make sure you're fueling up"`
+- Factor in their match activity when discussing food/calories. A match day burns extra calories — they may need to eat more.
+- Pre-match (tomorrow's match logged): Recommend carb-loading (pasta, rice, oats), hydration (2-3L water), light easily digestible meals 3-4h before. Avoid heavy/fatty/spicy foods. ${sport === 'Football' || sport === 'Basketball' || sport === 'Tennis' ? 'Emphasize electrolytes — these endurance sports cause heavy sweating.' : ''}${sport === 'Swimming' ? 'Avoid large meals close to swim time — keep it light 2h before.' : ''}${sport === 'Boxing' || sport === 'MMA' ? 'Watch weight if they have weigh-ins. High protein, moderate carbs.' : ''}
+- Post-match (yesterday's match): Protein for muscle repair (1.5-2g/kg), complex carbs for glycogen, anti-inflammatory foods (berries, fish, turmeric). ${sport === 'Cricket' ? 'Hydration especially critical after long matches in the sun.' : ''}
+- Match day: Quick energy (banana, energy bar) 30-60 min before. Recovery meal within 30-60 min after.
+- If their calorie intake looks low on a match day, proactively mention it: "you burned ~${mh.todayMatch.caloriesBurned || 'a lot of'} cal in that match — make sure you're fueling up"
+- If they haven't logged protein today after a match, gently nudge: "how's the protein intake? your muscles need it after ${sport.toLowerCase()}"`
     : '';
 
   const workoutCrossRef = mh.todayMatch && !mh.todayMatch.cancelled
     ? `\nSPORTS-WORKOUT AWARENESS:
-- If they have a match tomorrow and ask about today's workout, suggest lighter intensity or focusing on upper body if their sport is leg-heavy (and vice versa).
-- Post-match: suggest they go lighter on muscles heavily used in their sport. ${sport === 'Football' || sport === 'Basketball' || sport === 'Tennis' || sport === 'Cricket' ? 'Especially legs — those sports hammer the lower body.' : ''}${sport === 'Swimming' || sport === 'Boxing' || sport === 'MMA' || sport === 'Volleyball' ? 'Especially shoulders and core — those sports are upper body intensive.' : ''}
-- If they played 3+ matches this week, mention recovery: "you've been playing a lot — your body might appreciate an extra rest day"`
+- Pre-match (tomorrow): suggest lighter intensity workout focusing on mobility/stretching, or skip heavy compounds. ${sport === 'Football' || sport === 'Basketball' || sport === 'Tennis' || sport === 'Cricket' ? 'Focus on upper body — save legs for game day.' : ''}${sport === 'Swimming' || sport === 'Boxing' || sport === 'MMA' || sport === 'Volleyball' ? 'Focus on legs — save shoulders and arms for the match.' : ''}
+- Match day: If they haven't played yet, light dynamic warm-up only. If done, suggest gentle stretching and foam rolling.
+- Post-match (yesterday): Go lighter on muscles heavily used. ${sport === 'Football' || sport === 'Basketball' || sport === 'Tennis' || sport === 'Cricket' ? 'Easy on legs — those sports hammer the lower body. Focus upper body or active recovery.' : ''}${sport === 'Swimming' || sport === 'Boxing' || sport === 'MMA' || sport === 'Volleyball' ? 'Easy on shoulders and core — those sports are upper body intensive. Focus lower body or active recovery.' : ''}
+- Recovery priorities: sleep 8+ hours, hydrate, light stretching, avoid heavy deadlifts/squats within 24h of a competitive match.
+- If they played ${mh.consecutiveMatchDays >= 2 ? mh.consecutiveMatchDays + ' consecutive days' : '3+ matches this week'}, strongly suggest active recovery or rest day: "your body needs time to rebuild after that much match play"`
     : '';
 
   return `
@@ -1508,7 +1563,7 @@ This user plays ${sport} as a ${role}${sp.profile!.fitnessScore !== null ? ` (fi
 ${sp.impactScore}% of their workout cycle is sport-targeted (${sp.totalSportExercises} of ${sp.totalCycleExercises} exercises).
 ${sp.activeModifications.length > 0 ? `They're actively working on:
 ${sp.activeModifications.map(m => `- ${m.skillName} (${m.skillCategory}) at ${m.priority}% priority, ${m.daysActive} days in${m.targetMuscles.length > 0 ? ` — hitting ${m.targetMuscles.join(', ')}` : ''}${m.sportExercises.length > 0 ? ` — doing ${m.sportExercises.join(', ')}` : ''}`).join('\n')}` : 'No active skill modifications yet.'}
-${todayMatchSection}${recentMatchSection}${matchStatsSection}${nutritionCrossRef}${workoutCrossRef}
+${todayMatchSection}${recentMatchSection}${matchStatsSection}${matchPatternSection}${nutritionCrossRef}${workoutCrossRef}
 SPORTS CONVERSATION STYLE:
 - Talk about their sport like you actually watch and play it. Use the right terms for ${sport}.
 - Reference their specific skill work naturally: "how's the ${sp.activeModifications[0]?.skillName || 'training'} coming along?" not "Your sport skill progress is..."
@@ -2141,8 +2196,16 @@ function generateFollowUpChips(role: UserRole, lastMessage: string, aiResponse: 
     const chips: string[] = [];
     if (topics.match) {
       chips.push('My match history');
-      if (!topics.nutrition) chips.push('Pre-match nutrition tips');
-      if (!topics.workout) chips.push('How am I doing this week?');
+      if (/tomorrow|pre.match|before.*match/.test(combined)) {
+        chips.push('What should I eat before the match?');
+        if (!topics.workout) chips.push('Should I train today?');
+      } else if (/yesterday|after.*match|played|recovery/.test(combined)) {
+        chips.push('Recovery meal ideas');
+        if (!topics.workout) chips.push('Light workout suggestions');
+      } else {
+        if (!topics.nutrition) chips.push('Pre-match nutrition tips');
+        if (!topics.workout) chips.push('How am I doing this week?');
+      }
     }
     if (topics.sport && !topics.match) {
       chips.push('Log a match');

@@ -501,6 +501,7 @@ function MarkdownContent({ content }: { content: string }) {
       .replace(/<!-- PENDING_GOAL:[\s\S]+? -->/g, '').replace(/&lt;!-- PENDING_GOAL:[\s\S]+? --&gt;/g, '')
       .replace(/<!-- PENDING_MEAL_SUGGESTION:[\s\S]+? -->/g, '').replace(/&lt;!-- PENDING_MEAL_SUGGESTION:[\s\S]+? --&gt;/g, '')
       .replace(/<!-- DIKA_FIND_FOOD -->/g, '').replace(/&lt;!-- DIKA_FIND_FOOD --&gt;/g, '')
+      .replace(/<!-- PENDING_MATCH_LOG:[\s\S]+? -->/g, '').replace(/&lt;!-- PENDING_MATCH_LOG:[\s\S]+? --&gt;/g, '')
       .replace(/\n?\[chips?:\s*"[^"]+".+?\]/gi, '')
       .trim();
     return parseMarkdown(cleanContent);
