@@ -564,7 +564,16 @@ interface MemberContext {
     totalFat: number;
     calorieGoal: number | null;
     proteinGoal: number | null;
+    carbsGoal: number | null;
+    fatGoal: number | null;
+    goalType: string | null;
     mealsLogged: number;
+    mealBreakdown: Array<{ mealType: string; calories: number; protein: number; carbs: number; fat: number; itemCount: number; foods: string[] }>;
+    waterOz: number;
+    eatingWindow: { firstMeal: string | null; lastMeal: string | null } | null;
+    verifiedCount: number;
+    estimatedCount: number;
+    weeklyAvg: { avgCalories: number; avgProtein: number; daysLogged: number; proteinHitDays: number } | null;
   };
   todayWorkout: {
     dayLabel: string | null;
@@ -915,9 +924,11 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
       todayMatch: null,
       recentMatches: [],
       thisWeekCount: 0,
+      lastWeekCount: 0,
       thisMonthCount: 0,
       totalCaloriesBurned: 0,
       avgDuration: 0,
+      consecutiveMatchDays: 0,
     },
   };
 
@@ -1476,15 +1487,62 @@ ${ctx.bodyMeasurements.previous ? `- Previous (${ctx.bodyMeasurements.previous.d
 ` : '- No body measurements recorded'}
 ${healthDataSection}
 NUTRITION TODAY:
-- Calories consumed: ${ctx.nutrition.totalCalories}${ctx.nutrition.calorieGoal ? ` / ${ctx.nutrition.calorieGoal} goal` : ''} (${ctx.nutrition.mealsLogged} items logged)
-- Protein: ${ctx.nutrition.totalProtein}g${ctx.nutrition.proteinGoal ? ` / ${ctx.nutrition.proteinGoal}g goal` : ''}
-- Carbs: ${ctx.nutrition.totalCarbs}g | Fat: ${ctx.nutrition.totalFat}g
+- Calories: ${ctx.nutrition.totalCalories}${ctx.nutrition.calorieGoal ? ` / ${ctx.nutrition.calorieGoal} goal` : ''} (${ctx.nutrition.mealsLogged} items logged)
+- Protein: ${ctx.nutrition.totalProtein}g${ctx.nutrition.proteinGoal ? ` / ${ctx.nutrition.proteinGoal}g goal` : ''} | Carbs: ${ctx.nutrition.totalCarbs}g${ctx.nutrition.carbsGoal ? ` / ${ctx.nutrition.carbsGoal}g` : ''} | Fat: ${ctx.nutrition.totalFat}g${ctx.nutrition.fatGoal ? ` / ${ctx.nutrition.fatGoal}g` : ''}
 ${ctx.nutrition.calorieGoal ? `- Remaining: ${Math.max(0, ctx.nutrition.calorieGoal - ctx.nutrition.totalCalories)} cal` : '- No calorie goal set'}
+${ctx.nutrition.goalType ? `- Goal type: ${ctx.nutrition.goalType} weight` : ''}
+${ctx.nutrition.mealBreakdown.length > 0 ? `
+MEALS BREAKDOWN:
+${ctx.nutrition.mealBreakdown.map(m => `- ${m.mealType.charAt(0).toUpperCase() + m.mealType.slice(1)}: ${m.calories} cal (P:${m.protein}g C:${m.carbs}g F:${m.fat}g) — ${m.foods.join(', ')}`).join('\n')}` : '- No meals logged yet'}
+${ctx.nutrition.eatingWindow ? `- Eating window: ${ctx.nutrition.eatingWindow.firstMeal}${ctx.nutrition.eatingWindow.lastMeal ? ` to ${ctx.nutrition.eatingWindow.lastMeal}` : ''}` : ''}
+- Water: ${ctx.nutrition.waterOz}oz / 64oz${ctx.nutrition.waterOz === 0 ? ' (nothing logged!)' : ctx.nutrition.waterOz >= 64 ? ' (goal hit!)' : ''}
+${ctx.nutrition.mealsLogged > 0 ? `- Data quality: ${ctx.nutrition.verifiedCount} verified, ${ctx.nutrition.estimatedCount} estimated` : ''}
+${ctx.nutrition.weeklyAvg ? `
+WEEKLY NUTRITION TRENDS (last ${ctx.nutrition.weeklyAvg.daysLogged} days):
+- Avg calories/day: ${ctx.nutrition.weeklyAvg.avgCalories}${ctx.nutrition.calorieGoal ? ` (goal: ${ctx.nutrition.calorieGoal})` : ''}
+- Avg protein/day: ${ctx.nutrition.weeklyAvg.avgProtein}g${ctx.nutrition.proteinGoal ? ` (goal: ${ctx.nutrition.proteinGoal}g)` : ''}
+${ctx.nutrition.proteinGoal ? `- Protein goal hit: ${ctx.nutrition.weeklyAvg.proteinHitDays}/${ctx.nutrition.weeklyAvg.daysLogged} days` : ''}` : ''}
+${(() => {
+  const n = ctx.nutrition;
+  const h = ctx.healthData;
+  const insights: string[] = [];
+  if (h.connected && h.today?.caloriesBurned && n.totalCalories > 0) {
+    const netCal = n.totalCalories - h.today.caloriesBurned;
+    insights.push(`Net calorie balance: ${netCal > 0 ? '+' : ''}${netCal} cal (eaten ${n.totalCalories} - burned ${h.today.caloriesBurned})`);
+    if (n.goalType === 'lose' && netCal > 0) insights.push('Warning: positive net balance while trying to lose weight');
+    if (n.goalType === 'gain' && netCal < -500) insights.push('Warning: large deficit while trying to gain — needs to eat more');
+  }
+  if (h.connected && h.today?.sleepMinutes && h.today.sleepMinutes < 360) {
+    insights.push(`Low sleep (${Math.floor(h.today.sleepMinutes / 60)}h ${h.today.sleepMinutes % 60}m) — suggest lighter workout and extra hydration`);
+  }
+  if (h.connected && h.weeklyAvg && h.today?.avgHeartRate && h.weeklyAvg.avgHeartRate > 0) {
+    const hrDiff = h.today.avgHeartRate - h.weeklyAvg.avgHeartRate;
+    if (hrDiff > 10) insights.push(`Heart rate elevated today (${h.today.avgHeartRate} vs avg ${h.weeklyAvg.avgHeartRate} bpm) — possible stress, illness, or overtraining`);
+  }
+  if (h.connected && h.today?.steps && h.today.steps > 10000 && n.totalCalories < (n.calorieGoal || 2000) * 0.5) {
+    insights.push(`High activity (${h.today.steps.toLocaleString()} steps) but low food intake — encourage eating`);
+  }
+  if (n.totalCalories > 0 && n.totalProtein > 0) {
+    const protPct = Math.round((n.totalProtein * 4 / (n.totalCalories || 1)) * 100);
+    const carbPct = Math.round((n.totalCarbs * 4 / (n.totalCalories || 1)) * 100);
+    const fatPct = Math.round((n.totalFat * 9 / (n.totalCalories || 1)) * 100);
+    if (protPct < 15) insights.push(`Low protein ratio (${protPct}% of calories) — suggest protein-rich foods`);
+    if (carbPct > 65) insights.push(`High carb ratio (${carbPct}% of calories) — may want to balance with more protein/fat`);
+    insights.push(`Macro split: ${protPct}% protein, ${carbPct}% carbs, ${fatPct}% fat`);
+  }
+  if (h.recoveryScore !== null && h.recoveryScore < 40) {
+    insights.push(`Recovery score is low (${h.recoveryScore}/100) — prioritize rest, hydration, and protein intake`);
+  }
+  return insights.length > 0 ? `\nCROSS-DATA INSIGHTS (use these to give smart contextual advice):\n${insights.map(i => `- ${i}`).join('\n')}` : '';
+})()}
 
 IMPORTANT - MEAL LOGGING:
 - When the user tells you what they ate (e.g. "I had eggs and toast", "ate some chocolate", "had ice cream"), the system automatically detects and logs it. You do NOT need to handle meal logging yourself.
 - You CAN answer questions about their nutrition data shown above. Talk about it casually — "you've eaten about 1,800 so far, got room for a solid dinner" not a stats report.
+- Since you know EXACTLY what they ate today (food names, per-meal macros), give specific advice like "your lunch was carb-heavy with sambar rice — try a protein-rich dinner like grilled chicken" instead of generic suggestions.
 - When asked "what should I eat" or meal suggestions, the system handles it. You do NOT need to suggest meals yourself.
+- If their water intake is low, casually mention it when relevant — "also, you haven't had any water today, fix that!"
+- When they have watch data, use the cross-data insights to give truly personalized advice that connects exercise, sleep, nutrition, and recovery.
 
 EXERCISE SUBSTITUTION:
 - When a member says they can't do an exercise or asks for alternatives, the system handles finding and swapping exercises. You do NOT need to handle this yourself.

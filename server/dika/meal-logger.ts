@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { db } from "../db";
-import { foodLogs, calorieGoals } from "@shared/schema";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { foodLogs, calorieGoals, waterLogs } from "@shared/schema";
+import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
@@ -297,42 +297,125 @@ export async function getTodayNutritionSummary(userId: number, localDate?: strin
   totalFat: number;
   calorieGoal: number | null;
   proteinGoal: number | null;
+  carbsGoal: number | null;
+  fatGoal: number | null;
+  goalType: string | null;
   mealsLogged: number;
+  mealBreakdown: Array<{ mealType: string; calories: number; protein: number; carbs: number; fat: number; itemCount: number; foods: string[] }>;
+  waterOz: number;
+  eatingWindow: { firstMeal: string | null; lastMeal: string | null } | null;
+  verifiedCount: number;
+  estimatedCount: number;
+  weeklyAvg: { avgCalories: number; avgProtein: number; daysLogged: number; proteinHitDays: number } | null;
 }> {
   const today = localDate || new Date().toISOString().split('T')[0];
 
-  const [summary] = await db.select({
-    totalCalories: sql<number>`COALESCE(SUM(${foodLogs.calories}), 0)`,
-    totalProtein: sql<number>`COALESCE(SUM(${foodLogs.protein}), 0)`,
-    totalCarbs: sql<number>`COALESCE(SUM(${foodLogs.carbs}), 0)`,
-    totalFat: sql<number>`COALESCE(SUM(${foodLogs.fat}), 0)`,
-    mealsLogged: sql<number>`COUNT(*)`,
-  })
-  .from(foodLogs)
-  .where(and(
-    eq(foodLogs.userId, userId),
-    eq(foodLogs.date, today)
-  ));
+  const todayLogs = await db.select()
+    .from(foodLogs)
+    .where(and(
+      eq(foodLogs.userId, userId),
+      eq(foodLogs.date, today)
+    ))
+    .orderBy(foodLogs.createdAt);
 
-  const [goal] = await db.select({
-    dailyCalorieTarget: calorieGoals.dailyCalorieTarget,
-    dailyProteinTarget: calorieGoals.dailyProteinTarget,
+  const totalCalories = todayLogs.reduce((s, l) => s + l.calories, 0);
+  const totalProtein = todayLogs.reduce((s, l) => s + (l.protein || 0), 0);
+  const totalCarbs = todayLogs.reduce((s, l) => s + (l.carbs || 0), 0);
+  const totalFat = todayLogs.reduce((s, l) => s + (l.fat || 0), 0);
+
+  const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack', 'extra', 'protein'];
+  const mealBreakdown = mealTypes.map(mt => {
+    const logs = todayLogs.filter(l => l.mealType === mt);
+    return {
+      mealType: mt,
+      calories: logs.reduce((s, l) => s + l.calories, 0),
+      protein: logs.reduce((s, l) => s + (l.protein || 0), 0),
+      carbs: logs.reduce((s, l) => s + (l.carbs || 0), 0),
+      fat: logs.reduce((s, l) => s + (l.fat || 0), 0),
+      itemCount: logs.length,
+      foods: logs.map(l => l.foodName),
+    };
+  }).filter(m => m.itemCount > 0);
+
+  const [goal] = await db.select()
+    .from(calorieGoals)
+    .where(and(
+      eq(calorieGoals.userId, userId),
+      eq(calorieGoals.isActive, true)
+    ))
+    .limit(1);
+
+  const [waterTotal] = await db.select({
+    total: sql<number>`COALESCE(SUM(${waterLogs.amountOz}), 0)`,
   })
-  .from(calorieGoals)
-  .where(and(
-    eq(calorieGoals.userId, userId),
-    eq(calorieGoals.isActive, true)
-  ))
-  .limit(1);
+  .from(waterLogs)
+  .where(and(eq(waterLogs.userId, userId), eq(waterLogs.date, today)));
+
+  let eatingWindow: { firstMeal: string | null; lastMeal: string | null } | null = null;
+  if (todayLogs.length > 0) {
+    const times = todayLogs
+      .filter(l => l.createdAt)
+      .map(l => new Date(l.createdAt!));
+    if (times.length > 0) {
+      const fmt = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      eatingWindow = {
+        firstMeal: fmt(times[0]),
+        lastMeal: times.length > 1 ? fmt(times[times.length - 1]) : null,
+      };
+    }
+  }
+
+  const verifiedCount = todayLogs.filter(l => l.isEstimate === false).length;
+  const estimatedCount = todayLogs.filter(l => l.isEstimate === true).length;
+
+  let weeklyAvg: { avgCalories: number; avgProtein: number; daysLogged: number; proteinHitDays: number } | null = null;
+  try {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoStr = weekAgo.toISOString().split('T')[0];
+
+    const weeklyData = await db.select({
+      date: foodLogs.date,
+      totalCal: sql<number>`SUM(${foodLogs.calories})`,
+      totalProt: sql<number>`SUM(COALESCE(${foodLogs.protein}, 0))`,
+    })
+    .from(foodLogs)
+    .where(and(
+      eq(foodLogs.userId, userId),
+      gte(foodLogs.date, weekAgoStr),
+      lte(foodLogs.date, today)
+    ))
+    .groupBy(foodLogs.date);
+
+    if (weeklyData.length > 0) {
+      const daysLogged = weeklyData.length;
+      const avgCalories = Math.round(weeklyData.reduce((s, d) => s + Number(d.totalCal), 0) / daysLogged);
+      const avgProtein = Math.round(weeklyData.reduce((s, d) => s + Number(d.totalProt), 0) / daysLogged);
+      const proteinTarget = goal?.dailyProteinTarget || 0;
+      const proteinHitDays = proteinTarget > 0
+        ? weeklyData.filter(d => Number(d.totalProt) >= proteinTarget).length
+        : 0;
+      weeklyAvg = { avgCalories, avgProtein, daysLogged, proteinHitDays };
+    }
+  } catch {}
 
   return {
-    totalCalories: Number(summary?.totalCalories) || 0,
-    totalProtein: Number(summary?.totalProtein) || 0,
-    totalCarbs: Number(summary?.totalCarbs) || 0,
-    totalFat: Number(summary?.totalFat) || 0,
+    totalCalories,
+    totalProtein,
+    totalCarbs,
+    totalFat,
     calorieGoal: goal?.dailyCalorieTarget || null,
     proteinGoal: goal?.dailyProteinTarget || null,
-    mealsLogged: Number(summary?.mealsLogged) || 0,
+    carbsGoal: goal?.dailyCarbsTarget || null,
+    fatGoal: goal?.dailyFatTarget || null,
+    goalType: goal?.goalType || null,
+    mealsLogged: todayLogs.length,
+    mealBreakdown,
+    waterOz: Number(waterTotal?.total) || 0,
+    eatingWindow,
+    verifiedCount,
+    estimatedCount,
+    weeklyAvg,
   };
 }
 
