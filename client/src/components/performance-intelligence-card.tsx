@@ -61,13 +61,12 @@ export function PerformanceIntelligenceCard() {
   const [isOpen, setIsOpen] = useState(false);
   const [, setLocation] = useLocation();
 
-  const { data: report, isLoading, error } = useQuery<IntelligenceReport>({
+  const { data: report, isLoading, error, refetch } = useQuery<IntelligenceReport>({
     queryKey: ["/api/intelligence-report"],
     staleTime: 1000 * 60 * 30,
     refetchOnWindowFocus: false,
+    retry: 1,
   });
-
-  if (error) return null;
 
   const handleDikaFollowUp = () => {
     const prompt = encodeURIComponent(
@@ -124,6 +123,13 @@ export function PerformanceIntelligenceCard() {
               <div className="flex items-center justify-center py-8" data-testid="intelligence-loading">
                 <Loader2 className="w-5 h-5 animate-spin text-primary mr-2" />
                 <span className="text-sm text-muted-foreground">Analyzing your data...</span>
+              </div>
+            ) : error ? (
+              <div className="text-center py-6 space-y-2" data-testid="intelligence-error">
+                <p className="text-sm text-muted-foreground">Could not load your intelligence report right now.</p>
+                <Button variant="outline" size="sm" onClick={() => refetch()} data-testid="intelligence-retry">
+                  Try again
+                </Button>
               </div>
             ) : report ? (
               <>
