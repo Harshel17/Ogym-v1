@@ -81,588 +81,281 @@ const regionLabels: Record<string, string> = {
 
 function Tooltip({ x, y, label, visible }: { x: number; y: number; label: string; visible: boolean }) {
   if (!visible) return null;
-  const textLen = label.length * 5.5 + 14;
+  const textLen = label.length * 4.2 + 12;
   return (
-    <g className="pointer-events-none" style={{ opacity: visible ? 1 : 0, transition: "opacity 0.2s" }}>
-      <rect
-        x={x - textLen / 2}
-        y={y - 22}
-        width={textLen}
-        height={20}
-        rx={6}
-        fill="hsl(var(--popover))"
-        stroke="hsl(var(--border))"
-        strokeWidth={0.8}
-        style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.2))" }}
-      />
-      <polygon
-        points={`${x - 4},${y - 2} ${x + 4},${y - 2} ${x},${y + 3}`}
-        fill="hsl(var(--popover))"
-      />
-      <text
-        x={x}
-        y={y - 9}
-        textAnchor="middle"
-        fill="hsl(var(--popover-foreground))"
-        fontSize="8.5"
-        fontWeight="600"
-        fontFamily="system-ui, sans-serif"
-        letterSpacing="0.3"
-      >
+    <g className="pointer-events-none" style={{ opacity: 1, transition: "opacity 0.2s" }}>
+      <rect x={x - textLen / 2} y={y - 18} width={textLen} height={16} rx={4}
+        fill="hsl(var(--popover))" stroke="hsl(var(--border))" strokeWidth={0.6}
+        style={{ filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.15))" }} />
+      <polygon points={`${x - 3},${y - 2} ${x + 3},${y - 2} ${x},${y + 2}`} fill="hsl(var(--popover))" />
+      <text x={x} y={y - 8} textAnchor="middle" fill="hsl(var(--popover-foreground))"
+        fontSize="7" fontWeight="600" fontFamily="system-ui, sans-serif" letterSpacing="0.2">
         {label}
       </text>
     </g>
   );
 }
 
-export function BodyMapFront({ 
-  highlightedMuscles, 
-  onMuscleClick, 
-  selectedMuscle,
-  className = "" 
-}: BodyMapProps) {
-  const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
-  const isHighlighted = (region: string) => highlightedMuscles.includes(region);
-  const isSelected = (region: string) => selectedMuscle === region;
-  const isHovered = (region: string) => hoveredRegion === region;
-  
-  const getMuscleStyle = (region: string): React.CSSProperties => {
-    const base: React.CSSProperties = {
-      cursor: "pointer",
-      transition: "all 0.3s ease",
-    };
-    
+function LabelLine({ x1, y1, x2, y2, label, anchor }: { x1: number; y1: number; x2: number; y2: number; label: string; anchor: "start" | "end" }) {
+  return (
+    <>
+      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="hsl(var(--primary) / 0.4)" strokeWidth="0.5" strokeDasharray="1.5 1" />
+      <circle cx={x2} cy={y2} r="1" fill="hsl(var(--primary))" />
+      <text x={anchor === "start" ? x2 + 3 : x2 - 3} y={y2 - 2} textAnchor={anchor}
+        fill="hsl(var(--primary))" fontSize="5.5" fontWeight="700" fontFamily="system-ui" letterSpacing="0.4" opacity="0.8">
+        {label}
+      </text>
+    </>
+  );
+}
+
+function useMuscleStyle(
+  isHighlighted: (r: string) => boolean,
+  isSelected: (r: string) => boolean,
+  isHovered: (r: string) => boolean,
+  suffix: string
+) {
+  return useCallback((region: string): React.CSSProperties => {
+    const base: React.CSSProperties = { cursor: "pointer", transition: "all 0.3s ease" };
     if (isSelected(region)) {
-      return {
-        ...base,
-        fill: "url(#selectedGradF)",
-        stroke: "hsl(var(--primary))",
-        strokeWidth: 1.5,
-        filter: "url(#glowF)",
-      };
+      return { ...base, fill: `url(#selGrad${suffix})`, stroke: "hsl(var(--primary))", strokeWidth: 1.2, filter: `url(#glow${suffix})` };
     }
     if (isHighlighted(region)) {
-      return {
-        ...base,
-        fill: "url(#highlightGradF)",
-        stroke: "hsl(var(--primary) / 0.6)",
-        strokeWidth: 1,
-        filter: isHovered(region) ? "url(#glowF)" : "url(#softGlowF)",
-      };
+      return { ...base, fill: `url(#hlGrad${suffix})`, stroke: "hsl(var(--primary) / 0.5)", strokeWidth: 0.8,
+        filter: isHovered(region) ? `url(#glow${suffix})` : `url(#sglow${suffix})` };
     }
-    return {
-      ...base,
-      fill: "url(#skinGradF)",
-      stroke: "hsl(var(--muted-foreground) / 0.2)",
-      strokeWidth: 0.5,
-      opacity: isHovered(region) ? 0.9 : 1,
-    };
-  };
+    return { ...base, fill: `url(#skinGrad${suffix})`, stroke: "hsl(var(--muted-foreground) / 0.15)", strokeWidth: 0.4 };
+  }, [isHighlighted, isSelected, isHovered, suffix]);
+}
 
-  const handleMouseEnter = useCallback((region: string) => setHoveredRegion(region), []);
-  const handleMouseLeave = useCallback(() => setHoveredRegion(null), []);
+function SharedDefs({ s }: { s: string }) {
+  return (
+    <defs>
+      <linearGradient id={`hlGrad${s}`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.85" />
+        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.55" />
+      </linearGradient>
+      <linearGradient id={`selGrad${s}`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="1" />
+        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.8" />
+      </linearGradient>
+      <radialGradient id={`skinGrad${s}`} cx="50%" cy="40%" r="55%">
+        <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.22" />
+        <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.08" />
+      </radialGradient>
+      <radialGradient id={`bodyGrad${s}`} cx="50%" cy="35%" r="60%">
+        <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.18" />
+        <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.06" />
+      </radialGradient>
+      <filter id={`glow${s}`} x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="3" result="b"/>
+        <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.35"/>
+        <feComposite in2="b" operator="in"/>
+        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id={`sglow${s}`} x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="1.5" result="b"/>
+        <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.12"/>
+        <feComposite in2="b" operator="in"/>
+        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+  );
+}
 
-  const tooltipPositions: Record<string, { x: number; y: number }> = {
-    shoulders: { x: 100, y: 58 },
-    chest: { x: 100, y: 78 },
-    biceps: { x: 42, y: 105 },
-    forearms: { x: 40, y: 145 },
-    abs: { x: 100, y: 145 },
-    obliques: { x: 65, y: 155 },
-    quads: { x: 100, y: 230 },
-    calves: { x: 100, y: 310 },
+export function BodyMapFront({ highlightedMuscles, onMuscleClick, selectedMuscle, className = "" }: BodyMapProps) {
+  const [hov, setHov] = useState<string | null>(null);
+  const isH = (r: string) => highlightedMuscles.includes(r);
+  const isS = (r: string) => selectedMuscle === r;
+  const isV = (r: string) => hov === r;
+  const gs = useMuscleStyle(isH, isS, isV, "F");
+  const onE = useCallback((r: string) => setHov(r), []);
+  const onL = useCallback(() => setHov(null), []);
+
+  const tp: Record<string, { x: number; y: number }> = {
+    shoulders: { x: 75, y: 68 }, chest: { x: 75, y: 88 }, biceps: { x: 40, y: 115 },
+    forearms: { x: 36, y: 155 }, abs: { x: 75, y: 155 }, obliques: { x: 60, y: 155 },
+    quads: { x: 75, y: 265 }, calves: { x: 75, y: 360 },
   };
 
   return (
-    <svg viewBox="0 0 200 390" className={`w-full max-w-[180px] ${className}`}>
-      <defs>
-        <linearGradient id="highlightGradF" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.6" />
-        </linearGradient>
-        <linearGradient id="selectedGradF" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="1" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.85" />
-        </linearGradient>
-        <radialGradient id="skinGradF" cx="50%" cy="40%" r="60%">
-          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.12" />
-        </radialGradient>
-        <radialGradient id="bodyGradF" cx="50%" cy="35%" r="65%">
-          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.15" />
-        </radialGradient>
-        <filter id="glowF" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="4" result="blur"/>
-          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.4"/>
-          <feComposite in2="blur" operator="in"/>
-          <feMerge>
-            <feMergeNode/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-        <filter id="softGlowF" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="2" result="blur"/>
-          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.15"/>
-          <feComposite in2="blur" operator="in"/>
-          <feMerge>
-            <feMergeNode/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-      </defs>
+    <svg viewBox="0 0 150 460" className={`w-full max-w-[140px] ${className}`} data-testid="body-map-front">
+      <SharedDefs s="F" />
 
-      <g className="body-outline" opacity="1">
-        <ellipse data-testid="head-front" cx="100" cy="28" rx="18" ry="22" fill="url(#bodyGradF)" stroke="hsl(var(--muted-foreground) / 0.3)" strokeWidth="0.8" />
-        <line x1="100" y1="50" x2="100" y2="56" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="3" />
-        <path d="M68 60 Q60 62 54 72 Q48 88 46 108 Q44 128 46 148 Q48 158 52 162
-                 M132 60 Q140 62 146 72 Q152 88 154 108 Q156 128 154 148 Q152 158 148 162" 
-              fill="none" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="0.6" />
-        <path d="M46 162 Q42 175 42 185
-                 M154 162 Q158 175 158 185"
-              fill="none" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="0.6" />
-        <path d="M76 58 L124 58 Q130 62 134 75 Q136 100 136 130 Q136 155 132 180 Q130 200 128 210
-                 Q126 230 122 248 Q120 260 120 280 Q120 300 122 320 Q124 340 126 358 L114 362
-                 Q108 330 104 310 L100 290 L96 310 Q92 330 86 362 L74 358
-                 Q76 340 78 320 Q80 300 80 280 Q80 260 78 248 Q74 230 72 210
-                 Q70 200 68 180 Q64 155 64 130 Q64 100 66 75 Q70 62 76 58 Z"
-              fill="url(#bodyGradF)" stroke="hsl(var(--muted-foreground) / 0.3)" strokeWidth="0.8" />
+      <g className="body-silhouette">
+        <ellipse cx="75" cy="22" rx="11" ry="14" fill="url(#bodyGradF)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="0.6" data-testid="head-front" />
+        <rect x="71" y="36" width="8" height="10" rx="3" fill="url(#bodyGradF)" stroke="none" />
+        <path d="M56 48 Q48 50 42 58 Q38 68 36 82 Q34 98 36 116 Q38 128 40 136 Q42 142 44 150 Q46 158 48 168
+                 M94 48 Q102 50 108 58 Q112 68 114 82 Q116 98 114 116 Q112 128 110 136 Q108 142 106 150 Q104 158 102 168"
+              fill="none" stroke="hsl(var(--muted-foreground) / 0.18)" strokeWidth="0.5" />
+        <path d="M60 48 L90 48 Q96 52 98 62 Q100 80 100 100 Q100 120 98 140 Q96 155 94 168 Q92 180 90 195
+                 Q88 210 86 220 Q84 230 84 245 Q84 270 86 300 Q88 330 90 355 Q92 370 92 390 Q92 400 88 410 L82 416
+                 Q78 390 76 370 L75 355 L74 370 Q72 390 68 416 L62 410
+                 Q58 400 58 390 Q58 370 60 355 Q62 330 64 300 Q66 270 66 245 Q66 230 64 220 Q62 210 60 195
+                 Q58 180 56 168 Q54 155 52 140 Q50 120 50 100 Q50 80 52 62 Q54 52 60 48 Z"
+              fill="url(#bodyGradF)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="0.6" />
       </g>
-      
+
       <g className="muscles">
-        <path 
-          data-region="shoulders"
-          data-testid="region-shoulders-front"
-          d="M68 60 Q62 64 58 74 Q54 86 56 96 Q60 94 66 86 Q72 76 76 66 Q74 60 68 60 Z
-             M132 60 Q138 64 142 74 Q146 86 144 96 Q140 94 134 86 Q128 76 124 66 Q126 60 132 60 Z"
-          style={getMuscleStyle("shoulders")}
-          onMouseEnter={() => handleMouseEnter("shoulders")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("shoulders")}
-        />
-        
-        <path 
-          data-region="chest"
-          data-testid="region-chest"
-          d="M78 62 Q74 70 72 82 Q70 96 74 108 Q80 114 90 116 L100 118 L110 116 Q120 114 126 108 Q130 96 128 82 Q126 70 122 62 Q112 58 100 56 Q88 58 78 62 Z"
-          style={getMuscleStyle("chest")}
-          onMouseEnter={() => handleMouseEnter("chest")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("chest")}
-        />
-        
-        <path 
-          data-region="biceps"
-          data-testid="region-biceps"
-          d="M54 96 Q50 108 48 122 Q46 132 50 136 Q56 134 62 126 Q66 116 68 102 Q66 94 60 94 Z
-             M146 96 Q150 108 152 122 Q154 132 150 136 Q144 134 138 126 Q134 116 132 102 Q134 94 140 94 Z"
-          style={getMuscleStyle("biceps")}
-          onMouseEnter={() => handleMouseEnter("biceps")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("biceps")}
-        />
-        
-        <path 
-          data-region="forearms"
-          data-testid="region-forearms"
-          d="M48 136 Q44 150 42 164 Q42 172 46 176 Q52 174 56 166 Q60 154 62 138 Q58 134 52 134 Z
-             M152 136 Q156 150 158 164 Q158 172 154 176 Q148 174 144 166 Q140 154 138 138 Q142 134 148 134 Z"
-          style={getMuscleStyle("forearms")}
-          onMouseEnter={() => handleMouseEnter("forearms")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("forearms")}
-        />
-        
-        <path 
-          data-region="abs"
-          data-testid="region-abs"
-          d="M88 118 Q86 132 84 148 Q82 165 84 182 Q86 190 94 194 L100 196 L106 194 Q114 190 116 182 Q118 165 116 148 Q114 132 112 118 Q106 116 100 118 Q94 116 88 118 Z"
-          style={getMuscleStyle("abs")}
-          onMouseEnter={() => handleMouseEnter("abs")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("abs")}
-        />
-        
-        <path 
-          data-region="obliques"
-          data-testid="region-obliques"
-          d="M74 110 Q70 130 68 150 Q66 170 68 188 Q72 194 80 196 Q84 190 84 182 Q82 165 84 148 Q86 132 88 118 Q84 112 78 110 Z
-             M126 110 Q130 130 132 150 Q134 170 132 188 Q128 194 120 196 Q116 190 116 182 Q118 165 116 148 Q114 132 112 118 Q116 112 122 110 Z"
-          style={getMuscleStyle("obliques")}
-          onMouseEnter={() => handleMouseEnter("obliques")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("obliques")}
-        />
-        
-        <path 
-          data-region="quads"
-          data-testid="region-quads"
-          d="M78 210 Q74 235 72 260 Q72 280 78 298 Q84 306 92 302 Q96 290 98 270 L100 248 L100 212 Q92 206 82 208 Z
-             M122 210 Q126 235 128 260 Q128 280 122 298 Q116 306 108 302 Q104 290 102 270 L100 248 L100 212 Q108 206 118 208 Z"
-          style={getMuscleStyle("quads")}
-          onMouseEnter={() => handleMouseEnter("quads")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("quads")}
-        />
-        
-        <path 
-          data-region="calves"
-          data-testid="region-calves"
-          d="M78 310 Q76 326 74 342 Q74 350 80 354 Q86 356 90 350 Q92 338 94 322 Q90 310 84 308 Z
-             M122 310 Q124 326 126 342 Q126 350 120 354 Q114 356 110 350 Q108 338 106 322 Q110 310 116 308 Z"
-          style={getMuscleStyle("calves")}
-          onMouseEnter={() => handleMouseEnter("calves")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("calves")}
-        />
+        <path data-region="shoulders" data-testid="region-shoulders-front"
+          d="M56 48 Q50 52 46 60 Q42 70 44 80 Q48 78 52 72 Q56 64 60 54 Q58 48 56 48 Z
+             M94 48 Q100 52 104 60 Q108 70 106 80 Q102 78 98 72 Q94 64 90 54 Q92 48 94 48 Z"
+          style={gs("shoulders")} onMouseEnter={() => onE("shoulders")} onMouseLeave={onL} onClick={() => onMuscleClick?.("shoulders")} />
+
+        <path data-region="chest" data-testid="region-chest"
+          d="M62 52 Q58 60 56 72 Q54 84 58 94 Q62 100 70 102 L75 104 L80 102 Q88 100 92 94 Q96 84 94 72 Q92 60 88 52 Q82 48 75 46 Q68 48 62 52 Z"
+          style={gs("chest")} onMouseEnter={() => onE("chest")} onMouseLeave={onL} onClick={() => onMuscleClick?.("chest")} />
+
+        <path data-region="biceps" data-testid="region-biceps"
+          d="M42 80 Q40 90 38 102 Q36 112 38 118 Q42 116 46 110 Q50 100 52 88 Q50 80 46 80 Z
+             M108 80 Q110 90 112 102 Q114 112 112 118 Q108 116 104 110 Q100 100 98 88 Q100 80 104 80 Z"
+          style={gs("biceps")} onMouseEnter={() => onE("biceps")} onMouseLeave={onL} onClick={() => onMuscleClick?.("biceps")} />
+
+        <path data-region="forearms" data-testid="region-forearms"
+          d="M38 120 Q36 132 34 146 Q34 156 38 160 Q42 158 44 150 Q46 138 48 124 Q46 118 40 118 Z
+             M112 120 Q114 132 116 146 Q116 156 112 160 Q108 158 106 150 Q104 138 102 124 Q104 118 110 118 Z"
+          style={gs("forearms")} onMouseEnter={() => onE("forearms")} onMouseLeave={onL} onClick={() => onMuscleClick?.("forearms")} />
+
+        <path data-region="abs" data-testid="region-abs"
+          d="M68 102 Q66 115 64 130 Q62 148 64 165 Q66 172 72 176 L75 178 L78 176 Q84 172 86 165 Q88 148 86 130 Q84 115 82 102 Q78 100 75 102 Q72 100 68 102 Z"
+          style={gs("abs")} onMouseEnter={() => onE("abs")} onMouseLeave={onL} onClick={() => onMuscleClick?.("abs")} />
+
+        <path data-region="obliques" data-testid="region-obliques"
+          d="M56 96 Q54 112 52 130 Q50 150 52 168 Q56 174 62 176 Q64 170 64 165 Q62 148 64 130 Q66 115 68 102 Q64 96 58 96 Z
+             M94 96 Q96 112 98 130 Q100 150 98 168 Q94 174 88 176 Q86 170 86 165 Q88 148 86 130 Q84 115 82 102 Q86 96 92 96 Z"
+          style={gs("obliques")} onMouseEnter={() => onE("obliques")} onMouseLeave={onL} onClick={() => onMuscleClick?.("obliques")} />
+
+        <path data-region="quads" data-testid="region-quads"
+          d="M64 195 Q62 220 60 248 Q60 270 64 290 Q68 300 72 296 Q74 280 75 260 L75 225 L75 200 Q70 194 64 195 Z
+             M86 195 Q88 220 90 248 Q90 270 86 290 Q82 300 78 296 Q76 280 75 260 L75 225 L75 200 Q80 194 86 195 Z"
+          style={gs("quads")} onMouseEnter={() => onE("quads")} onMouseLeave={onL} onClick={() => onMuscleClick?.("quads")} />
+
+        <path data-region="calves" data-testid="region-calves"
+          d="M62 320 Q60 338 58 355 Q58 366 62 372 Q66 376 70 370 Q72 356 74 340 Q72 322 66 318 Z
+             M88 320 Q90 338 92 355 Q92 366 88 372 Q84 376 80 370 Q78 356 76 340 Q78 322 84 318 Z"
+          style={gs("calves")} onMouseEnter={() => onE("calves")} onMouseLeave={onL} onClick={() => onMuscleClick?.("calves")} />
       </g>
 
       <g className="labels pointer-events-none">
-        {isHighlighted("shoulders") && (
-          <>
-            <line x1="60" y1="74" x2="28" y2="66" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="28" cy="66" r="1.2" fill="hsl(var(--primary))" />
-            <text x="26" y="62" textAnchor="end" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">DELTS</text>
-          </>
-        )}
-        {isHighlighted("chest") && (
-          <>
-            <line x1="126" y1="85" x2="170" y2="78" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="170" cy="78" r="1.2" fill="hsl(var(--primary))" />
-            <text x="172" y="74" textAnchor="start" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">CHEST</text>
-          </>
-        )}
-        {isHighlighted("biceps") && (
-          <>
-            <line x1="148" y1="115" x2="172" y2="108" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="172" cy="108" r="1.2" fill="hsl(var(--primary))" />
-            <text x="174" y="104" textAnchor="start" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">BICEPS</text>
-          </>
-        )}
-        {isHighlighted("abs") && (
-          <>
-            <line x1="114" y1="155" x2="168" y2="150" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="168" cy="150" r="1.2" fill="hsl(var(--primary))" />
-            <text x="170" y="146" textAnchor="start" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">ABS</text>
-          </>
-        )}
-        {isHighlighted("obliques") && (
-          <>
-            <line x1="68" y1="150" x2="26" y2="148" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="26" cy="148" r="1.2" fill="hsl(var(--primary))" />
-            <text x="24" y="144" textAnchor="end" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">OBLIQUES</text>
-          </>
-        )}
-        {isHighlighted("quads") && (
-          <>
-            <line x1="126" y1="255" x2="162" y2="250" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="162" cy="250" r="1.2" fill="hsl(var(--primary))" />
-            <text x="164" y="246" textAnchor="start" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">QUADS</text>
-          </>
-        )}
-        {isHighlighted("calves") && (
-          <>
-            <line x1="76" y1="338" x2="40" y2="336" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="40" cy="336" r="1.2" fill="hsl(var(--primary))" />
-            <text x="38" y="332" textAnchor="end" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">CALVES</text>
-          </>
-        )}
-        {isHighlighted("forearms") && (
-          <>
-            <line x1="46" y1="155" x2="24" y2="170" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="24" cy="170" r="1.2" fill="hsl(var(--primary))" />
-            <text x="22" y="166" textAnchor="end" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">FOREARMS</text>
-          </>
-        )}
+        {isH("shoulders") && <LabelLine x1={48} y1={64} x2={20} y2={58} label="DELTS" anchor="end" />}
+        {isH("chest") && <LabelLine x1={92} y1={76} x2={128} y2={70} label="CHEST" anchor="start" />}
+        {isH("biceps") && <LabelLine x1={110} y1={100} x2={132} y2={94} label="BICEPS" anchor="start" />}
+        {isH("forearms") && <LabelLine x1={36} y1={142} x2={16} y2={148} label="FOREARMS" anchor="end" />}
+        {isH("abs") && <LabelLine x1={84} y1={140} x2={128} y2={136} label="ABS" anchor="start" />}
+        {isH("obliques") && <LabelLine x1={54} y1={135} x2={20} y2={130} label="OBLIQUES" anchor="end" />}
+        {isH("quads") && <LabelLine x1={88} y1={248} x2={124} y2={244} label="QUADS" anchor="start" />}
+        {isH("calves") && <LabelLine x1={60} y1={350} x2={30} y2={346} label="CALVES" anchor="end" />}
       </g>
-      
-      {hoveredRegion && tooltipPositions[hoveredRegion] && (
-        <Tooltip
-          x={tooltipPositions[hoveredRegion].x}
-          y={tooltipPositions[hoveredRegion].y}
-          label={regionLabels[hoveredRegion] || hoveredRegion}
-          visible={true}
-        />
-      )}
+
+      {hov && tp[hov] && <Tooltip x={tp[hov].x} y={tp[hov].y} label={regionLabels[hov] || hov} visible={true} />}
     </svg>
   );
 }
 
-export function BodyMapBack({ 
-  highlightedMuscles, 
-  onMuscleClick, 
-  selectedMuscle,
-  className = "" 
-}: BodyMapProps) {
-  const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
-  const isHighlighted = (region: string) => highlightedMuscles.includes(region);
-  const isSelected = (region: string) => selectedMuscle === region;
-  const isHovered = (region: string) => hoveredRegion === region;
-  
-  const getMuscleStyle = (region: string): React.CSSProperties => {
-    const base: React.CSSProperties = {
-      cursor: "pointer",
-      transition: "all 0.3s ease",
-    };
-    
-    if (isSelected(region)) {
-      return {
-        ...base,
-        fill: "url(#selectedGradB)",
-        stroke: "hsl(var(--primary))",
-        strokeWidth: 1.5,
-        filter: "url(#glowB)",
-      };
-    }
-    if (isHighlighted(region)) {
-      return {
-        ...base,
-        fill: "url(#highlightGradB)",
-        stroke: "hsl(var(--primary) / 0.6)",
-        strokeWidth: 1,
-        filter: isHovered(region) ? "url(#glowB)" : "url(#softGlowB)",
-      };
-    }
-    return {
-      ...base,
-      fill: "url(#skinGradB)",
-      stroke: "hsl(var(--muted-foreground) / 0.2)",
-      strokeWidth: 0.5,
-      opacity: isHovered(region) ? 0.9 : 1,
-    };
-  };
+export function BodyMapBack({ highlightedMuscles, onMuscleClick, selectedMuscle, className = "" }: BodyMapProps) {
+  const [hov, setHov] = useState<string | null>(null);
+  const isH = (r: string) => highlightedMuscles.includes(r);
+  const isS = (r: string) => selectedMuscle === r;
+  const isV = (r: string) => hov === r;
+  const gs = useMuscleStyle(isH, isS, isV, "B");
+  const onE = useCallback((r: string) => setHov(r), []);
+  const onL = useCallback(() => setHov(null), []);
 
-  const handleMouseEnter = useCallback((region: string) => setHoveredRegion(region), []);
-  const handleMouseLeave = useCallback(() => setHoveredRegion(null), []);
-
-  const tooltipPositions: Record<string, { x: number; y: number }> = {
-    shoulders: { x: 100, y: 58 },
-    "upper-back": { x: 100, y: 78 },
-    lats: { x: 68, y: 135 },
-    triceps: { x: 42, y: 105 },
-    glutes: { x: 100, y: 198 },
-    hamstrings: { x: 100, y: 248 },
-    calves: { x: 100, y: 310 },
+  const tp: Record<string, { x: number; y: number }> = {
+    shoulders: { x: 75, y: 68 }, "upper-back": { x: 75, y: 88 }, lats: { x: 55, y: 128 },
+    triceps: { x: 40, y: 115 }, glutes: { x: 75, y: 195 }, hamstrings: { x: 75, y: 260 },
+    calves: { x: 75, y: 360 },
   };
 
   return (
-    <svg viewBox="0 0 200 390" className={`w-full max-w-[180px] ${className}`}>
-      <defs>
-        <linearGradient id="highlightGradB" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.6" />
-        </linearGradient>
-        <linearGradient id="selectedGradB" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="1" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.85" />
-        </linearGradient>
-        <radialGradient id="skinGradB" cx="50%" cy="40%" r="60%">
-          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.12" />
-        </radialGradient>
-        <radialGradient id="bodyGradB" cx="50%" cy="35%" r="65%">
-          <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.15" />
-        </radialGradient>
-        <filter id="glowB" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="4" result="blur"/>
-          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.4"/>
-          <feComposite in2="blur" operator="in"/>
-          <feMerge>
-            <feMergeNode/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-        <filter id="softGlowB" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="2" result="blur"/>
-          <feFlood floodColor="hsl(var(--primary))" floodOpacity="0.15"/>
-          <feComposite in2="blur" operator="in"/>
-          <feMerge>
-            <feMergeNode/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-      </defs>
+    <svg viewBox="0 0 150 460" className={`w-full max-w-[140px] ${className}`} data-testid="body-map-back">
+      <SharedDefs s="B" />
 
-      <g className="body-outline" opacity="1">
-        <ellipse data-testid="head-back" cx="100" cy="28" rx="18" ry="22" fill="url(#bodyGradB)" stroke="hsl(var(--muted-foreground) / 0.3)" strokeWidth="0.8" />
-        <line x1="100" y1="50" x2="100" y2="56" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="3" />
-        <path d="M68 60 Q60 62 54 72 Q48 88 46 108 Q44 128 46 148 Q48 158 52 162
-                 M132 60 Q140 62 146 72 Q152 88 154 108 Q156 128 154 148 Q152 158 148 162" 
-              fill="none" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="0.6" />
-        <path d="M46 162 Q42 175 42 185
-                 M154 162 Q158 175 158 185"
-              fill="none" stroke="hsl(var(--muted-foreground) / 0.2)" strokeWidth="0.6" />
-        <path d="M76 58 L124 58 Q130 62 134 75 Q136 100 136 130 Q136 155 132 180 Q130 200 128 210
-                 Q126 230 122 248 Q120 260 120 280 Q120 300 122 320 Q124 340 126 358 L114 362
-                 Q108 330 104 310 L100 290 L96 310 Q92 330 86 362 L74 358
-                 Q76 340 78 320 Q80 300 80 280 Q80 260 78 248 Q74 230 72 210
-                 Q70 200 68 180 Q64 155 64 130 Q64 100 66 75 Q70 62 76 58 Z"
-              fill="url(#bodyGradB)" stroke="hsl(var(--muted-foreground) / 0.3)" strokeWidth="0.8" />
+      <g className="body-silhouette">
+        <ellipse cx="75" cy="22" rx="11" ry="14" fill="url(#bodyGradB)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="0.6" data-testid="head-back" />
+        <rect x="71" y="36" width="8" height="10" rx="3" fill="url(#bodyGradB)" stroke="none" />
+        <path d="M56 48 Q48 50 42 58 Q38 68 36 82 Q34 98 36 116 Q38 128 40 136 Q42 142 44 150 Q46 158 48 168
+                 M94 48 Q102 50 108 58 Q112 68 114 82 Q116 98 114 116 Q112 128 110 136 Q108 142 106 150 Q104 158 102 168"
+              fill="none" stroke="hsl(var(--muted-foreground) / 0.18)" strokeWidth="0.5" />
+        <path d="M60 48 L90 48 Q96 52 98 62 Q100 80 100 100 Q100 120 98 140 Q96 155 94 168 Q92 180 90 195
+                 Q88 210 86 220 Q84 230 84 245 Q84 270 86 300 Q88 330 90 355 Q92 370 92 390 Q92 400 88 410 L82 416
+                 Q78 390 76 370 L75 355 L74 370 Q72 390 68 416 L62 410
+                 Q58 400 58 390 Q58 370 60 355 Q62 330 64 300 Q66 270 66 245 Q66 230 64 220 Q62 210 60 195
+                 Q58 180 56 168 Q54 155 52 140 Q50 120 50 100 Q50 80 52 62 Q54 52 60 48 Z"
+              fill="url(#bodyGradB)" stroke="hsl(var(--muted-foreground) / 0.25)" strokeWidth="0.6" />
       </g>
 
-      <g className="spine pointer-events-none" opacity="0.2">
-        <path d="M100 50 L100 195" stroke="hsl(var(--muted-foreground))" strokeWidth="1" fill="none" strokeDasharray="3 2" />
-        {[58, 72, 86, 100, 114, 128, 142, 156, 170, 184].map(y => (
-          <circle key={y} cx={100} cy={y} r={1.2} fill="hsl(var(--muted-foreground))" />
+      <g className="spine pointer-events-none" opacity="0.18">
+        <path d="M75 40 L75 195" stroke="hsl(var(--muted-foreground))" strokeWidth="0.8" fill="none" strokeDasharray="2.5 1.5" />
+        {[48, 60, 72, 84, 96, 108, 120, 132, 144, 156, 168, 180, 192].map(y => (
+          <circle key={y} cx={75} cy={y} r={0.9} fill="hsl(var(--muted-foreground))" />
         ))}
       </g>
-      
+
       <g className="muscles">
-        <path 
-          data-region="shoulders"
-          data-testid="region-shoulders-back"
-          d="M68 60 Q62 64 58 74 Q54 86 56 96 Q60 94 66 86 Q72 76 76 66 Q74 60 68 60 Z
-             M132 60 Q138 64 142 74 Q146 86 144 96 Q140 94 134 86 Q128 76 124 66 Q126 60 132 60 Z"
-          style={getMuscleStyle("shoulders")}
-          onMouseEnter={() => handleMouseEnter("shoulders")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("shoulders")}
-        />
-        
-        <path 
-          data-region="upper-back"
-          data-testid="region-upper-back"
-          d="M78 62 Q74 70 72 82 Q70 96 74 108 Q80 114 90 116 L100 118 L110 116 Q120 114 126 108 Q130 96 128 82 Q126 70 122 62 Q112 58 100 56 Q88 58 78 62 Z"
-          style={getMuscleStyle("upper-back")}
-          onMouseEnter={() => handleMouseEnter("upper-back")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("upper-back")}
-        />
-        
-        <path 
-          data-region="lats"
-          data-testid="region-lats"
-          d="M70 110 Q66 128 64 148 Q64 158 70 164 Q76 162 80 154 Q84 140 86 122 Q82 116 74 112 Z
-             M130 110 Q134 128 136 148 Q136 158 130 164 Q124 162 120 154 Q116 140 114 122 Q118 116 126 112 Z"
-          style={getMuscleStyle("lats")}
-          onMouseEnter={() => handleMouseEnter("lats")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("lats")}
-        />
-        
-        <path 
-          data-region="triceps"
-          data-testid="region-triceps"
-          d="M54 96 Q50 108 48 122 Q46 132 50 136 Q56 134 62 126 Q66 116 68 102 Q66 94 60 94 Z
-             M146 96 Q150 108 152 122 Q154 132 150 136 Q144 134 138 126 Q134 116 132 102 Q134 94 140 94 Z"
-          style={getMuscleStyle("triceps")}
-          onMouseEnter={() => handleMouseEnter("triceps")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("triceps")}
-        />
-        
-        <path 
-          data-region="glutes"
-          data-testid="region-glutes"
-          d="M78 192 Q74 206 76 218 Q78 228 88 234 Q96 238 100 236 Q104 238 112 234 Q122 228 124 218 Q126 206 122 192 Q114 196 100 198 Q86 196 78 192 Z"
-          style={getMuscleStyle("glutes")}
-          onMouseEnter={() => handleMouseEnter("glutes")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("glutes")}
-        />
-        
-        <path 
-          data-region="hamstrings"
-          data-testid="region-hamstrings"
-          d="M80 238 Q76 258 74 280 Q74 296 80 306 Q88 312 94 304 L98 270 L100 244 Q92 238 82 238 Z
-             M120 238 Q124 258 126 280 Q126 296 120 306 Q112 312 106 304 L102 270 L100 244 Q108 238 118 238 Z"
-          style={getMuscleStyle("hamstrings")}
-          onMouseEnter={() => handleMouseEnter("hamstrings")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("hamstrings")}
-        />
-        
-        <path 
-          data-region="calves"
-          data-testid="region-calves-back"
-          d="M78 310 Q76 326 74 342 Q74 350 80 354 Q86 356 90 350 Q92 338 94 322 Q90 310 84 308 Z
-             M122 310 Q124 326 126 342 Q126 350 120 354 Q114 356 110 350 Q108 338 106 322 Q110 310 116 308 Z"
-          style={getMuscleStyle("calves")}
-          onMouseEnter={() => handleMouseEnter("calves")}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => onMuscleClick?.("calves")}
-        />
+        <path data-region="shoulders" data-testid="region-shoulders-back"
+          d="M56 48 Q50 52 46 60 Q42 70 44 80 Q48 78 52 72 Q56 64 60 54 Q58 48 56 48 Z
+             M94 48 Q100 52 104 60 Q108 70 106 80 Q102 78 98 72 Q94 64 90 54 Q92 48 94 48 Z"
+          style={gs("shoulders")} onMouseEnter={() => onE("shoulders")} onMouseLeave={onL} onClick={() => onMuscleClick?.("shoulders")} />
+
+        <path data-region="upper-back" data-testid="region-upper-back"
+          d="M62 52 Q58 60 56 72 Q54 84 58 94 Q62 100 70 102 L75 104 L80 102 Q88 100 92 94 Q96 84 94 72 Q92 60 88 52 Q82 48 75 46 Q68 48 62 52 Z"
+          style={gs("upper-back")} onMouseEnter={() => onE("upper-back")} onMouseLeave={onL} onClick={() => onMuscleClick?.("upper-back")} />
+
+        <path data-region="lats" data-testid="region-lats"
+          d="M54 96 Q52 112 50 130 Q50 140 54 148 Q58 146 62 138 Q66 126 68 108 Q64 100 56 96 Z
+             M96 96 Q98 112 100 130 Q100 140 96 148 Q92 146 88 138 Q84 126 82 108 Q86 100 94 96 Z"
+          style={gs("lats")} onMouseEnter={() => onE("lats")} onMouseLeave={onL} onClick={() => onMuscleClick?.("lats")} />
+
+        <path data-region="triceps" data-testid="region-triceps"
+          d="M42 80 Q40 90 38 102 Q36 112 38 118 Q42 116 46 110 Q50 100 52 88 Q50 80 46 80 Z
+             M108 80 Q110 90 112 102 Q114 112 112 118 Q108 116 104 110 Q100 100 98 88 Q100 80 104 80 Z"
+          style={gs("triceps")} onMouseEnter={() => onE("triceps")} onMouseLeave={onL} onClick={() => onMuscleClick?.("triceps")} />
+
+        <path data-region="glutes" data-testid="region-glutes"
+          d="M60 180 Q56 192 58 204 Q60 214 68 218 Q72 220 75 218 Q78 220 82 218 Q90 214 92 204 Q94 192 90 180 Q84 184 75 186 Q66 184 60 180 Z"
+          style={gs("glutes")} onMouseEnter={() => onE("glutes")} onMouseLeave={onL} onClick={() => onMuscleClick?.("glutes")} />
+
+        <path data-region="hamstrings" data-testid="region-hamstrings"
+          d="M64 222 Q62 242 60 265 Q60 280 64 296 Q68 304 72 298 L74 270 L75 240 Q70 224 64 222 Z
+             M86 222 Q88 242 90 265 Q90 280 86 296 Q82 304 78 298 L76 270 L75 240 Q80 224 86 222 Z"
+          style={gs("hamstrings")} onMouseEnter={() => onE("hamstrings")} onMouseLeave={onL} onClick={() => onMuscleClick?.("hamstrings")} />
+
+        <path data-region="calves" data-testid="region-calves-back"
+          d="M62 320 Q60 338 58 355 Q58 366 62 372 Q66 376 70 370 Q72 356 74 340 Q72 322 66 318 Z
+             M88 320 Q90 338 92 355 Q92 366 88 372 Q84 376 80 370 Q78 356 76 340 Q78 322 84 318 Z"
+          style={gs("calves")} onMouseEnter={() => onE("calves")} onMouseLeave={onL} onClick={() => onMuscleClick?.("calves")} />
       </g>
 
       <g className="labels pointer-events-none">
-        {isHighlighted("shoulders") && (
-          <>
-            <line x1="60" y1="74" x2="28" y2="66" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="28" cy="66" r="1.2" fill="hsl(var(--primary))" />
-            <text x="26" y="62" textAnchor="end" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">DELTS</text>
-          </>
-        )}
-        {isHighlighted("upper-back") && (
-          <>
-            <line x1="126" y1="85" x2="170" y2="78" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="170" cy="78" r="1.2" fill="hsl(var(--primary))" />
-            <text x="172" y="74" textAnchor="start" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">BACK</text>
-          </>
-        )}
-        {isHighlighted("lats") && (
-          <>
-            <line x1="66" y1="140" x2="26" y2="138" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="26" cy="138" r="1.2" fill="hsl(var(--primary))" />
-            <text x="24" y="134" textAnchor="end" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">LATS</text>
-          </>
-        )}
-        {isHighlighted("triceps") && (
-          <>
-            <line x1="148" y1="115" x2="172" y2="108" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="172" cy="108" r="1.2" fill="hsl(var(--primary))" />
-            <text x="174" y="104" textAnchor="start" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">TRICEPS</text>
-          </>
-        )}
-        {isHighlighted("glutes") && (
-          <>
-            <line x1="122" y1="215" x2="164" y2="210" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="164" cy="210" r="1.2" fill="hsl(var(--primary))" />
-            <text x="166" y="206" textAnchor="start" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">GLUTES</text>
-          </>
-        )}
-        {isHighlighted("hamstrings") && (
-          <>
-            <line x1="76" y1="270" x2="32" y2="266" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="32" cy="266" r="1.2" fill="hsl(var(--primary))" />
-            <text x="30" y="262" textAnchor="end" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">HAMS</text>
-          </>
-        )}
-        {isHighlighted("calves") && (
-          <>
-            <line x1="124" y1="338" x2="158" y2="336" stroke="hsl(var(--primary) / 0.5)" strokeWidth="0.6" strokeDasharray="2 1.5" />
-            <circle cx="158" cy="336" r="1.2" fill="hsl(var(--primary))" />
-            <text x="160" y="332" textAnchor="start" fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="system-ui" letterSpacing="0.3">CALVES</text>
-          </>
-        )}
+        {isH("shoulders") && <LabelLine x1={48} y1={64} x2={20} y2={58} label="DELTS" anchor="end" />}
+        {isH("upper-back") && <LabelLine x1={92} y1={76} x2={128} y2={70} label="BACK" anchor="start" />}
+        {isH("lats") && <LabelLine x1={52} y1={125} x2={20} y2={120} label="LATS" anchor="end" />}
+        {isH("triceps") && <LabelLine x1={110} y1={100} x2={132} y2={94} label="TRICEPS" anchor="start" />}
+        {isH("glutes") && <LabelLine x1={90} y1={200} x2={124} y2={196} label="GLUTES" anchor="start" />}
+        {isH("hamstrings") && <LabelLine x1={62} y1={260} x2={28} y2={256} label="HAMS" anchor="end" />}
+        {isH("calves") && <LabelLine x1={90} y1={350} x2={122} y2={346} label="CALVES" anchor="start" />}
       </g>
-      
-      {hoveredRegion && tooltipPositions[hoveredRegion] && (
-        <Tooltip
-          x={tooltipPositions[hoveredRegion].x}
-          y={tooltipPositions[hoveredRegion].y}
-          label={regionLabels[hoveredRegion] || hoveredRegion}
-          visible={true}
-        />
-      )}
+
+      {hov && tp[hov] && <Tooltip x={tp[hov].x} y={tp[hov].y} label={regionLabels[hov] || hov} visible={true} />}
     </svg>
   );
 }
 
 export function BodyMap(props: BodyMapProps & { view?: "front" | "back" | "both" }) {
   const { view = "both", ...mapProps } = props;
-  
+
   if (view === "front") return <BodyMapFront {...mapProps} />;
   if (view === "back") return <BodyMapBack {...mapProps} />;
-  
+
   return (
-    <div className="flex justify-center items-start gap-6 py-4">
+    <div className="flex justify-center items-start gap-4 py-3">
       <div className="text-center">
-        <p className="text-[10px] font-semibold text-foreground/50 mb-2 uppercase tracking-[0.2em]">Front</p>
+        <p className="text-[9px] font-semibold text-foreground/40 mb-1.5 uppercase tracking-[0.2em]">Front</p>
         <BodyMapFront {...mapProps} />
       </div>
       <div className="text-center">
-        <p className="text-[10px] font-semibold text-foreground/50 mb-2 uppercase tracking-[0.2em]">Back</p>
+        <p className="text-[9px] font-semibold text-foreground/40 mb-1.5 uppercase tracking-[0.2em]">Back</p>
         <BodyMapBack {...mapProps} />
       </div>
     </div>
