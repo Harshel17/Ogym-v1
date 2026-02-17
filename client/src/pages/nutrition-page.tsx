@@ -120,6 +120,41 @@ const MEAL_LABELS: Record<string, string> = {
   extra: "Extra Meal"
 };
 
+function InlineMacroBar({ label, value, goal, color, icon: Icon }: {
+  label: string;
+  value: number;
+  goal: number;
+  color: string;
+  icon: any;
+}) {
+  const percent = Math.min((value / (goal || 1)) * 100, 100);
+  const isOver = value > goal && goal > 0;
+  const barColor = isOver ? "#ef4444" : color;
+
+  return (
+    <div className="flex items-center gap-3" data-testid={`macro-bar-${label.toLowerCase()}`}>
+      <div className="flex items-center gap-1.5 w-[72px] shrink-0">
+        <Icon className="w-3.5 h-3.5" style={{ color: barColor }} />
+        <span className="text-[11px] font-semibold text-muted-foreground">{label}</span>
+      </div>
+      <div className="flex-1 h-2 rounded-full bg-muted/25 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-1000 ease-out"
+          style={{
+            width: `${percent}%`,
+            backgroundColor: barColor,
+            boxShadow: `0 0 6px ${barColor}30`,
+          }}
+        />
+      </div>
+      <div className="w-[72px] text-right shrink-0">
+        <span className={`text-xs font-bold tabular-nums ${isOver ? "text-red-500" : ""}`}>{value}g</span>
+        <span className="text-[10px] text-muted-foreground"> / {goal}g</span>
+      </div>
+    </div>
+  );
+}
+
 export default function NutritionPage() {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -1211,7 +1246,7 @@ export default function NutritionPage() {
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {log.createdAt && (
+                        {log.createdAt && !isNaN(new Date(log.createdAt).getTime()) && (
                           <span className="text-muted-foreground/60 mr-1">
                             {new Date(log.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                           </span>
@@ -2793,41 +2828,6 @@ function NutritionAnalytics() {
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function InlineMacroBar({ label, value, goal, color, icon: Icon }: {
-  label: string;
-  value: number;
-  goal: number;
-  color: string;
-  icon: any;
-}) {
-  const percent = Math.min((value / (goal || 1)) * 100, 100);
-  const isOver = value > goal && goal > 0;
-  const barColor = isOver ? "#ef4444" : color;
-
-  return (
-    <div className="flex items-center gap-3" data-testid={`macro-bar-${label.toLowerCase()}`}>
-      <div className="flex items-center gap-1.5 w-[72px] shrink-0">
-        <Icon className="w-3.5 h-3.5" style={{ color: barColor }} />
-        <span className="text-[11px] font-semibold text-muted-foreground">{label}</span>
-      </div>
-      <div className="flex-1 h-2 rounded-full bg-muted/25 overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-1000 ease-out"
-          style={{
-            width: `${percent}%`,
-            backgroundColor: barColor,
-            boxShadow: `0 0 6px ${barColor}30`,
-          }}
-        />
-      </div>
-      <div className="w-[72px] text-right shrink-0">
-        <span className={`text-xs font-bold tabular-nums ${isOver ? "text-red-500" : ""}`}>{value}g</span>
-        <span className="text-[10px] text-muted-foreground"> / {goal}g</span>
-      </div>
-    </div>
   );
 }
 
