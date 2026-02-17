@@ -677,7 +677,7 @@ function getDateRanges() {
   };
 }
 
-async function getMemberDataContext(userId: number, gymId: number | null): Promise<MemberContext> {
+async function getMemberDataContext(userId: number, gymId: number | null, localDate?: string): Promise<MemberContext> {
   const dates = getDateRanges();
   
   const [weeklyWorkouts] = await db.select({
@@ -1131,7 +1131,7 @@ async function getMemberDataContext(userId: number, gymId: number | null): Promi
     subscriptionStatus,
     subscriptionExpiryDate,
     healthData: healthContext,
-    nutrition: await getTodayNutritionSummary(userId),
+    nutrition: await getTodayNutritionSummary(userId, localDate),
     todayWorkout: todayWorkoutContext,
     activeGoals: await getActiveGoals(userId),
     sportsMode: sportsModeContext,
@@ -2170,7 +2170,7 @@ export async function processWithAI(
       }
       dataContext = await getTrainerDataContext(userId, gymId);
     } else {
-      dataContext = await getMemberDataContext(userId, gymId);
+      dataContext = await getMemberDataContext(userId, gymId, localDate);
     }
 
     setCachedContext(userId, role, gymId, dataContext, userContext);
