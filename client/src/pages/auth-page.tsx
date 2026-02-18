@@ -472,8 +472,8 @@ export default function AuthPage() {
             paddingRight: '24px'
           }}
         >
-        {/* Spacer for vertical centering when content fits */}
-        <div className="flex-1 min-h-0" />
+        {/* Spacer for vertical centering - shrinks on mobile to prevent keyboard overlap */}
+        <div className="flex-1 min-h-0 max-h-[15vh] md:max-h-none" />
         <div className="w-full max-w-md space-y-6 relative z-10">
           <div className="lg:hidden flex flex-col items-center gap-3 mb-4 animate-slide-in-up">
             <div className="relative">
@@ -519,7 +519,13 @@ export default function AuthPage() {
                                 placeholder="Enter your email" 
                                 {...field} 
                                 className="h-11" 
-                                data-testid="input-login-email" 
+                                data-testid="input-login-email"
+                                onFocus={(e) => {
+                                  const target = e.target;
+                                  setTimeout(() => {
+                                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }, 300);
+                                }}
                               />
                             </FormControl>
                             <FormMessage />
@@ -540,9 +546,13 @@ export default function AuthPage() {
                                 className="h-11" 
                                 data-testid="input-login-password"
                                 onFocus={(e) => {
+                                  const target = e.target;
                                   setTimeout(() => {
-                                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                   }, 300);
+                                  setTimeout(() => {
+                                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }, 600);
                                 }}
                               />
                             </FormControl>
@@ -848,8 +858,8 @@ export default function AuthPage() {
             </div>
           </div>
         </div>
-        {/* Bottom spacer for centering */}
-        <div className="flex-1 min-h-0" />
+        {/* Bottom spacer for centering - extra padding for iOS keyboard */}
+        <div className="flex-1 min-h-[120px] md:min-h-0" />
         </div>{/* Close scrollable content wrapper */}
       </div>
 
