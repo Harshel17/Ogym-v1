@@ -420,6 +420,7 @@ export default function SupportPage() {
                   </div>
                 </a>
                 
+                {!isIOSNativeApp && (
                 <a
                   href="mailto:billing@ogym.fitness"
                   className="group flex items-start gap-4 p-4 bg-secondary/30 rounded-md transition-all hover:bg-secondary/50"
@@ -434,7 +435,9 @@ export default function SupportPage() {
                     <p className="text-xs font-medium text-primary">billing@ogym.fitness</p>
                   </div>
                 </a>
+                )}
                 
+                {!isIOSNativeApp && (
                 <a
                   href="mailto:sales@ogym.fitness"
                   className="group flex items-start gap-4 p-4 bg-secondary/30 rounded-md transition-all hover:bg-secondary/50"
@@ -449,6 +452,7 @@ export default function SupportPage() {
                     <p className="text-xs font-medium text-primary">sales@ogym.fitness</p>
                   </div>
                 </a>
+                )}
                 
                 <a
                   href="mailto:support@ogym.fitness?subject=Bug Report"

@@ -18,6 +18,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { isNative, isIOS } from '@/lib/capacitor-init';
 import { AiDataConsentDialog, useAiConsent } from '@/components/ai-data-consent-dialog';
 
 interface DikaChat {
@@ -363,7 +364,8 @@ export default function DikaWebPage() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async ({ chatId, message, imageBase64 }: { chatId: number; message: string; imageBase64?: string }) => {
-      const res = await apiRequest('POST', `/api/dika/chats/${chatId}/messages`, { message, platform: 'web', imageBase64 });
+      const platform = isNative() && isIOS() ? 'ios_native' : 'web';
+      const res = await apiRequest('POST', `/api/dika/chats/${chatId}/messages`, { message, platform, imageBase64 });
       return res.json();
     },
     onSuccess: () => {

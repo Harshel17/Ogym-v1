@@ -225,6 +225,17 @@ export default function OwnerMemberDetailPage() {
                   <p className="text-sm text-muted-foreground">Current Cycle</p>
                   <p className="font-medium">{profile?.cycle?.name || "None"}</p>
                 </div>
+                {isIOSNativeApp ? (
+                <div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <Badge 
+                    variant={profile?.membershipStatus === 'active' ? 'default' : 'secondary'}
+                    data-testid="badge-membership-status"
+                  >
+                    {profile?.membershipStatus === 'active' ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+                ) : (
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
                   <Badge 
@@ -234,6 +245,7 @@ export default function OwnerMemberDetailPage() {
                     {profile?.membershipStatus === 'active' ? 'Active' : profile?.membershipStatus === 'expired' ? 'Expired' : 'Inactive'}
                   </Badge>
                 </div>
+                )}
                 {profile?.subscriptionEndDate && !isIOSNativeApp && (
                   <div>
                     <p className="text-sm text-muted-foreground">Expires On</p>
