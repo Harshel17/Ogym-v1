@@ -387,11 +387,12 @@ export default function HealthPage() {
     return days;
   }, [weeklyData]);
 
-  const isConnected = status?.connected || !!todayData;
+  const isConnected = status?.connected || (user as any)?.healthConnected || !!todayData;
   const isLoading = statusLoading || todayLoading;
   const caloriesBurned = todayData?.caloriesBurned || 0;
   const calorieBalance = caloriesEaten - caloriesBurned;
-  const sourceName = status?.source === 'apple_health' ? 'Apple Health' : status?.source === 'google_fit' ? 'Google Fit' : 'Health';
+  const healthSource = status?.source || (user as any)?.healthSource;
+  const sourceName = healthSource === 'apple_health' ? 'Apple Health' : healthSource === 'google_fit' ? 'Google Fit' : 'Health';
 
   const handleConnect = async () => {
     try {
