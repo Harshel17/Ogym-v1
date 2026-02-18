@@ -712,6 +712,21 @@ interface OwnerContext {
       description: string;
       memberName?: string;
     } | null;
+    weeklyTrends: {
+      weeks: { weekLabel: string; attendance: number; changePercent: number }[];
+    };
+    insightOfTheDay: {
+      title: string;
+      description: string;
+      severity: string;
+    } | null;
+    interventionStats: {
+      total: number;
+      successful: number;
+      successRate: number;
+      pending: number;
+    };
+    churnPredictions: { name: string; predictedWindow: string; recommendation: string }[];
   } | null;
 }
 
@@ -1420,6 +1435,11 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
       .slice(0, 5)
       .map(m => ({ name: m.name, churnScore: m.churnScore, riskLevel: m.riskLevel, daysAbsent: m.daysAbsent }));
 
+    const churnPredictions = insights.churnRisk.members
+      .filter(m => m.predictedChurnWindow && m.recommendation)
+      .slice(0, 5)
+      .map(m => ({ name: m.name, predictedWindow: m.predictedChurnWindow!, recommendation: m.recommendation! }));
+
     aiInsights = {
       churnRisk: {
         count: insights.churnRisk.count,
@@ -1432,6 +1452,21 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
         trendPercent: insights.attendancePatterns.trendPercent,
       },
       todayPriority: insights.todayPriority,
+      weeklyTrends: {
+        weeks: (insights.weeklyTrends?.weeks ?? []).map(w => ({
+          weekLabel: w.weekLabel,
+          attendance: w.attendance,
+          changePercent: w.changePercent,
+        })),
+      },
+      insightOfTheDay: insights.insightOfTheDay ?? null,
+      interventionStats: {
+        total: insights.interventionStats?.total ?? 0,
+        successful: insights.interventionStats?.successful ?? 0,
+        successRate: insights.interventionStats?.successRate ?? 0,
+        pending: insights.interventionStats?.pending ?? 0,
+      },
+      churnPredictions,
     };
   } catch (err) {
     console.error('Failed to fetch AI insights for Dika owner context:', err);
@@ -1861,7 +1896,33 @@ Use these comparisons when the owner asks about trends, progress, or how this mo
 Proactively mention this priority if the owner asks "what should I focus on" or "what's important today".`
         : '';
 
-      return churnSection + monthSection + attendSection + prioritySection;
+      const weeklySection = (ai.weeklyTrends?.weeks?.length ?? 0) > 0
+        ? `\nWEEKLY ATTENDANCE TRENDS (rolling 4-week):
+${ai.weeklyTrends!.weeks.map(w => `  - ${w.weekLabel}: ${w.attendance} check-ins${w.changePercent !== 0 ? ` (${w.changePercent > 0 ? '+' : ''}${w.changePercent}% vs prior week)` : ''}`).join('\n')}
+Reference these weekly trends when asked about momentum, consistency, or "how are things going".`
+        : '';
+
+      const insightSection = ai.insightOfTheDay
+        ? `\nINSIGHT OF THE DAY [${ai.insightOfTheDay.severity.toUpperCase()}]:
+- ${ai.insightOfTheDay.title}: ${ai.insightOfTheDay.description}
+Proactively share this insight if the owner asks for updates or what they should know today.`
+        : '';
+
+      const interventionSection = (ai.interventionStats?.total ?? 0) > 0
+        ? `\nINTERVENTION EFFECTIVENESS:
+- Total interventions logged: ${ai.interventionStats!.total}
+- Successful (member returned within 7 days): ${ai.interventionStats!.successful} (${ai.interventionStats!.successRate}% success rate)
+- Pending outcome: ${ai.interventionStats!.pending}
+Use this data to motivate the owner: "${ai.interventionStats!.successRate}% of your outreach efforts brought members back."${ai.interventionStats!.successRate >= 50 ? ' Their outreach is working well!' : ai.interventionStats!.successRate > 0 ? ' Room for improvement — suggest more personalized messages.' : ''}`
+        : '';
+
+      const predictionSection = (ai.churnPredictions?.length ?? 0) > 0
+        ? `\nCHURN PREDICTIONS & RECOMMENDATIONS:
+${ai.churnPredictions!.map(p => `  - ${p.name}: likely to leave in ${p.predictedWindow}. Suggestion: ${p.recommendation}`).join('\n')}
+Use these predictions to give time-sensitive, actionable advice.`
+        : '';
+
+      return churnSection + monthSection + attendSection + prioritySection + weeklySection + insightSection + interventionSection + predictionSection;
     })() : '';
 
     return basePrompt + `

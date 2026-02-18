@@ -571,7 +571,7 @@ export interface IStorage {
   getAiInsights(gymId: number, clientDate: string): Promise<{
     churnRisk: { 
       count: number;
-      members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' | 'low'; churnScore: number; factors: { attendance: number; payment: number; trend: number; age: number } }[];
+      members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' | 'low'; churnScore: number; factors: { attendance: number; payment: number; trend: number; age: number }; predictedChurnWindow?: string; recommendation?: string }[];
     };
     followUpReminders: {
       count: number;
@@ -597,6 +597,9 @@ export interface IStorage {
       newMembers: { current: number; previous: number; changePercent: number };
       revenue: { current: number; previous: number; changePercent: number };
     };
+    weeklyTrends: {
+      weeks: { weekLabel: string; weekStart: string; weekEnd: string; attendance: number; changePercent: number }[];
+    };
     todayPriority: {
       type: string;
       title: string;
@@ -604,6 +607,19 @@ export interface IStorage {
       memberId?: number;
       memberName?: string;
     } | null;
+    insightOfTheDay: {
+      type: string;
+      title: string;
+      description: string;
+      severity: 'info' | 'warning' | 'positive';
+    } | null;
+    interventionStats: {
+      total: number;
+      successful: number;
+      successRate: number;
+      avgReturnDays: number;
+      pending: number;
+    };
   }>;
   
   // Last Performance (pre-fill for Quick Complete)
@@ -8521,7 +8537,7 @@ export class DatabaseStorage implements IStorage {
   async getAiInsights(gymId: number, clientDate: string): Promise<{
     churnRisk: { 
       count: number;
-      members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' | 'low'; churnScore: number; factors: { attendance: number; payment: number; trend: number; age: number } }[];
+      members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' | 'low'; churnScore: number; factors: { attendance: number; payment: number; trend: number; age: number }; predictedChurnWindow?: string; recommendation?: string }[];
     };
     followUpReminders: {
       count: number;
@@ -8547,6 +8563,9 @@ export class DatabaseStorage implements IStorage {
       newMembers: { current: number; previous: number; changePercent: number };
       revenue: { current: number; previous: number; changePercent: number };
     };
+    weeklyTrends: {
+      weeks: { weekLabel: string; weekStart: string; weekEnd: string; attendance: number; changePercent: number }[];
+    };
     todayPriority: {
       type: string;
       title: string;
@@ -8554,6 +8573,19 @@ export class DatabaseStorage implements IStorage {
       memberId?: number;
       memberName?: string;
     } | null;
+    insightOfTheDay: {
+      type: string;
+      title: string;
+      description: string;
+      severity: 'info' | 'warning' | 'positive';
+    } | null;
+    interventionStats: {
+      total: number;
+      successful: number;
+      successRate: number;
+      avgReturnDays: number;
+      pending: number;
+    };
   }> {
     const today = new Date(clientDate);
     const todayStr = clientDate;
@@ -8650,7 +8682,14 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    const churnRiskMembers: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' | 'low'; churnScore: number; factors: { attendance: number; payment: number; trend: number; age: number } }[] = [];
+    const memberAttendanceDays = new Map<number, string[]>();
+    for (const rec of attendanceLast28) {
+      const existing = memberAttendanceDays.get(rec.memberId) || [];
+      existing.push(rec.date);
+      memberAttendanceDays.set(rec.memberId, existing);
+    }
+    
+    const churnRiskMembers: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' | 'low'; churnScore: number; factors: { attendance: number; payment: number; trend: number; age: number }; predictedChurnWindow?: string; recommendation?: string }[] = [];
     
     for (const member of activeMembers) {
       const lastVisit = lastAttendanceMap.get(member.id) || null;
@@ -8719,6 +8758,41 @@ export class DatabaseStorage implements IStorage {
       const riskLevel: 'high' | 'medium' | 'low' = churnScore >= 65 ? 'high' : churnScore >= 40 ? 'medium' : 'low';
       
       if (churnScore >= 35) {
+        let predictedChurnWindow: string | undefined;
+        if (riskLevel === 'high') {
+          if (daysAbsent >= 21 || (trendScore >= 80 && attendanceScore >= 85)) predictedChurnWindow = '1-2 weeks';
+          else predictedChurnWindow = '2-3 weeks';
+        } else if (riskLevel === 'medium') {
+          if (trendScore >= 60) predictedChurnWindow = '3-4 weeks';
+          else predictedChurnWindow = '4-6 weeks';
+        }
+
+        let recommendation: string | undefined;
+        const visitDates = memberAttendanceDays.get(member.id) || [];
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        if (visitDates.length > 0) {
+          const dayCounts = new Map<number, number>();
+          for (const d of visitDates) {
+            const dayIdx = new Date(d).getDay();
+            dayCounts.set(dayIdx, (dayCounts.get(dayIdx) || 0) + 1);
+          }
+          const topDay = [...dayCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+          if (topDay) {
+            const preferredDay = dayNames[topDay[0]];
+            if (daysAbsent >= 14) {
+              recommendation = `${member.username} used to come on ${preferredDay}s but hasn't visited in ${daysAbsent} days. A personal check-in message asking about their ${preferredDay} routine could bring them back.`;
+            } else if (trendScore >= 60) {
+              recommendation = `${member.username}'s visits are dropping — they usually train on ${preferredDay}s. Try a quick "miss seeing you on ${preferredDay}" message.`;
+            } else {
+              recommendation = `${member.username} prefers ${preferredDay}s. Consider inviting them to a ${preferredDay} group session or challenge.`;
+            }
+          }
+        } else if (daysAbsent >= 999) {
+          recommendation = `${member.username} joined but never visited. A welcome call or first-session offer could get them started.`;
+        } else {
+          recommendation = `Reach out to ${member.username} with a personal message — they haven't been in for ${daysAbsent} days.`;
+        }
+
         churnRiskMembers.push({
           id: member.id,
           name: member.username,
@@ -8727,7 +8801,9 @@ export class DatabaseStorage implements IStorage {
           lastVisit,
           riskLevel,
           churnScore,
-          factors: { attendance: attendanceScore, payment: paymentScore, trend: trendScore, age: ageScore }
+          factors: { attendance: attendanceScore, payment: paymentScore, trend: trendScore, age: ageScore },
+          predictedChurnWindow,
+          recommendation,
         });
       }
     }
@@ -8933,6 +9009,167 @@ export class DatabaseStorage implements IStorage {
       };
     }
     
+    // === WEEKLY TRENDS (4-week rolling comparison) ===
+    const weeklyTrendsData: { weekLabel: string; weekStart: string; weekEnd: string; attendance: number; changePercent: number }[] = [];
+    for (let w = 3; w >= 0; w--) {
+      const wEnd = new Date(today);
+      wEnd.setDate(wEnd.getDate() - (w * 7));
+      const wStart = new Date(wEnd);
+      wStart.setDate(wStart.getDate() - 6);
+      const wStartStr = wStart.toISOString().split('T')[0];
+      const wEndStr = wEnd.toISOString().split('T')[0];
+      const weekAttendance = recentAttendanceRecords.filter(r => r.date >= wStartStr && r.date <= wEndStr).length;
+      weeklyTrendsData.push({
+        weekLabel: `Week ${4 - w}`,
+        weekStart: wStartStr,
+        weekEnd: wEndStr,
+        attendance: weekAttendance,
+        changePercent: 0,
+      });
+    }
+    for (let i = 1; i < weeklyTrendsData.length; i++) {
+      const prev = weeklyTrendsData[i - 1].attendance;
+      const curr = weeklyTrendsData[i].attendance;
+      weeklyTrendsData[i].changePercent = prev > 0 ? Math.round(((curr - prev) / prev) * 100) : 0;
+    }
+    
+    // === INSIGHT OF THE DAY (pattern discovery) ===
+    let insightOfTheDay: { type: string; title: string; description: string; severity: 'info' | 'warning' | 'positive' } | null = null;
+    
+    const insightCandidates: { type: string; title: string; description: string; severity: 'info' | 'warning' | 'positive'; priority: number }[] = [];
+    
+    const dayNamesFull = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const recentWeekDays = new Map<number, number>();
+    const prevWeekDays = new Map<number, number>();
+    for (const rec of recentAttendanceRecords) {
+      const dayIdx = new Date(rec.date).getDay();
+      if (rec.date >= fourteenDaysAgoStr) {
+        recentWeekDays.set(dayIdx, (recentWeekDays.get(dayIdx) || 0) + 1);
+      } else {
+        prevWeekDays.set(dayIdx, (prevWeekDays.get(dayIdx) || 0) + 1);
+      }
+    }
+    for (const [dayIdx, prevCount] of prevWeekDays) {
+      const recentDayCount = recentWeekDays.get(dayIdx) || 0;
+      if (prevCount >= 3) {
+        const dropPercent = Math.round(((recentDayCount - prevCount) / prevCount) * 100);
+        if (dropPercent <= -30) {
+          insightCandidates.push({
+            type: 'day_attendance_drop',
+            title: `${dayNamesFull[dayIdx]} attendance dropped ${Math.abs(dropPercent)}%`,
+            description: `${dayNamesFull[dayIdx]} attendance went from ${prevCount} to ${recentDayCount} check-ins over the last 2 weeks. Consider a ${dayNamesFull[dayIdx]}-specific promotion or class.`,
+            severity: 'warning',
+            priority: Math.abs(dropPercent),
+          });
+        } else if (dropPercent >= 30) {
+          insightCandidates.push({
+            type: 'day_attendance_surge',
+            title: `${dayNamesFull[dayIdx]} attendance up ${dropPercent}%`,
+            description: `${dayNamesFull[dayIdx]}s are getting busier (${prevCount} to ${recentDayCount} check-ins). Great momentum — consider adding a popular class on this day.`,
+            severity: 'positive',
+            priority: dropPercent,
+          });
+        }
+      }
+    }
+    
+    const neverVisitedNew = allMembers.filter(m => {
+      if (!m.createdAt) return false;
+      const ageDays = Math.floor((today.getTime() - m.createdAt.getTime()) / (1000 * 60 * 60 * 24));
+      return ageDays >= 7 && ageDays <= 30 && !lastAttendanceMap.has(m.id);
+    });
+    if (neverVisitedNew.length >= 2) {
+      insightCandidates.push({
+        type: 'new_members_no_visit',
+        title: `${neverVisitedNew.length} new members haven't visited`,
+        description: `${neverVisitedNew.length} members joined in the last month but never checked in. The first visit is the hardest — reach out with a welcome message or free session offer.`,
+        severity: 'warning',
+        priority: neverVisitedNew.length * 20,
+      });
+    }
+    
+    const highRiskCount = churnRiskMembers.filter(m => m.riskLevel === 'high').length;
+    if (highRiskCount >= 3) {
+      insightCandidates.push({
+        type: 'multiple_high_risk',
+        title: `${highRiskCount} members at high churn risk`,
+        description: `${highRiskCount} members are showing strong signs of leaving. Proactive outreach this week could prevent ${Math.round(highRiskCount * 0.3)}-${Math.round(highRiskCount * 0.5)} cancellations.`,
+        severity: 'warning',
+        priority: highRiskCount * 15,
+      });
+    }
+    
+    if (weeklyTrendsData.length >= 3) {
+      const isConsistentGrowth = weeklyTrendsData.slice(1).every(w => w.changePercent > 0);
+      if (isConsistentGrowth) {
+        insightCandidates.push({
+          type: 'consistent_growth',
+          title: 'Attendance growing 3+ weeks straight',
+          description: `Your attendance has been climbing for ${weeklyTrendsData.length - 1} consecutive weeks. Whatever you're doing is working — keep it up!`,
+          severity: 'positive',
+          priority: 40,
+        });
+      }
+    }
+    
+    if (insightCandidates.length > 0) {
+      insightCandidates.sort((a, b) => b.priority - a.priority);
+      const top = insightCandidates[0];
+      insightOfTheDay = { type: top.type, title: top.title, description: top.description, severity: top.severity };
+    }
+    
+    // === INTERVENTION STATS (Pillar 4: Adaptive Feedback Loop) ===
+    const allInterventions = await db.select().from(ownerInterventions)
+      .where(eq(ownerInterventions.gymId, gymId));
+    
+    for (const intervention of allInterventions) {
+      if (intervention.memberReturnedWithin7Days === null && intervention.createdAt) {
+        const interventionDate = intervention.createdAt;
+        const sevenDaysLater = new Date(interventionDate);
+        sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+        
+        if (today >= sevenDaysLater) {
+          const memberAttendanceAfter = await db.select({ date: attendance.date })
+            .from(attendance)
+            .where(and(
+              eq(attendance.gymId, gymId),
+              eq(attendance.memberId, intervention.memberId),
+              eq(attendance.status, 'present'),
+              gte(attendance.date, interventionDate.toISOString().split('T')[0]),
+              lte(attendance.date, sevenDaysLater.toISOString().split('T')[0])
+            ))
+            .limit(1);
+          
+          const returned = memberAttendanceAfter.length > 0;
+          await db.update(ownerInterventions)
+            .set({
+              memberReturnedWithin7Days: returned,
+              memberReturnDate: returned ? memberAttendanceAfter[0].date : null,
+            })
+            .where(eq(ownerInterventions.id, intervention.id));
+          
+          intervention.memberReturnedWithin7Days = returned;
+          intervention.memberReturnDate = returned ? memberAttendanceAfter[0].date : null;
+        }
+      }
+    }
+    
+    const resolvedInterventions = allInterventions.filter(i => i.memberReturnedWithin7Days !== null);
+    const successfulInterventions = resolvedInterventions.filter(i => i.memberReturnedWithin7Days === true);
+    const pendingInterventions = allInterventions.filter(i => i.memberReturnedWithin7Days === null);
+    
+    let avgReturnDays = 0;
+    if (successfulInterventions.length > 0) {
+      const returnDays = successfulInterventions
+        .filter(i => i.createdAt && i.memberReturnDate)
+        .map(i => {
+          const created = new Date(i.createdAt!);
+          const returned = new Date(i.memberReturnDate!);
+          return Math.floor((returned.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+        });
+      avgReturnDays = returnDays.length > 0 ? Math.round(returnDays.reduce((a, b) => a + b, 0) / returnDays.length) : 0;
+    }
+    
     return {
       churnRisk: {
         count: churnRiskMembers.length,
@@ -8953,7 +9190,7 @@ export class DatabaseStorage implements IStorage {
         totalActive: activeMembers.length,
         newThisMonth,
         improvedMembers: recentWorkouts.length,
-        atRiskCount: churnRiskMembers.filter(m => m.riskLevel === 'high').length
+        atRiskCount: highRiskCount
       },
       monthComparison: {
         currentMonth,
@@ -8962,7 +9199,18 @@ export class DatabaseStorage implements IStorage {
         newMembers: { current: newThisMonth, previous: prevMonthMembers, changePercent: newMembersChangePercent },
         revenue: { current: currRevenue, previous: prevRevenue, changePercent: revenueChangePercent }
       },
-      todayPriority
+      weeklyTrends: {
+        weeks: weeklyTrendsData,
+      },
+      todayPriority,
+      insightOfTheDay,
+      interventionStats: {
+        total: allInterventions.length,
+        successful: successfulInterventions.length,
+        successRate: resolvedInterventions.length > 0 ? Math.round((successfulInterventions.length / resolvedInterventions.length) * 100) : 0,
+        avgReturnDays,
+        pending: pendingInterventions.length,
+      },
     };
   }
 

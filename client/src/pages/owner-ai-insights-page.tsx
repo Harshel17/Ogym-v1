@@ -24,7 +24,12 @@ import {
   Target,
   Activity,
   ChevronRight,
-  Zap
+  Zap,
+  Lightbulb,
+  CheckCircle2,
+  Timer,
+  MessageSquare,
+  Shield
 } from "lucide-react";
 import { Link } from "wouter";
 import { Progress } from "@/components/ui/progress";
@@ -32,7 +37,7 @@ import { Progress } from "@/components/ui/progress";
 interface AiInsightsData {
   churnRisk: {
     count: number;
-    members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' | 'low'; churnScore: number; factors: { attendance: number; payment: number; trend: number; age: number } }[];
+    members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' | 'low'; churnScore: number; factors: { attendance: number; payment: number; trend: number; age: number }; predictedChurnWindow?: string; recommendation?: string }[];
   };
   followUpReminders: {
     count: number;
@@ -65,6 +70,22 @@ interface AiInsightsData {
     memberId?: number;
     memberName?: string;
   } | null;
+  weeklyTrends?: {
+    weeks: { weekLabel: string; weekStart: string; weekEnd: string; attendance: number; changePercent: number }[];
+  };
+  insightOfTheDay?: {
+    type: string;
+    title: string;
+    description: string;
+    severity: 'info' | 'warning' | 'positive';
+  } | null;
+  interventionStats?: {
+    total: number;
+    successful: number;
+    successRate: number;
+    avgReturnDays: number;
+    pending: number;
+  };
 }
 
 function ChangeIndicator({ value, suffix = "%" }: { value: number; suffix?: string }) {
@@ -204,6 +225,35 @@ export default function OwnerAiInsightsPage() {
         </Card>
       )}
 
+      {insights.insightOfTheDay && (
+        <Card className={`${
+          insights.insightOfTheDay.severity === 'warning' ? 'border-orange-300 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20' :
+          insights.insightOfTheDay.severity === 'positive' ? 'border-green-300 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20' :
+          'border-blue-300 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20'
+        }`} data-testid="card-insight-of-the-day">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-full flex-shrink-0 mt-0.5 ${
+                insights.insightOfTheDay.severity === 'warning' ? 'bg-orange-100 dark:bg-orange-900/50' :
+                insights.insightOfTheDay.severity === 'positive' ? 'bg-green-100 dark:bg-green-900/50' :
+                'bg-blue-100 dark:bg-blue-900/50'
+              }`}>
+                <Lightbulb className={`h-4 w-4 ${
+                  insights.insightOfTheDay.severity === 'warning' ? 'text-orange-600 dark:text-orange-400' :
+                  insights.insightOfTheDay.severity === 'positive' ? 'text-green-600 dark:text-green-400' :
+                  'text-blue-600 dark:text-blue-400'
+                }`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wider mb-1 text-muted-foreground">Insight of the Day</p>
+                <p className="font-semibold text-sm">{insights.insightOfTheDay.title}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">{insights.insightOfTheDay.description}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card data-testid="card-total-active">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
@@ -284,6 +334,90 @@ export default function OwnerAiInsightsPage() {
         </Card>
       )}
 
+      {(insights.weeklyTrends || insights.interventionStats) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {insights.weeklyTrends && insights.weeklyTrends.weeks.length > 0 && (
+            <Card data-testid="card-weekly-trends">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <BarChart3 className="h-5 w-5 text-blue-500" />
+                  Weekly Attendance Trends
+                </CardTitle>
+                <CardDescription>Rolling 4-week comparison</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {insights.weeklyTrends.weeks.map((week, idx) => {
+                    const maxAttendance = Math.max(...insights.weeklyTrends!.weeks.map(w => w.attendance), 1);
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{week.weekLabel}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">{week.attendance} check-ins</span>
+                            {idx > 0 && week.changePercent !== 0 && (
+                              <ChangeIndicator value={week.changePercent} />
+                            )}
+                          </div>
+                        </div>
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 rounded-full transition-all"
+                            style={{ width: `${(week.attendance / maxAttendance) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {insights.interventionStats && insights.interventionStats.total > 0 && (
+            <Card data-testid="card-intervention-stats">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Shield className="h-5 w-5 text-emerald-500" />
+                  Your Outreach Impact
+                </CardTitle>
+                <CardDescription>How effective your member interventions have been</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Success Rate</p>
+                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{insights.interventionStats.successRate}%</p>
+                  </div>
+                  <div className="h-14 w-14 rounded-full border-4 border-emerald-500/20 flex items-center justify-center">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Total Sent</p>
+                    <p className="text-lg font-bold">{insights.interventionStats.total}</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Brought Back</p>
+                    <p className="text-lg font-bold text-green-600 dark:text-green-400">{insights.interventionStats.successful}</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Pending</p>
+                    <p className="text-lg font-bold text-muted-foreground">{insights.interventionStats.pending}</p>
+                  </div>
+                </div>
+                {insights.interventionStats.avgReturnDays > 0 && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Members typically return within {insights.interventionStats.avgReturnDays} days of your outreach
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card data-testid="card-churn-risk">
           <CardHeader>
@@ -315,26 +449,40 @@ export default function OwnerAiInsightsPage() {
             ) : (
               <div className="space-y-2">
                 {insights.churnRisk.members.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50" data-testid={`churn-member-${member.id}`}>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium text-sm">{member.name}</p>
-                        <Badge variant={member.riskLevel === 'high' ? 'destructive' : member.riskLevel === 'medium' ? 'secondary' : 'outline'}>
-                          {member.churnScore}/100
-                        </Badge>
+                  <div key={member.id} className="p-3 rounded-lg bg-muted/50" data-testid={`churn-member-${member.id}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-sm">{member.name}</p>
+                          <Badge variant={member.riskLevel === 'high' ? 'destructive' : member.riskLevel === 'medium' ? 'secondary' : 'outline'}>
+                            {member.churnScore}/100
+                          </Badge>
+                          {member.predictedChurnWindow && (
+                            <Badge variant="outline" className="text-[10px]">
+                              <Timer className="h-3 w-3 mr-0.5" />
+                              {member.predictedChurnWindow}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1">
+                          <ChurnScoreBar score={member.churnScore} />
+                          <p className="text-[11px] text-muted-foreground">
+                            {member.daysAbsent < 999 ? `${member.daysAbsent}d absent` : 'Never visited'}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 mt-1">
-                        <ChurnScoreBar score={member.churnScore} />
-                        <p className="text-[11px] text-muted-foreground">
-                          {member.daysAbsent < 999 ? `${member.daysAbsent}d absent` : 'Never visited'}
-                        </p>
-                      </div>
+                      <Link href={`/owner/members/${member.id}`}>
+                        <Button size="sm" variant="outline" data-testid={`button-view-member-${member.id}`}>
+                          View
+                        </Button>
+                      </Link>
                     </div>
-                    <Link href={`/owner/members/${member.id}`}>
-                      <Button size="sm" variant="outline" data-testid={`button-view-member-${member.id}`}>
-                        View
-                      </Button>
-                    </Link>
+                    {member.recommendation && (
+                      <div className="mt-2 flex items-start gap-1.5 pl-1">
+                        <MessageSquare className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <p className="text-[11px] text-muted-foreground leading-tight">{member.recommendation}</p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
