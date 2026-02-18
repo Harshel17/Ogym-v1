@@ -53,10 +53,6 @@
         <string>OGym saves QR codes and workout progress images to your photo library</string>
         <key>NSLocationWhenInUseUsageDescription</key>
         <string>OGym uses your location to find healthy food options nearby.</string>
-        <key>NSHealthShareUsageDescription</key>
-        <string>OGym reads your steps, calories burned, heart rate, and sleep data from Apple Health to display your daily activity overview, recovery score, and weekly trends on the Health &amp; Activity page.</string>
-        <key>NSHealthUpdateUsageDescription</key>
-        <string>OGym writes your workout session data to Apple Health so your exercise history stays synced across all your health apps.</string>
         <key>ITSAppUsesNonExemptEncryption</key>
         <false/>
         <key>NSAppTransportSecurity</key>
