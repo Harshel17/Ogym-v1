@@ -1293,7 +1293,9 @@ export function DikaDrawer({
               </div>
               <h3 className="text-lg font-semibold mb-1 text-slate-800 dark:text-slate-100">How can I help you today?</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-                Ask me about workouts, attendance, payments, and more
+                {(isNative() && isIOS()) 
+                  ? "Ask me about workouts, attendance, nutrition, and more"
+                  : "Ask me about workouts, attendance, payments, and more"}
               </p>
               
               {suggestions.length > 0 && (
@@ -1354,7 +1356,8 @@ export function DikaDrawer({
                             <MarkdownContent content={displayContent} />
                             {mealLog && <MealLoggedCard meal={mealLog} />}
                             {weeklyReport && <WeeklyReportCard report={weeklyReport} />}
-                            {actionData && actionData.status === 'pending_confirmation' && !cancelledActions.has(message.id) && (
+                            {actionData && actionData.status === 'pending_confirmation' && !cancelledActions.has(message.id) && 
+                              !(isNative() && isIOS() && actionData.actionType === 'log_payment') && (
                               <ActionCard
                                 action={actionData}
                                 onConfirm={() => handleActionConfirm(message.id, actionData)}
