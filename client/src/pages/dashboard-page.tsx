@@ -119,10 +119,11 @@ function MiniRing({ value, max, size = 48, color, icon: Icon }: {
 }
 
 function HealthActivityDashboard() {
+  const { user } = useAuth();
   const { data: status, isLoading: statusLoading } = useHealthStatus();
   const { data: healthData, isLoading: dataLoading } = useHealthDataToday();
 
-  const connected = status?.connected || !!healthData;
+  const connected = status?.connected || (user as any)?.healthConnected || !!healthData;
   const hasData = connected && healthData;
 
   const steps = hasData ? (healthData.steps || 0) : 0;

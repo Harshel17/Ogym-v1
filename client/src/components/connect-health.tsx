@@ -4,20 +4,24 @@ import { Button } from '@/components/ui/button';
 import { Activity, Heart, Footprints, Moon, Flame, HeartPulse, ChevronRight, Watch } from 'lucide-react';
 import { SiApple } from 'react-icons/si';
 import { Capacitor } from '@capacitor/core';
-import { useHealthStatus } from '@/hooks/use-health-data';
+import { useHealthStatus, useHealthDataToday } from '@/hooks/use-health-data';
+import { useAuth } from '@/hooks/use-auth';
 import { Link } from 'wouter';
 
 export function ConnectHealth() {
   const isNative = Capacitor.isNativePlatform();
   const platform = Capacitor.getPlatform();
+  const { user } = useAuth();
   const { data: status } = useHealthStatus();
+  const { data: todayData } = useHealthDataToday();
 
   const sourceName = platform === 'ios' ? 'Apple Health' : platform === 'android' ? 'Google Fit' : 'Fitness Device';
   const sourceIcon = platform === 'ios' 
     ? <SiApple className="w-5 h-5" /> 
     : <Activity className="w-5 h-5" />;
 
-  const isConnected = status?.connected;
+  const isConnected = status?.connected || (user as any)?.healthConnected || !!todayData;
+  const healthSource = status?.source || (user as any)?.healthSource;
 
   return (
     <Link href="/health">
@@ -34,7 +38,7 @@ export function ConnectHealth() {
                   {isConnected && (
                     <Badge variant="secondary" className="text-xs gap-1">
                       <Watch className="w-3 h-3" />
-                      {status?.source === 'apple_health' ? 'Apple Health' : 'Google Fit'}
+                      {healthSource === 'apple_health' ? 'Apple Health' : 'Google Fit'}
                     </Badge>
                   )}
                 </CardTitle>
