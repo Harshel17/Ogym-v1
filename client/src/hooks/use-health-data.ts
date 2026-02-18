@@ -11,7 +11,7 @@ export interface HealthConnectionStatus {
 export function useHealthStatus() {
   return useQuery<HealthConnectionStatus>({
     queryKey: ['/api/health/status'],
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 30,
   });
 }
 
@@ -48,6 +48,7 @@ export function useConnectHealth() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/health/status'] });
       queryClient.invalidateQueries({ queryKey: ['/api/health/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/health/range'] });
     },
   });
 }
