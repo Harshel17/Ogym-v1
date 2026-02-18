@@ -112,7 +112,10 @@ class HealthService {
       await this.initialize();
     }
     
-    if (!this.healthPlugin) return null;
+    if (!this.healthPlugin) {
+      console.log('[HealthService] Plugin not available');
+      return null;
+    }
 
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -127,6 +130,8 @@ class HealthService {
         source,
       };
 
+      console.log('[HealthService] Fetching today data...');
+
       // Fetch steps
       try {
         const stepsResult = await this.healthPlugin.queryAggregated({
@@ -135,11 +140,12 @@ class HealthService {
           dataType: 'steps',
           bucket: 'day'
         });
+        console.log('[HealthService] Steps result:', JSON.stringify(stepsResult));
         if (stepsResult?.aggregatedData?.[0]?.value) {
           data.steps = Math.round(stepsResult.aggregatedData[0].value);
         }
       } catch (e) {
-        console.log('Could not fetch steps:', e);
+        console.log('[HealthService] Could not fetch steps:', e);
       }
 
       // Fetch active calories
@@ -150,12 +156,13 @@ class HealthService {
           dataType: 'active-calories',
           bucket: 'day'
         });
+        console.log('[HealthService] Calories result:', JSON.stringify(caloriesResult));
         if (caloriesResult?.aggregatedData?.[0]?.value) {
           data.activeCalories = Math.round(caloriesResult.aggregatedData[0].value);
           data.caloriesBurned = data.activeCalories;
         }
       } catch (e) {
-        console.log('Could not fetch calories:', e);
+        console.log('[HealthService] Could not fetch calories:', e);
       }
 
       // Fetch workouts to get heart rate, duration, and other data
@@ -165,8 +172,9 @@ class HealthService {
           endDate: endOfDay.toISOString(),
           includeHeartRate: true,
           includeRoute: false,
-          includeSteps: false
+          includeSteps: true
         });
+        console.log('[HealthService] Workouts result:', JSON.stringify(workoutsResult));
         
         if (workoutsResult?.workouts?.length > 0) {
           const workouts: Array<{ type: string; duration: number; calories: number }> = [];
@@ -176,7 +184,7 @@ class HealthService {
           
           for (const workout of workoutsResult.workouts) {
             workouts.push({
-              type: workout.type || 'unknown',
+              type: workout.workoutType || workout.type || 'unknown',
               duration: workout.duration || 0,
               calories: workout.calories || 0
             });
@@ -204,12 +212,13 @@ class HealthService {
           }
         }
       } catch (e) {
-        console.log('Could not fetch workouts:', e);
+        console.log('[HealthService] Could not fetch workouts:', e);
       }
 
+      console.log('[HealthService] Final data to sync:', JSON.stringify(data));
       return data;
     } catch (error) {
-      console.error('Failed to fetch health data:', error);
+      console.error('[HealthService] Failed to fetch health data:', error);
       return null;
     }
   }
