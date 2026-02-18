@@ -20,6 +20,7 @@ import {
   userGoals
 } from "@shared/schema";
 import { eq, and, gte, lte, desc, sql, inArray, isNull, or, not, count } from "drizzle-orm";
+import { storage } from "../storage";
 import { detectExerciseQuestion, findExercise, formatExerciseResponse } from "./exercise-database";
 import { detectWorkoutGenerationRequest, generateWorkoutPlan } from "./workout-generator";
 import { detectMealLogRequest, parseMealFromMessage, logMealForUser, getTodayNutritionSummary, formatMealLogResponse, detectRestaurantInMessage, looksLikeRestaurantFood } from "./meal-logger";
@@ -684,11 +685,34 @@ interface OwnerContext {
     newMembersThisMonth: number;
     attendanceChange: string;
   };
-  // Detailed lists (first 10 for each)
   unpaidMemberNames: string[];
   checkedInTodayNames: string[];
   expiringMemberNames: string[];
   notCheckedInTodayNames: string[];
+  aiInsights: {
+    churnRisk: {
+      count: number;
+      topMembers: { name: string; churnScore: number; riskLevel: string; daysAbsent: number }[];
+    };
+    monthComparison: {
+      currentMonth: string;
+      previousMonth: string;
+      attendance: { current: number; previous: number; changePercent: number };
+      newMembers: { current: number; previous: number; changePercent: number };
+      revenue: { current: number; previous: number; changePercent: number };
+    };
+    attendancePatterns: {
+      averageDaily: number;
+      trend: string;
+      trendPercent: number;
+    };
+    todayPriority: {
+      type: string;
+      title: string;
+      description: string;
+      memberName?: string;
+    } | null;
+  } | null;
 }
 
 interface TrainerContext {
@@ -1387,6 +1411,32 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
     expiringMemberNames = expiringUsers.map(u => profileMap.get(u.id) || u.username);
   }
   
+  let aiInsights: OwnerContext['aiInsights'] = null;
+  try {
+    const insights = await storage.getAiInsights(gymId, dates.today);
+    const topChurnMembers = insights.churnRisk.members
+      .filter(m => m.riskLevel === 'high' || m.riskLevel === 'medium')
+      .sort((a, b) => b.churnScore - a.churnScore)
+      .slice(0, 5)
+      .map(m => ({ name: m.name, churnScore: m.churnScore, riskLevel: m.riskLevel, daysAbsent: m.daysAbsent }));
+
+    aiInsights = {
+      churnRisk: {
+        count: insights.churnRisk.count,
+        topMembers: topChurnMembers,
+      },
+      monthComparison: insights.monthComparison,
+      attendancePatterns: {
+        averageDaily: insights.attendancePatterns.averageDaily,
+        trend: insights.attendancePatterns.trend,
+        trendPercent: insights.attendancePatterns.trendPercent,
+      },
+      todayPriority: insights.todayPriority,
+    };
+  } catch (err) {
+    console.error('Failed to fetch AI insights for Dika owner context:', err);
+  }
+
   return {
     totalMembers,
     activeMembers: activeMembersResult?.count || 0,
@@ -1402,7 +1452,8 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
     unpaidMemberNames,
     checkedInTodayNames,
     expiringMemberNames,
-    notCheckedInTodayNames
+    notCheckedInTodayNames,
+    aiInsights,
   };
 }
 
@@ -1783,6 +1834,36 @@ Do NOT try to solve technical issues yourself - offer to report them instead.`;
       ? `\n  Names: ${ctx.expiringMemberNames.join(', ')}${ctx.expiringThisMonth > 10 ? ` (and ${ctx.expiringThisMonth - 10} more)` : ''}`
       : '';
     
+    const insightsSection = ctx.aiInsights ? (() => {
+      const ai = ctx.aiInsights;
+      const churnSection = ai.churnRisk.count > 0
+        ? `\nCHURN RISK INTELLIGENCE (AI-scored, weighted formula: attendance 40% + payment 25% + trend 20% + membership age 15%):
+- ${ai.churnRisk.count} member${ai.churnRisk.count !== 1 ? 's' : ''} at medium-to-high churn risk
+${ai.churnRisk.topMembers.map(m => `  - ${m.name}: score ${m.churnScore}/100 (${m.riskLevel} risk), ${m.daysAbsent} days absent`).join('\n')}
+When discussing at-risk members, reference their specific churn score and days absent. Suggest concrete retention actions (personal message, offer a session, check on them).`
+        : '\nCHURN RISK: No members currently at medium or high churn risk. Great retention!';
+
+      const mc = ai.monthComparison;
+      const fmtChange = (val: number) => val > 0 ? `+${val.toFixed(1)}%` : `${val.toFixed(1)}%`;
+      const monthSection = `\nMONTH-OVER-MONTH COMPARISON (${mc.currentMonth} vs ${mc.previousMonth}):
+- Attendance: ${mc.attendance.current} vs ${mc.attendance.previous} (${fmtChange(mc.attendance.changePercent)})
+- New members: ${mc.newMembers.current} vs ${mc.newMembers.previous} (${fmtChange(mc.newMembers.changePercent)})
+- Revenue: ${currency}${mc.revenue.current.toLocaleString()} vs ${currency}${mc.revenue.previous.toLocaleString()} (${fmtChange(mc.revenue.changePercent)})
+Use these comparisons when the owner asks about trends, progress, or how this month is going.`;
+
+      const attendSection = `\nATTENDANCE PATTERNS:
+- Average daily attendance: ${ai.attendancePatterns.averageDaily} members
+- Trend: ${ai.attendancePatterns.trend} (${ai.attendancePatterns.trendPercent > 0 ? '+' : ''}${ai.attendancePatterns.trendPercent.toFixed(1)}% change)`;
+
+      const prioritySection = ai.todayPriority
+        ? `\nTODAY'S PRIORITY ACTION:
+- ${ai.todayPriority.title}: ${ai.todayPriority.description}${ai.todayPriority.memberName ? ` (Member: ${ai.todayPriority.memberName})` : ''}
+Proactively mention this priority if the owner asks "what should I focus on" or "what's important today".`
+        : '';
+
+      return churnSection + monthSection + attendSection + prioritySection;
+    })() : '';
+
     return basePrompt + `
 GYM OVERVIEW:
 - Total members: ${ctx.totalMembers}
@@ -1792,16 +1873,26 @@ GYM OVERVIEW:
 - Expiring within 30 days: ${ctx.expiringThisMonth}${expiringList}
 - Revenue this month: ${currency}${ctx.revenueThisMonth.toLocaleString()}
 - New members this month: ${ctx.recentTrends.newMembersThisMonth}
+${insightsSection}
 
 You can help this owner with:
 - Business performance analysis and member lists
-- Member retention insights with specific names
-- Revenue and payment tracking
-- Attendance trends
+- Member retention insights with specific names and churn scores
+- Revenue and payment tracking with month-over-month comparisons
+- Attendance trends and pattern analysis
 - Strategic recommendations for gym growth
-- Identifying members at risk of churning
+- Identifying members at risk of churning (with AI-scored risk levels)
+- Today's priority action and what to focus on
 - Suggestions to improve member engagement
 - Creating support tickets to report issues or request help
+
+ANALYTICS INTELLIGENCE:
+When the owner asks about trends, comparisons, or insights:
+- Reference the month-over-month data above for quick comparisons
+- Reference churn risk scores and specific member names when discussing retention
+- If they ask "compare last N weeks" or similar period questions, the analytics engine will provide detailed data — use the pre-loaded insights above as baseline context
+- Speak in plain business language: "Your attendance is up 12% vs last month" not "attendance_change_percent is 12"
+- Always pair data with actionable advice: what the number means and what to do about it
 
 IMPORTANT - ISSUE DETECTION:
 When the user describes a problem, complaint, bug, or something that isn't working correctly (e.g. "members are not showing up", "there is a mismatch", "payments are not recording"), you should:
