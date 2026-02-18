@@ -533,7 +533,18 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="Enter your password" {...field} className="h-11" data-testid="input-login-password" />
+                              <Input 
+                                type="password" 
+                                placeholder="Enter your password" 
+                                {...field} 
+                                className="h-11" 
+                                data-testid="input-login-password"
+                                onFocus={(e) => {
+                                  setTimeout(() => {
+                                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }, 300);
+                                }}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -636,7 +647,18 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="Create a password (min 8 characters)" {...field} className="h-11" data-testid="input-register-password" />
+                              <Input 
+                                type="password" 
+                                placeholder="Create a password (min 8 characters)" 
+                                {...field} 
+                                className="h-11" 
+                                data-testid="input-register-password"
+                                onFocus={(e) => {
+                                  setTimeout(() => {
+                                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }, 300);
+                                }}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
