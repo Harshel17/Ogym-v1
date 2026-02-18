@@ -9133,6 +9133,12 @@ export class DatabaseStorage implements IStorage {
     // Post reports by this user
     await db.delete(postReports).where(eq(postReports.reporterId, userId));
 
+    // User blocks (as blocker or blocked)
+    await db.delete(userBlocks).where(or(
+      eq(userBlocks.blockerId, userId),
+      eq(userBlocks.blockedUserId, userId)
+    ));
+
     // Health data
     await db.delete(healthData).where(eq(healthData.userId, userId));
 
@@ -9148,6 +9154,12 @@ export class DatabaseStorage implements IStorage {
         await db.delete(membershipPlans).where(eq(membershipPlans.gymId, gym.id));
         await db.delete(gymEmailSettings).where(eq(gymEmailSettings.gymId, gym.id));
         await db.delete(gymSubscriptions).where(eq(gymSubscriptions.gymId, gym.id));
+        // Delete kiosk OTP codes before kiosk sessions (FK dependency)
+        await db.delete(kioskOtpCodes).where(
+          inArray(kioskOtpCodes.kioskSessionId,
+            db.select({ id: kioskSessions.id }).from(kioskSessions).where(eq(kioskSessions.gymId, gym.id))
+          )
+        );
         await db.delete(kioskSessions).where(eq(kioskSessions.gymId, gym.id));
         await db.delete(walkInVisitors).where(eq(walkInVisitors.gymId, gym.id));
         
