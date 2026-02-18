@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Trash2, Loader2, AlertTriangle, LogIn } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { isNative, isIOS } from "@/lib/capacitor-init";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function DeleteAccountPage() {
   const [, setLocation] = useLocation();
   const { user, logoutMutation } = useAuth();
+  const isIOSNativeApp = isNative() && isIOS();
   const { toast } = useToast();
   const [confirmText, setConfirmText] = useState("");
   const [deleted, setDeleted] = useState(false);
@@ -126,7 +128,7 @@ export default function DeleteAccountPage() {
                   <ul className="text-sm text-muted-foreground mt-2 space-y-1">
                     <li>Your profile and account information</li>
                     <li>All workout history and progress data</li>
-                    <li>Payment records and subscription details</li>
+                    {!isIOSNativeApp && <li>Payment records and subscription details</li>}
                     <li>Posts, comments, and social interactions</li>
                     <li>Body measurements and nutrition logs</li>
                     <li>Fitness goals and health data</li>
