@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RoboDIcon } from "@/components/dika/dika-icons";
+import { isNative, isIOS } from "@/lib/capacitor-init";
 import {
   ChevronDown,
   ChevronUp,
@@ -60,6 +61,10 @@ const iconMap: Record<string, any> = {
 export function PerformanceIntelligenceCard() {
   const [isOpen, setIsOpen] = useState(false);
   const [, setLocation] = useLocation();
+
+  if (isNative() && isIOS()) {
+    return null;
+  }
 
   const { data: report, isLoading, error, refetch } = useQuery<IntelligenceReport>({
     queryKey: ["/api/intelligence-report"],
