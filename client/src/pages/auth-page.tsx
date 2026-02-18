@@ -791,14 +791,18 @@ export default function AuthPage() {
               <a href="/terms" className="hover:text-foreground transition-colors" data-testid="link-terms-footer">Terms</a>
               <span>|</span>
               <a href="/privacy" className="hover:text-foreground transition-colors" data-testid="link-privacy-footer">Privacy</a>
-              <span>|</span>
-              <a 
-                href="/admin" 
-                className="hover:text-foreground transition-colors"
-                data-testid="link-admin-login"
-              >
-                Admin
-              </a>
+              {!(isNative() && isIOS()) && (
+                <>
+                  <span>|</span>
+                  <a 
+                    href="/admin" 
+                    className="hover:text-foreground transition-colors"
+                    data-testid="link-admin-login"
+                  >
+                    Admin
+                  </a>
+                </>
+              )}
             </div>
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <button

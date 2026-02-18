@@ -2486,7 +2486,7 @@ function generateFollowUpChips(role: UserRole, lastMessage: string, aiResponse: 
   return [];
 }
 
-export async function generateOwnerBriefing(gymId: number, ownerName: string): Promise<{ answer: string; followUpChips: string[] }> {
+export async function generateOwnerBriefing(gymId: number, ownerName: string, isIOSNative?: boolean): Promise<{ answer: string; followUpChips: string[] }> {
   const dates = getDateRanges();
 
   const [totalMembers] = await db.select({ count: sql<number>`count(*)` })
@@ -2617,18 +2617,20 @@ export async function generateOwnerBriefing(gymId: number, ownerName: string): P
 
   lines.push(`**Today**: ${checked}/${total} members checked in`);
 
-  if (expiring > 0) {
-    lines.push(`**Expiring this week**: ${expiring} membership${expiring > 1 ? 's' : ''}`);
-  }
-
-  if (unpaidCount > 0) {
-    lines.push(`**Outstanding payments**: ${unpaidCount} member${unpaidCount > 1 ? 's' : ''}`);
-    if (unpaidNames.length > 0) {
-      lines.push(`  ${unpaidNames.join(', ')}${unpaidCount > 5 ? ` +${unpaidCount - 5} more` : ''}`);
+  if (!isIOSNative) {
+    if (expiring > 0) {
+      lines.push(`**Expiring this week**: ${expiring} membership${expiring > 1 ? 's' : ''}`);
     }
-  }
 
-  lines.push(`**Revenue this month**: ${currencySymbol}${revenue.toLocaleString()}`);
+    if (unpaidCount > 0) {
+      lines.push(`**Outstanding payments**: ${unpaidCount} member${unpaidCount > 1 ? 's' : ''}`);
+      if (unpaidNames.length > 0) {
+        lines.push(`  ${unpaidNames.join(', ')}${unpaidCount > 5 ? ` +${unpaidCount - 5} more` : ''}`);
+      }
+    }
+
+    lines.push(`**Revenue this month**: ${currencySymbol}${revenue.toLocaleString()}`);
+  }
 
   if (inactiveMemberNames.length > 0) {
     const inactiveTotal = memberIdList.length - (new Set(inactiveMemberNames).size);
@@ -2638,8 +2640,10 @@ export async function generateOwnerBriefing(gymId: number, ownerName: string): P
   }
 
   const chips: string[] = [];
-  if (unpaidCount > 0) chips.push('Who hasn\'t paid?');
-  if (expiring > 0) chips.push('Expiring memberships');
+  if (!isIOSNative) {
+    if (unpaidCount > 0) chips.push('Who hasn\'t paid?');
+    if (expiring > 0) chips.push('Expiring memberships');
+  }
   if (inactiveMemberNames.length > 0) chips.push(`Tell me about ${inactiveMemberNames[0]}`);
   chips.push('Gym overview');
 

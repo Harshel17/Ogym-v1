@@ -63,7 +63,9 @@ export default function SubscriptionExpiredPage() {
           ) : user?.role !== "owner" ? (
             <div className="text-center">
               <p className="text-sm text-muted-foreground">
-                Please contact your gym owner to renew the subscription.
+                {isIOSNativeApp
+                  ? "Please contact your gym administrator for assistance."
+                  : "Please contact your gym owner to renew the subscription."}
               </p>
             </div>
           ) : (

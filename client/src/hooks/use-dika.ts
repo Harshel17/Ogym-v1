@@ -217,7 +217,8 @@ export function useDikaPage(userId: number) {
   useEffect(() => {
     if (messages.length === 0 && serverLoaded && !briefingFetchedRef.current) {
       briefingFetchedRef.current = true;
-      apiRequest('GET', '/api/dika/briefing')
+      const platformParam = (isNative() && isIOS()) ? '?platform=ios_native' : '';
+      apiRequest('GET', `/api/dika/briefing${platformParam}`)
         .then(res => res.json())
         .then(data => {
           if (data.answer) {
@@ -404,7 +405,8 @@ export function useDika(userId: number, hideDika: boolean) {
   useEffect(() => {
     if (isOpen && messages.length === 0 && serverLoaded && !briefingFetchedRef.current) {
       briefingFetchedRef.current = true;
-      apiRequest('GET', '/api/dika/briefing')
+      const platformParam = (isNative() && isIOS()) ? '?platform=ios_native' : '';
+      apiRequest('GET', `/api/dika/briefing${platformParam}`)
         .then(res => res.json())
         .then(data => {
           if (data.answer) {

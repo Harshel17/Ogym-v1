@@ -498,7 +498,7 @@ function Router() {
       </Route>
 
       <Route path="/owner/member-analytics">
-        <ProtectedRoute component={OwnerMemberAnalyticsPage} requiredRole="owner" />
+        <ProtectedRoute component={OwnerMemberAnalyticsPage} requiredRole="owner" blockOnIOSOwner />
       </Route>
 
       <Route path="/owner/announcements">

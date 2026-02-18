@@ -5107,11 +5107,12 @@ Return ONLY JSON.`
       return res.json({ answer: null });
     }
     try {
+      const isIOSNative = req.query.platform === 'ios_native';
       const [profile] = await db.select({ fullName: userProfiles.fullName })
         .from(userProfiles)
         .where(eq(userProfiles.userId, user.id));
       const ownerName = profile?.fullName || user.username || 'there';
-      const briefing = await generateOwnerBriefing(user.gymId, ownerName);
+      const briefing = await generateOwnerBriefing(user.gymId, ownerName, isIOSNative);
       res.json(briefing);
     } catch (error) {
       console.error('Briefing error:', error);
