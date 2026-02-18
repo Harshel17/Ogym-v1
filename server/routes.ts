@@ -4643,6 +4643,8 @@ Return ONLY JSON.`
     try {
       const { connected, source } = schema.parse(req.body);
       await storage.updateUserHealthConnection(req.user!.id, connected, source);
+      (req.user as any).healthConnected = connected;
+      (req.user as any).healthSource = source;
       res.json({ success: true });
     } catch (error) {
       console.error("Health connect error:", error);
@@ -4652,9 +4654,13 @@ Return ONLY JSON.`
 
   // Get user's health connection status
   app.get("/api/health/status", requireRole(["member"]), async (req, res) => {
+    const [freshUser] = await db.select({
+      healthConnected: users.healthConnected,
+      healthSource: users.healthSource,
+    }).from(users).where(eq(users.id, req.user!.id)).limit(1);
     res.json({
-      connected: req.user!.healthConnected || false,
-      source: req.user!.healthSource || null
+      connected: freshUser?.healthConnected || false,
+      source: freshUser?.healthSource || null
     });
   });
 
