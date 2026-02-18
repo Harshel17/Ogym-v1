@@ -2888,6 +2888,13 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/workouts/last-performance", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({ exerciseNames: z.array(z.string()) });
+    const input = schema.parse(req.body);
+    const result = await storage.getLastPerformanceBatch(req.user!.id, input.exerciseNames);
+    res.json(result);
+  });
+
   app.post("/api/workouts/complete", requireRole(["member"]), async (req, res) => {
     const schema = z.object({ 
       workoutItemId: z.number(),
@@ -7009,6 +7016,42 @@ Return ONLY JSON.`
     const clientDate = req.params.date || getLocalDate(req);
     const insights = await storage.getAiInsights(req.user!.gymId!, clientDate);
     res.json(insights);
+  });
+
+  // === OWNER INTERVENTIONS ===
+  app.post("/api/owner/interventions", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { memberId, actionType, triggerReason } = req.body;
+      if (!memberId || !actionType) {
+        return res.status(400).json({ message: "memberId and actionType are required" });
+      }
+      const intervention = await storage.createOwnerIntervention({
+        gymId: req.user!.gymId!,
+        ownerId: req.user!.id,
+        memberId,
+        actionType,
+        triggerReason: triggerReason || null,
+      });
+      res.json(intervention);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to log intervention" });
+    }
+  });
+
+  app.get("/api/owner/interventions", requireRole(["owner"]), async (req, res) => {
+    const interventions = await storage.getOwnerInterventions(req.user!.gymId!);
+    res.json(interventions);
+  });
+
+  // === MEMBER WORKOUT ACTIVITY (for owner view) ===
+  app.get("/api/owner/members/:memberId/workout-activity", requireRole(["owner", "trainer"]), async (req, res) => {
+    try {
+      const memberId = parseInt(req.params.memberId);
+      const activity = await storage.getMemberWorkoutActivity(req.user!.gymId!, memberId, 30);
+      res.json(activity);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to get workout activity" });
+    }
   });
 
   // === AUTOMATED EMAIL REMINDERS ===

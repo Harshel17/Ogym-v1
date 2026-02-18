@@ -18,14 +18,21 @@ import {
   CreditCard,
   UserPlus,
   Sparkles,
-  Mail
+  Mail,
+  ArrowUpRight,
+  ArrowDownRight,
+  Target,
+  Activity,
+  ChevronRight,
+  Zap
 } from "lucide-react";
 import { Link } from "wouter";
+import { Progress } from "@/components/ui/progress";
 
 interface AiInsightsData {
   churnRisk: {
     count: number;
-    members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' }[];
+    members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' | 'low'; churnScore: number; factors: { attendance: number; payment: number; trend: number; age: number } }[];
   };
   followUpReminders: {
     count: number;
@@ -44,6 +51,40 @@ interface AiInsightsData {
     improvedMembers: number;
     atRiskCount: number;
   };
+  monthComparison: {
+    currentMonth: string;
+    previousMonth: string;
+    attendance: { current: number; previous: number; changePercent: number };
+    newMembers: { current: number; previous: number; changePercent: number };
+    revenue: { current: number; previous: number; changePercent: number };
+  };
+  todayPriority: {
+    type: string;
+    title: string;
+    description: string;
+    memberId?: number;
+    memberName?: string;
+  } | null;
+}
+
+function ChangeIndicator({ value, suffix = "%" }: { value: number; suffix?: string }) {
+  if (value === 0) return <span className="text-xs text-muted-foreground">No change</span>;
+  const isPositive = value > 0;
+  return (
+    <span className={`text-xs font-medium flex items-center gap-0.5 ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+      {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+      {isPositive ? '+' : ''}{value}{suffix}
+    </span>
+  );
+}
+
+function ChurnScoreBar({ score }: { score: number }) {
+  const color = score >= 65 ? 'bg-red-500' : score >= 40 ? 'bg-orange-500' : 'bg-yellow-500';
+  return (
+    <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden" data-testid="churn-score-bar">
+      <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${score}%` }} />
+    </div>
+  );
 }
 
 export default function OwnerAiInsightsPage() {
@@ -77,6 +118,12 @@ export default function OwnerAiInsightsPage() {
       case 'down': return <TrendingDown className="h-5 w-5 text-red-500" />;
       default: return <Minus className="h-5 w-5 text-muted-foreground" />;
     }
+  };
+
+  const getMonthLabel = (monthStr: string) => {
+    const [y, m] = monthStr.split('-');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[parseInt(m) - 1] || m;
   };
 
   if (isLoading) {
@@ -133,6 +180,30 @@ export default function OwnerAiInsightsPage() {
         </div>
       </div>
 
+      {insights.todayPriority && (
+        <Card className="border-primary/30 bg-primary/5" data-testid="card-today-priority">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-primary/10 rounded-full flex-shrink-0 mt-0.5">
+                <Zap className="h-4 w-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-primary font-medium uppercase tracking-wider mb-1">Today's Priority</p>
+                <p className="font-semibold text-sm">{insights.todayPriority.title}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">{insights.todayPriority.description}</p>
+              </div>
+              {insights.todayPriority.memberId && (
+                <Link href={`/owner/members/${insights.todayPriority.memberId}`}>
+                  <Button size="sm" variant="default" data-testid="button-priority-action">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card data-testid="card-total-active">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
@@ -152,7 +223,10 @@ export default function OwnerAiInsightsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{insights.memberInsights.newThisMonth}</div>
-            <p className="text-xs text-muted-foreground">Joined recently</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">Joined recently</p>
+              {insights.monthComparison && <ChangeIndicator value={insights.monthComparison.newMembers.changePercent} />}
+            </div>
           </CardContent>
         </Card>
 
@@ -179,6 +253,37 @@ export default function OwnerAiInsightsPage() {
         </Card>
       </div>
 
+      {insights.monthComparison && (
+        <Card data-testid="card-month-comparison">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="h-5 w-5 text-indigo-500" />
+              Month vs Month
+            </CardTitle>
+            <CardDescription>{getMonthLabel(insights.monthComparison.previousMonth)} vs {getMonthLabel(insights.monthComparison.currentMonth)}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-xs text-muted-foreground mb-1">Attendance</p>
+                <p className="text-lg font-bold">{insights.monthComparison.attendance.current}</p>
+                <ChangeIndicator value={insights.monthComparison.attendance.changePercent} />
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-xs text-muted-foreground mb-1">New Members</p>
+                <p className="text-lg font-bold">{insights.monthComparison.newMembers.current}</p>
+                <ChangeIndicator value={insights.monthComparison.newMembers.changePercent} />
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-xs text-muted-foreground mb-1">Revenue</p>
+                <p className="text-lg font-bold">{insights.monthComparison.revenue.current > 0 ? `${Math.round(insights.monthComparison.revenue.current)}` : '0'}</p>
+                <ChangeIndicator value={insights.monthComparison.revenue.changePercent} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card data-testid="card-churn-risk">
           <CardHeader>
@@ -186,10 +291,10 @@ export default function OwnerAiInsightsPage() {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-orange-500" />
-                  Churn Risk Alert
+                  Churn Risk
                 </CardTitle>
                 <CardDescription>
-                  {insights.churnRisk.count} member{insights.churnRisk.count !== 1 ? 's' : ''} at risk of leaving
+                  {insights.churnRisk.count} member{insights.churnRisk.count !== 1 ? 's' : ''} flagged by scoring engine
                 </CardDescription>
               </div>
               {insights.churnRisk.count > 0 && (
@@ -208,25 +313,28 @@ export default function OwnerAiInsightsPage() {
                 No members at risk right now
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {insights.churnRisk.members.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium">{member.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {member.lastVisit ? `Last visit: ${member.lastVisit}` : 'Never visited'}
-                      </p>
+                  <div key={member.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50" data-testid={`churn-member-${member.id}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-sm">{member.name}</p>
+                        <Badge variant={member.riskLevel === 'high' ? 'destructive' : member.riskLevel === 'medium' ? 'secondary' : 'outline'}>
+                          {member.churnScore}/100
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1">
+                        <ChurnScoreBar score={member.churnScore} />
+                        <p className="text-[11px] text-muted-foreground">
+                          {member.daysAbsent < 999 ? `${member.daysAbsent}d absent` : 'Never visited'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={member.riskLevel === 'high' ? 'destructive' : 'secondary'}>
-                        {member.daysAbsent} days absent
-                      </Badge>
-                      <Link href={`/owner/members/${member.id}`}>
-                        <Button size="sm" variant="outline" data-testid={`button-view-member-${member.id}`}>
-                          View
-                        </Button>
-                      </Link>
-                    </div>
+                    <Link href={`/owner/members/${member.id}`}>
+                      <Button size="sm" variant="outline" data-testid={`button-view-member-${member.id}`}>
+                        View
+                      </Button>
+                    </Link>
                   </div>
                 ))}
               </div>
@@ -258,7 +366,7 @@ export default function OwnerAiInsightsPage() {
                         {getTypeIcon(item.type)}
                       </div>
                       <div>
-                        <p className="font-medium">{item.name}</p>
+                        <p className="font-medium text-sm">{item.name}</p>
                         <p className="text-xs text-muted-foreground">{item.message}</p>
                       </div>
                     </div>
@@ -305,7 +413,7 @@ export default function OwnerAiInsightsPage() {
                 Busiest Days
               </h4>
               <div className="space-y-2">
-                {insights.attendancePatterns.busiestDays.slice(0, 3).map((day, idx) => (
+                {insights.attendancePatterns.busiestDays.slice(0, 3).map((day) => (
                   <div key={day.day} className="flex items-center justify-between">
                     <span className="text-sm">{day.day}</span>
                     <div className="flex items-center gap-2">
@@ -367,8 +475,8 @@ export default function OwnerAiInsightsPage() {
                 <div className="p-4 rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30">
                   <p className="font-medium text-orange-800 dark:text-orange-200">Reduce Member Churn</p>
                   <p className="text-sm text-orange-600 dark:text-orange-400 mt-1">
-                    {insights.churnRisk.count} member{insights.churnRisk.count !== 1 ? 's are' : ' is'} at risk. 
-                    Consider reaching out personally or offering a special session to re-engage them.
+                    {insights.churnRisk.members.filter(m => m.riskLevel === 'high').length} high-risk and {insights.churnRisk.members.filter(m => m.riskLevel === 'medium').length} medium-risk members detected. 
+                    {insights.churnRisk.members[0] && ` Top concern: ${insights.churnRisk.members[0].name} (score ${insights.churnRisk.members[0].churnScore}/100).`}
                   </p>
                 </div>
               )}
@@ -377,7 +485,7 @@ export default function OwnerAiInsightsPage() {
                 <div className="p-4 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30">
                   <p className="font-medium text-blue-800 dark:text-blue-200">Assign Trainers</p>
                   <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-                    Some members don't have trainers assigned. Members with trainers show 40% better retention.
+                    {insights.followUpReminders.items.filter(i => i.type === 'no_trainer').length} members don't have trainers. Members with trainers show 40% better retention.
                   </p>
                 </div>
               )}
@@ -392,11 +500,20 @@ export default function OwnerAiInsightsPage() {
                 </div>
               )}
 
+              {insights.monthComparison && insights.monthComparison.attendance.changePercent > 10 && (
+                <div className="p-4 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30">
+                  <p className="font-medium text-green-800 dark:text-green-200">Momentum Building</p>
+                  <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                    Attendance is up {insights.monthComparison.attendance.changePercent}% vs last month. Keep this energy going with member challenges.
+                  </p>
+                </div>
+              )}
+
               {insights.memberInsights.newThisMonth > 0 && (
                 <div className="p-4 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30">
                   <p className="font-medium text-green-800 dark:text-green-200">Welcome New Members</p>
                   <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                    {insights.memberInsights.newThisMonth} new member{insights.memberInsights.newThisMonth !== 1 ? 's' : ''} joined this month. 
+                    {insights.memberInsights.newThisMonth} new member{insights.memberInsights.newThisMonth !== 1 ? 's' : ''} this month. 
                     First 30 days are critical - ensure they have workout plans and trainer support.
                   </p>
                 </div>

@@ -153,6 +153,17 @@ export default function OwnerMemberDetailPage() {
     enabled: !!memberId
   });
 
+  const { data: workoutActivity } = useQuery<{ exerciseName: string; completedDate: string; actualSets: number | null; actualReps: number | null; actualWeight: string | null }[]>({
+    queryKey: ["/api/owner/members", memberId, "workout-activity"],
+    queryFn: async () => {
+      const res = await fetch(`/api/owner/members/${memberId}/workout-activity`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!memberId,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const { goBack } = useBackNavigation();
 
   if (profileError) {
@@ -434,7 +445,41 @@ export default function OwnerMemberDetailPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="workouts" className="mt-4">
+        <TabsContent value="workouts" className="mt-4 space-y-4">
+          {workoutActivity && workoutActivity.length > 0 && (
+            <Card data-testid="card-recent-activity">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  Recent Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1.5">
+                  {workoutActivity.slice(0, 8).map((log, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-sm py-1 border-b border-muted/50 last:border-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <Dumbbell className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{log.exerciseName}</span>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        {log.actualWeight && (
+                          <Badge variant="outline" className="text-xs">{log.actualWeight}</Badge>
+                        )}
+                        {log.actualSets && log.actualReps && (
+                          <span className="text-xs text-muted-foreground">{log.actualSets}x{log.actualReps}</span>
+                        )}
+                        <span className="text-[10px] text-muted-foreground w-16 text-right">
+                          {format(parseISO(log.completedDate), "MMM d")}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {workoutsLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />

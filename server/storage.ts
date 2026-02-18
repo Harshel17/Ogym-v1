@@ -72,6 +72,8 @@ import {
   type SportProfile, type InsertSportProfile,
   type SportProgram, type InsertSportProgram,
   type MatchLog, type InsertMatchLog,
+  ownerInterventions,
+  type OwnerIntervention, type InsertOwnerIntervention,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -569,7 +571,7 @@ export interface IStorage {
   getAiInsights(gymId: number, clientDate: string): Promise<{
     churnRisk: { 
       count: number;
-      members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' }[];
+      members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' | 'low'; churnScore: number; factors: { attendance: number; payment: number; trend: number; age: number } }[];
     };
     followUpReminders: {
       count: number;
@@ -588,7 +590,30 @@ export interface IStorage {
       improvedMembers: number;
       atRiskCount: number;
     };
+    monthComparison: {
+      currentMonth: string;
+      previousMonth: string;
+      attendance: { current: number; previous: number; changePercent: number };
+      newMembers: { current: number; previous: number; changePercent: number };
+      revenue: { current: number; previous: number; changePercent: number };
+    };
+    todayPriority: {
+      type: string;
+      title: string;
+      description: string;
+      memberId?: number;
+      memberName?: string;
+    } | null;
   }>;
+  
+  // Last Performance (pre-fill for Quick Complete)
+  getLastPerformance(memberId: number, exerciseName: string): Promise<{ actualSets: number | null; actualReps: number | null; actualWeight: string | null; actualDurationMinutes: number | null; actualDistanceKm: string | null; completedDate: string } | null>;
+  getLastPerformanceBatch(memberId: number, exerciseNames: string[]): Promise<Record<string, { actualSets: number | null; actualReps: number | null; actualWeight: string | null; actualDurationMinutes: number | null; actualDistanceKm: string | null; completedDate: string }>>;
+  
+  // Owner Interventions
+  createOwnerIntervention(data: InsertOwnerIntervention): Promise<OwnerIntervention>;
+  getOwnerInterventions(gymId: number, limit?: number): Promise<OwnerIntervention[]>;
+  getMemberWorkoutActivity(gymId: number, memberId: number, limit?: number): Promise<{ exerciseName: string; completedDate: string; actualSets: number | null; actualReps: number | null; actualWeight: string | null }[]>;
   
   // Workout Sessions
   getOrCreateWorkoutSession(data: InsertWorkoutSession): Promise<WorkoutSession>;
@@ -6125,6 +6150,55 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // === LAST PERFORMANCE (Pre-fill for Quick Complete) ===
+  async getLastPerformance(memberId: number, exerciseName: string): Promise<{ actualSets: number | null; actualReps: number | null; actualWeight: string | null; actualDurationMinutes: number | null; actualDistanceKm: string | null; completedDate: string } | null> {
+    const result = await db.select({
+      actualSets: workoutCompletions.actualSets,
+      actualReps: workoutCompletions.actualReps,
+      actualWeight: workoutCompletions.actualWeight,
+      actualDurationMinutes: workoutCompletions.actualDurationMinutes,
+      actualDistanceKm: workoutCompletions.actualDistanceKm,
+      completedDate: workoutCompletions.completedDate,
+    })
+      .from(workoutCompletions)
+      .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+      .where(and(
+        eq(workoutCompletions.memberId, memberId),
+        eq(workoutItems.exerciseName, exerciseName)
+      ))
+      .orderBy(desc(workoutCompletions.completedDate))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async getLastPerformanceBatch(memberId: number, exerciseNames: string[]): Promise<Record<string, { actualSets: number | null; actualReps: number | null; actualWeight: string | null; actualDurationMinutes: number | null; actualDistanceKm: string | null; completedDate: string }>> {
+    if (exerciseNames.length === 0) return {};
+    const results = await db.select({
+      exerciseName: workoutItems.exerciseName,
+      actualSets: workoutCompletions.actualSets,
+      actualReps: workoutCompletions.actualReps,
+      actualWeight: workoutCompletions.actualWeight,
+      actualDurationMinutes: workoutCompletions.actualDurationMinutes,
+      actualDistanceKm: workoutCompletions.actualDistanceKm,
+      completedDate: workoutCompletions.completedDate,
+    })
+      .from(workoutCompletions)
+      .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+      .where(and(
+        eq(workoutCompletions.memberId, memberId),
+        inArray(workoutItems.exerciseName, exerciseNames)
+      ))
+      .orderBy(desc(workoutCompletions.completedDate));
+    
+    const map: Record<string, typeof results[0]> = {};
+    for (const row of results) {
+      if (!map[row.exerciseName]) {
+        map[row.exerciseName] = row;
+      }
+    }
+    return map;
+  }
+
   // === WORKOUT SESSIONS ===
   async getOrCreateWorkoutSession(data: InsertWorkoutSession): Promise<WorkoutSession> {
     const existing = await db.select().from(workoutSessions)
@@ -8447,7 +8521,7 @@ export class DatabaseStorage implements IStorage {
   async getAiInsights(gymId: number, clientDate: string): Promise<{
     churnRisk: { 
       count: number;
-      members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' }[];
+      members: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' | 'low'; churnScore: number; factors: { attendance: number; payment: number; trend: number; age: number } }[];
     };
     followUpReminders: {
       count: number;
@@ -8466,6 +8540,20 @@ export class DatabaseStorage implements IStorage {
       improvedMembers: number;
       atRiskCount: number;
     };
+    monthComparison: {
+      currentMonth: string;
+      previousMonth: string;
+      attendance: { current: number; previous: number; changePercent: number };
+      newMembers: { current: number; previous: number; changePercent: number };
+      revenue: { current: number; previous: number; changePercent: number };
+    };
+    todayPriority: {
+      type: string;
+      title: string;
+      description: string;
+      memberId?: number;
+      memberName?: string;
+    } | null;
   }> {
     const today = new Date(clientDate);
     const todayStr = clientDate;
@@ -8519,33 +8607,132 @@ export class DatabaseStorage implements IStorage {
       lastAttendanceMap.set(row.memberId, row.lastDate);
     }
     
-    // === CHURN RISK ===
-    const churnRiskMembers: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' }[] = [];
+    // === WEIGHTED CHURN SCORING ENGINE ===
+    // Pillar 1: Longitudinal Pattern Engine - tracks member behavior over time
+    // Formula: attendance_score(40%) + payment_score(25%) + trend_score(20%) + age_score(15%) = 0-100
+    
+    // Get per-member attendance counts for last 14 and previous 14 days (trend calculation)
+    const attendanceByMember14 = new Map<number, number>();
+    const attendanceByMemberPrev14 = new Map<number, number>();
+    const fourteenDaysAgoDate = new Date(today);
+    fourteenDaysAgoDate.setDate(fourteenDaysAgoDate.getDate() - 14);
+    const fourteenStr = fourteenDaysAgoDate.toISOString().split('T')[0];
+    const twentyEightDaysAgoDate = new Date(today);
+    twentyEightDaysAgoDate.setDate(twentyEightDaysAgoDate.getDate() - 28);
+    const twentyEightStr = twentyEightDaysAgoDate.toISOString().split('T')[0];
+    
+    const attendanceLast28 = await db.select()
+      .from(attendance)
+      .where(and(
+        eq(attendance.gymId, gymId),
+        eq(attendance.status, 'present'),
+        gte(attendance.date, twentyEightStr)
+      ));
+    
+    for (const rec of attendanceLast28) {
+      if (rec.date >= fourteenStr) {
+        attendanceByMember14.set(rec.memberId, (attendanceByMember14.get(rec.memberId) || 0) + 1);
+      } else {
+        attendanceByMemberPrev14.set(rec.memberId, (attendanceByMemberPrev14.get(rec.memberId) || 0) + 1);
+      }
+    }
+    
+    // Get payment history for scoring
+    const allPayments = await db.select()
+      .from(payments)
+      .where(eq(payments.gymId, gymId));
+    const paymentsByMember = new Map<number, typeof allPayments>();
+    for (const p of allPayments) {
+      if (p.memberId) {
+        const existing = paymentsByMember.get(p.memberId) || [];
+        existing.push(p);
+        paymentsByMember.set(p.memberId, existing);
+      }
+    }
+    
+    const churnRiskMembers: { id: number; name: string; publicId: string | null; daysAbsent: number; lastVisit: string | null; riskLevel: 'high' | 'medium' | 'low'; churnScore: number; factors: { attendance: number; payment: number; trend: number; age: number } }[] = [];
     
     for (const member of activeMembers) {
       const lastVisit = lastAttendanceMap.get(member.id) || null;
       let daysAbsent = 999;
-      
       if (lastVisit) {
         const lastDate = new Date(lastVisit);
         daysAbsent = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
       }
       
-      // High risk: 14+ days absent, Medium risk: 7-13 days absent
-      if (daysAbsent >= 7) {
+      // Factor 1: Attendance recency (40% weight) - 0-100 scale
+      let attendanceScore: number;
+      if (daysAbsent <= 2) attendanceScore = 0;
+      else if (daysAbsent <= 5) attendanceScore = 20;
+      else if (daysAbsent <= 7) attendanceScore = 40;
+      else if (daysAbsent <= 14) attendanceScore = 65;
+      else if (daysAbsent <= 21) attendanceScore = 85;
+      else attendanceScore = 100;
+      
+      // Factor 2: Payment history (25% weight) - late/missed payments increase risk
+      const memberPayments = paymentsByMember.get(member.id) || [];
+      let paymentScore = 0;
+      if (memberPayments.length === 0) {
+        paymentScore = 50;
+      } else {
+        const latePayments = memberPayments.filter(p => p.status === 'overdue' || p.status === 'pending').length;
+        const totalPayments = memberPayments.length;
+        paymentScore = Math.min(100, Math.round((latePayments / Math.max(totalPayments, 1)) * 100));
+      }
+      
+      // Factor 3: Attendance trend (20% weight) - declining frequency increases risk
+      const recent14 = attendanceByMember14.get(member.id) || 0;
+      const prev14 = attendanceByMemberPrev14.get(member.id) || 0;
+      let trendScore = 50;
+      if (prev14 > 0) {
+        const change = ((recent14 - prev14) / prev14) * 100;
+        if (change >= 20) trendScore = 0;
+        else if (change >= 0) trendScore = 20;
+        else if (change >= -30) trendScore = 60;
+        else if (change >= -50) trendScore = 80;
+        else trendScore = 100;
+      } else if (recent14 > 0) {
+        trendScore = 10;
+      } else {
+        trendScore = 90;
+      }
+      
+      // Factor 4: Membership age (15% weight) - newer members churn more easily
+      let ageScore = 50;
+      if (member.createdAt) {
+        const memberAgeDays = Math.floor((today.getTime() - member.createdAt.getTime()) / (1000 * 60 * 60 * 24));
+        if (memberAgeDays <= 30) ageScore = 80;
+        else if (memberAgeDays <= 60) ageScore = 60;
+        else if (memberAgeDays <= 90) ageScore = 40;
+        else if (memberAgeDays <= 180) ageScore = 25;
+        else ageScore = 10;
+      }
+      
+      // Weighted composite score (0-100, higher = more risk)
+      const churnScore = Math.round(
+        attendanceScore * 0.40 +
+        paymentScore * 0.25 +
+        trendScore * 0.20 +
+        ageScore * 0.15
+      );
+      
+      const riskLevel: 'high' | 'medium' | 'low' = churnScore >= 65 ? 'high' : churnScore >= 40 ? 'medium' : 'low';
+      
+      if (churnScore >= 35) {
         churnRiskMembers.push({
           id: member.id,
           name: member.username,
           publicId: member.publicId,
           daysAbsent,
           lastVisit,
-          riskLevel: daysAbsent >= 14 ? 'high' : 'medium'
+          riskLevel,
+          churnScore,
+          factors: { attendance: attendanceScore, payment: paymentScore, trend: trendScore, age: ageScore }
         });
       }
     }
     
-    // Sort by days absent (highest first)
-    churnRiskMembers.sort((a, b) => b.daysAbsent - a.daysAbsent);
+    churnRiskMembers.sort((a, b) => b.churnScore - a.churnScore);
     
     // === FOLLOW-UP REMINDERS ===
     const followUpItems: { type: 'inactive' | 'subscription_ending' | 'no_trainer' | 'new_member'; memberId: number; name: string; publicId: string | null; message: string; priority: 'high' | 'medium' | 'low' }[] = [];
@@ -8682,10 +8869,74 @@ export class DatabaseStorage implements IStorage {
       ))
       .groupBy(workoutLogs.memberId);
     
+    // === MONTH-OVER-MONTH COMPARISON (Pillar 2: Cross-Variable Correlation) ===
+    const currentMonthStart = `${currentMonth}-01`;
+    const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const previousMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+    const prevMonthStart = `${previousMonth}-01`;
+    const prevMonthEnd = `${currentMonth}-01`;
+    
+    const currentMonthAttendance = await db.select({ count: sql<number>`count(*)` })
+      .from(attendance)
+      .where(and(eq(attendance.gymId, gymId), eq(attendance.status, 'present'), gte(attendance.date, currentMonthStart)));
+    
+    const prevMonthAttendance = await db.select({ count: sql<number>`count(*)` })
+      .from(attendance)
+      .where(and(eq(attendance.gymId, gymId), eq(attendance.status, 'present'), gte(attendance.date, prevMonthStart), sql`${attendance.date} < ${prevMonthEnd}`));
+    
+    const currAttCount = Number(currentMonthAttendance[0]?.count || 0);
+    const prevAttCount = Number(prevMonthAttendance[0]?.count || 0);
+    const attChangePercent = prevAttCount > 0 ? Math.round(((currAttCount - prevAttCount) / prevAttCount) * 100) : 0;
+    
+    const prevMonthMembers = allMembers.filter(m => {
+      if (!m.createdAt) return false;
+      return m.createdAt.toISOString().slice(0, 7) === previousMonth;
+    }).length;
+    const newMembersChangePercent = prevMonthMembers > 0 ? Math.round(((newThisMonth - prevMonthMembers) / prevMonthMembers) * 100) : 0;
+    
+    const currentMonthPayments = allPayments.filter(p => p.createdAt && p.createdAt.toISOString().slice(0, 7) === currentMonth && p.status === 'paid');
+    const prevMonthPayments = allPayments.filter(p => p.createdAt && p.createdAt.toISOString().slice(0, 7) === previousMonth && p.status === 'paid');
+    const currRevenue = currentMonthPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const prevRevenue = prevMonthPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const revenueChangePercent = prevRevenue > 0 ? Math.round(((currRevenue - prevRevenue) / prevRevenue) * 100) : 0;
+    
+    // === TODAY'S PRIORITY (Pillar 4: Adaptive Intervention Loops) ===
+    let todayPriority: { type: string; title: string; description: string; memberId?: number; memberName?: string } | null = null;
+    
+    const highRiskChurn = churnRiskMembers.find(m => m.riskLevel === 'high');
+    const urgentSub = followUpItems.find(f => f.type === 'subscription_ending' && f.priority === 'high');
+    const newMemberNoVisit = followUpItems.find(f => f.type === 'new_member');
+    
+    if (urgentSub) {
+      todayPriority = {
+        type: 'subscription_expiring',
+        title: 'Subscription expiring',
+        description: `${urgentSub.name}'s subscription is about to end. Reach out to renew.`,
+        memberId: urgentSub.memberId,
+        memberName: urgentSub.name
+      };
+    } else if (highRiskChurn) {
+      todayPriority = {
+        type: 'churn_risk',
+        title: 'Member at risk',
+        description: `${highRiskChurn.name} hasn't visited in ${highRiskChurn.daysAbsent} days. A quick message could bring them back.`,
+        memberId: highRiskChurn.id,
+        memberName: highRiskChurn.name
+      };
+    } else if (newMemberNoVisit) {
+      todayPriority = {
+        type: 'new_member_welcome',
+        title: 'Welcome new member',
+        description: `${newMemberNoVisit.name} joined recently but hasn't visited yet. A welcome message goes a long way.`,
+        memberId: newMemberNoVisit.memberId,
+        memberName: newMemberNoVisit.name
+      };
+    }
+    
     return {
       churnRisk: {
         count: churnRiskMembers.length,
-        members: churnRiskMembers.slice(0, 10)
+        members: churnRiskMembers.slice(0, 15)
       },
       followUpReminders: {
         count: followUpItems.length,
@@ -8703,7 +8954,15 @@ export class DatabaseStorage implements IStorage {
         newThisMonth,
         improvedMembers: recentWorkouts.length,
         atRiskCount: churnRiskMembers.filter(m => m.riskLevel === 'high').length
-      }
+      },
+      monthComparison: {
+        currentMonth,
+        previousMonth,
+        attendance: { current: currAttCount, previous: prevAttCount, changePercent: attChangePercent },
+        newMembers: { current: newThisMonth, previous: prevMonthMembers, changePercent: newMembersChangePercent },
+        revenue: { current: currRevenue, previous: prevRevenue, changePercent: revenueChangePercent }
+      },
+      todayPriority
     };
   }
 
@@ -9320,6 +9579,34 @@ export class DatabaseStorage implements IStorage {
 
   async cancelMatchLog(id: number): Promise<void> {
     await db.update(matchLogs).set({ cancelled: true }).where(eq(matchLogs.id, id));
+  }
+
+  async createOwnerIntervention(data: InsertOwnerIntervention): Promise<OwnerIntervention> {
+    const [intervention] = await db.insert(ownerInterventions).values(data).returning();
+    return intervention;
+  }
+
+  async getOwnerInterventions(gymId: number, limit: number = 20): Promise<OwnerIntervention[]> {
+    return db.select().from(ownerInterventions)
+      .where(eq(ownerInterventions.gymId, gymId))
+      .orderBy(desc(ownerInterventions.createdAt))
+      .limit(limit);
+  }
+
+  async getMemberWorkoutActivity(gymId: number, memberId: number, limit: number = 20): Promise<{ exerciseName: string; completedDate: string; actualSets: number | null; actualReps: number | null; actualWeight: string | null }[]> {
+    const logs = await db.select({
+      exerciseName: workoutLogExercises.exerciseName,
+      completedDate: workoutLogs.completedDate,
+      actualSets: workoutLogExercises.actualSets,
+      actualReps: workoutLogExercises.actualReps,
+      actualWeight: workoutLogExercises.actualWeight,
+    })
+      .from(workoutLogExercises)
+      .innerJoin(workoutLogs, eq(workoutLogExercises.workoutLogId, workoutLogs.id))
+      .where(and(eq(workoutLogs.gymId, gymId), eq(workoutLogs.memberId, memberId)))
+      .orderBy(desc(workoutLogs.completedDate))
+      .limit(limit);
+    return logs;
   }
 }
 

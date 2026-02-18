@@ -977,6 +977,26 @@ export const insertDikaChatMessageSchema = createInsertSchema(dikaChatMessages).
 export const insertDikaInsightSchema = createInsertSchema(dikaInsights).omit({ id: true, updatedAt: true });
 export const insertDikaActionFeedSchema = createInsertSchema(dikaActionFeed).omit({ id: true, createdAt: true });
 
+// Owner intervention tracking (Pillar 4: Adaptive Loops)
+export const ownerInterventions = pgTable("owner_interventions", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  ownerId: integer("owner_id").references(() => users.id).notNull(),
+  memberId: integer("member_id").references(() => users.id).notNull(),
+  actionType: text("action_type").notNull(),
+  triggerReason: text("trigger_reason"),
+  memberReturnedWithin7Days: boolean("member_returned_within_7_days"),
+  memberReturnDate: text("member_return_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  gymIdx: index("owner_interventions_gym_idx").on(table.gymId),
+  memberIdx: index("owner_interventions_member_idx").on(table.memberId),
+}));
+
+export const insertOwnerInterventionSchema = createInsertSchema(ownerInterventions).omit({ id: true, createdAt: true, memberReturnedWithin7Days: true, memberReturnDate: true });
+export type InsertOwnerIntervention = z.infer<typeof insertOwnerInterventionSchema>;
+export type OwnerIntervention = typeof ownerInterventions.$inferSelect;
+
 // Health data from fitness devices (Apple Health, Google Fit)
 export const healthData = pgTable("health_data", {
   id: serial("id").primaryKey(),

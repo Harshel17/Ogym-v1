@@ -602,6 +602,11 @@ function OwnerDashboard() {
     return `${year}-${month}-${day}`;
   };
 
+  const { data: ownerInsights } = useQuery<any>({
+    queryKey: [`/api/owner/ai-insights/${getClientLocalDate()}`],
+    staleTime: 1000 * 60 * 5,
+  });
+
   const { data: dashboardMetrics, isLoading: metricsLoading } = useQuery<{
     totalMembers: number;
     checkedInToday: number;
@@ -675,6 +680,26 @@ function OwnerDashboard() {
   return (
     <div className="space-y-3">
       <PerformanceIntelligenceCard />
+      {ownerInsights?.todayPriority && !isIOSNativeApp && (
+        <Card className="border-primary/30 bg-primary/5" data-testid="card-owner-today-priority">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-primary/10 rounded-full flex-shrink-0">
+                <Zap className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-primary font-medium uppercase tracking-wider">Today's Priority</p>
+                <p className="text-sm font-medium truncate">{ownerInsights.todayPriority.description}</p>
+              </div>
+              {ownerInsights.todayPriority.memberId && (
+                <Button size="sm" variant="default" onClick={() => navigate(`/owner/members/${ownerInsights.todayPriority.memberId}`)} data-testid="button-dash-priority-action">
+                  View
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       <div className="grid gap-2.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <StatCard 
           title="Total Members" 
@@ -1425,6 +1450,19 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const { data: todayWorkout, isLoading: workoutLoading } = useTodayWorkout();
   const { data: profile } = useMemberProfile();
 
+  const workoutItemsList = (todayWorkout as any)?.items || [];
+  const exerciseNamesForPrefill = workoutItemsList.map((i: any) => i.exerciseName).filter(Boolean);
+  const { data: lastPerformanceData } = useQuery<Record<string, { actualSets: number | null; actualReps: number | null; actualWeight: string | null; actualDurationMinutes: number | null; actualDistanceKm: string | null; completedDate: string }>>({
+    queryKey: ['/api/workouts/last-performance', exerciseNamesForPrefill.join(',')],
+    queryFn: async () => {
+      if (exerciseNamesForPrefill.length === 0) return {};
+      const res = await apiRequest("POST", "/api/workouts/last-performance", { exerciseNames: exerciseNamesForPrefill });
+      return res.json();
+    },
+    enabled: exerciseNamesForPrefill.length > 0,
+    staleTime: 1000 * 60 * 10,
+  });
+
   const { data: sportProfile } = useQuery<any>({
     queryKey: ["/api/sport/profile"],
   });
@@ -1905,18 +1943,19 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   };
 
   const handleQuickComplete = (item: any) => {
+    const lastPerf = lastPerformanceData?.[item.exerciseName];
     if (item.exerciseType === 'cardio') {
       completeWorkoutMutation.mutate({
         workoutItemId: item.id,
-        actualDurationMinutes: item.durationMinutes,
-        actualDistanceKm: item.distanceKm || undefined
+        actualDurationMinutes: lastPerf?.actualDurationMinutes || item.durationMinutes,
+        actualDistanceKm: lastPerf?.actualDistanceKm || item.distanceKm || undefined
       });
     } else {
       completeWorkoutMutation.mutate({
         workoutItemId: item.id,
-        actualSets: item.sets,
-        actualReps: item.reps,
-        actualWeight: item.weight || undefined
+        actualSets: lastPerf?.actualSets || item.sets,
+        actualReps: lastPerf?.actualReps || item.reps,
+        actualWeight: lastPerf?.actualWeight || item.weight || undefined
       });
     }
   };
@@ -2334,6 +2373,14 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                                 <>
                                   {item.sets}x{item.reps} {item.weight ? `@ ${item.weight}` : ''}
                                 </>
+                              )}
+                              {!item.completed && lastPerformanceData?.[item.exerciseName] && (
+                                <span className="text-[10px] text-primary/70 ml-1" data-testid={`last-perf-${item.id}`}>
+                                  · Last: {item.exerciseType === 'cardio' 
+                                    ? `${lastPerformanceData[item.exerciseName].actualDurationMinutes || '?'} min`
+                                    : `${lastPerformanceData[item.exerciseName].actualWeight || item.weight || '?'}`
+                                  }
+                                </span>
                               )}
                             </p>
                           </div>
