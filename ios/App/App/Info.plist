@@ -46,7 +46,7 @@
         <key>UIViewControllerBasedStatusBarAppearance</key>
         <true/>
         <key>NSCameraUsageDescription</key>
-        <string>OGym uses the camera to scan QR codes for gym check-in</string>
+        <string>OGym uses the camera to scan QR codes for gym check-in, capture food photos for AI-powered nutrition estimation, and share images with the Dika AI assistant.</string>
         <key>NSPhotoLibraryUsageDescription</key>
         <string>OGym uses your photo library to let you upload profile pictures and workout photos</string>
         <key>NSPhotoLibraryAddUsageDescription</key>
