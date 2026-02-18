@@ -175,6 +175,7 @@ function MemberProfileView() {
   }
 
   const subscriptionStatus = profile.subscription?.status || 'none';
+  const isIOSNativeApp = isNative() && isIOS();
 
   return (
     <div className="space-y-6">
@@ -261,41 +262,43 @@ function MemberProfileView() {
                 <span className="font-medium">{profile.cycle.name}</span>
               </div>
             )}
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Subscription</span>
-              <div className="flex items-center gap-2">
-                <Badge 
-                  variant={subscriptionStatus === 'active' ? 'default' : subscriptionStatus === 'expired' ? 'destructive' : 'secondary'}
-                  className="capitalize"
-                >
-                  {subscriptionStatus}
-                </Badge>
-                {profile.gym && (
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => setPaymentSheetOpen(true)}
-                    data-testid="button-pay-now"
+            {!isIOSNativeApp && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Subscription</span>
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant={subscriptionStatus === 'active' ? 'default' : subscriptionStatus === 'expired' ? 'destructive' : 'secondary'}
+                    className="capitalize"
                   >
-                    <CreditCard className="w-4 h-4 mr-1" />
-                    Pay
-                  </Button>
-                )}
+                    {subscriptionStatus}
+                  </Badge>
+                  {profile.gym && (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setPaymentSheetOpen(true)}
+                      data-testid="button-pay-now"
+                    >
+                      <CreditCard className="w-4 h-4 mr-1" />
+                      Pay
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-            {profile.subscription?.planName && (
+            )}
+            {!isIOSNativeApp && profile.subscription?.planName && (
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Plan</span>
                 <span className="text-sm">{profile.subscription.planName}</span>
               </div>
             )}
-            {profile.subscription?.endDate && (
+            {!isIOSNativeApp && profile.subscription?.endDate && (
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Valid Until</span>
                 <span className="text-sm">{new Date(profile.subscription.endDate).toLocaleDateString()}</span>
               </div>
             )}
-            {profile.subscription?.totalAmount && (
+            {!isIOSNativeApp && profile.subscription?.totalAmount && (
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Amount</span>
                 <span className="text-sm font-medium">₹{(profile.subscription.totalAmount / 100).toFixed(0)}</span>
@@ -488,7 +491,7 @@ function MemberProfileView() {
         <DeleteAccountCard />
       </div>
 
-      {profile?.gym && (
+      {profile?.gym && !isIOSNativeApp && (
         <MemberPaymentSheet
           open={paymentSheetOpen}
           onOpenChange={setPaymentSheetOpen}
@@ -1258,7 +1261,7 @@ function TrainingModeSettingsCard() {
         {!isTrainerLed && (
           <div className="p-3 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 rounded-lg text-sm">
             <strong>Note:</strong> While in self-guided mode, your trainer cannot assign workouts to you. 
-            Your gym attendance and payments are still tracked normally.
+            Your gym attendance{isNative() && isIOS() ? "" : " and payments"} {isNative() && isIOS() ? "is" : "are"} still tracked normally.
           </div>
         )}
         <p className="text-xs text-muted-foreground">
@@ -1328,7 +1331,7 @@ function DikaSettingsCard() {
           </div>
           Dika Assistant
         </CardTitle>
-        <CardDescription>Your gym's memory - answers questions about workouts, attendance, and payments</CardDescription>
+        <CardDescription>Your gym's memory - answers questions about workouts, attendance{isNative() && isIOS() ? "" : ", and payments"}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
@@ -1582,7 +1585,7 @@ function DeleteAccountCard() {
                   <ul className="text-sm text-muted-foreground mt-2 space-y-1">
                     <li>• Your profile and account information</li>
                     <li>• All workout history and progress</li>
-                    <li>• Payment records and subscriptions</li>
+                    {!(isNative() && isIOS()) && <li>• Payment records and subscriptions</li>}
                     <li>• Posts, comments, and reactions</li>
                     <li>• Body measurements and health data</li>
                   </ul>

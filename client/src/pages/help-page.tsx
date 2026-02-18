@@ -971,7 +971,23 @@ export default function HelpPage() {
     roleDescription = "Your complete guide to tracking workouts independently.";
     roleIcon = Dumbbell;
   } else {
-    features = memberFeatures;
+    if (isIOSNativeApp) {
+      features = memberFeatures.filter(f => f.id !== 'payments').map(f => {
+        if (f.id === 'dika') {
+          return {
+            ...f,
+            features: f.features.map(feat => ({
+              ...feat,
+              description: feat.description.replace(/, payments,/g, ',').replace(/payments, /g, ''),
+              steps: feat.steps?.filter(s => !s.toLowerCase().includes('payment'))
+            }))
+          };
+        }
+        return f;
+      });
+    } else {
+      features = memberFeatures;
+    }
     roleTitle = "Gym Member Guide";
     roleDescription = "Everything you need to make the most of your membership.";
     roleIcon = Dumbbell;
@@ -1045,10 +1061,12 @@ export default function HelpPage() {
                   <MessageCircle className="w-3 h-3 mr-1" />
                   "How many workouts this month?"
                 </Badge>
-                <Badge variant="secondary" className="text-xs">
-                  <MessageCircle className="w-3 h-3 mr-1" />
-                  "When is my payment due?"
-                </Badge>
+                {!isIOSNativeApp && (
+                  <Badge variant="secondary" className="text-xs">
+                    <MessageCircle className="w-3 h-3 mr-1" />
+                    "When is my payment due?"
+                  </Badge>
+                )}
               </div>
             </div>
           </div>

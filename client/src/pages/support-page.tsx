@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { isNative, isIOS } from "@/lib/capacitor-init";
 
 type SupportTicket = {
   id: number;
@@ -76,7 +77,10 @@ export default function SupportPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const isPersonalMode = user?.role === 'member' && !user?.gymId;
-  const issueTypes = isPersonalMode ? personalIssueTypes : gymIssueTypes;
+  const isIOSNativeApp = isNative() && isIOS();
+  const iosBlockedTypes = ['payments', 'subscription'];
+  const baseIssueTypes = isPersonalMode ? personalIssueTypes : gymIssueTypes;
+  const issueTypes = isIOSNativeApp ? baseIssueTypes.filter(t => !iosBlockedTypes.includes(t.value)) : baseIssueTypes;
   
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
