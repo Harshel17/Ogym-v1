@@ -66,6 +66,8 @@ import {
   type WaterLog, type InsertWaterLog, insertWaterLogSchema,
   userGoals, type UserGoal, type InsertUserGoal,
   dikaConversations, fitnessGoals,
+  dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed,
+  weeklyReports, weeklyOwnerSummaries, automatedEmailReminders,
   sportProfiles, sportPrograms, matchLogs,
   type SportProfile, type InsertSportProfile,
   type SportProgram, type InsertSportProgram,
@@ -9103,6 +9105,34 @@ export class DatabaseStorage implements IStorage {
     // Dika conversations (cascade deletes messages)
     await db.delete(dikaConversations).where(eq(dikaConversations.userId, userId));
 
+    // Dika multi-chat data (dikaChatMessages cascade from dikaChats via FK)
+    await db.delete(dikaInsights).where(eq(dikaInsights.userId, userId));
+    await db.delete(dikaActionFeed).where(eq(dikaActionFeed.userId, userId));
+    await db.delete(dikaChats).where(eq(dikaChats.userId, userId));
+
+    // Sports mode data
+    await db.delete(matchLogs).where(eq(matchLogs.userId, userId));
+    await db.delete(sportPrograms).where(eq(sportPrograms.userId, userId));
+    await db.delete(sportProfiles).where(eq(sportProfiles.userId, userId));
+
+    // User goals
+    try { await db.delete(userGoals).where(eq(userGoals.userId, userId)); } catch {}
+
+    // Weekly reports
+    await db.delete(weeklyReports).where(eq(weeklyReports.userId, userId));
+
+    // Support tickets and messages
+    const userTickets = await db.select({ id: supportTickets.id }).from(supportTickets).where(eq(supportTickets.userId, userId));
+    if (userTickets.length > 0) {
+      await db.delete(supportMessages).where(
+        inArray(supportMessages.ticketId, userTickets.map(t => t.id))
+      );
+      await db.delete(supportTickets).where(eq(supportTickets.userId, userId));
+    }
+
+    // Post reports by this user
+    await db.delete(postReports).where(eq(postReports.reporterId, userId));
+
     // Health data
     await db.delete(healthData).where(eq(healthData.userId, userId));
 
@@ -9121,6 +9151,10 @@ export class DatabaseStorage implements IStorage {
         await db.delete(kioskSessions).where(eq(kioskSessions.gymId, gym.id));
         await db.delete(walkInVisitors).where(eq(walkInVisitors.gymId, gym.id));
         
+        // Delete email reminders and owner summaries
+        await db.delete(automatedEmailReminders).where(eq(automatedEmailReminders.gymId, gym.id));
+        await db.delete(weeklyOwnerSummaries).where(eq(weeklyOwnerSummaries.gymId, gym.id));
+
         // Delete workout templates owned by this gym
         await db.delete(workoutTemplateItems).where(
           inArray(workoutTemplateItems.templateId,
