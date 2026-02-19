@@ -43,6 +43,7 @@ import OwnerWalkInVisitorsPage from "@/pages/owner-walk-in-visitors-page";
 import OwnerFollowUpsPage from "@/pages/owner-follow-ups-page";
 import OwnerKioskPage from "@/pages/owner-kiosk-page";
 import OwnerAiInsightsPage from "@/pages/owner-ai-insights-page";
+import OwnerInterventionHistoryPage from "@/pages/owner-intervention-history-page";
 import OwnerAutomatedEmailsPage from "@/pages/owner-automated-emails-page";
 import KioskCheckinPage from "@/pages/kiosk-checkin-page";
 import AnnouncementsPage from "@/pages/announcements-page";
@@ -519,6 +520,10 @@ function Router() {
 
       <Route path="/owner/ai-insights">
         <ProtectedRoute component={OwnerAiInsightsPage} requiredRole="owner" blockOnIOSOwner />
+      </Route>
+
+      <Route path="/owner/intervention-history">
+        <ProtectedRoute component={OwnerInterventionHistoryPage} requiredRole="owner" blockOnIOSOwner />
       </Route>
 
       <Route path="/owner/automated-emails">

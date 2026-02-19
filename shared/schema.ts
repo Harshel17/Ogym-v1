@@ -985,6 +985,7 @@ export const ownerInterventions = pgTable("owner_interventions", {
   memberId: integer("member_id").references(() => users.id).notNull(),
   actionType: text("action_type").notNull(),
   triggerReason: text("trigger_reason"),
+  messageSent: text("message_sent"),
   memberReturnedWithin7Days: boolean("member_returned_within_7_days"),
   memberReturnDate: text("member_return_date"),
   createdAt: timestamp("created_at").defaultNow(),

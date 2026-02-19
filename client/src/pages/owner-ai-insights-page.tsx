@@ -1,8 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { 
   Brain, 
   AlertTriangle, 
@@ -29,10 +32,18 @@ import {
   CheckCircle2,
   Timer,
   MessageSquare,
-  Shield
+  Shield,
+  Send,
+  HandHeart,
+  Wand2,
+  Loader2,
+  History
 } from "lucide-react";
 import { Link } from "wouter";
 import { Progress } from "@/components/ui/progress";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface AiInsightsData {
   churnRisk: {
@@ -108,12 +119,157 @@ function ChurnScoreBar({ score }: { score: number }) {
   );
 }
 
+function ReachOutDialog({ member, onSuccess }: { member: { id: number; name: string; daysAbsent: number; churnScore: number; recommendation?: string }; onSuccess: () => void }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [subject, setSubject] = useState("");
+
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/owner/interventions/generate-message", {
+        memberId: member.id,
+        memberName: member.name,
+        daysAbsent: member.daysAbsent,
+        churnScore: member.churnScore,
+        recommendation: member.recommendation,
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setMessage(data.message);
+    },
+    onError: () => {
+      toast({ title: "Could not generate message", variant: "destructive" });
+    },
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/owner/interventions/send-email", {
+        memberId: member.id,
+        subject: subject || undefined,
+        message,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Message sent", description: `Email sent to ${member.name}` });
+      setOpen(false);
+      setMessage("");
+      setSubject("");
+      onSuccess();
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to send", description: err.message || "Could not send email", variant: "destructive" });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="default" data-testid={`button-reach-out-${member.id}`}>
+          <Send className="h-3.5 w-3.5 mr-1" />
+          Reach Out
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Message {member.name}</DialogTitle>
+          <DialogDescription>
+            Send a personalized re-engagement email. You can write your own or let AI draft one.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="secondary">{member.daysAbsent < 999 ? `${member.daysAbsent}d absent` : 'Never visited'}</Badge>
+            <Badge variant="destructive">{member.churnScore}/100 risk</Badge>
+          </div>
+          <Input
+            placeholder="Subject (optional)"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            data-testid="input-email-subject"
+          />
+          <Textarea
+            placeholder="Type your message here..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            className="min-h-[120px] resize-none"
+            data-testid="input-email-message"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => generateMutation.mutate()}
+            disabled={generateMutation.isPending}
+            data-testid="button-generate-message"
+          >
+            {generateMutation.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
+            {generateMutation.isPending ? "Generating..." : "AI Draft"}
+          </Button>
+        </div>
+        <DialogFooter>
+          <Button
+            onClick={() => sendMutation.mutate()}
+            disabled={!message.trim() || sendMutation.isPending}
+            data-testid="button-send-email"
+          >
+            {sendMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Mail className="h-4 w-4 mr-1" />}
+            {sendMutation.isPending ? "Sending..." : "Send Email"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LogReachOutButton({ member, onSuccess }: { member: { id: number; name: string; daysAbsent: number; churnScore: number }; onSuccess: () => void }) {
+  const { toast } = useToast();
+  const logMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/owner/interventions", {
+        memberId: member.id,
+        actionType: "manual_outreach",
+        triggerReason: `churn_risk_${member.churnScore}`,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Logged", description: `Outreach to ${member.name} recorded` });
+      onSuccess();
+    },
+    onError: () => {
+      toast({ title: "Failed to log", variant: "destructive" });
+    },
+  });
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() => logMutation.mutate()}
+      disabled={logMutation.isPending}
+      data-testid={`button-log-reachout-${member.id}`}
+    >
+      {logMutation.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <HandHeart className="h-3.5 w-3.5 mr-1" />}
+      I Reached Out
+    </Button>
+  );
+}
+
 export default function OwnerAiInsightsPage() {
   const clientDate = new Date().toISOString().split('T')[0];
+  const { toast } = useToast();
   
   const { data: insights, isLoading } = useQuery<AiInsightsData>({
     queryKey: [`/api/owner/ai-insights/${clientDate}`],
   });
+
+  const handleInterventionSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: [`/api/owner/ai-insights/${clientDate}`] });
+    queryClient.invalidateQueries({ queryKey: ['/api/owner/interventions'] });
+  };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -432,12 +588,20 @@ export default function OwnerAiInsightsPage() {
                 </CardDescription>
               </div>
               {insights.churnRisk.count > 0 && (
-                <Link href="/owner/follow-ups?tab=inactive&days=7">
-                  <Button size="sm" variant="default" data-testid="button-send-followup-churn">
-                    <Mail className="h-4 w-4 mr-1.5" />
-                    Send Follow-ups
-                  </Button>
-                </Link>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Link href="/owner/intervention-history">
+                    <Button size="sm" variant="outline" data-testid="button-intervention-history">
+                      <History className="h-4 w-4 mr-1.5" />
+                      History
+                    </Button>
+                  </Link>
+                  <Link href="/owner/follow-ups?tab=inactive&days=7">
+                    <Button size="sm" variant="default" data-testid="button-send-followup-churn">
+                      <Mail className="h-4 w-4 mr-1.5" />
+                      Send Follow-ups
+                    </Button>
+                  </Link>
+                </div>
               )}
             </div>
           </CardHeader>
@@ -450,7 +614,7 @@ export default function OwnerAiInsightsPage() {
               <div className="space-y-2">
                 {insights.churnRisk.members.map((member) => (
                   <div key={member.id} className="p-3 rounded-lg bg-muted/50" data-testid={`churn-member-${member.id}`}>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-medium text-sm">{member.name}</p>
@@ -483,6 +647,10 @@ export default function OwnerAiInsightsPage() {
                         <p className="text-[11px] text-muted-foreground leading-tight">{member.recommendation}</p>
                       </div>
                     )}
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <ReachOutDialog member={member} onSuccess={handleInterventionSuccess} />
+                      <LogReachOutButton member={member} onSuccess={handleInterventionSuccess} />
+                    </div>
                   </div>
                 ))}
               </div>

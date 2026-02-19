@@ -7021,7 +7021,7 @@ Return ONLY JSON.`
   // === OWNER INTERVENTIONS ===
   app.post("/api/owner/interventions", requireRole(["owner"]), async (req, res) => {
     try {
-      const { memberId, actionType, triggerReason } = req.body;
+      const { memberId, actionType, triggerReason, messageSent } = req.body;
       if (!memberId || !actionType) {
         return res.status(400).json({ message: "memberId and actionType are required" });
       }
@@ -7031,6 +7031,7 @@ Return ONLY JSON.`
         memberId,
         actionType,
         triggerReason: triggerReason || null,
+        messageSent: messageSent || null,
       });
       res.json(intervention);
     } catch (err: any) {
@@ -7039,8 +7040,114 @@ Return ONLY JSON.`
   });
 
   app.get("/api/owner/interventions", requireRole(["owner"]), async (req, res) => {
-    const interventions = await storage.getOwnerInterventions(req.user!.gymId!);
-    res.json(interventions);
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const memberId = req.query.memberId ? parseInt(req.query.memberId as string) : undefined;
+      const outcome = req.query.outcome as string | undefined;
+      const interventions = await storage.getOwnerInterventions(req.user!.gymId!, limit);
+      let filtered = interventions;
+      if (memberId) {
+        filtered = filtered.filter(i => i.memberId === memberId);
+      }
+      if (outcome === 'returned') {
+        filtered = filtered.filter(i => i.memberReturnedWithin7Days === true);
+      } else if (outcome === 'not_returned') {
+        filtered = filtered.filter(i => i.memberReturnedWithin7Days === false);
+      } else if (outcome === 'pending') {
+        filtered = filtered.filter(i => i.memberReturnedWithin7Days === null);
+      }
+      res.json(filtered);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to get interventions" });
+    }
+  });
+
+  app.post("/api/owner/interventions/generate-message", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { memberId, memberName, daysAbsent, churnScore, recommendation } = req.body;
+      if (!memberId || !memberName) {
+        return res.status(400).json({ message: "memberId and memberName are required" });
+      }
+      const gym = await storage.getGym(req.user!.gymId!);
+      const gymName = gym?.name || "our gym";
+      const ownerName = req.user!.fullName || req.user!.username;
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI();
+      const prompt = `You are a friendly gym owner writing a personal re-engagement message to a member who hasn't visited in a while. Keep it warm, brief (2-3 sentences), and encouraging. Don't be pushy.
+
+Gym name: ${gymName}
+Owner name: ${ownerName}
+Member name: ${memberName}
+Days absent: ${daysAbsent || 'unknown'}
+${recommendation ? `Context: ${recommendation}` : ''}
+
+Write a short, personal message. No subject line, just the message body. Use their first name.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 200,
+        temperature: 0.8,
+      });
+
+      const message = response.choices[0]?.message?.content?.trim() || `Hey ${memberName}, we miss seeing you at ${gymName}! Would love to have you back. - ${ownerName}`;
+      res.json({ message });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to generate message" });
+    }
+  });
+
+  app.post("/api/owner/interventions/send-email", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { memberId, subject, message } = req.body;
+      if (!memberId || !message) {
+        return res.status(400).json({ message: "memberId and message are required" });
+      }
+      const member = await storage.getUser(memberId);
+      if (!member || member.gymId !== req.user!.gymId) {
+        return res.status(404).json({ message: "Member not found in your gym" });
+      }
+      if (!member.email) {
+        return res.status(400).json({ message: "Member does not have an email address on file" });
+      }
+
+      const gym = await storage.getGym(req.user!.gymId!);
+      const gymName = gym?.name || "Your Gym";
+      const emailSubject = subject || `Message from ${gymName}`;
+      const emailHtml = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px 12px 0 0; text-align: center;">
+          <h2 style="color: white; margin: 0; font-size: 20px;">${gymName}</h2>
+        </div>
+        <div style="background: #ffffff; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+          <p style="color: #374151; font-size: 15px; line-height: 1.6; white-space: pre-line;">${message}</p>
+        </div>
+        <p style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 16px;">Sent via OGym</p>
+      </div>`;
+
+      const sent = await sendEmail({
+        to: member.email,
+        subject: emailSubject,
+        text: message,
+        html: emailHtml,
+      });
+
+      if (sent) {
+        const intervention = await storage.createOwnerIntervention({
+          gymId: req.user!.gymId!,
+          ownerId: req.user!.id,
+          memberId,
+          actionType: 'email_sent',
+          triggerReason: 'churn_risk_outreach',
+          messageSent: message,
+        });
+        res.json({ success: true, intervention });
+      } else {
+        res.status(500).json({ message: "Failed to send email" });
+      }
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to send email" });
+    }
   });
 
   // === MEMBER WORKOUT ACTIVITY (for owner view) ===
