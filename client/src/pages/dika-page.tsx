@@ -858,7 +858,7 @@ function DikaPageInner({ userId }: { userId: number }) {
                     if (!res.ok) return;
                     const data = await res.json();
                     if (!data.token) return;
-                    await Browser.open({ url: `https://app.ogym.fitness/dika-web?token=${data.token}` });
+                    await Browser.open({ url: `https://app.ogym.fitness/dika-web?token=${data.token}&mode=simple` });
                   } catch {}
                 }}
                 data-testid="button-dika-open-browser"

@@ -1196,7 +1196,7 @@ export function DikaDrawer({
                       const data = await res.json();
                       if (!data.token) return;
                       const { Browser } = await import("@capacitor/browser");
-                      await Browser.open({ url: `https://app.ogym.fitness/dika-web?token=${data.token}` });
+                      await Browser.open({ url: `https://app.ogym.fitness/dika-web?token=${data.token}&mode=simple` });
                     } catch {}
                   }}
                   className="text-slate-400"

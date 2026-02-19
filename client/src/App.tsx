@@ -215,7 +215,9 @@ function TokenAuthRoute({ component: Component }: { component: React.ComponentTy
       });
       if (res.ok) {
         queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-        window.history.replaceState({}, "", "/dika-web");
+        const params = new URLSearchParams(window.location.search);
+        const mode = params.get("mode");
+        window.history.replaceState({}, "", mode ? `/dika-web?mode=${mode}` : "/dika-web");
         setTokenState("done");
       } else {
         setTokenState("error");

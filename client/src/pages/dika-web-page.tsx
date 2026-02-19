@@ -245,6 +245,10 @@ const QUICK_ACTIONS = [
 export default function DikaWebPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const isSimpleMode = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('mode') === 'simple';
+  }, []);
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -522,14 +526,14 @@ export default function DikaWebPage() {
 
   return (
     <div className="flex h-dvh w-full bg-[#0a0f1a]" data-testid="page-dika-web">
-      {sidebarOpen && (
+      {!isSimpleMode && sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      <aside
+      {!isSimpleMode && <aside
         className={cn(
           'fixed inset-y-0 left-0 z-50 w-[300px] bg-[#0d1424] border-r border-slate-800/50 text-white flex flex-col transition-transform duration-300 lg:relative lg:translate-x-0',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -713,11 +717,11 @@ export default function DikaWebPage() {
             </div>
           </div>
         </div>
-      </aside>
+      </aside>}
 
       <div className="flex-1 flex flex-col min-w-0 h-full">
         <header className="flex items-center gap-3 px-4 py-3 border-b border-slate-800/50 bg-[#0d1424]/80 backdrop-blur-xl flex-shrink-0">
-          <Button
+          {!isSimpleMode && <Button
             size="icon"
             variant="ghost"
             className="lg:hidden text-slate-400 rounded-xl"
@@ -725,8 +729,21 @@ export default function DikaWebPage() {
             data-testid="button-sidebar-toggle"
           >
             <Menu className="w-5 h-5" />
-          </Button>
-          {activeChat ? (
+          </Button>}
+          {isSimpleMode ? (
+            <div className="flex items-center gap-3 flex-1">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-amber-500/20">
+                <RoboDIcon className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-white">Dika AI</div>
+                <div className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Online
+                </div>
+              </div>
+            </div>
+          ) : activeChat ? (
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-amber-500/20">
                 <RoboDIcon className="w-4 h-4 text-white" />
@@ -798,6 +815,27 @@ export default function DikaWebPage() {
                 </div>
               )}
               <div ref={messagesEndRef} />
+            </div>
+          ) : isSimpleMode ? (
+            <div className="flex flex-col items-center justify-center h-full max-w-md mx-auto px-4 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25 mb-4">
+                <RoboDIcon className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-1">Dika AI</h2>
+              <p className="text-sm text-slate-400 mb-6">Your personal fitness assistant. Ask me anything about workouts, nutrition, or your progress.</p>
+              <div className="grid grid-cols-2 gap-2 w-full">
+                {QUICK_ACTIONS.map((action, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleSendMessage(action.message)}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#131d30] border border-slate-700/40 text-xs text-slate-300 hover:text-amber-400 hover:border-amber-500/30 transition-all text-left"
+                    data-testid={`button-simple-quick-${i}`}
+                  >
+                    <action.icon className="w-4 h-4 flex-shrink-0" />
+                    {action.label}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <WelcomeScreen
