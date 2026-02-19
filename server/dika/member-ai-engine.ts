@@ -217,24 +217,28 @@ export async function generateWorkoutInsights(userId: number): Promise<{
     .map(c => `${c.exerciseName}: ${c.actualSets}x${c.actualReps} @ ${c.actualWeight || 'bodyweight'}`)
     .join(", ");
 
-  const prompt = `Analyze this gym member's 30-day workout data and write a brief, friendly coach's note (3-4 sentences max).
+  const prompt = `Analyze this gym member's 30-day workout data and write a coach's note (3-4 sentences max).
 
 Member: ${user?.username || 'Member'}
 Workout days in last 30 days: ${workoutData.workoutDaysCount}
 Total exercises completed: ${workoutData.totalExercisesCompleted}
 Active cycle: ${workoutData.activeCycle?.name || 'None'}
 Cycle length: ${workoutData.activeCycle?.cycleLength || 'N/A'} days
+Day labels: ${workoutData.activeCycle?.dayLabels ? JSON.stringify(workoutData.activeCycle.dayLabels) : 'N/A'}
 Muscle group distribution: ${Object.entries(workoutData.muscleGroups).map(([k, v]) => `${k}: ${v} exercises`).join(', ') || 'No data'}
 Most trained: ${topMuscle?.[0] || 'N/A'} (${topMuscle?.[1] || 0} exercises)
 Least trained: ${leastMuscle?.[0] || 'N/A'} (${leastMuscle?.[1] || 0} exercises)
 Recent exercises: ${recentExercises || 'No recent data'}
 Consistency rating: ${consistency}
 
-Write a coach's note that:
-1. Acknowledges what they're doing well
-2. Points out any muscle imbalances or gaps
-3. Gives one specific, actionable suggestion
-Keep it casual and encouraging. No bullet points, no headers. Just a natural paragraph like a coach talking to them.`;
+CRITICAL RULES:
+- Use their ACTUAL exercise names and muscle groups from the data above. Name specific exercises they did.
+- Reference REAL numbers (days worked out, exercises completed, specific muscles).
+- If they have muscle imbalances, say exactly which muscle is overtrained vs undertrained.
+- Give ONE specific exercise recommendation by name (e.g. "try adding Romanian deadlifts" not "add more leg work").
+- If data is minimal, be honest: "I only see X workouts, so let's build more data."
+- No generic advice. Everything must reference THEIR data.
+- No bullet points, no headers. Natural paragraph like a coach texting them.`;
 
   const coachNote = await callGPT(
     "You are a knowledgeable fitness coach writing brief progress notes for gym members. Be specific, data-driven, casual, and encouraging. Never use emojis.",
@@ -322,6 +326,7 @@ Last 30 days:
 - Workout days: ${workoutData.workoutDaysCount} (previous 30 days: ${prevWorkoutDays})
 - Total exercises completed: ${workoutData.totalExercisesCompleted}
 - Muscle focus: ${Object.entries(workoutData.muscleGroups).map(([k, v]) => `${k}(${v})`).join(', ') || 'No data'}
+- Active cycle: ${workoutData.activeCycle?.name || 'None'}
 - Nutrition: avg ${nutritionData.avgCalories} cal/day, avg ${nutritionData.avgProtein}g protein/day, logged ${nutritionData.daysLogged} days
 - Calorie target: ${nutritionData.calorieTarget || 'not set'}
 - Protein target: ${nutritionData.proteinTarget || 'not set'}g
@@ -329,7 +334,14 @@ Last 30 days:
 - Current workout streak: ${currentStreak} days
 - Goals: ${nutritionData.userGoals?.primaryGoal?.replace('_', ' ') || 'Not set'}
 
-Write a motivating but honest summary. Mention specific data points. Note what's improving and what needs attention. Keep it conversational like a friend summarizing their month.`;
+CRITICAL RULES:
+- Compare this month vs last month with REAL numbers ("You worked out ${workoutData.workoutDaysCount} days, up/down from ${prevWorkoutDays}").
+- Mention their ACTUAL calorie and protein averages vs their targets.
+- If weight changed, mention the direction and amount.
+- If they have a goal set, evaluate progress toward it specifically.
+- If nutrition logging is sparse, call it out with the exact number.
+- End with ONE clear next-step that references their data.
+- No generic "keep it up" filler. Every sentence must contain a number or specific fact from their data.`;
 
   const summary = await callGPT(
     "You are a fitness coach writing a friendly monthly progress summary. Be specific and data-driven. Never use emojis. Keep it concise.",
@@ -351,6 +363,11 @@ export async function generateWorkoutSuggestions(userId: number): Promise<{
   const workoutData = await getMemberWorkoutData(userId, 30);
   const { user, latestMeasurements } = await getMemberProfile(userId);
 
+  const topMuscle = Object.entries(workoutData.muscleGroups)
+    .sort((a, b) => b[1] - a[1])[0];
+  const leastMuscle = Object.entries(workoutData.muscleGroups)
+    .sort((a, b) => a[1] - b[1])[0];
+
   const [goalsData] = await db.select()
     .from(userGoals)
     .where(eq(userGoals.userId, userId))
@@ -360,20 +377,21 @@ export async function generateWorkoutSuggestions(userId: number): Promise<{
 
 Member: ${user?.username || 'Member'}
 Active cycle: ${workoutData.activeCycle?.name || 'None'}
+Cycle day labels: ${workoutData.activeCycle?.dayLabels ? JSON.stringify(workoutData.activeCycle.dayLabels) : 'N/A'}
 Workout days (30d): ${workoutData.workoutDaysCount}
 Muscle distribution: ${Object.entries(workoutData.muscleGroups).map(([k, v]) => `${k}: ${v}`).join(', ') || 'No exercises'}
 Primary goal: ${goalsData?.primaryGoal?.replace('_', ' ') || 'Not set'}
 Target weight: ${goalsData?.targetWeight || 'Not set'}
 Weekly workout target: ${goalsData?.weeklyWorkoutDays || 'Not set'} days
 Weight: ${latestMeasurements[0]?.weight ? `${latestMeasurements[0].weight}kg` : 'Unknown'}
-Recent exercises (last 10): ${workoutData.completions.slice(0, 10).map(c => c.exerciseName).join(', ') || 'None'}
+Recent exercises with weights (last 10): ${workoutData.completions.slice(0, 10).map(c => `${c.exerciseName} ${c.actualSets}x${c.actualReps} @ ${c.actualWeight || 'bw'}`).join(', ') || 'None'}
 
 Return ONLY a JSON array of exactly 3 objects with these fields:
-- title: short action title (5-8 words)
-- reason: 1-2 sentence explanation why, referencing their data
+- title: short action title (5-8 words) - must name a SPECIFIC exercise or muscle
+- reason: 1-2 sentence explanation referencing THEIR actual data (name their exercises, rep counts, muscle gaps)
 - priority: "high", "medium", or "low"
 
-Focus on: muscle imbalances, consistency gaps, progressive overload opportunities, variety, and alignment with their goals.`;
+CRITICAL: Each suggestion MUST reference specific exercises or muscles from their data. Do NOT give generic advice like "increase consistency" or "try new exercises". Instead say things like "Add face pulls for rear delts" with a reason like "Your ${topMuscle?.[0] || 'chest'} has ${topMuscle?.[1] || 0} exercises but ${leastMuscle?.[0] || 'back'} only has ${leastMuscle?.[1] || 0}".`;
 
   const raw = await callGPT(
     "You are a fitness expert. Return ONLY valid JSON array. No markdown, no explanation.",
@@ -415,7 +433,7 @@ export async function generateNutritionCoaching(userId: number): Promise<{
     .map(([date, d]) => `${date}: ${d.calories}cal, ${d.protein}g P, ${d.carbs}g C, ${d.fat}g F (${d.meals} items)`)
     .join('\n');
 
-  const prompt = `Analyze this member's recent nutrition and give brief, actionable coaching (3-4 sentences) plus 3 quick tips.
+  const prompt = `Analyze this member's recent nutrition and give coaching. Return JSON.
 
 Member: ${user?.username || 'Member'}
 Last 7 days nutrition:
@@ -430,10 +448,16 @@ Days logged: ${nutritionData.daysLogged}/7
 Recent foods: ${recentFoods || 'None'}
 
 Return JSON with:
-- advice: 3-4 sentence coaching paragraph (casual, specific, reference actual foods they ate)
-- quickTips: array of 3 short tips (each 5-10 words)
+- advice: 3-4 sentence coaching paragraph
+- quickTips: array of 3 short actionable tips (each 5-10 words)
 
-Be specific about their actual food choices. If they're not logging, encourage them to start. Reference their targets if set.`;
+CRITICAL RULES:
+- Name SPECIFIC foods they ate (e.g., "your chicken breast meals are solid for protein").
+- Reference their EXACT numbers: "${nutritionData.avgCalories} cal avg" vs "${nutritionData.calorieTarget || 'no'} target".
+- If protein is low, suggest specific high-protein foods (not just "eat more protein").
+- Each quick tip must be actionable with a specific food or amount (e.g., "Add Greek yogurt for 15g extra protein" not "Eat more protein").
+- If barely logging, be direct: "You only logged ${nutritionData.daysLogged} of 7 days."
+- No generic wellness advice. Every point must connect to their data.`;
 
   const raw = await callGPT(
     "You are a nutrition coach. Return ONLY valid JSON with 'advice' (string) and 'quickTips' (string array). No markdown.",

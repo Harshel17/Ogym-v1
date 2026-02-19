@@ -27,7 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { Link, useLocation } from "wouter";
-import { ProactiveNudges, AiProgressPreview, AiWorkoutInsights, AiWorkoutSuggestions } from "@/components/ai-coach-cards";
+import { ProactiveNudges, AiCoachHub } from "@/components/ai-coach-cards";
 
 function ConfettiBurst({ trigger }: { trigger: boolean }) {
   const [pieces, setPieces] = useState<Array<{ id: number; left: number; color: string; delay: number; size: number }>>([]);
@@ -2795,9 +2795,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       </div>
 
       {/* AI Coach */}
-      <AiProgressPreview />
-      <AiWorkoutInsights />
-      <AiWorkoutSuggestions />
+      <AiCoachHub />
 
       {/* Calendar */}
       <MemberCalendarWidget />
