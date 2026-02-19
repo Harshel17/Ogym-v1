@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Brain, TrendingUp, TrendingDown, Minus, Dumbbell, Utensils, Target,
   Droplets, Flame, ArrowRight, Loader2, RefreshCw, Lightbulb, Sparkles,
-  Activity, Zap, ChevronRight, X, MessageCircle,
+  Activity, Zap, ChevronRight, X, MessageCircle, ChevronDown, ChevronUp, BarChart3,
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link, useLocation } from "wouter";
 
 function TrendIcon({ trend }: { trend: "up" | "down" | "stable" }) {
@@ -97,6 +98,7 @@ const tabConfig: { id: CoachTab; label: string; icon: typeof Activity }[] = [
 
 export function AiCoachHub() {
   const [activeTab, setActiveTab] = useState<CoachTab>("progress");
+  const [isOpen, setIsOpen] = useState(true);
   const [, setLocation] = useLocation();
 
   const progress = useQuery<{
@@ -147,133 +149,148 @@ export function AiCoachHub() {
   }
 
   return (
-    <Card className="overflow-visible" data-testid="card-ai-coach-hub">
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 shadow-sm shadow-violet-500/20">
-              <Brain className="w-4 h-4 text-white" />
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card className="overflow-visible" data-testid="card-ai-coach-hub">
+        <div className="px-4 pt-4 pb-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 shadow-sm shadow-violet-500/20">
+                <Brain className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Dika AI Insights</h3>
+                <p className="text-[10px] text-muted-foreground">Powered by your real data</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Dika AI Insights</h3>
-              <p className="text-[10px] text-muted-foreground">Powered by your real data</p>
+            <div className="flex items-center gap-1">
+              {hasData && !isGenerating && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleGenerate}
+                  data-testid="button-refresh-coach"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </Button>
+              )}
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  data-testid="button-toggle-coach"
+                >
+                  {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </Button>
+              </CollapsibleTrigger>
             </div>
           </div>
-          {hasData && !isGenerating && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleGenerate}
-              data-testid="button-refresh-coach"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </Button>
-          )}
         </div>
-      </div>
 
-      <div className="px-4 pb-2">
-        <div className="flex gap-1 p-0.5 rounded-lg bg-muted/50">
-          {tabConfig.map(tab => {
-            const isActive = activeTab === tab.id;
-            const TabIcon = tab.icon;
-            const tabHasData = queryMap[tab.id].data;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
-                  isActive
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                data-testid={`tab-coach-${tab.id}`}
-              >
-                <TabIcon className="w-3.5 h-3.5" />
-                <span className="hidden xs:inline">{tab.label}</span>
-                {tabHasData && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <CardContent className="pt-1 pb-4">
-        {!hasData && !isGenerating && (
-          <div className="py-6 text-center space-y-3">
-            <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-muted/50">
-              <Sparkles className="w-5 h-5 text-muted-foreground" />
+        <CollapsibleContent>
+          <div className="px-4 pb-2">
+            <div className="flex gap-1 p-0.5 rounded-lg bg-muted/50">
+              {tabConfig.map(tab => {
+                const isActive = activeTab === tab.id;
+                const TabIcon = tab.icon;
+                const tabHasData = queryMap[tab.id].data;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
+                      isActive
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    data-testid={`tab-coach-${tab.id}`}
+                  >
+                    <TabIcon className="w-3.5 h-3.5" />
+                    <span className="hidden xs:inline">{tab.label}</span>
+                    {tabHasData && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
-            <div>
-              <p className="text-sm text-foreground font-medium">
-                {activeTab === "progress" && "Get your monthly report card"}
-                {activeTab === "workouts" && "Analyze your workout patterns"}
-                {activeTab === "suggestions" && "See what to focus on next"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                AI analyzes your real activity data
-              </p>
-            </div>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleGenerate}
-              data-testid={`button-generate-${activeTab}`}
-            >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              {activeTab === "progress" && "Generate Report"}
-              {activeTab === "workouts" && "Analyze Workouts"}
-              {activeTab === "suggestions" && "Get Suggestions"}
-            </Button>
           </div>
-        )}
 
-        {isGenerating && (
-          <div className="flex flex-col items-center justify-center py-8 gap-2">
-            <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
-            <span className="text-xs text-muted-foreground">
-              {activeTab === "progress" && "Building your report..."}
-              {activeTab === "workouts" && "Reviewing your workouts..."}
-              {activeTab === "suggestions" && "Analyzing your patterns..."}
-            </span>
-          </div>
-        )}
+          <CardContent className="pt-1 pb-4">
+            {!hasData && !isGenerating && (
+              <div className="py-6 text-center space-y-3">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-muted/50">
+                  <Sparkles className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm text-foreground font-medium">
+                    {activeTab === "progress" && "Get your monthly report card"}
+                    {activeTab === "workouts" && "Analyze your workout patterns"}
+                    {activeTab === "suggestions" && "See what to focus on next"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    AI analyzes your real activity data
+                  </p>
+                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleGenerate}
+                  data-testid={`button-generate-${activeTab}`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                  {activeTab === "progress" && "Generate Report"}
+                  {activeTab === "workouts" && "Analyze Workouts"}
+                  {activeTab === "suggestions" && "Get Suggestions"}
+                </Button>
+              </div>
+            )}
 
-        {activeTab === "progress" && progress.data && !progress.isFetching && (
-          <ProgressContent data={progress.data} />
-        )}
+            {isGenerating && (
+              <div className="flex flex-col items-center justify-center py-8 gap-2">
+                <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
+                <span className="text-xs text-muted-foreground">
+                  {activeTab === "progress" && "Building your report..."}
+                  {activeTab === "workouts" && "Reviewing your workouts..."}
+                  {activeTab === "suggestions" && "Analyzing your patterns..."}
+                </span>
+              </div>
+            )}
 
-        {activeTab === "workouts" && workouts.data && !workouts.isFetching && (
-          <WorkoutsContent data={workouts.data} />
-        )}
+            {activeTab === "progress" && progress.data && !progress.isFetching && (
+              <ProgressContent data={progress.data} />
+            )}
 
-        {activeTab === "suggestions" && suggestions.data && !suggestions.isFetching && (
-          <SuggestionsContent data={suggestions.data} />
-        )}
+            {activeTab === "workouts" && workouts.data && !workouts.isFetching && (
+              <WorkoutsContent data={workouts.data} />
+            )}
 
-        {hasData && !isGenerating && (
-          <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-[10px] text-muted-foreground">
-              Updated {new Date(String(hasData.generatedAt || "")).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-primary"
-              onClick={() => {
-                const prompt = encodeURIComponent("Tell me more about my recent fitness progress and what I should focus on this week");
-                setLocation(`/dika?prompt=${prompt}`);
-              }}
-              data-testid="button-ask-dika-coach"
-            >
-              <MessageCircle className="w-3 h-3 mr-1" /> Ask Dika
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            {activeTab === "suggestions" && suggestions.data && !suggestions.isFetching && (
+              <SuggestionsContent data={suggestions.data} />
+            )}
+
+            {hasData && !isGenerating && (
+              <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-[10px] text-muted-foreground">
+                  Updated {new Date(String(hasData.generatedAt || "")).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    const prompt = encodeURIComponent("Tell me more about my recent fitness progress and what I should focus on this week");
+                    setLocation(`/dika?prompt=${prompt}`);
+                  }}
+                  data-testid="button-ask-dika-coach"
+                >
+                  <MessageCircle className="w-3 h-3 mr-1" /> Ask Dika
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }
 
@@ -503,5 +520,160 @@ export function AiNutritionCoaching() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+export function AiStatsInterpreter() {
+  const [isOpen, setIsOpen] = useState(true);
+  const [, setLocation] = useLocation();
+
+  const stats = useQuery<{
+    interpretation: string;
+    keyFindings: { label: string; insight: string; type: "positive" | "warning" | "neutral" }[];
+    generatedAt: string;
+  }>({
+    queryKey: ["/api/member/ai/stats-interpretation"],
+    staleTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    enabled: false,
+  });
+
+  const isGenerating = stats.isLoading || stats.isFetching;
+
+  const findingColors = {
+    positive: "text-green-500",
+    warning: "text-orange-500",
+    neutral: "text-blue-500",
+  };
+
+  const findingBgColors = {
+    positive: "bg-green-500/10",
+    warning: "bg-orange-500/10",
+    neutral: "bg-blue-500/10",
+  };
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card className="overflow-visible" data-testid="card-ai-stats-interpreter">
+        <div className="px-4 pt-4 pb-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 shadow-sm shadow-violet-500/20">
+                <Brain className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Dika Stats Interpreter</h3>
+                <p className="text-[10px] text-muted-foreground">AI reads your charts so you don't have to</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              {stats.data && !isGenerating && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => stats.refetch()}
+                  data-testid="button-refresh-stats-ai"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </Button>
+              )}
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  data-testid="button-toggle-stats-ai"
+                >
+                  {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+          </div>
+        </div>
+
+        <CollapsibleContent>
+          <CardContent className="pt-1 pb-4">
+            {!stats.data && !isGenerating && (
+              <div className="py-6 text-center space-y-3">
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-muted/50">
+                  <BarChart3 className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm text-foreground font-medium">Interpret your stats</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    AI analyzes all your charts and tells you what matters
+                  </p>
+                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => stats.refetch()}
+                  data-testid="button-generate-stats-ai"
+                >
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                  Analyze My Stats
+                </Button>
+              </div>
+            )}
+
+            {isGenerating && (
+              <div className="flex flex-col items-center justify-center py-8 gap-2">
+                <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
+                <span className="text-xs text-muted-foreground">Reading your stats...</span>
+              </div>
+            )}
+
+            {stats.data && !isGenerating && (
+              <div className="space-y-3">
+                <div className="relative pl-3 border-l-2 border-violet-500/30">
+                  <p className="text-sm text-foreground leading-relaxed" data-testid="text-stats-interpretation">
+                    {stats.data.interpretation}
+                  </p>
+                </div>
+
+                {stats.data.keyFindings.length > 0 && (
+                  <div className="space-y-1.5">
+                    {stats.data.keyFindings.map((finding, i) => (
+                      <div
+                        key={i}
+                        className={`flex items-start gap-2.5 px-3 py-2 rounded-md ${findingBgColors[finding.type]}`}
+                        data-testid={`finding-${i}`}
+                      >
+                        <div className={`mt-0.5 flex-shrink-0 ${findingColors[finding.type]}`}>
+                          {finding.type === "positive" && <TrendingUp className="w-3.5 h-3.5" />}
+                          {finding.type === "warning" && <Target className="w-3.5 h-3.5" />}
+                          {finding.type === "neutral" && <Activity className="w-3.5 h-3.5" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-foreground">{finding.label}</p>
+                          <p className="text-[11px] text-muted-foreground">{finding.insight}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-[10px] text-muted-foreground">
+                    Updated {new Date(stats.data.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => {
+                      const prompt = encodeURIComponent("Look at my workout stats and tell me what I should change about my training routine");
+                      setLocation(`/dika?prompt=${prompt}`);
+                    }}
+                    data-testid="button-ask-dika-stats"
+                  >
+                    <MessageCircle className="w-3 h-3 mr-1" /> Ask Dika
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }

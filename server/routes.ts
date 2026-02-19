@@ -976,6 +976,16 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/member/ai/stats-interpretation", requireRole(["member"]), async (req, res) => {
+    try {
+      const { generateStatsInterpretation } = await import('./dika/member-ai-engine');
+      const result = await generateStatsInterpretation(req.user!.id);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to generate stats interpretation" });
+    }
+  });
+
   app.get("/api/member/ai/nudges", requireRole(["member"]), async (req, res) => {
     try {
       const { generateProactiveNudges } = await import('./dika/member-ai-engine');

@@ -621,3 +621,118 @@ export async function generateProactiveNudges(userId: number, localDate?: string
     generatedAt: new Date().toISOString(),
   };
 }
+
+export async function generateStatsInterpretation(userId: number): Promise<{
+  interpretation: string;
+  keyFindings: { label: string; insight: string; type: "positive" | "warning" | "neutral" }[];
+  generatedAt: string;
+}> {
+  const workoutData = await getMemberWorkoutData(userId, 30);
+  const nutritionData = await getMemberNutritionData(userId, 7);
+  const { user, profile, latestMeasurements } = await getMemberProfile(userId);
+
+  const [goalsData] = await db.select()
+    .from(userGoals)
+    .where(eq(userGoals.userId, userId))
+    .limit(1);
+
+  const muscleBreakdown = Object.entries(workoutData.muscleGroups)
+    .sort((a, b) => b[1] - a[1])
+    .map(([muscle, count]) => {
+      const total = Object.values(workoutData.muscleGroups).reduce((s, v) => s + v, 0);
+      return `${muscle}: ${count} exercises (${Math.round(count / total * 100)}%)`;
+    }).join(", ");
+
+  const totalSets = workoutData.completions.reduce((s, c) => s + (c.actualSets || 0), 0);
+  const totalReps = workoutData.completions.reduce((s, c) => s + (c.actualReps || 0), 0);
+  const totalVolume = workoutData.completions.reduce((s, c) => {
+    const w = parseFloat(c.actualWeight || "0");
+    return s + (w * (c.actualSets || 0) * (c.actualReps || 0));
+  }, 0);
+
+  const uniqueDates = new Set(workoutData.completions.map(c => c.completedDate));
+  const daysArr = Array.from(uniqueDates).sort();
+  const last7 = daysArr.filter(d => d >= getDateStr(7)).length;
+  const thisMonth = daysArr.length;
+
+  let currentStreak = 0;
+  const today = getDateStr();
+  let checkDate = today;
+  while (uniqueDates.has(checkDate)) {
+    currentStreak++;
+    const d = new Date(checkDate);
+    d.setDate(d.getDate() - 1);
+    checkDate = d.toISOString().split("T")[0];
+  }
+
+  const prev30Data = await getMemberWorkoutData(userId, 60);
+  const prevMonthDays = prev30Data.workoutDaysCount - workoutData.workoutDaysCount;
+
+  const recentExercises = workoutData.completions.slice(0, 15)
+    .map(c => `${c.exerciseName}: ${c.actualSets}x${c.actualReps} @ ${c.actualWeight || 'bodyweight'}`)
+    .join(", ");
+
+  const prompt = `You are looking at a gym member's stats page and interpreting ALL the data for them. Write a comprehensive but concise interpretation (4-6 sentences).
+
+Member: ${user?.username || 'Member'}
+Current streak: ${currentStreak} days
+Total workouts this month: ${thisMonth}
+Workouts in last 7 days: ${last7}
+Previous month workouts: ${prevMonthDays}
+Total sets: ${totalSets} | Total reps: ${totalReps} | Total volume: ${Math.round(totalVolume)}kg
+Muscle group breakdown: ${muscleBreakdown || 'No data'}
+Active cycle: ${workoutData.activeCycle?.name || 'None'} (${workoutData.activeCycle?.cycleLength || 0}-day cycle)
+Day labels: ${workoutData.activeCycle?.dayLabels ? JSON.stringify(workoutData.activeCycle.dayLabels) : 'N/A'}
+Recent exercises: ${recentExercises || 'No recent data'}
+Goals: ${goalsData ? `Target: ${goalsData.primaryGoal || 'not set'}, Weekly workouts: ${goalsData.weeklyWorkoutDays || 'not set'}, Target weight: ${goalsData.targetWeight || 'not set'}` : 'No goals set'}
+Body measurements: ${latestMeasurements.length > 0 ? `Weight: ${latestMeasurements[0]?.weight || 'N/A'}kg` : 'No measurements'}
+Nutrition (7d avg): ${nutritionData.daysLogged > 0 ? `${nutritionData.avgCalories} cal/day, ${nutritionData.avgProtein}g protein/day (${nutritionData.daysLogged} days logged)` : 'No nutrition data'}
+Calorie target: ${nutritionData.calorieTarget || 'Not set'} | Protein target: ${nutritionData.proteinTarget || 'Not set'}
+
+CRITICAL RULES:
+- Interpret EVERY metric above that has data. Don't skip any section.
+- Reference EXACT numbers from the data (e.g. "your 18 sets across 154 reps" not "your recent sets").
+- If muscle groups are imbalanced, name the specific muscles and percentages.
+- Compare this month vs last month with actual numbers.
+- If they have goals, tell them exactly how they're tracking against each goal.
+- If volume is 0 despite having workouts, note they're doing bodyweight work.
+- If streak is 0, don't pretend they have one.
+- Be honest and direct. If stats are weak, say so with encouragement.
+- No bullet points, no headers. Natural flowing paragraph.
+
+Also return exactly 3-4 key findings as JSON. Each finding has: label (short 2-3 word title), insight (1 sentence), type ("positive" if good, "warning" if needs attention, "neutral" if informational).
+Return the findings as a JSON array on the LAST line of your response, preceded by "FINDINGS:" on its own line. The interpretation paragraph(s) should come first.`;
+
+  const rawResponse = await callGPT(
+    "You are an expert fitness data analyst interpreting a member's workout statistics page. Be specific, honest, data-driven. Never use emojis. Always reference actual numbers from their data.",
+    prompt
+  );
+
+  let interpretation = rawResponse;
+  let keyFindings: { label: string; insight: string; type: "positive" | "warning" | "neutral" }[] = [];
+
+  const findingsIdx = rawResponse.indexOf("FINDINGS:");
+  if (findingsIdx !== -1) {
+    interpretation = rawResponse.substring(0, findingsIdx).trim();
+    const findingsJson = rawResponse.substring(findingsIdx + 9).trim();
+    try {
+      keyFindings = JSON.parse(findingsJson);
+    } catch {
+      keyFindings = [
+        { label: "Stats Review", insight: "Your stats have been analyzed - see the interpretation above.", type: "neutral" },
+      ];
+    }
+  }
+
+  if (keyFindings.length === 0) {
+    keyFindings = [
+      { label: "Analysis Complete", insight: "Your stats overview has been interpreted.", type: "neutral" },
+    ];
+  }
+
+  return {
+    interpretation,
+    keyFindings: keyFindings.slice(0, 4),
+    generatedAt: new Date().toISOString(),
+  };
+}

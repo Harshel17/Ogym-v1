@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { useBackNavigation } from "@/hooks/use-back-navigation";
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, Legend } from 'recharts';
 import { format, parseISO } from "date-fns";
-import { AiCoachHub } from "@/components/ai-coach-cards";
+import { AiStatsInterpreter } from "@/components/ai-coach-cards";
 
 type MemberStats = {
   streak: number;
@@ -412,7 +412,7 @@ export default function StatsPage() {
         </div>
       </div>
 
-      <AiCoachHub />
+      <AiStatsInterpreter />
 
       {!stats || stats.totalWorkouts === 0 ? (
         <GuidedEmptyState
