@@ -155,7 +155,7 @@ export function AiCoachHub() {
               <Brain className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Your AI Coach</h3>
+              <h3 className="text-sm font-semibold text-foreground">Dika AI Insights</h3>
               <p className="text-[10px] text-muted-foreground">Powered by your real data</p>
             </div>
           </div>
