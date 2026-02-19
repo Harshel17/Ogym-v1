@@ -1530,6 +1530,15 @@ export async function registerRoutes(
       const skippedItemIds = new Set<number>(); // No skip tracking in Personal Mode currently
       
       let effectiveDayIndex = cycle.currentDayIndex ?? 0;
+      
+      // For completion-based: if workout was already completed today, show the completed day
+      let personalCompletedToday = false;
+      if (cycle.progressionMode === "completion" && cycle.lastWorkoutDate === todayStr) {
+        const prevDayIndex = (effectiveDayIndex - 1 + cycle.cycleLength) % cycle.cycleLength;
+        effectiveDayIndex = prevDayIndex;
+        personalCompletedToday = true;
+      }
+      
       let effectiveItems = allItems.filter(item => item.dayIndex === effectiveDayIndex);
       let dayLabel = cycle.dayLabels?.[effectiveDayIndex] || `Day ${effectiveDayIndex + 1}`;
       
@@ -1553,7 +1562,7 @@ export async function registerRoutes(
       return res.json({
         items: effectiveItems.map(item => ({
           ...item,
-          completed: dayManuallyCompleted || completedItemIds.has(item.id),
+          completed: personalCompletedToday || dayManuallyCompleted || completedItemIds.has(item.id),
           skipped: skippedItemIds.has(item.id)
         })),
         currentDayIndex: effectiveDayIndex,
@@ -1564,6 +1573,7 @@ export async function registerRoutes(
         isRestDay,
         progressionMode: cycle.progressionMode,
         dayManuallyCompleted,
+        completedTodayAlready: personalCompletedToday,
         hasReorderOverride: !!scheduleOverride
       });
     }
@@ -1628,12 +1638,22 @@ export async function registerRoutes(
     // Support both progression modes
     let currentDayIndex: number;
     let wasAutoReset = false;
+    let completedTodayAlready = false;
     if (cycle.progressionMode === "completion") {
       // Completion-based: use stored currentDayIndex
       currentDayIndex = cycle.currentDayIndex ?? 0;
       
+      // Check if workout was already completed today (day index was advanced today)
+      // If so, show the PREVIOUS day (the one just completed) instead of jumping ahead
+      if (cycle.lastWorkoutDate === todayStr) {
+        // Day was already advanced today - show the completed day instead
+        const prevDayIndex = (currentDayIndex - 1 + cycle.cycleLength) % cycle.cycleLength;
+        currentDayIndex = prevDayIndex;
+        completedTodayAlready = true;
+      }
+      
       // Auto-reset logic: if member missed more than 3 consecutive days, reset to day 0
-      if (cycle.lastWorkoutDate) {
+      if (!completedTodayAlready && cycle.lastWorkoutDate) {
         const lastWorkout = new Date(cycle.lastWorkoutDate);
         const daysSinceLastWorkout = Math.floor((today.getTime() - lastWorkout.getTime()) / (1000 * 60 * 60 * 24));
         if (daysSinceLastWorkout > 3 && currentDayIndex !== 0) {
@@ -1730,6 +1750,7 @@ export async function registerRoutes(
       tomorrowDayIndex,
       progressionMode: cycle.progressionMode || "calendar",
       wasAutoReset,
+      completedTodayAlready,
       hasReorderOverride: !!scheduleOverride
     });
   });
