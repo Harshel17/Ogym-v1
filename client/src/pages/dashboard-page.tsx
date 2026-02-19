@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { Link, useLocation } from "wouter";
+import { ProactiveNudges, AiProgressPreview, AiWorkoutInsights, AiWorkoutSuggestions } from "@/components/ai-coach-cards";
 
 function ConfettiBurst({ trigger }: { trigger: boolean }) {
   const [pieces, setPieces] = useState<Array<{ id: number; left: number; color: string; delay: number; size: number }>>([]);
@@ -1983,6 +1984,8 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
 
       <FeatureDiscoveryTips role="member" isPersonalMode={isPersonalMode} />
 
+      <ProactiveNudges />
+
       {/* Today's Workout */}
       {todayMatchLog?.id && todayMatchLog.status !== "cancelled" && todayMatchLog.workoutAction && todayMatchLog.workoutAction !== "normal" ? (
         <Card className="card-ambient shadow-lg shadow-primary/5 relative" data-testid="card-today-workout-match">
@@ -2790,6 +2793,11 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       <div className="mt-1">
         <HealthActivityDashboard />
       </div>
+
+      {/* AI Coach */}
+      <AiProgressPreview />
+      <AiWorkoutInsights />
+      <AiWorkoutSuggestions />
 
       {/* Calendar */}
       <MemberCalendarWidget />

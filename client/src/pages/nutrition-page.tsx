@@ -23,6 +23,7 @@ import { FindMyFood } from "@/components/find-my-food";
 import { useHealthStatus, useHealthDataToday } from "@/hooks/use-health-data";
 import { fuzzyMatchRestaurants, getRecentRestaurants, addRecentRestaurant } from "@/lib/restaurant-data";
 import { Badge } from "@/components/ui/badge";
+import { AiNutritionCoaching } from "@/components/ai-coach-cards";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type CalorieGoal = {
@@ -1147,6 +1148,8 @@ export default function NutritionPage() {
           })()}
         </CardContent>
       </Card>
+
+      <AiNutritionCoaching />
 
       <FindMyFood 
         remainingCalories={remaining}

@@ -935,6 +935,58 @@ export async function registerRoutes(
     res.json(sub);
   });
 
+  // === MEMBER AI COACH ROUTES ===
+  app.get("/api/member/ai/workout-insights", requireRole(["member"]), async (req, res) => {
+    try {
+      const { generateWorkoutInsights } = await import('./dika/member-ai-engine');
+      const result = await generateWorkoutInsights(req.user!.id);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to generate workout insights" });
+    }
+  });
+
+  app.get("/api/member/ai/progress-summary", requireRole(["member"]), async (req, res) => {
+    try {
+      const { generateProgressSummary } = await import('./dika/member-ai-engine');
+      const result = await generateProgressSummary(req.user!.id);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to generate progress summary" });
+    }
+  });
+
+  app.get("/api/member/ai/workout-suggestions", requireRole(["member"]), async (req, res) => {
+    try {
+      const { generateWorkoutSuggestions } = await import('./dika/member-ai-engine');
+      const result = await generateWorkoutSuggestions(req.user!.id);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to generate workout suggestions" });
+    }
+  });
+
+  app.get("/api/member/ai/nutrition-coaching", requireRole(["member"]), async (req, res) => {
+    try {
+      const { generateNutritionCoaching } = await import('./dika/member-ai-engine');
+      const result = await generateNutritionCoaching(req.user!.id);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to generate nutrition coaching" });
+    }
+  });
+
+  app.get("/api/member/ai/nudges", requireRole(["member"]), async (req, res) => {
+    try {
+      const { generateProactiveNudges } = await import('./dika/member-ai-engine');
+      const clientDate = (req.query.clientDate as string) || getLocalDate(req);
+      const result = await generateProactiveNudges(req.user!.id, clientDate);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to generate nudges" });
+    }
+  });
+
   // === TRAINER ROUTES ===
   app.get("/api/trainer/dashboard", requireRole(["trainer"]), async (req, res) => {
     try {

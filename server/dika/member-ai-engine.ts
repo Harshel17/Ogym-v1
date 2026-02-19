@@ -1,0 +1,599 @@
+import OpenAI from "openai";
+import { db } from "../db";
+import {
+  users,
+  userProfiles,
+  workoutCycles,
+  workoutCompletions,
+  workoutItems,
+  foodLogs,
+  calorieGoals,
+  waterLogs,
+  bodyMeasurements,
+  userGoals,
+} from "@shared/schema";
+import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
+
+async function callGPT(systemPrompt: string, userPrompt: string): Promise<string> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    temperature: 0.7,
+    max_tokens: 600,
+  });
+  return response.choices[0]?.message?.content || "";
+}
+
+function getDateStr(daysAgo: number = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().split("T")[0];
+}
+
+async function getMemberWorkoutData(userId: number, days: number = 30) {
+  const startDate = getDateStr(days);
+  const today = getDateStr();
+
+  const completions = await db.select({
+    completedDate: workoutCompletions.completedDate,
+    exerciseName: workoutCompletions.exerciseName,
+    exerciseType: workoutCompletions.exerciseType,
+    actualSets: workoutCompletions.actualSets,
+    actualReps: workoutCompletions.actualReps,
+    actualWeight: workoutCompletions.actualWeight,
+    notes: workoutCompletions.notes,
+  })
+    .from(workoutCompletions)
+    .where(and(
+      eq(workoutCompletions.memberId, userId),
+      gte(workoutCompletions.completedDate, startDate),
+      lte(workoutCompletions.completedDate, today)
+    ))
+    .orderBy(desc(workoutCompletions.completedDate));
+
+  const items = await db.select({
+    exerciseName: workoutItems.exerciseName,
+    muscleType: workoutItems.muscleType,
+    bodyPart: workoutItems.bodyPart,
+    sets: workoutItems.sets,
+    reps: workoutItems.reps,
+    weight: workoutItems.weight,
+    cycleId: workoutItems.cycleId,
+  })
+    .from(workoutItems)
+    .innerJoin(workoutCycles, eq(workoutItems.cycleId, workoutCycles.id))
+    .where(and(
+      eq(workoutCycles.memberId, userId),
+      eq(workoutCycles.isActive, true),
+      eq(workoutItems.isDeleted, false)
+    ));
+
+  const [activeCycle] = await db.select({
+    name: workoutCycles.name,
+    cycleLength: workoutCycles.cycleLength,
+    dayLabels: workoutCycles.dayLabels,
+    startDate: workoutCycles.startDate,
+    currentDayIndex: workoutCycles.currentDayIndex,
+    source: workoutCycles.source,
+  })
+    .from(workoutCycles)
+    .where(and(
+      eq(workoutCycles.memberId, userId),
+      eq(workoutCycles.isActive, true)
+    ))
+    .limit(1);
+
+  const uniqueDays = new Set(completions.map(c => c.completedDate));
+  const muscleGroups: Record<string, number> = {};
+  for (const item of items) {
+    muscleGroups[item.muscleType] = (muscleGroups[item.muscleType] || 0) + 1;
+  }
+
+  return {
+    completions,
+    items,
+    activeCycle,
+    workoutDaysCount: uniqueDays.size,
+    muscleGroups,
+    totalExercisesCompleted: completions.length,
+  };
+}
+
+async function getMemberNutritionData(userId: number, days: number = 7) {
+  const startDate = getDateStr(days);
+  const today = getDateStr();
+
+  const logs = await db.select()
+    .from(foodLogs)
+    .where(and(
+      eq(foodLogs.userId, userId),
+      gte(foodLogs.date, startDate),
+      lte(foodLogs.date, today)
+    ))
+    .orderBy(desc(foodLogs.date));
+
+  const [goal] = await db.select()
+    .from(calorieGoals)
+    .where(and(eq(calorieGoals.userId, userId), eq(calorieGoals.isActive, true)))
+    .limit(1);
+
+  const [userGoalsData] = await db.select()
+    .from(userGoals)
+    .where(eq(userGoals.userId, userId))
+    .limit(1);
+
+  const dailyTotals: Record<string, { calories: number; protein: number; carbs: number; fat: number; meals: number }> = {};
+  for (const log of logs) {
+    if (!dailyTotals[log.date]) {
+      dailyTotals[log.date] = { calories: 0, protein: 0, carbs: 0, fat: 0, meals: 0 };
+    }
+    dailyTotals[log.date].calories += log.calories;
+    dailyTotals[log.date].protein += log.protein || 0;
+    dailyTotals[log.date].carbs += log.carbs || 0;
+    dailyTotals[log.date].fat += log.fat || 0;
+    dailyTotals[log.date].meals += 1;
+  }
+
+  const daysLogged = Object.keys(dailyTotals).length;
+  const avgCalories = daysLogged > 0
+    ? Math.round(Object.values(dailyTotals).reduce((s, d) => s + d.calories, 0) / daysLogged)
+    : 0;
+  const avgProtein = daysLogged > 0
+    ? Math.round(Object.values(dailyTotals).reduce((s, d) => s + d.protein, 0) / daysLogged)
+    : 0;
+
+  const todayFoods = logs.filter(l => l.date === today).map(l => ({
+    name: l.foodName,
+    mealType: l.mealType,
+    calories: l.calories,
+    protein: l.protein || 0,
+  }));
+
+  return {
+    logs,
+    goal,
+    userGoals: userGoalsData,
+    dailyTotals,
+    daysLogged,
+    avgCalories,
+    avgProtein,
+    todayFoods,
+    calorieTarget: goal?.dailyCalorieTarget || userGoalsData?.dailyCalorieTarget || null,
+    proteinTarget: goal?.dailyProteinTarget || userGoalsData?.dailyProteinTarget || null,
+  };
+}
+
+async function getMemberProfile(userId: number) {
+  const [user] = await db.select({
+    username: users.username,
+    role: users.role,
+    gymId: users.gymId,
+    healthConnected: users.healthConnected,
+  })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  const [profile] = await db.select()
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, userId))
+    .limit(1);
+
+  const latestMeasurements = await db.select()
+    .from(bodyMeasurements)
+    .where(eq(bodyMeasurements.memberId, userId))
+    .orderBy(desc(bodyMeasurements.recordedDate))
+    .limit(2);
+
+  return { user, profile, latestMeasurements };
+}
+
+export async function generateWorkoutInsights(userId: number): Promise<{
+  coachNote: string;
+  stats: { workoutDays: number; totalExercises: number; topMuscle: string; consistency: string };
+  generatedAt: string;
+}> {
+  const workoutData = await getMemberWorkoutData(userId, 30);
+  const { user } = await getMemberProfile(userId);
+
+  const topMuscle = Object.entries(workoutData.muscleGroups)
+    .sort((a, b) => b[1] - a[1])[0];
+  const leastMuscle = Object.entries(workoutData.muscleGroups)
+    .sort((a, b) => a[1] - b[1])[0];
+
+  const consistency = workoutData.workoutDaysCount >= 16 ? "Excellent" :
+    workoutData.workoutDaysCount >= 12 ? "Good" :
+      workoutData.workoutDaysCount >= 8 ? "Fair" : "Needs improvement";
+
+  const recentExercises = workoutData.completions.slice(0, 20)
+    .map(c => `${c.exerciseName}: ${c.actualSets}x${c.actualReps} @ ${c.actualWeight || 'bodyweight'}`)
+    .join(", ");
+
+  const prompt = `Analyze this gym member's 30-day workout data and write a brief, friendly coach's note (3-4 sentences max).
+
+Member: ${user?.username || 'Member'}
+Workout days in last 30 days: ${workoutData.workoutDaysCount}
+Total exercises completed: ${workoutData.totalExercisesCompleted}
+Active cycle: ${workoutData.activeCycle?.name || 'None'}
+Cycle length: ${workoutData.activeCycle?.cycleLength || 'N/A'} days
+Muscle group distribution: ${Object.entries(workoutData.muscleGroups).map(([k, v]) => `${k}: ${v} exercises`).join(', ') || 'No data'}
+Most trained: ${topMuscle?.[0] || 'N/A'} (${topMuscle?.[1] || 0} exercises)
+Least trained: ${leastMuscle?.[0] || 'N/A'} (${leastMuscle?.[1] || 0} exercises)
+Recent exercises: ${recentExercises || 'No recent data'}
+Consistency rating: ${consistency}
+
+Write a coach's note that:
+1. Acknowledges what they're doing well
+2. Points out any muscle imbalances or gaps
+3. Gives one specific, actionable suggestion
+Keep it casual and encouraging. No bullet points, no headers. Just a natural paragraph like a coach talking to them.`;
+
+  const coachNote = await callGPT(
+    "You are a knowledgeable fitness coach writing brief progress notes for gym members. Be specific, data-driven, casual, and encouraging. Never use emojis.",
+    prompt
+  );
+
+  return {
+    coachNote,
+    stats: {
+      workoutDays: workoutData.workoutDaysCount,
+      totalExercises: workoutData.totalExercisesCompleted,
+      topMuscle: topMuscle?.[0] || "N/A",
+      consistency,
+    },
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export async function generateProgressSummary(userId: number): Promise<{
+  summary: string;
+  highlights: { label: string; value: string; trend: "up" | "down" | "stable" }[];
+  streaks: { currentStreak: number; longestStreak: number };
+  generatedAt: string;
+}> {
+  const workoutData = await getMemberWorkoutData(userId, 30);
+  const nutritionData = await getMemberNutritionData(userId, 30);
+  const { user, latestMeasurements } = await getMemberProfile(userId);
+
+  const prev30Data = await getMemberWorkoutData(userId, 60);
+  const prevWorkoutDays = prev30Data.workoutDaysCount - workoutData.workoutDaysCount;
+
+  const workoutDates = Array.from(
+    new Set(workoutData.completions.map(c => c.completedDate))
+  ).sort();
+  let currentStreak = 0;
+  let longestStreak = 0;
+  let tempStreak = 0;
+  const today = getDateStr();
+
+  for (let i = 0; i < 30; i++) {
+    const d = getDateStr(i);
+    if (workoutDates.includes(d)) {
+      tempStreak++;
+      if (i === 0 || (i > 0 && workoutDates.includes(getDateStr(i - 1)))) {
+        currentStreak = Math.max(currentStreak, tempStreak);
+      }
+      longestStreak = Math.max(longestStreak, tempStreak);
+    } else {
+      if (i === 0) currentStreak = 0;
+      tempStreak = 0;
+    }
+  }
+
+  const highlights: { label: string; value: string; trend: "up" | "down" | "stable" }[] = [
+    {
+      label: "Workout Days",
+      value: `${workoutData.workoutDaysCount}`,
+      trend: workoutData.workoutDaysCount > prevWorkoutDays ? "up" : workoutData.workoutDaysCount < prevWorkoutDays ? "down" : "stable",
+    },
+    {
+      label: "Exercises Done",
+      value: `${workoutData.totalExercisesCompleted}`,
+      trend: "stable",
+    },
+    {
+      label: "Avg Calories",
+      value: nutritionData.avgCalories > 0 ? `${nutritionData.avgCalories}` : "No data",
+      trend: "stable",
+    },
+    {
+      label: "Days Logged Food",
+      value: `${nutritionData.daysLogged}`,
+      trend: nutritionData.daysLogged >= 20 ? "up" : nutritionData.daysLogged >= 10 ? "stable" : "down",
+    },
+  ];
+
+  const weightChange = latestMeasurements.length >= 2
+    ? `Weight: ${latestMeasurements[0].weight}kg (was ${latestMeasurements[1].weight}kg)`
+    : latestMeasurements.length === 1 ? `Weight: ${latestMeasurements[0].weight}kg` : "No weight data";
+
+  const prompt = `Write a monthly fitness progress summary for this member (3-5 sentences).
+
+Member: ${user?.username || 'Member'}
+Last 30 days:
+- Workout days: ${workoutData.workoutDaysCount} (previous 30 days: ${prevWorkoutDays})
+- Total exercises completed: ${workoutData.totalExercisesCompleted}
+- Muscle focus: ${Object.entries(workoutData.muscleGroups).map(([k, v]) => `${k}(${v})`).join(', ') || 'No data'}
+- Nutrition: avg ${nutritionData.avgCalories} cal/day, avg ${nutritionData.avgProtein}g protein/day, logged ${nutritionData.daysLogged} days
+- Calorie target: ${nutritionData.calorieTarget || 'not set'}
+- Protein target: ${nutritionData.proteinTarget || 'not set'}g
+- ${weightChange}
+- Current workout streak: ${currentStreak} days
+- Goals: ${nutritionData.userGoals?.primaryGoal?.replace('_', ' ') || 'Not set'}
+
+Write a motivating but honest summary. Mention specific data points. Note what's improving and what needs attention. Keep it conversational like a friend summarizing their month.`;
+
+  const summary = await callGPT(
+    "You are a fitness coach writing a friendly monthly progress summary. Be specific and data-driven. Never use emojis. Keep it concise.",
+    prompt
+  );
+
+  return {
+    summary,
+    highlights,
+    streaks: { currentStreak, longestStreak },
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export async function generateWorkoutSuggestions(userId: number): Promise<{
+  suggestions: { title: string; reason: string; priority: "high" | "medium" | "low" }[];
+  generatedAt: string;
+}> {
+  const workoutData = await getMemberWorkoutData(userId, 30);
+  const { user, latestMeasurements } = await getMemberProfile(userId);
+
+  const [goalsData] = await db.select()
+    .from(userGoals)
+    .where(eq(userGoals.userId, userId))
+    .limit(1);
+
+  const prompt = `Based on this member's workout data, suggest 3 specific things to focus on next. Return as JSON array.
+
+Member: ${user?.username || 'Member'}
+Active cycle: ${workoutData.activeCycle?.name || 'None'}
+Workout days (30d): ${workoutData.workoutDaysCount}
+Muscle distribution: ${Object.entries(workoutData.muscleGroups).map(([k, v]) => `${k}: ${v}`).join(', ') || 'No exercises'}
+Primary goal: ${goalsData?.primaryGoal?.replace('_', ' ') || 'Not set'}
+Target weight: ${goalsData?.targetWeight || 'Not set'}
+Weekly workout target: ${goalsData?.weeklyWorkoutDays || 'Not set'} days
+Weight: ${latestMeasurements[0]?.weight ? `${latestMeasurements[0].weight}kg` : 'Unknown'}
+Recent exercises (last 10): ${workoutData.completions.slice(0, 10).map(c => c.exerciseName).join(', ') || 'None'}
+
+Return ONLY a JSON array of exactly 3 objects with these fields:
+- title: short action title (5-8 words)
+- reason: 1-2 sentence explanation why, referencing their data
+- priority: "high", "medium", or "low"
+
+Focus on: muscle imbalances, consistency gaps, progressive overload opportunities, variety, and alignment with their goals.`;
+
+  const raw = await callGPT(
+    "You are a fitness expert. Return ONLY valid JSON array. No markdown, no explanation.",
+    prompt
+  );
+
+  let suggestions: { title: string; reason: string; priority: "high" | "medium" | "low" }[] = [];
+  try {
+    const cleaned = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    suggestions = JSON.parse(cleaned);
+    if (!Array.isArray(suggestions)) suggestions = [];
+  } catch {
+    suggestions = [
+      { title: "Keep up your current routine", reason: "Your data shows steady progress. Stay consistent with your current plan.", priority: "medium" },
+    ];
+  }
+
+  return {
+    suggestions: suggestions.slice(0, 3),
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export async function generateNutritionCoaching(userId: number): Promise<{
+  advice: string;
+  quickTips: string[];
+  macroAnalysis: { avgCalories: number; avgProtein: number; daysLogged: number; calorieTarget: number | null; proteinTarget: number | null };
+  generatedAt: string;
+}> {
+  const nutritionData = await getMemberNutritionData(userId, 7);
+  const { user } = await getMemberProfile(userId);
+
+  const recentFoods = nutritionData.logs.slice(0, 30)
+    .map(l => `${l.foodName} (${l.calories}cal, ${l.protein || 0}g P)`)
+    .join(", ");
+
+  const dailyBreakdown = Object.entries(nutritionData.dailyTotals)
+    .slice(0, 5)
+    .map(([date, d]) => `${date}: ${d.calories}cal, ${d.protein}g P, ${d.carbs}g C, ${d.fat}g F (${d.meals} items)`)
+    .join('\n');
+
+  const prompt = `Analyze this member's recent nutrition and give brief, actionable coaching (3-4 sentences) plus 3 quick tips.
+
+Member: ${user?.username || 'Member'}
+Last 7 days nutrition:
+${dailyBreakdown || 'No food logged recently'}
+
+Calorie target: ${nutritionData.calorieTarget || 'Not set'}
+Protein target: ${nutritionData.proteinTarget || 'Not set'}g
+Goal: ${nutritionData.userGoals?.primaryGoal?.replace('_', ' ') || 'Not set'}
+Avg calories/day: ${nutritionData.avgCalories}
+Avg protein/day: ${nutritionData.avgProtein}g
+Days logged: ${nutritionData.daysLogged}/7
+Recent foods: ${recentFoods || 'None'}
+
+Return JSON with:
+- advice: 3-4 sentence coaching paragraph (casual, specific, reference actual foods they ate)
+- quickTips: array of 3 short tips (each 5-10 words)
+
+Be specific about their actual food choices. If they're not logging, encourage them to start. Reference their targets if set.`;
+
+  const raw = await callGPT(
+    "You are a nutrition coach. Return ONLY valid JSON with 'advice' (string) and 'quickTips' (string array). No markdown.",
+    prompt
+  );
+
+  let advice = "Start logging your meals to get personalized nutrition insights. Even tracking a few days gives us useful patterns to work with.";
+  let quickTips = ["Log meals consistently", "Aim for protein at every meal", "Stay hydrated throughout the day"];
+
+  try {
+    const cleaned = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    if (parsed.advice) advice = parsed.advice;
+    if (Array.isArray(parsed.quickTips)) quickTips = parsed.quickTips.slice(0, 3);
+  } catch {
+  }
+
+  return {
+    advice,
+    quickTips,
+    macroAnalysis: {
+      avgCalories: nutritionData.avgCalories,
+      avgProtein: nutritionData.avgProtein,
+      daysLogged: nutritionData.daysLogged,
+      calorieTarget: nutritionData.calorieTarget,
+      proteinTarget: nutritionData.proteinTarget,
+    },
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export async function generateProactiveNudges(userId: number, localDate?: string): Promise<{
+  nudges: { id: string; message: string; type: "workout" | "nutrition" | "streak" | "goal" | "health"; action?: string; link?: string }[];
+  generatedAt: string;
+}> {
+  const today = localDate || getDateStr();
+  const nudges: { id: string; message: string; type: "workout" | "nutrition" | "streak" | "goal" | "health"; action?: string; link?: string }[] = [];
+
+  const todayFoodCount = await db.select({ count: sql<number>`count(*)` })
+    .from(foodLogs)
+    .where(and(eq(foodLogs.userId, userId), eq(foodLogs.date, today)));
+
+  if ((todayFoodCount[0]?.count || 0) === 0) {
+    const hour = new Date().getHours();
+    if (hour >= 10) {
+      nudges.push({
+        id: "no_food_today",
+        message: "You haven't logged any meals today. Tracking helps you stay on target!",
+        type: "nutrition",
+        action: "Log a meal",
+        link: "/nutrition",
+      });
+    }
+  }
+
+  const todayWater = await db.select({ total: sql<number>`COALESCE(SUM(${waterLogs.amountOz}), 0)` })
+    .from(waterLogs)
+    .where(and(eq(waterLogs.userId, userId), eq(waterLogs.date, today)));
+
+  if ((todayWater[0]?.total || 0) < 16) {
+    nudges.push({
+      id: "low_water",
+      message: `Only ${todayWater[0]?.total || 0}oz water today. Your body needs hydration to perform!`,
+      type: "health",
+      action: "Log water",
+      link: "/nutrition",
+    });
+  }
+
+  const weekStart = getDateStr(7);
+  const weekWorkouts = await db.select({ count: sql<number>`count(distinct ${workoutCompletions.completedDate})` })
+    .from(workoutCompletions)
+    .where(and(
+      eq(workoutCompletions.memberId, userId),
+      gte(workoutCompletions.completedDate, weekStart),
+      lte(workoutCompletions.completedDate, today)
+    ));
+
+  const workoutsThisWeek = weekWorkouts[0]?.count || 0;
+
+  const [goalsData] = await db.select()
+    .from(userGoals)
+    .where(eq(userGoals.userId, userId))
+    .limit(1);
+
+  if (goalsData?.weeklyWorkoutDays && workoutsThisWeek < goalsData.weeklyWorkoutDays) {
+    const dayOfWeek = new Date().getDay();
+    const daysLeft = 7 - dayOfWeek;
+    const needed = goalsData.weeklyWorkoutDays - workoutsThisWeek;
+    if (needed <= daysLeft) {
+      nudges.push({
+        id: "workout_goal_gap",
+        message: `${workoutsThisWeek}/${goalsData.weeklyWorkoutDays} workouts this week. ${needed} more to hit your goal — you've got ${daysLeft} days left!`,
+        type: "workout",
+        link: "/workouts",
+      });
+    }
+  }
+
+  let consecutiveDays = 0;
+  for (let i = 1; i <= 30; i++) {
+    const d = getDateStr(i);
+    const [check] = await db.select({ count: sql<number>`count(*)` })
+      .from(workoutCompletions)
+      .where(and(
+        eq(workoutCompletions.memberId, userId),
+        eq(workoutCompletions.completedDate, d)
+      ));
+    if ((check?.count || 0) > 0) {
+      consecutiveDays++;
+    } else {
+      break;
+    }
+  }
+
+  const [todayCheck] = await db.select({ count: sql<number>`count(*)` })
+    .from(workoutCompletions)
+    .where(and(
+      eq(workoutCompletions.memberId, userId),
+      eq(workoutCompletions.completedDate, today)
+    ));
+
+  if ((todayCheck?.count || 0) > 0) {
+    consecutiveDays++;
+  }
+
+  if (consecutiveDays >= 3) {
+    nudges.push({
+      id: "workout_streak",
+      message: `${consecutiveDays}-day workout streak! Keep the momentum going!`,
+      type: "streak",
+      link: "/workouts",
+    });
+  }
+
+  if (!goalsData) {
+    nudges.push({
+      id: "set_goals",
+      message: "Set your fitness goals to get personalized insights and track your progress.",
+      type: "goal",
+      action: "Set goals",
+      link: "/goals",
+    });
+  }
+
+  const nutritionData = await getMemberNutritionData(userId, 1);
+  if (nutritionData.todayFoods.length > 0 && nutritionData.proteinTarget) {
+    const todayProtein = nutritionData.todayFoods.reduce((s, f) => s + f.protein, 0);
+    if (todayProtein < nutritionData.proteinTarget * 0.5) {
+      nudges.push({
+        id: "low_protein",
+        message: `Only ${todayProtein}g protein so far today (target: ${nutritionData.proteinTarget}g). Add a protein-rich meal!`,
+        type: "nutrition",
+        link: "/nutrition",
+      });
+    }
+  }
+
+  return {
+    nudges: nudges.slice(0, 4),
+    generatedAt: new Date().toISOString(),
+  };
+}
