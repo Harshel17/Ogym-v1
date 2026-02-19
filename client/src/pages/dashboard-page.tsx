@@ -18,7 +18,6 @@ import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgre
 import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
 import { FeatureDiscoveryTips } from "@/components/feature-discovery-tips";
-import { PerformanceIntelligenceCard } from "@/components/performance-intelligence-card";
 import { GoalsNudge } from "@/components/goals-nudge";
 import { useHealthStatus, useHealthDataToday } from "@/hooks/use-health-data";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
@@ -680,7 +679,6 @@ function OwnerDashboard() {
 
   return (
     <div className="space-y-3">
-      <PerformanceIntelligenceCard />
       {ownerInsights?.todayPriority && !isIOSNativeApp && (
         <Card className="border-primary/30 bg-primary/5" data-testid="card-owner-today-priority">
           <CardContent className="p-3">
@@ -945,7 +943,6 @@ function TrainerDashboard() {
 
   return (
     <div className="space-y-3">
-      <PerformanceIntelligenceCard />
       <div className="grid gap-2.5 md:grid-cols-3">
         <StatCard 
           title="My Members" 
@@ -2799,8 +2796,6 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
 
       {/* AI Coach */}
       <AiCoachHub />
-
-      <PerformanceIntelligenceCard />
 
       <GoalsNudge />
 

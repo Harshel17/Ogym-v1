@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Brain, TrendingUp, TrendingDown, Minus, Dumbbell, Utensils, Target,
   Droplets, Flame, ArrowRight, Loader2, RefreshCw, Lightbulb, Sparkles,
-  Activity, Zap, ChevronRight, X,
+  Activity, Zap, ChevronRight, X, MessageCircle,
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 function TrendIcon({ trend }: { trend: "up" | "down" | "stable" }) {
   if (trend === "up") return <TrendingUp className="w-3.5 h-3.5 text-green-500" />;
@@ -97,6 +97,7 @@ const tabConfig: { id: CoachTab; label: string; icon: typeof Activity }[] = [
 
 export function AiCoachHub() {
   const [activeTab, setActiveTab] = useState<CoachTab>("progress");
+  const [, setLocation] = useLocation();
 
   const progress = useQuery<{
     summary: string;
@@ -253,9 +254,23 @@ export function AiCoachHub() {
         )}
 
         {hasData && !isGenerating && (
-          <p className="text-[10px] text-muted-foreground mt-3 text-right">
-            Updated {new Date(String(hasData.generatedAt || "")).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </p>
+          <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-[10px] text-muted-foreground">
+              Updated {new Date(String(hasData.generatedAt || "")).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-primary"
+              onClick={() => {
+                const prompt = encodeURIComponent("Tell me more about my recent fitness progress and what I should focus on this week");
+                setLocation(`/dika?prompt=${prompt}`);
+              }}
+              data-testid="button-ask-dika-coach"
+            >
+              <MessageCircle className="w-3 h-3 mr-1" /> Ask Dika
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
