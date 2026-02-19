@@ -2794,11 +2794,11 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
         <HealthActivityDashboard />
       </div>
 
-      {/* AI Coach */}
-      <AiCoachHub />
-
       {/* Calendar */}
       <MemberCalendarWidget />
+
+      {/* AI Coach */}
+      <AiCoachHub />
 
       <PerformanceIntelligenceCard />
 
