@@ -481,7 +481,7 @@ function detectPendingActionFromHistory(
   for (const msg of recentMessages) {
     if (msg.role === 'user') {
       const action = detectOwnerAction(msg.content);
-      if (action && action !== 'navigate') {
+      if (action && action !== 'navigate' && action !== 'member_lookup') {
         const laterAssistantMsgs = recentMessages.slice(recentMessages.indexOf(msg) + 1).filter(m => m.role === 'assistant');
         const hasConfirmation = laterAssistantMsgs.some(m => m.content.includes('DIKA_ACTION_DATA') && m.content.includes('pending_confirmation'));
         if (!hasConfirmation) {

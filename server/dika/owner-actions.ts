@@ -172,6 +172,20 @@ function detectSupportTicketState(
 }
 
 export function extractMemberNameFromLookup(message: string): string | null {
+  const lower = message.toLowerCase().trim();
+  const generalPhrases = [
+    /^what\s+(should|do|can)\s+i\s+do/i,
+    /^what('s| is)\s+my\s+(priority|focus|to.?do|task|action|plan)/i,
+    /^(give|show)\s+me\s+(a\s+)?(to.?do|action|task|priority)/i,
+    /^(anything|what('s| is))\s+(urgent|important|critical|pending)/i,
+    /^what\s+(needs|requires)\s+my\s+attention/i,
+    /^how\s+(is|are|has)\s+(the\s+)?(gym|business|things?|everything|it)\s+(doing|going|been)/i,
+    /^how('s| is)\s+(the\s+)?(gym|business|things?|everything)\b/i,
+    /^what\s+should\s+i\s+(focus|prioritize|work)\s+on/i,
+    /^(my|today('s)?)\s+(priority|focus|tasks?|to.?do)/i,
+  ];
+  if (generalPhrases.some(p => p.test(lower))) return null;
+
   for (const pattern of MEMBER_LOOKUP_PATTERNS) {
     const match = message.match(pattern);
     if (match) {
@@ -179,12 +193,23 @@ export function extractMemberNameFromLookup(message: string): string | null {
         .replace(/^(a |the |my |our )/i, '')
         .replace(/\?$/, '')
         .trim();
-      if (name.length >= 2 && !isPageKeyword(name)) {
+      if (name.length >= 2 && !isPageKeyword(name) && !isGenericPhrase(name)) {
         return name;
       }
     }
   }
   return null;
+}
+
+function isGenericPhrase(name: string): boolean {
+  const genericWords = [
+    'gym doing', 'gym going', 'business doing', 'business going',
+    'things doing', 'things going', 'everything doing', 'everything going',
+    'it doing', 'it going', 'today', 'priority', 'focus', 'urgent',
+    'to do list', 'todo list', 'action list', 'task list',
+  ];
+  const lower = name.toLowerCase();
+  return genericWords.some(w => lower === w || lower.startsWith(w));
 }
 
 function isPageKeyword(name: string): boolean {
