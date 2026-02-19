@@ -7015,6 +7015,61 @@ Return ONLY JSON.`
   app.get("/api/owner/ai-insights/:date", requireRole(["owner"]), async (req, res) => {
     const clientDate = req.params.date || getLocalDate(req);
     const insights = await storage.getAiInsights(req.user!.gymId!, clientDate);
+
+    try {
+      const { generateChurnExplanations, generateAiInsightOfTheDay } = await import('./dika/owner-ai-engine');
+
+      const churnDataForAi = insights.churnRisk.members.slice(0, 8).map(m => {
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        return {
+          name: m.name,
+          daysAbsent: m.daysAbsent,
+          churnScore: m.churnScore,
+          factors: m.factors,
+          predictedChurnWindow: m.predictedChurnWindow,
+          recentVisitCount14d: Math.round(m.factors.attendance < 40 ? (14 - m.daysAbsent) : m.factors.attendance / 10),
+          prevVisitCount14d: Math.round(m.factors.trend > 50 ? 6 : 3),
+          hasOverduePayments: m.factors.payment > 30,
+          memberAgeDays: m.factors.age > 60 ? 30 : m.factors.age > 40 ? 90 : 180,
+          preferredDay: m.recommendation?.match(/on (\w+)s/)?.[1],
+        };
+      });
+
+      const [explanations, aiInsight] = await Promise.all([
+        churnDataForAi.length > 0 ? generateChurnExplanations(churnDataForAi) : Promise.resolve(new Map()),
+        generateAiInsightOfTheDay({
+          totalMembers: insights.memberInsights.totalActive + insights.memberInsights.atRiskCount,
+          activeMembers: insights.memberInsights.totalActive,
+          newThisMonth: insights.memberInsights.newThisMonth,
+          atRiskCount: insights.memberInsights.atRiskCount,
+          attendanceTrend: insights.attendancePatterns.trend,
+          trendPercent: insights.attendancePatterns.trendPercent,
+          avgDailyAttendance: insights.attendancePatterns.averageDaily,
+          busiestDay: insights.attendancePatterns.busiestDays[0]?.day || 'N/A',
+          quietestDay: insights.attendancePatterns.busiestDays[insights.attendancePatterns.busiestDays.length - 1]?.day || 'N/A',
+          revenueThisMonth: insights.monthComparison?.revenue?.current || 0,
+          revenuePrevMonth: insights.monthComparison?.revenue?.previous || 0,
+          weeklyAttendance: insights.weeklyTrends?.weeks?.map(w => w.attendance) || [],
+          highRiskMembers: insights.churnRisk.members.filter(m => m.riskLevel === 'high').length,
+          neverVisitedNewMembers: insights.followUpReminders.items.filter(i => i.type === 'new_member').length,
+          interventionSuccessRate: insights.interventionStats?.successRate || 0,
+        }),
+      ]);
+
+      for (let i = 0; i < Math.min(8, insights.churnRisk.members.length); i++) {
+        const explanation = explanations.get(i);
+        if (explanation) {
+          insights.churnRisk.members[i].recommendation = explanation;
+        }
+      }
+
+      if (aiInsight) {
+        insights.insightOfTheDay = aiInsight;
+      }
+    } catch (err) {
+      console.error("AI enrichment error (non-fatal):", err);
+    }
+
     res.json(insights);
   });
 
@@ -7147,6 +7202,40 @@ Write a short, personal message. No subject line, just the message body. Use the
       }
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to send email" });
+    }
+  });
+
+  // === AI-POWERED OWNER INSIGHTS ===
+  app.get("/api/owner/ai/weekly-briefing", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { generateWeeklyOwnerBriefing } = await import('./dika/owner-ai-engine');
+      const clientDate = (req.query.clientDate as string) || getLocalDate(req);
+      const briefing = await generateWeeklyOwnerBriefing(req.user!.gymId!, clientDate);
+      res.json(briefing);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to generate weekly briefing" });
+    }
+  });
+
+  app.get("/api/owner/ai/trainer-performance", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { generateTrainerPerformanceSummary } = await import('./dika/owner-ai-engine');
+      const clientDate = (req.query.clientDate as string) || getLocalDate(req);
+      const summary = await generateTrainerPerformanceSummary(req.user!.gymId!, clientDate);
+      res.json(summary);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to generate trainer performance" });
+    }
+  });
+
+  app.get("/api/owner/ai/reengagement", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { generateReengagementCampaign } = await import('./dika/owner-ai-engine');
+      const clientDate = (req.query.clientDate as string) || getLocalDate(req);
+      const campaign = await generateReengagementCampaign(req.user!.gymId!, clientDate);
+      res.json(campaign);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to generate re-engagement campaign" });
     }
   });
 

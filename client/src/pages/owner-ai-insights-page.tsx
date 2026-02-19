@@ -37,7 +37,12 @@ import {
   HandHeart,
   Wand2,
   Loader2,
-  History
+  History,
+  FileText,
+  GraduationCap,
+  Megaphone,
+  RefreshCw,
+  UserCheck,
 } from "lucide-react";
 import { Link } from "wouter";
 import { Progress } from "@/components/ui/progress";
@@ -847,6 +852,287 @@ export default function OwnerAiInsightsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <WeeklyBriefingSection />
+      <TrainerPerformanceSection />
+      <ReengagementSection />
     </div>
+  );
+}
+
+function WeeklyBriefingSection() {
+  const clientDate = new Date().toISOString().split('T')[0];
+  const { data: briefing, isLoading, refetch, isFetching } = useQuery<{
+    summary: string;
+    priorities: string[];
+    highlights: { label: string; value: string; trend: 'up' | 'down' | 'stable' }[];
+    memberAlerts: { name: string; reason: string }[];
+    generatedAt: string;
+  }>({
+    queryKey: [`/api/owner/ai/weekly-briefing?clientDate=${clientDate}`],
+    staleTime: 1000 * 60 * 30,
+  });
+
+  return (
+    <Card data-testid="card-weekly-briefing">
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-5 w-5 text-violet-500" />
+              AI Weekly Briefing
+            </CardTitle>
+            <CardDescription>GPT-generated summary of your gym's week</CardDescription>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            data-testid="button-refresh-briefing"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isFetching ? 'animate-spin' : ''}`} />
+            {isFetching ? 'Generating...' : 'Refresh'}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        ) : briefing ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {briefing.highlights.map((h, i) => (
+                <div key={i} className="text-center p-3 rounded-lg bg-muted/50">
+                  <p className="text-xs text-muted-foreground">{h.label}</p>
+                  <p className="text-lg font-bold">{h.value}</p>
+                  <span className={`text-[10px] ${h.trend === 'up' ? 'text-green-600 dark:text-green-400' : h.trend === 'down' ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
+                    {h.trend === 'up' ? 'Trending up' : h.trend === 'down' ? 'Needs attention' : 'Stable'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 rounded-lg bg-violet-50/50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900">
+              <p className="text-sm leading-relaxed" data-testid="text-briefing-summary">{briefing.summary}</p>
+            </div>
+
+            {briefing.priorities.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">This Week's Priorities</p>
+                <div className="space-y-2">
+                  {briefing.priorities.map((p, i) => (
+                    <div key={i} className="flex items-start gap-2 p-2 rounded-md bg-muted/30">
+                      <Badge variant="secondary" className="text-[10px] mt-0.5 flex-shrink-0">{i + 1}</Badge>
+                      <p className="text-sm" data-testid={`text-priority-${i}`}>{p}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {briefing.memberAlerts.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Member Alerts</p>
+                <div className="space-y-1.5">
+                  {briefing.memberAlerts.map((a, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm">
+                      <AlertTriangle className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
+                      <span className="font-medium">{a.name}</span>
+                      <span className="text-muted-foreground">— {a.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p className="text-[10px] text-muted-foreground text-right">
+              Generated {new Date(briefing.generatedAt).toLocaleString()}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">Unable to generate briefing</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TrainerPerformanceSection() {
+  const clientDate = new Date().toISOString().split('T')[0];
+  const { data, isLoading } = useQuery<{
+    trainers: { id: number; name: string; memberCount: number; avgAttendance: number; atRiskMembers: number; topPerformer: string | null; aiSummary: string }[];
+    generatedAt: string;
+  }>({
+    queryKey: [`/api/owner/ai/trainer-performance?clientDate=${clientDate}`],
+    staleTime: 1000 * 60 * 30,
+  });
+
+  if (isLoading) {
+    return (
+      <Card data-testid="card-trainer-performance">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <GraduationCap className="h-5 w-5 text-teal-500" />
+            AI Trainer Performance
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data || data.trainers.length === 0) return null;
+
+  return (
+    <Card data-testid="card-trainer-performance">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <GraduationCap className="h-5 w-5 text-teal-500" />
+          AI Trainer Performance
+        </CardTitle>
+        <CardDescription>How each trainer's members are doing (30-day analysis)</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {data.trainers.map((trainer) => (
+            <div key={trainer.id} className="p-4 rounded-lg bg-muted/50" data-testid={`trainer-card-${trainer.id}`}>
+              <div className="flex items-start justify-between gap-2 flex-wrap">
+                <div>
+                  <p className="font-medium text-sm">{trainer.name}</p>
+                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    <span className="text-xs text-muted-foreground">{trainer.memberCount} members</span>
+                    <span className="text-xs text-muted-foreground">Avg {trainer.avgAttendance} visits/mo</span>
+                    {trainer.atRiskMembers > 0 && (
+                      <Badge variant="destructive" className="text-[10px]">{trainer.atRiskMembers} at risk</Badge>
+                    )}
+                    {trainer.topPerformer && (
+                      <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-0.5">
+                        <UserCheck className="h-3 w-3" /> Top: {trainer.topPerformer}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2 p-2.5 rounded-md bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/50 dark:border-teal-900/50">
+                <div className="flex items-start gap-1.5">
+                  <Brain className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-teal-800 dark:text-teal-200 leading-relaxed" data-testid={`text-trainer-summary-${trainer.id}`}>{trainer.aiSummary}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground text-right mt-3">
+          Generated {new Date(data.generatedAt).toLocaleString()}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReengagementSection() {
+  const clientDate = new Date().toISOString().split('T')[0];
+  const { data, isLoading } = useQuery<{
+    expiredMembers: { id: number; name: string; lastVisit: string | null; daysSinceExpiry: number; suggestedAction: string }[];
+    campaignIdea: string;
+    generatedAt: string;
+  }>({
+    queryKey: [`/api/owner/ai/reengagement?clientDate=${clientDate}`],
+    staleTime: 1000 * 60 * 30,
+  });
+
+  if (isLoading) {
+    return (
+      <Card data-testid="card-reengagement">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Megaphone className="h-5 w-5 text-amber-500" />
+            AI Re-engagement Campaigns
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data || data.expiredMembers.length === 0) {
+    return (
+      <Card data-testid="card-reengagement">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Megaphone className="h-5 w-5 text-amber-500" />
+            AI Re-engagement Campaigns
+          </CardTitle>
+          <CardDescription>Smart strategies to bring back expired members</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground text-center py-4">No expired members in the last 60 days — great retention!</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card data-testid="card-reengagement">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Megaphone className="h-5 w-5 text-amber-500" />
+          AI Re-engagement Campaigns
+        </CardTitle>
+        <CardDescription>{data.expiredMembers.length} expired members in the last 60 days</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="p-4 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
+          <div className="flex items-start gap-2">
+            <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-amber-800 dark:text-amber-200 uppercase tracking-wider mb-1">Campaign Idea</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300" data-testid="text-campaign-idea">{data.campaignIdea}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {data.expiredMembers.slice(0, 8).map((member) => (
+            <div key={member.id} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-muted/50" data-testid={`reengagement-member-${member.id}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-medium text-sm">{member.name}</p>
+                  <Badge variant="outline" className="text-[10px]">Expired {member.daysSinceExpiry}d ago</Badge>
+                </div>
+                <div className="flex items-start gap-1.5 mt-1.5">
+                  <Brain className="h-3 w-3 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-[11px] text-muted-foreground leading-tight">{member.suggestedAction}</p>
+                </div>
+              </div>
+              <Link href={`/owner/members/${member.id}`}>
+                <Button size="sm" variant="outline" data-testid={`button-view-expired-${member.id}`}>
+                  View
+                </Button>
+              </Link>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-[10px] text-muted-foreground text-right">
+          Generated {new Date(data.generatedAt).toLocaleString()}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
