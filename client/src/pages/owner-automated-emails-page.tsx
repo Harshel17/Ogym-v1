@@ -105,7 +105,7 @@ export default function OwnerAutomatedEmailsPage() {
   return (
     <div className="space-y-6 pb-24">
       <div className="flex items-center gap-4">
-        <Link href="/owner/settings">
+        <Link href="/">
           <Button variant="ghost" size="icon" data-testid="button-back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
