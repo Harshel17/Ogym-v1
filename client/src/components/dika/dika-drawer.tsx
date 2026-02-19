@@ -1185,7 +1185,7 @@ export function DikaDrawer({
               </div>
             </div>
             <div className="flex items-center gap-1">
-              {isNative() && isIOS() && (
+              {isNative() && isIOS() && user?.role !== 'owner' && (
                 <Button
                   variant="ghost"
                   size="icon"
