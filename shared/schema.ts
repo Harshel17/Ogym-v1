@@ -945,6 +945,7 @@ export const dikaChatMessages = pgTable("dika_chat_messages", {
   content: text("content").notNull(),
   followUpChips: jsonb("follow_up_chips"),
   metadata: jsonb("metadata"),
+  source: text("source").default("text"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   chatIdx: index("dika_chat_messages_chat_idx").on(table.chatId),
