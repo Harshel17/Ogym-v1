@@ -86,6 +86,16 @@ type ExerciseAnalytics = {
   pr: { maxWeight: number | null; maxReps: number | null; bestEst1rm: number | null; bestVolumeDate: string | null };
 };
 
+type CardioStats = {
+  totalMinutes: number;
+  totalSessions: number;
+  uniqueDays: number;
+  avgMinPerSession: number;
+  breakdown: { name: string; sessions: number; totalMinutes: number; percentage: number }[];
+  weeklyTrend: { week: string; minutes: number; sessions: number }[];
+  favoriteExercise: string | null;
+};
+
 type AnalyticsExplanation = {
   explanations: {
     metric: string;
@@ -157,6 +167,10 @@ export default function StatsPage() {
 
   const { data: consistencyStats } = useQuery<ConsistencyStats>({
     queryKey: ["/api/me/stats/consistency"],
+  });
+
+  const { data: cardioStats } = useQuery<CardioStats>({
+    queryKey: ["/api/me/stats/cardio"],
   });
 
   const { data: progressSummary } = useQuery<PerSetProgressSummary>({
@@ -851,6 +865,84 @@ export default function StatsPage() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {cardioStats && cardioStats.totalSessions > 0 && (
+            <Card data-testid="card-cardio-stats">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-rose-500" />
+                  Cardio Overview (Last 30 Days)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {cardioStats.favoriteExercise && (
+                    <div className="flex items-center gap-2 flex-wrap" data-testid="cardio-favorite">
+                      <span className="text-sm text-muted-foreground">Favorite:</span>
+                      <Badge variant="secondary" data-testid="text-cardio-favorite-exercise">{cardioStats.favoriteExercise}</Badge>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div className="text-center p-3 rounded-md bg-rose-500/5 border border-rose-500/10" data-testid="stat-cardio-total-minutes">
+                      <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{cardioStats.totalMinutes}</p>
+                      <p className="text-xs text-muted-foreground">Total Minutes</p>
+                    </div>
+                    <div className="text-center p-3 rounded-md bg-rose-500/5 border border-rose-500/10" data-testid="stat-cardio-sessions">
+                      <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{cardioStats.totalSessions}</p>
+                      <p className="text-xs text-muted-foreground">Sessions</p>
+                    </div>
+                    <div className="text-center p-3 rounded-md bg-rose-500/5 border border-rose-500/10" data-testid="stat-cardio-avg-min">
+                      <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{cardioStats.avgMinPerSession}</p>
+                      <p className="text-xs text-muted-foreground">Avg Min/Session</p>
+                    </div>
+                    <div className="text-center p-3 rounded-md bg-rose-500/5 border border-rose-500/10" data-testid="stat-cardio-active-days">
+                      <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{cardioStats.uniqueDays}</p>
+                      <p className="text-xs text-muted-foreground">Active Days</p>
+                    </div>
+                  </div>
+
+                  {cardioStats.breakdown.length > 0 && (
+                    <div data-testid="section-cardio-breakdown">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Exercise Breakdown</p>
+                      <div className="space-y-2">
+                        {cardioStats.breakdown.map((item) => (
+                          <div key={item.name} className="flex items-center gap-3 flex-wrap" data-testid={`cardio-breakdown-${item.name}`}>
+                            <span className="text-sm font-medium w-24 truncate">{item.name}</span>
+                            <div className="flex-1">
+                              <Progress value={item.percentage} className="h-2" />
+                            </div>
+                            <span className="text-xs text-muted-foreground w-20 text-right">{item.sessions}x / {item.totalMinutes}min</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {cardioStats.weeklyTrend.some(w => w.minutes > 0) && (
+                    <div data-testid="section-cardio-trend">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Weekly Cardio Trend</p>
+                      <div className="h-32">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={cardioStats.weeklyTrend}>
+                            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                            <XAxis dataKey="week" tick={{ fontSize: 11 }} />
+                            <YAxis tick={{ fontSize: 11 }} />
+                            <Tooltip
+                              formatter={(value: number, name: string) => [
+                                name === 'minutes' ? `${value} min` : `${value}`,
+                                name === 'minutes' ? 'Minutes' : 'Sessions'
+                              ]}
+                            />
+                            <Bar dataKey="minutes" fill="#f43f5e" radius={[4, 4, 0, 0]} name="minutes" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

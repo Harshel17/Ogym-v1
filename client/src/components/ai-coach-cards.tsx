@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Brain, TrendingUp, TrendingDown, Minus, Dumbbell, Utensils, Target,
   Droplets, Flame, ArrowRight, Loader2, RefreshCw, Lightbulb, Sparkles,
-  Activity, Zap, ChevronRight, X, MessageCircle, ChevronDown, ChevronUp, BarChart3,
+  Activity, Zap, ChevronRight, X, MessageCircle, ChevronDown, ChevronUp, BarChart3, Heart,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link, useLocation } from "wouter";
@@ -115,7 +115,7 @@ export function AiCoachHub() {
 
   const workouts = useQuery<{
     coachNote: string;
-    stats: { workoutDays: number; totalExercises: number; topMuscle: string; consistency: string };
+    stats: { workoutDays: number; totalExercises: number; topMuscle: string; consistency: string; cardioMinutes: number; cardioSessions: number; favoriteCardio: string | null };
     generatedAt: string;
   }>({
     queryKey: ["/api/member/ai/workout-insights"],
@@ -333,7 +333,7 @@ function ProgressContent({ data }: {
 function WorkoutsContent({ data }: {
   data: {
     coachNote: string;
-    stats: { workoutDays: number; totalExercises: number; topMuscle: string; consistency: string };
+    stats: { workoutDays: number; totalExercises: number; topMuscle: string; consistency: string; cardioMinutes?: number; cardioSessions?: number; favoriteCardio?: string | null };
   };
 }) {
   const consistencyColor = data.stats.consistency === "Excellent"
@@ -341,6 +341,8 @@ function WorkoutsContent({ data }: {
     : data.stats.consistency === "Good"
       ? "text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/15"
       : "text-orange-600 dark:text-orange-400 bg-orange-500/10 border-orange-500/15";
+
+  const hasCardioData = (data.stats.cardioMinutes || 0) > 0 || (data.stats.cardioSessions || 0) > 0;
 
   return (
     <div className="space-y-3" data-testid="content-workouts">
@@ -369,6 +371,19 @@ function WorkoutsContent({ data }: {
           {data.stats.consistency}
         </Badge>
       </div>
+
+      {hasCardioData && (
+        <div className="flex items-center gap-3 px-3 py-2 rounded-md bg-rose-500/5 border border-rose-500/10" data-testid="cardio-stats-row">
+          <Heart className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
+          <div className="flex items-center gap-3 text-xs flex-wrap">
+            <span className="font-medium">{data.stats.cardioMinutes} min cardio</span>
+            <span className="text-muted-foreground">{data.stats.cardioSessions} sessions</span>
+            {data.stats.favoriteCardio && (
+              <span className="text-muted-foreground">Fav: {data.stats.favoriteCardio}</span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="relative pl-3 border-l-2 border-violet-500/30">
         <p className="text-sm text-foreground leading-relaxed" data-testid="text-coach-note">{data.coachNote}</p>

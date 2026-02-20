@@ -4782,6 +4782,79 @@ Return ONLY JSON.`
     res.json(stats);
   });
 
+  app.get("/api/me/stats/cardio", requireRole(["member"]), async (req, res) => {
+    const days = parseInt(req.query.days as string) || 30;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const startStr = startDate.toISOString().split("T")[0];
+    const todayStr = getLocalDate(req);
+
+    const cardioCompletions = await db.select({
+      completedDate: workoutCompletions.completedDate,
+      exerciseName: workoutCompletions.exerciseName,
+      actualDurationMinutes: workoutCompletions.actualDurationMinutes,
+      actualDistanceKm: workoutCompletions.actualDistanceKm,
+    })
+      .from(workoutCompletions)
+      .where(and(
+        eq(workoutCompletions.memberId, req.user!.id),
+        eq(workoutCompletions.exerciseType, 'cardio'),
+        gte(workoutCompletions.completedDate, startStr),
+        lte(workoutCompletions.completedDate, todayStr)
+      ))
+      .orderBy(desc(workoutCompletions.completedDate));
+
+    const totalMinutes = cardioCompletions.reduce((s, c) => s + (c.actualDurationMinutes || 0), 0);
+    const totalSessions = cardioCompletions.length;
+    const uniqueDays = new Set(cardioCompletions.map(c => c.completedDate)).size;
+
+    const exerciseCounts: Record<string, { count: number; totalMin: number }> = {};
+    for (const c of cardioCompletions) {
+      if (c.exerciseName) {
+        if (!exerciseCounts[c.exerciseName]) exerciseCounts[c.exerciseName] = { count: 0, totalMin: 0 };
+        exerciseCounts[c.exerciseName].count++;
+        exerciseCounts[c.exerciseName].totalMin += c.actualDurationMinutes || 0;
+      }
+    }
+
+    const breakdown = Object.entries(exerciseCounts)
+      .sort((a, b) => b[1].count - a[1].count)
+      .map(([name, data]) => ({
+        name,
+        sessions: data.count,
+        totalMinutes: data.totalMin,
+        percentage: totalSessions > 0 ? Math.round((data.count / totalSessions) * 100) : 0,
+      }));
+
+    const weeklyTrend: { week: string; minutes: number; sessions: number }[] = [];
+    for (let w = 0; w < 4; w++) {
+      const weekEnd = new Date();
+      weekEnd.setDate(weekEnd.getDate() - (w * 7));
+      const weekStart = new Date(weekEnd);
+      weekStart.setDate(weekStart.getDate() - 6);
+      const weekStartStr = weekStart.toISOString().split("T")[0];
+      const weekEndStr = weekEnd.toISOString().split("T")[0];
+      const weekItems = cardioCompletions.filter(c => c.completedDate >= weekStartStr && c.completedDate <= weekEndStr);
+      weeklyTrend.unshift({
+        week: `W${4 - w}`,
+        minutes: weekItems.reduce((s, c) => s + (c.actualDurationMinutes || 0), 0),
+        sessions: weekItems.length,
+      });
+    }
+
+    const avgMinPerSession = totalSessions > 0 ? Math.round(totalMinutes / totalSessions) : 0;
+
+    res.json({
+      totalMinutes,
+      totalSessions,
+      uniqueDays,
+      avgMinPerSession,
+      breakdown,
+      weeklyTrend,
+      favoriteExercise: breakdown[0]?.name || null,
+    });
+  });
+
   app.get("/api/me/stats/consistency", requireRole(["member"]), async (req, res) => {
     const days = parseInt(req.query.days as string) || 30;
     const consistencyStats = await storage.getMemberConsistencyStats(req.user!.gymId!, req.user!.id, days);

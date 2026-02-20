@@ -49,6 +49,8 @@ async function getMemberWorkoutData(userId: number, days: number = 30) {
     actualSets: workoutCompletions.actualSets,
     actualReps: workoutCompletions.actualReps,
     actualWeight: workoutCompletions.actualWeight,
+    actualDurationMinutes: workoutCompletions.actualDurationMinutes,
+    actualDistanceKm: workoutCompletions.actualDistanceKm,
     notes: workoutCompletions.notes,
   })
     .from(workoutCompletions)
@@ -61,11 +63,14 @@ async function getMemberWorkoutData(userId: number, days: number = 30) {
 
   const items = await db.select({
     exerciseName: workoutItems.exerciseName,
+    exerciseType: workoutItems.exerciseType,
     muscleType: workoutItems.muscleType,
     bodyPart: workoutItems.bodyPart,
     sets: workoutItems.sets,
     reps: workoutItems.reps,
     weight: workoutItems.weight,
+    durationMinutes: workoutItems.durationMinutes,
+    distanceKm: workoutItems.distanceKm,
     cycleId: workoutItems.cycleId,
   })
     .from(workoutItems)
@@ -94,8 +99,25 @@ async function getMemberWorkoutData(userId: number, days: number = 30) {
   const uniqueDays = new Set(completions.map(c => c.completedDate));
   const muscleGroups: Record<string, number> = {};
   for (const item of items) {
-    muscleGroups[item.muscleType] = (muscleGroups[item.muscleType] || 0) + 1;
+    if (item.exerciseType !== 'cardio') {
+      muscleGroups[item.muscleType] = (muscleGroups[item.muscleType] || 0) + 1;
+    }
   }
+
+  const strengthCompletions = completions.filter(c => c.exerciseType !== 'cardio');
+  const cardioCompletions = completions.filter(c => c.exerciseType === 'cardio');
+  const totalCardioMinutes = cardioCompletions.reduce((s, c) => s + (c.actualDurationMinutes || 0), 0);
+  const cardioExerciseCounts: Record<string, number> = {};
+  for (const c of cardioCompletions) {
+    if (c.exerciseName) {
+      cardioExerciseCounts[c.exerciseName] = (cardioExerciseCounts[c.exerciseName] || 0) + 1;
+    }
+  }
+  const favoriteCardio = Object.entries(cardioExerciseCounts).sort((a, b) => b[1] - a[1])[0];
+  const cardioDays = new Set(cardioCompletions.map(c => c.completedDate)).size;
+
+  const planCardioItems = items.filter(i => i.exerciseType === 'cardio');
+  const planStrengthItems = items.filter(i => i.exerciseType !== 'cardio');
 
   return {
     completions,
@@ -104,6 +126,15 @@ async function getMemberWorkoutData(userId: number, days: number = 30) {
     workoutDaysCount: uniqueDays.size,
     muscleGroups,
     totalExercisesCompleted: completions.length,
+    strengthCompletions,
+    cardioCompletions,
+    totalCardioMinutes,
+    cardioSessionCount: cardioCompletions.length,
+    cardioDays,
+    favoriteCardio: favoriteCardio ? { name: favoriteCardio[0], count: favoriteCardio[1] } : null,
+    planCardioItems,
+    planStrengthItems,
+    hasCardio: cardioCompletions.length > 0 || planCardioItems.length > 0,
   };
 }
 
@@ -198,7 +229,7 @@ async function getMemberProfile(userId: number) {
 
 export async function generateWorkoutInsights(userId: number): Promise<{
   coachNote: string;
-  stats: { workoutDays: number; totalExercises: number; topMuscle: string; consistency: string };
+  stats: { workoutDays: number; totalExercises: number; topMuscle: string; consistency: string; cardioMinutes: number; cardioSessions: number; favoriteCardio: string | null };
   generatedAt: string;
 }> {
   const workoutData = await getMemberWorkoutData(userId, 30);
@@ -213,29 +244,36 @@ export async function generateWorkoutInsights(userId: number): Promise<{
     workoutData.workoutDaysCount >= 12 ? "Good" :
       workoutData.workoutDaysCount >= 8 ? "Fair" : "Needs improvement";
 
-  const recentExercises = workoutData.completions.slice(0, 20)
+  const recentStrength = workoutData.strengthCompletions.slice(0, 15)
     .map(c => `${c.exerciseName}: ${c.actualSets}x${c.actualReps} @ ${c.actualWeight || 'bodyweight'}`)
+    .join(", ");
+
+  const recentCardio = workoutData.cardioCompletions.slice(0, 10)
+    .map(c => `${c.exerciseName}: ${c.actualDurationMinutes || '?'}min${c.actualDistanceKm ? ` / ${c.actualDistanceKm}` : ''}`)
     .join(", ");
 
   const prompt = `Analyze this gym member's 30-day workout data and write a coach's note (3-4 sentences max).
 
 Member: ${user?.username || 'Member'}
 Workout days in last 30 days: ${workoutData.workoutDaysCount}
-Total exercises completed: ${workoutData.totalExercisesCompleted}
+Total exercises completed: ${workoutData.totalExercisesCompleted} (${workoutData.strengthCompletions.length} strength, ${workoutData.cardioSessionCount} cardio)
 Active cycle: ${workoutData.activeCycle?.name || 'None'}
 Cycle length: ${workoutData.activeCycle?.cycleLength || 'N/A'} days
 Day labels: ${workoutData.activeCycle?.dayLabels ? JSON.stringify(workoutData.activeCycle.dayLabels) : 'N/A'}
-Muscle group distribution: ${Object.entries(workoutData.muscleGroups).map(([k, v]) => `${k}: ${v} exercises`).join(', ') || 'No data'}
+Muscle group distribution (strength): ${Object.entries(workoutData.muscleGroups).map(([k, v]) => `${k}: ${v} exercises`).join(', ') || 'No data'}
 Most trained: ${topMuscle?.[0] || 'N/A'} (${topMuscle?.[1] || 0} exercises)
 Least trained: ${leastMuscle?.[0] || 'N/A'} (${leastMuscle?.[1] || 0} exercises)
-Recent exercises: ${recentExercises || 'No recent data'}
+Cardio summary: ${workoutData.cardioSessionCount} cardio exercises completed, ${workoutData.totalCardioMinutes} total minutes, ${workoutData.cardioDays} days with cardio${workoutData.favoriteCardio ? `, favorite: ${workoutData.favoriteCardio.name} (${workoutData.favoriteCardio.count}x)` : ''}
+Recent strength exercises: ${recentStrength || 'No recent data'}
+Recent cardio exercises: ${recentCardio || 'No cardio data'}
 Consistency rating: ${consistency}
 
 CRITICAL RULES:
 - Use their ACTUAL exercise names and muscle groups from the data above. Name specific exercises they did.
 - Reference REAL numbers (days worked out, exercises completed, specific muscles).
 - If they have muscle imbalances, say exactly which muscle is overtrained vs undertrained.
-- Give ONE specific exercise recommendation by name (e.g. "try adding Romanian deadlifts" not "add more leg work").
+- If they do cardio, mention their cardio stats (total minutes, favorite exercise). If they do NO cardio, suggest adding 2-3 sessions per week.
+- Give ONE specific exercise recommendation by name (e.g. "try adding Romanian deadlifts" or "add 20-min treadmill runs").
 - If data is minimal, be honest: "I only see X workouts, so let's build more data."
 - No generic advice. Everything must reference THEIR data.
 - No bullet points, no headers. Natural paragraph like a coach texting them.`;
@@ -252,6 +290,9 @@ CRITICAL RULES:
       totalExercises: workoutData.totalExercisesCompleted,
       topMuscle: topMuscle?.[0] || "N/A",
       consistency,
+      cardioMinutes: workoutData.totalCardioMinutes,
+      cardioSessions: workoutData.cardioSessionCount,
+      favoriteCardio: workoutData.favoriteCardio?.name || null,
     },
     generatedAt: new Date().toISOString(),
   };
@@ -292,6 +333,8 @@ export async function generateProgressSummary(userId: number): Promise<{
     }
   }
 
+  const prev30CardioMinutes = (prev30Data.totalCardioMinutes || 0) - (workoutData.totalCardioMinutes || 0);
+
   const highlights: { label: string; value: string; trend: "up" | "down" | "stable" }[] = [
     {
       label: "Workout Days",
@@ -302,6 +345,11 @@ export async function generateProgressSummary(userId: number): Promise<{
       label: "Exercises Done",
       value: `${workoutData.totalExercisesCompleted}`,
       trend: "stable",
+    },
+    {
+      label: "Cardio Minutes",
+      value: workoutData.totalCardioMinutes > 0 ? `${workoutData.totalCardioMinutes}` : "0",
+      trend: workoutData.totalCardioMinutes > prev30CardioMinutes ? "up" : workoutData.totalCardioMinutes < prev30CardioMinutes ? "down" : "stable",
     },
     {
       label: "Avg Calories",
@@ -324,7 +372,8 @@ export async function generateProgressSummary(userId: number): Promise<{
 Member: ${user?.username || 'Member'}
 Last 30 days:
 - Workout days: ${workoutData.workoutDaysCount} (previous 30 days: ${prevWorkoutDays})
-- Total exercises completed: ${workoutData.totalExercisesCompleted}
+- Total exercises completed: ${workoutData.totalExercisesCompleted} (${workoutData.strengthCompletions.length} strength, ${workoutData.cardioSessionCount} cardio)
+- Cardio: ${workoutData.totalCardioMinutes} total minutes across ${workoutData.cardioDays} days${workoutData.favoriteCardio ? `, most done: ${workoutData.favoriteCardio.name} (${workoutData.favoriteCardio.count}x)` : ''} (previous 30 days: ${prev30CardioMinutes} min)
 - Muscle focus: ${Object.entries(workoutData.muscleGroups).map(([k, v]) => `${k}(${v})`).join(', ') || 'No data'}
 - Active cycle: ${workoutData.activeCycle?.name || 'None'}
 - Nutrition: avg ${nutritionData.avgCalories} cal/day, avg ${nutritionData.avgProtein}g protein/day, logged ${nutritionData.daysLogged} days
@@ -336,6 +385,7 @@ Last 30 days:
 
 CRITICAL RULES:
 - Compare this month vs last month with REAL numbers ("You worked out ${workoutData.workoutDaysCount} days, up/down from ${prevWorkoutDays}").
+- Include cardio analysis: mention total cardio minutes, compare to previous month. If zero cardio, recommend starting.
 - Mention their ACTUAL calorie and protein averages vs their targets.
 - If weight changed, mention the direction and amount.
 - If they have a goal set, evaluate progress toward it specifically.
@@ -373,25 +423,32 @@ export async function generateWorkoutSuggestions(userId: number): Promise<{
     .where(eq(userGoals.userId, userId))
     .limit(1);
 
+  const recentCardioStr = workoutData.cardioCompletions.slice(0, 5)
+    .map(c => `${c.exerciseName}: ${c.actualDurationMinutes || '?'}min`)
+    .join(', ');
+
   const prompt = `Based on this member's workout data, suggest 3 specific things to focus on next. Return as JSON array.
 
 Member: ${user?.username || 'Member'}
 Active cycle: ${workoutData.activeCycle?.name || 'None'}
 Cycle day labels: ${workoutData.activeCycle?.dayLabels ? JSON.stringify(workoutData.activeCycle.dayLabels) : 'N/A'}
 Workout days (30d): ${workoutData.workoutDaysCount}
-Muscle distribution: ${Object.entries(workoutData.muscleGroups).map(([k, v]) => `${k}: ${v}`).join(', ') || 'No exercises'}
+Strength muscle distribution: ${Object.entries(workoutData.muscleGroups).map(([k, v]) => `${k}: ${v}`).join(', ') || 'No exercises'}
+Cardio stats: ${workoutData.cardioSessionCount} sessions, ${workoutData.totalCardioMinutes} total min, ${workoutData.cardioDays} days${workoutData.favoriteCardio ? `, favorite: ${workoutData.favoriteCardio.name}` : ', NO cardio done'}
+Recent cardio: ${recentCardioStr || 'None'}
 Primary goal: ${goalsData?.primaryGoal?.replace('_', ' ') || 'Not set'}
 Target weight: ${goalsData?.targetWeight || 'Not set'}
 Weekly workout target: ${goalsData?.weeklyWorkoutDays || 'Not set'} days
 Weight: ${latestMeasurements[0]?.weight ? `${latestMeasurements[0].weight}kg` : 'Unknown'}
-Recent exercises with weights (last 10): ${workoutData.completions.slice(0, 10).map(c => `${c.exerciseName} ${c.actualSets}x${c.actualReps} @ ${c.actualWeight || 'bw'}`).join(', ') || 'None'}
+Recent strength exercises (last 10): ${workoutData.strengthCompletions.slice(0, 10).map(c => `${c.exerciseName} ${c.actualSets}x${c.actualReps} @ ${c.actualWeight || 'bw'}`).join(', ') || 'None'}
 
 Return ONLY a JSON array of exactly 3 objects with these fields:
-- title: short action title (5-8 words) - must name a SPECIFIC exercise or muscle
-- reason: 1-2 sentence explanation referencing THEIR actual data (name their exercises, rep counts, muscle gaps)
+- title: short action title (5-8 words) - must name a SPECIFIC exercise or muscle or cardio type
+- reason: 1-2 sentence explanation referencing THEIR actual data (name their exercises, rep counts, muscle gaps, cardio stats)
 - priority: "high", "medium", or "low"
 
-CRITICAL: Each suggestion MUST reference specific exercises or muscles from their data. Do NOT give generic advice like "increase consistency" or "try new exercises". Instead say things like "Add face pulls for rear delts" with a reason like "Your ${topMuscle?.[0] || 'chest'} has ${topMuscle?.[1] || 0} exercises but ${leastMuscle?.[0] || 'back'} only has ${leastMuscle?.[1] || 0}".`;
+CRITICAL: Each suggestion MUST reference specific exercises or muscles from their data. Do NOT give generic advice like "increase consistency" or "try new exercises". Instead say things like "Add face pulls for rear delts" with a reason like "Your ${topMuscle?.[0] || 'chest'} has ${topMuscle?.[1] || 0} exercises but ${leastMuscle?.[0] || 'back'} only has ${leastMuscle?.[1] || 0}".
+If they have ZERO cardio sessions, one suggestion MUST be about adding cardio (e.g., "Add 20-min treadmill runs 2-3x/week"). If their goal is weight loss/fat loss and they lack cardio, make that the highest priority suggestion.`;
 
   const raw = await callGPT(
     "You are a fitness expert. Return ONLY valid JSON array. No markdown, no explanation.",
@@ -603,6 +660,37 @@ export async function generateProactiveNudges(userId: number, localDate?: string
     });
   }
 
+  const weekCardio = await db.select({
+    count: sql<number>`count(*)`,
+    totalMin: sql<number>`COALESCE(SUM(${workoutCompletions.actualDurationMinutes}), 0)`,
+  })
+    .from(workoutCompletions)
+    .where(and(
+      eq(workoutCompletions.memberId, userId),
+      eq(workoutCompletions.exerciseType, 'cardio'),
+      gte(workoutCompletions.completedDate, weekStart),
+      lte(workoutCompletions.completedDate, today)
+    ));
+
+  const weekCardioCount = weekCardio[0]?.count || 0;
+  const weekCardioMin = weekCardio[0]?.totalMin || 0;
+
+  if (weekCardioCount === 0 && workoutsThisWeek > 0) {
+    nudges.push({
+      id: "no_cardio_week",
+      message: "No cardio this week! Even 15-20 minutes of running or cycling can boost heart health and recovery.",
+      type: "workout",
+      link: "/workouts",
+    });
+  } else if (weekCardioMin > 0 && weekCardioMin >= 90) {
+    nudges.push({
+      id: "cardio_strong",
+      message: `${weekCardioMin} minutes of cardio this week — solid cardiovascular work!`,
+      type: "streak",
+      link: "/workouts",
+    });
+  }
+
   const nutritionData = await getMemberNutritionData(userId, 1);
   if (nutritionData.todayFoods.length > 0 && nutritionData.proteinTarget) {
     const todayProtein = nutritionData.todayFoods.reduce((s, f) => s + f.protein, 0);
@@ -643,9 +731,9 @@ export async function generateStatsInterpretation(userId: number): Promise<{
       return `${muscle}: ${count} exercises (${Math.round(count / total * 100)}%)`;
     }).join(", ");
 
-  const totalSets = workoutData.completions.reduce((s, c) => s + (c.actualSets || 0), 0);
-  const totalReps = workoutData.completions.reduce((s, c) => s + (c.actualReps || 0), 0);
-  const totalVolume = workoutData.completions.reduce((s, c) => {
+  const totalSets = workoutData.strengthCompletions.reduce((s, c) => s + (c.actualSets || 0), 0);
+  const totalReps = workoutData.strengthCompletions.reduce((s, c) => s + (c.actualReps || 0), 0);
+  const totalVolume = workoutData.strengthCompletions.reduce((s, c) => {
     const w = parseFloat(c.actualWeight || "0");
     return s + (w * (c.actualSets || 0) * (c.actualReps || 0));
   }, 0);
@@ -668,9 +756,15 @@ export async function generateStatsInterpretation(userId: number): Promise<{
   const prev30Data = await getMemberWorkoutData(userId, 60);
   const prevMonthDays = prev30Data.workoutDaysCount - workoutData.workoutDaysCount;
 
-  const recentExercises = workoutData.completions.slice(0, 15)
+  const recentStrengthEx = workoutData.strengthCompletions.slice(0, 15)
     .map(c => `${c.exerciseName}: ${c.actualSets}x${c.actualReps} @ ${c.actualWeight || 'bodyweight'}`)
     .join(", ");
+
+  const recentCardioEx = workoutData.cardioCompletions.slice(0, 10)
+    .map(c => `${c.exerciseName}: ${c.actualDurationMinutes || '?'}min${c.actualDistanceKm ? ` / ${c.actualDistanceKm}` : ''}`)
+    .join(", ");
+
+  const prev30CardioMin = (prev30Data.totalCardioMinutes || 0) - (workoutData.totalCardioMinutes || 0);
 
   const prompt = `You are looking at a gym member's stats page and interpreting ALL the data for them. Write a comprehensive but concise interpretation (4-6 sentences).
 
@@ -679,11 +773,13 @@ Current streak: ${currentStreak} days
 Total workouts this month: ${thisMonth}
 Workouts in last 7 days: ${last7}
 Previous month workouts: ${prevMonthDays}
-Total sets: ${totalSets} | Total reps: ${totalReps} | Total volume: ${Math.round(totalVolume)}kg
-Muscle group breakdown: ${muscleBreakdown || 'No data'}
+STRENGTH: Total sets: ${totalSets} | Total reps: ${totalReps} | Total volume: ${Math.round(totalVolume)}kg | ${workoutData.strengthCompletions.length} exercises
+CARDIO: ${workoutData.cardioSessionCount} sessions | ${workoutData.totalCardioMinutes} total minutes | ${workoutData.cardioDays} days with cardio${workoutData.favoriteCardio ? ` | favorite: ${workoutData.favoriteCardio.name} (${workoutData.favoriteCardio.count}x)` : ''} | Previous month: ${prev30CardioMin} min
+Muscle group breakdown (strength): ${muscleBreakdown || 'No data'}
 Active cycle: ${workoutData.activeCycle?.name || 'None'} (${workoutData.activeCycle?.cycleLength || 0}-day cycle)
 Day labels: ${workoutData.activeCycle?.dayLabels ? JSON.stringify(workoutData.activeCycle.dayLabels) : 'N/A'}
-Recent exercises: ${recentExercises || 'No recent data'}
+Recent strength exercises: ${recentStrengthEx || 'No recent data'}
+Recent cardio exercises: ${recentCardioEx || 'No cardio data'}
 Goals: ${goalsData ? `Target: ${goalsData.primaryGoal || 'not set'}, Weekly workouts: ${goalsData.weeklyWorkoutDays || 'not set'}, Target weight: ${goalsData.targetWeight || 'not set'}` : 'No goals set'}
 Body measurements: ${latestMeasurements.length > 0 ? `Weight: ${latestMeasurements[0]?.weight || 'N/A'}kg` : 'No measurements'}
 Nutrition (7d avg): ${nutritionData.daysLogged > 0 ? `${nutritionData.avgCalories} cal/day, ${nutritionData.avgProtein}g protein/day (${nutritionData.daysLogged} days logged)` : 'No nutrition data'}
@@ -692,8 +788,9 @@ Calorie target: ${nutritionData.calorieTarget || 'Not set'} | Protein target: ${
 CRITICAL RULES:
 - Interpret EVERY metric above that has data. Don't skip any section.
 - Reference EXACT numbers from the data (e.g. "your 18 sets across 154 reps" not "your recent sets").
+- Include cardio analysis: mention total cardio minutes, sessions, and compare to previous month. If zero cardio, call it out.
 - If muscle groups are imbalanced, name the specific muscles and percentages.
-- Compare this month vs last month with actual numbers.
+- Compare this month vs last month with actual numbers for both strength and cardio.
 - If they have goals, tell them exactly how they're tracking against each goal.
 - If volume is 0 despite having workouts, note they're doing bodyweight work.
 - If streak is 0, don't pretend they have one.
