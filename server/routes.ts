@@ -1652,12 +1652,35 @@ export async function registerRoutes(
         completedTodayAlready = true;
       }
       
-      // Auto-reset logic: if member missed more than 3 consecutive days, reset to day 0
+      // Auto-advance past rest days: if current day is a rest day and at least 1 day has passed,
+      // move to the next workout day automatically (rest days get exactly 1 day)
       if (!completedTodayAlready && cycle.lastWorkoutDate) {
         const lastWorkout = new Date(cycle.lastWorkoutDate);
         const daysSinceLastWorkout = Math.floor((today.getTime() - lastWorkout.getTime()) / (1000 * 60 * 60 * 24));
+        
+        const currentLabel = cycle.dayLabels?.[currentDayIndex] || '';
+        const currentIsRest = cycle.restDays?.includes(currentDayIndex) || 
+                              currentLabel.toLowerCase().includes('rest');
+        
+        if (currentIsRest && daysSinceLastWorkout >= 2) {
+          // Rest day has had its day — advance to the next day
+          let nextIndex = (currentDayIndex + 1) % cycle.cycleLength;
+          // Skip consecutive rest days (rare but possible)
+          let safety = 0;
+          while (safety < cycle.cycleLength) {
+            const nextLabel = cycle.dayLabels?.[nextIndex] || '';
+            const nextIsRest = cycle.restDays?.includes(nextIndex) || 
+                               nextLabel.toLowerCase().includes('rest');
+            if (!nextIsRest) break;
+            nextIndex = (nextIndex + 1) % cycle.cycleLength;
+            safety++;
+          }
+          currentDayIndex = nextIndex;
+          await storage.updateCycleDayIndex(cycle.id, nextIndex);
+        }
+        
+        // Auto-reset logic: if member missed more than 3 consecutive days, reset to day 0
         if (daysSinceLastWorkout > 3 && currentDayIndex !== 0) {
-          // Reset to day 0
           currentDayIndex = 0;
           await storage.updateCycleDayIndex(cycle.id, 0);
           wasAutoReset = true;
