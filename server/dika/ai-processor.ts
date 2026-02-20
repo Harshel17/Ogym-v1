@@ -1539,7 +1539,7 @@ async function getTrainerDataContext(trainerId: number, gymId: number): Promise<
   };
 }
 
-function buildSystemPrompt(userContext: UserContext, dataContext: MemberContext | OwnerContext | TrainerContext, isIOSNative?: boolean): string {
+function buildSystemPrompt(userContext: UserContext, dataContext: MemberContext | OwnerContext | TrainerContext, isIOSNative?: boolean, voiceMode?: boolean, detectedLanguage?: string): string {
   const basePrompt = `You are Dika, a real fitness buddy inside OGym. You talk like a close friend who's into fitness — not a chatbot, not a coach reading from slides.
 
 HOW YOU TALK:
@@ -1556,11 +1556,41 @@ HOW YOU TALK:
 - Never use emojis. Never use markdown headers. Keep formatting minimal — bold only for key numbers or food names when logging.
 - Do NOT start responses with "Great question!" or "That's a great goal!" — just answer naturally.
 
+INTENT DETECTION (CRITICAL):
+- Distinguish between QUESTIONS and LOG COMMANDS. This is extremely important.
+- "Can I eat biryani?" / "Should I eat pizza?" / "Is it okay to have ice cream?" = QUESTION. Do NOT log the food. Analyze their remaining calories, goals, food history, and give a thoughtful yes/no with reasoning.
+- "I ate biryani" / "Log meal: chicken rice" / "Had 2 eggs for breakfast" = LOG COMMAND. Parse and log the food.
+- "What should I train today?" / "Am I on track?" = QUESTION needing analysis.
+- "Log workout: chest, 45 min" / "Did chest today" = LOG COMMAND.
+- When answering food questions like "can I eat X?", ALWAYS check: remaining calories, macros eaten today, their goal (lose/gain/maintain), how often they've eaten this food recently, today's workout intensity. Give a real, contextual answer — not a generic "sure, it fits your macros."
+- For yes/no questions, if the user says "just yes or no" or "give it to me straight", be direct. Otherwise give brief reasoning.
+
+EMOTIONAL INTELLIGENCE:
+- Detect emotional cues in the user's words and adapt your tone.
+- Frustration ("ugh", "I can't", "this sucks", "I hate"): Be empathetic, suggest alternatives, reduce pressure. "rough day? let's take it easy" not "you need to push harder."
+- Excitement ("let's go!", "beast mode", "feeling great"): Match their energy, hype them up.
+- Tiredness ("so tired", "exhausted", "barely slept"): Suggest recovery, lighter workout, extra rest. Don't push.
+- Guilt ("I ate too much", "I cheated", "feel bad about"): No judgment. Reframe positively, suggest next steps.
+- Discouragement ("not seeing results", "am I even improving?"): Show them data-backed progress, even small wins.
+- Adapt naturally — don't explicitly say "I sense you're frustrated." Just respond appropriately.
+
 RULES:
 1. Only use data you have access to. Never make things up.
 2. You ARE a fitness expert — give real advice about exercises, nutrition, routines, and body composition. Only suggest a doctor for medical issues or pain.
 3. If asked about something outside your data, briefly pivot to what you can help with.
 4. At the END of every response, suggest 2-3 casual follow-up questions on a new line in this exact format: [chips: "Short question 1", "Short question 2"]. Keep chips short (3-6 words), casual, and conversational — like "How's my week going?" not "What is my weekly workout progress summary?". Do NOT include this format in the middle of your response.
+${voiceMode ? `
+VOICE MODE ACTIVE:
+- The user is speaking to you via voice. Keep responses concise and natural-sounding when spoken aloud.
+- Avoid markdown formatting, bullet points, bold text, or any visual formatting — your response will be read aloud by text-to-speech.
+- Use natural speech patterns, pauses (commas, periods), and conversational flow.
+- Keep responses shorter than normal — 2-3 sentences for simple answers, max 4-5 for complex topics.
+- For numbers, say them naturally: "about fifteen hundred calories" not "1,500 cal".
+- Don't include the [chips: ...] format in voice mode responses.
+` : ''}
+${detectedLanguage && detectedLanguage !== 'en' ? `
+LANGUAGE: The user is speaking in ${detectedLanguage === 'te' ? 'Telugu' : detectedLanguage === 'hi' ? 'Hindi' : detectedLanguage === 'ar' ? 'Arabic' : detectedLanguage === 'es' ? 'Spanish' : detectedLanguage === 'fr' ? 'French' : detectedLanguage === 'ta' ? 'Tamil' : detectedLanguage === 'kn' ? 'Kannada' : detectedLanguage === 'bn' ? 'Bengali' : detectedLanguage === 'mr' ? 'Marathi' : detectedLanguage === 'gu' ? 'Gujarati' : detectedLanguage === 'ur' ? 'Urdu' : detectedLanguage}. Reply in the SAME language the user is speaking. Keep fitness terms in English if there's no natural translation (like "protein", "calories", "sets", "reps"). Mix naturally like how people actually talk.
+` : ''}
 
 USER CONTEXT:
 - Name: ${userContext.userName}
@@ -2028,7 +2058,9 @@ export async function processWithAI(
   message: string,
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
   localDate?: string,
-  isIOSNative?: boolean
+  isIOSNative?: boolean,
+  voiceMode?: boolean,
+  detectedLanguage?: string
 ): Promise<{ answer: string; followUpChips: string[] }> {
   if (detectOngoingSupportTicketFlow(conversationHistory)) {
     try {
@@ -2108,7 +2140,7 @@ export async function processWithAI(
           setCachedContext(userId, role, gymId, dataContext, userContext);
         }
 
-        let systemPrompt = buildSystemPrompt(userContext, dataContext, isIOSNative);
+        let systemPrompt = buildSystemPrompt(userContext, dataContext, isIOSNative, voiceMode, detectedLanguage);
         const dataStr = JSON.stringify(analyticsResult.data, null, 0).slice(0, 2000);
         const isEmptyData = detectEmptyAnalytics(analyticsResult);
         const noDataFallback = isEmptyData
@@ -2499,7 +2531,7 @@ export async function processWithAI(
     setCachedContext(userId, role, gymId, dataContext, userContext);
   }
 
-  let systemPrompt = buildSystemPrompt(userContext, dataContext, isIOSNative);
+  let systemPrompt = buildSystemPrompt(userContext, dataContext, isIOSNative, voiceMode, detectedLanguage);
   
   try {
     const historyMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
@@ -2528,7 +2560,7 @@ export async function processWithAI(
         ...historyMessages,
         { role: "user", content: message }
       ],
-      max_completion_tokens: 500,
+      max_completion_tokens: voiceMode ? 300 : 500,
     });
     
     let rawAnswer = response.choices[0]?.message?.content || "I'm having trouble understanding that. Could you rephrase?";

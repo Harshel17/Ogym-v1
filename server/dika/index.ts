@@ -55,7 +55,9 @@ export async function handleDikaQuery(
   message: string,
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
   localDate?: string,
-  isIOSNative?: boolean
+  isIOSNative?: boolean,
+  voiceMode?: boolean,
+  detectedLanguage?: string
 ): Promise<DikaResponse> {
   // Block owner business actions on iOS native (Apple Guideline 3.1.1)
   if (isIOSNative && role === 'owner') {
@@ -73,7 +75,7 @@ export async function handleDikaQuery(
   // Try AI-powered response first
   if (await isAIAvailable()) {
     try {
-      const { answer, followUpChips } = await processWithAI(userId, role, gymId, message, conversationHistory, localDate, isIOSNative);
+      const { answer, followUpChips } = await processWithAI(userId, role, gymId, message, conversationHistory, localDate, isIOSNative, voiceMode, detectedLanguage);
       return {
         answer,
         confidence: 'high',

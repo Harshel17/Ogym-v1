@@ -5190,13 +5190,15 @@ Return ONLY JSON.`
 
   app.post("/api/dika/ask", requireAuth, requireAiConsent, async (req, res) => {
     const schema = z.object({
-      message: z.string().min(1).max(500),
+      message: z.string().min(1).max(2000),
       conversationHistory: z.array(z.object({
         role: z.enum(['user', 'assistant']),
         content: z.string(),
       })).optional(),
       platform: z.string().optional(),
       imageBase64: z.string().optional(),
+      voiceMode: z.boolean().optional(),
+      detectedLanguage: z.string().optional(),
     });
     
     const input = schema.safeParse(req.body);
@@ -5251,7 +5253,9 @@ Return ONLY JSON.`
         input.data.message,
         input.data.conversationHistory,
         localDate,
-        isIOSNative
+        isIOSNative,
+        input.data.voiceMode,
+        input.data.detectedLanguage
       );
       
       res.json(response);

@@ -5,6 +5,7 @@ import { useNotificationCounts } from "@/hooks/use-notifications";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RoboDIcon } from "@/components/dika/dika-icons";
+import { DikaVoice } from "@/components/dika/dika-voice";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 import { usePullRefresh } from "@/hooks/use-pull-refresh";
@@ -724,6 +725,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </DrawerContent>
       </Drawer>
+
+      <DikaVoice />
     </div>
   );
 }
