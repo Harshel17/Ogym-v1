@@ -29,6 +29,7 @@ export function DikaVoice() {
   const [showSettings, setShowSettings] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [, setSettingsVersion] = useState(0);
   const voiceService = useRef(getDikaVoiceService());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationRef = useRef<VoiceMessage[]>([]);
@@ -235,7 +236,9 @@ export function DikaVoice() {
               <div>
                 <h2 className="text-sm font-semibold" data-testid="text-dika-voice-title">Dika Voice</h2>
                 <p className="text-xs text-muted-foreground">
-                  {voiceState === 'listening' ? 'Listening...' :
+                  {voiceState === 'listening' ? (settings.language !== 'auto' && settings.language !== 'en' 
+                    ? `Listening in ${getSupportedLanguages().find(l => l.code === settings.language)?.label || settings.language}...` 
+                    : 'Listening...') :
                    voiceState === 'processing' ? 'Thinking...' :
                    voiceState === 'speaking' ? 'Speaking...' : 'Tap mic to talk'}
                 </p>
@@ -259,19 +262,11 @@ export function DikaVoice() {
 
           {showSettings && (
             <div className="px-4 py-3 border-b space-y-3 bg-muted/30">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium">Continuous Conversation</Label>
-                <Switch
-                  checked={settings.continuousMode}
-                  onCheckedChange={(checked) => vs.updateSettings({ continuousMode: checked })}
-                  data-testid="switch-continuous-mode"
-                />
-              </div>
               <div className="space-y-1">
-                <Label className="text-xs font-medium">Language</Label>
+                <Label className="text-xs font-medium">Language (important for non-English)</Label>
                 <Select
                   value={settings.language}
-                  onValueChange={(val) => vs.updateSettings({ language: val })}
+                  onValueChange={(val) => { vs.updateSettings({ language: val }); setSettingsVersion(v => v + 1); }}
                 >
                   <SelectTrigger className="h-8 text-xs" data-testid="select-voice-language">
                     <SelectValue />
@@ -282,18 +277,29 @@ export function DikaVoice() {
                     ))}
                   </SelectContent>
                 </Select>
+                {settings.language === 'auto' && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400">Set your language for best recognition accuracy</p>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Continuous Conversation</Label>
+                <Switch
+                  checked={settings.continuousMode}
+                  onCheckedChange={(checked) => { vs.updateSettings({ continuousMode: checked }); setSettingsVersion(v => v + 1); }}
+                  data-testid="switch-continuous-mode"
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs font-medium">Voice</Label>
                 <Select
                   value={settings.voiceURI || 'default'}
-                  onValueChange={(val) => vs.updateSettings({ voiceURI: val === 'default' ? null : val })}
+                  onValueChange={(val) => { vs.updateSettings({ voiceURI: val === 'default' ? null : val }); setSettingsVersion(v => v + 1); }}
                 >
                   <SelectTrigger className="h-8 text-xs" data-testid="select-voice-type">
-                    <SelectValue placeholder="Default" />
+                    <SelectValue placeholder="Default (Natural)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default">Default (Auto)</SelectItem>
+                    <SelectItem value="default">Default (Natural)</SelectItem>
                     {availableVoices.map(v => (
                       <SelectItem key={v.voiceURI} value={v.voiceURI}>
                         {v.name} ({v.lang})
@@ -309,7 +315,7 @@ export function DikaVoice() {
                   max={1.5}
                   step={0.05}
                   value={[settings.rate]}
-                  onValueChange={([val]) => vs.updateSettings({ rate: val })}
+                  onValueChange={([val]) => { vs.updateSettings({ rate: val }); setSettingsVersion(v => v + 1); }}
                   data-testid="slider-voice-speed"
                 />
               </div>
@@ -412,6 +418,11 @@ export function DikaVoice() {
                voiceState === 'processing' ? 'Getting response...' :
                'Tap to speak'}
             </p>
+            {settings.language === 'auto' && voiceState === 'idle' && (
+              <p className="text-[10px] text-muted-foreground/60 text-center mt-1" data-testid="text-language-hint">
+                For Telugu/Hindi/other languages, select your language in settings above
+              </p>
+            )}
           </div>
         </div>
       )}

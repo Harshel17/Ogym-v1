@@ -12,8 +12,8 @@ const VOICE_SETTINGS_KEY = 'dika_voice_settings';
 
 const DEFAULT_SETTINGS: VoiceSettings = {
   voiceURI: null,
-  rate: 0.95,
-  pitch: 1.0,
+  rate: 0.92,
+  pitch: 1.05,
   continuousMode: true,
   language: 'auto',
 };
@@ -85,6 +85,12 @@ export function getSupportedLanguages() {
   }));
 }
 
+function isNaturalVoice(voice: SpeechSynthesisVoice): boolean {
+  const name = voice.name.toLowerCase();
+  return /natural|premium|enhanced|neural|wavenet|online|high quality/i.test(name) ||
+    (name.includes('google') && !name.includes('espeak'));
+}
+
 function pickBestVoice(lang?: string): SpeechSynthesisVoice | null {
   const voices = getAvailableVoices();
   if (voices.length === 0) return null;
@@ -98,14 +104,31 @@ function pickBestVoice(lang?: string): SpeechSynthesisVoice | null {
   if (lang && lang !== 'auto' && lang !== 'en') {
     const bcp = LANGUAGE_MAP[lang] || lang;
     const langPrefix = bcp.split('-')[0];
-    const langVoice = voices.find(v => v.lang.startsWith(langPrefix));
-    if (langVoice) return langVoice;
+    const langVoices = voices.filter(v => v.lang.startsWith(langPrefix));
+    if (langVoices.length > 0) {
+      const natural = langVoices.find(v => isNaturalVoice(v));
+      if (natural) return natural;
+      const google = langVoices.find(v => v.name.toLowerCase().includes('google'));
+      if (google) return google;
+      return langVoices[0];
+    }
+  }
+
+  const naturalEnglish = voices.filter(v =>
+    v.lang.startsWith('en') && isNaturalVoice(v)
+  );
+  if (naturalEnglish.length > 0) {
+    const femaleNatural = naturalEnglish.find(v =>
+      /female|woman|samantha|karen|moira|tessa|aria|zira|fiona/i.test(v.name)
+    );
+    if (femaleNatural) return femaleNatural;
+    return naturalEnglish[0];
   }
 
   const preferred = [
-    'Samantha', 'Karen', 'Moira', 'Tessa',
     'Google UK English Female', 'Google US English',
-    'Microsoft Zira', 'Microsoft Aria',
+    'Samantha', 'Karen', 'Moira', 'Tessa',
+    'Microsoft Aria', 'Microsoft Zira',
   ];
   for (const name of preferred) {
     const found = voices.find(v => v.name.includes(name));
@@ -113,7 +136,7 @@ function pickBestVoice(lang?: string): SpeechSynthesisVoice | null {
   }
 
   const femaleVoice = voices.find(v =>
-    /female|woman|zira|samantha|karen|moira|tessa|aria/i.test(v.name)
+    v.lang.startsWith('en') && /female|woman|zira|samantha|karen|moira|tessa|aria|fiona/i.test(v.name)
   );
   if (femaleVoice) return femaleVoice;
 
@@ -133,16 +156,22 @@ function detectLanguageFromText(text: string): string {
   const tamilRange = /[\u0B80-\u0BFF]/;
   const kannadaRange = /[\u0C80-\u0CFF]/;
   const bengaliRange = /[\u0980-\u09FF]/;
+  const malayalamRange = /[\u0D00-\u0D7F]/;
+  const marathiRange = /[\u0900-\u097F]/;
+  const gujaratiRange = /[\u0A80-\u0AFF]/;
+  const urduRange = /[\u0600-\u06FF\uFB50-\uFDFF]/;
 
   if (teluguRange.test(text)) return 'te';
+  if (tamilRange.test(text)) return 'ta';
+  if (kannadaRange.test(text)) return 'kn';
+  if (malayalamRange.test(text)) return 'ml';
+  if (bengaliRange.test(text)) return 'bn';
+  if (gujaratiRange.test(text)) return 'gu';
   if (hindiRange.test(text)) return 'hi';
-  if (arabicRange.test(text)) return 'ar';
+  if (arabicRange.test(text) || urduRange.test(text)) return 'ar';
   if (japaneseRange.test(text)) return 'ja';
   if (koreanRange.test(text)) return 'ko';
   if (chineseRange.test(text)) return 'zh';
-  if (tamilRange.test(text)) return 'ta';
-  if (kannadaRange.test(text)) return 'kn';
-  if (bengaliRange.test(text)) return 'bn';
 
   return 'en';
 }
@@ -174,19 +203,18 @@ export class DikaVoiceService {
     this.recognition = new SpeechRecognition();
     this.recognition.continuous = true;
     this.recognition.interimResults = true;
-    this.recognition.maxAlternatives = 1;
+    this.recognition.maxAlternatives = 3;
 
-    if (this.settings.language !== 'auto') {
-      this.recognition.lang = LANGUAGE_MAP[this.settings.language] || this.settings.language;
-    }
+    this.applyRecognitionLanguage();
 
     this.recognition.onresult = (event: any) => {
       let interimTranscript = '';
       let finalTranscript = '';
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
+        const result = event.results[i];
+        const transcript = result[0].transcript;
+        if (result.isFinal) {
           finalTranscript += transcript;
         } else {
           interimTranscript += transcript;
@@ -194,7 +222,11 @@ export class DikaVoiceService {
       }
 
       if (finalTranscript) {
-        this.detectedLanguage = detectLanguageFromText(finalTranscript);
+        if (this.settings.language !== 'auto') {
+          this.detectedLanguage = this.settings.language;
+        } else {
+          this.detectedLanguage = detectLanguageFromText(finalTranscript);
+        }
         this.onTranscript?.(finalTranscript.trim(), true);
       } else if (interimTranscript) {
         this.onTranscript?.(interimTranscript.trim(), false);
@@ -217,6 +249,35 @@ export class DikaVoiceService {
         }, 100);
       }
     };
+  }
+
+  private applyRecognitionLanguage() {
+    if (!this.recognition) return;
+    if (this.settings.language !== 'auto') {
+      const bcp = LANGUAGE_MAP[this.settings.language] || this.settings.language;
+      this.recognition.lang = bcp;
+      this.detectedLanguage = this.settings.language;
+    } else {
+      this.recognition.lang = '';
+    }
+  }
+
+  private restartRecognition() {
+    if (!this.recognition) return;
+
+    const wasListening = this.state === 'listening';
+    if (this.isRecognitionActive) {
+      this.shouldRestart = false;
+      try { this.recognition.stop(); } catch {}
+      this.isRecognitionActive = false;
+    }
+
+    this.initRecognition();
+
+    if (wasListening) {
+      this.shouldRestart = true;
+      setTimeout(() => this.startRecognitionSafely(), 200);
+    }
   }
 
   private startRecognitionSafely() {
@@ -261,12 +322,8 @@ export class DikaVoiceService {
   updateSettings(partial: Partial<VoiceSettings>) {
     this.settings = { ...this.settings, ...partial };
     saveSettings(this.settings);
-    if (partial.language && this.recognition) {
-      if (partial.language !== 'auto') {
-        this.recognition.lang = LANGUAGE_MAP[partial.language] || partial.language;
-      } else {
-        this.recognition.lang = '';
-      }
+    if (partial.language !== undefined) {
+      this.restartRecognition();
     }
   }
 
@@ -279,6 +336,7 @@ export class DikaVoiceService {
       }
     }
     this.stopSpeaking();
+    this.applyRecognitionLanguage();
     this.shouldRestart = true;
     this.setState('listening');
     this.startRecognitionSafely();
@@ -309,6 +367,8 @@ export class DikaVoiceService {
       .replace(/[*_#]/g, '')
       .replace(/\n{2,}/g, '. ')
       .replace(/\n/g, '. ')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\.{2,}/g, '.')
       .trim();
 
     if (!cleanText) {
@@ -322,12 +382,12 @@ export class DikaVoiceService {
   }
 
   private splitIntoChunks(text: string): string[] {
-    if (text.length <= 180) return [text];
+    if (text.length <= 200) return [text];
     const chunks: string[] = [];
-    const sentences = text.split(/(?<=[.!?])\s+/);
+    const sentences = text.split(/(?<=[.!?।])\s+/);
     let current = '';
     for (const sentence of sentences) {
-      if (current.length + sentence.length > 180 && current) {
+      if (current.length + sentence.length > 200 && current) {
         chunks.push(current.trim());
         current = sentence;
       } else {
@@ -350,6 +410,7 @@ export class DikaVoiceService {
     if (voice) utterance.voice = voice;
     utterance.rate = this.settings.rate;
     utterance.pitch = this.settings.pitch;
+    utterance.volume = 1.0;
 
     if (this.detectedLanguage !== 'en') {
       const bcp = LANGUAGE_MAP[this.detectedLanguage];
@@ -357,7 +418,13 @@ export class DikaVoiceService {
     }
 
     utterance.onend = () => {
-      this.speakChunks(chunks, index + 1, onComplete);
+      if (index < chunks.length - 1) {
+        setTimeout(() => {
+          this.speakChunks(chunks, index + 1, onComplete);
+        }, 150);
+      } else {
+        this.speakChunks(chunks, index + 1, onComplete);
+      }
     };
 
     utterance.onerror = () => {
