@@ -121,7 +121,22 @@ export function DikaVoice() {
       const data = await res.json();
 
       let answer = data.answer || "I didn't catch that. Could you try again?";
-      answer = answer.replace(/\[chips:.*?\]/g, '').trim();
+      answer = answer
+        .replace(/<!--\s*MEAL_LOG_DATA:[\s\S]*?-->/g, '')
+        .replace(/<!--\s*DIKA_ACTION_DATA:[\s\S]*?-->/g, '')
+        .replace(/<!--\s*WEEKLY_REPORT_DATA:[\s\S]*?-->/g, '')
+        .replace(/<!--\s*WORKOUT_PLAN_DATA:[\s\S]*?-->/g, '')
+        .replace(/<!--\s*DIKA_FIND_FOOD\s*-->/g, '')
+        .replace(/<!--\s*PENDING_BODY_MEASUREMENT:[\s\S]*?-->/g, '')
+        .replace(/<!--\s*PENDING_EXERCISE_SWAP:[\s\S]*?-->/g, '')
+        .replace(/<!--\s*PENDING_GOAL:[\s\S]*?-->/g, '')
+        .replace(/<!--\s*PENDING_MEAL_SUGGESTION:[\s\S]*?-->/g, '')
+        .replace(/<!--\s*PENDING_MATCH_LOG:[\s\S]*?-->/g, '')
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/\[chips:.*?\]/g, '')
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
 
       const assistantMsg: VoiceMessage = {
         id: `assistant-${Date.now()}`,
