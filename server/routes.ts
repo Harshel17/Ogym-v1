@@ -5199,6 +5199,8 @@ Return ONLY JSON.`
       imageBase64: z.string().optional(),
       voiceMode: z.boolean().optional(),
       detectedLanguage: z.string().optional(),
+      chatId: z.number().optional(),
+      source: z.enum(['text', 'voice']).optional(),
     });
     
     const input = schema.safeParse(req.body);
@@ -5216,6 +5218,42 @@ Return ONLY JSON.`
     const role = user.role as 'member' | 'trainer' | 'owner';
     const localDate = getLocalDate(req);
     const isIOSNative = input.data.platform === 'ios_native';
+    const msgSource = input.data.source || 'text';
+
+    let activeChatId = input.data.chatId || null;
+
+    if (activeChatId) {
+      const [chat] = await db.select().from(dikaChats)
+        .where(and(eq(dikaChats.id, activeChatId), eq(dikaChats.userId, user.id)));
+      if (!chat) activeChatId = null;
+    }
+
+    if (!activeChatId) {
+      const [recentChat] = await db.select().from(dikaChats)
+        .where(eq(dikaChats.userId, user.id))
+        .orderBy(desc(dikaChats.lastMessageAt))
+        .limit(1);
+      if (recentChat) {
+        activeChatId = recentChat.id;
+      } else {
+        const [newChat] = await db.insert(dikaChats)
+          .values({ userId: user.id, title: msgSource === 'voice' ? 'Voice Chat' : 'New Chat' })
+          .returning();
+        activeChatId = newChat.id;
+      }
+    }
+
+    let history = input.data.conversationHistory;
+    if (!history && activeChatId) {
+      const recentMsgs = await db.select().from(dikaChatMessages)
+        .where(eq(dikaChatMessages.chatId, activeChatId))
+        .orderBy(desc(dikaChatMessages.createdAt))
+        .limit(10);
+      history = recentMsgs.reverse().map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+    }
 
     if (input.data.imageBase64 && role === 'member') {
       try {
@@ -5226,21 +5264,29 @@ Return ONLY JSON.`
           if (logged) {
             const nutritionSummary = await getTodayNutritionSummary(user.id, localDate);
             const answer = formatMealLogResponse(parsedMeal, nutritionSummary);
-            return res.json({
+            const responseData = {
               answer: `I analyzed your food photo!\n\n${answer}`,
               followUpChips: ['How many calories left today?', 'Log another meal', 'My nutrition summary'],
-            });
+            };
+            if (activeChatId) {
+              await db.insert(dikaChatMessages).values({ chatId: activeChatId, role: 'user', content: `[Photo attached] ${input.data.message}`, source: msgSource });
+              await db.insert(dikaChatMessages).values({ chatId: activeChatId, role: 'assistant', content: responseData.answer, followUpChips: responseData.followUpChips, source: 'text' });
+              await db.update(dikaChats).set({ lastMessageAt: new Date(), updatedAt: new Date() }).where(eq(dikaChats.id, activeChatId));
+            }
+            return res.json({ ...responseData, chatId: activeChatId });
           }
         }
-        return res.json({
+        const fallbackResp = {
           answer: "I couldn't identify any food in that photo. Could you try taking a clearer photo, or describe what you're eating?",
           followUpChips: ['Log my meal', 'Take another photo'],
-        });
+        };
+        return res.json({ ...fallbackResp, chatId: activeChatId });
       } catch (error) {
         console.error('Dika photo analysis error:', error);
         return res.json({
           answer: "I had trouble analyzing that photo. Try again or just tell me what you ate!",
           followUpChips: ['Log my meal', 'Try another photo'],
+          chatId: activeChatId,
         });
       }
     }
@@ -5251,17 +5297,47 @@ Return ONLY JSON.`
         role,
         user.gymId || null,
         input.data.message,
-        input.data.conversationHistory,
+        history,
         localDate,
         isIOSNative,
         input.data.voiceMode,
         input.data.detectedLanguage
       );
+
+      if (activeChatId) {
+        await db.insert(dikaChatMessages).values({ chatId: activeChatId, role: 'user', content: input.data.message, source: msgSource });
+        await db.insert(dikaChatMessages).values({ chatId: activeChatId, role: 'assistant', content: response.answer, followUpChips: response.followUpChips || [], source: 'text' });
+
+        const chatUpdateData: any = { lastMessageAt: new Date(), updatedAt: new Date() };
+        const recentMsgs = await db.select().from(dikaChatMessages)
+          .where(eq(dikaChatMessages.chatId, activeChatId))
+          .orderBy(desc(dikaChatMessages.createdAt)).limit(10);
+        if (recentMsgs.length <= 4) {
+          const msgLower = input.data.message.toLowerCase();
+          const respLower = response.answer.toLowerCase();
+          const combined = msgLower + ' ' + respLower;
+          let detectedCategory = 'general';
+          if (/calorie|nutrition|protein|carb|fat|meal|food|diet|eat|ate|hunger|macro/.test(combined)) {
+            detectedCategory = 'nutrition';
+          } else if (/workout|train|exercise|set|rep|bench|squat|chest|back|leg|arm|shoulder|gym|lift/.test(combined)) {
+            detectedCategory = 'workouts';
+          } else if (/sport|football|basketball|tennis|swimming|boxing|mma|cricket|volleyball|drill|match/.test(combined)) {
+            detectedCategory = 'sports';
+          }
+          chatUpdateData.category = detectedCategory;
+          const [currentChat] = await db.select().from(dikaChats).where(eq(dikaChats.id, activeChatId));
+          if (currentChat && (currentChat.title === 'New Chat' || currentChat.title === 'Voice Chat')) {
+            const words = input.data.message.split(/\s+/).slice(0, 6).join(' ');
+            chatUpdateData.title = words.length > 40 ? words.slice(0, 40) + '...' : words;
+          }
+        }
+        await db.update(dikaChats).set(chatUpdateData).where(eq(dikaChats.id, activeChatId));
+      }
       
-      res.json(response);
+      res.json({ ...response, chatId: activeChatId });
     } catch (error) {
       console.error('Dika query error:', error);
-      res.status(500).json({ answer: "Sorry, I encountered an error. Please try again." });
+      res.status(500).json({ answer: "Sorry, I encountered an error. Please try again.", chatId: activeChatId });
     }
   });
   

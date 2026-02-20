@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Send, Loader2, Copy, Check, Trash2, Plus, Search, Menu, X,
   Utensils, Dumbbell, TrendingUp, Heart, Pin, PinOff,
-  ChevronDown, ChevronRight, MessageSquare, Pencil,
+  ChevronDown, ChevronRight, MessageSquare, Pencil, Mic,
   Zap, Lightbulb, Activity, Sparkles, Camera, ImageIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,7 @@ interface DikaChatMessage {
   content: string;
   followUpChips: string[] | null;
   metadata: any;
+  source?: 'text' | 'voice' | null;
   createdAt: string;
 }
 
@@ -191,6 +192,12 @@ function MessageBubble({ message, isLast }: { message: DikaChatMessage; isLast: 
     return (
       <div className="flex justify-end mb-4" data-testid="message-user">
         <div className="max-w-[75%] px-4 py-3 rounded-2xl rounded-br-sm bg-gradient-to-br from-amber-500/90 to-orange-600/90 text-white shadow-lg shadow-amber-500/10">
+          {message.source === 'voice' && (
+            <div className="flex items-center gap-1 mb-1 opacity-70">
+              <Mic className="w-3 h-3" />
+              <span className="text-[10px]">Voice</span>
+            </div>
+          )}
           <MarkdownContent content={message.content} />
         </div>
       </div>

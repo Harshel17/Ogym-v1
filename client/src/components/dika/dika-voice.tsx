@@ -16,6 +16,7 @@ interface VoiceMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  source?: 'voice' | 'text';
 }
 
 export function DikaVoice() {
@@ -30,11 +31,13 @@ export function DikaVoice() {
   const [isMuted, setIsMuted] = useState(false);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [, setSettingsVersion] = useState(0);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const voiceService = useRef(getDikaVoiceService());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationRef = useRef<VoiceMessage[]>([]);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finalTranscriptRef = useRef('');
+  const activeChatIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     const loadVoices = () => {
@@ -113,12 +116,17 @@ export function DikaVoice() {
 
       const res = await apiRequest('POST', '/api/dika/ask', {
         message: text,
-        conversationHistory: history,
         platform,
         voiceMode: true,
         detectedLanguage: detectedLang,
+        chatId: activeChatIdRef.current || undefined,
+        source: 'voice',
       });
       const data = await res.json();
+
+      if (data.chatId) {
+        activeChatIdRef.current = data.chatId;
+      }
 
       let answer = data.answer || "I didn't catch that. Could you try again?";
       answer = answer
@@ -189,17 +197,63 @@ export function DikaVoice() {
     }
   }, [voiceState, handleSendVoice]);
 
-  const handleOpen = useCallback(() => {
-    setIsOpen(true);
-    setError(null);
-    if (messages.length === 0) {
+  const loadChatHistory = useCallback(async () => {
+    if (!user) return;
+    setIsLoadingHistory(true);
+    try {
+      const res = await apiRequest('GET', '/api/dika/chats');
+      const data = await res.json();
+      const chats = data.chats || data || [];
+      if (chats.length > 0) {
+        const sortedChats = [...chats].sort((a: any, b: any) =>
+          new Date(b.lastMessageAt || b.updatedAt).getTime() - new Date(a.lastMessageAt || a.updatedAt).getTime()
+        );
+        const latestChat = sortedChats[0];
+        activeChatIdRef.current = latestChat.id;
+
+        const msgRes = await apiRequest('GET', `/api/dika/chats/${latestChat.id}/messages`);
+        const msgData = await msgRes.json();
+        const dbMessages = (msgData.messages || []).map((m: any) => ({
+          id: `db-${m.id}`,
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          source: m.source || 'text',
+        }));
+        if (dbMessages.length > 0) {
+          const recentMessages = dbMessages.slice(-20);
+          setMessages(recentMessages);
+          conversationRef.current = recentMessages;
+        } else {
+          setMessages([{
+            id: 'welcome',
+            role: 'assistant',
+            content: "Hey! I'm Dika, your voice fitness coach. Just tap the mic and talk to me — ask about your workouts, nutrition, health, or tell me to log something. I'm all ears!",
+          }]);
+        }
+      } else {
+        activeChatIdRef.current = null;
+        setMessages([{
+          id: 'welcome',
+          role: 'assistant',
+          content: "Hey! I'm Dika, your voice fitness coach. Just tap the mic and talk to me — ask about your workouts, nutrition, health, or tell me to log something. I'm all ears!",
+        }]);
+      }
+    } catch (err) {
       setMessages([{
         id: 'welcome',
         role: 'assistant',
         content: "Hey! I'm Dika, your voice fitness coach. Just tap the mic and talk to me — ask about your workouts, nutrition, health, or tell me to log something. I'm all ears!",
       }]);
+    } finally {
+      setIsLoadingHistory(false);
     }
-  }, [messages.length]);
+  }, [user]);
+
+  const handleOpen = useCallback(() => {
+    setIsOpen(true);
+    setError(null);
+    loadChatHistory();
+  }, [loadChatHistory]);
 
   const handleClose = useCallback(() => {
     voiceService.current.stop();
@@ -212,6 +266,7 @@ export function DikaVoice() {
   }, []);
 
   const clearConversation = useCallback(() => {
+    activeChatIdRef.current = null;
     setMessages([{
       id: 'welcome-new',
       role: 'assistant',
@@ -338,6 +393,11 @@ export function DikaVoice() {
           )}
 
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            {isLoadingHistory && (
+              <div className="flex justify-center py-4">
+                <div className="w-5 h-5 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+              </div>
+            )}
             {messages.map(msg => (
               <div
                 key={msg.id}
@@ -349,7 +409,12 @@ export function DikaVoice() {
                 )}
                 data-testid={`voice-message-${msg.role}-${msg.id}`}
               >
-                {msg.content}
+                <div className="flex items-start gap-1.5">
+                  {msg.source === 'voice' && msg.role === 'user' && (
+                    <Mic className="w-3 h-3 mt-0.5 flex-shrink-0 opacity-70" />
+                  )}
+                  <span>{msg.content}</span>
+                </div>
               </div>
             ))}
 
