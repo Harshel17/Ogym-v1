@@ -870,7 +870,7 @@ export default function StatsPage() {
             </Card>
           )}
 
-          {cardioStats && cardioStats.totalSessions > 0 && (
+          {cardioStats && (
             <Card data-testid="card-cardio-stats">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -879,6 +879,13 @@ export default function StatsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {cardioStats.totalSessions === 0 ? (
+                  <div className="text-center py-6 space-y-2" data-testid="cardio-empty-state">
+                    <Activity className="w-10 h-10 mx-auto text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">No cardio sessions logged in the last 30 days</p>
+                    <p className="text-xs text-muted-foreground">Add cardio exercises to your workout cycle to start tracking</p>
+                  </div>
+                ) : (
                 <div className="space-y-4">
                   {cardioStats.favoriteExercise && (
                     <div className="flex items-center gap-2 flex-wrap" data-testid="cardio-favorite">
@@ -944,6 +951,7 @@ export default function StatsPage() {
                     </div>
                   )}
                 </div>
+                )}
               </CardContent>
             </Card>
           )}

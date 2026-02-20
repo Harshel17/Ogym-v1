@@ -11,7 +11,7 @@ import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
 import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed } from "@shared/schema";
-import { eq, and, isNotNull, inArray, sql, desc, gte, like, asc } from "drizzle-orm";
+import { eq, and, isNotNull, inArray, sql, desc, gte, lte, like, asc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing } from "./dika";
 import { executeOwnerAction, executeSupportTicket, type ActionData } from "./dika/owner-actions";
