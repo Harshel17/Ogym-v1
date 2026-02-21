@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -35,13 +35,17 @@ import {
   Timer,
   BarChart3,
   Sparkles,
-  ChevronRight,
   Unplug,
   Plug,
-  Droplets,
   Info,
   Eye,
   Shield,
+  Trophy,
+  Calendar,
+  X,
+  Crown,
+  Target,
+  Brain,
 } from 'lucide-react';
 import { SiApple, SiGoogle } from 'react-icons/si';
 import {
@@ -58,7 +62,36 @@ import {
 } from 'recharts';
 import type { HealthData, FoodLog, UserGoal } from '@shared/schema';
 
-function AnimatedRing({ value, max, size = 58, strokeWidth = 5, color, glowColor, icon: Icon, label, displayValue, unit, hasData = true }: {
+function useCountUp(target: number, duration: number = 1200, enabled: boolean = true) {
+  const [value, setValue] = useState(0);
+  const prevTargetRef = useRef(target);
+  
+  useEffect(() => {
+    if (!enabled || target <= 0) {
+      setValue(target <= 0 ? 0 : target);
+      return;
+    }
+    const from = prevTargetRef.current !== target ? 0 : 0;
+    prevTargetRef.current = target;
+    const startTime = performance.now();
+    let rafId: number;
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(from + (target - from) * eased));
+      if (progress < 1) {
+        rafId = requestAnimationFrame(animate);
+      }
+    };
+    rafId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafId);
+  }, [target, duration, enabled]);
+  
+  return value;
+}
+
+function AnimatedRing({ value, max, size = 58, strokeWidth = 5, color, glowColor, icon: Icon, label, displayValue, unit, hasData = true, goalReached = false }: {
   value: number;
   max: number;
   size?: number;
@@ -70,6 +103,7 @@ function AnimatedRing({ value, max, size = 58, strokeWidth = 5, color, glowColor
   displayValue: string;
   unit?: string;
   hasData?: boolean;
+  goalReached?: boolean;
 }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -84,6 +118,11 @@ function AnimatedRing({ value, max, size = 58, strokeWidth = 5, color, glowColor
           <div className="absolute inset-0 rounded-full" style={{ 
             boxShadow: `0 0 20px ${glowColor}`,
             transition: 'box-shadow 1s ease'
+          }} />
+        )}
+        {goalReached && (
+          <div className="absolute inset-0 rounded-full animate-pulse" style={{ 
+            boxShadow: `0 0 25px ${glowColor}, 0 0 50px ${glowColor}`,
           }} />
         )}
         <svg width={size} height={size} className="-rotate-90">
@@ -104,7 +143,11 @@ function AnimatedRing({ value, max, size = 58, strokeWidth = 5, color, glowColor
           )}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <Icon className="w-3 h-3 mb-0.5" style={{ color: hasData ? color : 'hsl(var(--muted-foreground))' }} />
+          {goalReached ? (
+            <Crown className="w-3 h-3 mb-0.5 text-amber-500" />
+          ) : (
+            <Icon className="w-3 h-3 mb-0.5" style={{ color: hasData ? color : 'hsl(var(--muted-foreground))' }} />
+          )}
           <span className={`text-xs font-bold tracking-tight ${!hasData ? 'text-muted-foreground' : ''}`}>{displayValue}</span>
         </div>
       </div>
@@ -165,6 +208,86 @@ function DataSourceBadge({ label }: { label: string }) {
     <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/30 text-[9px] text-muted-foreground font-medium">
       <Shield className="w-2.5 h-2.5" />
       {label}
+    </div>
+  );
+}
+
+function DayDetailSheet({ data, date, onClose }: { data: any; date: string; onClose: () => void }) {
+  const d = new Date(date + 'T12:00:00');
+  const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  
+  const formatSleep = (mins: number) => {
+    if (!mins) return '--';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose} data-testid="sheet-day-detail">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div 
+        className="relative w-full max-w-lg bg-card rounded-t-3xl p-5 pb-8 shadow-2xl animate-in slide-in-from-bottom duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="w-10 h-1 rounded-full bg-muted mx-auto mb-4" />
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-lg font-bold">{dayLabel}</h3>
+            <p className="text-xs text-muted-foreground">{data ? 'Daily breakdown' : 'No data synced'}</p>
+          </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={onClose} data-testid="button-close-sheet">
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+        
+        {data ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/10">
+              <div className="flex items-center gap-2 mb-1">
+                <Footprints className="w-4 h-4 text-blue-500" />
+                <span className="text-xs text-muted-foreground">Steps</span>
+              </div>
+              <p className="text-xl font-bold">{data.steps ? data.steps.toLocaleString() : '--'}</p>
+            </div>
+            <div className="p-3 bg-orange-500/5 rounded-xl border border-orange-500/10">
+              <div className="flex items-center gap-2 mb-1">
+                <Flame className="w-4 h-4 text-orange-500" />
+                <span className="text-xs text-muted-foreground">Burned</span>
+              </div>
+              <p className="text-xl font-bold">{data.calories ? `${data.calories} cal` : '--'}</p>
+            </div>
+            <div className="p-3 bg-red-500/5 rounded-xl border border-red-500/10">
+              <div className="flex items-center gap-2 mb-1">
+                <Heart className="w-4 h-4 text-red-500" />
+                <span className="text-xs text-muted-foreground">Avg HR</span>
+              </div>
+              <p className="text-xl font-bold">{data.hr ? `${data.hr} bpm` : '--'}</p>
+            </div>
+            <div className="p-3 bg-purple-500/5 rounded-xl border border-purple-500/10">
+              <div className="flex items-center gap-2 mb-1">
+                <Moon className="w-4 h-4 text-purple-500" />
+                <span className="text-xs text-muted-foreground">Sleep</span>
+              </div>
+              <p className="text-xl font-bold">{data.sleep > 0 ? formatSleep(data.sleepMinutes) : '--'}</p>
+            </div>
+            {data.activeMinutes > 0 && (
+              <div className="col-span-2 p-3 bg-green-500/5 rounded-xl border border-green-500/10">
+                <div className="flex items-center gap-2 mb-1">
+                  <Timer className="w-4 h-4 text-green-500" />
+                  <span className="text-xs text-muted-foreground">Active Minutes</span>
+                </div>
+                <p className="text-xl font-bold">{data.activeMinutes} min</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <Moon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No health data was synced on this day</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -293,6 +416,28 @@ function generateInsights(healthData: HealthData | null, caloriesEaten: number, 
   return insights.slice(0, 3);
 }
 
+function getRecoveryBgClass(score: number): string {
+  if (score >= 80) return 'from-emerald-500/[0.04] via-emerald-500/[0.01]';
+  if (score >= 60) return 'from-blue-500/[0.04] via-blue-500/[0.01]';
+  if (score >= 40) return 'from-amber-500/[0.04] via-amber-500/[0.01]';
+  if (score > 0) return 'from-red-500/[0.04] via-red-500/[0.01]';
+  return '';
+}
+
+interface HealthStats {
+  bestStepsDay: { date: string; steps: number };
+  bestCaloriesDay: { date: string; calories: number };
+  totalSteps: number;
+  totalCalories: number;
+  daysTracked: number;
+  stepGoalDays: number;
+  currentStreak: number;
+  maxStreak: number;
+  weeklyStepChange: number;
+  thisWeekSteps: number;
+  prevWeekSteps: number;
+}
+
 export default function HealthPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -305,13 +450,17 @@ export default function HealthPage() {
   const syncHealth = useSyncHealth();
   const { isAvailable, availableSource } = useHealthServiceInfo();
 
+  const [chartRange, setChartRange] = useState<'7d' | '30d'>('7d');
+  const [selectedDay, setSelectedDay] = useState<{ date: string; data: any } | null>(null);
+
   const today = new Date();
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-  const startDate = sevenDaysAgo.toISOString().split('T')[0];
+  const rangeDays = chartRange === '7d' ? 6 : 29;
+  const rangeStart = new Date(today);
+  rangeStart.setDate(rangeStart.getDate() - rangeDays);
+  const startDate = rangeStart.toISOString().split('T')[0];
   const endDate = today.toISOString().split('T')[0];
 
-  const { data: weeklyData } = useHealthDataRange(startDate, endDate);
+  const { data: rangeData } = useHealthDataRange(startDate, endDate);
 
   const todayDateStr = today.toISOString().split('T')[0];
   const { data: todayFoodLogs } = useQuery<FoodLog[]>({
@@ -320,6 +469,10 @@ export default function HealthPage() {
 
   const { data: userGoals } = useQuery<UserGoal>({
     queryKey: ['/api/user/goals'],
+  });
+
+  const { data: healthStats } = useQuery<HealthStats>({
+    queryKey: ['/api/health/stats'],
   });
 
   const stepGoal = 10000;
@@ -333,26 +486,36 @@ export default function HealthPage() {
   const recovery = useMemo(() => computeRecoveryScore(todayData || null), [todayData]);
   const insights = useMemo(() => generateInsights(todayData || null, caloriesEaten, recovery.score, stepGoal), [todayData, caloriesEaten, recovery.score, stepGoal]);
 
-  const weeklyChartData = useMemo(() => {
-    const days: { date: string; label: string; steps: number; calories: number; hr: number; sleep: number; hasData: boolean }[] = [];
-    for (let i = 6; i >= 0; i--) {
+  const animSteps = useCountUp(todayData?.steps || 0, 1200, !!(todayData?.steps && todayData.steps > 0));
+  const animCals = useCountUp(todayData?.caloriesBurned || 0, 1000, !!(todayData?.caloriesBurned && todayData.caloriesBurned > 0));
+  const animHR = useCountUp(todayData?.avgHeartRate || 0, 800, !!(todayData?.avgHeartRate && todayData.avgHeartRate > 0));
+
+  const chartData = useMemo(() => {
+    const days: { date: string; label: string; steps: number; calories: number; hr: number; sleep: number; sleepMinutes: number; activeMinutes: number; hasData: boolean }[] = [];
+    for (let i = rangeDays; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const match = weeklyData?.find((wd) => wd.date === dateStr);
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const match = rangeData?.find((wd) => wd.date === dateStr);
+      const label = chartRange === '30d' 
+        ? `${monthNames[d.getMonth()]} ${d.getDate()}`
+        : dayNames[d.getDay()];
       days.push({
         date: dateStr,
-        label: dayNames[d.getDay()],
+        label,
         steps: match?.steps || 0,
         calories: match?.caloriesBurned || 0,
         hr: match?.avgHeartRate || 0,
         sleep: match?.sleepMinutes ? Math.round(match.sleepMinutes / 60 * 10) / 10 : 0,
+        sleepMinutes: match?.sleepMinutes || 0,
+        activeMinutes: match?.activeMinutes || 0,
         hasData: !!match,
       });
     }
     return days;
-  }, [weeklyData]);
+  }, [rangeData, chartRange, rangeDays]);
 
   const isConnected = status?.connected || (user as any)?.healthConnected || !!todayData;
   const isLoading = statusLoading || todayLoading;
@@ -367,6 +530,7 @@ export default function HealthPage() {
   const hasSleep = !!todayData?.sleepMinutes && todayData.sleepMinutes > 0;
   const hasActiveMinutes = !!todayData?.activeMinutes && todayData.activeMinutes > 0;
   const trackedMetrics = [hasSteps, hasCals, hasHR, hasSleep].filter(Boolean).length;
+  const stepGoalReached = hasSteps && todayData!.steps! >= stepGoal;
 
   const handleConnect = async () => {
     try {
@@ -398,6 +562,16 @@ export default function HealthPage() {
     }
   };
 
+  const handleBarClick = useCallback((data: any) => {
+    if (data?.activePayload?.[0]?.payload) {
+      const entry = data.activePayload[0].payload;
+      setSelectedDay({
+        date: entry.date,
+        data: entry.hasData ? entry : null,
+      });
+    }
+  }, []);
+
   if (isLoading) {
     return (
       <div className="p-4 space-y-4 max-w-lg mx-auto">
@@ -412,14 +586,13 @@ export default function HealthPage() {
     );
   }
 
-  if (!isNativePlatform && !isConnected && !todayData && !(weeklyData && weeklyData.length > 0)) {
+  if (!isNativePlatform && !isConnected && !todayData && !(rangeData && rangeData.length > 0)) {
     return (
       <div className="p-4 space-y-6 max-w-lg mx-auto">
         <div className="flex items-center gap-3 mb-2">
           <Activity className="w-6 h-6 text-primary" />
           <h1 className="text-2xl font-bold font-display">Health & Activity</h1>
         </div>
-
         <Card className="border-dashed border-2 overflow-hidden relative" data-testid="card-health-web-notice">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5" />
           <CardContent className="pt-8 pb-8 relative">
@@ -465,7 +638,6 @@ export default function HealthPage() {
           <Activity className="w-6 h-6 text-primary" />
           <h1 className="text-2xl font-bold font-display">Health & Activity</h1>
         </div>
-
         <Card className="overflow-hidden">
           <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6">
             <div className="text-center space-y-4">
@@ -473,19 +645,10 @@ export default function HealthPage() {
                 {platform === 'ios' ? <SiApple className="w-8 h-8" /> : <SiGoogle className="w-8 h-8" />}
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-1">
-                  Connect {platform === 'ios' ? 'Apple Health' : 'Google Fit'}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Track your steps, heart rate, sleep quality and more
-                </p>
+                <h3 className="font-bold text-lg mb-1">Connect {platform === 'ios' ? 'Apple Health' : 'Google Fit'}</h3>
+                <p className="text-sm text-muted-foreground">Track your steps, heart rate, sleep quality and more</p>
               </div>
-              <Button
-                onClick={handleConnect}
-                disabled={connectHealth.isPending}
-                className="w-full rounded-xl h-12 text-base font-semibold"
-                data-testid="button-connect-health"
-              >
+              <Button onClick={handleConnect} disabled={connectHealth.isPending} className="w-full rounded-xl h-12 text-base font-semibold" data-testid="button-connect-health">
                 {connectHealth.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Plug className="w-5 h-5 mr-2" />}
                 Connect Now
               </Button>
@@ -493,22 +656,10 @@ export default function HealthPage() {
           </div>
           <CardContent className="pt-4">
             <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl">
-                <Footprints className="w-4 h-4 text-blue-500" />
-                <span className="text-sm">Steps & Distance</span>
-              </div>
-              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl">
-                <Flame className="w-4 h-4 text-orange-500" />
-                <span className="text-sm">Calories Burned</span>
-              </div>
-              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl">
-                <Heart className="w-4 h-4 text-red-500" />
-                <span className="text-sm">Heart Rate</span>
-              </div>
-              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl">
-                <Moon className="w-4 h-4 text-purple-500" />
-                <span className="text-sm">Sleep Tracking</span>
-              </div>
+              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl"><Footprints className="w-4 h-4 text-blue-500" /><span className="text-sm">Steps & Distance</span></div>
+              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl"><Flame className="w-4 h-4 text-orange-500" /><span className="text-sm">Calories Burned</span></div>
+              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl"><Heart className="w-4 h-4 text-red-500" /><span className="text-sm">Heart Rate</span></div>
+              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl"><Moon className="w-4 h-4 text-purple-500" /><span className="text-sm">Sleep Tracking</span></div>
             </div>
           </CardContent>
         </Card>
@@ -523,14 +674,28 @@ export default function HealthPage() {
     return m > 0 ? `${h}h ${m}m` : `${h}h`;
   };
 
-  const daysWithData = weeklyChartData.filter(d => d.hasData).length;
-  const weeklyAvgSteps = weeklyChartData.filter(d => d.steps > 0).reduce((sum, d) => sum + d.steps, 0) / Math.max(weeklyChartData.filter(d => d.steps > 0).length, 1);
-  const weeklyAvgCals = weeklyChartData.filter(d => d.calories > 0).reduce((sum, d) => sum + d.calories, 0) / Math.max(weeklyChartData.filter(d => d.calories > 0).length, 1);
+  const daysWithData = chartData.filter(d => d.hasData).length;
+  const avgSteps = chartData.filter(d => d.steps > 0).reduce((sum, d) => sum + d.steps, 0) / Math.max(chartData.filter(d => d.steps > 0).length, 1);
+  const avgCals = chartData.filter(d => d.calories > 0).reduce((sum, d) => sum + d.calories, 0) / Math.max(chartData.filter(d => d.calories > 0).length, 1);
 
   const noDataAtAll = !todayData || trackedMetrics === 0;
 
+  const bestDayThisWeek = chartData.filter(d => d.hasData && d.steps > 0).sort((a, b) => b.steps - a.steps)[0];
+
+  const recoveryBg = recovery.hasEnoughData ? getRecoveryBgClass(recovery.score) : '';
+
+  const formatBestDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T12:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const stepsDisplay = hasSteps ? (animSteps >= 1000 ? `${(animSteps / 1000).toFixed(1)}k` : `${animSteps}`) : '--';
+  const calsDisplay = hasCals ? `${animCals}` : '--';
+  const hrDisplay = hasHR ? `${animHR}` : '--';
+
   return (
-    <div className="p-4 space-y-4 max-w-lg mx-auto pb-24" data-testid="page-health">
+    <div className={`p-4 space-y-4 max-w-lg mx-auto pb-24 bg-gradient-to-b ${recoveryBg} to-transparent min-h-screen transition-colors duration-1000`} data-testid="page-health">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/10">
@@ -546,14 +711,7 @@ export default function HealthPage() {
             {status?.source === 'apple_health' ? <SiApple className="w-2.5 h-2.5" /> : status?.source === 'google_fit' ? <SiGoogle className="w-2.5 h-2.5" /> : <Watch className="w-2.5 h-2.5" />}
             {sourceName}
           </Badge>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 rounded-lg"
-            onClick={handleSync}
-            disabled={syncHealth.isPending}
-            data-testid="button-sync-health"
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={handleSync} disabled={syncHealth.isPending} data-testid="button-sync-health">
             <RefreshCw className={`w-4 h-4 ${syncHealth.isPending ? 'animate-spin' : ''}`} />
           </Button>
         </div>
@@ -577,6 +735,50 @@ export default function HealthPage() {
         </Card>
       )}
 
+      {healthStats && healthStats.currentStreak > 0 && (
+        <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-red-500/10" data-testid="card-step-streak">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center gap-3">
+              <div className="text-2xl">🔥</div>
+              <div className="flex-1">
+                <p className="text-sm font-bold">
+                  {healthStats.currentStreak} day step streak!
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  You've hit your 10k step goal {healthStats.currentStreak} day{healthStats.currentStreak > 1 ? 's' : ''} in a row
+                </p>
+              </div>
+              {healthStats.maxStreak > healthStats.currentStreak && (
+                <div className="text-right">
+                  <p className="text-[10px] text-muted-foreground">Best</p>
+                  <p className="text-sm font-bold text-amber-600">{healthStats.maxStreak}d</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {healthStats && healthStats.weeklyStepChange !== 0 && (
+        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-weekly-comparison">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${healthStats.weeklyStepChange > 0 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                {healthStats.weeklyStepChange > 0 ? <TrendingUp className="w-4 h-4 text-green-500" /> : <TrendingDown className="w-4 h-4 text-red-500" />}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">
+                  You walked <span className={`font-bold ${healthStats.weeklyStepChange > 0 ? 'text-green-500' : 'text-red-500'}`}>{Math.abs(healthStats.weeklyStepChange)}% {healthStats.weeklyStepChange > 0 ? 'more' : 'less'}</span> than last week
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {healthStats.thisWeekSteps.toLocaleString()} vs {healthStats.prevWeekSteps.toLocaleString()} steps
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/20 shadow-lg" data-testid="section-daily-overview">
         <CardContent className="pt-5 pb-5">
           <div className="grid grid-cols-4 gap-4">
@@ -584,23 +786,25 @@ export default function HealthPage() {
               value={todayData?.steps || 0} max={stepGoal}
               color="#3b82f6" glowColor="rgba(59,130,246,0.15)"
               icon={Footprints} label="Steps"
-              displayValue={hasSteps ? (todayData!.steps! >= 1000 ? `${(todayData!.steps! / 1000).toFixed(1)}k` : `${todayData!.steps}`) : '--'}
+              displayValue={stepsDisplay}
               unit={hasSteps ? `/ ${stepGoal >= 1000 ? `${(stepGoal / 1000).toFixed(0)}k` : stepGoal}` : undefined}
               hasData={hasSteps}
+              goalReached={stepGoalReached}
             />
             <AnimatedRing
               value={todayData?.caloriesBurned || 0} max={calorieGoal}
               color="#f97316" glowColor="rgba(249,115,22,0.15)"
               icon={Flame} label="Burned"
-              displayValue={hasCals ? `${todayData!.caloriesBurned}` : '--'}
+              displayValue={calsDisplay}
               unit={hasCals ? 'cal' : undefined}
               hasData={hasCals}
+              goalReached={hasCals && todayData!.caloriesBurned! >= calorieGoal}
             />
             <AnimatedRing
               value={todayData?.avgHeartRate || 0} max={200}
               color="#ef4444" glowColor="rgba(239,68,68,0.15)"
               icon={Heart} label="Avg HR"
-              displayValue={hasHR ? `${todayData!.avgHeartRate}` : '--'}
+              displayValue={hrDisplay}
               unit={hasHR ? 'bpm' : undefined}
               hasData={hasHR}
             />
@@ -653,9 +857,7 @@ export default function HealthPage() {
                   <Zap className="w-4 h-4 text-emerald-500" />
                   <span className="text-sm font-semibold">Recovery Score</span>
                   {recovery.dataPoints < 4 && (
-                    <Badge variant="outline" className="text-[9px] ml-auto px-1.5 py-0 h-4 rounded-md border-amber-500/30 text-amber-600">
-                      Partial
-                    </Badge>
+                    <Badge variant="outline" className="text-[9px] ml-auto px-1.5 py-0 h-4 rounded-md border-amber-500/30 text-amber-600">Partial</Badge>
                   )}
                 </div>
                 <div className="flex items-start gap-4">
@@ -665,9 +867,7 @@ export default function HealthPage() {
                       {recovery.factors.map((f, i) => (
                         <div key={i} className="flex items-center justify-between">
                           <span className="text-[11px] text-muted-foreground">{f.label}</span>
-                          <span className={`text-[11px] font-semibold ${f.impact === 'positive' ? 'text-green-500' : f.impact === 'negative' ? 'text-red-400' : 'text-amber-500'}`}>
-                            {f.value}
-                          </span>
+                          <span className={`text-[11px] font-semibold ${f.impact === 'positive' ? 'text-green-500' : f.impact === 'negative' ? 'text-red-400' : 'text-amber-500'}`}>{f.value}</span>
                         </div>
                       ))}
                     </div>
@@ -689,18 +889,14 @@ export default function HealthPage() {
                 </div>
                 <div className="space-y-2.5">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <Utensils className="w-3 h-3 text-green-500" />
-                    </div>
+                    <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center"><Utensils className="w-3 h-3 text-green-500" /></div>
                     <div className="flex-1">
                       <p className="text-[10px] text-muted-foreground">Eaten</p>
                       <p className="text-sm font-bold">{caloriesEaten > 0 ? caloriesEaten.toLocaleString() : '--'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-orange-500/10 flex items-center justify-center">
-                      <Flame className="w-3 h-3 text-orange-500" />
-                    </div>
+                    <div className="w-6 h-6 rounded-full bg-orange-500/10 flex items-center justify-center"><Flame className="w-3 h-3 text-orange-500" /></div>
                     <div className="flex-1">
                       <p className="text-[10px] text-muted-foreground">Burned</p>
                       <p className="text-sm font-bold">{hasCals ? caloriesBurned.toLocaleString() : '--'}</p>
@@ -711,18 +907,12 @@ export default function HealthPage() {
                       <Separator className="opacity-30" />
                       <div className="text-center">
                         <div className="flex items-center justify-center gap-1">
-                          {calorieBalance < 0 ? (
-                            <TrendingDown className="w-3.5 h-3.5 text-blue-500" />
-                          ) : (
-                            <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
-                          )}
+                          {calorieBalance < 0 ? <TrendingDown className="w-3.5 h-3.5 text-blue-500" /> : <TrendingUp className="w-3.5 h-3.5 text-amber-500" />}
                           <span className={`text-xl font-black tabular-nums ${calorieBalance < 0 ? 'text-blue-500' : 'text-amber-500'}`}>
                             {calorieBalance > 0 ? '+' : ''}{calorieBalance.toLocaleString()}
                           </span>
                         </div>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {calorieBalance < 0 ? 'Deficit' : calorieBalance > 0 ? 'Surplus' : 'Balanced'}
-                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{calorieBalance < 0 ? 'Deficit' : calorieBalance > 0 ? 'Surplus' : 'Balanced'}</p>
                       </div>
                     </>
                   )}
@@ -734,7 +924,7 @@ export default function HealthPage() {
       )}
 
       {!recovery.hasEnoughData && (caloriesEaten > 0 || hasCals) && (
-        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-calorie-balance">
+        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-calorie-balance-alt">
           <div className="bg-gradient-to-br from-orange-500/[0.03] via-card to-card">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-1.5 mb-3">
@@ -743,29 +933,19 @@ export default function HealthPage() {
               </div>
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div>
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <Utensils className="w-3.5 h-3.5 text-green-500" />
-                  </div>
+                  <Utensils className="w-3.5 h-3.5 text-green-500 mx-auto mb-1" />
                   <p className="text-lg font-bold">{caloriesEaten > 0 ? caloriesEaten.toLocaleString() : '--'}</p>
                   <p className="text-[10px] text-muted-foreground">Eaten</p>
                 </div>
                 <div>
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <Flame className="w-3.5 h-3.5 text-orange-500" />
-                  </div>
+                  <Flame className="w-3.5 h-3.5 text-orange-500 mx-auto mb-1" />
                   <p className="text-lg font-bold">{hasCals ? caloriesBurned.toLocaleString() : '--'}</p>
                   <p className="text-[10px] text-muted-foreground">Burned</p>
                 </div>
                 <div>
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    {calorieBalance < 0 ? <TrendingDown className="w-3.5 h-3.5 text-blue-500" /> : <TrendingUp className="w-3.5 h-3.5 text-amber-500" />}
-                  </div>
-                  <p className={`text-lg font-bold ${calorieBalance < 0 ? 'text-blue-500' : 'text-amber-500'}`}>
-                    {calorieBalance > 0 ? '+' : ''}{calorieBalance.toLocaleString()}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {calorieBalance < 0 ? 'Deficit' : calorieBalance > 0 ? 'Surplus' : 'Balanced'}
-                  </p>
+                  {calorieBalance < 0 ? <TrendingDown className="w-3.5 h-3.5 text-blue-500 mx-auto mb-1" /> : <TrendingUp className="w-3.5 h-3.5 text-amber-500 mx-auto mb-1" />}
+                  <p className={`text-lg font-bold ${calorieBalance < 0 ? 'text-blue-500' : 'text-amber-500'}`}>{calorieBalance > 0 ? '+' : ''}{calorieBalance.toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground">{calorieBalance < 0 ? 'Deficit' : calorieBalance > 0 ? 'Surplus' : 'Balanced'}</p>
                 </div>
               </div>
             </CardContent>
@@ -778,8 +958,8 @@ export default function HealthPage() {
           <div className="bg-gradient-to-br from-amber-500/[0.03] via-card to-card">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-1.5 mb-3">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span className="text-sm font-semibold">Smart Insights</span>
+                <Brain className="w-4 h-4 text-amber-500" />
+                <span className="text-sm font-semibold">AI Insights</span>
                 <DataSourceBadge label="Based on today's data" />
               </div>
               <div className="space-y-2.5">
@@ -835,29 +1015,44 @@ export default function HealthPage() {
         </Card>
       )}
 
-      {weeklyChartData.some(d => d.steps > 0) && (
-        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-weekly-steps">
+      {chartData.some(d => d.steps > 0) && (
+        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-chart-steps">
           <div className="bg-gradient-to-br from-blue-500/[0.03] via-card to-card">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-1.5">
                   <BarChart3 className="w-4 h-4 text-blue-500" />
-                  <span className="text-sm font-semibold">Weekly Steps</span>
+                  <span className="text-sm font-semibold">Steps</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground">
-                    avg {Math.round(weeklyAvgSteps).toLocaleString()}
-                  </span>
-                  {daysWithData < 7 && (
-                    <span className="text-[10px] text-muted-foreground/60">{daysWithData}/7 days</span>
-                  )}
+                  <span className="text-[11px] text-muted-foreground">avg {Math.round(avgSteps).toLocaleString()}</span>
+                  <div className="flex bg-muted/50 rounded-lg p-0.5" data-testid="toggle-chart-range">
+                    <button
+                      className={`px-2 py-0.5 text-[10px] font-medium rounded-md transition-colors ${chartRange === '7d' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                      onClick={() => setChartRange('7d')}
+                    >7D</button>
+                    <button
+                      className={`px-2 py-0.5 text-[10px] font-medium rounded-md transition-colors ${chartRange === '30d' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                      onClick={() => setChartRange('30d')}
+                    >30D</button>
+                  </div>
                 </div>
               </div>
+              {bestDayThisWeek && (
+                <p className="text-[10px] text-muted-foreground mb-2">
+                  Best: <span className="font-medium text-blue-500">{bestDayThisWeek.steps.toLocaleString()}</span> steps on {bestDayThisWeek.label}
+                </p>
+              )}
               <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyChartData} margin={{ top: 8, right: 0, bottom: 0, left: -25 }}>
+                  <BarChart data={chartData} margin={{ top: 8, right: 0, bottom: 0, left: -25 }} onClick={handleBarClick}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted/15" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <XAxis 
+                      dataKey="label" 
+                      tick={{ fontSize: chartRange === '30d' ? 8 : 11, fill: 'hsl(var(--muted-foreground))' }} 
+                      axisLine={false} tickLine={false}
+                      interval={chartRange === '30d' ? 4 : 0}
+                    />
                     <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                     <Tooltip
                       contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}
@@ -866,14 +1061,21 @@ export default function HealthPage() {
                         if (!entry.hasData) return ['No data', 'Steps'];
                         return [value.toLocaleString(), 'Steps'];
                       }}
+                      labelFormatter={(label: string, payload: any) => {
+                        if (payload?.[0]?.payload) {
+                          return `Tap for details`;
+                        }
+                        return label;
+                      }}
                       cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3, radius: 4 }}
                     />
-                    <Bar dataKey="steps" radius={[6, 6, 0, 0]} maxBarSize={32}>
-                      {weeklyChartData.map((entry, index) => (
+                    <Bar dataKey="steps" radius={[6, 6, 0, 0]} maxBarSize={chartRange === '30d' ? 16 : 32}>
+                      {chartData.map((entry, index) => (
                         <Cell 
                           key={index} 
                           fill={!entry.hasData ? 'hsl(var(--muted))' : entry.date === todayDateStr ? '#3b82f6' : '#3b82f640'} 
                           opacity={!entry.hasData ? 0.3 : 1}
+                          style={{ cursor: 'pointer' }}
                         />
                       ))}
                     </Bar>
@@ -885,29 +1087,66 @@ export default function HealthPage() {
         </Card>
       )}
 
-      {weeklyChartData.some(d => d.calories > 0) && (
-        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-weekly-calories">
+      {chartData.some(d => d.sleep > 0) && (
+        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-chart-sleep">
+          <div className="bg-gradient-to-br from-purple-500/[0.03] via-card to-card">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5">
+                  <Moon className="w-4 h-4 text-purple-500" />
+                  <span className="text-sm font-semibold">Sleep Pattern</span>
+                </div>
+                <span className="text-[11px] text-muted-foreground">
+                  avg {(chartData.filter(d => d.sleep > 0).reduce((s, d) => s + d.sleep, 0) / Math.max(chartData.filter(d => d.sleep > 0).length, 1)).toFixed(1)}h
+                </span>
+              </div>
+              <div className="h-44">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 8, right: 0, bottom: 0, left: -25 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/15" vertical={false} />
+                    <XAxis 
+                      dataKey="label" 
+                      tick={{ fontSize: chartRange === '30d' ? 8 : 11, fill: 'hsl(var(--muted-foreground))' }} 
+                      axisLine={false} tickLine={false}
+                      interval={chartRange === '30d' ? 4 : 0}
+                    />
+                    <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} domain={[0, 10]} tickFormatter={(v) => `${v}h`} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}
+                      formatter={(value: number) => [`${value}h`, 'Sleep']}
+                    />
+                    <Bar dataKey="sleep" radius={[6, 6, 0, 0]} maxBarSize={chartRange === '30d' ? 16 : 32}>
+                      {chartData.map((entry, index) => {
+                        const sleepColor = entry.sleep >= 7 ? '#a855f7' : entry.sleep >= 6 ? '#c084fc' : '#e9d5ff';
+                        return <Cell key={index} fill={entry.sleep > 0 ? sleepColor : 'hsl(var(--muted))'} opacity={entry.sleep > 0 ? 1 : 0.3} />;
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </div>
+        </Card>
+      )}
+
+      {chartData.some(d => d.calories > 0) && (
+        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-chart-calories">
           <div className="bg-gradient-to-br from-orange-500/[0.03] via-card to-card">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-1.5">
                   <Flame className="w-4 h-4 text-orange-500" />
-                  <span className="text-sm font-semibold">Weekly Calories Burned</span>
+                  <span className="text-sm font-semibold">Calories Burned</span>
                 </div>
-                <span className="text-[11px] text-muted-foreground">
-                  avg {Math.round(weeklyAvgCals).toLocaleString()} cal
-                </span>
+                <span className="text-[11px] text-muted-foreground">avg {Math.round(avgCals).toLocaleString()} cal</span>
               </div>
               <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={weeklyChartData} margin={{ top: 8, right: 0, bottom: 0, left: -25 }}>
+                  <AreaChart data={chartData} margin={{ top: 8, right: 0, bottom: 0, left: -25 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted/15" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: chartRange === '30d' ? 8 : 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} interval={chartRange === '30d' ? 4 : 0} />
                     <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}
-                      formatter={(value: number) => [value.toLocaleString(), 'Calories']}
-                    />
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }} formatter={(value: number) => [value.toLocaleString(), 'Calories']} />
                     <defs>
                       <linearGradient id="calorieGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#f97316" stopOpacity={0.35} />
@@ -923,8 +1162,8 @@ export default function HealthPage() {
         </Card>
       )}
 
-      {weeklyChartData.some(d => d.hr > 0) && (
-        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-weekly-hr">
+      {chartData.some(d => d.hr > 0) && (
+        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-chart-hr">
           <div className="bg-gradient-to-br from-red-500/[0.03] via-card to-card">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center justify-between mb-1">
@@ -933,19 +1172,16 @@ export default function HealthPage() {
                   <span className="text-sm font-semibold">Heart Rate Trend</span>
                 </div>
                 <span className="text-[11px] text-muted-foreground">
-                  avg {Math.round(weeklyChartData.filter(d => d.hr > 0).reduce((s, d) => s + d.hr, 0) / Math.max(weeklyChartData.filter(d => d.hr > 0).length, 1))} bpm
+                  avg {Math.round(chartData.filter(d => d.hr > 0).reduce((s, d) => s + d.hr, 0) / Math.max(chartData.filter(d => d.hr > 0).length, 1))} bpm
                 </span>
               </div>
               <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={weeklyChartData} margin={{ top: 8, right: 0, bottom: 0, left: -25 }}>
+                  <AreaChart data={chartData} margin={{ top: 8, right: 0, bottom: 0, left: -25 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted/15" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: chartRange === '30d' ? 8 : 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} interval={chartRange === '30d' ? 4 : 0} />
                     <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}
-                      formatter={(value: number) => [`${value} bpm`, 'Avg HR']}
-                    />
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }} formatter={(value: number) => [`${value} bpm`, 'Avg HR']} />
                     <defs>
                       <linearGradient id="hrGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#ef4444" stopOpacity={0.35} />
@@ -961,22 +1197,74 @@ export default function HealthPage() {
         </Card>
       )}
 
+      {healthStats && healthStats.daysTracked > 0 && (
+        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-personal-records">
+          <div className="bg-gradient-to-br from-amber-500/[0.03] via-card to-card">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-1.5 mb-3">
+                <Trophy className="w-4 h-4 text-amber-500" />
+                <span className="text-sm font-semibold">Personal Records</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                {healthStats.bestStepsDay.steps > 0 && (
+                  <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/10">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Crown className="w-3 h-3 text-amber-500" />
+                      <span className="text-[10px] text-muted-foreground">Best Steps</span>
+                    </div>
+                    <p className="text-lg font-bold text-blue-500">{healthStats.bestStepsDay.steps.toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground">{formatBestDate(healthStats.bestStepsDay.date)}</p>
+                  </div>
+                )}
+                {healthStats.bestCaloriesDay.calories > 0 && (
+                  <div className="p-3 bg-orange-500/5 rounded-xl border border-orange-500/10">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Crown className="w-3 h-3 text-amber-500" />
+                      <span className="text-[10px] text-muted-foreground">Most Burned</span>
+                    </div>
+                    <p className="text-lg font-bold text-orange-500">{healthStats.bestCaloriesDay.calories.toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground">{formatBestDate(healthStats.bestCaloriesDay.date)}</p>
+                  </div>
+                )}
+                <div className="p-3 bg-green-500/5 rounded-xl border border-green-500/10">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Target className="w-3 h-3 text-green-500" />
+                    <span className="text-[10px] text-muted-foreground">Goal Days</span>
+                  </div>
+                  <p className="text-lg font-bold text-green-500">{healthStats.stepGoalDays}</p>
+                  <p className="text-[10px] text-muted-foreground">of {healthStats.daysTracked} tracked</p>
+                </div>
+                <div className="p-3 bg-purple-500/5 rounded-xl border border-purple-500/10">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Calendar className="w-3 h-3 text-purple-500" />
+                    <span className="text-[10px] text-muted-foreground">Best Streak</span>
+                  </div>
+                  <p className="text-lg font-bold text-purple-500">{healthStats.maxStreak}</p>
+                  <p className="text-[10px] text-muted-foreground">days in a row</p>
+                </div>
+              </div>
+            </CardContent>
+          </div>
+        </Card>
+      )}
+
       <div className="flex items-center justify-between pt-2 pb-2">
         <p className="text-[11px] text-muted-foreground">
           Last synced: {todayData?.lastSyncedAt ? new Date(todayData.lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Not yet today'}
         </p>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-[11px] text-destructive/70 hover:text-destructive h-7 px-2"
-          onClick={handleDisconnect}
-          disabled={disconnectHealth.isPending}
-          data-testid="button-disconnect-health"
-        >
+        <Button variant="ghost" size="sm" className="text-[11px] text-destructive/70 hover:text-destructive h-7 px-2" onClick={handleDisconnect} disabled={disconnectHealth.isPending} data-testid="button-disconnect-health">
           <Unplug className="w-3 h-3 mr-1" />
           Disconnect
         </Button>
       </div>
+
+      {selectedDay && (
+        <DayDetailSheet
+          data={selectedDay.data}
+          date={selectedDay.date}
+          onClose={() => setSelectedDay(null)}
+        />
+      )}
     </div>
   );
 }

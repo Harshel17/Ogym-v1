@@ -4807,6 +4807,113 @@ Return ONLY JSON.`
     });
   });
 
+  app.get("/api/health/stats", requireRole(["member"]), async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const allData = await storage.getHealthDataByRange(userId, '2000-01-01', '2099-12-31');
+      
+      let bestStepsDay = { date: '', steps: 0 };
+      let bestCaloriesDay = { date: '', calories: 0 };
+      let totalSteps = 0;
+      let totalCalories = 0;
+      let daysWithSteps = 0;
+      let stepGoalDays = 0;
+      let currentStreak = 0;
+      let maxStreak = 0;
+      
+      const dataByDate = new Map<string, typeof allData[0]>();
+      for (const d of allData) {
+        dataByDate.set(d.date, d);
+        if (d.steps && d.steps > 0) {
+          totalSteps += d.steps;
+          daysWithSteps++;
+          if (d.steps > bestStepsDay.steps) {
+            bestStepsDay = { date: d.date, steps: d.steps };
+          }
+          if (d.steps >= 10000) {
+            stepGoalDays++;
+          }
+        }
+        if (d.caloriesBurned && d.caloriesBurned > 0) {
+          totalCalories += d.caloriesBurned;
+          if (d.caloriesBurned > bestCaloriesDay.calories) {
+            bestCaloriesDay = { date: d.date, calories: d.caloriesBurned };
+          }
+        }
+      }
+      
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      
+      if (allData.length > 0) {
+        const sorted = [...allData].sort((a, b) => a.date.localeCompare(b.date));
+        const firstDate = new Date(sorted[0].date + 'T12:00:00');
+        const lastDate = new Date(sorted[sorted.length - 1].date + 'T12:00:00');
+        
+        let tempStreak = 0;
+        const cursor = new Date(firstDate);
+        while (cursor <= lastDate) {
+          const ds = cursor.toISOString().split('T')[0];
+          const entry = dataByDate.get(ds);
+          if (entry && entry.steps && entry.steps >= 10000) {
+            tempStreak++;
+            if (tempStreak > maxStreak) maxStreak = tempStreak;
+          } else {
+            tempStreak = 0;
+          }
+          cursor.setDate(cursor.getDate() + 1);
+        }
+      }
+      
+      let activeStreak = 0;
+      const checkDate = new Date(today);
+      for (let i = 0; i < 365; i++) {
+        const ds = checkDate.toISOString().split('T')[0];
+        const entry = dataByDate.get(ds);
+        if (entry && entry.steps && entry.steps >= 10000) {
+          activeStreak++;
+        } else {
+          break;
+        }
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+      
+      const sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 13);
+      const prevWeekStart = sevenDaysAgo.toISOString().split('T')[0];
+      const prevWeekEnd = new Date(today);
+      prevWeekEnd.setDate(prevWeekEnd.getDate() - 7);
+      const prevWeekEndStr = prevWeekEnd.toISOString().split('T')[0];
+      const thisWeekStart = new Date(today);
+      thisWeekStart.setDate(thisWeekStart.getDate() - 6);
+      const thisWeekStartStr = thisWeekStart.toISOString().split('T')[0];
+      
+      const thisWeekData = allData.filter(d => d.date >= thisWeekStartStr && d.date <= todayStr);
+      const prevWeekData = allData.filter(d => d.date >= prevWeekStart && d.date <= prevWeekEndStr);
+      
+      const thisWeekSteps = thisWeekData.reduce((s, d) => s + (d.steps || 0), 0);
+      const prevWeekSteps = prevWeekData.reduce((s, d) => s + (d.steps || 0), 0);
+      const weeklyChange = prevWeekSteps > 0 ? Math.round(((thisWeekSteps - prevWeekSteps) / prevWeekSteps) * 100) : 0;
+      
+      res.json({
+        bestStepsDay,
+        bestCaloriesDay,
+        totalSteps,
+        totalCalories,
+        daysTracked: daysWithSteps,
+        stepGoalDays,
+        currentStreak: activeStreak,
+        maxStreak,
+        weeklyStepChange: weeklyChange,
+        thisWeekSteps,
+        prevWeekSteps,
+      });
+    } catch (error) {
+      console.error("Health stats error:", error);
+      res.status(500).json({ message: "Failed to compute health stats" });
+    }
+  });
+
   // === MEMBER PROGRESS - GROUPED SESSIONS ===
   app.get("/api/me/workouts", requireRole(["member"]), async (req, res) => {
     const sessions = await storage.getMemberWorkoutSessions(req.user!.id);
