@@ -1539,6 +1539,36 @@ export async function registerRoutes(
         personalCompletedToday = true;
       }
       
+      // Auto-advance past rest days in completion mode
+      if (cycle.progressionMode === "completion" && !personalCompletedToday && cycle.lastWorkoutDate) {
+        const today = new Date(todayStr + 'T00:00:00');
+        const lastWorkout = new Date(cycle.lastWorkoutDate);
+        const daysSinceLastWorkout = Math.floor((today.getTime() - lastWorkout.getTime()) / (1000 * 60 * 60 * 24));
+        
+        const currentLabel = cycle.dayLabels?.[effectiveDayIndex] || '';
+        const currentDayItems = allItems.filter(item => item.dayIndex === effectiveDayIndex);
+        const currentIsRest = cycle.restDays?.includes(effectiveDayIndex) || 
+                              currentLabel.toLowerCase().includes('rest') ||
+                              currentDayItems.length === 0;
+        
+        if (currentIsRest && daysSinceLastWorkout >= 2) {
+          let nextIndex = (effectiveDayIndex + 1) % cycle.cycleLength;
+          let safety = 0;
+          while (safety < cycle.cycleLength) {
+            const nextLabel = cycle.dayLabels?.[nextIndex] || '';
+            const nextItems = allItems.filter(item => item.dayIndex === nextIndex);
+            const nextIsRest = cycle.restDays?.includes(nextIndex) || 
+                               nextLabel.toLowerCase().includes('rest') ||
+                               nextItems.length === 0;
+            if (!nextIsRest) break;
+            nextIndex = (nextIndex + 1) % cycle.cycleLength;
+            safety++;
+          }
+          effectiveDayIndex = nextIndex;
+          await storage.updateCycleDayIndex(cycle.id, nextIndex);
+        }
+      }
+      
       let effectiveItems = allItems.filter(item => item.dayIndex === effectiveDayIndex);
       let dayLabel = cycle.dayLabels?.[effectiveDayIndex] || `Day ${effectiveDayIndex + 1}`;
       
