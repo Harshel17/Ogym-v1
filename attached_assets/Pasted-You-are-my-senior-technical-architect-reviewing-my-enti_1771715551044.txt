@@ -1,0 +1,152 @@
+You are my senior technical architect reviewing my entire OGym codebase.
+
+Your goal is NOT to rewrite code.
+Your goal is to fully explain my project to me so I can confidently answer technical questions from founders, CTOs, and CFOs.
+
+Analyze the REAL codebase and generate a COMPLETE technical breakdown in clear, simple language.
+
+IMPORTANT RULES:
+
+* Use the actual files and structure in this repository.
+* If you mention something, reference which files/functions it comes from.
+* Explain like I am the builder who needs to present this, not like documentation for engineers.
+* Avoid generic explanations — everything must match this codebase.
+
+I want the output in the following exact structure:
+
+========================
+1️⃣ 60-SECOND TECHNICAL OVERVIEW
+================================
+
+Explain in spoken style:
+
+* Frontend stack
+* Backend stack
+* Database
+* Hosting/deployment
+* Authentication method
+* AI / LLM integration (Dika AI)
+* How data flows at high level
+
+This should sound like something I can say in a meeting.
+
+========================
+2️⃣ SYSTEM ARCHITECTURE (TEXT DIAGRAM)
+======================================
+
+Create a simple box-and-arrow architecture showing:
+Client apps → API → Database → AI/LLM → Other services
+
+Then explain each box in 1–2 simple lines.
+
+========================
+3️⃣ DATABASE + DATA MODEL
+=========================
+
+List all major models/tables.
+For each:
+
+* Purpose
+* Key fields
+* Relationships
+* Why it exists in the system
+
+Then show 3–5 example real data records for important entities (member, workout, nutrition, attendance, payments, etc).
+
+========================
+4️⃣ CORE API ENDPOINTS
+======================
+
+Show the most important API endpoints used by the app.
+For each:
+
+* Method + route
+* What frontend page uses it
+* Request shape
+* Response shape
+* Business purpose
+
+========================
+5️⃣ AUTHENTICATION & SECURITY
+=============================
+
+Explain:
+
+* Login/signup flow
+* Token/session handling (JWT etc.)
+* Password handling
+* Role-based permissions (owner/trainer/member)
+* Where secrets/env variables are used
+* Any current security gaps
+
+========================
+6️⃣ DIKA AI TECHNICAL FLOW
+==========================
+
+Explain exactly:
+
+* Where prompts are created
+* What data/context is injected
+* Which model/API is called
+* How responses are returned
+* Where AI outputs are stored
+* How user data isolation works
+
+Make this very clear — this is important for meetings.
+
+========================
+7️⃣ SCALABILITY EXPLANATION
+===========================
+
+If OGym grows from:
+1 gym → 100 gyms → 1000 gyms
+
+Explain:
+
+* What breaks first
+* Database risks
+* API bottlenecks
+* AI cost risks
+* Multi-tenant strategy
+* Recommended scaling path based on current architecture
+
+========================
+8️⃣ TECHNICAL STRENGTHS & WEAKNESSES
+====================================
+
+Give me:
+
+* 5 strongest technical decisions in this project
+* 5 technical risks or weaknesses
+* How I can explain these honestly but confidently in a founder conversation
+
+========================
+9️⃣ FOUNDER TECHNICAL Q&A (VERY IMPORTANT)
+==========================================
+
+Generate 25 realistic questions a founder / CTO / CFO might ask me about this system.
+
+Examples:
+
+* How is data separated per gym?
+* How expensive is AI inference?
+* How do you scale data pipelines?
+* How secure is member data?
+
+For each question:
+Give a short, confident answer based on THIS codebase.
+
+========================
+🔟 MEETING READY SUMMARY
+========================
+
+Give me:
+
+A) 90-second non-technical explanation I can say live
+B) 3-minute technical deep dive explanation that sounds strong but simple
+
+Both should match exactly how this system is currently built.
+
+FINAL INSTRUCTION:
+Assume I built this alone and need to sound confident and technically clear without overcomplicating things.
+Your goal is to help me OWN the system mentally.
