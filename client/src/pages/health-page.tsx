@@ -27,26 +27,21 @@ import {
   TrendingUp,
   TrendingDown,
   Zap,
-  Battery,
-  BatteryLow,
-  BatteryMedium,
-  BatteryFull,
   RefreshCw,
   Loader2,
   Smartphone,
-  Brain,
   Utensils,
   ArrowUpDown,
-  Target,
   Timer,
   BarChart3,
-  Dumbbell,
   Sparkles,
-  AlertCircle,
   ChevronRight,
   Unplug,
   Plug,
   Droplets,
+  Info,
+  Eye,
+  Shield,
 } from 'lucide-react';
 import { SiApple, SiGoogle } from 'react-icons/si';
 import {
@@ -61,9 +56,9 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import type { HealthData, FoodLog } from '@shared/schema';
+import type { HealthData, FoodLog, UserGoal } from '@shared/schema';
 
-function AnimatedRing({ value, max, size = 58, strokeWidth = 5, color, glowColor, icon: Icon, label, displayValue, unit }: {
+function AnimatedRing({ value, max, size = 58, strokeWidth = 5, color, glowColor, icon: Icon, label, displayValue, unit, hasData = true }: {
   value: number;
   max: number;
   size?: number;
@@ -74,38 +69,43 @@ function AnimatedRing({ value, max, size = 58, strokeWidth = 5, color, glowColor
   label: string;
   displayValue: string;
   unit?: string;
+  hasData?: boolean;
 }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const pct = Math.min(value / max, 1);
+  const pct = hasData ? Math.min(value / max, 1) : 0;
   const progress = pct * circumference;
   const center = size / 2;
 
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="relative" style={{ width: size, height: size }}>
-        <div className="absolute inset-0 rounded-full" style={{ 
-          boxShadow: pct > 0.5 ? `0 0 20px ${glowColor}` : 'none',
-          transition: 'box-shadow 1s ease'
-        }} />
+        {hasData && pct > 0.5 && (
+          <div className="absolute inset-0 rounded-full" style={{ 
+            boxShadow: `0 0 20px ${glowColor}`,
+            transition: 'box-shadow 1s ease'
+          }} />
+        )}
         <svg width={size} height={size} className="-rotate-90">
           <circle
             cx={center} cy={center} r={radius}
             fill="none" stroke="currentColor" strokeWidth={strokeWidth}
             className="text-muted/10"
           />
-          <circle
-            cx={center} cy={center} r={radius}
-            fill="none" stroke={color} strokeWidth={strokeWidth}
-            strokeDasharray={circumference}
-            strokeDashoffset={circumference - progress}
-            strokeLinecap="round"
-            style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)' }}
-          />
+          {hasData && (
+            <circle
+              cx={center} cy={center} r={radius}
+              fill="none" stroke={color} strokeWidth={strokeWidth}
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference - progress}
+              strokeLinecap="round"
+              style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)' }}
+            />
+          )}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <Icon className="w-3 h-3 mb-0.5" style={{ color }} />
-          <span className="text-xs font-bold tracking-tight">{displayValue}</span>
+          <Icon className="w-3 h-3 mb-0.5" style={{ color: hasData ? color : 'hsl(var(--muted-foreground))' }} />
+          <span className={`text-xs font-bold tracking-tight ${!hasData ? 'text-muted-foreground' : ''}`}>{displayValue}</span>
         </div>
       </div>
       <div className="text-center">
@@ -116,7 +116,7 @@ function AnimatedRing({ value, max, size = 58, strokeWidth = 5, color, glowColor
   );
 }
 
-function RecoveryGauge({ score }: { score: number }) {
+function RecoveryGauge({ score, dataPoints }: { score: number; dataPoints: number }) {
   const getConfig = (s: number) => {
     if (s >= 80) return { color: '#22c55e', glow: 'rgba(34,197,94,0.15)', label: 'Excellent' };
     if (s >= 60) return { color: '#3b82f6', glow: 'rgba(59,130,246,0.15)', label: 'Good' };
@@ -150,184 +150,144 @@ function RecoveryGauge({ score }: { score: number }) {
           <span className="text-[11px] font-medium text-muted-foreground">{config.label}</span>
         </div>
       </div>
+      {dataPoints < 4 && (
+        <div className="flex items-center gap-1 mt-2">
+          <Info className="w-3 h-3 text-muted-foreground" />
+          <span className="text-[10px] text-muted-foreground">{dataPoints}/4 metrics</span>
+        </div>
+      )}
     </div>
   );
 }
 
-function HRZoneBar({ zones }: { zones: { name: string; minutes: number; color: string; range: string }[] }) {
-  const total = zones.reduce((sum, z) => sum + z.minutes, 0);
-  if (total === 0) return null;
-
+function DataSourceBadge({ label }: { label: string }) {
   return (
-    <div className="space-y-3">
-      <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
-        {zones.map((zone) => {
-          const pct = (zone.minutes / total) * 100;
-          if (pct === 0) return null;
-          return (
-            <div
-              key={zone.name}
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${pct}%`, backgroundColor: zone.color, boxShadow: `0 0 8px ${zone.color}40` }}
-              title={`${zone.name}: ${zone.minutes}min`}
-            />
-          );
-        })}
-      </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-        {zones.map((zone) => (
-          <div key={zone.name} className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: zone.color, boxShadow: `0 0 4px ${zone.color}60` }} />
-            <span className="text-xs text-muted-foreground flex-1">{zone.name}</span>
-            <span className="text-xs font-semibold tabular-nums">{zone.minutes}m</span>
-          </div>
-        ))}
-      </div>
+    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/30 text-[9px] text-muted-foreground font-medium">
+      <Shield className="w-2.5 h-2.5" />
+      {label}
     </div>
   );
 }
 
-function computeRecoveryScore(healthData: HealthData | null): { score: number; factors: { label: string; value: string; impact: 'positive' | 'neutral' | 'negative' }[] } {
-  if (!healthData) return { score: 0, factors: [] };
+function computeRecoveryScore(healthData: HealthData | null): { score: number; factors: { label: string; value: string; impact: 'positive' | 'neutral' | 'negative'; source: string }[]; dataPoints: number; hasEnoughData: boolean } {
+  if (!healthData) return { score: 0, factors: [], dataPoints: 0, hasEnoughData: false };
 
-  const factors: { label: string; value: string; impact: 'positive' | 'neutral' | 'negative' }[] = [];
-  let totalScore = 50;
+  const factors: { label: string; value: string; impact: 'positive' | 'neutral' | 'negative'; source: string }[] = [];
+  let totalWeight = 0;
+  let weightedScore = 0;
+  let dataPoints = 0;
 
-  if (healthData.sleepMinutes) {
+  if (healthData.sleepMinutes && healthData.sleepMinutes > 0) {
+    dataPoints++;
     const hours = healthData.sleepMinutes / 60;
+    const weight = 35;
+    totalWeight += weight;
     if (hours >= 7.5) {
-      totalScore += 20;
-      factors.push({ label: 'Sleep', value: `${hours.toFixed(1)}h`, impact: 'positive' });
+      weightedScore += weight;
+      factors.push({ label: 'Sleep', value: `${hours.toFixed(1)}h`, impact: 'positive', source: 'Device' });
     } else if (hours >= 6) {
-      totalScore += 10;
-      factors.push({ label: 'Sleep', value: `${hours.toFixed(1)}h`, impact: 'neutral' });
+      weightedScore += weight * 0.6;
+      factors.push({ label: 'Sleep', value: `${hours.toFixed(1)}h`, impact: 'neutral', source: 'Device' });
     } else {
-      totalScore -= 15;
-      factors.push({ label: 'Sleep', value: `${hours.toFixed(1)}h`, impact: 'negative' });
+      weightedScore += weight * 0.2;
+      factors.push({ label: 'Sleep', value: `${hours.toFixed(1)}h`, impact: 'negative', source: 'Device' });
     }
   }
 
-  if (healthData.restingHeartRate) {
+  if (healthData.restingHeartRate && healthData.restingHeartRate > 0) {
+    dataPoints++;
+    const weight = 25;
+    totalWeight += weight;
     if (healthData.restingHeartRate < 60) {
-      totalScore += 15;
-      factors.push({ label: 'Resting HR', value: `${healthData.restingHeartRate} bpm`, impact: 'positive' });
+      weightedScore += weight;
+      factors.push({ label: 'Resting HR', value: `${healthData.restingHeartRate} bpm`, impact: 'positive', source: 'Device' });
     } else if (healthData.restingHeartRate <= 75) {
-      totalScore += 5;
-      factors.push({ label: 'Resting HR', value: `${healthData.restingHeartRate} bpm`, impact: 'neutral' });
+      weightedScore += weight * 0.6;
+      factors.push({ label: 'Resting HR', value: `${healthData.restingHeartRate} bpm`, impact: 'neutral', source: 'Device' });
     } else {
-      totalScore -= 10;
-      factors.push({ label: 'Resting HR', value: `${healthData.restingHeartRate} bpm`, impact: 'negative' });
+      weightedScore += weight * 0.2;
+      factors.push({ label: 'Resting HR', value: `${healthData.restingHeartRate} bpm`, impact: 'negative', source: 'Device' });
     }
   }
 
-  if (healthData.activeMinutes) {
+  if (healthData.activeMinutes && healthData.activeMinutes > 0) {
+    dataPoints++;
+    const weight = 20;
+    totalWeight += weight;
     if (healthData.activeMinutes > 90) {
-      totalScore -= 10;
-      factors.push({ label: 'Activity', value: `${healthData.activeMinutes}min`, impact: 'negative' });
+      weightedScore += weight * 0.3;
+      factors.push({ label: 'Activity', value: `${healthData.activeMinutes}min`, impact: 'negative', source: 'Device' });
     } else if (healthData.activeMinutes >= 30) {
-      totalScore += 10;
-      factors.push({ label: 'Activity', value: `${healthData.activeMinutes}min`, impact: 'positive' });
+      weightedScore += weight;
+      factors.push({ label: 'Activity', value: `${healthData.activeMinutes}min`, impact: 'positive', source: 'Device' });
     } else {
-      totalScore += 5;
-      factors.push({ label: 'Activity', value: `${healthData.activeMinutes}min`, impact: 'neutral' });
+      weightedScore += weight * 0.5;
+      factors.push({ label: 'Activity', value: `${healthData.activeMinutes}min`, impact: 'neutral', source: 'Device' });
     }
   }
 
-  if (healthData.steps) {
+  if (healthData.steps && healthData.steps > 0) {
+    dataPoints++;
+    const weight = 20;
+    totalWeight += weight;
     if (healthData.steps >= 8000) {
-      totalScore += 5;
-      factors.push({ label: 'Steps', value: healthData.steps >= 1000 ? `${(healthData.steps / 1000).toFixed(1)}k` : `${healthData.steps}`, impact: 'positive' });
-    } else if (healthData.steps < 3000) {
-      totalScore -= 5;
-      factors.push({ label: 'Steps', value: `${healthData.steps}`, impact: 'negative' });
+      weightedScore += weight;
+      factors.push({ label: 'Steps', value: healthData.steps >= 1000 ? `${(healthData.steps / 1000).toFixed(1)}k` : `${healthData.steps}`, impact: 'positive', source: 'Device' });
+    } else if (healthData.steps >= 4000) {
+      weightedScore += weight * 0.6;
+      factors.push({ label: 'Steps', value: healthData.steps >= 1000 ? `${(healthData.steps / 1000).toFixed(1)}k` : `${healthData.steps}`, impact: 'neutral', source: 'Device' });
+    } else {
+      weightedScore += weight * 0.3;
+      factors.push({ label: 'Steps', value: `${healthData.steps}`, impact: 'negative', source: 'Device' });
     }
   }
 
-  return { score: Math.max(0, Math.min(100, totalScore)), factors };
+  const hasEnoughData = dataPoints >= 1;
+  const score = totalWeight > 0 ? Math.round((weightedScore / totalWeight) * 100) : 0;
+
+  return { score, factors, dataPoints, hasEnoughData };
 }
 
-function computeHRZones(healthData: HealthData | null) {
-  const defaultZones = [
-    { name: 'Rest', minutes: 0, color: '#22c55e', range: '<100 bpm' },
-    { name: 'Fat Burn', minutes: 0, color: '#3b82f6', range: '100-140 bpm' },
-    { name: 'Cardio', minutes: 0, color: '#f59e0b', range: '140-170 bpm' },
-    { name: 'Peak', minutes: 0, color: '#ef4444', range: '170+ bpm' },
-  ];
-
-  if (!healthData?.activeMinutes) return defaultZones;
-
-  const totalMins = healthData.activeMinutes;
-  const maxHR = healthData.maxHeartRate || 150;
-  const avgHR = healthData.avgHeartRate || 70;
-
-  if (maxHR > 170) {
-    const peakMins = Math.round(totalMins * 0.1);
-    const cardioMins = Math.round(totalMins * 0.3);
-    const fatBurnMins = Math.round(totalMins * 0.2);
-    const restMins = totalMins - peakMins - cardioMins - fatBurnMins;
-    return [
-      { ...defaultZones[0], minutes: restMins },
-      { ...defaultZones[1], minutes: fatBurnMins },
-      { ...defaultZones[2], minutes: cardioMins },
-      { ...defaultZones[3], minutes: peakMins },
-    ];
-  } else if (maxHR > 140) {
-    const cardioMins = Math.round(totalMins * 0.25);
-    const fatBurnMins = Math.round(totalMins * 0.35);
-    const restMins = totalMins - cardioMins - fatBurnMins;
-    return [
-      { ...defaultZones[0], minutes: restMins },
-      { ...defaultZones[1], minutes: fatBurnMins },
-      { ...defaultZones[2], minutes: cardioMins },
-      { ...defaultZones[3], minutes: 0 },
-    ];
-  } else {
-    const restMins = Math.round(totalMins * 0.7);
-    const fatBurnMins = totalMins - restMins;
-    return [
-      { ...defaultZones[0], minutes: restMins },
-      { ...defaultZones[1], minutes: fatBurnMins },
-      { ...defaultZones[2], minutes: 0 },
-      { ...defaultZones[3], minutes: 0 },
-    ];
-  }
-}
-
-function generateInsights(healthData: HealthData | null, caloriesEaten: number, recoveryScore: number): string[] {
+function generateInsights(healthData: HealthData | null, caloriesEaten: number, recoveryScore: number, stepGoal: number): string[] {
   const insights: string[] = [];
-  if (!healthData) return ['Connect your health device to get personalized insights'];
+  if (!healthData) return [];
 
   if (recoveryScore >= 80) {
-    insights.push('Your recovery is excellent today — perfect for a challenging workout');
+    insights.push('Your recovery is excellent today \u2014 perfect for a challenging workout');
   } else if (recoveryScore >= 60) {
-    insights.push('Good recovery — you can handle moderate intensity training');
+    insights.push('Good recovery \u2014 you can handle moderate intensity training');
   } else if (recoveryScore >= 40) {
-    insights.push('Recovery is fair — consider lighter exercises or active recovery');
-  } else {
-    insights.push('Low recovery detected — rest day recommended for best results');
+    insights.push('Recovery is fair \u2014 consider lighter exercises or active recovery');
+  } else if (recoveryScore > 0) {
+    insights.push('Low recovery detected \u2014 rest day recommended for best results');
   }
 
-  if (healthData.steps && healthData.steps >= 10000) {
-    insights.push('Amazing step count! You\'ve surpassed your 10k goal today');
-  } else if (healthData.steps && healthData.steps >= 7000) {
-    insights.push(`Almost there! ${(10000 - healthData.steps).toLocaleString()} more steps to hit your 10k goal`);
+  if (healthData.steps && healthData.steps > 0) {
+    if (healthData.steps >= stepGoal) {
+      insights.push(`You hit your ${stepGoal >= 1000 ? `${(stepGoal / 1000).toFixed(0)}k` : stepGoal} step goal!`);
+    } else if (healthData.steps >= stepGoal * 0.7) {
+      const remaining = stepGoal - healthData.steps;
+      insights.push(`Almost there! ${remaining.toLocaleString()} more steps to hit your ${stepGoal >= 1000 ? `${(stepGoal / 1000).toFixed(0)}k` : stepGoal} goal`);
+    }
   }
 
-  if (healthData.sleepMinutes && healthData.sleepMinutes >= 420 && healthData.sleepMinutes <= 540) {
-    insights.push('Great sleep duration — your body had optimal recovery time');
-  } else if (healthData.sleepMinutes && healthData.sleepMinutes < 360) {
-    insights.push('Sleep was below 6 hours — try to get more rest for better recovery');
+  if (healthData.sleepMinutes && healthData.sleepMinutes > 0) {
+    if (healthData.sleepMinutes >= 420 && healthData.sleepMinutes <= 540) {
+      insights.push('Great sleep duration \u2014 your body had optimal recovery time');
+    } else if (healthData.sleepMinutes < 360) {
+      insights.push('Sleep was below 6 hours \u2014 try to get more rest for better recovery');
+    }
   }
 
-  if (caloriesEaten > 0 && healthData.caloriesBurned) {
+  if (caloriesEaten > 0 && healthData.caloriesBurned && healthData.caloriesBurned > 0) {
     const balance = caloriesEaten - healthData.caloriesBurned;
     if (balance < -500) {
-      insights.push('Large calorie deficit — make sure you\'re eating enough to fuel recovery');
+      insights.push('Large calorie deficit \u2014 make sure you\'re eating enough to fuel recovery');
     }
   }
 
   if (healthData.restingHeartRate && healthData.restingHeartRate > 80) {
-    insights.push('Resting heart rate is elevated — could be stress or dehydration');
+    insights.push('Resting heart rate is elevated \u2014 could be stress or dehydration');
   }
 
   return insights.slice(0, 3);
@@ -358,17 +318,23 @@ export default function HealthPage() {
     queryKey: ['/api/food-logs', todayDateStr],
   });
 
+  const { data: userGoals } = useQuery<UserGoal>({
+    queryKey: ['/api/user/goals'],
+  });
+
+  const stepGoal = 10000;
+  const calorieGoal = userGoals?.dailyCalorieTarget || 500;
+
   const caloriesEaten = useMemo(() => {
     if (!todayFoodLogs || !Array.isArray(todayFoodLogs)) return 0;
     return todayFoodLogs.reduce((sum, log) => sum + (log.calories || 0), 0);
   }, [todayFoodLogs]);
 
   const recovery = useMemo(() => computeRecoveryScore(todayData || null), [todayData]);
-  const hrZones = useMemo(() => computeHRZones(todayData || null), [todayData]);
-  const insights = useMemo(() => generateInsights(todayData || null, caloriesEaten, recovery.score), [todayData, caloriesEaten, recovery.score]);
+  const insights = useMemo(() => generateInsights(todayData || null, caloriesEaten, recovery.score, stepGoal), [todayData, caloriesEaten, recovery.score, stepGoal]);
 
   const weeklyChartData = useMemo(() => {
-    const days: { date: string; label: string; steps: number; calories: number; hr: number; sleep: number }[] = [];
+    const days: { date: string; label: string; steps: number; calories: number; hr: number; sleep: number; hasData: boolean }[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
@@ -382,6 +348,7 @@ export default function HealthPage() {
         calories: match?.caloriesBurned || 0,
         hr: match?.avgHeartRate || 0,
         sleep: match?.sleepMinutes ? Math.round(match.sleepMinutes / 60 * 10) / 10 : 0,
+        hasData: !!match,
       });
     }
     return days;
@@ -393,6 +360,13 @@ export default function HealthPage() {
   const calorieBalance = caloriesEaten - caloriesBurned;
   const healthSource = status?.source || (user as any)?.healthSource;
   const sourceName = healthSource === 'apple_health' ? 'Apple Health' : healthSource === 'google_fit' ? 'Google Fit' : 'Health';
+
+  const hasSteps = !!todayData?.steps && todayData.steps > 0;
+  const hasCals = !!todayData?.caloriesBurned && todayData.caloriesBurned > 0;
+  const hasHR = !!todayData?.avgHeartRate && todayData.avgHeartRate > 0;
+  const hasSleep = !!todayData?.sleepMinutes && todayData.sleepMinutes > 0;
+  const hasActiveMinutes = !!todayData?.activeMinutes && todayData.activeMinutes > 0;
+  const trackedMetrics = [hasSteps, hasCals, hasHR, hasSleep].filter(Boolean).length;
 
   const handleConnect = async () => {
     try {
@@ -543,14 +517,17 @@ export default function HealthPage() {
   }
 
   const formatSleep = (mins: number) => {
-    if (!mins) return '0h';
+    if (!mins) return '--';
     const h = Math.floor(mins / 60);
     const m = mins % 60;
     return m > 0 ? `${h}h ${m}m` : `${h}h`;
   };
 
+  const daysWithData = weeklyChartData.filter(d => d.hasData).length;
   const weeklyAvgSteps = weeklyChartData.filter(d => d.steps > 0).reduce((sum, d) => sum + d.steps, 0) / Math.max(weeklyChartData.filter(d => d.steps > 0).length, 1);
   const weeklyAvgCals = weeklyChartData.filter(d => d.calories > 0).reduce((sum, d) => sum + d.calories, 0) / Math.max(weeklyChartData.filter(d => d.calories > 0).length, 1);
+
+  const noDataAtAll = !todayData || trackedMetrics === 0;
 
   return (
     <div className="p-4 space-y-4 max-w-lg mx-auto pb-24" data-testid="page-health">
@@ -582,133 +559,211 @@ export default function HealthPage() {
         </div>
       </div>
 
+      {noDataAtAll && (
+        <Card className="overflow-hidden border-0 bg-gradient-to-br from-amber-500/5 via-card to-card shadow-lg">
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/10 mt-0.5">
+                <Info className="w-4 h-4 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1">No data synced yet today</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Open the OGym app on your phone to sync today's data from {sourceName}. Your data updates each time you open the app.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/20 shadow-lg" data-testid="section-daily-overview">
         <CardContent className="pt-5 pb-5">
           <div className="grid grid-cols-4 gap-4">
             <AnimatedRing
-              value={todayData?.steps || 0} max={10000}
+              value={todayData?.steps || 0} max={stepGoal}
               color="#3b82f6" glowColor="rgba(59,130,246,0.15)"
               icon={Footprints} label="Steps"
-              displayValue={todayData?.steps ? (todayData.steps >= 1000 ? `${(todayData.steps / 1000).toFixed(1)}k` : `${todayData.steps}`) : '0'}
-              unit="/ 10k"
+              displayValue={hasSteps ? (todayData!.steps! >= 1000 ? `${(todayData!.steps! / 1000).toFixed(1)}k` : `${todayData!.steps}`) : '--'}
+              unit={hasSteps ? `/ ${stepGoal >= 1000 ? `${(stepGoal / 1000).toFixed(0)}k` : stepGoal}` : undefined}
+              hasData={hasSteps}
             />
             <AnimatedRing
-              value={todayData?.caloriesBurned || 0} max={500}
+              value={todayData?.caloriesBurned || 0} max={calorieGoal}
               color="#f97316" glowColor="rgba(249,115,22,0.15)"
               icon={Flame} label="Burned"
-              displayValue={`${todayData?.caloriesBurned || 0}`}
-              unit="cal"
+              displayValue={hasCals ? `${todayData!.caloriesBurned}` : '--'}
+              unit={hasCals ? 'cal' : undefined}
+              hasData={hasCals}
             />
             <AnimatedRing
               value={todayData?.avgHeartRate || 0} max={200}
               color="#ef4444" glowColor="rgba(239,68,68,0.15)"
               icon={Heart} label="Avg HR"
-              displayValue={`${todayData?.avgHeartRate || 0}`}
-              unit="bpm"
+              displayValue={hasHR ? `${todayData!.avgHeartRate}` : '--'}
+              unit={hasHR ? 'bpm' : undefined}
+              hasData={hasHR}
             />
             <AnimatedRing
               value={todayData?.sleepMinutes ? todayData.sleepMinutes / 60 : 0} max={9}
               color="#a855f7" glowColor="rgba(168,85,247,0.15)"
               icon={Moon} label="Sleep"
-              displayValue={formatSleep(todayData?.sleepMinutes || 0)}
-              unit="hours"
+              displayValue={hasSleep ? formatSleep(todayData!.sleepMinutes!) : '--'}
+              unit={hasSleep ? 'hours' : undefined}
+              hasData={hasSleep}
             />
           </div>
 
-          {(todayData?.activeMinutes || todayData?.distanceMeters) && (
+          {(hasActiveMinutes || (todayData?.distanceMeters && todayData.distanceMeters > 0)) && (
             <div className="flex items-center justify-center gap-5 mt-4 pt-3 border-t border-border/30">
-              {todayData.activeMinutes ? (
+              {hasActiveMinutes && (
                 <div className="flex items-center gap-1.5 text-sm">
                   <Timer className="w-3.5 h-3.5 text-green-500" />
                   <span className="text-muted-foreground text-xs">Active</span>
-                  <span className="font-semibold text-xs">{todayData.activeMinutes} min</span>
+                  <span className="font-semibold text-xs">{todayData!.activeMinutes} min</span>
                 </div>
-              ) : null}
-              {todayData.distanceMeters ? (
+              )}
+              {todayData?.distanceMeters && todayData.distanceMeters > 0 && (
                 <div className="flex items-center gap-1.5 text-sm">
                   <Footprints className="w-3.5 h-3.5 text-blue-400" />
                   <span className="text-muted-foreground text-xs">Distance</span>
                   <span className="font-semibold text-xs">{(todayData.distanceMeters / 1000).toFixed(1)} km</span>
                 </div>
-              ) : null}
-              {todayData.sleepQuality ? (
-                <div className="flex items-center gap-1.5 text-sm">
-                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                  <span className="text-muted-foreground text-xs">Sleep</span>
-                  <span className="font-semibold text-xs capitalize">{todayData.sleepQuality}</span>
-                </div>
-              ) : null}
+              )}
+            </div>
+          )}
+
+          {trackedMetrics > 0 && (
+            <div className="flex items-center justify-center gap-1 mt-3 pt-2">
+              <Eye className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground">
+                {trackedMetrics} of 4 metrics tracked from {sourceName}
+              </span>
             </div>
           )}
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-5 gap-3">
-        <Card className="col-span-3 overflow-hidden border-0 shadow-lg" data-testid="card-recovery-score">
-          <div className="h-full bg-gradient-to-br from-emerald-500/[0.03] via-card to-card">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-1.5 mb-3">
-                <Zap className="w-4 h-4 text-emerald-500" />
-                <span className="text-sm font-semibold">Recovery Score</span>
-              </div>
-              <div className="flex items-start gap-4">
-                <RecoveryGauge score={recovery.score} />
-                {recovery.factors.length > 0 && (
-                  <div className="flex-1 space-y-2 pt-2">
-                    {recovery.factors.map((f, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <span className="text-[11px] text-muted-foreground">{f.label}</span>
-                        <span className={`text-[11px] font-semibold ${f.impact === 'positive' ? 'text-green-500' : f.impact === 'negative' ? 'text-red-400' : 'text-amber-500'}`}>
-                          {f.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </div>
-        </Card>
+      {recovery.hasEnoughData && (
+        <div className="grid grid-cols-5 gap-3">
+          <Card className="col-span-3 overflow-hidden border-0 shadow-lg" data-testid="card-recovery-score">
+            <div className="h-full bg-gradient-to-br from-emerald-500/[0.03] via-card to-card">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <Zap className="w-4 h-4 text-emerald-500" />
+                  <span className="text-sm font-semibold">Recovery Score</span>
+                  {recovery.dataPoints < 4 && (
+                    <Badge variant="outline" className="text-[9px] ml-auto px-1.5 py-0 h-4 rounded-md border-amber-500/30 text-amber-600">
+                      Partial
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-start gap-4">
+                  <RecoveryGauge score={recovery.score} dataPoints={recovery.dataPoints} />
+                  {recovery.factors.length > 0 && (
+                    <div className="flex-1 space-y-2 pt-2">
+                      {recovery.factors.map((f, i) => (
+                        <div key={i} className="flex items-center justify-between">
+                          <span className="text-[11px] text-muted-foreground">{f.label}</span>
+                          <span className={`text-[11px] font-semibold ${f.impact === 'positive' ? 'text-green-500' : f.impact === 'negative' ? 'text-red-400' : 'text-amber-500'}`}>
+                            {f.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-3 pt-2 border-t border-border/20">
+                  <DataSourceBadge label="Based on device data" />
+                </div>
+              </CardContent>
+            </div>
+          </Card>
 
-        <Card className="col-span-2 overflow-hidden border-0 shadow-lg" data-testid="card-calorie-balance">
-          <div className="h-full bg-gradient-to-br from-orange-500/[0.03] via-card to-card">
+          <Card className="col-span-2 overflow-hidden border-0 shadow-lg" data-testid="card-calorie-balance">
+            <div className="h-full bg-gradient-to-br from-orange-500/[0.03] via-card to-card">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <ArrowUpDown className="w-4 h-4 text-orange-500" />
+                  <span className="text-sm font-semibold">Calories</span>
+                </div>
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center">
+                      <Utensils className="w-3 h-3 text-green-500" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[10px] text-muted-foreground">Eaten</p>
+                      <p className="text-sm font-bold">{caloriesEaten > 0 ? caloriesEaten.toLocaleString() : '--'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-orange-500/10 flex items-center justify-center">
+                      <Flame className="w-3 h-3 text-orange-500" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[10px] text-muted-foreground">Burned</p>
+                      <p className="text-sm font-bold">{hasCals ? caloriesBurned.toLocaleString() : '--'}</p>
+                    </div>
+                  </div>
+                  {(caloriesEaten > 0 || hasCals) && (
+                    <>
+                      <Separator className="opacity-30" />
+                      <div className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {calorieBalance < 0 ? (
+                            <TrendingDown className="w-3.5 h-3.5 text-blue-500" />
+                          ) : (
+                            <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
+                          )}
+                          <span className={`text-xl font-black tabular-nums ${calorieBalance < 0 ? 'text-blue-500' : 'text-amber-500'}`}>
+                            {calorieBalance > 0 ? '+' : ''}{calorieBalance.toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {calorieBalance < 0 ? 'Deficit' : calorieBalance > 0 ? 'Surplus' : 'Balanced'}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {!recovery.hasEnoughData && (caloriesEaten > 0 || hasCals) && (
+        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-calorie-balance">
+          <div className="bg-gradient-to-br from-orange-500/[0.03] via-card to-card">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-1.5 mb-3">
                 <ArrowUpDown className="w-4 h-4 text-orange-500" />
-                <span className="text-sm font-semibold">Calories</span>
+                <span className="text-sm font-semibold">Calorie Balance</span>
               </div>
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center">
-                    <Utensils className="w-3 h-3 text-green-500" />
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <Utensils className="w-3.5 h-3.5 text-green-500" />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] text-muted-foreground">Eaten</p>
-                    <p className="text-sm font-bold">{caloriesEaten.toLocaleString()}</p>
-                  </div>
+                  <p className="text-lg font-bold">{caloriesEaten > 0 ? caloriesEaten.toLocaleString() : '--'}</p>
+                  <p className="text-[10px] text-muted-foreground">Eaten</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-orange-500/10 flex items-center justify-center">
-                    <Flame className="w-3 h-3 text-orange-500" />
+                <div>
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <Flame className="w-3.5 h-3.5 text-orange-500" />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] text-muted-foreground">Burned</p>
-                    <p className="text-sm font-bold">{caloriesBurned.toLocaleString()}</p>
-                  </div>
+                  <p className="text-lg font-bold">{hasCals ? caloriesBurned.toLocaleString() : '--'}</p>
+                  <p className="text-[10px] text-muted-foreground">Burned</p>
                 </div>
-                <Separator className="opacity-30" />
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    {calorieBalance < 0 ? (
-                      <TrendingDown className="w-3.5 h-3.5 text-blue-500" />
-                    ) : (
-                      <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
-                    )}
-                    <span className={`text-xl font-black tabular-nums ${calorieBalance < 0 ? 'text-blue-500' : 'text-amber-500'}`}>
-                      {calorieBalance > 0 ? '+' : ''}{calorieBalance.toLocaleString()}
-                    </span>
+                <div>
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    {calorieBalance < 0 ? <TrendingDown className="w-3.5 h-3.5 text-blue-500" /> : <TrendingUp className="w-3.5 h-3.5 text-amber-500" />}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                  <p className={`text-lg font-bold ${calorieBalance < 0 ? 'text-blue-500' : 'text-amber-500'}`}>
+                    {calorieBalance > 0 ? '+' : ''}{calorieBalance.toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
                     {calorieBalance < 0 ? 'Deficit' : calorieBalance > 0 ? 'Surplus' : 'Balanced'}
                   </p>
                 </div>
@@ -716,7 +771,7 @@ export default function HealthPage() {
             </CardContent>
           </div>
         </Card>
-      </div>
+      )}
 
       {insights.length > 0 && (
         <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-smart-insights">
@@ -725,6 +780,7 @@ export default function HealthPage() {
               <div className="flex items-center gap-1.5 mb-3">
                 <Sparkles className="w-4 h-4 text-amber-500" />
                 <span className="text-sm font-semibold">Smart Insights</span>
+                <DataSourceBadge label="Based on today's data" />
               </div>
               <div className="space-y-2.5">
                 {insights.map((insight, i) => (
@@ -739,20 +795,41 @@ export default function HealthPage() {
         </Card>
       )}
 
-      {(todayData?.activeMinutes ?? 0) > 0 && (
-        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-hr-zones">
-          <div className="bg-gradient-to-br from-red-500/[0.03] via-card to-card">
+      {hasActiveMinutes && todayData?.watchWorkouts && Array.isArray(todayData.watchWorkouts) && todayData.watchWorkouts.length > 0 && (
+        <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-today-workouts">
+          <div className="bg-gradient-to-br from-violet-500/[0.03] via-card to-card">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-1.5 mb-3">
-                <Heart className="w-4 h-4 text-red-500" />
-                <span className="text-sm font-semibold">Heart Rate Zones</span>
-                {todayData?.maxHeartRate && (
-                  <Badge variant="secondary" className="ml-auto text-[10px] rounded-md px-1.5 py-0.5">
-                    Max {todayData.maxHeartRate} bpm
-                  </Badge>
-                )}
+                <Activity className="w-4 h-4 text-violet-500" />
+                <span className="text-sm font-semibold">Today's Workouts</span>
+                <DataSourceBadge label={sourceName} />
               </div>
-              <HRZoneBar zones={hrZones} />
+              <div className="space-y-2">
+                {(todayData.watchWorkouts as Array<any>).map((rawW: any, i: number) => {
+                  const w = {
+                    type: typeof rawW?.type === 'string' ? rawW.type : 'workout',
+                    duration: typeof rawW?.duration === 'number' ? rawW.duration : 0,
+                    calories: typeof rawW?.calories === 'number' ? rawW.calories : 0,
+                  };
+                  const workoutType = w.type.replace(/_/g, ' ');
+                  const durationMin = w.duration > 0 ? `${Math.round(w.duration / 60)} min` : '';
+                  const calsBurned = w.calories > 0 ? `${Math.round(w.calories)} cal` : '';
+                  const detail = [durationMin, calsBurned].filter(Boolean).join(' \u00b7 ');
+                  return (
+                    <div key={i} className="flex items-center justify-between p-2.5 bg-muted/20 rounded-lg">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                          <Activity className="w-4 h-4 text-violet-500" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium capitalize">{workoutType}</p>
+                          {detail && <p className="text-[11px] text-muted-foreground">{detail}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </CardContent>
           </div>
         </Card>
@@ -767,9 +844,14 @@ export default function HealthPage() {
                   <BarChart3 className="w-4 h-4 text-blue-500" />
                   <span className="text-sm font-semibold">Weekly Steps</span>
                 </div>
-                <span className="text-[11px] text-muted-foreground">
-                  avg {Math.round(weeklyAvgSteps).toLocaleString()}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">
+                    avg {Math.round(weeklyAvgSteps).toLocaleString()}
+                  </span>
+                  {daysWithData < 7 && (
+                    <span className="text-[10px] text-muted-foreground/60">{daysWithData}/7 days</span>
+                  )}
+                </div>
               </div>
               <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
@@ -779,12 +861,20 @@ export default function HealthPage() {
                     <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                     <Tooltip
                       contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}
-                      formatter={(value: number) => [value.toLocaleString(), 'Steps']}
+                      formatter={(value: number, name: string, props: any) => {
+                        const entry = props.payload;
+                        if (!entry.hasData) return ['No data', 'Steps'];
+                        return [value.toLocaleString(), 'Steps'];
+                      }}
                       cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3, radius: 4 }}
                     />
                     <Bar dataKey="steps" radius={[6, 6, 0, 0]} maxBarSize={32}>
                       {weeklyChartData.map((entry, index) => (
-                        <Cell key={index} fill={entry.date === todayDateStr ? '#3b82f6' : '#3b82f630'} />
+                        <Cell 
+                          key={index} 
+                          fill={!entry.hasData ? 'hsl(var(--muted))' : entry.date === todayDateStr ? '#3b82f6' : '#3b82f640'} 
+                          opacity={!entry.hasData ? 0.3 : 1}
+                        />
                       ))}
                     </Bar>
                   </BarChart>
@@ -802,7 +892,7 @@ export default function HealthPage() {
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-1.5">
                   <Flame className="w-4 h-4 text-orange-500" />
-                  <span className="text-sm font-semibold">Weekly Calories</span>
+                  <span className="text-sm font-semibold">Weekly Calories Burned</span>
                 </div>
                 <span className="text-[11px] text-muted-foreground">
                   avg {Math.round(weeklyAvgCals).toLocaleString()} cal
@@ -873,7 +963,7 @@ export default function HealthPage() {
 
       <div className="flex items-center justify-between pt-2 pb-2">
         <p className="text-[11px] text-muted-foreground">
-          Last synced: {todayData?.lastSyncedAt ? new Date(todayData.lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Never'}
+          Last synced: {todayData?.lastSyncedAt ? new Date(todayData.lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Not yet today'}
         </p>
         <Button
           variant="ghost"

@@ -19,7 +19,6 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
 
   const isNative = Capacitor.isNativePlatform();
 
-  // Hide when feature is disabled
   if (!HEALTH_FEATURE_ENABLED) {
     return null;
   }
@@ -85,14 +84,20 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
     );
   }
 
-  const formatNumber = (num: number | null | undefined) => {
-    if (num === null || num === undefined) return '-';
+  const hasSteps = !!healthData.steps && healthData.steps > 0;
+  const hasCals = !!healthData.caloriesBurned && healthData.caloriesBurned > 0;
+  const hasHR = !!healthData.avgHeartRate && healthData.avgHeartRate > 0;
+  const hasSleep = !!healthData.sleepMinutes && healthData.sleepMinutes > 0;
+
+  const formatNumber = (num: number | null | undefined, hasData: boolean) => {
+    if (!hasData) return '--';
+    if (num === null || num === undefined) return '--';
     if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
     return num.toLocaleString();
   };
 
-  const formatSleep = (minutes: number | null | undefined) => {
-    if (!minutes) return '-';
+  const formatSleep = (minutes: number | null | undefined, hasData: boolean) => {
+    if (!hasData || !minutes) return '--';
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hours}h ${mins}m`;
@@ -109,22 +114,22 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
       <div className={`grid grid-cols-4 gap-3 ${className}`}>
         <div className="flex flex-col items-center gap-1 p-3 bg-muted/50 rounded-lg">
           <Footprints className="w-5 h-5 text-blue-500" />
-          <span className="text-lg font-bold">{formatNumber(healthData.steps)}</span>
+          <span className="text-lg font-bold">{formatNumber(healthData.steps, hasSteps)}</span>
           <span className="text-xs text-muted-foreground">Steps</span>
         </div>
         <div className="flex flex-col items-center gap-1 p-3 bg-muted/50 rounded-lg">
           <Flame className="w-5 h-5 text-orange-500" />
-          <span className="text-lg font-bold">{formatNumber(healthData.caloriesBurned)}</span>
+          <span className="text-lg font-bold">{formatNumber(healthData.caloriesBurned, hasCals)}</span>
           <span className="text-xs text-muted-foreground">Burned</span>
         </div>
         <div className="flex flex-col items-center gap-1 p-3 bg-muted/50 rounded-lg">
           <Heart className="w-5 h-5 text-red-500" />
-          <span className="text-lg font-bold">{healthData.avgHeartRate || '-'}</span>
+          <span className="text-lg font-bold">{hasHR ? healthData.avgHeartRate : '--'}</span>
           <span className="text-xs text-muted-foreground">Avg HR</span>
         </div>
         <div className="flex flex-col items-center gap-1 p-3 bg-muted/50 rounded-lg">
           <Moon className="w-5 h-5 text-purple-500" />
-          <span className="text-lg font-bold">{formatSleep(healthData.sleepMinutes)}</span>
+          <span className="text-lg font-bold">{formatSleep(healthData.sleepMinutes, hasSleep)}</span>
           <span className="text-xs text-muted-foreground">Sleep</span>
         </div>
       </div>
@@ -156,7 +161,7 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
               <span className="text-xs text-muted-foreground">Steps</span>
             </div>
             <p className="text-2xl font-bold" data-testid="text-steps-count">
-              {formatNumber(healthData.steps)}
+              {formatNumber(healthData.steps, hasSteps)}
             </p>
           </div>
 
@@ -168,7 +173,7 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
               <span className="text-xs text-muted-foreground">Calories</span>
             </div>
             <p className="text-2xl font-bold" data-testid="text-calories-burned">
-              {formatNumber(healthData.caloriesBurned)}
+              {formatNumber(healthData.caloriesBurned, hasCals)}
             </p>
           </div>
 
@@ -180,8 +185,8 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
               <span className="text-xs text-muted-foreground">Avg Heart Rate</span>
             </div>
             <p className="text-2xl font-bold" data-testid="text-heart-rate">
-              {healthData.avgHeartRate || '-'} 
-              <span className="text-sm font-normal text-muted-foreground ml-1">bpm</span>
+              {hasHR ? healthData.avgHeartRate : '--'} 
+              {hasHR && <span className="text-sm font-normal text-muted-foreground ml-1">bpm</span>}
             </p>
           </div>
 
@@ -193,7 +198,7 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
               <span className="text-xs text-muted-foreground">Sleep</span>
             </div>
             <p className="text-2xl font-bold" data-testid="text-sleep-duration">
-              {formatSleep(healthData.sleepMinutes)}
+              {formatSleep(healthData.sleepMinutes, hasSleep)}
             </p>
             {healthData.sleepQuality && (
               <Badge variant="secondary" className="text-xs capitalize">
@@ -205,14 +210,14 @@ export function HealthSummary({ compact = false, className = '' }: HealthSummary
 
         {(healthData.activeMinutes || healthData.distanceMeters) && (
           <div className="grid grid-cols-2 gap-3 pt-1">
-            {healthData.activeMinutes && (
+            {healthData.activeMinutes && healthData.activeMinutes > 0 && (
               <div className="flex items-center gap-2 text-sm">
                 <TrendingUp className="w-4 h-4 text-green-500" />
                 <span className="text-muted-foreground">Active:</span>
                 <span className="font-medium">{healthData.activeMinutes} min</span>
               </div>
             )}
-            {healthData.distanceMeters && (
+            {healthData.distanceMeters && healthData.distanceMeters > 0 && (
               <div className="flex items-center gap-2 text-sm">
                 <Footprints className="w-4 h-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Distance:</span>
@@ -231,7 +236,7 @@ export function HealthCaloriesBurned() {
   const { data: status } = useHealthStatus();
   const { data: healthData } = useHealthDataToday();
 
-  if (!status?.connected || !healthData?.caloriesBurned) {
+  if (!status?.connected || !healthData?.caloriesBurned || healthData.caloriesBurned <= 0) {
     return null;
   }
 
