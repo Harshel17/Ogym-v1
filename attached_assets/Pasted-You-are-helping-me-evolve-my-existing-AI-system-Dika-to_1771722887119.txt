@@ -1,0 +1,132 @@
+You are helping me evolve my existing AI system (Dika) toward an agent-style architecture.
+
+IMPORTANT:
+“Step 1” does NOT mean building full autonomous agents.
+Step 1 means introducing a SMALL planning layer before my existing AI logic.
+
+I need you to understand my exact goal:
+
+==============================
+WHAT STEP 1 MEANS
+==============================
+
+Right now my flow is:
+
+User message
+→ Intent detection / handler cascade
+→ Context building
+→ Specialized module execution (meal logger, analytics, owner actions, etc.)
+→ GPT response
+
+I want to change it slightly into this:
+
+User message
+→ NEW: Planner (decides what tools to use)
+→ Tool execution (existing modules reused as tools)
+→ Results collected
+→ GPT narrates the result naturally
+
+The key idea:
+
+- GPT should NOT decide logic.
+- GPT should NOT execute actions.
+- GPT only explains results.
+- My TypeScript code remains the intelligence layer.
+
+This is ONLY step 1 toward agentic AI.
+
+NOT a rewrite.
+NOT autonomous agents.
+NOT background tasks.
+
+==============================
+WHAT I WANT YOU TO DO
+==============================
+
+1) Explain where to insert the Planner
+- Show exact file / function in my current architecture where this planner should run.
+- Example: before processWithAI(), inside ai-processor.ts, etc.
+- Explain why.
+
+2) Define what a “Tool” means in my system
+- A tool = existing deterministic modules/functions.
+- Examples in my system:
+  - meal logger
+  - analytics engine
+  - owner actions
+  - member actions
+  - workout generator
+  - getMemberDataContext()
+  - getOwnerDataContext()
+  - subscription lookup
+  - workout history lookup
+
+Create a clean TypeScript interface for tools:
+ToolName
+ToolArgs
+ToolResult
+
+3) Planner Output Schema
+Design the JSON output the planner should produce.
+
+Example:
+
+{
+  "goal": "...",
+  "steps": [
+    {"tool": "getNutritionData", "args": {...}},
+    {"tool": "computeProteinGap", "args": {...}}
+  ]
+}
+
+Rules:
+- max steps limit
+- allowed tools list
+- role-based restrictions
+- safe_mode flag
+
+4) Planning Strategy
+Recommend the best approach for MY architecture:
+
+A) rule-based planner
+B) GPT planner (temperature 0)
+C) hybrid (rules first, GPT fallback)
+
+Explain reasoning specifically for my codebase.
+
+5) Execution Engine
+Show pseudocode for:
+
+executePlan(plan, userContext)
+
+It should:
+- execute steps in order
+- call existing modules
+- collect results
+- handle failures safely
+- fall back to existing cascade if planner fails
+
+6) Minimum Implementation (VERY IMPORTANT)
+I want the smallest possible Step 1.
+
+Design a 1-day implementation plan:
+
+- Only 5 tools initially
+- Read-only tools first
+- Keep existing Dika system untouched as fallback
+- Minimal code changes
+
+7) Meeting Explanation
+Give me a 45-second founder explanation of Step 1:
+
+“Dika is moving from reactive intent handling to a planner-driven architecture where a lightweight planner selects internal tools and GPT simply narrates verified outputs.”
+
+==============================
+CONSTRAINTS
+==============================
+
+- DO NOT redesign my architecture.
+- DO NOT replace existing handlers.
+- ONLY add a small planning layer.
+- Use my existing modules as tools.
+- Keep GPT as language layer only.
