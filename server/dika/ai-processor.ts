@@ -32,6 +32,8 @@ import { detectMemberAction, detectPendingMemberAction, processBodyMeasurement, 
 import { fitnessGoals } from "@shared/schema";
 import { classifyAnalyticsIntent } from "./intent-classifier";
 import { executeAnalytics, type AnalyticsResult } from "./analytics-engine";
+import { detectCompoundQuery, generatePlan } from "./planner";
+import { executePlan } from "./tool-executor";
 
 function detectEmptyAnalytics(result: AnalyticsResult): boolean {
   const d = result.data;
@@ -2067,6 +2069,103 @@ export async function processWithAI(
       return await processSupportTicketAction(userId, role, gymId, message, conversationHistory);
     } catch (error: any) {
       console.error('Support ticket flow follow-up failed:', error?.message || error);
+    }
+  }
+
+  const compoundCheck = detectCompoundQuery(message, role as any);
+  if (compoundCheck.isCompound) {
+    try {
+      const plan = await generatePlan(message, role, compoundCheck.suggestedTools);
+      if (plan && plan.confidence >= 0.6 && plan.steps.length >= 2) {
+        console.log(`[Dika Planner] Compound query detected. Goal: ${plan.goal}, Tools: ${plan.steps.map(s => s.tool).join(', ')}`);
+
+        let memberCtx: MemberContext | null = null;
+        let ownerCtx: OwnerContext | null = null;
+
+        const cached = getCachedContext(userId, role, gymId);
+        if (cached) {
+          if (role === 'owner') {
+            ownerCtx = cached.data as OwnerContext;
+          } else {
+            memberCtx = cached.data as MemberContext;
+          }
+        } else {
+          if (role === 'owner' && gymId) {
+            ownerCtx = await getOwnerDataContext(gymId);
+          } else {
+            memberCtx = await getMemberDataContext(userId, gymId, localDate);
+          }
+        }
+
+        const { results, narrativeContext } = await executePlan(
+          plan, userId, role as any, gymId, memberCtx, ownerCtx, localDate
+        );
+
+        const successCount = results.filter(r => r.success).length;
+        if (successCount >= 2) {
+          const [user] = await db.select({ username: users.username }).from(users).where(eq(users.id, userId));
+          const [profile] = await db.select({ fullName: userProfiles.fullName }).from(userProfiles).where(eq(userProfiles.userId, userId));
+          let gymName: string | undefined;
+          let gymCurrency: string | undefined;
+          if (gymId) {
+            const [gym] = await db.select({ name: gyms.name, currency: gyms.currency }).from(gyms).where(eq(gyms.id, gymId));
+            if (gym) { gymName = gym.name; gymCurrency = gym.currency || undefined; }
+          }
+          const userContext: UserContext = { role, gymId, userId, userName: profile?.fullName || user?.username || 'User', gymName, gymCurrency };
+          const dataCtx = memberCtx || ownerCtx || {} as any;
+          if (!cached) {
+            setCachedContext(userId, role, gymId, dataCtx, userContext);
+          }
+
+          let systemPrompt = buildSystemPrompt(userContext, dataCtx, isIOSNative, voiceMode, detectedLanguage);
+          systemPrompt += `\n\n--- MULTI-TOOL RESULTS (answer using ALL of this data together) ---\n${narrativeContext}\n--- END RESULTS ---\n\nIMPORTANT: The user asked a compound question that touches multiple topics. Weave ALL the data above into ONE natural, conversational response. Don't list tools or separate by category — blend it naturally like a friend giving a complete update. Reference actual numbers from the data.`;
+
+          const historyMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+          if (conversationHistory && conversationHistory.length > 0) {
+            const recentHistory = conversationHistory.slice(-6);
+            for (const msg of recentHistory) {
+              const cleanContent = msg.content
+                .replace(/<!-- MEAL_LOG_DATA:[\s\S]+? -->/g, '[meal logged]')
+                .replace(/<!-- DIKA_ACTION_DATA:[\s\S]+? -->/g, '[action taken]')
+                .replace(/<!-- WEEKLY_REPORT_DATA:[\s\S]+? -->/g, '[report generated]')
+                .replace(/<!-- WORKOUT_PLAN_DATA:[\s\S]+? -->/g, '[workout plan]')
+                .replace(/<!-- DIKA_FIND_FOOD -->/g, '[food search]')
+                .replace(/<!-- PENDING_BODY_MEASUREMENT:[\s\S]+? -->/g, '[awaiting confirmation]')
+                .replace(/<!-- PENDING_EXERCISE_SWAP:[\s\S]+? -->/g, '[awaiting swap choice]')
+                .replace(/<!-- PENDING_GOAL:[\s\S]+? -->/g, '[awaiting goal confirmation]')
+                .replace(/<!-- PENDING_MEAL_SUGGESTION:[\s\S]+? -->/g, '[meal suggestions shown]')
+                .replace(/<!-- PENDING_MATCH_LOG:[\s\S]+? -->/g, '');
+              historyMessages.push({ role: msg.role, content: cleanContent });
+            }
+          }
+
+          const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...historyMessages,
+              { role: 'user', content: message },
+            ],
+            max_completion_tokens: voiceMode ? 300 : 600,
+          });
+
+          let answer = response.choices[0]?.message?.content || "I ran into an issue pulling your data together. Could you try again?";
+          let followUpChips: string[] = [];
+          const chipMatch = answer.match(/\[chips?:\s*"([^"]+)"(?:\s*,\s*"([^"]+)")?(?:\s*,\s*"([^"]+)")?\s*\]/i);
+          if (chipMatch) {
+            followUpChips = [chipMatch[1], chipMatch[2], chipMatch[3]].filter(Boolean) as string[];
+            answer = answer.replace(/\n?\[chips?:\s*"[^"]+".+?\]/i, '').trim();
+          }
+          if (followUpChips.length === 0) {
+            followUpChips = generateFollowUpChips(role, message, answer, gymId, isIOSNative);
+          }
+
+          console.log(`[Dika Planner] Success — ${successCount} tools returned data`);
+          return { answer, followUpChips };
+        }
+      }
+    } catch (error) {
+      console.error('[Dika Planner] Failed, falling back to cascade:', error);
     }
   }
 
