@@ -1025,6 +1025,124 @@ export async function registerRoutes(
     res.json(alerts);
   });
 
+  // Ask Dika - AI-powered payment queries
+  app.post("/api/owner/ask-dika-payments", requireRole(["owner"]), async (req, res) => {
+    try {
+      const bodySchema = z.object({
+        question: z.string().min(1, "Question is required").max(500, "Question too long"),
+      });
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const { question } = parsed.data;
+
+      const gymId = req.user!.gymId!;
+      
+      const subs = await db.select({
+        id: memberSubscriptions.id,
+        memberId: memberSubscriptions.memberId,
+        startDate: memberSubscriptions.startDate,
+        endDate: memberSubscriptions.endDate,
+        totalAmount: memberSubscriptions.totalAmount,
+        status: memberSubscriptions.status,
+        paymentMode: memberSubscriptions.paymentMode,
+        notes: memberSubscriptions.notes,
+        memberUsername: users.username,
+        planName: membershipPlans.name,
+      }).from(memberSubscriptions)
+        .leftJoin(users, eq(memberSubscriptions.memberId, users.id))
+        .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+        .where(eq(memberSubscriptions.gymId, gymId));
+
+      const transactions = await db.select({
+        id: paymentTransactions.id,
+        memberId: paymentTransactions.memberId,
+        subscriptionId: paymentTransactions.subscriptionId,
+        paidOn: paymentTransactions.paidOn,
+        amountPaid: paymentTransactions.amountPaid,
+        method: paymentTransactions.method,
+        referenceNote: paymentTransactions.referenceNote,
+        memberUsername: users.username,
+      }).from(paymentTransactions)
+        .leftJoin(users, eq(paymentTransactions.memberId, users.id))
+        .where(eq(paymentTransactions.gymId, gymId));
+
+      const gym = await db.select({ currency: gyms.currency }).from(gyms).where(eq(gyms.id, gymId)).limit(1);
+      const currency = gym[0]?.currency || 'USD';
+
+      const today = new Date().toISOString().split('T')[0];
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const systemPrompt = `You are Dika, an AI payment assistant for a gym management platform. You answer payment-related questions using REAL data provided below.
+
+TODAY'S DATE: ${today}
+CURRENCY: ${currency} (amounts stored in smallest unit e.g. paise/cents, divide by 100 for display)
+
+SUBSCRIPTIONS DATA (${subs.length} total):
+${JSON.stringify(subs.map(s => ({
+  member: s.memberUsername,
+  plan: s.planName,
+  start: s.startDate,
+  end: s.endDate,
+  total: s.totalAmount,
+  status: s.status,
+  mode: s.paymentMode,
+})), null, 0)}
+
+PAYMENT TRANSACTIONS (${transactions.length} total):
+${JSON.stringify(transactions.map(t => ({
+  member: t.memberUsername,
+  paid: t.amountPaid,
+  date: t.paidOn,
+  method: t.method,
+  note: t.referenceNote,
+})), null, 0)}
+
+RULES:
+- Answer ONLY based on real data above. Never fabricate members or amounts.
+- Format amounts by dividing by 100 and adding currency symbol.
+- For member-specific queries, match names case-insensitively and allow partial matches.
+- Return structured JSON response with this format:
+{
+  "answer": "Brief natural language answer to the question",
+  "results": [
+    { "member": "username", "plan": "plan name", "period": "start - end", "amount": "formatted", "status": "active/overdue/etc", "details": "any extra info" }
+  ],
+  "summary": "Optional one-line summary like 'Found 3 members ending in January'"
+}
+- If the question is about a specific member's history, include all their transactions in results.
+- If no matching data found, return empty results array with a helpful answer.
+- Keep the answer concise and professional.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const responseText = completion.choices[0]?.message?.content || '{"answer":"Sorry, I could not process that question.","results":[],"summary":""}';
+      
+      try {
+        const parsed = JSON.parse(responseText);
+        res.json(parsed);
+      } catch {
+        res.json({ answer: responseText, results: [], summary: "" });
+      }
+    } catch (err: any) {
+      console.error("Ask Dika payments error:", err);
+      res.status(500).json({ message: "Failed to process your question" });
+    }
+  });
+
   // Members needing subscription
   app.get("/api/owner/members-need-subscription", requireRole(["owner"]), async (req, res) => {
     const members = await storage.getMembersNeedingSubscription(req.user!.gymId!);

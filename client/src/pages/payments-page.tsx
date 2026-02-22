@@ -13,7 +13,7 @@ import { GuidedEmptyState } from "@/components/guided-empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Banknote, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle, Check, ChevronsUpDown, ChevronDown, ChevronUp, UserPlus, Download, Trophy } from "lucide-react";
+import { Banknote, Plus, AlertTriangle, Clock, Users, CreditCard, Loader2, Receipt, Search, X, CheckCircle, Check, ChevronsUpDown, ChevronDown, ChevronUp, UserPlus, Download, Trophy, Sparkles, Send, ArrowRight } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,15 +44,53 @@ export default function PaymentsPage() {
   return <OwnerPaymentsView />;
 }
 
+interface DikaPaymentResult {
+  member: string;
+  plan?: string;
+  period?: string;
+  amount?: string;
+  status?: string;
+  details?: string;
+}
+
+interface DikaPaymentResponse {
+  answer: string;
+  results: DikaPaymentResult[];
+  summary?: string;
+}
+
 function OwnerPaymentsView() {
   const [activeTab, setActiveTab] = useState("subscriptions");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [endingSoonDays, setEndingSoonDays] = useState(7);
+  const [dikaQuery, setDikaQuery] = useState("");
+  const [dikaResponse, setDikaResponse] = useState<DikaPaymentResponse | null>(null);
   const { format: formatMoney } = useGymCurrency();
+  const { toast } = useToast();
   
   const { data: alerts } = useQuery<{ endingSoon: number; overdue: number; active: number; needSubscription: number }>({
     queryKey: ["/api/owner/subscription-alerts"]
   });
+
+  const dikaMutation = useMutation({
+    mutationFn: async (question: string) => {
+      const res = await apiRequest("POST", "/api/owner/ask-dika-payments", { question });
+      return res.json();
+    },
+    onSuccess: (data: DikaPaymentResponse) => {
+      setDikaResponse(data);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Dika couldn't answer", description: err.message, variant: "destructive" });
+    }
+  });
+
+  const handleDikaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dikaQuery.trim()) return;
+    dikaMutation.mutate(dikaQuery.trim());
+  };
 
   const handleCardClick = (filter: string) => {
     if (statusFilter === filter) {
@@ -103,6 +141,22 @@ function OwnerPaymentsView() {
                 <p className="text-2xl font-bold" data-testid="text-ending-soon">{alerts?.endingSoon || 0}</p>
               </div>
             </div>
+            {statusFilter === 'endingSoon' && (
+              <div className="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800" onClick={(e) => e.stopPropagation()}>
+                <Select value={String(endingSoonDays)} onValueChange={(v) => setEndingSoonDays(Number(v))}>
+                  <SelectTrigger className="h-8 text-xs" data-testid="select-ending-soon-days">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">Next 7 days</SelectItem>
+                    <SelectItem value="14">Next 14 days</SelectItem>
+                    <SelectItem value="30">Next 30 days</SelectItem>
+                    <SelectItem value="60">Next 60 days</SelectItem>
+                    <SelectItem value="90">Next 90 days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card 
@@ -141,10 +195,107 @@ function OwnerPaymentsView() {
         </Card>
       </div>
 
+      <div className="space-y-3">
+        <form onSubmit={handleDikaSubmit} className="relative" data-testid="form-ask-dika">
+          <div className="relative flex items-center">
+            <Sparkles className="absolute left-3 h-4 w-4 text-purple-500" />
+            <Input
+              placeholder="Ask Dika about payments... e.g. &quot;Who's ending in March?&quot; or &quot;Harshel's payment history&quot;"
+              value={dikaQuery}
+              onChange={(e) => setDikaQuery(e.target.value)}
+              className="pl-10 pr-12 h-11 bg-card border-purple-200 dark:border-purple-800 focus-visible:ring-purple-500 placeholder:text-muted-foreground/60"
+              data-testid="input-ask-dika"
+            />
+            <Button
+              type="submit"
+              size="icon"
+              variant="ghost"
+              disabled={dikaMutation.isPending || !dikaQuery.trim()}
+              className="absolute right-1 text-purple-500"
+              data-testid="button-ask-dika-submit"
+            >
+              {dikaMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
+        </form>
+
+        {dikaMutation.isPending && (
+          <Card className="border-purple-200 dark:border-purple-800">
+            <CardContent className="py-6 flex items-center justify-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
+              <span className="text-sm text-muted-foreground">Dika is analyzing your payments...</span>
+            </CardContent>
+          </Card>
+        )}
+
+        {dikaResponse && !dikaMutation.isPending && (
+          <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10" data-testid="dika-results-card">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="flex items-start gap-2">
+                  <Sparkles className="h-4 w-4 text-purple-500 mt-0.5 shrink-0" />
+                  <p className="text-sm text-foreground" data-testid="text-dika-answer">{dikaResponse.answer}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0"
+                  onClick={() => { setDikaResponse(null); setDikaQuery(""); }}
+                  data-testid="button-dismiss-dika"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {dikaResponse.results && dikaResponse.results.length > 0 && (
+                <div className="rounded-lg border bg-card overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Member</TableHead>
+                        <TableHead className="text-xs">Plan</TableHead>
+                        <TableHead className="text-xs">Period</TableHead>
+                        <TableHead className="text-xs">Amount</TableHead>
+                        <TableHead className="text-xs">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dikaResponse.results.map((r, i) => (
+                        <TableRow key={i} data-testid={`row-dika-result-${i}`}>
+                          <TableCell className="text-xs font-medium" data-testid={`text-dika-member-${i}`}>{r.member}</TableCell>
+                          <TableCell className="text-xs">{r.plan || '-'}</TableCell>
+                          <TableCell className="text-xs">{r.period || '-'}</TableCell>
+                          <TableCell className="text-xs">{r.amount || '-'}</TableCell>
+                          <TableCell className="text-xs">
+                            {r.status && (
+                              <Badge variant="secondary" className={cn(
+                                "text-[10px]",
+                                r.status.toLowerCase().includes('active') && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                                r.status.toLowerCase().includes('ending') && "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                                r.status.toLowerCase().includes('overdue') && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                                r.status.toLowerCase().includes('ended') && "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
+                              )}>
+                                {r.status}
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              {dikaResponse.summary && (
+                <p className="text-xs text-muted-foreground mt-2 ml-6">{dikaResponse.summary}</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
       {statusFilter && (
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="capitalize">
-            Filtering: {statusFilter === 'endingSoon' ? 'Ending Soon' : statusFilter}
+            Filtering: {statusFilter === 'endingSoon' ? `Ending Soon (${endingSoonDays} days)` : statusFilter}
           </Badge>
           <Button 
             variant="ghost" 
@@ -168,7 +319,7 @@ function OwnerPaymentsView() {
             <TabsTrigger value="plans" className="flex-1" data-testid="tab-plans">Plans</TabsTrigger>
           </TabsList>
           <TabsContent value="subscriptions" className="mt-6">
-            <SubscriptionsTab statusFilter={statusFilter} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+            <SubscriptionsTab statusFilter={statusFilter} searchQuery={searchQuery} setSearchQuery={setSearchQuery} endingSoonDays={endingSoonDays} />
           </TabsContent>
           <TabsContent value="outstanding" className="mt-6">
             <OutstandingPaymentsTab />
@@ -1267,9 +1418,10 @@ interface SubscriptionsTabProps {
   statusFilter: string | null;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  endingSoonDays?: number;
 }
 
-function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: SubscriptionsTabProps) {
+function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery, endingSoonDays = 7 }: SubscriptionsTabProps) {
   const [open, setOpen] = useState(false);
   const [memberPopoverOpen, setMemberPopoverOpen] = useState(false);
   const [selectedSub, setSelectedSub] = useState<SubscriptionWithDetails | null>(null);
@@ -1303,10 +1455,13 @@ function SubscriptionsTab({ statusFilter, searchQuery, setSearchQuery }: Subscri
     
     switch (statusFilter) {
       case 'active':
-        // Active includes both 'active' and 'endingSoon' statuses
         return sub.status === 'active' || sub.status === 'endingSoon';
-      case 'endingSoon':
-        return sub.status === 'endingSoon';
+      case 'endingSoon': {
+        const today = new Date();
+        const cutoff = new Date(today.getTime() + endingSoonDays * 24 * 60 * 60 * 1000);
+        const endDate = new Date(sub.endDate);
+        return endDate >= today && endDate <= cutoff && (sub.status === 'active' || sub.status === 'endingSoon');
+      }
       case 'overdue':
         return sub.status === 'overdue';
       default:
