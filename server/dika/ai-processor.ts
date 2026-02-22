@@ -2072,10 +2072,10 @@ export async function processWithAI(
     }
   }
 
-  const compoundCheck = detectCompoundQuery(message, role as any);
+  const compoundCheck = detectCompoundQuery(message, role as any, isIOSNative);
   if (compoundCheck.isCompound) {
     try {
-      const plan = await generatePlan(message, role, compoundCheck.suggestedTools);
+      const plan = await generatePlan(message, role, compoundCheck.suggestedTools, isIOSNative);
       if (plan && plan.confidence >= 0.6 && plan.steps.length >= 2) {
         console.log(`[Dika Planner] Compound query detected. Goal: ${plan.goal}, Tools: ${plan.steps.map(s => s.tool).join(', ')}`);
 
@@ -2098,7 +2098,7 @@ export async function processWithAI(
         }
 
         const { results, narrativeContext } = await executePlan(
-          plan, userId, role as any, gymId, memberCtx, ownerCtx, localDate
+          plan, userId, role as any, gymId, memberCtx, ownerCtx, localDate, isIOSNative
         );
 
         const successCount = results.filter(r => r.success).length;

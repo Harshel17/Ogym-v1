@@ -385,24 +385,40 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
 ];
 
-export function getToolsForRole(role: UserRole): Map<ToolName, ToolDefinition> {
+const IOS_BLOCKED_TOOLS: ToolName[] = ['getOwnerOverview'];
+
+export function getToolsForRole(role: UserRole, isIOSNative?: boolean): Map<ToolName, ToolDefinition> {
   const map = new Map<ToolName, ToolDefinition>();
   for (const tool of TOOL_DEFINITIONS) {
     if (tool.allowedRoles.includes(role)) {
+      if (isIOSNative && IOS_BLOCKED_TOOLS.includes(tool.name)) continue;
       map.set(tool.name, tool);
     }
   }
   return map;
 }
 
-export function getToolDescriptionsForRole(role: UserRole): string {
+export function getToolDescriptionsForRole(role: UserRole, isIOSNative?: boolean): string {
   return TOOL_DEFINITIONS
     .filter(t => t.allowedRoles.includes(role))
+    .filter(t => !(isIOSNative && IOS_BLOCKED_TOOLS.includes(t.name)))
     .map(t => `${t.name}: ${t.description}`)
     .join('\n');
 }
 
-export function isValidTool(name: string, role: UserRole): boolean {
-  const tools = getToolsForRole(role);
+export function isValidTool(name: string, role: UserRole, isIOSNative?: boolean): boolean {
+  const tools = getToolsForRole(role, isIOSNative);
   return tools.has(name as ToolName);
+}
+
+export function sanitizeToolResultForIOS(result: ToolResult): ToolResult {
+  if (result.toolName === 'getWorkoutProgress' && result.success && result.data) {
+    const sanitized = { ...result.data };
+    delete sanitized.subscriptionStatus;
+    const summaryLines = result.summary.split('. ').filter(line =>
+      !line.toLowerCase().includes('subscription')
+    );
+    return { ...result, data: sanitized, summary: summaryLines.join('. ') };
+  }
+  return result;
 }

@@ -7409,6 +7409,9 @@ Return ONLY JSON.`
 
   // === AI INSIGHTS ===
   app.get("/api/owner/ai-insights/:date", requireRole(["owner"]), async (req, res) => {
+    if (req.query.platform === 'ios_native') {
+      return res.status(403).json({ message: "This feature is available on the web version at app.ogym.fitness" });
+    }
     const clientDate = req.params.date || getLocalDate(req);
     const insights = await storage.getAiInsights(req.user!.gymId!, clientDate);
 
@@ -7603,6 +7606,9 @@ Write a short, personal message. No subject line, just the message body. Use the
 
   // === AI-POWERED OWNER INSIGHTS ===
   app.get("/api/owner/ai/weekly-briefing", requireRole(["owner"]), async (req, res) => {
+    if (req.query.platform === 'ios_native') {
+      return res.status(403).json({ message: "This feature is available on the web version at app.ogym.fitness" });
+    }
     try {
       const { generateWeeklyOwnerBriefing } = await import('./dika/owner-ai-engine');
       const clientDate = (req.query.clientDate as string) || getLocalDate(req);
@@ -7614,6 +7620,9 @@ Write a short, personal message. No subject line, just the message body. Use the
   });
 
   app.get("/api/owner/ai/trainer-performance", requireRole(["owner"]), async (req, res) => {
+    if (req.query.platform === 'ios_native') {
+      return res.status(403).json({ message: "This feature is available on the web version at app.ogym.fitness" });
+    }
     try {
       const { generateTrainerPerformanceSummary } = await import('./dika/owner-ai-engine');
       const clientDate = (req.query.clientDate as string) || getLocalDate(req);
@@ -7625,6 +7634,9 @@ Write a short, personal message. No subject line, just the message body. Use the
   });
 
   app.get("/api/owner/ai/reengagement", requireRole(["owner"]), async (req, res) => {
+    if (req.query.platform === 'ios_native') {
+      return res.status(403).json({ message: "This feature is available on the web version at app.ogym.fitness" });
+    }
     try {
       const { generateReengagementCampaign } = await import('./dika/owner-ai-engine');
       const clientDate = (req.query.clientDate as string) || getLocalDate(req);

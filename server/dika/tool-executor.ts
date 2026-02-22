@@ -1,4 +1,4 @@
-import { type ToolName, type ToolResult, type UserRole, getToolsForRole } from "./tool-registry";
+import { type ToolName, type ToolResult, type UserRole, getToolsForRole, sanitizeToolResultForIOS } from "./tool-registry";
 import { type PlannerOutput } from "./planner";
 
 export async function executePlan(
@@ -8,10 +8,11 @@ export async function executePlan(
   gymId: number | null,
   memberContext: any,
   ownerContext: any,
-  localDate?: string
+  localDate?: string,
+  isIOSNative?: boolean
 ): Promise<{ results: ToolResult[]; narrativeContext: string }> {
   const results: ToolResult[] = [];
-  const toolMap = getToolsForRole(role);
+  const toolMap = getToolsForRole(role, isIOSNative);
 
   for (const step of plan.steps) {
     const tool = toolMap.get(step.tool);
@@ -27,7 +28,7 @@ export async function executePlan(
     }
 
     try {
-      const result = await tool.execute({
+      let result = await tool.execute({
         userId,
         gymId,
         localDate,
@@ -35,6 +36,9 @@ export async function executePlan(
         _ownerContext: ownerContext,
         ...step.args,
       });
+      if (isIOSNative) {
+        result = sanitizeToolResultForIOS(result);
+      }
       results.push(result);
     } catch (error) {
       console.error(`[ToolExecutor] ${step.tool} failed:`, error);

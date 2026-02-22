@@ -68,7 +68,7 @@ const COMPOUND_SIGNALS: CompoundSignal[] = [
     tools: [] },
 ];
 
-export function detectCompoundQuery(message: string, role: UserRole): { isCompound: boolean; suggestedTools: ToolName[] } {
+export function detectCompoundQuery(message: string, role: UserRole, isIOSNative?: boolean): { isCompound: boolean; suggestedTools: ToolName[] } {
   const matchedTools: ToolName[] = [];
 
   for (const signal of COMPOUND_SIGNALS) {
@@ -82,7 +82,7 @@ export function detectCompoundQuery(message: string, role: UserRole): { isCompou
   }
 
   const unique = Array.from(new Set(matchedTools));
-  const roleFiltered = unique.filter(tool => isValidTool(tool, role));
+  const roleFiltered = unique.filter(tool => isValidTool(tool, role, isIOSNative));
 
   if (roleFiltered.length >= 2) {
     return { isCompound: true, suggestedTools: roleFiltered.slice(0, 3) };
@@ -94,7 +94,8 @@ export function detectCompoundQuery(message: string, role: UserRole): { isCompou
 export async function generatePlan(
   message: string,
   role: UserRole,
-  suggestedTools: ToolName[]
+  suggestedTools: ToolName[],
+  isIOSNative?: boolean
 ): Promise<PlannerOutput | null> {
   if (suggestedTools.length >= 2) {
     return {
@@ -108,7 +109,7 @@ export async function generatePlan(
     };
   }
 
-  const availableTools = getToolDescriptionsForRole(role);
+  const availableTools = getToolDescriptionsForRole(role, isIOSNative);
 
   try {
     const response = await openai.chat.completions.create({
@@ -143,7 +144,7 @@ Rules:
       if (parsed.steps && Array.isArray(parsed.steps) && parsed.steps.length >= 2) {
         const validSteps: PlanStep[] = parsed.steps
           .slice(0, 3)
-          .filter((s: any) => s.tool && isValidTool(s.tool, role))
+          .filter((s: any) => s.tool && isValidTool(s.tool, role, isIOSNative))
           .map((s: any) => ({
             tool: s.tool as ToolName,
             args: s.args || {},
