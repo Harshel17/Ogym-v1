@@ -204,7 +204,7 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
       data-testid="stat-card-calories"
     >
       <CardContent className="flex items-center gap-3 h-[100px] py-0 px-4 relative z-10">
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 relative">
           <svg
             width={size}
             height={size}
@@ -260,6 +260,14 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
               </>
             )}
           </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className={cn(
+              "text-[10px] font-bold tabular-nums leading-none",
+              isCaloriesOver ? "text-red-500" : "text-muted-foreground"
+            )}>
+              {Math.round(caloriePercentage)}%
+            </span>
+          </div>
         </div>
         
         <div className="flex flex-col min-w-0">
