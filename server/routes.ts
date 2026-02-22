@@ -1079,20 +1079,39 @@ export async function registerRoutes(
         baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
       });
 
+      const activeSubs = subs.filter(s => s.status !== 'ended');
+      const endedSubs = subs.filter(s => s.status === 'ended');
+
       const systemPrompt = `You are Dika, an AI payment assistant for a gym management platform. You answer payment-related questions using REAL data provided below.
 
 TODAY'S DATE: ${today}
 CURRENCY: ${currency} (amounts stored in smallest unit e.g. paise/cents, divide by 100 for display)
 
-SUBSCRIPTIONS DATA (${subs.length} total):
-${JSON.stringify(subs.map(s => ({
+STATUS DEFINITIONS:
+- "active" = subscription is currently running and not expiring soon
+- "endingSoon" = subscription is STILL ACTIVE but will expire within the next 30 days. The end date is when it expires.
+- "overdue" = subscription has expired and member hasn't renewed
+- "ended" = subscription has fully concluded/completed
+
+CURRENT SUBSCRIPTIONS (active, endingSoon, overdue - ${activeSubs.length} total):
+${JSON.stringify(activeSubs.map(s => ({
   member: s.memberUsername,
   plan: s.planName,
-  start: s.startDate,
-  end: s.endDate,
+  startDate: s.startDate,
+  endDate: s.endDate,
   total: s.totalAmount,
   status: s.status,
   mode: s.paymentMode,
+})), null, 0)}
+
+PAST/ENDED SUBSCRIPTIONS (${endedSubs.length} total):
+${JSON.stringify(endedSubs.map(s => ({
+  member: s.memberUsername,
+  plan: s.planName,
+  startDate: s.startDate,
+  endDate: s.endDate,
+  total: s.totalAmount,
+  status: s.status,
 })), null, 0)}
 
 PAYMENT TRANSACTIONS (${transactions.length} total):
@@ -1108,13 +1127,14 @@ RULES:
 - Answer ONLY based on real data above. Never fabricate members or amounts.
 - Format amounts by dividing by 100 and adding currency symbol.
 - For member-specific queries, match names case-insensitively and allow partial matches.
+- When asked about subscriptions "ending" in a month, look at the endDate field. Include BOTH "endingSoon" AND "active" subscriptions whose endDate falls in that month. Also include "ended" subscriptions whose endDate falls in that month if relevant.
 - Return structured JSON response with this format:
 {
   "answer": "Brief natural language answer to the question",
   "results": [
-    { "member": "username", "plan": "plan name", "period": "start - end", "amount": "formatted", "status": "active/overdue/etc", "details": "any extra info" }
+    { "member": "username", "plan": "plan name", "period": "startDate - endDate", "amount": "formatted", "status": "active/endingSoon/overdue/ended", "details": "any extra info" }
   ],
-  "summary": "Optional one-line summary like 'Found 3 members ending in January'"
+  "summary": "Optional one-line summary like 'Found 3 members ending in February'"
 }
 - If the question is about a specific member's history, include all their transactions in results.
 - If no matching data found, return empty results array with a helpful answer.
