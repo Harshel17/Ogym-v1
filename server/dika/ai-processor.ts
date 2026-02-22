@@ -1647,14 +1647,15 @@ Progress: ${ctx.todayWorkout.completedCount}/${ctx.todayWorkout.exercises.length
 TODAY'S WORKOUT: No exercises scheduled`
     ) : '';
 
+    const subscriptionLine = isIOSNative ? '' : `\n- Subscription: ${ctx.subscriptionStatus}${ctx.subscriptionExpiryDate ? ` (expires ${ctx.subscriptionExpiryDate})` : ''}`;
+
     return basePrompt + `
 MEMBER DATA:
 - Workouts this week: ${ctx.workoutsThisWeek}
 - Workouts this month: ${ctx.workoutsThisMonth}
 - Last workout: ${ctx.lastWorkoutDate || 'Never'}
 - Current workout cycle: ${ctx.currentCycleName || 'None assigned'}
-- Gym attendance this month: ${ctx.attendanceThisMonth} days
-- Subscription: ${ctx.subscriptionStatus}${ctx.subscriptionExpiryDate ? ` (expires ${ctx.subscriptionExpiryDate})` : ''}
+- Gym attendance this month: ${ctx.attendanceThisMonth} days${subscriptionLine}
 ${todayWorkoutSection}
 ${ctx.bodyMeasurements.latest ? `
 BODY MEASUREMENTS:
