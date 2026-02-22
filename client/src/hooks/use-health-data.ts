@@ -80,6 +80,8 @@ export function useSyncHealth() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/health/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/health/range'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/health/stats'] });
     },
   });
 }

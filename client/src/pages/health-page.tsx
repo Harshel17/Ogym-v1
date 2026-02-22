@@ -6,6 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { getLocalDate } from '@/lib/timezone';
 import {
   useHealthStatus,
   useHealthDataToday,
@@ -457,12 +458,12 @@ export default function HealthPage() {
   const rangeDays = chartRange === '7d' ? 6 : 29;
   const rangeStart = new Date(today);
   rangeStart.setDate(rangeStart.getDate() - rangeDays);
-  const startDate = rangeStart.toISOString().split('T')[0];
-  const endDate = today.toISOString().split('T')[0];
+  const startDate = `${rangeStart.getFullYear()}-${String(rangeStart.getMonth() + 1).padStart(2, '0')}-${String(rangeStart.getDate()).padStart(2, '0')}`;
+  const endDate = getLocalDate();
 
   const { data: rangeData } = useHealthDataRange(startDate, endDate);
 
-  const todayDateStr = today.toISOString().split('T')[0];
+  const todayDateStr = getLocalDate();
   const { data: todayFoodLogs } = useQuery<FoodLog[]>({
     queryKey: ['/api/food-logs', todayDateStr],
   });
@@ -495,7 +496,7 @@ export default function HealthPage() {
     for (let i = rangeDays; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const match = rangeData?.find((wd) => wd.date === dateStr);

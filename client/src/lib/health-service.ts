@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { apiRequest } from './queryClient';
+import { getLocalDate } from './timezone';
 
 export type HealthSource = 'apple_health' | 'google_fit';
 
@@ -118,25 +119,29 @@ class HealthService {
     }
 
     const today = new Date();
+    const localDateStr = getLocalDate();
+
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    const startISO = startOfDay.toISOString();
+    const endISO = endOfDay.toISOString();
 
     const source = this.getAvailableSource();
     if (!source) return null;
 
     try {
       const data: HealthDataPayload = {
-        date: today.toISOString().split('T')[0],
+        date: localDateStr,
         source,
       };
 
-      console.log('[HealthService] Fetching today data...');
+      console.log(`[HealthService] Fetching today data for ${localDateStr} (range: ${startISO} to ${endISO})`);
 
       // Fetch steps
       try {
         const stepsResult = await this.healthPlugin.queryAggregated({
-          startDate: startOfDay.toISOString(),
-          endDate: endOfDay.toISOString(),
+          startDate: startISO,
+          endDate: endISO,
           dataType: 'steps',
           bucket: 'day'
         });
@@ -151,8 +156,8 @@ class HealthService {
       // Fetch active calories
       try {
         const caloriesResult = await this.healthPlugin.queryAggregated({
-          startDate: startOfDay.toISOString(),
-          endDate: endOfDay.toISOString(),
+          startDate: startISO,
+          endDate: endISO,
           dataType: 'active-calories',
           bucket: 'day'
         });
@@ -168,8 +173,8 @@ class HealthService {
       // Fetch workouts to get heart rate, duration, and other data
       try {
         const workoutsResult = await this.healthPlugin.queryWorkouts({
-          startDate: startOfDay.toISOString(),
-          endDate: endOfDay.toISOString(),
+          startDate: startISO,
+          endDate: endISO,
           includeHeartRate: true,
           includeRoute: false,
           includeSteps: true
