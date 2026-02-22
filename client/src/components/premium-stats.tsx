@@ -203,8 +203,8 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
       )}
       data-testid="stat-card-calories"
     >
-      <CardContent className="flex flex-col items-center justify-center h-[100px] py-0 relative z-10">
-        <div className="relative mb-1.5">
+      <CardContent className="flex items-center gap-3 h-[100px] py-0 px-4 relative z-10">
+        <div className="flex-shrink-0">
           <svg
             width={size}
             height={size}
@@ -260,27 +260,25 @@ export const CalorieProgressCard = memo(function CalorieProgressCard({
               </>
             )}
           </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={cn(
-              "text-xs font-bold tabular-nums leading-none",
-              isCaloriesOver && "text-red-500"
-            )}>
-              {displayValue}
-            </span>
-            <span className="text-[7px] text-muted-foreground mt-0.5 font-medium">kcal</span>
-          </div>
         </div>
         
-        <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Today's Calories</p>
-        
-        {showProteinRing && (
-          <p className={cn(
-            "text-[9px] tabular-nums mt-0.5 font-medium",
-            isProteinOver ? "text-red-500" : "text-blue-500"
+        <div className="flex flex-col min-w-0">
+          <span className={cn(
+            "text-lg font-bold tabular-nums leading-tight",
+            isCaloriesOver ? "text-red-500" : "text-foreground"
           )}>
-            {currentProtein}g / {effectiveProteinTarget}g protein
-          </p>
-        )}
+            {displayValue}
+          </span>
+          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Today's Calories</p>
+          {showProteinRing && (
+            <p className={cn(
+              "text-[10px] tabular-nums mt-0.5 font-medium",
+              isProteinOver ? "text-red-500" : "text-blue-500"
+            )}>
+              {currentProtein}g / {effectiveProteinTarget}g protein
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
