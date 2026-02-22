@@ -1082,63 +1082,154 @@ export async function registerRoutes(
       const activeSubs = subs.filter(s => s.status !== 'ended');
       const endedSubs = subs.filter(s => s.status === 'ended');
 
-      const systemPrompt = `You are Dika, an AI payment assistant for a gym management platform. You answer payment-related questions using REAL data provided below.
+      // Pre-compute payment summaries so the AI never has to do math
+      const currencySymbols: Record<string, string> = { USD: '$', INR: '₹', EUR: '€', GBP: '£', AED: 'AED ', CAD: 'CA$', AUD: 'A$' };
+      const sym = currencySymbols[currency] || `${currency} `;
+      const fmt = (cents: number) => `${sym}${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      const now = new Date();
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const thisWeekStart = new Date(now.getTime() - now.getDay() * 86400000).toISOString().split('T')[0];
+      const last30Start = new Date(now.getTime() - 30 * 86400000).toISOString().split('T')[0];
+      const last90Start = new Date(now.getTime() - 90 * 86400000).toISOString().split('T')[0];
+
+      // By method - all time
+      const byMethod: Record<string, { count: number; total: number }> = {};
+      transactions.forEach(t => {
+        const m = t.method || 'unknown';
+        if (!byMethod[m]) byMethod[m] = { count: 0, total: 0 };
+        byMethod[m].count++;
+        byMethod[m].total += Number(t.amountPaid) || 0;
+      });
+
+      // Normalize paidOn to YYYY-MM-DD string for reliable date comparison
+      const normDate = (d: string | Date | null | undefined): string => {
+        if (!d) return '';
+        const str = typeof d === 'string' ? d : d.toISOString();
+        return str.substring(0, 10); // YYYY-MM-DD
+      };
+
+      // By period
+      const periodStats = (startDate: string) => {
+        const filtered = transactions.filter(t => normDate(t.paidOn) >= startDate);
+        const total = filtered.reduce((sum, t) => sum + (Number(t.amountPaid) || 0), 0);
+        const methodBreakdown: Record<string, number> = {};
+        filtered.forEach(t => {
+          const m = t.method || 'unknown';
+          methodBreakdown[m] = (methodBreakdown[m] || 0) + (Number(t.amountPaid) || 0);
+        });
+        return { count: filtered.length, total, methodBreakdown };
+      };
+
+      const allTimeTotal = transactions.reduce((sum, t) => sum + (Number(t.amountPaid) || 0), 0);
+      const thisMonthStats = periodStats(thisMonthStart);
+      const thisWeekStats = periodStats(thisWeekStart);
+      const last30Stats = periodStats(last30Start);
+      const last90Stats = periodStats(last90Start);
+
+      // Subscription status counts
+      const statusCounts = {
+        active: subs.filter(s => s.status === 'active').length,
+        endingSoon: subs.filter(s => s.status === 'endingSoon').length,
+        overdue: subs.filter(s => s.status === 'overdue').length,
+        ended: endedSubs.length,
+      };
+
+      const precomputedSummaries = `
+=== PRE-COMPUTED PAYMENT SUMMARIES (use these directly, do NOT recalculate) ===
+
+TOTAL PAYMENTS RECEIVED (ALL TIME): ${fmt(allTimeTotal)} from ${transactions.length} transactions
+BY PAYMENT METHOD (ALL TIME):
+${Object.entries(byMethod).map(([method, data]) => `  - ${method}: ${fmt(data.total)} (${data.count} transactions)`).join('\n')}
+
+THIS MONTH (since ${thisMonthStart}): ${fmt(thisMonthStats.total)} from ${thisMonthStats.count} transactions
+${Object.entries(thisMonthStats.methodBreakdown).map(([m, t]) => `  - ${m}: ${fmt(t)}`).join('\n') || '  No transactions this month'}
+
+THIS WEEK (since ${thisWeekStart}): ${fmt(thisWeekStats.total)} from ${thisWeekStats.count} transactions
+${Object.entries(thisWeekStats.methodBreakdown).map(([m, t]) => `  - ${m}: ${fmt(t)}`).join('\n') || '  No transactions this week'}
+
+LAST 30 DAYS: ${fmt(last30Stats.total)} from ${last30Stats.count} transactions
+LAST 90 DAYS: ${fmt(last90Stats.total)} from ${last90Stats.count} transactions
+
+SUBSCRIPTION STATUS OVERVIEW:
+  - Active: ${statusCounts.active}
+  - Ending Soon: ${statusCounts.endingSoon}
+  - Overdue: ${statusCounts.overdue}
+  - Ended/Completed: ${statusCounts.ended}
+  - Total current (non-ended): ${activeSubs.length}
+`;
+
+      const systemPrompt = `You are Dika, an AI payment assistant for a gym management platform. You are accurate, data-driven, and never guess.
 
 TODAY'S DATE: ${today}
-CURRENCY: ${currency} (amounts stored in smallest unit e.g. paise/cents, divide by 100 for display)
+CURRENCY: ${currency}
 
-STATUS DEFINITIONS:
-- "active" = subscription is currently running and not expiring soon
-- "endingSoon" = subscription is STILL ACTIVE but will expire within the next 30 days. The end date is when it expires.
-- "overdue" = subscription has expired and member hasn't renewed
-- "ended" = subscription has fully concluded/completed
+${precomputedSummaries}
 
-CURRENT SUBSCRIPTIONS (active, endingSoon, overdue - ${activeSubs.length} total):
+=== CRITICAL RULES (MUST FOLLOW) ===
+1. PAYMENT AMOUNTS vs SUBSCRIPTION AMOUNTS - these are DIFFERENT:
+   - "Payment transactions" = actual money RECEIVED from members (amountPaid field). Use these for questions about revenue, income, cash received, method totals.
+   - "Subscription totalAmount" = the PRICE of a subscription plan (what's owed). Use these ONLY for questions about plan pricing or outstanding balances.
+   - NEVER confuse these two. When asked "how much did we get through cash", use PAYMENT TRANSACTIONS only.
+
+2. FOR ANY TOTALS/SUMS QUESTION: Use the PRE-COMPUTED SUMMARIES above. Do NOT manually add up numbers. The summaries are mathematically verified.
+
+3. All amounts in raw data are in smallest currency unit (cents/paise). Divide by 100 for display. The pre-computed summaries are already formatted correctly.
+
+4. STATUS DEFINITIONS:
+   - "active" = subscription currently running, not expiring soon
+   - "endingSoon" = STILL ACTIVE but expires within 30 days
+   - "overdue" = expired, member hasn't renewed
+   - "ended" = fully concluded
+
+5. For member-specific queries, match names case-insensitively with partial matching.
+
+6. When asked about subscriptions "ending" in a month, check the endDate field across ALL statuses.
+
+=== RAW DATA FOR DETAILED QUERIES ===
+
+CURRENT SUBSCRIPTIONS (${activeSubs.length}):
 ${JSON.stringify(activeSubs.map(s => ({
   member: s.memberUsername,
   plan: s.planName,
   startDate: s.startDate,
   endDate: s.endDate,
-  total: s.totalAmount,
+  subscriptionPrice: s.totalAmount,
   status: s.status,
-  mode: s.paymentMode,
+  paymentMode: s.paymentMode,
 })), null, 0)}
 
-PAST/ENDED SUBSCRIPTIONS (${endedSubs.length} total):
+PAST SUBSCRIPTIONS (${endedSubs.length}):
 ${JSON.stringify(endedSubs.map(s => ({
   member: s.memberUsername,
   plan: s.planName,
   startDate: s.startDate,
   endDate: s.endDate,
-  total: s.totalAmount,
+  subscriptionPrice: s.totalAmount,
   status: s.status,
 })), null, 0)}
 
-PAYMENT TRANSACTIONS (${transactions.length} total):
+PAYMENT TRANSACTIONS - ACTUAL MONEY RECEIVED (${transactions.length}):
 ${JSON.stringify(transactions.map(t => ({
   member: t.memberUsername,
-  paid: t.amountPaid,
+  amountPaid: t.amountPaid,
   date: t.paidOn,
   method: t.method,
   note: t.referenceNote,
 })), null, 0)}
 
-RULES:
-- Answer ONLY based on real data above. Never fabricate members or amounts.
-- Format amounts by dividing by 100 and adding currency symbol.
-- For member-specific queries, match names case-insensitively and allow partial matches.
-- When asked about subscriptions "ending" in a month, look at the endDate field. Include BOTH "endingSoon" AND "active" subscriptions whose endDate falls in that month. Also include "ended" subscriptions whose endDate falls in that month if relevant.
-- Return structured JSON response with this format:
+=== RESPONSE FORMAT ===
+Return JSON:
 {
-  "answer": "Brief natural language answer to the question",
+  "answer": "Brief, accurate natural language answer",
   "results": [
-    { "member": "username", "plan": "plan name", "period": "startDate - endDate", "amount": "formatted", "status": "active/endingSoon/overdue/ended", "details": "any extra info" }
+    { "member": "username", "plan": "plan name", "period": "start - end", "amount": "formatted amount", "status": "status", "details": "extra info" }
   ],
-  "summary": "Optional one-line summary like 'Found 3 members ending in February'"
+  "summary": "One-line summary"
 }
-- If the question is about a specific member's history, include all their transactions in results.
-- If no matching data found, return empty results array with a helpful answer.
-- Keep the answer concise and professional.`;
+- For totals/summary questions, results can be empty - put the answer in "answer".
+- For member lists, include each matching member in results.
+- If no data matches, say so honestly. Never fabricate data.`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
