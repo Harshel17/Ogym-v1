@@ -25,6 +25,7 @@ type AuthContextType = {
   loginMutation: ReturnType<typeof useLoginMutation>;
   logoutMutation: ReturnType<typeof useLogoutMutation>;
   registerMutation: ReturnType<typeof useRegisterMutation>;
+  guestLoginMutation: ReturnType<typeof useGuestLoginMutation>;
   verifyEmailMutation: ReturnType<typeof useVerifyEmailMutation>;
   resendCodeMutation: ReturnType<typeof useResendCodeMutation>;
   forgotPasswordMutation: ReturnType<typeof useForgotPasswordMutation>;
@@ -140,6 +141,40 @@ function useRegisterMutation(setPendingVerification: (data: { email: string } | 
     onError: (error: Error) => {
       toast({
         title: "Registration failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+function useGuestLoginMutation() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/auth/guest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Guest login failed");
+      }
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/auth/me"], data);
+      toast({
+        title: "Welcome!",
+        description: "You're exploring OGym as a guest. Create an account anytime to save your progress.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Guest login failed",
         description: error.message,
         variant: "destructive",
       });
@@ -337,6 +372,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useLoginMutation(setPendingVerification);
   const logoutMutation = useLogoutMutation();
   const registerMutation = useRegisterMutation(setPendingVerification);
+  const guestLoginMutation = useGuestLoginMutation();
   const verifyEmailMutation = useVerifyEmailMutation(setPendingVerification);
   const resendCodeMutation = useResendCodeMutation();
   const forgotPasswordMutation = useForgotPasswordMutation();
@@ -353,6 +389,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginMutation,
         logoutMutation,
         registerMutation,
+        guestLoginMutation,
         verifyEmailMutation,
         resendCodeMutation,
         forgotPasswordMutation,

@@ -30,6 +30,7 @@ Preferred communication style: Simple, everyday language.
 - **Walk-in Visitors:** Tracking day passes, trials, and inquiries with a self-check-in kiosk.
 - **Mobile Performance:** Optimizations for Capacitor include CSS touch optimizations, iOS-style page transitions, pull-to-refresh with haptic feedback, smart API caching, and skeleton loading screens.
 - **Personal Mode:** Enables self-managed workout tracking for members without gym affiliation, with data isolation.
+- **Guest Mode:** Anonymous login via "Continue as Guest" button. Creates temporary account with `isGuest` flag, full Personal Mode access (workouts, nutrition, Dika AI). Guests cannot join gyms, access social feed, or tournaments. Conversion flow upgrades existing account in-place (username/email/password) preserving all data. Guest banner shown on dashboard and profile page. Endpoints: `/api/auth/guest`, `/api/auth/convert-guest`. Component: `client/src/components/guest-conversion-banner.tsx`.
 - **AI Import Workouts:** Supports importing workouts from AI assistants using regex parsing and client-side OCR (Tesseract.js).
 - **Training Mode:** Configurable "Trainer-Led" or "Self-Guided" workout management for gym members.
 - **Calorie Analytics:** Weekly and monthly analytics for calorie tracking against goals.

@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle, Dumbbell, Shield, ChevronDown, ChevronUp } from "lucide-react";
+import { Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle, Dumbbell, Shield, ChevronDown, ChevronUp, UserCircle } from "lucide-react";
 import { isIOS, isNative } from "@/lib/capacitor-init";
 
 // Helper: Check if we're running on iOS native app (not web)
@@ -73,6 +73,7 @@ export default function AuthPage() {
     user, 
     loginMutation, 
     registerMutation, 
+    guestLoginMutation,
     verifyEmailMutation,
     resendCodeMutation,
     forgotPasswordMutation,
@@ -588,6 +589,39 @@ export default function AuthPage() {
                       Forgot your password?
                     </Button>
                   </div>
+
+                  <div className="mt-6 relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">or</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-12 mt-4 text-base"
+                    disabled={guestLoginMutation.isPending}
+                    onClick={() => guestLoginMutation.mutate()}
+                    data-testid="button-guest-login"
+                  >
+                    {guestLoginMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Setting up...
+                      </>
+                    ) : (
+                      <>
+                        <UserCircle className="w-5 h-5 mr-2" />
+                        Continue as Guest
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-center text-muted-foreground mt-2">
+                    Try OGym without signing up. Your data stays until you create an account.
+                  </p>
                 </CardContent>
               </Card>
             </TabsContent>

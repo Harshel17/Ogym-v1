@@ -346,6 +346,108 @@ export async function registerRoutes(
     });
   });
 
+  app.post("/api/auth/guest", async (req, res) => {
+    try {
+      const guestId = nanoid(8);
+      const guestUsername = `guest_${guestId}`;
+      const guestPassword = await hashPassword(nanoid(32));
+
+      const user = await storage.createUser({
+        username: guestUsername,
+        email: null,
+        password: guestPassword,
+        role: "member",
+        gymId: null,
+        emailVerified: true,
+        isGuest: true,
+      });
+
+      req.login(user, async (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Guest login failed" });
+        }
+        const fullUser = await storage.getUser(user.id);
+        const isMobileApp = req.headers["x-mobile-app"] === "true";
+        const mobileToken = isMobileApp ? generateMobileToken(user.id) : undefined;
+
+        return res.status(201).json({
+          ...sanitizeUser(fullUser!),
+          mobileToken,
+        });
+      });
+    } catch (err) {
+      console.error("Guest login error:", err);
+      res.status(500).json({ message: "Failed to create guest account" });
+    }
+  });
+
+  app.post("/api/auth/convert-guest", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    if (!req.user!.isGuest) {
+      return res.status(400).json({ message: "Account is not a guest account" });
+    }
+
+    try {
+      const schema = z.object({
+        username: z.string()
+          .min(4, "Username must be at least 4 characters")
+          .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+        email: z.string().email("Invalid email format"),
+        password: z.string().min(8, "Password must be at least 8 characters"),
+      });
+      const input = schema.parse(req.body);
+
+      const existingByUsername = await storage.getUserByUsername(input.username.toLowerCase());
+      if (existingByUsername && existingByUsername.id !== req.user!.id) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+
+      const existingByEmail = await storage.getUserByEmail(input.email);
+      if (existingByEmail && existingByEmail.id !== req.user!.id) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+
+      const hashedPassword = await hashPassword(input.password);
+      await db.update(users)
+        .set({
+          username: input.username.toLowerCase(),
+          email: input.email,
+          password: hashedPassword,
+          isGuest: false,
+          emailVerified: false,
+        })
+        .where(eq(users.id, req.user!.id));
+
+      if (!DISABLE_EMAIL_VERIFICATION) {
+        const verificationCode = generateOTP();
+        const verificationExpiresAt = getOTPExpiryTime();
+        await storage.updateUserVerificationCode(req.user!.id, verificationCode, verificationExpiresAt);
+        await sendVerificationEmail(input.email, verificationCode);
+      } else {
+        await db.update(users)
+          .set({ emailVerified: true })
+          .where(eq(users.id, req.user!.id));
+      }
+
+      const fullUser = await storage.getUser(req.user!.id);
+      return res.status(200).json({
+        ...sanitizeUser(fullUser!),
+        message: DISABLE_EMAIL_VERIFICATION 
+          ? "Account upgraded successfully!" 
+          : "Account upgraded! Please verify your email.",
+        requiresVerification: !DISABLE_EMAIL_VERIFICATION,
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Guest conversion error:", err);
+      res.status(500).json({ message: "Failed to upgrade account" });
+    }
+  });
+
   // === ACCOUNT DELETION (Apple Guideline 5.1.1) ===
   app.delete("/api/users/me", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -9165,6 +9267,9 @@ Write a short, personal message. No subject line, just the message body. Use the
   // User submits a join request
   app.post("/api/join-requests", requireAuth, async (req, res) => {
     try {
+      if (req.user!.isGuest) {
+        return res.status(403).json({ message: "Please create an account to join a gym" });
+      }
       if (req.user!.gymId) {
         return res.status(400).json({ message: "You already belong to a gym" });
       }

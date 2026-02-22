@@ -81,6 +81,7 @@ export const users = pgTable("users", {
   trainingMode: text("training_mode", { enum: ["trainer_led", "self_guided"] }).default("trainer_led"),
   healthConnected: boolean("health_connected").default(false),
   healthSource: text("health_source", { enum: ["apple_health", "google_fit"] }),
+  isGuest: boolean("is_guest").default(false),
   aiDataConsent: boolean("ai_data_consent").default(false),
   aiDataConsentDate: timestamp("ai_data_consent_date"),
   createdAt: timestamp("created_at").defaultNow(),

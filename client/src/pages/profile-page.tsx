@@ -14,6 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
 import { UserCircle, Building2, Calendar, Mail, Phone, Loader2, Save, History, Users, ArrowRightLeft, Settings, MessageSquare, Flame, Dumbbell, Trophy, UserPlus, MapPin, AlertCircle, Clock, User, FileEdit, Send, Edit2, Lock, CreditCard, Copy, Trash2, LogOut, ExternalLink, Bell } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
+import { GuestConversionBanner } from "@/components/guest-conversion-banner";
 import { OwnerPaymentSettings, PaymentConfirmationsDashboard, MemberPaymentSheet } from "@/components/payment-settings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatDistanceToNow, format } from "date-fns";
@@ -177,8 +178,12 @@ function MemberProfileView() {
   const subscriptionStatus = profile.subscription?.status || 'none';
   const isIOSNativeApp = isNative() && isIOS();
 
+  const { user } = useAuth();
+
   return (
     <div className="space-y-6">
+      {user?.isGuest && <GuestConversionBanner variant="card" />}
+
       <div className="page-header-gradient">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/80 to-indigo-600 flex items-center justify-center shadow-lg shadow-primary/25 ring-2 ring-background" data-testid="avatar-initials-member">
@@ -187,8 +192,8 @@ function MemberProfileView() {
             </span>
           </div>
           <div>
-            <h2 className="text-2xl font-bold font-display">{profile?.username || "My Profile"}</h2>
-            <p className="text-sm text-muted-foreground">{profile?.email || "View and manage your account"}</p>
+            <h2 className="text-2xl font-bold font-display">{user?.isGuest ? "Guest User" : (profile?.username || "My Profile")}</h2>
+            <p className="text-sm text-muted-foreground">{user?.isGuest ? "Create an account to save your progress" : (profile?.email || "View and manage your account")}</p>
             {profile?.gym && (
               <div className="flex items-center gap-1.5 mt-1">
                 <Building2 className="w-3 h-3 text-muted-foreground/60" />
