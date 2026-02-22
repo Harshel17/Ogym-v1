@@ -730,6 +730,18 @@ interface OwnerContext {
     };
     churnPredictions: { name: string; predictedWindow: string; recommendation: string }[];
   } | null;
+  paymentBreakdown: {
+    allTime: { total: number; count: number; byMethod: Record<string, { total: number; count: number }> };
+    thisMonth: { total: number; count: number; byMethod: Record<string, { total: number; count: number }> };
+    thisWeek: { total: number; count: number };
+    last30Days: { total: number; count: number };
+  } | null;
+  subscriptionSummary: {
+    activeCount: number;
+    endingSoonCount: number;
+    overdueCount: number;
+    endingSoonMembers: string[];
+  } | null;
 }
 
 interface TrainerContext {
@@ -1474,6 +1486,100 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
     console.error('Failed to fetch AI insights for Dika owner context:', err);
   }
 
+  // Payment breakdown by method and period
+  let paymentBreakdown: OwnerContext['paymentBreakdown'] = null;
+  let subscriptionSummary: OwnerContext['subscriptionSummary'] = null;
+  try {
+    const allTransactions = await db.select({
+      amountPaid: paymentTransactions.amountPaid,
+      method: paymentTransactions.method,
+      paidOn: paymentTransactions.paidOn,
+    }).from(paymentTransactions)
+      .where(eq(paymentTransactions.gymId, gymId));
+
+    const normDate = (d: string | Date | null | undefined): string => {
+      if (!d) return '';
+      const str = typeof d === 'string' ? d : d.toISOString();
+      return str.substring(0, 10);
+    };
+
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const thisWeekStart = new Date(now.getTime() - now.getDay() * 86400000).toISOString().split('T')[0];
+    const last30Start = new Date(now.getTime() - 30 * 86400000).toISOString().split('T')[0];
+
+    const byMethodAll: Record<string, { total: number; count: number }> = {};
+    const byMethodMonth: Record<string, { total: number; count: number }> = {};
+    let allTotal = 0, allCount = 0;
+    let monthTotal = 0, monthCount = 0;
+    let weekTotal = 0, weekCount = 0;
+    let last30Total = 0, last30Count = 0;
+
+    for (const t of allTransactions) {
+      const amt = Number(t.amountPaid) || 0;
+      const m = t.method || 'unknown';
+      const d = normDate(t.paidOn);
+
+      allTotal += amt; allCount++;
+      if (!byMethodAll[m]) byMethodAll[m] = { total: 0, count: 0 };
+      byMethodAll[m].total += amt; byMethodAll[m].count++;
+
+      if (d >= thisMonthStart) {
+        monthTotal += amt; monthCount++;
+        if (!byMethodMonth[m]) byMethodMonth[m] = { total: 0, count: 0 };
+        byMethodMonth[m].total += amt; byMethodMonth[m].count++;
+      }
+      if (d >= thisWeekStart) { weekTotal += amt; weekCount++; }
+      if (d >= last30Start) { last30Total += amt; last30Count++; }
+    }
+
+    paymentBreakdown = {
+      allTime: { total: allTotal, count: allCount, byMethod: byMethodAll },
+      thisMonth: { total: monthTotal, count: monthCount, byMethod: byMethodMonth },
+      thisWeek: { total: weekTotal, count: weekCount },
+      last30Days: { total: last30Total, count: last30Count },
+    };
+
+    // Subscription summary
+    const subStatuses = await db.select({
+      status: memberSubscriptions.status,
+      cnt: sql<number>`count(*)`,
+    }).from(memberSubscriptions)
+      .where(eq(memberSubscriptions.gymId, gymId))
+      .groupBy(memberSubscriptions.status);
+
+    const statusMap: Record<string, number> = {};
+    subStatuses.forEach(s => { statusMap[s.status] = Number(s.cnt); });
+
+    const endingSoonSubs = await db.select({
+      memberId: memberSubscriptions.memberId,
+      endDate: memberSubscriptions.endDate,
+    }).from(memberSubscriptions)
+      .where(and(
+        eq(memberSubscriptions.gymId, gymId),
+        or(eq(memberSubscriptions.status, 'endingSoon'), eq(memberSubscriptions.status, 'active')),
+        sql`${memberSubscriptions.endDate}::date >= CURRENT_DATE`,
+        sql`${memberSubscriptions.endDate}::date <= CURRENT_DATE + INTERVAL '30 days'`
+      ));
+
+    let endingSoonNames: string[] = [];
+    if (endingSoonSubs.length > 0) {
+      const eIds = endingSoonSubs.map(e => e.memberId).slice(0, 10);
+      const eUsers = await db.select({ id: users.id, username: users.username })
+        .from(users).where(inArray(users.id, eIds));
+      endingSoonNames = eUsers.map(u => u.username);
+    }
+
+    subscriptionSummary = {
+      activeCount: (statusMap['active'] || 0) + (statusMap['endingSoon'] || 0),
+      endingSoonCount: statusMap['endingSoon'] || 0,
+      overdueCount: statusMap['overdue'] || 0,
+      endingSoonMembers: endingSoonNames,
+    };
+  } catch (err) {
+    console.error('Failed to fetch payment breakdown for Dika:', err);
+  }
+
   return {
     totalMembers,
     activeMembers: activeMembersResult?.count || 0,
@@ -1491,6 +1597,8 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
     expiringMemberNames,
     notCheckedInTodayNames,
     aiInsights,
+    paymentBreakdown,
+    subscriptionSummary,
   };
 }
 
@@ -1968,6 +2076,43 @@ Use these predictions to give time-sensitive, actionable advice.`
       return churnSection + monthSection + attendSection + prioritySection + weeklySection + insightSection + interventionSection + predictionSection;
     })() : '';
 
+    // Build payment intelligence section
+    const paymentSection = ctx.paymentBreakdown ? (() => {
+      const pb = ctx.paymentBreakdown;
+      const fmtAmt = (cents: number) => `${currency}${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      
+      const allTimeByMethod = Object.entries(pb.allTime.byMethod)
+        .map(([method, data]) => `  - ${method}: ${fmtAmt(data.total)} (${data.count} transactions)`)
+        .join('\n');
+      const thisMonthByMethod = Object.entries(pb.thisMonth.byMethod)
+        .map(([method, data]) => `  - ${method}: ${fmtAmt(data.total)} (${data.count} transactions)`)
+        .join('\n') || '  No transactions this month';
+      
+      return `
+PAYMENT INTELLIGENCE (PRE-COMPUTED - use these exact numbers, do NOT recalculate):
+ALL-TIME PAYMENTS RECEIVED: ${fmtAmt(pb.allTime.total)} from ${pb.allTime.count} transactions
+  By method:
+${allTimeByMethod}
+
+THIS MONTH PAYMENTS: ${fmtAmt(pb.thisMonth.total)} from ${pb.thisMonth.count} transactions
+  By method:
+${thisMonthByMethod}
+
+THIS WEEK: ${fmtAmt(pb.thisWeek.total)} (${pb.thisWeek.count} transactions)
+LAST 30 DAYS: ${fmtAmt(pb.last30Days.total)} (${pb.last30Days.count} transactions)
+
+CRITICAL PAYMENT RULES:
+- These numbers represent ACTUAL MONEY RECEIVED (payment transactions), not subscription prices.
+- When asked "how much through cash/card/etc", use the BY METHOD breakdown above.
+- NEVER manually add up amounts. Always use these pre-computed totals.`;
+    })() : '';
+
+    const subSection = ctx.subscriptionSummary ? `
+SUBSCRIPTION STATUS:
+- Active subscriptions: ${ctx.subscriptionSummary.activeCount}
+- Ending within 30 days: ${ctx.subscriptionSummary.endingSoonCount}${ctx.subscriptionSummary.endingSoonMembers.length > 0 ? ` (${ctx.subscriptionSummary.endingSoonMembers.join(', ')})` : ''}
+- Overdue: ${ctx.subscriptionSummary.overdueCount}` : '';
+
     return basePrompt + `
 GYM OVERVIEW:
 - Total members: ${ctx.totalMembers}
@@ -1977,12 +2122,15 @@ GYM OVERVIEW:
 - Expiring within 30 days: ${ctx.expiringThisMonth}${expiringList}
 - Revenue this month: ${currency}${ctx.revenueThisMonth.toLocaleString()}
 - New members this month: ${ctx.recentTrends.newMembersThisMonth}
+${paymentSection}${subSection}
 ${insightsSection}
 
 You can help this owner with:
 - Business performance analysis and member lists
 - Member retention insights with specific names and churn scores
-- Revenue and payment tracking with month-over-month comparisons
+- Revenue and payment tracking (by method: cash, card, UPI, etc.) with month-over-month comparisons
+- Detailed payment breakdowns by time period (this week, this month, last 30 days, all time)
+- Subscription status: who's ending soon, who's overdue
 - Attendance trends and pattern analysis
 - Strategic recommendations for gym growth
 - Identifying members at risk of churning (with AI-scored risk levels)
@@ -1994,6 +2142,7 @@ ANALYTICS INTELLIGENCE:
 When the owner asks about trends, comparisons, or insights:
 - Reference the month-over-month data above for quick comparisons
 - Reference churn risk scores and specific member names when discussing retention
+- For payment questions, ALWAYS use the PAYMENT INTELLIGENCE section above — never guess or say you don't have the data
 - If they ask "compare last N weeks" or similar period questions, the analytics engine will provide detailed data — use the pre-loaded insights above as baseline context
 - Speak in plain business language: "Your attendance is up 12% vs last month" not "attendance_change_percent is 12"
 - Always pair data with actionable advice: what the number means and what to do about it
