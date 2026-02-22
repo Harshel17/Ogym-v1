@@ -1,0 +1,175 @@
+You are my senior AI systems architect.
+
+Analyze my REAL OGym codebase and explain the AI layer (Dika) deeply but in clear language so I can explain it confidently to founders and technical people.
+
+IMPORTANT:
+
+* Use the ACTUAL code and files.
+* Reference real files/functions when explaining.
+* Do NOT give generic AI explanations.
+* Explain what is truly happening in this codebase.
+
+I want a FULL breakdown in the following structure:
+
+========================
+1️⃣ HIGH-LEVEL EXPLANATION (Founder Friendly)
+=============================================
+
+Explain in simple spoken language:
+
+* What Dika actually is (NOT just a chatbot)
+* The main AI architecture idea
+* Why this design was chosen
+
+Make this something I can say in a meeting.
+
+========================
+2️⃣ WHAT HAPPENS WHEN USER SENDS A MESSAGE
+==========================================
+
+Step-by-step explain EXACTLY what happens when a user asks Dika something:
+
+Example:
+User → API route → backend processing → context loading → intent detection → data retrieval → GPT call → response formatting → database storage.
+
+For each step:
+
+* Which file handles it
+* What logic is applied
+* What data is added
+
+Explain like a pipeline.
+
+========================
+3️⃣ INTENT DETECTION SYSTEM
+===========================
+
+Explain in detail:
+
+* How the system understands what the user wants
+* Rule-based vs AI-based classification
+* Where this happens in code
+* What intent categories exist
+* Why this approach was chosen
+
+IMPORTANT:
+Explain the “pattern” design philosophy:
+How did I structure intents so the system scales without becoming messy?
+
+========================
+4️⃣ CONTEXT BUILDING (MOST IMPORTANT)
+=====================================
+
+Explain:
+
+* How user context is built before calling GPT
+* What data is fetched (workouts, nutrition, attendance, goals, etc.)
+* How role (owner/trainer/member) changes context
+* How conversation memory works
+* Where short-term context lives
+* How context resets or expires
+
+Explain WHY this makes Dika feel intelligent.
+
+========================
+5️⃣ PROMPT ENGINEERING LOGIC
+============================
+
+Show:
+
+* How prompts are constructed
+* What sections are injected into the prompt
+* What system instructions exist
+* How you prevent generic responses
+* Emotional intelligence rules (if any)
+
+Explain this like a technical design decision.
+
+========================
+6️⃣ SPECIALIZED AI MODULES
+==========================
+
+Explain each major AI module:
+
+* Meal logger
+* Workout generator
+* Analytics engine
+* Owner AI engine
+* Member AI engine
+* Any other key modules
+
+For each:
+
+* Purpose
+* When it runs
+* Why it is separate instead of one giant prompt
+
+========================
+7️⃣ HOW Dika FEELS SMART (Design Philosophy)
+============================================
+
+Explain:
+
+* The engineering pattern used
+* Why it feels context-aware
+* Why it feels role-aware
+* Why responses feel personalized
+
+Explain this as architecture thinking, not marketing.
+
+========================
+8️⃣ DATA FLOW DIAGRAM (TEXT FORMAT)
+===================================
+
+Create a simple diagram like:
+
+User Message
+↓
+Intent Classifier
+↓
+Context Builder
+↓
+AI Processor
+↓
+GPT Model
+↓
+Post Processing
+↓
+Database Storage
+↓
+Response to User
+
+Then explain each block briefly.
+
+========================
+9️⃣ TECHNICALLLY STRONG EXPLANATION (VERY IMPORTANT)
+====================================================
+
+Write a 2-minute explanation I can say when someone asks:
+
+“How did you design the AI layer?”
+
+This should sound like a technical founder explaining architecture.
+
+========================
+🔟 HARD QUESTIONS I MAY GET
+===========================
+
+Generate 15 realistic technical questions people may ask about Dika, such as:
+
+* How do you detect intent?
+* How do you avoid hallucinations?
+* How do you keep context small enough?
+* How do you isolate user data?
+* What happens if GPT fails?
+* Why not one huge prompt?
+
+For each question:
+Give a strong, confident answer based on THIS codebase.
+
+========================
+FINAL INSTRUCTION
+=================
+
+Explain this so I truly understand the design decisions behind Dika, not just the code.
+Assume I built it and need to speak like a confident technical founder.
