@@ -4982,7 +4982,6 @@ export class DatabaseStorage implements IStorage {
         }
       }
     }
-
     const completedIds = new Set(completions.map(c => c.completion.workoutItemId));
     const muscleMap = new Map<string, { count: number; volume: number }>();
     const exercises: {
