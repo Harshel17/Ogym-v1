@@ -4143,14 +4143,24 @@ export class DatabaseStorage implements IStorage {
       completionsByDate.get(date)!.push(row);
     }
 
+    // Fetch member's cycle data for finding missed exercises
+    const memberCycles = await db.select().from(workoutCycles)
+      .where(and(eq(workoutCycles.memberId, memberId), eq(workoutCycles.isActive, true)))
+      .limit(1);
+    
+    let allCycleItems: any[] = [];
+    if (memberCycles.length > 0) {
+      allCycleItems = await db.select().from(workoutItems)
+        .where(and(eq(workoutItems.cycleId, memberCycles[0].id), eq(workoutItems.isDeleted, false)));
+    }
+
     // For each date with completions, build a session including missed exercises
     for (const [date, dateCompletions] of completionsByDate.entries()) {
       // Skip if already added from standalone sessions
       if (sessionMap.has(date)) continue;
       
-      // Get muscle types from the completed exercises
-      const muscleTypes = Array.from(new Set(dateCompletions.map(c => c.item?.muscleType).filter(Boolean)));
-      const title = muscleTypes.join(" + ") || "Workout";
+      // Get muscle types from completed exercises (title will be updated after adding missed)
+      const muscleTypeSet = new Set(dateCompletions.map(c => c.item?.muscleType).filter(Boolean) as string[]);
 
       const completedItemIds = new Set(dateCompletions.map(c => c.completion.workoutItemId).filter(Boolean));
 
@@ -4169,10 +4179,10 @@ export class DatabaseStorage implements IStorage {
       }));
 
       // Find planned exercises that were missed on this date
-      if (memberCycle.length > 0) {
-        const cycle = memberCycle[0];
+      if (memberCycles.length > 0) {
+        const cycle = memberCycles[0];
         let dayIndex = -1;
-        const cycleStart = new Date(cycle.startDate);
+        const cycleStart = new Date(cycle.startDate + 'T00:00:00');
         const currentDate = new Date(date + 'T00:00:00');
         if (!isNaN(cycleStart.getTime()) && !isNaN(currentDate.getTime()) && cycle.cycleLength > 0) {
           const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
@@ -4181,9 +4191,10 @@ export class DatabaseStorage implements IStorage {
           }
         }
         if (dayIndex >= 0) {
-          const plannedItems = scheduledItems.filter(si => si.dayIndex === dayIndex);
+          const plannedItems = allCycleItems.filter((si: any) => si.dayIndex === dayIndex);
           for (const planned of plannedItems) {
             if (!completedItemIds.has(planned.id)) {
+              if (planned.muscleType) muscleTypeSet.add(planned.muscleType);
               exercises.push({
                 completionId: null,
                 exerciseName: planned.exerciseName,
@@ -4202,6 +4213,7 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
+      const title = Array.from(muscleTypeSet).join(" + ") || "Workout";
       sessionMap.set(date, { date, title, exercises });
     }
 
