@@ -416,7 +416,7 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
 
   if (!activity || totalItems === 0) {
     return (
-      <Card className="card-elevated zero-state-card">
+      <Card className="card-elevated zero-state-card cursor-pointer hover-elevate" onClick={() => navigate("/owner/daily-activity")} data-testid="card-today-activity-empty">
         <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold">
             <div className="p-2 rounded-xl bg-primary/10">
@@ -424,6 +424,7 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
             </div>
             Today's Activity
           </CardTitle>
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
         </CardHeader>
         <CardContent className="pt-0 pb-3 px-3">
           <p className="text-xs text-muted-foreground text-center py-3 zero-state-value">No activity yet today. Check back later!</p>
@@ -438,11 +439,12 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
   return (
     <Card className="card-elevated">
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold cursor-pointer" onClick={() => navigate("/owner/daily-activity")} data-testid="link-daily-activity">
           <div className="p-2 rounded-xl bg-primary/10">
             <Activity className="w-4 h-4 text-primary" />
           </div>
           Today's Activity
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
         </CardTitle>
         <Button
           variant="ghost"

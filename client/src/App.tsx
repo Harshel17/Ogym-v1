@@ -74,6 +74,7 @@ const TrainerWorkoutPage = lazy(() => import("@/pages/trainer-workout-page"));
 const MemberWorkoutPage = lazy(() => import("@/pages/member-workout-page"));
 const StarMemberDetailPage = lazy(() => import("@/pages/star-member-detail-page"));
 const AdminDashboardPage = lazy(() => import("@/pages/admin-dashboard-page"));
+const DailyActivityPage = lazy(() => import("@/pages/daily-activity-page"));
 
 function PageLoader() {
   return (
@@ -530,6 +531,9 @@ function Router() {
 
       <Route path="/owner/automated-emails">
         <ProtectedRoute component={OwnerAutomatedEmailsPage} requiredRole="owner" blockOnIOSOwner />
+      </Route>
+      <Route path="/owner/daily-activity">
+        <ProtectedRoute component={DailyActivityPage} requiredRole="owner" />
       </Route>
 
       <Route path="/checkin/:token" component={KioskCheckinPage} />

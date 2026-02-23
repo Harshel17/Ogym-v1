@@ -10,7 +10,7 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed } from "@shared/schema";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors } from "@shared/schema";
 import { eq, and, isNotNull, inArray, sql, desc, gte, lte, like, asc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing } from "./dika";
@@ -8426,6 +8426,161 @@ Write a short, personal message. No subject line, just the message body. Use the
         newMembers: newMembersToday,
         payments: paymentsToday,
         expiringSubscriptions: expiringToday,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Daily Activity Detail Page
+  app.get("/api/owner/daily-activity", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const date = (req.query.date as string) || getLocalDate(req);
+
+      const newMembersOnDate = await db.select({
+        id: users.id,
+        username: users.username,
+        createdAt: users.createdAt,
+      })
+        .from(users)
+        .where(and(
+          eq(users.gymId, gymId),
+          eq(users.role, 'member'),
+          sql`${users.createdAt} >= ${date}::date AND ${users.createdAt} < (${date}::date + interval '1 day')`
+        ));
+
+      const paymentsOnDate = await db.select({
+        id: paymentTransactions.id,
+        memberId: paymentTransactions.memberId,
+        amountPaid: paymentTransactions.amountPaid,
+        method: paymentTransactions.method,
+        paidOn: paymentTransactions.paidOn,
+        memberName: users.username,
+        notes: paymentTransactions.notes,
+      })
+        .from(paymentTransactions)
+        .innerJoin(users, eq(paymentTransactions.memberId, users.id))
+        .where(and(
+          eq(paymentTransactions.gymId, gymId),
+          eq(paymentTransactions.paidOn, date)
+        ))
+        .orderBy(desc(paymentTransactions.createdAt));
+
+      const expiringOnDate = await db.select({
+        id: memberSubscriptions.id,
+        memberId: memberSubscriptions.memberId,
+        endDate: memberSubscriptions.endDate,
+        status: memberSubscriptions.status,
+        memberName: users.username,
+        planName: membershipPlans.name,
+      })
+        .from(memberSubscriptions)
+        .innerJoin(users, eq(memberSubscriptions.memberId, users.id))
+        .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+        .where(and(
+          eq(memberSubscriptions.gymId, gymId),
+          eq(memberSubscriptions.endDate, date),
+          sql`${memberSubscriptions.status} IN ('active', 'endingSoon')`
+        ));
+
+      const endedOnDate = await db.select({
+        id: memberSubscriptions.id,
+        memberId: memberSubscriptions.memberId,
+        endDate: memberSubscriptions.endDate,
+        status: memberSubscriptions.status,
+        memberName: users.username,
+        planName: membershipPlans.name,
+      })
+        .from(memberSubscriptions)
+        .innerJoin(users, eq(memberSubscriptions.memberId, users.id))
+        .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+        .where(and(
+          eq(memberSubscriptions.gymId, gymId),
+          eq(memberSubscriptions.endDate, date),
+          eq(memberSubscriptions.status, 'ended')
+        ));
+
+      const walkInsOnDate = await db.select({
+        id: walkInVisitors.id,
+        visitorName: walkInVisitors.visitorName,
+        phone: walkInVisitors.phone,
+        visitType: walkInVisitors.visitType,
+        daysCount: walkInVisitors.daysCount,
+        amountPaid: walkInVisitors.amountPaid,
+        paymentMethod: walkInVisitors.paymentMethod,
+      })
+        .from(walkInVisitors)
+        .where(and(
+          eq(walkInVisitors.gymId, gymId),
+          eq(walkInVisitors.visitDate, date)
+        ));
+
+      const attendanceOnDate = await db.select({
+        id: attendance.id,
+        memberId: attendance.memberId,
+        status: attendance.status,
+        verifiedMethod: attendance.verifiedMethod,
+        memberName: users.username,
+      })
+        .from(attendance)
+        .innerJoin(users, eq(attendance.memberId, users.id))
+        .where(and(
+          eq(attendance.gymId, gymId),
+          eq(attendance.date, date)
+        ));
+
+      const totalRevenue = paymentsOnDate.reduce((sum, p) => sum + p.amountPaid, 0);
+      const walkInRevenue = walkInsOnDate.filter(w => w.visitType === 'day_pass').reduce((sum, w) => sum + (w.amountPaid || 0), 0);
+      const dayPasses = walkInsOnDate.filter(w => w.visitType === 'day_pass');
+      const trials = walkInsOnDate.filter(w => w.visitType === 'trial');
+      const enquiries = walkInsOnDate.filter(w => w.visitType === 'enquiry');
+      const presentCount = attendanceOnDate.filter(a => a.status === 'present').length;
+
+      let aiSummary: string | null = null;
+      try {
+        const OpenAI = (await import("openai")).default;
+        const openai = new OpenAI();
+        const prompt = `You are a gym business analyst. Summarize this day's activity at the gym in 2-3 short, helpful sentences. Focus on what stands out and any actionable insights. Be conversational and concise.
+
+Date: ${date}
+- New members joined: ${newMembersOnDate.length}
+- Payments received: ${paymentsOnDate.length} (total: ${totalRevenue / 100})
+- Members checked in: ${presentCount}
+- Subscriptions expiring: ${expiringOnDate.length}
+- Subscriptions ended: ${endedOnDate.length}
+- Walk-in visitors: ${walkInsOnDate.length} (Day passes: ${dayPasses.length}, Trials: ${trials.length}, Enquiries: ${enquiries.length})
+- Walk-in revenue: ${walkInRevenue / 100}
+
+Respond with just the summary text, no formatting.`;
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 200,
+          temperature: 0.7,
+        });
+        aiSummary = completion.choices[0]?.message?.content?.trim() || null;
+      } catch (aiErr) {
+        aiSummary = null;
+      }
+
+      res.json({
+        date,
+        newMembers: newMembersOnDate,
+        payments: paymentsOnDate,
+        totalRevenue,
+        expiringSubscriptions: expiringOnDate,
+        endedSubscriptions: endedOnDate,
+        walkIns: walkInsOnDate,
+        dayPasses,
+        trials,
+        enquiries,
+        walkInRevenue,
+        attendance: attendanceOnDate,
+        presentCount,
+        absentCount: attendanceOnDate.filter(a => a.status === 'absent').length,
+        aiSummary,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
