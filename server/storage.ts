@@ -4398,7 +4398,7 @@ export class DatabaseStorage implements IStorage {
       item: workoutItems
     })
     .from(workoutCompletions)
-    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .leftJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
     .where(and(
       eq(workoutCompletions.memberId, memberId),
       gte(workoutCompletions.completedDate, startDate),
@@ -4448,12 +4448,14 @@ export class DatabaseStorage implements IStorage {
         completedByDate.set(date, new Set());
         completedExercisesByDate.set(date, []);
       }
-      completedByDate.get(date)!.add(completion.workoutItemId);
+      if (completion.workoutItemId) {
+        completedByDate.get(date)!.add(completion.workoutItemId);
+      }
       completedExercisesByDate.get(date)!.push({
-        name: item.exerciseName,
-        sets: completion.actualSets || item.sets,
-        reps: completion.actualReps || item.reps,
-        weight: completion.actualWeight || item.weight
+        name: completion.exerciseName || item?.exerciseName || 'Extra Exercise',
+        sets: completion.actualSets || item?.sets || 0,
+        reps: completion.actualReps || item?.reps || 0,
+        weight: completion.actualWeight || item?.weight || null
       });
     }
 
@@ -4809,7 +4811,7 @@ export class DatabaseStorage implements IStorage {
       item: workoutItems
     })
     .from(workoutCompletions)
-    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .leftJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
     .where(and(
       eq(workoutCompletions.memberId, memberId),
       eq(workoutCompletions.completedDate, date)
@@ -4931,21 +4933,22 @@ export class DatabaseStorage implements IStorage {
     let totalVolume = 0;
 
     for (const { completion, item } of completions) {
-      const sets = completion.actualSets || item.sets;
-      const reps = completion.actualReps || item.reps;
-      const weight = parseFloat((completion.actualWeight || item.weight || "0").replace(/[^\d.]/g, "")) || 0;
+      const sets = completion.actualSets || item?.sets || 0;
+      const reps = completion.actualReps || item?.reps || 0;
+      const weight = parseFloat((completion.actualWeight || item?.weight || "0").replace(/[^\d.]/g, "")) || 0;
       const volume = sets * reps * weight;
       totalVolume += volume;
 
-      const existing = muscleMap.get(item.muscleType) || { count: 0, volume: 0 };
-      muscleMap.set(item.muscleType, { count: existing.count + 1, volume: existing.volume + volume });
+      const muscle = item?.muscleType || 'Other';
+      const existing = muscleMap.get(muscle) || { count: 0, volume: 0 };
+      muscleMap.set(muscle, { count: existing.count + 1, volume: existing.volume + volume });
 
       exercises.push({
-        name: item.exerciseName,
-        muscle: item.muscleType,
+        name: completion.exerciseName || item?.exerciseName || 'Extra Exercise',
+        muscle,
         sets,
         reps,
-        weight: completion.actualWeight || item.weight,
+        weight: completion.actualWeight || item?.weight || null,
         completed: true,
         volume
       });
