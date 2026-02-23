@@ -28,6 +28,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pi
 import { Link, useLocation } from "wouter";
 import { ProactiveNudges, AiCoachHub } from "@/components/ai-coach-cards";
 import { GuestConversionBanner } from "@/components/guest-conversion-banner";
+import { QuickLogBar } from "@/components/quick-log-bar";
 
 function ConfettiBurst({ trigger }: { trigger: boolean }) {
   const [pieces, setPieces] = useState<Array<{ id: number; left: number; color: string; delay: number; size: number }>>([]);
@@ -2767,6 +2768,11 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
           </CollapsibleContent>
         </Card>
       </Collapsible>
+      )}
+
+      {/* Quick Log Bar - between workout and stats */}
+      {workoutData?.cycleId && workoutItems.length > 0 && !allCompleted && (
+        <QuickLogBar />
       )}
 
       {/* Calorie, Streak & Health */}

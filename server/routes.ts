@@ -4126,6 +4126,324 @@ RESPONSE FORMAT (JSON):
     res.status(201).json({ completed: completions.length, shareableAchievements });
   });
 
+  // Quick Log - Parse natural language workout input via AI
+  app.post("/api/workouts/quick-log/parse", requireRole(["member"]), async (req, res) => {
+    try {
+      const schema = z.object({
+        input: z.string().min(1).max(500),
+        clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+      });
+      const { input: userInput, clientDate } = schema.parse(req.body);
+      const today = clientDate || getLocalDate(req);
+
+      const source = (req.user!.gymId && req.user!.trainingMode === 'trainer_led') ? 'trainer' as const : 'self' as const;
+      const cycle = await storage.getMemberCycle(req.user!.id, source);
+
+      let todayItems: any[] = [];
+      let completions: any[] = [];
+      let cycleId: number | null = null;
+
+      if (cycle) {
+        cycleId = cycle.id;
+        let currentDayIndex: number;
+        if (cycle.progressionMode === "completion") {
+          currentDayIndex = cycle.currentDayIndex ?? 0;
+          if (cycle.lastWorkoutDate === today) {
+            currentDayIndex = (currentDayIndex - 1 + cycle.cycleLength) % cycle.cycleLength;
+          }
+        } else {
+          const todayDate = new Date(today + 'T00:00:00');
+          const startDate = new Date(cycle.startDate);
+          const daysSinceStart = Math.floor((todayDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+          currentDayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+        }
+
+        const override = await storage.getCycleScheduleOverrideForDate(req.user!.id, cycle.id, today);
+        if (override) {
+          currentDayIndex = override.overrideDayIndex;
+        }
+
+        todayItems = await storage.getWorkoutItemsByDay(cycle.id, currentDayIndex);
+        completions = await storage.getCompletions(req.user!.id, today);
+      }
+
+      const completedItemIds = new Set(completions.filter((c: any) => c.workoutItemId != null).map((c: any) => c.workoutItemId));
+
+      const exerciseList = todayItems.map(item => ({
+        id: item.id,
+        name: item.exerciseName,
+        sets: item.sets,
+        reps: item.reps,
+        weight: item.weight || null,
+        muscleType: item.muscleType,
+        completed: completedItemIds.has(item.id),
+      }));
+
+      // Check recent workout history for "same as" support
+      let recentHistory = '';
+      try {
+        const recentLogs = await db.select({
+          date: workoutCompletions.completedDate,
+          exerciseName: workoutCompletions.exerciseName,
+          sets: workoutCompletions.actualSets,
+          reps: workoutCompletions.actualReps,
+          weight: workoutCompletions.actualWeight,
+        })
+          .from(workoutCompletions)
+          .where(and(
+            eq(workoutCompletions.memberId, req.user!.id),
+            sql`${workoutCompletions.completedDate} >= (${today}::date - interval '14 days')::text`,
+            sql`${workoutCompletions.completedDate} < ${today}`
+          ))
+          .orderBy(desc(workoutCompletions.completedDate))
+          .limit(30);
+
+        if (recentLogs.length > 0) {
+          const byDate: Record<string, string[]> = {};
+          for (const log of recentLogs) {
+            if (!byDate[log.date]) byDate[log.date] = [];
+            const detail = [log.exerciseName, log.sets ? `${log.sets} sets` : '', log.reps ? `${log.reps} reps` : '', log.weight ? `${log.weight}` : ''].filter(Boolean).join(', ');
+            byDate[log.date].push(detail);
+          }
+          recentHistory = Object.entries(byDate).slice(0, 5).map(([d, exercises]) => `${d}: ${exercises.join(' | ')}`).join('\n');
+        }
+      } catch (e) { /* ignore history errors */ }
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI();
+
+      const prompt = `You are a workout logging assistant. Parse the user's natural language workout input and match it against their planned exercises for today.
+
+TODAY'S PLANNED EXERCISES:
+${exerciseList.length > 0 ? exerciseList.map((e, i) => `${i + 1}. [ID:${e.id}] ${e.name} - ${e.sets} sets x ${e.reps} reps${e.weight ? ` @ ${e.weight}` : ''} (${e.completed ? 'ALREADY DONE' : 'PENDING'})`).join('\n') : 'No exercises planned for today.'}
+
+RECENT WORKOUT HISTORY (last 14 days):
+${recentHistory || 'No recent history available.'}
+
+USER INPUT: "${userInput}"
+
+Parse the input and return a JSON array of actions. Each action should be one of:
+1. "complete" - Mark a planned exercise as done. Match by exercise name (fuzzy match OK). Include workoutItemId.
+2. "complete_with_details" - Mark done with specific sets/reps/weight. Include workoutItemId, actualSets, actualReps, actualWeight.
+3. "replace" - User did a different exercise instead of a planned one. Include workoutItemId (the one being replaced), newExerciseName, actualSets, actualReps, actualWeight.
+4. "add_extra" - User did an exercise not in today's plan. Include exerciseName, actualSets, actualReps, actualWeight, muscleType.
+5. "batch_complete" - User says they finished everything/all. Include workoutItemIds array of all PENDING exercise IDs.
+
+RULES:
+- If user says "finished everything", "done all", "completed today" → batch_complete all PENDING exercises
+- If user says "same as last Tuesday" or "repeat Monday" → find that date in history and create complete_with_details actions for each matching exercise found on that day
+- If user mentions reps/sets/weight, use complete_with_details
+- If user says "did X instead of Y" → use replace
+- If exercise isn't in today's plan → use add_extra
+- NEVER mark already completed exercises again (those marked ALREADY DONE above)
+- Be generous with fuzzy matching (e.g., "bench" = "Bench Press", "squats" = "Barbell Squats")
+
+Return ONLY a JSON object: {"actions": [...], "summary": "brief description of what will happen", "suggestions": ["next exercise suggestion 1", "exercise suggestion 2"]}
+The suggestions should be the names of the NEXT 1-2 pending exercises they haven't mentioned yet (if any remain).
+No markdown, no code fences.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 600,
+        temperature: 0.3,
+      });
+
+      const responseText = completion.choices[0]?.message?.content?.trim() || '{}';
+      let parsed;
+      try {
+        parsed = JSON.parse(responseText);
+      } catch {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { actions: [], summary: "Couldn't understand that. Try again?", suggestions: [] };
+      }
+
+      // Validate actions reference real workout item IDs
+      const validItemIds = new Set(todayItems.map(i => i.id));
+      if (parsed.actions) {
+        parsed.actions = parsed.actions.filter((a: any) => {
+          if (a.type === 'batch_complete') {
+            a.workoutItemIds = (a.workoutItemIds || []).filter((id: number) => validItemIds.has(id) && !completedItemIds.has(id));
+            return a.workoutItemIds.length > 0;
+          }
+          if (a.type === 'add_extra') return true;
+          if (a.workoutItemId && !validItemIds.has(a.workoutItemId)) return false;
+          if (a.workoutItemId && completedItemIds.has(a.workoutItemId)) return false;
+          return true;
+        });
+      }
+
+      res.json({
+        actions: parsed.actions || [],
+        summary: parsed.summary || '',
+        suggestions: parsed.suggestions || [],
+        todayExercises: exerciseList,
+        completedCount: completedItemIds.size,
+        totalCount: todayItems.length,
+      });
+    } catch (error: any) {
+      console.error("Quick log parse error:", error);
+      res.status(500).json({ message: error.message || "Failed to parse workout input" });
+    }
+  });
+
+  // Quick Log - Execute confirmed actions
+  app.post("/api/workouts/quick-log/confirm", requireRole(["member"]), async (req, res) => {
+    try {
+      const schema = z.object({
+        actions: z.array(z.object({
+          type: z.enum(["complete", "complete_with_details", "replace", "add_extra", "batch_complete"]),
+          workoutItemId: z.number().optional(),
+          workoutItemIds: z.array(z.number()).optional(),
+          actualSets: z.number().optional(),
+          actualReps: z.number().optional(),
+          actualWeight: z.string().optional(),
+          newExerciseName: z.string().optional(),
+          exerciseName: z.string().optional(),
+          muscleType: z.string().optional(),
+        })),
+        clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+      });
+      const { actions, clientDate } = schema.parse(req.body);
+      const today = clientDate || getLocalDate(req);
+
+      let completedCount = 0;
+      let addedCount = 0;
+      let replacedCount = 0;
+
+      for (const action of actions) {
+        if (action.type === 'complete' || action.type === 'complete_with_details') {
+          if (!action.workoutItemId) continue;
+          const item = await storage.getWorkoutItem(action.workoutItemId);
+          if (!item) continue;
+          const cycle = await storage.getCycle(item.cycleId);
+          if (!cycle || cycle.memberId !== req.user!.id) continue;
+
+          const existing = await storage.getCompletionByItemDate(action.workoutItemId, req.user!.id, today);
+          if (existing) continue;
+
+          await storage.completeWorkout({
+            gymId: req.user!.gymId || null,
+            cycleId: cycle.id,
+            workoutItemId: action.workoutItemId,
+            memberId: req.user!.id,
+            completedDate: today,
+            actualSets: action.actualSets,
+            actualReps: action.actualReps,
+            actualWeight: action.actualWeight,
+          });
+          completedCount++;
+        } else if (action.type === 'batch_complete') {
+          const ids = action.workoutItemIds || [];
+          for (const itemId of ids) {
+            const item = await storage.getWorkoutItem(itemId);
+            if (!item) continue;
+            const cycle = await storage.getCycle(item.cycleId);
+            if (!cycle || cycle.memberId !== req.user!.id) continue;
+            const existing = await storage.getCompletionByItemDate(itemId, req.user!.id, today);
+            if (existing) continue;
+            await storage.completeWorkout({
+              gymId: req.user!.gymId || null,
+              cycleId: cycle.id,
+              workoutItemId: itemId,
+              memberId: req.user!.id,
+              completedDate: today,
+            });
+            completedCount++;
+          }
+        } else if (action.type === 'replace') {
+          if (!action.workoutItemId || !action.newExerciseName) continue;
+          const item = await storage.getWorkoutItem(action.workoutItemId);
+          if (!item) continue;
+          const cycle = await storage.getCycle(item.cycleId);
+          if (!cycle || cycle.memberId !== req.user!.id) continue;
+
+          const existing = await storage.getCompletionByItemDate(action.workoutItemId, req.user!.id, today);
+          if (existing) continue;
+
+          await storage.completeWorkout({
+            gymId: req.user!.gymId || null,
+            cycleId: cycle.id,
+            workoutItemId: action.workoutItemId,
+            memberId: req.user!.id,
+            completedDate: today,
+            exerciseName: action.newExerciseName,
+            actualSets: action.actualSets,
+            actualReps: action.actualReps,
+            actualWeight: action.actualWeight,
+          });
+          replacedCount++;
+        } else if (action.type === 'add_extra') {
+          if (!action.exerciseName) continue;
+          await storage.completeWorkout({
+            gymId: req.user!.gymId || null,
+            memberId: req.user!.id,
+            completedDate: today,
+            exerciseName: action.exerciseName,
+            actualSets: action.actualSets,
+            actualReps: action.actualReps,
+            actualWeight: action.actualWeight,
+          });
+          addedCount++;
+        }
+      }
+
+      // Auto-mark attendance if any actions completed (gym members only)
+      if ((completedCount + addedCount + replacedCount) > 0 && req.user!.gymId) {
+        const existingAttendance = await storage.getAttendanceByMemberDate(req.user!.id, today);
+        if (!existingAttendance) {
+          await storage.markAttendance({
+            gymId: req.user!.gymId,
+            memberId: req.user!.id,
+            date: today,
+            status: "present",
+            verifiedMethod: "workout",
+            markedByUserId: req.user!.id
+          });
+        }
+      }
+
+      // Get updated status
+      const source = (req.user!.gymId && req.user!.trainingMode === 'trainer_led') ? 'trainer' as const : 'self' as const;
+      const cycle = await storage.getMemberCycle(req.user!.id, source);
+      let updatedCompletedCount = 0;
+      let updatedTotalCount = 0;
+      if (cycle) {
+        let dayIndex: number;
+        if (cycle.progressionMode === "completion") {
+          dayIndex = cycle.currentDayIndex ?? 0;
+          if (cycle.lastWorkoutDate === today) {
+            dayIndex = (dayIndex - 1 + cycle.cycleLength) % cycle.cycleLength;
+          }
+        } else {
+          const todayDate = new Date(today + 'T00:00:00');
+          const startDate = new Date(cycle.startDate);
+          const daysSinceStart = Math.floor((todayDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+          dayIndex = daysSinceStart >= 0 ? daysSinceStart % cycle.cycleLength : 0;
+        }
+        const items = await storage.getWorkoutItemsByDay(cycle.id, dayIndex);
+        const comps = await storage.getCompletions(req.user!.id, today);
+        const compIds = new Set(comps.filter((c: any) => c.workoutItemId).map((c: any) => c.workoutItemId));
+        updatedTotalCount = items.length;
+        updatedCompletedCount = items.filter(i => compIds.has(i.id)).length;
+      }
+
+      res.json({
+        completed: completedCount,
+        added: addedCount,
+        replaced: replacedCount,
+        updatedProgress: {
+          completed: updatedCompletedCount,
+          total: updatedTotalCount,
+          allDone: updatedCompletedCount >= updatedTotalCount && updatedTotalCount > 0
+        }
+      });
+    } catch (error: any) {
+      console.error("Quick log confirm error:", error);
+      res.status(500).json({ message: error.message || "Failed to execute workout actions" });
+    }
+  });
+
   app.get("/api/workouts/history/my", requireRole(["member"]), async (req, res) => {
     const history = await storage.getMemberWorkoutHistory(req.user!.id);
     res.json(history);
