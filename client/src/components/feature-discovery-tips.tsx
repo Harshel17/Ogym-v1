@@ -4,16 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { 
   X, ChevronLeft, ChevronRight, ArrowRight, 
-  Brain, CreditCard, Users, CalendarCheck, Dumbbell, 
-  TrendingUp, Star, Utensils, QrCode, Megaphone,
-  PersonStanding, Scale, Activity, Trophy, Apple,
-  Target, ClipboardList, UserPlus, PhoneCall, BarChart3,
-  Sparkles, type LucideIcon
+  Brain, Star, QrCode, ClipboardList, BarChart3,
+  Trophy, Apple, Sparkles, type LucideIcon
 } from "lucide-react";
 import { RoboDIcon } from "@/components/dika/dika-icons";
 import { isNative, isIOS } from "@/lib/capacitor-init";
 
-const IOS_BLOCKED_OWNER_TIPS = ["owner-dika", "owner-walkin", "owner-followups", "owner-transfers", "owner-ai-insights"];
+const IOS_BLOCKED_OWNER_TIPS = ["owner-dika", "owner-ai-insights"];
 
 interface FeatureTip {
   id: string;
@@ -30,82 +27,32 @@ const ownerTips: FeatureTip[] = [
   {
     id: "owner-dika",
     icon: Brain,
-    title: "Ask Dika Anything",
-    description: "\"Who hasn't paid?\" \"Show expiring memberships\" - Dika handles it all with AI-powered insights.",
+    title: "Ask Dika — Your Gym Co-Pilot",
+    description: "Try asking: \"Who hasn't paid this month?\" or \"Show members expiring next week.\" Dika pulls real data instantly — payments, attendance, churn risk — so you run your gym from one chat.",
     href: "/dika",
-    actionLabel: "Try Dika",
+    actionLabel: "Try Dika Now",
     gradient: "from-purple-500/10 to-indigo-500/10",
     iconBg: "bg-purple-500/15 text-purple-500"
   },
   {
-    id: "owner-qr",
-    icon: QrCode,
-    title: "Self Check-in Kiosk",
-    description: "Set up a tablet at your entrance. Members scan their QR code to check in automatically.",
-    href: "/owner/kiosk",
-    actionLabel: "Set Up Kiosk",
-    gradient: "from-blue-500/10 to-cyan-500/10",
-    iconBg: "bg-blue-500/15 text-blue-500"
-  },
-  {
-    id: "owner-walkin",
-    icon: PersonStanding,
-    title: "Track Walk-in Visitors",
-    description: "Log day passes, trial visitors, and inquiries. See conversion rates from visitors to members.",
-    href: "/owner/walk-in-visitors",
-    actionLabel: "View Walk-ins",
-    gradient: "from-emerald-500/10 to-green-500/10",
-    iconBg: "bg-emerald-500/15 text-emerald-500"
-  },
-  {
-    id: "owner-announcements",
-    icon: Megaphone,
-    title: "Send Announcements",
-    description: "Notify all members about schedule changes, events, or updates with one tap.",
-    href: "/owner/announcements",
-    actionLabel: "Create Post",
-    gradient: "from-amber-500/10 to-yellow-500/10",
-    iconBg: "bg-amber-500/15 text-amber-500"
-  },
-  {
     id: "owner-ai-insights",
     icon: BarChart3,
-    title: "AI-Powered Insights",
-    description: "Get smart alerts about members at risk of leaving, follow-up reminders, and growth patterns.",
+    title: "5-Pillar AI Insights",
+    description: "Dika watches your gym 24/7: churn risk alerts before members leave, daily insight of the day, weekly owner briefing, trainer performance scores, and re-engagement campaign ideas — all automated.",
     href: "/owner/ai-insights",
     actionLabel: "View Insights",
     gradient: "from-rose-500/10 to-pink-500/10",
     iconBg: "bg-rose-500/15 text-rose-500"
   },
   {
-    id: "owner-followups",
-    icon: PhoneCall,
-    title: "Follow-up Reminders",
-    description: "Never miss a lead. Track who to call back about memberships, renewals, and inquiries.",
-    href: "/owner/follow-ups",
-    actionLabel: "View Follow-ups",
-    gradient: "from-teal-500/10 to-emerald-500/10",
-    iconBg: "bg-teal-500/15 text-teal-500"
-  },
-  {
-    id: "owner-transfers",
-    icon: Activity,
-    title: "Gym Transfers",
-    description: "Members can request transfers between gyms in your network. Manage incoming and outgoing transfer requests easily.",
-    href: "/transfers",
-    actionLabel: "View Transfers",
-    gradient: "from-slate-500/10 to-gray-500/10",
-    iconBg: "bg-slate-500/15 text-slate-500"
-  },
-  {
-    id: "owner-tournaments",
-    icon: Trophy,
-    title: "Run Tournaments",
-    description: "Create fitness challenges and tournaments to keep your members motivated and engaged.",
-    href: "/tournaments",
-    actionLabel: "View Tournaments",
-    gradient: "from-orange-500/10 to-amber-500/10",
-    iconBg: "bg-orange-500/15 text-orange-500"
+    id: "owner-qr",
+    icon: QrCode,
+    title: "QR Kiosk + Auto Check-in",
+    description: "Put a tablet at your entrance — members scan their personal QR code to check in. You get real-time attendance logs, peak hour analytics, and streak tracking without lifting a finger.",
+    href: "/owner/kiosk",
+    actionLabel: "Set Up Kiosk",
+    gradient: "from-blue-500/10 to-cyan-500/10",
+    iconBg: "bg-blue-500/15 text-blue-500"
   },
 ];
 
@@ -113,8 +60,8 @@ const trainerTips: FeatureTip[] = [
   {
     id: "trainer-dika",
     icon: Brain,
-    title: "Dika Knows Your Members",
-    description: "Ask Dika about any member's progress, attendance patterns, or workout history instantly.",
+    title: "Ask Dika About Any Member",
+    description: "Try: \"How's Ahmed doing?\" or \"Who missed 3+ days?\" Dika gives you attendance trends, workout completion rates, and performance summaries for each member — no spreadsheets needed.",
     href: "/dika",
     actionLabel: "Ask Dika",
     gradient: "from-purple-500/10 to-indigo-500/10",
@@ -123,8 +70,8 @@ const trainerTips: FeatureTip[] = [
   {
     id: "trainer-star",
     icon: Star,
-    title: "Star Your Best Members",
-    description: "Mark top performers as Star Members and create personalized diet plans for them.",
+    title: "Star Members + Diet Plans",
+    description: "Mark your top performers as Star Members. Then create personalized diet plans just for them — with custom meals, macros, and calorie targets tailored to their goals.",
     href: "/star-members",
     actionLabel: "View Stars",
     gradient: "from-amber-500/10 to-yellow-500/10",
@@ -133,32 +80,12 @@ const trainerTips: FeatureTip[] = [
   {
     id: "trainer-templates",
     icon: ClipboardList,
-    title: "Save Workout Templates",
-    description: "Create reusable workout templates and assign them to multiple members quickly.",
+    title: "Workout Templates",
+    description: "Build a workout once, assign it to 50 members. Create reusable templates with exercises, sets, reps, and rest days — then push them to members in one tap.",
     href: "/templates",
     actionLabel: "View Templates",
     gradient: "from-blue-500/10 to-cyan-500/10",
     iconBg: "bg-blue-500/15 text-blue-500"
-  },
-  {
-    id: "trainer-diet",
-    icon: Utensils,
-    title: "Create Diet Plans",
-    description: "Design nutrition plans for your Star Members to complement their workout programs.",
-    href: "/diet-plans",
-    actionLabel: "Create Plan",
-    gradient: "from-emerald-500/10 to-green-500/10",
-    iconBg: "bg-emerald-500/15 text-emerald-500"
-  },
-  {
-    id: "trainer-feed",
-    icon: Activity,
-    title: "Social Feed",
-    description: "See what your members are sharing. Celebrate their achievements and stay connected.",
-    href: "/feed",
-    actionLabel: "View Feed",
-    gradient: "from-rose-500/10 to-pink-500/10",
-    iconBg: "bg-rose-500/15 text-rose-500"
   },
 ];
 
@@ -166,60 +93,30 @@ const memberTips: FeatureTip[] = [
   {
     id: "member-dika",
     icon: Brain,
-    title: "Chat with Dika AI",
-    description: "Ask about your workout schedule, track progress, or log meals just by chatting naturally.",
+    title: "Try Dika — Your AI Coach",
+    description: "Say \"Log a chicken salad for lunch\" and it's done. Ask \"What should I work on today?\" and Dika checks your cycle. It tracks your goals, gives weekly reports, and even coaches your nutrition — all through chat or voice.",
     href: "/dika",
-    actionLabel: "Open Dika",
+    actionLabel: "Try Dika Now",
     gradient: "from-purple-500/10 to-indigo-500/10",
     iconBg: "bg-purple-500/15 text-purple-500"
   },
   {
     id: "member-nutrition",
     icon: Apple,
-    title: "Track Your Nutrition",
-    description: "Log meals, track calories and protein, and get AI-powered nutrition estimates for any food.",
+    title: "Smart Nutrition Tracking",
+    description: "Log from 71+ restaurant menus with verified calories (McDonald's, Chipotle, Subway & more), snap a photo of your plate for instant AI estimates, or just type what you ate. Track protein, carbs, fat & water — all in one place.",
     href: "/nutrition",
     actionLabel: "Start Tracking",
     gradient: "from-emerald-500/10 to-green-500/10",
     iconBg: "bg-emerald-500/15 text-emerald-500"
   },
   {
-    id: "member-body",
-    icon: Scale,
-    title: "Log Body Measurements",
-    description: "Track your weight, body fat, and measurements over time. See your transformation visually.",
-    href: "/my-body",
-    actionLabel: "Log Measurement",
-    gradient: "from-blue-500/10 to-cyan-500/10",
-    iconBg: "bg-blue-500/15 text-blue-500"
-  },
-  {
-    id: "member-progress",
-    icon: TrendingUp,
-    title: "View Your Progress",
-    description: "See workout streaks, completion rates, and how you compare week by week.",
-    href: "/progress",
-    actionLabel: "View Stats",
-    gradient: "from-amber-500/10 to-yellow-500/10",
-    iconBg: "bg-amber-500/15 text-amber-500"
-  },
-  {
-    id: "member-feed",
-    icon: Activity,
-    title: "Share Achievements",
-    description: "Post your workout milestones to the gym feed and celebrate with fellow members.",
-    href: "/feed",
-    actionLabel: "View Feed",
-    gradient: "from-rose-500/10 to-pink-500/10",
-    iconBg: "bg-rose-500/15 text-rose-500"
-  },
-  {
-    id: "member-tournaments",
+    id: "member-sports",
     icon: Trophy,
-    title: "Join Tournaments",
-    description: "Compete in gym fitness challenges and earn points on the leaderboard.",
-    href: "/tournaments",
-    actionLabel: "View Tournaments",
+    title: "Sports Mode + Tournaments",
+    description: "Get AI-generated multi-week training programs for your sport, log match days with recovery suggestions, join gym tournaments, and compete on the leaderboard. Plus track your body measurements and see your transformation over time.",
+    href: "/sports",
+    actionLabel: "Explore",
     gradient: "from-orange-500/10 to-amber-500/10",
     iconBg: "bg-orange-500/15 text-orange-500"
   },
@@ -229,52 +126,32 @@ const personalModeTips: FeatureTip[] = [
   {
     id: "personal-dika",
     icon: Brain,
-    title: "Your AI Fitness Buddy",
-    description: "Ask Dika about your workouts, log meals by chatting, or get personalized fitness advice.",
+    title: "Meet Dika — Your AI Buddy",
+    description: "Chat or use voice hands-free: \"Log 2 eggs and toast for breakfast\" — done. \"How many calories this week?\" — instant answer. Dika gives you weekly fitness reports, smart workout suggestions, and nutrition coaching based on your real data.",
     href: "/dika",
-    actionLabel: "Chat with Dika",
+    actionLabel: "Try Dika Now",
     gradient: "from-purple-500/10 to-indigo-500/10",
     iconBg: "bg-purple-500/15 text-purple-500"
   },
   {
-    id: "personal-workout",
-    icon: Sparkles,
-    title: "Import AI Workouts",
-    description: "Paste a workout from ChatGPT or any AI assistant and we'll organize it into a program for you.",
-    href: "/my-workouts",
-    actionLabel: "Import Workout",
-    gradient: "from-blue-500/10 to-cyan-500/10",
-    iconBg: "bg-blue-500/15 text-blue-500"
-  },
-  {
     id: "personal-nutrition",
     icon: Apple,
-    title: "Track Calories & Protein",
-    description: "Log meals with AI-powered nutrition estimates. Just type what you ate and Dika figures out the rest.",
+    title: "Full Nutrition Suite",
+    description: "71+ restaurant menus with verified nutrition (McDonald's to Sweetgreen), photo-based food scanning, AI calorie estimation, protein & water tracking, weekly analytics, and a \"Find My Food\" feature to discover healthy restaurants near you.",
     href: "/nutrition",
     actionLabel: "Start Tracking",
     gradient: "from-emerald-500/10 to-green-500/10",
     iconBg: "bg-emerald-500/15 text-emerald-500"
   },
   {
-    id: "personal-body",
-    icon: Scale,
-    title: "Track Your Body",
-    description: "Log weight, measurements, and body fat percentage. Watch your transformation unfold.",
-    href: "/my-body",
-    actionLabel: "Log Measurement",
-    gradient: "from-amber-500/10 to-yellow-500/10",
-    iconBg: "bg-amber-500/15 text-amber-500"
-  },
-  {
-    id: "personal-join",
-    icon: UserPlus,
-    title: "Join a Gym",
-    description: "Got a gym code? Join your local gym to get trainer-designed workouts and track attendance.",
-    href: "/join-gym",
-    actionLabel: "Join Gym",
-    gradient: "from-rose-500/10 to-pink-500/10",
-    iconBg: "bg-rose-500/15 text-rose-500"
+    id: "personal-workout",
+    icon: Sparkles,
+    title: "AI Workouts + Body Tracking",
+    description: "Paste a workout from ChatGPT and we'll organize it into a full program with sets, reps, and rest days. Track weight, body fat, and measurements over time. Set fitness goals and watch Dika track your progress automatically.",
+    href: "/my-workouts",
+    actionLabel: "Get Started",
+    gradient: "from-blue-500/10 to-cyan-500/10",
+    iconBg: "bg-blue-500/15 text-blue-500"
   },
 ];
 
