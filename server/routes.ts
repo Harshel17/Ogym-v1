@@ -4228,18 +4228,27 @@ USER INPUT: "${userInput}"
 Parse the input and return a JSON array of actions. Each action should be one of:
 1. "complete" - Mark a planned exercise as done. Match by exercise name (fuzzy match OK). Include workoutItemId.
 2. "complete_with_details" - Mark done with specific sets/reps/weight. Include workoutItemId, actualSets, actualReps, actualWeight.
-3. "replace" - User did a different exercise instead of a planned one. Include workoutItemId (the one being replaced), newExerciseName, actualSets, actualReps, actualWeight.
-4. "add_extra" - User did an exercise not in today's plan. Include exerciseName, actualSets, actualReps, actualWeight, muscleType.
+3. "replace" - ONLY when user EXPLICITLY says "instead of", "replaced X with Y", "swapped X for Y", or "did X in place of Y". Include workoutItemId (the one being replaced), newExerciseName, actualSets, actualReps, actualWeight.
+4. "add_extra" - User did an exercise not in today's plan AND did NOT use replacement language. Include exerciseName, actualSets, actualReps, actualWeight, muscleType (guess a reasonable muscle type).
 5. "batch_complete" - User says they finished everything/all. Include workoutItemIds array of all PENDING exercise IDs.
 
-RULES:
+NUMBER FORMAT PARSING:
+- "3x12" or "3X12" or "3×12" = 3 sets, 12 reps → actualSets: 3, actualReps: 12
+- "4x10 at 80kg" or "4x10 @ 80" = 4 sets, 10 reps, 80kg → actualSets: 4, actualReps: 10, actualWeight: "80kg"
+- "3 sets 12 reps" = 3 sets, 12 reps
+- "4s12r" = 4 sets, 12 reps
+- Always parse these number formats when present
+
+CRITICAL RULES:
+- "replace" should ONLY be used when the user uses EXPLICIT replacement language like "instead of", "replaced", "swapped", "in place of". If the user just lists exercises they did, NEVER use replace.
+- If an exercise name does NOT closely match any planned exercise → use "add_extra". Do NOT guess a replacement.
+- Be strict with matching: "bench press" matches "Barbell Bench Press" or "Dumbbell Bench Press", but "incline bench press" does NOT match "Barbell Bench Press" — it's a different exercise entirely, so use add_extra.
 - If user says "finished everything", "done all", "completed today" → batch_complete all PENDING exercises
 - If user says "same as last Tuesday" or "repeat Monday" → find that date in history and create complete_with_details actions for each matching exercise found on that day
-- If user mentions reps/sets/weight, use complete_with_details
-- If user says "did X instead of Y" → use replace
-- If exercise isn't in today's plan → use add_extra
+- If user mentions reps/sets/weight, use complete_with_details (not just complete)
 - NEVER mark already completed exercises again (those marked ALREADY DONE above)
-- Be generous with fuzzy matching (e.g., "bench" = "Bench Press", "squats" = "Barbell Squats")
+- Be generous with fuzzy matching ONLY for close variants (e.g., "bench" = "Bench Press", "squats" = "Barbell Squats", "OHP" = "Overhead Press")
+- Do NOT fuzzy match exercises that are genuinely different (e.g., "incline bench press" ≠ "Barbell Bench Press", "leg press" ≠ "Bench Press")
 
 Return ONLY a JSON object: {"actions": [...], "summary": "brief description of what will happen", "suggestions": ["next exercise suggestion 1", "exercise suggestion 2"]}
 The suggestions should be the names of the NEXT 1-2 pending exercises they haven't mentioned yet (if any remain).

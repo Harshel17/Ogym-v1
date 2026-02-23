@@ -5,7 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Send, Check, Loader2, X, Plus, ArrowRightLeft, ChevronRight, Zap, Mic } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sparkles, Send, Check, Loader2, X, Plus, ArrowRightLeft, ChevronRight, Zap, HelpCircle } from "lucide-react";
 
 function getClientLocalDate() {
   const now = new Date();
@@ -58,6 +59,7 @@ export function QuickLogBar() {
   const [summaryResult, setSummaryResult] = useState<ConfirmResult | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [extraChoices, setExtraChoices] = useState<Record<number, { choice: 'extra' | 'replace'; replaceId?: number }>>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -71,6 +73,7 @@ export function QuickLogBar() {
     },
     onSuccess: (data) => {
       setParsResult(data);
+      setExtraChoices({});
       if (data.actions.length === 0) {
         toast({
           title: "Couldn't match that",
@@ -96,6 +99,7 @@ export function QuickLogBar() {
       setShowSummary(true);
       setParsResult(null);
       setInput("");
+      setExtraChoices({});
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/today'] });
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/stats/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
@@ -116,11 +120,26 @@ export function QuickLogBar() {
 
   const handleConfirm = () => {
     if (!parseResult?.actions.length) return;
-    confirmMutation.mutate(parseResult.actions);
+    const finalActions = parseResult.actions.map((action, i) => {
+      if (action.type === 'add_extra') {
+        const choice = extraChoices[i];
+        if (choice?.choice === 'replace' && choice.replaceId) {
+          return {
+            ...action,
+            type: 'replace' as const,
+            workoutItemId: choice.replaceId,
+            newExerciseName: action.exerciseName,
+          };
+        }
+      }
+      return action;
+    });
+    confirmMutation.mutate(finalActions);
   };
 
   const handleDismiss = () => {
     setParsResult(null);
+    setExtraChoices({});
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -132,6 +151,9 @@ export function QuickLogBar() {
     setShowSummary(false);
     setSummaryResult(null);
   };
+
+  const hasExtras = parseResult?.actions.some(a => a.type === 'add_extra') ?? false;
+  const pendingExercises = parseResult?.todayExercises.filter(e => !e.completed) ?? [];
 
   const getActionIcon = (type: string) => {
     switch (type) {
@@ -166,25 +188,39 @@ export function QuickLogBar() {
         return `Complete all ${action.workoutItemIds?.length || 0} exercises`;
       case 'replace':
         return `${exercise?.name || 'Exercise'} → ${action.newExerciseName}`;
-      case 'add_extra':
-        return `+ ${action.exerciseName}`;
+      case 'add_extra': {
+        const details = [
+          action.actualSets && `${action.actualSets} sets`,
+          action.actualReps && `${action.actualReps} reps`,
+          action.actualWeight && `@ ${action.actualWeight}`,
+        ].filter(Boolean).join(', ');
+        return details ? `${action.exerciseName} (${details})` : (action.exerciseName || 'Exercise');
+      }
       default:
         return 'Exercise';
     }
   };
 
-  const getActionTypeBadge = (type: string) => {
+  const getActionTypeBadge = (type: string, actionIndex?: number) => {
+    if (type === 'add_extra' && actionIndex !== undefined) {
+      const choice = extraChoices[actionIndex];
+      if (choice?.choice === 'replace') return 'Swap';
+    }
     switch (type) {
       case 'complete': return 'Done';
       case 'complete_with_details': return 'Log';
       case 'batch_complete': return 'All';
       case 'replace': return 'Swap';
-      case 'add_extra': return 'New';
+      case 'add_extra': return 'Extra';
       default: return '';
     }
   };
 
-  const getActionTypeColor = (type: string) => {
+  const getActionTypeColor = (type: string, actionIndex?: number) => {
+    if (type === 'add_extra' && actionIndex !== undefined) {
+      const choice = extraChoices[actionIndex];
+      if (choice?.choice === 'replace') return 'bg-sky-500/15 text-sky-400 border-sky-500/20';
+    }
     switch (type) {
       case 'complete':
       case 'complete_with_details':
@@ -236,7 +272,7 @@ export function QuickLogBar() {
             <div className="flex items-center gap-1 flex-shrink-0">
               {input.trim() && (
                 <button
-                  onClick={() => { setInput(""); setParsResult(null); }}
+                  onClick={() => { setInput(""); setParsResult(null); setExtraChoices({}); }}
                   className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50 transition-colors"
                   data-testid="button-clear-quick-log"
                 >
@@ -280,14 +316,81 @@ export function QuickLogBar() {
               
               <div className="space-y-1.5">
                 {parseResult.actions.map((action, i) => (
-                  <div key={i} className="flex items-center gap-2.5 text-xs py-1.5 px-2.5 rounded-lg bg-card/60 border border-border/50">
-                    <div className="w-5 h-5 rounded-md bg-muted/50 flex items-center justify-center flex-shrink-0">
-                      {getActionIcon(action.type)}
+                  <div key={i}>
+                    <div className="flex items-center gap-2.5 text-xs py-1.5 px-2.5 rounded-lg bg-card/60 border border-border/50">
+                      <div className="w-5 h-5 rounded-md bg-muted/50 flex items-center justify-center flex-shrink-0">
+                        {action.type === 'add_extra' && extraChoices[i]?.choice === 'replace'
+                          ? <ArrowRightLeft className="w-3.5 h-3.5 text-sky-400" />
+                          : getActionIcon(action.type)}
+                      </div>
+                      <span className="flex-1 truncate font-medium text-foreground/90">
+                        {extraChoices[i]?.choice === 'replace' && extraChoices[i]?.replaceId
+                          ? `${pendingExercises.find(e => e.id === extraChoices[i]?.replaceId)?.name || 'Exercise'} → ${action.exerciseName}`
+                          : getActionLabel(action, parseResult.todayExercises)
+                        }
+                      </span>
+                      <Badge variant="outline" className={`text-[9px] py-0 px-1.5 font-semibold border ${getActionTypeColor(action.type, i)} no-default-hover-elevate no-default-active-elevate`}>
+                        {getActionTypeBadge(action.type, i)}
+                      </Badge>
                     </div>
-                    <span className="flex-1 truncate font-medium text-foreground/90">{getActionLabel(action, parseResult.todayExercises)}</span>
-                    <Badge variant="outline" className={`text-[9px] py-0 px-1.5 font-semibold border ${getActionTypeColor(action.type)} no-default-hover-elevate no-default-active-elevate`}>
-                      {getActionTypeBadge(action.type)}
-                    </Badge>
+
+                    {/* Clarifying question for extra exercises */}
+                    {action.type === 'add_extra' && pendingExercises.length > 0 && (
+                      <div className="ml-8 mt-1.5 mb-1 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/15" data-testid={`extra-choice-${i}`}>
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <HelpCircle className="w-3 h-3 text-amber-400" />
+                          <span className="text-[11px] font-medium text-amber-300/90">Is this replacing a planned exercise?</span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => setExtraChoices(prev => ({ ...prev, [i]: { choice: 'extra' } }))}
+                            className={`flex-1 text-[10px] font-medium py-1.5 px-2 rounded-md border transition-all ${
+                              !extraChoices[i] || extraChoices[i]?.choice === 'extra'
+                                ? 'bg-violet-500/15 border-violet-500/30 text-violet-300'
+                                : 'bg-card/40 border-border/50 text-muted-foreground hover:bg-muted/30'
+                            }`}
+                            data-testid={`button-keep-extra-${i}`}
+                          >
+                            <Plus className="w-2.5 h-2.5 inline mr-1" />
+                            Keep as extra
+                          </button>
+                          <button
+                            onClick={() => setExtraChoices(prev => ({ ...prev, [i]: { choice: 'replace', replaceId: undefined } }))}
+                            className={`flex-1 text-[10px] font-medium py-1.5 px-2 rounded-md border transition-all ${
+                              extraChoices[i]?.choice === 'replace'
+                                ? 'bg-sky-500/15 border-sky-500/30 text-sky-300'
+                                : 'bg-card/40 border-border/50 text-muted-foreground hover:bg-muted/30'
+                            }`}
+                            data-testid={`button-replace-${i}`}
+                          >
+                            <ArrowRightLeft className="w-2.5 h-2.5 inline mr-1" />
+                            Replace
+                          </button>
+                        </div>
+                        {extraChoices[i]?.choice === 'replace' && (
+                          <div className="mt-2">
+                            <Select
+                              value={extraChoices[i]?.replaceId?.toString() || ""}
+                              onValueChange={(val) => setExtraChoices(prev => ({
+                                ...prev,
+                                [i]: { choice: 'replace', replaceId: parseInt(val) }
+                              }))}
+                            >
+                              <SelectTrigger className="h-7 text-[10px] bg-card/60 border-border/50" data-testid={`select-replace-target-${i}`}>
+                                <SelectValue placeholder="Which exercise to replace?" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {pendingExercises.map(ex => (
+                                  <SelectItem key={ex.id} value={ex.id.toString()} className="text-xs">
+                                    {ex.name} ({ex.sets}x{ex.reps})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -297,7 +400,7 @@ export function QuickLogBar() {
                   size="sm"
                   className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 border-0 text-white shadow-md shadow-emerald-500/25"
                   onClick={handleConfirm}
-                  disabled={isConfirming}
+                  disabled={isConfirming || (hasExtras && parseResult.actions.some((a, i) => a.type === 'add_extra' && extraChoices[i]?.choice === 'replace' && !extraChoices[i]?.replaceId))}
                   data-testid="button-confirm-quick-log"
                 >
                   {isConfirming ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Check className="w-3.5 h-3.5 mr-1.5" />}
