@@ -2231,12 +2231,26 @@ RESPONSE FORMAT (JSON):
       const session = await storage.getWorkoutSessionByMemberDate(null, req.user!.id, todayStr);
       const dayManuallyCompleted = session?.isManuallyCompleted === true;
       
+      const completionsByItemId = new Map(
+        completions.filter(c => c.workoutItemId != null).map(c => [c.workoutItemId, c])
+      );
+
       return res.json({
-        items: effectiveItems.map(item => ({
-          ...item,
-          completed: personalCompletedToday || dayManuallyCompleted || completedItemIds.has(item.id),
-          skipped: skippedItemIds.has(item.id)
-        })),
+        items: effectiveItems.map(item => {
+          const comp = completionsByItemId.get(item.id);
+          const isCompleted = personalCompletedToday || dayManuallyCompleted || completedItemIds.has(item.id);
+          const replacedName = comp?.exerciseName && comp.exerciseName !== item.exerciseName ? comp.exerciseName : null;
+          return {
+            ...item,
+            exerciseName: replacedName || item.exerciseName,
+            originalExerciseName: replacedName ? item.exerciseName : undefined,
+            completed: isCompleted,
+            skipped: skippedItemIds.has(item.id),
+            actualSets: comp?.actualSets ?? undefined,
+            actualReps: comp?.actualReps ?? undefined,
+            actualWeight: comp?.actualWeight ?? undefined,
+          };
+        }),
         currentDayIndex: effectiveDayIndex,
         cycleId: cycle.id,
         cycleName: cycle.name,
@@ -2366,11 +2380,23 @@ RESPONSE FORMAT (JSON):
     const items = await storage.getWorkoutItemsByDay(cycle.id, currentDayIndex);
     const completions = await storage.getCompletions(req.user!.id, todayStr);
     const completedIds = new Set(completions.map(c => c.workoutItemId));
+    const gymCompletionsByItemId = new Map(
+      completions.filter(c => c.workoutItemId != null).map(c => [c.workoutItemId, c])
+    );
     
-    const itemsWithStatus = items.map(i => ({
-      ...i,
-      completed: completedIds.has(i.id)
-    }));
+    const itemsWithStatus = items.map(i => {
+      const comp = gymCompletionsByItemId.get(i.id);
+      const replacedName = comp?.exerciseName && comp.exerciseName !== i.exerciseName ? comp.exerciseName : null;
+      return {
+        ...i,
+        exerciseName: replacedName || i.exerciseName,
+        originalExerciseName: replacedName ? i.exerciseName : undefined,
+        completed: completedIds.has(i.id),
+        actualSets: comp?.actualSets ?? undefined,
+        actualReps: comp?.actualReps ?? undefined,
+        actualWeight: comp?.actualWeight ?? undefined,
+      };
+    });
     
     const dayLabel = cycle.dayLabels?.[currentDayIndex] || null;
     const isRestDay = (cycle.restDays?.includes(currentDayIndex)) || 
