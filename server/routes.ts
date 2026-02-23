@@ -4210,7 +4210,10 @@ RESPONSE FORMAT (JSON):
       } catch (e) { /* ignore history errors */ }
 
       const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI();
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
 
       const prompt = `You are a workout logging assistant. Parse the user's natural language workout input and match it against their planned exercises for today.
 
