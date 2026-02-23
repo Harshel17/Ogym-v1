@@ -124,7 +124,7 @@ export default function GoalsPage() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(-1 as any)}
+          onClick={() => window.history.back()}
           data-testid="button-back"
         >
           <ArrowLeft className="h-5 w-5" />
