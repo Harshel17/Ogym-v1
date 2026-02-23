@@ -854,6 +854,134 @@ export async function registerRoutes(
     res.json(records);
   });
 
+  // === QR CHECK-IN ROUTES ===
+
+  app.get("/api/gym/checkin-qr", requireRole(["member"]), async (req, res) => {
+    if (!req.user!.gymId) {
+      return res.status(400).json({ message: "You are not assigned to a gym" });
+    }
+    const gym = await storage.getGym(req.user!.gymId);
+    if (!gym) {
+      return res.status(404).json({ message: "Gym not found" });
+    }
+    res.json({ gymCode: gym.code, gymName: gym.name });
+  });
+
+  app.post("/api/attendance/scan-checkin", requireRole(["member"]), async (req, res) => {
+    const schema = z.object({ qr_data: z.string() });
+    const input = schema.parse(req.body);
+
+    if (!input.qr_data.startsWith("OGYM-CHECKIN:")) {
+      return res.status(400).json({ message: "Invalid QR code format" });
+    }
+
+    const gymCode = input.qr_data.replace("OGYM-CHECKIN:", "").trim().toUpperCase();
+    const gym = await storage.getGymByCode(gymCode);
+    if (!gym || gym.id !== req.user!.gymId) {
+      return res.status(403).json({ message: "Invalid gym code or you don't belong to this gym" });
+    }
+
+    const today = getLocalDate(req);
+    const existing = await storage.getAttendanceByMemberDate(req.user!.id, today);
+
+    if (existing) {
+      if (existing.verifiedMethod === "workout") {
+        await storage.updateAttendanceMethod(existing.id, "both");
+      }
+      return res.json(existing);
+    }
+
+    const record = await storage.markAttendance({
+      gymId: req.user!.gymId!,
+      memberId: req.user!.id,
+      date: today,
+      status: "present",
+      verifiedMethod: "qr",
+      markedByUserId: req.user!.id
+    });
+    res.status(201).json(record);
+  });
+
+  app.get("/api/owner/gym-qr-code", requireRole(["owner"]), async (req, res) => {
+    const gym = await storage.getGym(req.user!.gymId!);
+    if (!gym) {
+      return res.status(404).json({ message: "Gym not found" });
+    }
+    res.json({
+      qrData: `OGYM-CHECKIN:${gym.code}`,
+      gymCode: gym.code,
+      gymName: gym.name
+    });
+  });
+
+  app.post("/api/owner/attendance/mark", requireRole(["owner"]), async (req, res) => {
+    const schema = z.object({
+      memberIds: z.array(z.number()).min(1),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD format"),
+    });
+    const input = schema.parse(req.body);
+
+    let marked = 0;
+    let alreadyPresent = 0;
+
+    for (const memberId of input.memberIds) {
+      const existing = await storage.getAttendanceByMemberDate(memberId, input.date);
+      if (existing && existing.status === "present") {
+        alreadyPresent++;
+        continue;
+      }
+      await storage.markAttendance({
+        gymId: req.user!.gymId!,
+        memberId,
+        date: input.date,
+        status: "present",
+        verifiedMethod: "manual",
+        markedByUserId: req.user!.id
+      });
+      marked++;
+    }
+
+    res.json({ marked, alreadyPresent });
+  });
+
+  app.post("/api/trainer/attendance/mark", requireRole(["trainer"]), async (req, res) => {
+    const schema = z.object({
+      memberIds: z.array(z.number()).min(1),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD format"),
+    });
+    const input = schema.parse(req.body);
+
+    const assignments = await storage.getTrainerMembers(req.user!.id);
+    const assignedMemberIds = new Set(assignments.map(a => a.memberId));
+
+    const unauthorized = input.memberIds.filter(id => !assignedMemberIds.has(id));
+    if (unauthorized.length > 0) {
+      return res.status(403).json({ message: "Some members are not assigned to you" });
+    }
+
+    let marked = 0;
+    let alreadyPresent = 0;
+
+    for (const memberId of input.memberIds) {
+      const existing = await storage.getAttendanceByMemberDate(memberId, input.date);
+      if (existing && existing.status === "present") {
+        alreadyPresent++;
+        continue;
+      }
+      await storage.markAttendance({
+        gymId: req.user!.gymId!,
+        memberId,
+        date: input.date,
+        status: "present",
+        verifiedMethod: "manual",
+        markedByUserId: req.user!.id
+      });
+      marked++;
+    }
+
+    res.json({ marked, alreadyPresent });
+  });
+
   // === PAYMENTS ROUTES ===
   app.get("/api/payments/my", requireRole(["member"]), async (req, res) => {
     const records = await storage.getMemberPayments(req.user!.id);

@@ -100,14 +100,17 @@ export async function generateAiInsightOfTheDay(
     interventionSuccessRate: number;
   }
 ): Promise<{ title: string; description: string; severity: 'info' | 'warning' | 'positive' } | null> {
-  const prompt = `You are a gym business intelligence analyst. Based on this gym's data, generate ONE actionable insight. Pick the most important pattern or opportunity. Be specific with numbers.
+  const attendanceRatio = gymData.totalMembers > 0 ? Math.round((gymData.avgDailyAttendance / gymData.totalMembers) * 100) : 0;
+  const lowEngagement = attendanceRatio < 20;
+
+  const prompt = `You are a gym business intelligence analyst. Based on this gym's data, generate ONE actionable insight. Pick the most important pattern or opportunity. Be specific with numbers.${lowEngagement ? ' Note: Low daily attendance ratio suggests many members may track workouts elsewhere — focus insights on check-in patterns and retention rather than workout data.' : ''}
 
 Gym Data:
 - Total members: ${gymData.totalMembers}, Active: ${gymData.activeMembers}
 - New this month: ${gymData.newThisMonth}
 - At-risk members: ${gymData.atRiskCount} (high risk: ${gymData.highRiskMembers})
 - Attendance trend: ${gymData.attendanceTrend} (${gymData.trendPercent}%)
-- Average daily attendance: ${gymData.avgDailyAttendance}
+- Average daily attendance: ${gymData.avgDailyAttendance} (${attendanceRatio}% of total members)
 - Busiest day: ${gymData.busiestDay}, Quietest: ${gymData.quietestDay}
 - Revenue this month: ${gymData.revenueThisMonth}, Last month: ${gymData.revenuePrevMonth}
 - Weekly attendance (last 4 weeks): ${gymData.weeklyAttendance.join(', ')}

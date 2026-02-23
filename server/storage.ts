@@ -9186,6 +9186,49 @@ export class DatabaseStorage implements IStorage {
           priority: 40,
         });
       }
+      const isConsistentDecline = weeklyTrendsData.slice(1).every(w => w.changePercent < -5);
+      if (isConsistentDecline) {
+        insightCandidates.push({
+          type: 'consistent_decline',
+          title: 'Attendance declining for multiple weeks',
+          description: `Check-ins have dropped for ${weeklyTrendsData.length - 1} consecutive weeks. Consider a flash promotion, challenge event, or personal outreach to your most active members to reverse the trend.`,
+          severity: 'warning',
+          priority: 55,
+        });
+      }
+    }
+
+    const fadingMembers = activeMembers.filter(m => {
+      const recent = attendanceByMember14.get(m.id) || 0;
+      const prev = attendanceByMemberPrev14.get(m.id) || 0;
+      return prev >= 3 && recent <= 1;
+    });
+    if (fadingMembers.length >= 2) {
+      insightCandidates.push({
+        type: 'fading_regulars',
+        title: `${fadingMembers.length} regulars fading away`,
+        description: `${fadingMembers.length} members who used to come 3+ times in 2 weeks have dropped to 1 or fewer visits. These are your most saveable members — a quick "we miss you" message this week could bring them back before they fully disengage.`,
+        severity: 'warning',
+        priority: fadingMembers.length * 18,
+      });
+    }
+
+    const checkinOnlyMembers = activeMembers.filter(m => {
+      const hasAttendance = lastAttendanceMap.has(m.id);
+      const hasWorkouts = recentWorkouts.some(w => w.memberId === m.id);
+      return hasAttendance && !hasWorkouts;
+    });
+    if (checkinOnlyMembers.length >= 3 && activeMembers.length > 0) {
+      const checkinOnlyPercent = Math.round((checkinOnlyMembers.length / activeMembers.length) * 100);
+      if (checkinOnlyPercent >= 30) {
+        insightCandidates.push({
+          type: 'checkin_only_members',
+          title: `${checkinOnlyPercent}% check in but don't log workouts`,
+          description: `${checkinOnlyMembers.length} members check in regularly but haven't logged any workouts this week. They may be tracking elsewhere or need help getting started with workout logging. Consider a trainer-led intro session.`,
+          severity: 'info',
+          priority: 25,
+        });
+      }
     }
     
     if (insightCandidates.length > 0) {

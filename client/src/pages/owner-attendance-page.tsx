@@ -1,14 +1,18 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, CalendarCheck, UserX, UserPlus, ArrowLeft, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Users, CalendarCheck, UserX, UserPlus, ArrowLeft, Loader2, CheckCircle2, QrCode, Printer } from "lucide-react";
 import { format } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from 'recharts';
 import { useBackNavigation } from "@/hooks/use-back-navigation";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { QRCodeSVG } from "qrcode.react";
 
 type AttendanceSummary = {
   date: string;
@@ -39,6 +43,7 @@ function getClientLocalDate(): string {
 }
 
 export default function OwnerAttendancePage() {
+  const { toast } = useToast();
   // Use client's local date to avoid timezone mismatch with server UTC
   const [selectedDate, setSelectedDate] = useState<string>(getClientLocalDate());
   
@@ -66,6 +71,29 @@ export default function OwnerAttendancePage() {
 
   const { data: trendData } = useQuery<AttendanceTrend>({
     queryKey: ["/api/owner/attendance/trend"]
+  });
+
+  const { data: gymQrData } = useQuery<{ qrData: string; gymCode: string; gymName: string }>({
+    queryKey: ["/api/owner/gym-qr-code"]
+  });
+
+  const markMutation = useMutation({
+    mutationFn: async ({ memberIds, date }: { memberIds: number[]; date: string }) => {
+      const res = await apiRequest("POST", "/api/owner/attendance/mark", { memberIds, date });
+      return res.json();
+    },
+    onSuccess: (data: { marked: number; alreadyPresent: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/attendance/day"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/attendance/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/attendance/trend"] });
+      toast({
+        title: "Attendance Marked",
+        description: `${data.marked} member${data.marked !== 1 ? 's' : ''} marked present${data.alreadyPresent > 0 ? `, ${data.alreadyPresent} already present` : ''}`
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   });
 
   const chartData = trendData?.trend.map(t => ({
@@ -252,31 +280,134 @@ export default function OwnerAttendancePage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-2">
-              {dayData?.notCheckedIn.map((member) => (
-                <Card key={member.memberId} data-testid={`member-not-checked-in-${member.memberId}`}>
-                  <CardContent className="py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                        <span className="text-sm font-bold text-muted-foreground">
-                          {member.name.slice(0, 2).toUpperCase()}
-                        </span>
+            <div className="space-y-3">
+              <div className="flex items-center justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const ids = dayData!.notCheckedIn.map(m => m.memberId);
+                    markMutation.mutate({ memberIds: ids, date: effectiveDate });
+                  }}
+                  disabled={markMutation.isPending}
+                  data-testid="button-mark-all-present"
+                >
+                  {markMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <CheckCircle2 className="w-4 h-4 mr-1.5" />}
+                  Mark All Present
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {dayData?.notCheckedIn.map((member) => (
+                  <Card key={member.memberId} data-testid={`member-not-checked-in-${member.memberId}`}>
+                    <CardContent className="py-3 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                          <span className="text-sm font-bold text-muted-foreground">
+                            {member.name.slice(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{member.name}</p>
+                          {member.trainerName && (
+                            <p className="text-sm text-muted-foreground truncate">Trainer: {member.trainerName}</p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{member.name}</p>
-                        {member.trainerName && (
-                          <p className="text-sm text-muted-foreground">Trainer: {member.trainerName}</p>
-                        )}
-                      </div>
-                    </div>
-                    <Badge variant="secondary">Absent</Badge>
-                  </CardContent>
-                </Card>
-              ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => markMutation.mutate({ memberIds: [member.memberId], date: effectiveDate })}
+                        disabled={markMutation.isPending}
+                        data-testid={`button-mark-present-${member.memberId}`}
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-1" />
+                        Mark Present
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
           )}
         </TabsContent>
       </Tabs>
+
+      {gymQrData && (
+        <Card data-testid="card-gym-qr-code">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+            <CardTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5" />
+              Gym Check-in QR Code
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const printWindow = window.open('', '_blank');
+                if (printWindow) {
+                  printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                      <title>Gym QR Code - ${gymQrData.gymName}</title>
+                      <style>
+                        body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: system-ui, sans-serif; }
+                        h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+                        p { font-size: 1.2rem; color: #666; margin-bottom: 2rem; }
+                        .code { font-family: monospace; font-size: 1.5rem; font-weight: bold; margin-top: 1.5rem; letter-spacing: 0.1em; }
+                        .footer { margin-top: 2rem; font-size: 0.9rem; color: #999; }
+                      </style>
+                    </head>
+                    <body>
+                      <h1>${gymQrData.gymName}</h1>
+                      <p>Scan to Check In</p>
+                      <div id="qr-container"></div>
+                      <div class="code">${gymQrData.gymCode}</div>
+                      <div class="footer">Powered by OGym</div>
+                      <script>
+                        window.onload = function() { window.print(); };
+                      </script>
+                    </body>
+                    </html>
+                  `);
+                  const qrSvg = document.getElementById('gym-qr-svg-print');
+                  if (qrSvg) {
+                    const container = printWindow.document.getElementById('qr-container');
+                    if (container) container.innerHTML = qrSvg.outerHTML;
+                  }
+                  printWindow.document.close();
+                }
+              }}
+              data-testid="button-print-qr"
+            >
+              <Printer className="w-4 h-4 mr-1.5" />
+              Print QR Poster
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="bg-white p-4 rounded-lg" data-testid="img-gym-qr-code">
+                <QRCodeSVG
+                  id="gym-qr-svg-print"
+                  value={gymQrData.qrData}
+                  size={180}
+                  level="M"
+                  includeMargin={false}
+                />
+              </div>
+              <div className="text-center sm:text-left space-y-2">
+                <p className="font-semibold text-lg" data-testid="text-gym-name">{gymQrData.gymName}</p>
+                <p className="text-sm text-muted-foreground">
+                  Display this QR code at your gym entrance so members can scan it to check in.
+                </p>
+                <Badge variant="outline" className="font-mono text-sm" data-testid="text-gym-code">
+                  {gymQrData.gymCode}
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

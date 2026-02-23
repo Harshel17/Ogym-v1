@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMembers, useAttendance, useMemberAttendance, useCheckin } from "@/hooks/use-gym";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,16 +7,18 @@ import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { CalendarIcon, QrCode, CheckCircle2, XCircle, LogOut, LogIn, Search, X, Sparkles, Send, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CalendarIcon, QrCode, CheckCircle2, XCircle, LogOut, LogIn, Search, X, Sparkles, Send, Loader2, Camera, ScanLine } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
+import { Html5Qrcode } from "html5-qrcode";
 
 type GymHistoryRecord = {
   id: number;
@@ -411,10 +413,116 @@ export default function AttendancePage() {
   );
 }
 
+function QrScannerTab({ onSuccess }: { onSuccess: () => void }) {
+  const { toast } = useToast();
+  const [isStarting, setIsStarting] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannedRef = useRef(false);
+
+  const scanCheckinMutation = useMutation({
+    mutationFn: async (qrData: string) => {
+      const res = await apiRequest("POST", "/api/attendance/scan-checkin", { qr_data: qrData });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
+      toast({ title: "Checked In!", description: "Your attendance has been recorded via QR scan" });
+      onSuccess();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Check-in failed", description: err.message, variant: "destructive" });
+      scannedRef.current = false;
+    },
+  });
+
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current.clear();
+      } catch (e) {}
+      scannerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    const startScanner = async () => {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const html5QrCode = new Html5Qrcode("checkin-qr-reader");
+        scannerRef.current = html5QrCode;
+
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          (decodedText) => {
+            if (!scannedRef.current) {
+              scannedRef.current = true;
+              if (decodedText.startsWith("OGYM-CHECKIN:")) {
+                scanCheckinMutation.mutate(decodedText);
+              } else {
+                toast({ title: "Invalid QR Code", description: "This QR code is not a gym check-in code", variant: "destructive" });
+                scannedRef.current = false;
+              }
+            }
+          },
+          () => {}
+        );
+        setIsStarting(false);
+      } catch (err: any) {
+        setIsStarting(false);
+        if (err.name === "NotAllowedError") {
+          setError("Camera access denied. Please allow camera access.");
+        } else if (err.name === "NotFoundError") {
+          setError("No camera found on this device.");
+        } else {
+          setError("Could not start camera. Try the Enter Code tab.");
+        }
+      }
+    };
+
+    startScanner();
+    return () => { stopScanner(); };
+  }, []);
+
+  return (
+    <div className="space-y-4 pt-4">
+      {isStarting && !error && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin mr-2" />
+          <span className="text-sm text-muted-foreground">Starting camera...</span>
+        </div>
+      )}
+      {error && (
+        <div className="text-center py-6 space-y-3">
+          <Camera className="w-10 h-10 mx-auto text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      )}
+      {scanCheckinMutation.isPending && (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" />
+          <span className="text-sm">Checking in...</span>
+        </div>
+      )}
+      <div
+        id="checkin-qr-reader"
+        className={`w-full rounded-md overflow-hidden ${isStarting || error ? "hidden" : ""}`}
+        data-testid="qr-scanner-view"
+      />
+      <p className="text-xs text-muted-foreground text-center">
+        Point your camera at the gym's QR code to check in
+      </p>
+    </div>
+  );
+}
+
 function CheckinDialog() {
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("scan-qr");
   const checkinMutation = useCheckin();
-  
+
   const formSchema = z.object({
     gym_code: z.string().min(1, "Gym code is required"),
   });
@@ -433,8 +541,16 @@ function CheckinDialog() {
     });
   };
 
+  const handleDialogChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setActiveTab("scan-qr");
+      form.reset();
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogTrigger asChild>
         <Button className="shadow-lg shadow-primary/20" data-testid="button-checkin">
           <QrCode className="w-4 h-4 mr-2" /> Check In
@@ -444,37 +560,54 @@ function CheckinDialog() {
         <DialogHeader>
           <DialogTitle>Check In to Gym</DialogTitle>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
-            <FormField
-              control={form.control}
-              name="gym_code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Gym Code</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Enter gym code (e.g., DEMO01)" 
-                      {...field} 
-                      className="h-11 text-center font-mono text-lg uppercase"
-                      data-testid="input-gym-code"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <p className="text-sm text-muted-foreground">
-              Scan the QR code at your gym or enter the code manually.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={checkinMutation.isPending} data-testid="button-submit-checkin">
-                {checkinMutation.isPending ? "Checking in..." : "Check In"}
-              </Button>
-            </div>
-          </form>
-        </Form>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="w-full">
+            <TabsTrigger value="scan-qr" className="flex-1" data-testid="tab-scan-qr">
+              <ScanLine className="w-4 h-4 mr-1.5" /> Scan QR
+            </TabsTrigger>
+            <TabsTrigger value="enter-code" className="flex-1" data-testid="tab-enter-code">
+              Enter Code
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="scan-qr">
+            {open && activeTab === "scan-qr" && (
+              <QrScannerTab onSuccess={() => setOpen(false)} />
+            )}
+          </TabsContent>
+          <TabsContent value="enter-code">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+                <FormField
+                  control={form.control}
+                  name="gym_code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gym Code</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter gym code (e.g., DEMO01)"
+                          {...field}
+                          className="h-11 text-center font-mono text-lg uppercase"
+                          data-testid="input-gym-code"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Enter the gym code provided by your gym.
+                </p>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)} data-testid="button-cancel-checkin">Cancel</Button>
+                  <Button type="submit" disabled={checkinMutation.isPending} data-testid="button-submit-checkin">
+                    {checkinMutation.isPending ? "Checking in..." : "Check In"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
