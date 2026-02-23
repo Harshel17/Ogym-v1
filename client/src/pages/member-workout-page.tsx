@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw, Loader2, Plus, Dumbbell, Wand2, Shuffle, ArrowLeftRight, History, Clock, Heart, Zap } from "lucide-react";
+import { AlertCircle, CheckCircle2, Flame, Target, Calendar, ChevronDown, ChevronUp, Trophy, Share2, Moon, Sparkles, ArrowRight, Undo2, RotateCcw, Loader2, Plus, Swords, Wand2, Shuffle, ArrowLeftRight, History, Clock, Heart, Zap } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -567,7 +567,7 @@ export default function MemberWorkoutPage() {
       <div className="page-header-gradient">
         <div className="flex items-center gap-3">
           <div className="icon-badge icon-badge-blue">
-            <Dumbbell className="w-4 h-4" />
+            <Swords className="w-4 h-4" />
           </div>
           <div>
             <h2 className="text-2xl font-bold font-display">My Workout</h2>
@@ -648,7 +648,7 @@ export default function MemberWorkoutPage() {
         <Card className="bg-card/60">
           <CardContent className="flex flex-col items-center justify-center py-8">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
-              <Dumbbell className="w-7 h-7 text-primary" />
+              <Swords className="w-7 h-7 text-primary" />
             </div>
             <h3 className="text-base font-semibold mb-1">Start Your Fitness Journey</h3>
             <p className="text-xs text-muted-foreground text-center mb-5 max-w-xs">
@@ -693,7 +693,7 @@ export default function MemberWorkoutPage() {
             <div className="flex flex-row items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <div className="bg-gradient-to-br from-primary to-primary/80 p-2.5 rounded-xl shadow-lg shadow-primary/20">
-                  <Dumbbell className="w-5 h-5 text-white" />
+                  <Swords className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <CardTitle className="text-base font-semibold">
@@ -869,7 +869,7 @@ export default function MemberWorkoutPage() {
                         onClick={() => openReorderDialog(true)}
                         data-testid="button-workout-today"
                       >
-                        <Dumbbell className="w-3.5 h-3.5 mr-1" />
+                        <Swords className="w-3.5 h-3.5 mr-1" />
                         Workout Today
                       </Button>
                       <Button 
@@ -944,7 +944,7 @@ export default function MemberWorkoutPage() {
                                   {(() => {
                                     if (item.exerciseType === 'cardio') return <Heart className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />;
                                     if (item.muscleType === 'Core' || item.muscleType === 'Abs') return <Target className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />;
-                                    return <Dumbbell className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />;
+                                    return <Swords className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />;
                                   })()}
                                   <p className={`font-medium text-sm ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
                                     {item.exerciseName}
@@ -1200,7 +1200,7 @@ export default function MemberWorkoutPage() {
                                 ) : (w.muscleType === 'Core' || w.muscleType === 'Abs') ? (
                                   <Target className="w-3 h-3 text-amber-500 flex-shrink-0" />
                                 ) : (
-                                  <Dumbbell className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                  <Swords className="w-3 h-3 text-blue-500 flex-shrink-0" />
                                 )}
                                 <span className="flex-1 min-w-0 truncate">{w.exerciseName}</span>
                                 {w.sportProgramId && (
@@ -1465,7 +1465,7 @@ export default function MemberWorkoutPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Dumbbell className="w-5 h-5" />
+              <Swords className="w-5 h-5" />
               Create Workout Cycle
             </DialogTitle>
             <DialogDescription>
@@ -1635,7 +1635,7 @@ export default function MemberWorkoutPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Dumbbell className="w-5 h-5" />
+              <Swords className="w-5 h-5" />
               Train on Rest Day
             </DialogTitle>
             <DialogDescription>
@@ -1674,7 +1674,7 @@ export default function MemberWorkoutPage() {
                 disabled={trainAnywayMutation.isPending}
                 data-testid="button-train-extra"
               >
-                <Dumbbell className="w-4 h-4 mr-2" />
+                <Swords className="w-4 h-4 mr-2" />
                 {trainAnywayMutation.isPending ? "Starting..." : "Start Extra Workout"}
               </Button>
             )}
@@ -1788,7 +1788,7 @@ export default function MemberWorkoutPage() {
             <DialogTitle className="flex items-center gap-2">
               {isRestDayReorder ? (
                 <>
-                  <Dumbbell className="w-5 h-5" />
+                  <Swords className="w-5 h-5" />
                   Workout Today
                 </>
               ) : (

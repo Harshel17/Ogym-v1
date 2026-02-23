@@ -25,7 +25,7 @@ import {
   CalendarCheck, 
   CreditCard, 
   LogOut, 
-  Dumbbell,
+  Swords,
   TrendingUp,
   MessageSquare,
   Star,
@@ -134,7 +134,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { 
       label: "My Workouts", 
       href: "/my-workouts", 
-      icon: Dumbbell,
+      icon: Swords,
       visible: isPersonalMode,
       badge: 0
     },
@@ -183,7 +183,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { 
       label: "Workouts", 
       href: "/workouts", 
-      icon: Dumbbell,
+      icon: Swords,
       visible: isTrainer,
       badge: 0
     },
@@ -211,7 +211,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { 
       label: "My Workout", 
       href: "/my-workout", 
-      icon: Dumbbell,
+      icon: Swords,
       visible: isMember,
       badge: 0
     },
@@ -415,7 +415,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       return {
         primary: [
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
-          { label: "Workouts", href: "/workouts", icon: Dumbbell },
+          { label: "Workouts", href: "/workouts", icon: Swords },
           { label: "Dika AI", href: "/dika", icon: DikaNavIcon },
           { label: "Members", href: "/members", icon: Users },
         ],
@@ -437,7 +437,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       return {
         primary: [
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
-          { label: "Workout", href: "/my-workout", icon: Dumbbell },
+          { label: "Workout", href: "/my-workout", icon: Swords },
           { label: "Dika AI", href: "/dika", icon: DikaNavIcon },
           { label: "Nutrition", href: "/nutrition", icon: Salad },
         ],
@@ -463,7 +463,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       return {
         primary: [
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
-          { label: "Workouts", href: "/my-workouts", icon: Dumbbell },
+          { label: "Workouts", href: "/my-workouts", icon: Swords },
           { label: "Dika AI", href: "/dika", icon: DikaNavIcon },
           { label: "Nutrition", href: "/nutrition", icon: Salad },
         ],

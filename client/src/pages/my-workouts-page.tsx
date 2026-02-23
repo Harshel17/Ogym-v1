@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Calendar, ChevronDown, ChevronUp, Dumbbell, Flame, Target, CalendarDays, Filter, X, Pencil, Save, XCircle, CheckCircle2, Clock, AlertCircle, Moon, Trophy } from "lucide-react";
+import { Calendar, ChevronDown, ChevronUp, Swords, Flame, Target, CalendarDays, Filter, X, Pencil, Save, XCircle, CheckCircle2, Clock, AlertCircle, Moon, Trophy } from "lucide-react";
 import { format, subDays, startOfMonth, parseISO } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -329,7 +329,7 @@ export default function MyWorkoutsPage() {
       case "rest_day":
         return <Moon className="w-5 h-5 text-blue-500" />;
       default:
-        return <Dumbbell className="w-5 h-5 text-muted-foreground" />;
+        return <Swords className="w-5 h-5 text-muted-foreground" />;
     }
   };
 
@@ -452,7 +452,7 @@ export default function MyWorkoutsPage() {
             <p className="text-center text-muted-foreground py-8">Loading schedule...</p>
           ) : !scheduleData?.cycleId ? (
             <div className="text-center py-12">
-              <Dumbbell className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+              <Swords className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
               <p className="text-muted-foreground">No active workout cycle found.</p>
               <p className="text-sm text-muted-foreground mt-1">
                 Ask your trainer to assign a workout cycle to you.
@@ -523,7 +523,7 @@ export default function MyWorkoutsPage() {
                         <>
                           <div className="flex items-center justify-between mb-4">
                             <h4 className="font-medium text-sm flex items-center gap-2">
-                              <Dumbbell className="w-4 h-4" />
+                              <Swords className="w-4 h-4" />
                               Exercises
                               <span className="text-muted-foreground font-normal">
                                 ({day.completedExercises}/{day.totalExercises})
