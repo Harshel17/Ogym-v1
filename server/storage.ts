@@ -4606,11 +4606,19 @@ export class DatabaseStorage implements IStorage {
         
         const withinStart = dateStr >= cycle.startDate;
         const withinEnd = !cycleEndDate || dateStr <= cycleEndDate;
+        const dateCompletedIds = completedByDate.get(dateStr) || new Set();
+        const hasCompletionsFromCycle = dateCompletedIds.size > 0 && scheduledItems.some(si => dateCompletedIds.has(si.id));
         
-        if (withinStart && withinEnd) {
+        if (withinStart && (withinEnd || hasCompletionsFromCycle)) {
           if (isCompletionMode) {
             if (sessionDayIndexByDate[dateStr] !== undefined) {
               dayIndex = sessionDayIndexByDate[dateStr];
+              isCycleActive = true;
+            } else if (hasCompletionsFromCycle && !withinEnd) {
+              const completedItems = scheduledItems.filter(si => dateCompletedIds.has(si.id));
+              if (completedItems.length > 0) {
+                dayIndex = completedItems[0].dayIndex;
+              }
               isCycleActive = true;
             } else {
               let lastKnownDayIndex = 0;
@@ -4898,8 +4906,9 @@ export class DatabaseStorage implements IStorage {
         
         const withinStart = daysDiff >= 0;
         const withinEnd = !cycle.endDate || date <= cycle.endDate;
+        const hasCompletionsFromCycle = completions.some(c => c.item?.cycleId === cycle.id);
         
-        if (withinStart && withinEnd) {
+        if (withinStart && (withinEnd || hasCompletionsFromCycle)) {
           if (cycle.progressionMode === "completion") {
             // Completion mode: first try to get dayIndex from completions' linked items
             const completionDayIndices = completions
