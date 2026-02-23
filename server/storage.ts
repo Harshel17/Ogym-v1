@@ -4182,12 +4182,23 @@ export class DatabaseStorage implements IStorage {
       if (memberCycles.length > 0) {
         const cycle = memberCycles[0];
         let dayIndex = -1;
-        const cycleStart = new Date(cycle.startDate + 'T00:00:00');
-        const currentDate = new Date(date + 'T00:00:00');
-        if (!isNaN(cycleStart.getTime()) && !isNaN(currentDate.getTime()) && cycle.cycleLength > 0) {
-          const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
-          if (daysDiff >= 0) {
-            dayIndex = daysDiff % cycle.cycleLength;
+        
+        // For completion mode, derive dayIndex from the completions' linked items
+        const completionDayIndices = dateCompletions
+          .map(c => c.item?.dayIndex)
+          .filter((d): d is number => d !== null && d !== undefined);
+        
+        if (completionDayIndices.length > 0) {
+          dayIndex = completionDayIndices[0];
+        } else {
+          // Fallback: calculate from cycle start date
+          const cycleStart = new Date(cycle.startDate + 'T00:00:00');
+          const currentDate = new Date(date + 'T00:00:00');
+          if (!isNaN(cycleStart.getTime()) && !isNaN(currentDate.getTime()) && cycle.cycleLength > 0) {
+            const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
+            if (daysDiff >= 0) {
+              dayIndex = daysDiff % cycle.cycleLength;
+            }
           }
         }
         if (dayIndex >= 0) {
@@ -4879,8 +4890,8 @@ export class DatabaseStorage implements IStorage {
 
     if (memberCycle.length > 0) {
       const cycle = memberCycle[0];
-      const cycleStart = new Date(cycle.startDate);
-      const currentDate = new Date(date);
+      const cycleStart = new Date(cycle.startDate + 'T00:00:00');
+      const currentDate = new Date(date + 'T00:00:00');
       
       if (!isNaN(cycleStart.getTime()) && !isNaN(currentDate.getTime()) && cycle.cycleLength > 0) {
         const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
@@ -4890,34 +4901,40 @@ export class DatabaseStorage implements IStorage {
         
         if (withinStart && withinEnd) {
           if (cycle.progressionMode === "completion") {
-            // Completion mode: use session data to determine the day index
-            const sessions = await db.select().from(workoutSessions)
-              .where(and(
-                eq(workoutSessions.memberId, memberId),
-                eq(workoutSessions.cycleId, cycle.id)
-              ))
-              .orderBy(workoutSessions.date);
+            // Completion mode: first try to get dayIndex from completions' linked items
+            const completionDayIndices = completions
+              .map(c => c.item?.dayIndex)
+              .filter((d): d is number => d !== null && d !== undefined);
             
-            const sessionForDate = sessions.find(s => s.date === date);
-            if (sessionForDate && sessionForDate.cycleDayIndex !== null) {
-              dayIndex = sessionForDate.cycleDayIndex;
+            if (completionDayIndices.length > 0) {
+              dayIndex = completionDayIndices[0];
             } else {
-              // No session for this date: find what day the user was on
-              let lastKnownDayIndex = 0;
-              for (const s of sessions) {
-                if (s.date < date && s.cycleDayIndex !== null && s.cycleDayIndex !== undefined) {
-                  lastKnownDayIndex = s.cycleDayIndex;
-                  // Check if the next session uses a different day (meaning this one was completed)
-                } else if (s.date >= date) {
-                  break;
-                }
-              }
-              // Check if last session advanced the day
-              const nextSession = sessions.find(s => s.date >= date && s.cycleDayIndex !== null);
-              if (nextSession && nextSession.cycleDayIndex !== lastKnownDayIndex) {
-                dayIndex = nextSession.cycleDayIndex;
+              // Fall back to session data
+              const sessions = await db.select().from(workoutSessions)
+                .where(and(
+                  eq(workoutSessions.memberId, memberId),
+                  eq(workoutSessions.cycleId, cycle.id)
+                ))
+                .orderBy(workoutSessions.date);
+              
+              const sessionForDate = sessions.find(s => s.date === date);
+              if (sessionForDate && sessionForDate.cycleDayIndex !== null) {
+                dayIndex = sessionForDate.cycleDayIndex;
               } else {
-                dayIndex = lastKnownDayIndex;
+                let lastKnownDayIndex = 0;
+                for (const s of sessions) {
+                  if (s.date < date && s.cycleDayIndex !== null && s.cycleDayIndex !== undefined) {
+                    lastKnownDayIndex = s.cycleDayIndex;
+                  } else if (s.date >= date) {
+                    break;
+                  }
+                }
+                const nextSession = sessions.find(s => s.date >= date && s.cycleDayIndex !== null);
+                if (nextSession && nextSession.cycleDayIndex !== lastKnownDayIndex) {
+                  dayIndex = nextSession.cycleDayIndex;
+                } else {
+                  dayIndex = lastKnownDayIndex;
+                }
               }
             }
           } else {
