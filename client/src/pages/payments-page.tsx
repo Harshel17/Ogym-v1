@@ -80,6 +80,20 @@ function OwnerPaymentsView() {
     },
     onSuccess: (data: DikaPaymentResponse) => {
       setDikaResponse(data);
+      if (data.results && data.results.length > 0) {
+        const memberNames = Array.from(new Set(data.results.map(r => r.member).filter(Boolean)));
+        if (memberNames.length === 1) {
+          setSearchQuery(memberNames[0]);
+        } else {
+          setSearchQuery("");
+        }
+        if (statusFilter === 'needSubscription') {
+          setStatusFilter(null);
+        }
+        setActiveTab("subscriptions");
+      } else {
+        setSearchQuery("");
+      }
     },
     onError: (err: Error) => {
       toast({ title: "Dika couldn't answer", description: err.message, variant: "destructive" });
@@ -240,7 +254,7 @@ function OwnerPaymentsView() {
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 shrink-0"
-                  onClick={() => { setDikaResponse(null); setDikaQuery(""); }}
+                  onClick={() => { setDikaResponse(null); setDikaQuery(""); setSearchQuery(""); }}
                   data-testid="button-dismiss-dika"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -286,6 +300,22 @@ function OwnerPaymentsView() {
               )}
               {dikaResponse.summary && (
                 <p className="text-xs text-muted-foreground mt-2 ml-6">{dikaResponse.summary}</p>
+              )}
+              {searchQuery && dikaResponse.results && dikaResponse.results.length > 0 && (
+                <div className="flex items-center gap-2 mt-3 ml-6">
+                  <Badge variant="outline" className="text-[10px] border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400">
+                    Table filtered to: {searchQuery}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 text-[10px] px-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setSearchQuery("")}
+                    data-testid="button-clear-dika-filter"
+                  >
+                    Show all
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
