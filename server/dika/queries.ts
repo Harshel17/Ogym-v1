@@ -136,14 +136,15 @@ export async function getMemberWeeklyWorkouts(memberId: number, gymId: number | 
   
   const completions = await db.select({
     completedDate: workoutCompletions.completedDate,
-    exerciseName: workoutItems.exerciseName,
+    completionExerciseName: workoutCompletions.exerciseName,
+    itemExerciseName: workoutItems.exerciseName,
     muscleType: workoutItems.muscleType,
     sets: workoutCompletions.actualSets,
     reps: workoutCompletions.actualReps,
     weight: workoutCompletions.actualWeight,
   })
   .from(workoutCompletions)
-  .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+  .leftJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
   .where(
     and(
       eq(workoutCompletions.memberId, memberId),
@@ -221,14 +222,15 @@ export async function getMemberWorkoutLogsDetailed(memberId: number, gymId: numb
     
     const completions = await db.select({
       completedDate: workoutCompletions.completedDate,
-      exerciseName: workoutItems.exerciseName,
+      completionExerciseName: workoutCompletions.exerciseName,
+      itemExerciseName: workoutItems.exerciseName,
       muscleType: workoutItems.muscleType,
       actualSets: workoutCompletions.actualSets,
       actualReps: workoutCompletions.actualReps,
       actualWeight: workoutCompletions.actualWeight,
     })
     .from(workoutCompletions)
-    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .leftJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
     .where(
       and(
         eq(workoutCompletions.memberId, memberId),
@@ -256,12 +258,13 @@ export async function getMemberWorkoutLogsDetailed(memberId: number, gymId: numb
       const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
       lines.push(`\n${dayName}:`);
       for (const ex of exercises) {
+        const name = ex.completionExerciseName || ex.itemExerciseName || 'Exercise';
         const details = [];
         if (ex.actualSets) details.push(`${ex.actualSets} sets`);
         if (ex.actualReps) details.push(`${ex.actualReps} reps`);
         if (ex.actualWeight) details.push(ex.actualWeight);
         const detailStr = details.length > 0 ? ` (${details.join(', ')})` : '';
-        lines.push(`• ${ex.exerciseName}${detailStr}`);
+        lines.push(`• ${name}${detailStr}`);
       }
     }
     
@@ -270,14 +273,15 @@ export async function getMemberWorkoutLogsDetailed(memberId: number, gymId: numb
   
   // For specific date (today/yesterday)
   const completions = await db.select({
-    exerciseName: workoutItems.exerciseName,
+    completionExerciseName: workoutCompletions.exerciseName,
+    itemExerciseName: workoutItems.exerciseName,
     muscleType: workoutItems.muscleType,
     actualSets: workoutCompletions.actualSets,
     actualReps: workoutCompletions.actualReps,
     actualWeight: workoutCompletions.actualWeight,
   })
   .from(workoutCompletions)
-  .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+  .leftJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
   .where(
     and(
       eq(workoutCompletions.memberId, memberId),
@@ -291,12 +295,13 @@ export async function getMemberWorkoutLogsDetailed(memberId: number, gymId: numb
   
   const lines: string[] = [`Here's what you did ${dateLabel}:`];
   for (const ex of completions) {
+    const name = ex.completionExerciseName || ex.itemExerciseName || 'Exercise';
     const details = [];
     if (ex.actualSets) details.push(`${ex.actualSets} sets`);
     if (ex.actualReps) details.push(`${ex.actualReps} reps`);
     if (ex.actualWeight) details.push(ex.actualWeight);
     const detailStr = details.length > 0 ? ` - ${details.join(', ')}` : '';
-    lines.push(`• ${ex.exerciseName}${detailStr}`);
+    lines.push(`• ${name}${detailStr}`);
   }
   
   return lines.join('\n');
@@ -509,13 +514,14 @@ export async function getTrainerMemberWorkoutOnDate(
   const targetDate = parseDate(dateRef);
   
   const completions = await db.select({
-    exerciseName: workoutItems.exerciseName,
+    completionExerciseName: workoutCompletions.exerciseName,
+    itemExerciseName: workoutItems.exerciseName,
     muscleType: workoutItems.muscleType,
     sets: workoutCompletions.actualSets,
     reps: workoutCompletions.actualReps,
   })
   .from(workoutCompletions)
-  .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+  .leftJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
   .where(
     and(
       eq(workoutCompletions.memberId, member.userId),

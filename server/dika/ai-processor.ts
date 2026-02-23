@@ -618,6 +618,12 @@ interface MemberContext {
     exercises: Array<{ name: string; muscleType: string; sets: number; reps: number; type: string; isSportExercise?: boolean }>;
     completedCount: number;
   } | null;
+  recentWorkoutHistory: Array<{
+    date: string;
+    exercises: Array<{ name: string; muscle: string; sets: number; reps: number; weight: string | null; completed: boolean }>;
+    completedCount: number;
+    missedCount: number;
+  }>;
   activeGoals: Array<{ title: string; category: string; targetValue: number | null; currentValue: number | null; targetUnit: string | null }>;
   fitnessGoals: {
     primaryGoal: string | null;
@@ -772,6 +778,41 @@ function getDateRanges() {
     today,
     currentMonth
   };
+}
+
+async function getRecentWorkoutHistory(userId: number, gymId: number | null): Promise<MemberContext['recentWorkoutHistory']> {
+  try {
+    const completionDates = await db.selectDistinct({ date: workoutCompletions.completedDate })
+      .from(workoutCompletions)
+      .where(eq(workoutCompletions.memberId, userId))
+      .orderBy(desc(workoutCompletions.completedDate))
+      .limit(14);
+
+    const recentDates = completionDates.map(d => d.date);
+    if (recentDates.length === 0) return [];
+
+    const { storage } = await import("../storage");
+    const datesToFetch = recentDates.slice(0, 5);
+    const analyticsResults = await Promise.all(
+      datesToFetch.map(date => storage.getMemberDailyAnalytics(gymId, userId, date))
+    );
+    return analyticsResults.map(analytics => ({
+      date: analytics.date,
+      exercises: analytics.exercises.map(e => ({
+        name: e.name,
+        muscle: e.muscle,
+        sets: e.sets,
+        reps: e.reps,
+        weight: e.weight,
+        completed: e.completed,
+      })),
+      completedCount: analytics.completedCount,
+      missedCount: analytics.missedCount,
+    }));
+  } catch (err) {
+    console.error('Failed to fetch recent workout history for Dika:', err);
+    return [];
+  }
 }
 
 async function getMemberDataContext(userId: number, gymId: number | null, localDate?: string): Promise<MemberContext> {
@@ -1230,6 +1271,7 @@ async function getMemberDataContext(userId: number, gymId: number | null, localD
     healthData: healthContext,
     nutrition: await getTodayNutritionSummary(userId, localDate),
     todayWorkout: todayWorkoutContext,
+    recentWorkoutHistory: await getRecentWorkoutHistory(userId, gymId),
     activeGoals: await getActiveGoals(userId),
     fitnessGoals: await (async () => {
       const [goalsRow] = await db.select().from(userGoals).where(eq(userGoals.userId, userId)).limit(1);
@@ -1757,6 +1799,24 @@ TODAY'S WORKOUT: No exercises scheduled`
 
     const subscriptionLine = isIOSNative ? '' : `\n- Subscription: ${ctx.subscriptionStatus}${ctx.subscriptionExpiryDate ? ` (expires ${ctx.subscriptionExpiryDate})` : ''}`;
 
+    const recentWorkoutSection = ctx.recentWorkoutHistory.length > 0 ? `
+RECENT WORKOUTS (actual data — use when user asks about past workouts):
+${ctx.recentWorkoutHistory.map(day => {
+  const dateObj = new Date(day.date + 'T00:00:00');
+  const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const completed = day.exercises.filter(e => e.completed);
+  const missed = day.exercises.filter(e => !e.completed);
+  let line = `${dayName} [${day.completedCount}/${day.completedCount + day.missedCount}]:`;
+  if (completed.length > 0) {
+    line += ' Done: ' + completed.map(e => `${e.name} ${e.sets}x${e.reps}${e.weight ? '@' + e.weight : ''}`).join(', ');
+  }
+  if (missed.length > 0) {
+    line += ' | Missed: ' + missed.map(e => e.name).join(', ');
+  }
+  return line;
+}).join('\n')}
+Use this actual data when asked about past workouts. Show real completions, not the scheduled plan.` : '';
+
     return basePrompt + `
 MEMBER DATA:
 - Workouts this week: ${ctx.workoutsThisWeek}
@@ -1765,6 +1825,7 @@ MEMBER DATA:
 - Current workout cycle: ${ctx.currentCycleName || 'None assigned'}
 - Gym attendance this month: ${ctx.attendanceThisMonth} days${subscriptionLine}
 ${todayWorkoutSection}
+${recentWorkoutSection}
 ${ctx.bodyMeasurements.latest ? `
 BODY MEASUREMENTS:
 - Latest (${ctx.bodyMeasurements.latest.date}): ${ctx.bodyMeasurements.latest.weight ? `Weight: ${ctx.bodyMeasurements.latest.weight}kg` : ''}${ctx.bodyMeasurements.latest.bodyFat ? `, Body Fat: ${ctx.bodyMeasurements.latest.bodyFat}%` : ''}
