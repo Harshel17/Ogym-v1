@@ -4247,13 +4247,21 @@ NUMBER FORMAT PARSING:
 CRITICAL RULES:
 - "replace" should ONLY be used when the user uses EXPLICIT replacement language like "instead of", "replaced", "swapped", "in place of". If the user just lists exercises they did, NEVER use replace.
 - If an exercise name does NOT closely match any planned exercise → use "add_extra". Do NOT guess a replacement.
-- Be strict with matching: "bench press" matches "Barbell Bench Press" or "Dumbbell Bench Press", but "incline bench press" does NOT match "Barbell Bench Press" — it's a different exercise entirely, so use add_extra.
+- EXERCISE MATCHING RULES (VERY IMPORTANT):
+  * An exercise with a QUALIFIER (incline, decline, cable, reverse, close-grip, etc.) is ALWAYS a DIFFERENT exercise from one without that qualifier or with a different qualifier.
+  * "incline bench press" ≠ "Barbell Bench Press" → add_extra
+  * "incline bench press" ≠ "Dumbbell Bench Press" → add_extra
+  * "decline bench press" ≠ "Barbell Bench Press" → add_extra
+  * "decline bench press" ≠ "Dumbbell Bench Press" → add_extra
+  * "cable rows" ≠ "Barbell Rows" → add_extra
+  * "close-grip bench press" ≠ "Barbell Bench Press" → add_extra
+  * "leg press" ≠ "Bench Press" → add_extra
+  * Only match when the exercise is truly the same movement: "bench" or "bench press" → "Barbell Bench Press" ✓, "squats" → "Barbell Squats" ✓, "OHP" → "Overhead Press" ✓
+  * If the user's exercise name has ANY qualifier/prefix not present in the planned exercise name, it is a DIFFERENT exercise → use add_extra.
 - If user says "finished everything", "done all", "completed today" → batch_complete all PENDING exercises
 - If user says "same as last Tuesday" or "repeat Monday" → find that date in history and create complete_with_details actions for each matching exercise found on that day
 - If user mentions reps/sets/weight, use complete_with_details (not just complete)
 - NEVER mark already completed exercises again (those marked ALREADY DONE above)
-- Be generous with fuzzy matching ONLY for close variants (e.g., "bench" = "Bench Press", "squats" = "Barbell Squats", "OHP" = "Overhead Press")
-- Do NOT fuzzy match exercises that are genuinely different (e.g., "incline bench press" ≠ "Barbell Bench Press", "leg press" ≠ "Bench Press")
 
 Each action object MUST have the key "type" (not "action") set to one of: "complete", "complete_with_details", "replace", "add_extra", "batch_complete".
 
