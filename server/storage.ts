@@ -2542,7 +2542,7 @@ export class DatabaseStorage implements IStorage {
         muscleGroups,
         exerciseCount: items.length,
         exercises: items.map((i: typeof filtered[0]) => ({
-          name: i.workoutItem?.exerciseName || i.phaseExercise?.exerciseName || i.completion.exerciseName || "Unknown",
+          name: i.completion.exerciseName || i.workoutItem?.exerciseName || i.phaseExercise?.exerciseName || "Unknown",
           muscleType: i.workoutItem?.muscleType || i.phaseExercise?.muscleType || "",
           sets: i.completion.actualSets,
           reps: i.completion.actualReps,
@@ -2576,7 +2576,7 @@ export class DatabaseStorage implements IStorage {
       type: "workout_completed",
       memberName: c.member.username,
       memberId: c.member.id,
-      exerciseName: c.workoutItem?.exerciseName || c.phaseExercise?.exerciseName || c.completion.exerciseName || "Unknown",
+      exerciseName: c.completion.exerciseName || c.workoutItem?.exerciseName || c.phaseExercise?.exerciseName || "Unknown",
       date: c.completion.completedDate,
       createdAt: c.completion.createdAt
     }));
@@ -4121,15 +4121,15 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // SOURCE 2: Trainer-assigned cycle completions (workoutCompletions) - from ANY cycle, not just active
+    // SOURCE 2: Cycle completions (workoutCompletions) - from ANY cycle, not just active
     const completions = await db.select({
       completion: workoutCompletions,
       item: workoutItems,
       cycle: workoutCycles
     })
     .from(workoutCompletions)
-    .innerJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
-    .innerJoin(workoutCycles, eq(workoutCompletions.cycleId, workoutCycles.id))
+    .leftJoin(workoutItems, eq(workoutCompletions.workoutItemId, workoutItems.id))
+    .leftJoin(workoutCycles, eq(workoutCompletions.cycleId, workoutCycles.id))
     .where(eq(workoutCompletions.memberId, memberId))
     .orderBy(desc(workoutCompletions.completedDate));
 
@@ -4149,16 +4149,16 @@ export class DatabaseStorage implements IStorage {
       if (sessionMap.has(date)) continue;
       
       // Get muscle types from the completed exercises
-      const muscleTypes = Array.from(new Set(dateCompletions.map(c => c.item.muscleType).filter(Boolean)));
+      const muscleTypes = Array.from(new Set(dateCompletions.map(c => c.item?.muscleType).filter(Boolean)));
       const title = muscleTypes.join(" + ") || "Workout";
 
       const exercises = dateCompletions.map(row => ({
         completionId: row.completion.id,
-        exerciseName: row.item.exerciseName,
-        muscleType: row.item.muscleType || "",
-        sets: row.item.sets,
-        reps: row.item.reps,
-        weight: row.item.weight,
+        exerciseName: row.completion.exerciseName || row.item?.exerciseName || "Extra Exercise",
+        muscleType: row.item?.muscleType || "",
+        sets: row.item?.sets || 0,
+        reps: row.item?.reps || 0,
+        weight: row.item?.weight || null,
         actualSets: row.completion.actualSets,
         actualReps: row.completion.actualReps,
         actualWeight: row.completion.actualWeight,

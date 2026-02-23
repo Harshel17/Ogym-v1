@@ -197,7 +197,7 @@ export default function WorkoutHistoryPage() {
                     </div>
                     <div>
                       <p className="font-semibold text-foreground">
-                        {format(new Date(session.date), "MMM dd, yyyy")}
+                        {format(new Date(session.date + "T00:00:00"), "MMM dd, yyyy")}
                       </p>
                       <p className="text-sm text-primary font-medium">{session.title}</p>
                     </div>
@@ -223,7 +223,7 @@ export default function WorkoutHistoryPage() {
               {selectedSession?.title}
             </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              {selectedSession && format(new Date(selectedSession.date), "EEEE, MMMM dd, yyyy")}
+              {selectedSession && format(new Date(selectedSession.date + "T00:00:00"), "EEEE, MMMM dd, yyyy")}
             </p>
           </DialogHeader>
 
