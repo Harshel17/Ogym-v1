@@ -4323,14 +4323,14 @@ No markdown, no code fences.`;
       const schema = z.object({
         actions: z.array(z.object({
           type: z.enum(["complete", "complete_with_details", "replace", "add_extra", "batch_complete"]),
-          workoutItemId: z.number().optional(),
-          workoutItemIds: z.array(z.number()).optional(),
-          actualSets: z.number().optional(),
-          actualReps: z.number().optional(),
-          actualWeight: z.string().optional(),
-          newExerciseName: z.string().optional(),
-          exerciseName: z.string().optional(),
-          muscleType: z.string().optional(),
+          workoutItemId: z.number().optional().nullable(),
+          workoutItemIds: z.array(z.number()).optional().nullable(),
+          actualSets: z.number().optional().nullable(),
+          actualReps: z.number().optional().nullable(),
+          actualWeight: z.string().optional().nullable(),
+          newExerciseName: z.string().optional().nullable(),
+          exerciseName: z.string().optional().nullable(),
+          muscleType: z.string().optional().nullable(),
         })),
         clientDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
       });
@@ -4398,9 +4398,9 @@ No markdown, no code fences.`;
             memberId: req.user!.id,
             completedDate: today,
             exerciseName: action.newExerciseName,
-            actualSets: action.actualSets,
-            actualReps: action.actualReps,
-            actualWeight: action.actualWeight,
+            actualSets: action.actualSets ?? undefined,
+            actualReps: action.actualReps ?? undefined,
+            actualWeight: action.actualWeight ?? undefined,
           });
           replacedCount++;
         } else if (action.type === 'add_extra') {
@@ -4410,9 +4410,9 @@ No markdown, no code fences.`;
             memberId: req.user!.id,
             completedDate: today,
             exerciseName: action.exerciseName,
-            actualSets: action.actualSets,
-            actualReps: action.actualReps,
-            actualWeight: action.actualWeight,
+            actualSets: action.actualSets ?? undefined,
+            actualReps: action.actualReps ?? undefined,
+            actualWeight: action.actualWeight ?? undefined,
           });
           addedCount++;
         }
