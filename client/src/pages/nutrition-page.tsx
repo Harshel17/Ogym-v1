@@ -10,7 +10,8 @@ import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } fro
 import { 
   Flame, Apple, Beef, Wheat, Droplet, Plus, Minus, Search, Loader2, 
   ChevronLeft, ChevronRight, Trash2, ScanLine, Target, X, TrendingUp, Calendar, BarChart3, Watch,
-  Droplets, Clock, Sparkles, Undo2, Zap, CheckCircle2, AlertTriangle, Camera, ImageIcon, Check
+  Droplets, Clock, Sparkles, Undo2, Zap, CheckCircle2, AlertTriangle, Camera, ImageIcon, Check,
+  UtensilsCrossed, ChevronDown, Store, Hand
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -172,7 +173,7 @@ export default function NutritionPage() {
   const [manualEntry, setManualEntry] = useState({ name: "", calories: "", protein: "", carbs: "", fat: "", restaurant: "" });
   const [showScanner, setShowScanner] = useState(false);
   const [isScanLookup, setIsScanLookup] = useState(false);
-  const [foodMode, setFoodMode] = useState<"search" | "recent" | "photo">("search");
+  const [foodMode, setFoodMode] = useState<"search" | "recent" | "photo" | "menu">("search");
   const [restaurantName, setRestaurantName] = useState("");
   const [showRestaurantDropdown, setShowRestaurantDropdown] = useState(false);
   const [restaurantSuggestions, setRestaurantSuggestions] = useState<Array<{ name: string; category: string }>>([]);
@@ -188,6 +189,18 @@ export default function NutritionPage() {
   } | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const [selectedSizeMultiplier, setSelectedSizeMultiplier] = useState<number>(1);
+
+  const [menuRestaurant, setMenuRestaurant] = useState<string>("");
+  const [menuData, setMenuData] = useState<{ name: string; categories: string[]; items: Array<{ name: string; calories: number; protein: number; carbs: number; fat: number; servingSize: string; category: string }>; commonModifiers: Array<{ name: string; caloriesDelta: number; proteinDelta: number; carbsDelta: number; fatDelta: number; type: string }> } | null>(null);
+  const [menuCategory, setMenuCategory] = useState<string | null>(null);
+  const [menuSelectedItem, setMenuSelectedItem] = useState<{ name: string; calories: number; protein: number; carbs: number; fat: number; servingSize: string; category: string } | null>(null);
+  const [menuSelectedMods, setMenuSelectedMods] = useState<Set<string>>(new Set());
+  const [menuSearch, setMenuSearch] = useState("");
+  const [menuLoading, setMenuLoading] = useState(false);
+  const [menuRestaurantSearch, setMenuRestaurantSearch] = useState("");
+  const [allRestaurants, setAllRestaurants] = useState<string[]>([]);
+  const [portionCategory, setPortionCategory] = useState<{ name: string; examples: string[]; portions: Array<{ label: string; emoji: string; description: string; gramsEstimate: number }>; defaultPortionIndex: number } | null>(null);
+  const [selectedPortionIdx, setSelectedPortionIdx] = useState<number>(1);
 
   const [isPhotoAnalyzing, setIsPhotoAnalyzing] = useState(false);
   const [photoResults, setPhotoResults] = useState<{
@@ -328,6 +341,23 @@ export default function NutritionPage() {
       }
     };
     fetchPresets();
+    const fetchPortionCategory = async () => {
+      try {
+        const res = await fetch(`/api/nutrition/portion-sizes/detect?food=${encodeURIComponent(selectedFood.name)}`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.category) {
+            setPortionCategory(data.category);
+            setSelectedPortionIdx(data.category.defaultPortionIndex);
+          } else {
+            setPortionCategory(null);
+          }
+        }
+      } catch {
+        setPortionCategory(null);
+      }
+    };
+    fetchPortionCategory();
   }, [selectedFood]);
 
   const resetAddFood = () => {
@@ -347,6 +377,15 @@ export default function NutritionPage() {
     setSelectedSizeMultiplier(1);
     setPhotoPreview(null);
     setPhotoResults(null);
+    setMenuRestaurant("");
+    setMenuData(null);
+    setMenuCategory(null);
+    setMenuSelectedItem(null);
+    setMenuSelectedMods(new Set());
+    setMenuSearch("");
+    setMenuRestaurantSearch("");
+    setPortionCategory(null);
+    setSelectedPortionIdx(1);
   };
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1725,9 +1764,310 @@ export default function NutritionPage() {
                   <Camera className="w-3 h-3 mr-1" />
                   Photo
                 </Button>
+                <Button
+                  variant={foodMode === "menu" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setFoodMode("menu");
+                    if (allRestaurants.length === 0) {
+                      fetch("/api/nutrition/restaurant-menus", { credentials: "include" })
+                        .then(r => r.json())
+                        .then(d => setAllRestaurants(d.restaurants || []))
+                        .catch(() => {});
+                    }
+                  }}
+                  className={foodMode !== "menu" ? "border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400" : "bg-orange-600 hover:bg-orange-700 text-white"}
+                  data-testid="button-food-mode-menu"
+                >
+                  <Store className="w-3 h-3 mr-1" />
+                  Menu
+                </Button>
               </div>
 
-              {foodMode === "photo" ? (
+              {foodMode === "menu" ? (
+                <div className="space-y-3">
+                  {!menuData ? (
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <Input
+                          placeholder="Search restaurants..."
+                          value={menuRestaurantSearch}
+                          onChange={(e) => setMenuRestaurantSearch(e.target.value)}
+                          className="text-base"
+                          data-testid="input-menu-restaurant-search"
+                        />
+                        <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2" />
+                      </div>
+                      <div className="space-y-1 max-h-[280px] overflow-y-auto">
+                        {(menuRestaurantSearch.trim().length >= 1
+                          ? allRestaurants.filter(r => r.toLowerCase().includes(menuRestaurantSearch.toLowerCase()))
+                          : allRestaurants
+                        ).map((r, i) => (
+                          <button
+                            key={r}
+                            className="w-full px-3 py-2.5 text-left hover-elevate flex items-center justify-between gap-2 rounded-md border"
+                            onClick={async () => {
+                              setMenuLoading(true);
+                              setMenuRestaurant(r);
+                              try {
+                                const res = await fetch(`/api/nutrition/restaurant-menus/${encodeURIComponent(r)}`, { credentials: "include" });
+                                const data = await res.json();
+                                if (data.found) {
+                                  setMenuData(data.menu);
+                                  setMenuCategory(null);
+                                  setMenuSelectedItem(null);
+                                  setMenuSelectedMods(new Set());
+                                  addRecentRestaurant(r);
+                                }
+                              } catch {}
+                              setMenuLoading(false);
+                            }}
+                            data-testid={`button-menu-restaurant-${i}`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Store className="w-4 h-4 text-orange-500" />
+                              <span className="font-medium text-sm">{r}</span>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                        ))}
+                        {allRestaurants.length === 0 && !menuLoading && (
+                          <div className="text-center py-6">
+                            <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground">Loading restaurants...</p>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">{allRestaurants.length} restaurants with real nutrition data</p>
+                    </div>
+                  ) : !menuSelectedItem ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => { setMenuData(null); setMenuRestaurant(""); setMenuCategory(null); setMenuSearch(""); }} data-testid="button-menu-back-restaurants">
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">{menuRestaurant}</p>
+                          <p className="text-xs text-muted-foreground">{menuData.items.length} menu items</p>
+                        </div>
+                      </div>
+                      
+                      <Input
+                        placeholder={`Search ${menuRestaurant} menu...`}
+                        value={menuSearch}
+                        onChange={(e) => setMenuSearch(e.target.value)}
+                        className="text-sm"
+                        data-testid="input-menu-item-search"
+                      />
+
+                      {!menuSearch.trim() && (
+                        <div className="flex gap-1.5 flex-wrap">
+                          <Button
+                            variant={menuCategory === null ? "default" : "outline"}
+                            size="sm"
+                            className="text-xs h-7"
+                            onClick={() => setMenuCategory(null)}
+                            data-testid="button-menu-category-all"
+                          >
+                            All
+                          </Button>
+                          {menuData.categories.map((cat) => (
+                            <Button
+                              key={cat}
+                              variant={menuCategory === cat ? "default" : "outline"}
+                              size="sm"
+                              className="text-xs h-7"
+                              onClick={() => setMenuCategory(cat)}
+                              data-testid={`button-menu-category-${cat}`}
+                            >
+                              {cat}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="space-y-0 max-h-[220px] overflow-y-auto rounded-lg border bg-card">
+                        {menuData.items
+                          .filter(item => {
+                            const matchesCat = !menuCategory || item.category === menuCategory;
+                            const matchesSearch = !menuSearch.trim() || item.name.toLowerCase().includes(menuSearch.toLowerCase());
+                            return matchesCat && matchesSearch;
+                          })
+                          .map((item, idx) => (
+                          <button
+                            key={`${item.name}-${idx}`}
+                            className={`w-full px-3 py-2.5 text-left hover-elevate flex items-center justify-between gap-2 ${idx > 0 ? 'border-t' : ''}`}
+                            onClick={() => {
+                              setMenuSelectedItem(item);
+                              setMenuSelectedMods(new Set());
+                            }}
+                            data-testid={`button-menu-item-${idx}`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm">{item.name}</p>
+                              <p className="text-xs text-muted-foreground">{item.servingSize}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="font-semibold text-sm">{item.calories}</p>
+                              <p className="text-[10px] text-muted-foreground">P:{item.protein}g C:{item.carbs}g F:{item.fat}g</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => { setMenuSelectedItem(null); setMenuSelectedMods(new Set()); }} data-testid="button-menu-back-items">
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm">{menuSelectedItem.name}</p>
+                          <p className="text-xs text-muted-foreground">{menuRestaurant} - {menuSelectedItem.servingSize}</p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border bg-card p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Base Nutrition</span>
+                          <Badge variant="default" className="bg-emerald-600 text-xs">Verified</Badge>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 text-center">
+                          <div>
+                            <p className="text-lg font-bold">{(() => {
+                              let cal = menuSelectedItem.calories;
+                              menuSelectedMods.forEach(modName => {
+                                const mod = menuData?.commonModifiers.find(m => m.name === modName);
+                                if (mod) cal += mod.caloriesDelta;
+                              });
+                              return Math.max(0, cal);
+                            })()}</p>
+                            <p className="text-[10px] text-muted-foreground">cal</p>
+                          </div>
+                          <div>
+                            <p className="text-lg font-bold text-blue-500">{(() => {
+                              let p = menuSelectedItem.protein;
+                              menuSelectedMods.forEach(modName => {
+                                const mod = menuData?.commonModifiers.find(m => m.name === modName);
+                                if (mod) p += mod.proteinDelta;
+                              });
+                              return Math.max(0, p);
+                            })()}g</p>
+                            <p className="text-[10px] text-muted-foreground">protein</p>
+                          </div>
+                          <div>
+                            <p className="text-lg font-bold text-amber-500">{(() => {
+                              let c = menuSelectedItem.carbs;
+                              menuSelectedMods.forEach(modName => {
+                                const mod = menuData?.commonModifiers.find(m => m.name === modName);
+                                if (mod) c += mod.carbsDelta;
+                              });
+                              return Math.max(0, c);
+                            })()}g</p>
+                            <p className="text-[10px] text-muted-foreground">carbs</p>
+                          </div>
+                          <div>
+                            <p className="text-lg font-bold text-red-500">{(() => {
+                              let f = menuSelectedItem.fat;
+                              menuSelectedMods.forEach(modName => {
+                                const mod = menuData?.commonModifiers.find(m => m.name === modName);
+                                if (mod) f += mod.fatDelta;
+                              });
+                              return Math.max(0, f);
+                            })()}g</p>
+                            <p className="text-[10px] text-muted-foreground">fat</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {menuData && menuData.commonModifiers.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium flex items-center gap-1.5">
+                            <UtensilsCrossed className="w-3.5 h-3.5 text-orange-500" />
+                            Any customizations?
+                          </p>
+                          <div className="space-y-1 max-h-[140px] overflow-y-auto">
+                            {menuData.commonModifiers.map((mod) => {
+                              const isSelected = menuSelectedMods.has(mod.name);
+                              return (
+                                <button
+                                  key={mod.name}
+                                  className={cn(
+                                    "w-full px-3 py-2 text-left rounded-md border text-sm flex items-center justify-between gap-2 transition-colors",
+                                    isSelected ? "bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700" : "hover:bg-muted/50"
+                                  )}
+                                  onClick={() => {
+                                    setMenuSelectedMods(prev => {
+                                      const next = new Set(prev);
+                                      if (next.has(mod.name)) next.delete(mod.name);
+                                      else next.add(mod.name);
+                                      return next;
+                                    });
+                                  }}
+                                  data-testid={`button-mod-${mod.name}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className={cn("w-4 h-4 rounded border flex items-center justify-center", isSelected ? "bg-orange-500 border-orange-500" : "border-muted-foreground/30")}>
+                                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                                    </div>
+                                    <span>{mod.name}</span>
+                                  </div>
+                                  <span className={cn("text-xs tabular-nums", mod.caloriesDelta > 0 ? "text-red-500" : mod.caloriesDelta < 0 ? "text-green-500" : "text-muted-foreground")}>
+                                    {mod.caloriesDelta > 0 ? `+${mod.caloriesDelta}` : mod.caloriesDelta} cal
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      <Button
+                        className="w-full bg-gradient-to-r from-orange-500 to-amber-600 text-white"
+                        onClick={() => {
+                          let cal = menuSelectedItem.calories;
+                          let protein = menuSelectedItem.protein;
+                          let carbs = menuSelectedItem.carbs;
+                          let fat = menuSelectedItem.fat;
+                          const modNames: string[] = [];
+                          menuSelectedMods.forEach(modName => {
+                            const mod = menuData?.commonModifiers.find(m => m.name === modName);
+                            if (mod) {
+                              cal += mod.caloriesDelta;
+                              protein += mod.proteinDelta;
+                              carbs += mod.carbsDelta;
+                              fat += mod.fatDelta;
+                              modNames.push(mod.name);
+                            }
+                          });
+                          const customSuffix = modNames.length > 0 ? ` (${modNames.join(", ")})` : "";
+                          logFoodMutation.mutate({
+                            date: dateStr,
+                            mealType: selectedMealType,
+                            mealLabel: selectedMealType === "extra" ? extraMealLabel.trim() : null,
+                            foodName: menuSelectedItem.name + customSuffix,
+                            brandName: menuRestaurant,
+                            servingSize: menuSelectedItem.servingSize,
+                            quantity: 1,
+                            calories: Math.max(0, cal),
+                            protein: Math.max(0, protein),
+                            carbs: Math.max(0, carbs),
+                            fat: Math.max(0, fat),
+                            barcode: null,
+                            isEstimate: false,
+                            sourceType: "restaurant_menu",
+                          });
+                        }}
+                        disabled={logFoodMutation.isPending}
+                        data-testid="button-log-menu-item"
+                      >
+                        {logFoodMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Check className="w-4 h-4 mr-1.5" />}
+                        Log This Item
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : foodMode === "photo" ? (
                 <div className="space-y-4">
                   <input
                     ref={photoInputRef}
@@ -2319,6 +2659,45 @@ export default function NutritionPage() {
                   <X className="w-4 h-4" />
                 </Button>
               </div>
+
+              {portionCategory && !foodTypePresets && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Hand className="w-3.5 h-3.5" />
+                    How much did you eat? ({portionCategory.name})
+                  </Label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {portionCategory.portions.map((p, idx) => {
+                      const isActive = selectedPortionIdx === idx;
+                      return (
+                        <button
+                          key={idx}
+                          className={cn(
+                            "px-2.5 py-2 rounded-lg border text-left transition-colors",
+                            isActive ? "bg-primary/10 border-primary" : "hover:bg-muted/50"
+                          )}
+                          onClick={() => {
+                            setSelectedPortionIdx(idx);
+                            const defaultGrams = portionCategory.portions[portionCategory.defaultPortionIndex].gramsEstimate;
+                            const mult = p.gramsEstimate / defaultGrams;
+                            setQuantity(String(Math.round(mult * 100) / 100));
+                          }}
+                          data-testid={`button-portion-${idx}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{p.emoji}</span>
+                            <div>
+                              <p className="text-sm font-medium">{p.label}</p>
+                              <p className="text-[10px] text-muted-foreground">{p.description}</p>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic">Tap a size to set your portion automatically</p>
+                </div>
+              )}
 
               {foodTypePresets ? (
                 <div className="space-y-3">

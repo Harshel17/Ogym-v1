@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { db } from "../db";
 import { foodLogs, calorieGoals, waterLogs } from "@shared/schema";
 import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
+import { getRestaurantMenu, searchRestaurantMenuItems, getAllRestaurantNames, type MenuItem } from "../nutrition/restaurant-menus";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
@@ -158,10 +159,73 @@ export function looksLikeRestaurantFood(message: string): boolean {
   return RESTAURANT_FOOD_KEYWORDS.some(keyword => lower.includes(keyword));
 }
 
+function tryMatchRestaurantItems(message: string, restaurantName: string): ParsedMealItem[] {
+  const matched: ParsedMealItem[] = [];
+  
+  const menuItems = searchRestaurantMenuItems(restaurantName, message);
+  if (menuItems.length > 0) {
+    for (const item of menuItems.slice(0, 5)) {
+      matched.push({
+        foodName: `${item.name} (${restaurantName})`,
+        calories: item.calories,
+        protein: item.protein,
+        carbs: item.carbs,
+        fat: item.fat,
+        servingSize: item.servingSize,
+        servingQuantity: 1,
+      });
+    }
+  }
+  
+  if (matched.length === 0) {
+    const menu = getRestaurantMenu(restaurantName);
+    if (menu) {
+      const words = message.toLowerCase().split(/\s+/);
+      for (const item of menu.items) {
+        const itemWords = item.name.toLowerCase().split(/\s+/);
+        const matchCount = itemWords.filter(w => words.some(mw => mw.includes(w) || w.includes(mw))).length;
+        if (matchCount >= Math.min(2, itemWords.length)) {
+          matched.push({
+            foodName: `${item.name} (${restaurantName})`,
+            calories: item.calories,
+            protein: item.protein,
+            carbs: item.carbs,
+            fat: item.fat,
+            servingSize: item.servingSize,
+            servingQuantity: 1,
+          });
+        }
+      }
+    }
+  }
+  return matched;
+}
+
 export async function parseMealFromMessage(message: string, restaurantName?: string): Promise<ParsedMeal | null> {
   try {
     const guessedMealType = guessMealType(message);
     const detectedRestaurant = restaurantName || detectRestaurantInMessage(message);
+
+    if (detectedRestaurant) {
+      const menuMatches = tryMatchRestaurantItems(message, detectedRestaurant);
+      if (menuMatches.length > 0) {
+        let totalCalories = 0, totalProtein = 0, totalCarbs = 0, totalFat = 0;
+        menuMatches.forEach(item => {
+          totalCalories += item.calories;
+          totalProtein += item.protein;
+          totalCarbs += item.carbs;
+          totalFat += item.fat;
+        });
+        return {
+          mealType: guessedMealType,
+          items: menuMatches,
+          totalCalories,
+          totalProtein,
+          totalCarbs,
+          totalFat,
+        };
+      }
+    }
 
     const restaurantInstruction = detectedRestaurant
       ? `IMPORTANT: This food is from "${detectedRestaurant}". Use the EXACT official nutrition data published by ${detectedRestaurant}. Be as accurate as possible to the actual restaurant menu item.`

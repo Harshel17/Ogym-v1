@@ -5625,6 +5625,79 @@ Return ONLY JSON.`
     }
   });
 
+  app.get("/api/nutrition/restaurant-menus", requireRole(["member"]), async (req, res) => {
+    try {
+      const { getAllRestaurantNames } = await import("./nutrition/restaurant-menus");
+      const restaurants = getAllRestaurantNames();
+      res.json({ restaurants });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to load restaurant list" });
+    }
+  });
+
+  app.get("/api/nutrition/restaurant-menus/:name", requireRole(["member"]), async (req, res) => {
+    try {
+      const { getRestaurantMenu } = await import("./nutrition/restaurant-menus");
+      const menu = getRestaurantMenu(decodeURIComponent(req.params.name));
+      if (!menu) {
+        return res.json({ menu: null, found: false });
+      }
+      res.json({ menu, found: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to load restaurant menu" });
+    }
+  });
+
+  app.post("/api/nutrition/restaurant-menus/calculate", requireRole(["member"]), async (req, res) => {
+    try {
+      const schema = z.object({
+        restaurant: z.string(),
+        itemName: z.string(),
+        modifierNames: z.array(z.string()),
+      });
+      const { restaurant, itemName, modifierNames } = schema.parse(req.body);
+      const { getRestaurantMenu, applyModifiers } = await import("./nutrition/restaurant-menus");
+      const menu = getRestaurantMenu(restaurant);
+      if (!menu) {
+        return res.status(404).json({ message: "Restaurant not found" });
+      }
+      const item = menu.items.find(i => i.name === itemName);
+      if (!item) {
+        return res.status(404).json({ message: "Menu item not found" });
+      }
+      const selectedMods = menu.commonModifiers.filter(m => modifierNames.includes(m.name));
+      const adjusted = applyModifiers(item, selectedMods);
+      res.json({
+        original: item,
+        adjusted,
+        appliedModifiers: selectedMods,
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to calculate" });
+    }
+  });
+
+  app.get("/api/nutrition/portion-sizes", requireRole(["member"]), async (req, res) => {
+    try {
+      const { PORTION_CATEGORIES } = await import("./nutrition/portion-sizes");
+      res.json({ categories: PORTION_CATEGORIES });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to load portion sizes" });
+    }
+  });
+
+  app.get("/api/nutrition/portion-sizes/detect", requireRole(["member"]), async (req, res) => {
+    try {
+      const foodName = req.query.food as string;
+      if (!foodName) return res.json({ category: null });
+      const { detectFoodCategory } = await import("./nutrition/portion-sizes");
+      const category = detectFoodCategory(foodName);
+      res.json({ category });
+    } catch (error) {
+      res.json({ category: null });
+    }
+  });
+
   app.post("/api/nutrition/find-nearby-restaurants", requireRole(["member"]), async (req, res) => {
     try {
       const schema = z.object({

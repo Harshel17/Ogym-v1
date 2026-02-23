@@ -1,0 +1,1090 @@
+export interface MenuItem {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  servingSize: string;
+  category: string;
+}
+
+export interface MenuModifier {
+  name: string;
+  caloriesDelta: number;
+  proteinDelta: number;
+  carbsDelta: number;
+  fatDelta: number;
+  type: 'add' | 'remove' | 'swap';
+}
+
+export interface RestaurantMenu {
+  name: string;
+  categories: string[];
+  items: MenuItem[];
+  commonModifiers: MenuModifier[];
+}
+
+export const RESTAURANT_MENUS: Record<string, RestaurantMenu> = {
+  "McDonald's": {
+    name: "McDonald's",
+    categories: ["Burgers", "Chicken", "Breakfast", "Sides", "Drinks", "Desserts"],
+    items: [
+      { name: "Big Mac", calories: 550, protein: 25, carbs: 45, fat: 30, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Quarter Pounder with Cheese", calories: 520, protein: 30, carbs: 42, fat: 27, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Double Quarter Pounder with Cheese", calories: 740, protein: 48, carbs: 43, fat: 42, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "McDouble", calories: 400, protein: 22, carbs: 33, fat: 20, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Cheeseburger", calories: 300, protein: 15, carbs: 33, fat: 12, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Hamburger", calories: 250, protein: 12, carbs: 31, fat: 9, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "McChicken", calories: 400, protein: 14, carbs: 39, fat: 21, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "Spicy McChicken", calories: 420, protein: 15, carbs: 41, fat: 22, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "10pc Chicken McNuggets", calories: 410, protein: 24, carbs: 25, fat: 24, servingSize: "10 pieces", category: "Chicken" },
+      { name: "6pc Chicken McNuggets", calories: 250, protein: 14, carbs: 15, fat: 15, servingSize: "6 pieces", category: "Chicken" },
+      { name: "Crispy Chicken Sandwich", calories: 470, protein: 26, carbs: 45, fat: 20, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "Filet-O-Fish", calories: 390, protein: 16, carbs: 39, fat: 19, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "Egg McMuffin", calories: 300, protein: 17, carbs: 30, fat: 12, servingSize: "1 sandwich", category: "Breakfast" },
+      { name: "Sausage McMuffin with Egg", calories: 480, protein: 21, carbs: 30, fat: 30, servingSize: "1 sandwich", category: "Breakfast" },
+      { name: "Hotcakes", calories: 580, protein: 9, carbs: 102, fat: 15, servingSize: "3 pancakes", category: "Breakfast" },
+      { name: "Sausage Burrito", calories: 310, protein: 12, carbs: 26, fat: 17, servingSize: "1 burrito", category: "Breakfast" },
+      { name: "Hash Brown", calories: 140, protein: 1, carbs: 15, fat: 8, servingSize: "1 piece", category: "Breakfast" },
+      { name: "Medium Fries", calories: 320, protein: 5, carbs: 43, fat: 15, servingSize: "medium", category: "Sides" },
+      { name: "Large Fries", calories: 480, protein: 7, carbs: 65, fat: 23, servingSize: "large", category: "Sides" },
+      { name: "Small Fries", calories: 220, protein: 3, carbs: 29, fat: 10, servingSize: "small", category: "Sides" },
+      { name: "Apple Slices", calories: 15, protein: 0, carbs: 4, fat: 0, servingSize: "1 bag", category: "Sides" },
+      { name: "Medium Coca-Cola", calories: 210, protein: 0, carbs: 58, fat: 0, servingSize: "medium", category: "Drinks" },
+      { name: "Medium Sprite", calories: 200, protein: 0, carbs: 54, fat: 0, servingSize: "medium", category: "Drinks" },
+      { name: "Iced Coffee (Medium)", calories: 180, protein: 2, carbs: 30, fat: 6, servingSize: "medium", category: "Drinks" },
+      { name: "McFlurry with OREO", calories: 510, protein: 12, carbs: 80, fat: 17, servingSize: "regular", category: "Desserts" },
+      { name: "McFlurry with M&M's", calories: 640, protein: 14, carbs: 96, fat: 23, servingSize: "regular", category: "Desserts" },
+      { name: "Vanilla Cone", calories: 200, protein: 5, carbs: 32, fat: 5, servingSize: "1 cone", category: "Desserts" },
+      { name: "Apple Pie", calories: 230, protein: 2, carbs: 34, fat: 11, servingSize: "1 pie", category: "Desserts" },
+    ],
+    commonModifiers: [
+      { name: "No Cheese", caloriesDelta: -50, proteinDelta: -3, carbsDelta: 0, fatDelta: -4, type: "remove" },
+      { name: "Extra Cheese", caloriesDelta: 50, proteinDelta: 3, carbsDelta: 0, fatDelta: 4, type: "add" },
+      { name: "No Sauce", caloriesDelta: -50, proteinDelta: 0, carbsDelta: -2, fatDelta: -5, type: "remove" },
+      { name: "Add Bacon", caloriesDelta: 60, proteinDelta: 4, carbsDelta: 0, fatDelta: 5, type: "add" },
+      { name: "No Bun (Lettuce Wrap)", caloriesDelta: -150, proteinDelta: -3, carbsDelta: -28, fatDelta: -3, type: "swap" },
+      { name: "No Pickles", caloriesDelta: -5, proteinDelta: 0, carbsDelta: -1, fatDelta: 0, type: "remove" },
+      { name: "No Onions", caloriesDelta: -5, proteinDelta: 0, carbsDelta: -1, fatDelta: 0, type: "remove" },
+      { name: "Extra Patty", caloriesDelta: 210, proteinDelta: 15, carbsDelta: 0, fatDelta: 16, type: "add" },
+    ],
+  },
+
+  "Chipotle": {
+    name: "Chipotle",
+    categories: ["Bowls", "Burritos", "Tacos", "Salads", "Sides", "Drinks"],
+    items: [
+      { name: "Chicken Burrito Bowl", calories: 665, protein: 40, carbs: 70, fat: 22, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Steak Burrito Bowl", calories: 700, protein: 38, carbs: 70, fat: 25, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Barbacoa Burrito Bowl", calories: 680, protein: 36, carbs: 70, fat: 24, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Carnitas Burrito Bowl", calories: 720, protein: 34, carbs: 70, fat: 28, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Sofritas Burrito Bowl", calories: 610, protein: 20, carbs: 73, fat: 22, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Veggie Burrito Bowl", calories: 520, protein: 12, carbs: 72, fat: 18, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Chicken Burrito", calories: 1030, protein: 52, carbs: 102, fat: 38, servingSize: "1 burrito", category: "Burritos" },
+      { name: "Steak Burrito", calories: 1065, protein: 50, carbs: 102, fat: 41, servingSize: "1 burrito", category: "Burritos" },
+      { name: "Chicken Tacos (3)", calories: 610, protein: 34, carbs: 42, fat: 24, servingSize: "3 tacos", category: "Tacos" },
+      { name: "Steak Tacos (3)", calories: 645, protein: 32, carbs: 42, fat: 27, servingSize: "3 tacos", category: "Tacos" },
+      { name: "Chicken Salad", calories: 490, protein: 42, carbs: 22, fat: 22, servingSize: "1 salad", category: "Salads" },
+      { name: "Chips", calories: 540, protein: 7, carbs: 73, fat: 24, servingSize: "1 serving", category: "Sides" },
+      { name: "Chips & Guacamole", calories: 770, protein: 10, carbs: 81, fat: 44, servingSize: "1 serving", category: "Sides" },
+      { name: "Chips & Queso", calories: 780, protein: 19, carbs: 82, fat: 40, servingSize: "1 serving", category: "Sides" },
+      { name: "Side of Guac", calories: 230, protein: 3, carbs: 8, fat: 20, servingSize: "1 side", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "Add Guacamole", caloriesDelta: 230, proteinDelta: 3, carbsDelta: 8, fatDelta: 20, type: "add" },
+      { name: "Add Sour Cream", caloriesDelta: 110, proteinDelta: 2, carbsDelta: 2, fatDelta: 9, type: "add" },
+      { name: "No Sour Cream", caloriesDelta: -110, proteinDelta: -2, carbsDelta: -2, fatDelta: -9, type: "remove" },
+      { name: "Add Cheese", caloriesDelta: 110, proteinDelta: 7, carbsDelta: 1, fatDelta: 9, type: "add" },
+      { name: "No Cheese", caloriesDelta: -110, proteinDelta: -7, carbsDelta: -1, fatDelta: -9, type: "remove" },
+      { name: "No Rice", caloriesDelta: -210, proteinDelta: -4, carbsDelta: -40, fatDelta: -4, type: "remove" },
+      { name: "No Beans", caloriesDelta: -130, proteinDelta: -8, carbsDelta: -22, fatDelta: -1, type: "remove" },
+      { name: "Double Meat", caloriesDelta: 180, proteinDelta: 22, carbsDelta: 0, fatDelta: 8, type: "add" },
+      { name: "Extra Rice", caloriesDelta: 210, proteinDelta: 4, carbsDelta: 40, fatDelta: 4, type: "add" },
+      { name: "Add Queso", caloriesDelta: 120, proteinDelta: 6, carbsDelta: 4, fatDelta: 8, type: "add" },
+    ],
+  },
+
+  "Subway": {
+    name: "Subway",
+    categories: ["Footlong Subs", "6-inch Subs", "Wraps", "Salads", "Sides", "Drinks"],
+    items: [
+      { name: "Turkey Breast Footlong", calories: 560, protein: 36, carbs: 82, fat: 8, servingSize: "1 footlong", category: "Footlong Subs" },
+      { name: "Italian B.M.T. Footlong", calories: 820, protein: 36, carbs: 84, fat: 34, servingSize: "1 footlong", category: "Footlong Subs" },
+      { name: "Chicken Teriyaki Footlong", calories: 720, protein: 46, carbs: 96, fat: 14, servingSize: "1 footlong", category: "Footlong Subs" },
+      { name: "Meatball Marinara Footlong", calories: 920, protein: 40, carbs: 100, fat: 36, servingSize: "1 footlong", category: "Footlong Subs" },
+      { name: "Steak & Cheese Footlong", calories: 740, protein: 44, carbs: 82, fat: 24, servingSize: "1 footlong", category: "Footlong Subs" },
+      { name: "Tuna Footlong", calories: 880, protein: 32, carbs: 82, fat: 44, servingSize: "1 footlong", category: "Footlong Subs" },
+      { name: "Cold Cut Combo Footlong", calories: 660, protein: 28, carbs: 84, fat: 22, servingSize: "1 footlong", category: "Footlong Subs" },
+      { name: "Turkey Breast 6-inch", calories: 280, protein: 18, carbs: 41, fat: 4, servingSize: "6 inch", category: "6-inch Subs" },
+      { name: "Italian B.M.T. 6-inch", calories: 410, protein: 18, carbs: 42, fat: 17, servingSize: "6 inch", category: "6-inch Subs" },
+      { name: "Chicken Teriyaki 6-inch", calories: 360, protein: 23, carbs: 48, fat: 7, servingSize: "6 inch", category: "6-inch Subs" },
+      { name: "Veggie Delite 6-inch", calories: 200, protein: 8, carbs: 40, fat: 2, servingSize: "6 inch", category: "6-inch Subs" },
+      { name: "Cookies (2)", calories: 400, protein: 4, carbs: 56, fat: 18, servingSize: "2 cookies", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "Add Cheese", caloriesDelta: 40, proteinDelta: 3, carbsDelta: 0, fatDelta: 3, type: "add" },
+      { name: "Extra Meat", caloriesDelta: 80, proteinDelta: 10, carbsDelta: 0, fatDelta: 3, type: "add" },
+      { name: "Add Bacon", caloriesDelta: 80, proteinDelta: 6, carbsDelta: 0, fatDelta: 6, type: "add" },
+      { name: "Add Avocado", caloriesDelta: 80, proteinDelta: 1, carbsDelta: 4, fatDelta: 7, type: "add" },
+      { name: "Mayo", caloriesDelta: 110, proteinDelta: 0, carbsDelta: 0, fatDelta: 12, type: "add" },
+      { name: "No Mayo", caloriesDelta: -110, proteinDelta: 0, carbsDelta: 0, fatDelta: -12, type: "remove" },
+      { name: "Oil & Vinegar", caloriesDelta: 45, proteinDelta: 0, carbsDelta: 0, fatDelta: 5, type: "add" },
+      { name: "Toasted", caloriesDelta: 0, proteinDelta: 0, carbsDelta: 0, fatDelta: 0, type: "add" },
+    ],
+  },
+
+  "Chick-fil-A": {
+    name: "Chick-fil-A",
+    categories: ["Chicken Sandwiches", "Nuggets & Strips", "Salads", "Breakfast", "Sides", "Drinks", "Desserts"],
+    items: [
+      { name: "Chick-fil-A Chicken Sandwich", calories: 440, protein: 28, carbs: 40, fat: 19, servingSize: "1 sandwich", category: "Chicken Sandwiches" },
+      { name: "Spicy Chicken Sandwich", calories: 450, protein: 28, carbs: 42, fat: 19, servingSize: "1 sandwich", category: "Chicken Sandwiches" },
+      { name: "Deluxe Chicken Sandwich", calories: 500, protein: 29, carbs: 42, fat: 22, servingSize: "1 sandwich", category: "Chicken Sandwiches" },
+      { name: "Grilled Chicken Sandwich", calories: 320, protein: 28, carbs: 36, fat: 6, servingSize: "1 sandwich", category: "Chicken Sandwiches" },
+      { name: "Chicken Nuggets (8ct)", calories: 250, protein: 27, carbs: 11, fat: 11, servingSize: "8 pieces", category: "Nuggets & Strips" },
+      { name: "Chicken Nuggets (12ct)", calories: 380, protein: 40, carbs: 16, fat: 17, servingSize: "12 pieces", category: "Nuggets & Strips" },
+      { name: "Chick-n-Strips (3ct)", calories: 310, protein: 28, carbs: 14, fat: 15, servingSize: "3 strips", category: "Nuggets & Strips" },
+      { name: "Grilled Nuggets (8ct)", calories: 130, protein: 25, carbs: 1, fat: 3, servingSize: "8 pieces", category: "Nuggets & Strips" },
+      { name: "Cobb Salad", calories: 510, protein: 40, carbs: 28, fat: 27, servingSize: "1 salad", category: "Salads" },
+      { name: "Spicy Southwest Salad", calories: 450, protein: 33, carbs: 28, fat: 22, servingSize: "1 salad", category: "Salads" },
+      { name: "Chicken Biscuit", calories: 440, protein: 17, carbs: 46, fat: 20, servingSize: "1 biscuit", category: "Breakfast" },
+      { name: "Egg White Grill", calories: 300, protein: 25, carbs: 31, fat: 7, servingSize: "1 sandwich", category: "Breakfast" },
+      { name: "Waffle Fries (Medium)", calories: 420, protein: 5, carbs: 45, fat: 24, servingSize: "medium", category: "Sides" },
+      { name: "Waffle Fries (Large)", calories: 520, protein: 7, carbs: 56, fat: 30, servingSize: "large", category: "Sides" },
+      { name: "Mac & Cheese (Medium)", calories: 440, protein: 16, carbs: 44, fat: 22, servingSize: "medium", category: "Sides" },
+      { name: "Fruit Cup (Medium)", calories: 60, protein: 0, carbs: 15, fat: 0, servingSize: "medium", category: "Sides" },
+      { name: "Lemonade (Medium)", calories: 220, protein: 0, carbs: 58, fat: 0, servingSize: "medium", category: "Drinks" },
+      { name: "Iced Tea (Medium)", calories: 0, protein: 0, carbs: 0, fat: 0, servingSize: "medium", category: "Drinks" },
+      { name: "Chocolate Milkshake", calories: 580, protein: 14, carbs: 82, fat: 22, servingSize: "1 shake", category: "Desserts" },
+      { name: "Chocolate Chip Cookie", calories: 350, protein: 4, carbs: 49, fat: 16, servingSize: "1 cookie", category: "Desserts" },
+    ],
+    commonModifiers: [
+      { name: "No Pickles", caloriesDelta: -5, proteinDelta: 0, carbsDelta: -1, fatDelta: 0, type: "remove" },
+      { name: "No Butter on Bun", caloriesDelta: -30, proteinDelta: 0, carbsDelta: 0, fatDelta: -3, type: "remove" },
+      { name: "Add Cheese", caloriesDelta: 50, proteinDelta: 3, carbsDelta: 0, fatDelta: 4, type: "add" },
+      { name: "Add Bacon", caloriesDelta: 60, proteinDelta: 5, carbsDelta: 0, fatDelta: 5, type: "add" },
+      { name: "Extra Sauce", caloriesDelta: 60, proteinDelta: 0, carbsDelta: 2, fatDelta: 6, type: "add" },
+      { name: "No Bun (Lettuce Wrap)", caloriesDelta: -140, proteinDelta: -3, carbsDelta: -28, fatDelta: -2, type: "swap" },
+    ],
+  },
+
+  "Burger King": {
+    name: "Burger King",
+    categories: ["Burgers", "Chicken", "Breakfast", "Sides", "Drinks", "Desserts"],
+    items: [
+      { name: "Whopper", calories: 660, protein: 28, carbs: 49, fat: 40, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Whopper with Cheese", calories: 710, protein: 31, carbs: 50, fat: 43, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Double Whopper", calories: 870, protein: 46, carbs: 49, fat: 56, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Bacon King", calories: 1150, protein: 61, carbs: 49, fat: 79, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Impossible Whopper", calories: 630, protein: 25, carbs: 58, fat: 34, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Cheeseburger", calories: 300, protein: 16, carbs: 27, fat: 14, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Original Chicken Sandwich", calories: 660, protein: 28, carbs: 54, fat: 38, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "Chicken Fries (9pc)", calories: 280, protein: 16, carbs: 19, fat: 15, servingSize: "9 pieces", category: "Chicken" },
+      { name: "Chicken Nuggets (8pc)", calories: 310, protein: 16, carbs: 19, fat: 20, servingSize: "8 pieces", category: "Chicken" },
+      { name: "Croissanwich (Sausage, Egg, Cheese)", calories: 510, protein: 19, carbs: 31, fat: 34, servingSize: "1 sandwich", category: "Breakfast" },
+      { name: "Medium Fries", calories: 380, protein: 5, carbs: 50, fat: 18, servingSize: "medium", category: "Sides" },
+      { name: "Onion Rings (Medium)", calories: 410, protein: 5, carbs: 53, fat: 20, servingSize: "medium", category: "Sides" },
+      { name: "Medium Coca-Cola", calories: 210, protein: 0, carbs: 58, fat: 0, servingSize: "medium", category: "Drinks" },
+      { name: "Chocolate Shake", calories: 590, protein: 13, carbs: 79, fat: 24, servingSize: "1 shake", category: "Desserts" },
+    ],
+    commonModifiers: [
+      { name: "No Cheese", caloriesDelta: -50, proteinDelta: -3, carbsDelta: -1, fatDelta: -4, type: "remove" },
+      { name: "Extra Cheese", caloriesDelta: 50, proteinDelta: 3, carbsDelta: 1, fatDelta: 4, type: "add" },
+      { name: "No Mayo", caloriesDelta: -80, proteinDelta: 0, carbsDelta: 0, fatDelta: -9, type: "remove" },
+      { name: "Add Bacon", caloriesDelta: 60, proteinDelta: 4, carbsDelta: 0, fatDelta: 5, type: "add" },
+      { name: "No Bun", caloriesDelta: -140, proteinDelta: -3, carbsDelta: -28, fatDelta: -2, type: "swap" },
+    ],
+  },
+
+  "Taco Bell": {
+    name: "Taco Bell",
+    categories: ["Tacos", "Burritos", "Quesadillas", "Specialties", "Sides", "Drinks"],
+    items: [
+      { name: "Crunchy Taco", calories: 170, protein: 8, carbs: 13, fat: 9, servingSize: "1 taco", category: "Tacos" },
+      { name: "Crunchy Taco Supreme", calories: 190, protein: 8, carbs: 15, fat: 11, servingSize: "1 taco", category: "Tacos" },
+      { name: "Soft Taco", calories: 180, protein: 9, carbs: 18, fat: 8, servingSize: "1 taco", category: "Tacos" },
+      { name: "Doritos Locos Tacos", calories: 170, protein: 8, carbs: 13, fat: 9, servingSize: "1 taco", category: "Tacos" },
+      { name: "Chalupa Supreme (Beef)", calories: 350, protein: 14, carbs: 30, fat: 20, servingSize: "1 chalupa", category: "Tacos" },
+      { name: "Bean Burrito", calories: 380, protein: 14, carbs: 55, fat: 11, servingSize: "1 burrito", category: "Burritos" },
+      { name: "Beefy 5-Layer Burrito", calories: 500, protein: 19, carbs: 63, fat: 19, servingSize: "1 burrito", category: "Burritos" },
+      { name: "Crunchwrap Supreme", calories: 530, protein: 16, carbs: 68, fat: 21, servingSize: "1 crunchwrap", category: "Specialties" },
+      { name: "Mexican Pizza", calories: 540, protein: 20, carbs: 48, fat: 30, servingSize: "1 pizza", category: "Specialties" },
+      { name: "Quesadilla (Chicken)", calories: 500, protein: 27, carbs: 37, fat: 26, servingSize: "1 quesadilla", category: "Quesadillas" },
+      { name: "Quesadilla (Steak)", calories: 520, protein: 26, carbs: 37, fat: 28, servingSize: "1 quesadilla", category: "Quesadillas" },
+      { name: "Nachos BellGrande", calories: 740, protein: 16, carbs: 82, fat: 38, servingSize: "1 serving", category: "Sides" },
+      { name: "Chips & Nacho Cheese", calories: 220, protein: 3, carbs: 26, fat: 12, servingSize: "1 serving", category: "Sides" },
+      { name: "Cinnamon Twists", calories: 170, protein: 1, carbs: 27, fat: 7, servingSize: "1 serving", category: "Sides" },
+      { name: "Baja Blast (Medium)", calories: 220, protein: 0, carbs: 60, fat: 0, servingSize: "medium", category: "Drinks" },
+    ],
+    commonModifiers: [
+      { name: "No Sour Cream", caloriesDelta: -30, proteinDelta: -1, carbsDelta: -1, fatDelta: -2, type: "remove" },
+      { name: "Add Sour Cream", caloriesDelta: 30, proteinDelta: 1, carbsDelta: 1, fatDelta: 2, type: "add" },
+      { name: "No Cheese", caloriesDelta: -50, proteinDelta: -3, carbsDelta: -1, fatDelta: -4, type: "remove" },
+      { name: "Add Guacamole", caloriesDelta: 80, proteinDelta: 1, carbsDelta: 4, fatDelta: 7, type: "add" },
+      { name: "Sub Chicken for Beef", caloriesDelta: -20, proteinDelta: 4, carbsDelta: 0, fatDelta: -3, type: "swap" },
+      { name: "Sub Steak for Beef", caloriesDelta: 10, proteinDelta: 3, carbsDelta: 0, fatDelta: 0, type: "swap" },
+      { name: "Make it Fresco (No Cheese/Cream, Add Pico)", caloriesDelta: -60, proteinDelta: -3, carbsDelta: 0, fatDelta: -6, type: "swap" },
+    ],
+  },
+
+  "KFC": {
+    name: "KFC",
+    categories: ["Chicken", "Sandwiches", "Sides", "Drinks", "Desserts"],
+    items: [
+      { name: "Original Recipe Breast", calories: 390, protein: 39, carbs: 11, fat: 21, servingSize: "1 breast", category: "Chicken" },
+      { name: "Original Recipe Thigh", calories: 280, protein: 19, carbs: 9, fat: 19, servingSize: "1 thigh", category: "Chicken" },
+      { name: "Original Recipe Drumstick", calories: 130, protein: 14, carbs: 3, fat: 7, servingSize: "1 drumstick", category: "Chicken" },
+      { name: "Extra Crispy Breast", calories: 530, protein: 34, carbs: 17, fat: 37, servingSize: "1 breast", category: "Chicken" },
+      { name: "Chicken Tenders (3pc)", calories: 310, protein: 25, carbs: 16, fat: 17, servingSize: "3 tenders", category: "Chicken" },
+      { name: "Famous Bowl", calories: 740, protein: 26, carbs: 80, fat: 34, servingSize: "1 bowl", category: "Chicken" },
+      { name: "Chicken Sandwich", calories: 650, protein: 28, carbs: 48, fat: 38, servingSize: "1 sandwich", category: "Sandwiches" },
+      { name: "Spicy Chicken Sandwich", calories: 700, protein: 28, carbs: 49, fat: 42, servingSize: "1 sandwich", category: "Sandwiches" },
+      { name: "Mashed Potatoes with Gravy", calories: 130, protein: 2, carbs: 20, fat: 5, servingSize: "individual", category: "Sides" },
+      { name: "Coleslaw", calories: 170, protein: 1, carbs: 22, fat: 10, servingSize: "individual", category: "Sides" },
+      { name: "Mac & Cheese", calories: 170, protein: 7, carbs: 18, fat: 8, servingSize: "individual", category: "Sides" },
+      { name: "Biscuit", calories: 180, protein: 4, carbs: 22, fat: 8, servingSize: "1 biscuit", category: "Sides" },
+      { name: "Corn on the Cob", calories: 70, protein: 2, carbs: 13, fat: 2, servingSize: "1 ear", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "Remove Skin", caloriesDelta: -100, proteinDelta: -2, carbsDelta: -5, fatDelta: -8, type: "remove" },
+      { name: "No Gravy", caloriesDelta: -25, proteinDelta: 0, carbsDelta: -3, fatDelta: -1, type: "remove" },
+      { name: "Extra Gravy", caloriesDelta: 25, proteinDelta: 0, carbsDelta: 3, fatDelta: 1, type: "add" },
+    ],
+  },
+
+  "Wendy's": {
+    name: "Wendy's",
+    categories: ["Burgers", "Chicken", "Salads", "Sides", "Drinks", "Desserts"],
+    items: [
+      { name: "Dave's Single", calories: 570, protein: 30, carbs: 39, fat: 34, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Dave's Double", calories: 810, protein: 48, carbs: 40, fat: 50, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Dave's Triple", calories: 1070, protein: 69, carbs: 40, fat: 67, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Baconator", calories: 940, protein: 57, carbs: 38, fat: 62, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Jr. Bacon Cheeseburger", calories: 370, protein: 20, carbs: 25, fat: 22, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Jr. Cheeseburger", calories: 290, protein: 16, carbs: 25, fat: 14, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Spicy Chicken Sandwich", calories: 470, protein: 28, carbs: 43, fat: 20, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "Classic Chicken Sandwich", calories: 470, protein: 28, carbs: 43, fat: 20, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "Chicken Nuggets (10pc)", calories: 430, protein: 22, carbs: 26, fat: 27, servingSize: "10 pieces", category: "Chicken" },
+      { name: "Apple Pecan Salad (Full)", calories: 570, protein: 35, carbs: 38, fat: 27, servingSize: "1 salad", category: "Salads" },
+      { name: "Medium Fries", calories: 350, protein: 5, carbs: 44, fat: 17, servingSize: "medium", category: "Sides" },
+      { name: "Chili (Large)", calories: 250, protein: 23, carbs: 22, fat: 8, servingSize: "large", category: "Sides" },
+      { name: "Baked Potato (Plain)", calories: 270, protein: 7, carbs: 61, fat: 0, servingSize: "1 potato", category: "Sides" },
+      { name: "Medium Frosty (Chocolate)", calories: 460, protein: 11, carbs: 66, fat: 16, servingSize: "medium", category: "Desserts" },
+      { name: "Medium Frosty (Vanilla)", calories: 410, protein: 10, carbs: 60, fat: 14, servingSize: "medium", category: "Desserts" },
+    ],
+    commonModifiers: [
+      { name: "No Cheese", caloriesDelta: -60, proteinDelta: -4, carbsDelta: -1, fatDelta: -5, type: "remove" },
+      { name: "No Mayo", caloriesDelta: -80, proteinDelta: 0, carbsDelta: 0, fatDelta: -9, type: "remove" },
+      { name: "Add Bacon", caloriesDelta: 70, proteinDelta: 5, carbsDelta: 0, fatDelta: 5, type: "add" },
+      { name: "No Bun", caloriesDelta: -130, proteinDelta: -3, carbsDelta: -25, fatDelta: -2, type: "swap" },
+    ],
+  },
+
+  "Popeyes": {
+    name: "Popeyes",
+    categories: ["Chicken", "Sandwiches", "Sides", "Drinks"],
+    items: [
+      { name: "Chicken Sandwich", calories: 700, protein: 28, carbs: 50, fat: 42, servingSize: "1 sandwich", category: "Sandwiches" },
+      { name: "Spicy Chicken Sandwich", calories: 700, protein: 28, carbs: 50, fat: 42, servingSize: "1 sandwich", category: "Sandwiches" },
+      { name: "3pc Mild Chicken", calories: 710, protein: 47, carbs: 32, fat: 42, servingSize: "3 pieces", category: "Chicken" },
+      { name: "3pc Spicy Chicken", calories: 710, protein: 47, carbs: 32, fat: 42, servingSize: "3 pieces", category: "Chicken" },
+      { name: "5pc Chicken Tenders (Mild)", calories: 500, protein: 44, carbs: 15, fat: 30, servingSize: "5 tenders", category: "Chicken" },
+      { name: "Red Beans & Rice", calories: 230, protein: 7, carbs: 30, fat: 9, servingSize: "regular", category: "Sides" },
+      { name: "Cajun Fries (Regular)", calories: 260, protein: 3, carbs: 34, fat: 14, servingSize: "regular", category: "Sides" },
+      { name: "Mashed Potatoes with Gravy", calories: 110, protein: 2, carbs: 16, fat: 5, servingSize: "regular", category: "Sides" },
+      { name: "Coleslaw", calories: 150, protein: 1, carbs: 14, fat: 11, servingSize: "regular", category: "Sides" },
+      { name: "Biscuit", calories: 260, protein: 3, carbs: 27, fat: 15, servingSize: "1 biscuit", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "No Pickles", caloriesDelta: -5, proteinDelta: 0, carbsDelta: -1, fatDelta: 0, type: "remove" },
+      { name: "No Mayo", caloriesDelta: -90, proteinDelta: 0, carbsDelta: 0, fatDelta: -10, type: "remove" },
+      { name: "Add Cheese", caloriesDelta: 50, proteinDelta: 3, carbsDelta: 0, fatDelta: 4, type: "add" },
+    ],
+  },
+
+  "Starbucks": {
+    name: "Starbucks",
+    categories: ["Hot Coffee", "Cold Coffee", "Frappuccinos", "Tea", "Food", "Bakery"],
+    items: [
+      { name: "Caffè Latte (Grande)", calories: 190, protein: 13, carbs: 19, fat: 7, servingSize: "16 oz", category: "Hot Coffee" },
+      { name: "Cappuccino (Grande)", calories: 140, protein: 10, carbs: 14, fat: 5, servingSize: "16 oz", category: "Hot Coffee" },
+      { name: "Caramel Macchiato (Grande)", calories: 250, protein: 10, carbs: 35, fat: 7, servingSize: "16 oz", category: "Hot Coffee" },
+      { name: "White Chocolate Mocha (Grande)", calories: 430, protein: 14, carbs: 55, fat: 18, servingSize: "16 oz", category: "Hot Coffee" },
+      { name: "Pike Place Roast (Grande)", calories: 5, protein: 1, carbs: 0, fat: 0, servingSize: "16 oz", category: "Hot Coffee" },
+      { name: "Iced Caramel Macchiato (Grande)", calories: 250, protein: 10, carbs: 34, fat: 7, servingSize: "16 oz", category: "Cold Coffee" },
+      { name: "Iced White Mocha (Grande)", calories: 420, protein: 14, carbs: 53, fat: 17, servingSize: "16 oz", category: "Cold Coffee" },
+      { name: "Cold Brew (Grande)", calories: 5, protein: 0, carbs: 0, fat: 0, servingSize: "16 oz", category: "Cold Coffee" },
+      { name: "Vanilla Sweet Cream Cold Brew (Grande)", calories: 110, protein: 2, carbs: 14, fat: 5, servingSize: "16 oz", category: "Cold Coffee" },
+      { name: "Caramel Frappuccino (Grande)", calories: 380, protein: 5, carbs: 55, fat: 16, servingSize: "16 oz", category: "Frappuccinos" },
+      { name: "Mocha Frappuccino (Grande)", calories: 370, protein: 5, carbs: 54, fat: 15, servingSize: "16 oz", category: "Frappuccinos" },
+      { name: "Java Chip Frappuccino (Grande)", calories: 440, protein: 6, carbs: 65, fat: 19, servingSize: "16 oz", category: "Frappuccinos" },
+      { name: "Chai Tea Latte (Grande)", calories: 240, protein: 8, carbs: 42, fat: 4, servingSize: "16 oz", category: "Tea" },
+      { name: "Matcha Green Tea Latte (Grande)", calories: 240, protein: 12, carbs: 34, fat: 5, servingSize: "16 oz", category: "Tea" },
+      { name: "Bacon, Gouda & Egg Sandwich", calories: 370, protein: 19, carbs: 33, fat: 18, servingSize: "1 sandwich", category: "Food" },
+      { name: "Impossible Breakfast Sandwich", calories: 430, protein: 22, carbs: 33, fat: 23, servingSize: "1 sandwich", category: "Food" },
+      { name: "Turkey Bacon Egg White Sandwich", calories: 230, protein: 17, carbs: 28, fat: 5, servingSize: "1 sandwich", category: "Food" },
+      { name: "Chicken & Bacon Panini", calories: 550, protein: 32, carbs: 46, fat: 24, servingSize: "1 panini", category: "Food" },
+      { name: "Chocolate Croissant", calories: 340, protein: 6, carbs: 37, fat: 18, servingSize: "1 pastry", category: "Bakery" },
+      { name: "Butter Croissant", calories: 260, protein: 5, carbs: 28, fat: 14, servingSize: "1 pastry", category: "Bakery" },
+      { name: "Blueberry Muffin", calories: 360, protein: 6, carbs: 52, fat: 14, servingSize: "1 muffin", category: "Bakery" },
+      { name: "Banana Nut Bread", calories: 420, protein: 6, carbs: 52, fat: 22, servingSize: "1 slice", category: "Bakery" },
+    ],
+    commonModifiers: [
+      { name: "Sub Oat Milk", caloriesDelta: -30, proteinDelta: -5, carbsDelta: 3, fatDelta: -1, type: "swap" },
+      { name: "Sub Almond Milk", caloriesDelta: -80, proteinDelta: -8, carbsDelta: -8, fatDelta: -3, type: "swap" },
+      { name: "Sub Coconut Milk", caloriesDelta: -40, proteinDelta: -8, carbsDelta: 0, fatDelta: 1, type: "swap" },
+      { name: "Add Whipped Cream", caloriesDelta: 80, proteinDelta: 1, carbsDelta: 2, fatDelta: 8, type: "add" },
+      { name: "No Whipped Cream", caloriesDelta: -80, proteinDelta: -1, carbsDelta: -2, fatDelta: -8, type: "remove" },
+      { name: "Extra Shot", caloriesDelta: 5, proteinDelta: 0, carbsDelta: 1, fatDelta: 0, type: "add" },
+      { name: "Sugar-Free Syrup", caloriesDelta: -80, proteinDelta: 0, carbsDelta: -20, fatDelta: 0, type: "swap" },
+      { name: "Add Vanilla Syrup", caloriesDelta: 20, proteinDelta: 0, carbsDelta: 5, fatDelta: 0, type: "add" },
+      { name: "Nonfat Milk", caloriesDelta: -60, proteinDelta: 0, carbsDelta: 2, fatDelta: -7, type: "swap" },
+    ],
+  },
+
+  "Panda Express": {
+    name: "Panda Express",
+    categories: ["Entrees", "Sides", "Appetizers", "Drinks"],
+    items: [
+      { name: "Orange Chicken", calories: 490, protein: 25, carbs: 51, fat: 23, servingSize: "1 entree", category: "Entrees" },
+      { name: "Beijing Beef", calories: 470, protein: 14, carbs: 56, fat: 22, servingSize: "1 entree", category: "Entrees" },
+      { name: "Kung Pao Chicken", calories: 290, protein: 17, carbs: 19, fat: 19, servingSize: "1 entree", category: "Entrees" },
+      { name: "Broccoli Beef", calories: 150, protein: 9, carbs: 13, fat: 7, servingSize: "1 entree", category: "Entrees" },
+      { name: "Honey Walnut Shrimp", calories: 360, protein: 13, carbs: 35, fat: 23, servingSize: "1 entree", category: "Entrees" },
+      { name: "Mushroom Chicken", calories: 170, protein: 12, carbs: 10, fat: 9, servingSize: "1 entree", category: "Entrees" },
+      { name: "SweetFire Chicken Breast", calories: 380, protein: 15, carbs: 49, fat: 15, servingSize: "1 entree", category: "Entrees" },
+      { name: "Grilled Teriyaki Chicken", calories: 275, protein: 36, carbs: 14, fat: 8, servingSize: "1 entree", category: "Entrees" },
+      { name: "String Bean Chicken Breast", calories: 190, protein: 14, carbs: 13, fat: 9, servingSize: "1 entree", category: "Entrees" },
+      { name: "Black Pepper Chicken", calories: 180, protein: 12, carbs: 11, fat: 10, servingSize: "1 entree", category: "Entrees" },
+      { name: "Fried Rice", calories: 520, protein: 11, carbs: 85, fat: 16, servingSize: "1 side", category: "Sides" },
+      { name: "Chow Mein", calories: 510, protein: 13, carbs: 80, fat: 20, servingSize: "1 side", category: "Sides" },
+      { name: "White Steamed Rice", calories: 380, protein: 7, carbs: 86, fat: 0, servingSize: "1 side", category: "Sides" },
+      { name: "Super Greens", calories: 90, protein: 6, carbs: 10, fat: 3, servingSize: "1 side", category: "Sides" },
+      { name: "Chicken Egg Roll (1)", calories: 200, protein: 8, carbs: 20, fat: 10, servingSize: "1 roll", category: "Appetizers" },
+      { name: "Cream Cheese Rangoon (3)", calories: 190, protein: 5, carbs: 24, fat: 8, servingSize: "3 pieces", category: "Appetizers" },
+    ],
+    commonModifiers: [
+      { name: "Half Side Rice", caloriesDelta: -190, proteinDelta: -4, carbsDelta: -43, fatDelta: 0, type: "remove" },
+      { name: "Sub Super Greens for Rice", caloriesDelta: -290, proteinDelta: -1, carbsDelta: -76, fatDelta: 3, type: "swap" },
+      { name: "Double Entree (Plate)", caloriesDelta: 0, proteinDelta: 0, carbsDelta: 0, fatDelta: 0, type: "add" },
+    ],
+  },
+
+  "Five Guys": {
+    name: "Five Guys",
+    categories: ["Burgers", "Hot Dogs", "Sandwiches", "Fries", "Drinks"],
+    items: [
+      { name: "Hamburger", calories: 700, protein: 39, carbs: 39, fat: 43, servingSize: "1 burger", category: "Burgers" },
+      { name: "Cheeseburger", calories: 840, protein: 47, carbs: 40, fat: 55, servingSize: "1 burger", category: "Burgers" },
+      { name: "Bacon Cheeseburger", calories: 920, protein: 51, carbs: 40, fat: 62, servingSize: "1 burger", category: "Burgers" },
+      { name: "Little Hamburger", calories: 480, protein: 23, carbs: 39, fat: 26, servingSize: "1 burger", category: "Burgers" },
+      { name: "Little Cheeseburger", calories: 550, protein: 27, carbs: 40, fat: 32, servingSize: "1 burger", category: "Burgers" },
+      { name: "Little Bacon Cheeseburger", calories: 630, protein: 31, carbs: 40, fat: 39, servingSize: "1 burger", category: "Burgers" },
+      { name: "Veggie Sandwich", calories: 440, protein: 16, carbs: 60, fat: 15, servingSize: "1 sandwich", category: "Sandwiches" },
+      { name: "BLT", calories: 430, protein: 20, carbs: 37, fat: 22, servingSize: "1 sandwich", category: "Sandwiches" },
+      { name: "Grilled Cheese", calories: 470, protein: 11, carbs: 37, fat: 26, servingSize: "1 sandwich", category: "Sandwiches" },
+      { name: "Hot Dog", calories: 545, protein: 18, carbs: 40, fat: 35, servingSize: "1 hot dog", category: "Hot Dogs" },
+      { name: "Cheese Dog", calories: 615, protein: 22, carbs: 41, fat: 41, servingSize: "1 hot dog", category: "Hot Dogs" },
+      { name: "Regular Fries", calories: 530, protein: 8, carbs: 72, fat: 23, servingSize: "regular", category: "Fries" },
+      { name: "Large Fries", calories: 1310, protein: 18, carbs: 171, fat: 57, servingSize: "large", category: "Fries" },
+      { name: "Cajun Fries (Regular)", calories: 530, protein: 8, carbs: 72, fat: 23, servingSize: "regular", category: "Fries" },
+    ],
+    commonModifiers: [
+      { name: "Add Mushrooms", caloriesDelta: 10, proteinDelta: 1, carbsDelta: 1, fatDelta: 0, type: "add" },
+      { name: "Add Jalapeños", caloriesDelta: 5, proteinDelta: 0, carbsDelta: 1, fatDelta: 0, type: "add" },
+      { name: "Add Grilled Onions", caloriesDelta: 10, proteinDelta: 0, carbsDelta: 3, fatDelta: 0, type: "add" },
+      { name: "Add Bacon", caloriesDelta: 80, proteinDelta: 4, carbsDelta: 0, fatDelta: 7, type: "add" },
+      { name: "No Bun (Lettuce Wrap)", caloriesDelta: -260, proteinDelta: -6, carbsDelta: -39, fatDelta: -6, type: "swap" },
+      { name: "Add A1 Sauce", caloriesDelta: 15, proteinDelta: 0, carbsDelta: 3, fatDelta: 0, type: "add" },
+      { name: "Add Mayo", caloriesDelta: 100, proteinDelta: 0, carbsDelta: 0, fatDelta: 11, type: "add" },
+      { name: "Add Ketchup", caloriesDelta: 20, proteinDelta: 0, carbsDelta: 5, fatDelta: 0, type: "add" },
+      { name: "Add Mustard", caloriesDelta: 0, proteinDelta: 0, carbsDelta: 0, fatDelta: 0, type: "add" },
+    ],
+  },
+
+  "Domino's": {
+    name: "Domino's",
+    categories: ["Pizza (Medium)", "Pasta", "Chicken", "Sides", "Desserts"],
+    items: [
+      { name: "Cheese Pizza (2 slices, Medium)", calories: 440, protein: 18, carbs: 52, fat: 18, servingSize: "2 slices", category: "Pizza (Medium)" },
+      { name: "Pepperoni Pizza (2 slices, Medium)", calories: 500, protein: 20, carbs: 52, fat: 22, servingSize: "2 slices", category: "Pizza (Medium)" },
+      { name: "Supreme Pizza (2 slices, Medium)", calories: 540, protein: 22, carbs: 54, fat: 24, servingSize: "2 slices", category: "Pizza (Medium)" },
+      { name: "MeatZZa Pizza (2 slices, Medium)", calories: 560, protein: 24, carbs: 52, fat: 26, servingSize: "2 slices", category: "Pizza (Medium)" },
+      { name: "Pacific Veggie (2 slices, Medium)", calories: 460, protein: 18, carbs: 54, fat: 18, servingSize: "2 slices", category: "Pizza (Medium)" },
+      { name: "Pasta Primavera", calories: 670, protein: 22, carbs: 96, fat: 22, servingSize: "1 bowl", category: "Pasta" },
+      { name: "Chicken Alfredo Pasta", calories: 640, protein: 28, carbs: 78, fat: 24, servingSize: "1 bowl", category: "Pasta" },
+      { name: "Boneless Chicken (8pc)", calories: 360, protein: 20, carbs: 28, fat: 18, servingSize: "8 pieces", category: "Chicken" },
+      { name: "Bone-In Wings (8pc)", calories: 480, protein: 32, carbs: 20, fat: 28, servingSize: "8 pieces", category: "Chicken" },
+      { name: "Breadsticks (8pc)", calories: 580, protein: 16, carbs: 88, fat: 18, servingSize: "8 sticks", category: "Sides" },
+      { name: "Cheesy Bread (8pc)", calories: 680, protein: 22, carbs: 88, fat: 26, servingSize: "8 pieces", category: "Sides" },
+      { name: "Cinnamon Bread Twists (8pc)", calories: 520, protein: 10, carbs: 78, fat: 20, servingSize: "8 twists", category: "Desserts" },
+      { name: "Chocolate Lava Crunch Cakes (2)", calories: 710, protein: 6, carbs: 96, fat: 34, servingSize: "2 cakes", category: "Desserts" },
+    ],
+    commonModifiers: [
+      { name: "Thin Crust (instead of Hand Tossed)", caloriesDelta: -80, proteinDelta: -2, carbsDelta: -16, fatDelta: -2, type: "swap" },
+      { name: "Add Extra Cheese", caloriesDelta: 50, proteinDelta: 3, carbsDelta: 0, fatDelta: 4, type: "add" },
+      { name: "Add Pepperoni", caloriesDelta: 30, proteinDelta: 1, carbsDelta: 0, fatDelta: 2, type: "add" },
+      { name: "Stuffed Crust", caloriesDelta: 120, proteinDelta: 6, carbsDelta: 8, fatDelta: 7, type: "swap" },
+    ],
+  },
+
+  "Dunkin'": {
+    name: "Dunkin'",
+    categories: ["Hot Coffee", "Iced/Cold", "Donuts", "Breakfast Sandwiches", "Bagels", "Snacks"],
+    items: [
+      { name: "Medium Hot Latte", calories: 170, protein: 10, carbs: 17, fat: 6, servingSize: "medium", category: "Hot Coffee" },
+      { name: "Medium Hot Coffee (cream & sugar)", calories: 120, protein: 1, carbs: 22, fat: 4, servingSize: "medium", category: "Hot Coffee" },
+      { name: "Medium Iced Latte", calories: 170, protein: 10, carbs: 17, fat: 6, servingSize: "medium", category: "Iced/Cold" },
+      { name: "Medium Iced Coffee (cream & sugar)", calories: 120, protein: 1, carbs: 22, fat: 4, servingSize: "medium", category: "Iced/Cold" },
+      { name: "Frozen Chocolate", calories: 420, protein: 6, carbs: 72, fat: 13, servingSize: "medium", category: "Iced/Cold" },
+      { name: "Glazed Donut", calories: 260, protein: 3, carbs: 31, fat: 14, servingSize: "1 donut", category: "Donuts" },
+      { name: "Chocolate Frosted Donut", calories: 280, protein: 3, carbs: 34, fat: 15, servingSize: "1 donut", category: "Donuts" },
+      { name: "Boston Kreme Donut", calories: 300, protein: 3, carbs: 38, fat: 15, servingSize: "1 donut", category: "Donuts" },
+      { name: "Jelly Donut", calories: 280, protein: 3, carbs: 36, fat: 14, servingSize: "1 donut", category: "Donuts" },
+      { name: "Munchkins (5 Glazed)", calories: 270, protein: 3, carbs: 31, fat: 15, servingSize: "5 pieces", category: "Donuts" },
+      { name: "Bacon, Egg & Cheese Croissant", calories: 540, protein: 20, carbs: 36, fat: 35, servingSize: "1 sandwich", category: "Breakfast Sandwiches" },
+      { name: "Sausage, Egg & Cheese Croissant", calories: 650, protein: 22, carbs: 37, fat: 44, servingSize: "1 sandwich", category: "Breakfast Sandwiches" },
+      { name: "Turkey Sausage Egg White Wake-Up Wrap", calories: 180, protein: 13, carbs: 14, fat: 8, servingSize: "1 wrap", category: "Breakfast Sandwiches" },
+      { name: "Plain Bagel", calories: 310, protein: 11, carbs: 60, fat: 3, servingSize: "1 bagel", category: "Bagels" },
+      { name: "Everything Bagel", calories: 340, protein: 13, carbs: 60, fat: 5, servingSize: "1 bagel", category: "Bagels" },
+      { name: "Hash Browns (6pc)", calories: 140, protein: 2, carbs: 15, fat: 8, servingSize: "6 pieces", category: "Snacks" },
+    ],
+    commonModifiers: [
+      { name: "Sub Oat Milk", caloriesDelta: -20, proteinDelta: -4, carbsDelta: 4, fatDelta: -1, type: "swap" },
+      { name: "Sub Almond Milk", caloriesDelta: -60, proteinDelta: -6, carbsDelta: -6, fatDelta: -2, type: "swap" },
+      { name: "No Sugar", caloriesDelta: -40, proteinDelta: 0, carbsDelta: -10, fatDelta: 0, type: "remove" },
+      { name: "Extra Shot", caloriesDelta: 5, proteinDelta: 0, carbsDelta: 1, fatDelta: 0, type: "add" },
+      { name: "Add Cream Cheese", caloriesDelta: 150, proteinDelta: 3, carbsDelta: 3, fatDelta: 14, type: "add" },
+    ],
+  },
+
+  "In-N-Out": {
+    name: "In-N-Out",
+    categories: ["Burgers", "Fries", "Drinks", "Shakes"],
+    items: [
+      { name: "Hamburger", calories: 390, protein: 16, carbs: 39, fat: 19, servingSize: "1 burger", category: "Burgers" },
+      { name: "Cheeseburger", calories: 480, protein: 22, carbs: 39, fat: 27, servingSize: "1 burger", category: "Burgers" },
+      { name: "Double-Double", calories: 670, protein: 37, carbs: 39, fat: 41, servingSize: "1 burger", category: "Burgers" },
+      { name: "Protein Style (Double-Double)", calories: 520, protein: 33, carbs: 11, fat: 39, servingSize: "1 burger (lettuce wrap)", category: "Burgers" },
+      { name: "Animal Style Burger", calories: 480, protein: 22, carbs: 39, fat: 27, servingSize: "1 burger", category: "Burgers" },
+      { name: "3x3 (Triple Meat, Triple Cheese)", calories: 860, protein: 53, carbs: 39, fat: 55, servingSize: "1 burger", category: "Burgers" },
+      { name: "French Fries", calories: 395, protein: 7, carbs: 54, fat: 18, servingSize: "1 order", category: "Fries" },
+      { name: "Animal Style Fries", calories: 750, protein: 19, carbs: 56, fat: 48, servingSize: "1 order", category: "Fries" },
+      { name: "Chocolate Shake", calories: 590, protein: 9, carbs: 72, fat: 29, servingSize: "15 oz", category: "Shakes" },
+      { name: "Vanilla Shake", calories: 580, protein: 9, carbs: 68, fat: 29, servingSize: "15 oz", category: "Shakes" },
+      { name: "Strawberry Shake", calories: 590, protein: 8, carbs: 72, fat: 29, servingSize: "15 oz", category: "Shakes" },
+      { name: "Medium Drink", calories: 180, protein: 0, carbs: 50, fat: 0, servingSize: "medium", category: "Drinks" },
+    ],
+    commonModifiers: [
+      { name: "Protein Style (Lettuce Wrap)", caloriesDelta: -150, proteinDelta: -4, carbsDelta: -28, fatDelta: -2, type: "swap" },
+      { name: "Animal Style", caloriesDelta: 90, proteinDelta: 2, carbsDelta: 5, fatDelta: 6, type: "add" },
+      { name: "No Spread", caloriesDelta: -40, proteinDelta: 0, carbsDelta: -2, fatDelta: -4, type: "remove" },
+      { name: "Extra Patty", caloriesDelta: 190, proteinDelta: 16, carbsDelta: 0, fatDelta: 14, type: "add" },
+      { name: "Extra Cheese", caloriesDelta: 60, proteinDelta: 4, carbsDelta: 0, fatDelta: 5, type: "add" },
+      { name: "Chopped Chilies", caloriesDelta: 5, proteinDelta: 0, carbsDelta: 1, fatDelta: 0, type: "add" },
+      { name: "Add Grilled Onions", caloriesDelta: 10, proteinDelta: 0, carbsDelta: 3, fatDelta: 0, type: "add" },
+    ],
+  },
+
+  "Panera Bread": {
+    name: "Panera Bread",
+    categories: ["Sandwiches", "Soups", "Salads", "Bakery", "Drinks"],
+    items: [
+      { name: "Broccoli Cheddar Soup (Bowl)", calories: 360, protein: 14, carbs: 30, fat: 21, servingSize: "1 bowl", category: "Soups" },
+      { name: "Chicken Noodle Soup (Bowl)", calories: 170, protein: 14, carbs: 16, fat: 5, servingSize: "1 bowl", category: "Soups" },
+      { name: "Cream of Chicken & Wild Rice (Bowl)", calories: 290, protein: 10, carbs: 22, fat: 18, servingSize: "1 bowl", category: "Soups" },
+      { name: "Bacon Turkey Bravo", calories: 600, protein: 30, carbs: 54, fat: 28, servingSize: "1 sandwich", category: "Sandwiches" },
+      { name: "Frontega Chicken Panini", calories: 860, protein: 40, carbs: 66, fat: 48, servingSize: "1 sandwich", category: "Sandwiches" },
+      { name: "Roasted Turkey & Avocado BLT", calories: 570, protein: 30, carbs: 50, fat: 28, servingSize: "1 sandwich", category: "Sandwiches" },
+      { name: "Grilled Cheese", calories: 740, protein: 28, carbs: 56, fat: 44, servingSize: "1 sandwich", category: "Sandwiches" },
+      { name: "Caesar Salad (Whole)", calories: 330, protein: 9, carbs: 20, fat: 25, servingSize: "1 salad", category: "Salads" },
+      { name: "Green Goddess Cobb Salad (Whole)", calories: 530, protein: 38, carbs: 22, fat: 32, servingSize: "1 salad", category: "Salads" },
+      { name: "Chocolate Chip Cookie", calories: 370, protein: 4, carbs: 52, fat: 17, servingSize: "1 cookie", category: "Bakery" },
+      { name: "Cinnamon Crunch Bagel", calories: 420, protein: 10, carbs: 78, fat: 8, servingSize: "1 bagel", category: "Bakery" },
+      { name: "Bear Claw", calories: 470, protein: 7, carbs: 52, fat: 26, servingSize: "1 pastry", category: "Bakery" },
+    ],
+    commonModifiers: [
+      { name: "Half Portion", caloriesDelta: -250, proteinDelta: -15, carbsDelta: -25, fatDelta: -14, type: "remove" },
+      { name: "No Cheese", caloriesDelta: -80, proteinDelta: -5, carbsDelta: -1, fatDelta: -6, type: "remove" },
+      { name: "Add Avocado", caloriesDelta: 90, proteinDelta: 1, carbsDelta: 4, fatDelta: 8, type: "add" },
+    ],
+  },
+
+  "Shake Shack": {
+    name: "Shake Shack",
+    categories: ["Burgers", "Chicken", "Flat-Top Dogs", "Fries", "Shakes", "Frozen Custard"],
+    items: [
+      { name: "ShackBurger", calories: 530, protein: 28, carbs: 27, fat: 34, servingSize: "1 burger", category: "Burgers" },
+      { name: "SmokeShack", calories: 600, protein: 30, carbs: 28, fat: 38, servingSize: "1 burger", category: "Burgers" },
+      { name: "Double ShackBurger", calories: 770, protein: 46, carbs: 27, fat: 50, servingSize: "1 burger", category: "Burgers" },
+      { name: "Shack Stack", calories: 750, protein: 30, carbs: 40, fat: 48, servingSize: "1 burger", category: "Burgers" },
+      { name: "Chick'n Shack", calories: 580, protein: 28, carbs: 42, fat: 32, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "Chicken Bites (6pc)", calories: 300, protein: 18, carbs: 15, fat: 18, servingSize: "6 pieces", category: "Chicken" },
+      { name: "Shack-cago Dog", calories: 520, protein: 16, carbs: 36, fat: 34, servingSize: "1 hot dog", category: "Flat-Top Dogs" },
+      { name: "Crinkle-Cut Fries", calories: 470, protein: 6, carbs: 62, fat: 22, servingSize: "1 order", category: "Fries" },
+      { name: "Cheese Fries", calories: 630, protein: 14, carbs: 64, fat: 36, servingSize: "1 order", category: "Fries" },
+      { name: "Chocolate Shake", calories: 680, protein: 14, carbs: 76, fat: 34, servingSize: "1 shake", category: "Shakes" },
+      { name: "Vanilla Shake", calories: 640, protein: 14, carbs: 68, fat: 34, servingSize: "1 shake", category: "Shakes" },
+    ],
+    commonModifiers: [
+      { name: "No Bun (Lettuce Wrap)", caloriesDelta: -130, proteinDelta: -3, carbsDelta: -25, fatDelta: -2, type: "swap" },
+      { name: "Add Bacon", caloriesDelta: 70, proteinDelta: 5, carbsDelta: 0, fatDelta: 5, type: "add" },
+      { name: "No ShackSauce", caloriesDelta: -60, proteinDelta: 0, carbsDelta: -2, fatDelta: -6, type: "remove" },
+    ],
+  },
+
+  "Pizza Hut": {
+    name: "Pizza Hut",
+    categories: ["Pizza (Medium)", "Pasta", "Wings", "Sides", "Desserts"],
+    items: [
+      { name: "Cheese Pizza (2 slices, Medium)", calories: 440, protein: 18, carbs: 50, fat: 18, servingSize: "2 slices", category: "Pizza (Medium)" },
+      { name: "Pepperoni Pizza (2 slices, Medium)", calories: 480, protein: 20, carbs: 50, fat: 20, servingSize: "2 slices", category: "Pizza (Medium)" },
+      { name: "Meat Lover's (2 slices, Medium)", calories: 560, protein: 24, carbs: 50, fat: 28, servingSize: "2 slices", category: "Pizza (Medium)" },
+      { name: "Supreme (2 slices, Medium)", calories: 520, protein: 22, carbs: 52, fat: 24, servingSize: "2 slices", category: "Pizza (Medium)" },
+      { name: "Veggie Lover's (2 slices, Medium)", calories: 400, protein: 16, carbs: 52, fat: 14, servingSize: "2 slices", category: "Pizza (Medium)" },
+      { name: "Bone-Out Wings (8pc, Buffalo)", calories: 560, protein: 32, carbs: 32, fat: 32, servingSize: "8 pieces", category: "Wings" },
+      { name: "Breadsticks (5pc)", calories: 550, protein: 14, carbs: 76, fat: 22, servingSize: "5 sticks", category: "Sides" },
+      { name: "Cheese Sticks (5pc)", calories: 720, protein: 26, carbs: 76, fat: 34, servingSize: "5 sticks", category: "Sides" },
+      { name: "Cinnamon Sticks (5pc)", calories: 500, protein: 8, carbs: 72, fat: 20, servingSize: "5 sticks", category: "Desserts" },
+    ],
+    commonModifiers: [
+      { name: "Thin 'N Crispy Crust", caloriesDelta: -60, proteinDelta: -2, carbsDelta: -12, fatDelta: 0, type: "swap" },
+      { name: "Stuffed Crust", caloriesDelta: 100, proteinDelta: 6, carbsDelta: 6, fatDelta: 6, type: "swap" },
+      { name: "Extra Cheese", caloriesDelta: 50, proteinDelta: 3, carbsDelta: 0, fatDelta: 4, type: "add" },
+    ],
+  },
+
+  "Wingstop": {
+    name: "Wingstop",
+    categories: ["Wings", "Tenders", "Sides", "Drinks"],
+    items: [
+      { name: "Classic Wings (10pc, Plain)", calories: 740, protein: 60, carbs: 0, fat: 54, servingSize: "10 wings", category: "Wings" },
+      { name: "Classic Wings (10pc, Lemon Pepper)", calories: 890, protein: 60, carbs: 12, fat: 64, servingSize: "10 wings", category: "Wings" },
+      { name: "Classic Wings (10pc, Garlic Parmesan)", calories: 940, protein: 60, carbs: 14, fat: 68, servingSize: "10 wings", category: "Wings" },
+      { name: "Classic Wings (10pc, Mild)", calories: 780, protein: 60, carbs: 6, fat: 56, servingSize: "10 wings", category: "Wings" },
+      { name: "Classic Wings (10pc, Hot)", calories: 780, protein: 60, carbs: 6, fat: 56, servingSize: "10 wings", category: "Wings" },
+      { name: "Boneless Wings (10pc, Plain)", calories: 680, protein: 38, carbs: 46, fat: 38, servingSize: "10 wings", category: "Wings" },
+      { name: "Chicken Tenders (3pc)", calories: 290, protein: 22, carbs: 12, fat: 16, servingSize: "3 tenders", category: "Tenders" },
+      { name: "Cajun Fried Corn", calories: 220, protein: 6, carbs: 28, fat: 10, servingSize: "1 serving", category: "Sides" },
+      { name: "Seasoned Fries (Regular)", calories: 330, protein: 4, carbs: 44, fat: 16, servingSize: "regular", category: "Sides" },
+      { name: "Coleslaw", calories: 190, protein: 1, carbs: 14, fat: 15, servingSize: "1 serving", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "Ranch Dip", caloriesDelta: 220, proteinDelta: 1, carbsDelta: 2, fatDelta: 22, type: "add" },
+      { name: "Blue Cheese Dip", caloriesDelta: 230, proteinDelta: 2, carbsDelta: 2, fatDelta: 24, type: "add" },
+    ],
+  },
+
+  "Olive Garden": {
+    name: "Olive Garden",
+    categories: ["Pasta", "Chicken & Seafood", "Soups & Salads", "Breadsticks", "Desserts"],
+    items: [
+      { name: "Fettuccine Alfredo", calories: 1310, protein: 40, carbs: 126, fat: 72, servingSize: "1 entree", category: "Pasta" },
+      { name: "Chicken Alfredo", calories: 1560, protein: 68, carbs: 126, fat: 85, servingSize: "1 entree", category: "Pasta" },
+      { name: "Spaghetti with Meat Sauce", calories: 810, protein: 38, carbs: 102, fat: 28, servingSize: "1 entree", category: "Pasta" },
+      { name: "Chicken Parmigiana", calories: 1060, protein: 62, carbs: 70, fat: 56, servingSize: "1 entree", category: "Chicken & Seafood" },
+      { name: "Tour of Italy", calories: 1500, protein: 72, carbs: 108, fat: 80, servingSize: "1 entree", category: "Chicken & Seafood" },
+      { name: "Grilled Chicken Margherita", calories: 610, protein: 50, carbs: 40, fat: 28, servingSize: "1 entree", category: "Chicken & Seafood" },
+      { name: "House Salad (with dressing)", calories: 220, protein: 4, carbs: 14, fat: 16, servingSize: "1 salad", category: "Soups & Salads" },
+      { name: "Caesar Salad", calories: 440, protein: 8, carbs: 22, fat: 36, servingSize: "1 salad", category: "Soups & Salads" },
+      { name: "Zuppa Toscana (Bowl)", calories: 250, protein: 9, carbs: 22, fat: 14, servingSize: "1 bowl", category: "Soups & Salads" },
+      { name: "Minestrone (Bowl)", calories: 150, protein: 5, carbs: 26, fat: 3, servingSize: "1 bowl", category: "Soups & Salads" },
+      { name: "Breadstick (1)", calories: 140, protein: 4, carbs: 18, fat: 6, servingSize: "1 breadstick", category: "Breadsticks" },
+      { name: "Tiramisu", calories: 470, protein: 7, carbs: 48, fat: 28, servingSize: "1 slice", category: "Desserts" },
+      { name: "Black Tie Mousse Cake", calories: 740, protein: 8, carbs: 78, fat: 44, servingSize: "1 slice", category: "Desserts" },
+    ],
+    commonModifiers: [
+      { name: "Lunch Portion", caloriesDelta: -350, proteinDelta: -15, carbsDelta: -40, fatDelta: -20, type: "remove" },
+      { name: "Gluten-Free Pasta", caloriesDelta: -20, proteinDelta: -2, carbsDelta: 0, fatDelta: 0, type: "swap" },
+      { name: "Extra Breadstick", caloriesDelta: 140, proteinDelta: 4, carbsDelta: 18, fatDelta: 6, type: "add" },
+      { name: "No Dressing", caloriesDelta: -100, proteinDelta: 0, carbsDelta: -2, fatDelta: -10, type: "remove" },
+    ],
+  },
+
+  "IHOP": {
+    name: "IHOP",
+    categories: ["Pancakes & Waffles", "Omelets", "Breakfast Combos", "Burgers", "Sides"],
+    items: [
+      { name: "Original Buttermilk Pancakes (3 Short Stack)", calories: 450, protein: 12, carbs: 72, fat: 14, servingSize: "3 pancakes", category: "Pancakes & Waffles" },
+      { name: "Original Buttermilk Pancakes (5 Full Stack)", calories: 750, protein: 20, carbs: 120, fat: 22, servingSize: "5 pancakes", category: "Pancakes & Waffles" },
+      { name: "Chocolate Chip Pancakes (3)", calories: 580, protein: 12, carbs: 90, fat: 20, servingSize: "3 pancakes", category: "Pancakes & Waffles" },
+      { name: "Belgian Waffle", calories: 340, protein: 8, carbs: 48, fat: 14, servingSize: "1 waffle", category: "Pancakes & Waffles" },
+      { name: "Big Steak Omelette", calories: 1090, protein: 62, carbs: 14, fat: 86, servingSize: "1 omelette", category: "Omelets" },
+      { name: "Veggie Omelette", calories: 460, protein: 26, carbs: 12, fat: 34, servingSize: "1 omelette", category: "Omelets" },
+      { name: "Classic Burger", calories: 760, protein: 38, carbs: 44, fat: 46, servingSize: "1 burger", category: "Burgers" },
+      { name: "Hash Browns", calories: 220, protein: 2, carbs: 28, fat: 12, servingSize: "1 serving", category: "Sides" },
+      { name: "Bacon (4 strips)", calories: 180, protein: 12, carbs: 0, fat: 14, servingSize: "4 strips", category: "Sides" },
+      { name: "Sausage Links (4)", calories: 280, protein: 12, carbs: 2, fat: 24, servingSize: "4 links", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "Add Butter & Syrup", caloriesDelta: 200, proteinDelta: 0, carbsDelta: 40, fatDelta: 7, type: "add" },
+      { name: "No Butter", caloriesDelta: -50, proteinDelta: 0, carbsDelta: 0, fatDelta: -6, type: "remove" },
+      { name: "Sugar-Free Syrup", caloriesDelta: -100, proteinDelta: 0, carbsDelta: -26, fatDelta: 0, type: "swap" },
+      { name: "Sub Egg Whites", caloriesDelta: -60, proteinDelta: 2, carbsDelta: 0, fatDelta: -7, type: "swap" },
+    ],
+  },
+
+  "Raising Cane's": {
+    name: "Raising Cane's",
+    categories: ["Combos", "Individual", "Sides", "Drinks"],
+    items: [
+      { name: "The Box Combo", calories: 1250, protein: 52, carbs: 114, fat: 62, servingSize: "1 combo", category: "Combos" },
+      { name: "3 Finger Combo", calories: 880, protein: 40, carbs: 72, fat: 44, servingSize: "1 combo", category: "Combos" },
+      { name: "The Caniac Combo", calories: 1710, protein: 68, carbs: 156, fat: 84, servingSize: "1 combo", category: "Combos" },
+      { name: "Chicken Fingers (3)", calories: 360, protein: 28, carbs: 12, fat: 22, servingSize: "3 fingers", category: "Individual" },
+      { name: "Chicken Fingers (4)", calories: 480, protein: 38, carbs: 16, fat: 30, servingSize: "4 fingers", category: "Individual" },
+      { name: "Chicken Fingers (6)", calories: 720, protein: 56, carbs: 24, fat: 44, servingSize: "6 fingers", category: "Individual" },
+      { name: "Cane's Sauce", calories: 190, protein: 0, carbs: 6, fat: 18, servingSize: "1 sauce", category: "Sides" },
+      { name: "Crinkle-Cut Fries", calories: 290, protein: 4, carbs: 42, fat: 12, servingSize: "1 serving", category: "Sides" },
+      { name: "Coleslaw", calories: 200, protein: 1, carbs: 16, fat: 15, servingSize: "1 serving", category: "Sides" },
+      { name: "Texas Toast", calories: 150, protein: 3, carbs: 18, fat: 7, servingSize: "1 slice", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "No Sauce", caloriesDelta: -190, proteinDelta: 0, carbsDelta: -6, fatDelta: -18, type: "remove" },
+      { name: "Extra Sauce", caloriesDelta: 190, proteinDelta: 0, carbsDelta: 6, fatDelta: 18, type: "add" },
+      { name: "No Slaw (Sub Extra Fries)", caloriesDelta: 90, proteinDelta: 3, carbsDelta: 26, fatDelta: -3, type: "swap" },
+      { name: "No Toast", caloriesDelta: -150, proteinDelta: -3, carbsDelta: -18, fatDelta: -7, type: "remove" },
+    ],
+  },
+
+  "Sweetgreen": {
+    name: "Sweetgreen",
+    categories: ["Salads", "Bowls", "Sides"],
+    items: [
+      { name: "Harvest Bowl", calories: 705, protein: 31, carbs: 51, fat: 40, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Kale Caesar", calories: 460, protein: 30, carbs: 26, fat: 26, servingSize: "1 salad", category: "Salads" },
+      { name: "Chicken Pesto Parm", calories: 660, protein: 38, carbs: 60, fat: 30, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Crispy Rice Bowl", calories: 730, protein: 32, carbs: 72, fat: 34, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Buffalo Chicken Bowl", calories: 560, protein: 36, carbs: 48, fat: 24, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Garden Cobb", calories: 580, protein: 34, carbs: 22, fat: 38, servingSize: "1 salad", category: "Salads" },
+    ],
+    commonModifiers: [
+      { name: "Add Avocado", caloriesDelta: 90, proteinDelta: 1, carbsDelta: 4, fatDelta: 8, type: "add" },
+      { name: "No Dressing", caloriesDelta: -120, proteinDelta: 0, carbsDelta: -4, fatDelta: -12, type: "remove" },
+      { name: "Add Extra Protein", caloriesDelta: 120, proteinDelta: 18, carbsDelta: 2, fatDelta: 4, type: "add" },
+    ],
+  },
+
+  "The Cheesecake Factory": {
+    name: "The Cheesecake Factory",
+    categories: ["Appetizers", "Pasta", "Burgers", "Chicken", "Cheesecake", "SkinnyLicious"],
+    items: [
+      { name: "Avocado Eggrolls", calories: 1410, protein: 22, carbs: 120, fat: 94, servingSize: "1 order", category: "Appetizers" },
+      { name: "Louisiana Chicken Pasta", calories: 2370, protein: 70, carbs: 180, fat: 152, servingSize: "1 entree", category: "Pasta" },
+      { name: "Fettuccini Alfredo", calories: 2100, protein: 56, carbs: 156, fat: 138, servingSize: "1 entree", category: "Pasta" },
+      { name: "Glamburger", calories: 1550, protein: 68, carbs: 72, fat: 106, servingSize: "1 burger", category: "Burgers" },
+      { name: "Chicken Madeira", calories: 1540, protein: 72, carbs: 82, fat: 100, servingSize: "1 entree", category: "Chicken" },
+      { name: "Original Cheesecake", calories: 830, protein: 13, carbs: 58, fat: 60, servingSize: "1 slice", category: "Cheesecake" },
+      { name: "Fresh Strawberry Cheesecake", calories: 820, protein: 12, carbs: 74, fat: 54, servingSize: "1 slice", category: "Cheesecake" },
+      { name: "Godiva Chocolate Cheesecake", calories: 1110, protein: 16, carbs: 100, fat: 74, servingSize: "1 slice", category: "Cheesecake" },
+      { name: "SkinnyLicious Grilled Turkey Burger", calories: 570, protein: 42, carbs: 32, fat: 28, servingSize: "1 burger", category: "SkinnyLicious" },
+      { name: "SkinnyLicious Asian Chicken Salad", calories: 570, protein: 40, carbs: 42, fat: 24, servingSize: "1 salad", category: "SkinnyLicious" },
+      { name: "SkinnyLicious Chicken Pasta", calories: 590, protein: 42, carbs: 62, fat: 18, servingSize: "1 entree", category: "SkinnyLicious" },
+    ],
+    commonModifiers: [
+      { name: "Half Portion", caloriesDelta: -500, proteinDelta: -25, carbsDelta: -50, fatDelta: -35, type: "remove" },
+      { name: "No Dressing/Sauce", caloriesDelta: -150, proteinDelta: 0, carbsDelta: -6, fatDelta: -16, type: "remove" },
+    ],
+  },
+
+  "Qdoba": {
+    name: "Qdoba",
+    categories: ["Bowls", "Burritos", "Tacos", "Quesadillas", "Sides"],
+    items: [
+      { name: "Chicken Burrito Bowl", calories: 680, protein: 42, carbs: 72, fat: 24, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Steak Burrito Bowl", calories: 720, protein: 40, carbs: 72, fat: 28, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Chicken Burrito", calories: 1050, protein: 54, carbs: 104, fat: 40, servingSize: "1 burrito", category: "Burritos" },
+      { name: "Steak Burrito", calories: 1090, protein: 52, carbs: 104, fat: 44, servingSize: "1 burrito", category: "Burritos" },
+      { name: "Chicken Tacos (3)", calories: 630, protein: 36, carbs: 44, fat: 26, servingSize: "3 tacos", category: "Tacos" },
+      { name: "Chicken Quesadilla", calories: 960, protein: 52, carbs: 68, fat: 52, servingSize: "1 quesadilla", category: "Quesadillas" },
+      { name: "Chips & Queso", calories: 740, protein: 18, carbs: 80, fat: 38, servingSize: "1 serving", category: "Sides" },
+      { name: "Chips & Guac", calories: 720, protein: 8, carbs: 76, fat: 42, servingSize: "1 serving", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "Add Guacamole", caloriesDelta: 200, proteinDelta: 2, carbsDelta: 6, fatDelta: 18, type: "add" },
+      { name: "No Sour Cream", caloriesDelta: -80, proteinDelta: -2, carbsDelta: -2, fatDelta: -7, type: "remove" },
+      { name: "No Cheese", caloriesDelta: -100, proteinDelta: -6, carbsDelta: -1, fatDelta: -8, type: "remove" },
+      { name: "No Rice", caloriesDelta: -180, proteinDelta: -3, carbsDelta: -36, fatDelta: -3, type: "remove" },
+      { name: "Double Meat", caloriesDelta: 160, proteinDelta: 20, carbsDelta: 0, fatDelta: 6, type: "add" },
+    ],
+  },
+
+  "Dairy Queen": {
+    name: "Dairy Queen",
+    categories: ["Burgers", "Chicken", "Blizzards", "Cones & Sundaes", "Sides"],
+    items: [
+      { name: "1/4 lb GrillBurger with Cheese", calories: 530, protein: 28, carbs: 38, fat: 30, servingSize: "1 burger", category: "Burgers" },
+      { name: "FlameThrower GrillBurger", calories: 720, protein: 34, carbs: 40, fat: 46, servingSize: "1 burger", category: "Burgers" },
+      { name: "Chicken Strip Basket (4pc)", calories: 1020, protein: 38, carbs: 100, fat: 50, servingSize: "1 basket", category: "Chicken" },
+      { name: "Oreo Blizzard (Medium)", calories: 690, protein: 14, carbs: 96, fat: 28, servingSize: "medium", category: "Blizzards" },
+      { name: "Reese's Blizzard (Medium)", calories: 740, protein: 18, carbs: 88, fat: 36, servingSize: "medium", category: "Blizzards" },
+      { name: "Cookie Dough Blizzard (Medium)", calories: 710, protein: 14, carbs: 96, fat: 30, servingSize: "medium", category: "Blizzards" },
+      { name: "Vanilla Cone (Medium)", calories: 330, protein: 8, carbs: 49, fat: 11, servingSize: "medium", category: "Cones & Sundaes" },
+      { name: "Dipped Cone (Medium)", calories: 490, protein: 8, carbs: 59, fat: 24, servingSize: "medium", category: "Cones & Sundaes" },
+      { name: "Onion Rings", calories: 360, protein: 6, carbs: 42, fat: 18, servingSize: "regular", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "Small Size", caloriesDelta: -180, proteinDelta: -4, carbsDelta: -24, fatDelta: -8, type: "remove" },
+      { name: "Large Size", caloriesDelta: 200, proteinDelta: 4, carbsDelta: 28, fatDelta: 8, type: "add" },
+    ],
+  },
+
+  "Texas Roadhouse": {
+    name: "Texas Roadhouse",
+    categories: ["Steaks", "Ribs", "Chicken", "Sides", "Desserts"],
+    items: [
+      { name: "6 oz Sirloin", calories: 250, protein: 36, carbs: 0, fat: 12, servingSize: "6 oz", category: "Steaks" },
+      { name: "8 oz Sirloin", calories: 340, protein: 48, carbs: 0, fat: 16, servingSize: "8 oz", category: "Steaks" },
+      { name: "12 oz Ribeye", calories: 750, protein: 54, carbs: 0, fat: 58, servingSize: "12 oz", category: "Steaks" },
+      { name: "Country Fried Chicken", calories: 950, protein: 48, carbs: 56, fat: 56, servingSize: "1 entree", category: "Chicken" },
+      { name: "Grilled Chicken Salad", calories: 490, protein: 38, carbs: 22, fat: 28, servingSize: "1 salad", category: "Chicken" },
+      { name: "Fall-Off-The-Bone Ribs (Half Rack)", calories: 880, protein: 48, carbs: 28, fat: 60, servingSize: "half rack", category: "Ribs" },
+      { name: "Rolls with Butter (3)", calories: 480, protein: 10, carbs: 60, fat: 22, servingSize: "3 rolls", category: "Sides" },
+      { name: "Loaded Baked Potato", calories: 440, protein: 12, carbs: 54, fat: 22, servingSize: "1 potato", category: "Sides" },
+      { name: "Caesar Salad (Side)", calories: 270, protein: 6, carbs: 14, fat: 22, servingSize: "1 side", category: "Sides" },
+      { name: "Mashed Potatoes", calories: 200, protein: 4, carbs: 28, fat: 8, servingSize: "1 side", category: "Sides" },
+      { name: "Green Beans", calories: 60, protein: 2, carbs: 8, fat: 2, servingSize: "1 side", category: "Sides" },
+      { name: "Big Ol' Brownie", calories: 1180, protein: 12, carbs: 148, fat: 60, servingSize: "1 dessert", category: "Desserts" },
+    ],
+    commonModifiers: [
+      { name: "Add Loaded Toppings to Potato", caloriesDelta: 200, proteinDelta: 6, carbsDelta: 4, fatDelta: 16, type: "add" },
+      { name: "No Butter on Rolls", caloriesDelta: -100, proteinDelta: 0, carbsDelta: 0, fatDelta: -11, type: "remove" },
+    ],
+  },
+
+  "Cracker Barrel": {
+    name: "Cracker Barrel",
+    categories: ["Breakfast", "Country Dinners", "Sides"],
+    items: [
+      { name: "Country Boy Breakfast", calories: 1240, protein: 48, carbs: 92, fat: 72, servingSize: "1 meal", category: "Breakfast" },
+      { name: "Buttermilk Pancakes (3)", calories: 480, protein: 10, carbs: 80, fat: 14, servingSize: "3 pancakes", category: "Breakfast" },
+      { name: "Country Fried Steak", calories: 950, protein: 36, carbs: 60, fat: 60, servingSize: "1 entree", category: "Country Dinners" },
+      { name: "Grilled Chicken Tenderloins", calories: 350, protein: 42, carbs: 12, fat: 14, servingSize: "1 entree", category: "Country Dinners" },
+      { name: "Meatloaf", calories: 540, protein: 28, carbs: 26, fat: 36, servingSize: "1 entree", category: "Country Dinners" },
+      { name: "Mac n' Cheese", calories: 280, protein: 10, carbs: 36, fat: 12, servingSize: "1 side", category: "Sides" },
+      { name: "Turnip Greens", calories: 40, protein: 4, carbs: 4, fat: 0, servingSize: "1 side", category: "Sides" },
+      { name: "Fried Okra", calories: 280, protein: 4, carbs: 34, fat: 14, servingSize: "1 side", category: "Sides" },
+      { name: "Biscuit (1)", calories: 160, protein: 3, carbs: 20, fat: 8, servingSize: "1 biscuit", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "Sub Egg Whites", caloriesDelta: -60, proteinDelta: 2, carbsDelta: 0, fatDelta: -7, type: "swap" },
+      { name: "Add Butter & Syrup", caloriesDelta: 200, proteinDelta: 0, carbsDelta: 40, fatDelta: 7, type: "add" },
+    ],
+  },
+
+  "Whataburger": {
+    name: "Whataburger",
+    categories: ["Burgers", "Chicken", "Breakfast", "Sides", "Drinks"],
+    items: [
+      { name: "Whataburger", calories: 590, protein: 28, carbs: 62, fat: 25, servingSize: "1 burger", category: "Burgers" },
+      { name: "Double Meat Whataburger", calories: 890, protein: 47, carbs: 62, fat: 46, servingSize: "1 burger", category: "Burgers" },
+      { name: "Patty Melt", calories: 700, protein: 34, carbs: 52, fat: 38, servingSize: "1 sandwich", category: "Burgers" },
+      { name: "Honey BBQ Chicken Strip Sandwich", calories: 690, protein: 32, carbs: 70, fat: 30, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "Whatachick'n Sandwich", calories: 480, protein: 20, carbs: 50, fat: 22, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "Breakfast on a Bun (Sausage)", calories: 490, protein: 22, carbs: 30, fat: 32, servingSize: "1 sandwich", category: "Breakfast" },
+      { name: "Taquito with Cheese (Sausage)", calories: 380, protein: 16, carbs: 28, fat: 22, servingSize: "1 taquito", category: "Breakfast" },
+      { name: "Medium Fries", calories: 400, protein: 5, carbs: 52, fat: 20, servingSize: "medium", category: "Sides" },
+      { name: "Onion Rings (Medium)", calories: 470, protein: 6, carbs: 54, fat: 26, servingSize: "medium", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "No Mayo", caloriesDelta: -80, proteinDelta: 0, carbsDelta: 0, fatDelta: -9, type: "remove" },
+      { name: "Add Jalapeños", caloriesDelta: 5, proteinDelta: 0, carbsDelta: 1, fatDelta: 0, type: "add" },
+      { name: "Add Bacon", caloriesDelta: 60, proteinDelta: 4, carbsDelta: 0, fatDelta: 5, type: "add" },
+    ],
+  },
+
+  "El Pollo Loco": {
+    name: "El Pollo Loco",
+    categories: ["Chicken", "Burritos", "Bowls", "Tacos", "Sides"],
+    items: [
+      { name: "Original Pollo (2pc, Breast & Thigh)", calories: 470, protein: 46, carbs: 0, fat: 30, servingSize: "2 pieces", category: "Chicken" },
+      { name: "Classic Chicken Burrito", calories: 590, protein: 28, carbs: 68, fat: 22, servingSize: "1 burrito", category: "Burritos" },
+      { name: "Chicken Avocado Burrito", calories: 760, protein: 36, carbs: 72, fat: 34, servingSize: "1 burrito", category: "Burritos" },
+      { name: "Original Pollo Bowl", calories: 540, protein: 34, carbs: 60, fat: 16, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Chicken Tacos al Carbon (2)", calories: 340, protein: 22, carbs: 30, fat: 14, servingSize: "2 tacos", category: "Tacos" },
+      { name: "Pinto Beans", calories: 140, protein: 8, carbs: 22, fat: 2, servingSize: "1 side", category: "Sides" },
+      { name: "Spanish Rice", calories: 160, protein: 3, carbs: 32, fat: 3, servingSize: "1 side", category: "Sides" },
+      { name: "Cole Slaw", calories: 120, protein: 1, carbs: 11, fat: 8, servingSize: "1 side", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "No Sour Cream", caloriesDelta: -60, proteinDelta: -1, carbsDelta: -1, fatDelta: -5, type: "remove" },
+      { name: "No Cheese", caloriesDelta: -80, proteinDelta: -5, carbsDelta: -1, fatDelta: -6, type: "remove" },
+      { name: "Add Avocado", caloriesDelta: 90, proteinDelta: 1, carbsDelta: 4, fatDelta: 8, type: "add" },
+    ],
+  },
+
+  "Carl's Jr.": {
+    name: "Carl's Jr.",
+    categories: ["Burgers", "Chicken", "Breakfast", "Sides"],
+    items: [
+      { name: "Famous Star with Cheese", calories: 590, protein: 27, carbs: 52, fat: 32, servingSize: "1 burger", category: "Burgers" },
+      { name: "Western Bacon Cheeseburger", calories: 740, protein: 33, carbs: 68, fat: 35, servingSize: "1 burger", category: "Burgers" },
+      { name: "Double Western Bacon Cheeseburger", calories: 1020, protein: 52, carbs: 69, fat: 56, servingSize: "1 burger", category: "Burgers" },
+      { name: "Big Carl", calories: 920, protein: 45, carbs: 56, fat: 56, servingSize: "1 burger", category: "Burgers" },
+      { name: "Spicy Chicken Sandwich", calories: 460, protein: 24, carbs: 44, fat: 22, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "Hand-Breaded Chicken Tenders (5pc)", calories: 520, protein: 28, carbs: 34, fat: 30, servingSize: "5 tenders", category: "Chicken" },
+      { name: "Breakfast Burger", calories: 830, protein: 37, carbs: 53, fat: 52, servingSize: "1 burger", category: "Breakfast" },
+      { name: "Medium Fries", calories: 380, protein: 5, carbs: 50, fat: 18, servingSize: "medium", category: "Sides" },
+      { name: "Onion Rings", calories: 440, protein: 6, carbs: 54, fat: 22, servingSize: "regular", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "No Mayo", caloriesDelta: -90, proteinDelta: 0, carbsDelta: 0, fatDelta: -10, type: "remove" },
+      { name: "Add Bacon", caloriesDelta: 60, proteinDelta: 4, carbsDelta: 0, fatDelta: 5, type: "add" },
+      { name: "Lettuce Wrap", caloriesDelta: -160, proteinDelta: -4, carbsDelta: -30, fatDelta: -3, type: "swap" },
+    ],
+  },
+
+  "Jack in the Box": {
+    name: "Jack in the Box",
+    categories: ["Burgers", "Chicken", "Tacos", "Breakfast", "Sides"],
+    items: [
+      { name: "Jumbo Jack", calories: 530, protein: 22, carbs: 38, fat: 32, servingSize: "1 burger", category: "Burgers" },
+      { name: "Jumbo Jack with Cheese", calories: 600, protein: 26, carbs: 39, fat: 37, servingSize: "1 burger", category: "Burgers" },
+      { name: "Ultimate Cheeseburger", calories: 930, protein: 42, carbs: 38, fat: 66, servingSize: "1 burger", category: "Burgers" },
+      { name: "Spicy Chicken Sandwich", calories: 560, protein: 24, carbs: 52, fat: 28, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "Chicken Nuggets (10pc)", calories: 450, protein: 20, carbs: 28, fat: 28, servingSize: "10 pieces", category: "Chicken" },
+      { name: "2 Tacos", calories: 340, protein: 12, carbs: 32, fat: 18, servingSize: "2 tacos", category: "Tacos" },
+      { name: "Monster Taco", calories: 240, protein: 8, carbs: 18, fat: 15, servingSize: "1 taco", category: "Tacos" },
+      { name: "Breakfast Jack", calories: 280, protein: 16, carbs: 27, fat: 12, servingSize: "1 sandwich", category: "Breakfast" },
+      { name: "Loaded Breakfast Sandwich", calories: 540, protein: 20, carbs: 36, fat: 34, servingSize: "1 sandwich", category: "Breakfast" },
+      { name: "Medium Curly Fries", calories: 400, protein: 6, carbs: 50, fat: 20, servingSize: "medium", category: "Sides" },
+      { name: "Egg Rolls (3pc)", calories: 400, protein: 10, carbs: 42, fat: 20, servingSize: "3 pieces", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "No Mayo", caloriesDelta: -90, proteinDelta: 0, carbsDelta: 0, fatDelta: -10, type: "remove" },
+      { name: "Add Cheese", caloriesDelta: 50, proteinDelta: 3, carbsDelta: 1, fatDelta: 4, type: "add" },
+      { name: "Add Bacon", caloriesDelta: 60, proteinDelta: 4, carbsDelta: 0, fatDelta: 5, type: "add" },
+    ],
+  },
+
+  "Sonic": {
+    name: "Sonic",
+    categories: ["Burgers", "Hot Dogs", "Chicken", "Drinks & Slushes", "Sides", "Desserts"],
+    items: [
+      { name: "SuperSONIC Bacon Double Cheeseburger", calories: 930, protein: 48, carbs: 44, fat: 62, servingSize: "1 burger", category: "Burgers" },
+      { name: "Quarter Pound Double Cheeseburger", calories: 680, protein: 34, carbs: 38, fat: 42, servingSize: "1 burger", category: "Burgers" },
+      { name: "All-American Dog", calories: 470, protein: 14, carbs: 44, fat: 26, servingSize: "1 hot dog", category: "Hot Dogs" },
+      { name: "Chili Cheese Coney", calories: 540, protein: 18, carbs: 46, fat: 30, servingSize: "1 hot dog", category: "Hot Dogs" },
+      { name: "Popcorn Chicken (Large)", calories: 560, protein: 28, carbs: 40, fat: 32, servingSize: "large", category: "Chicken" },
+      { name: "Medium Cherry Limeade", calories: 220, protein: 0, carbs: 58, fat: 0, servingSize: "medium", category: "Drinks & Slushes" },
+      { name: "Medium Ocean Water", calories: 200, protein: 0, carbs: 54, fat: 0, servingSize: "medium", category: "Drinks & Slushes" },
+      { name: "Tater Tots (Medium)", calories: 430, protein: 4, carbs: 44, fat: 26, servingSize: "medium", category: "Sides" },
+      { name: "Onion Rings (Medium)", calories: 440, protein: 6, carbs: 56, fat: 22, servingSize: "medium", category: "Sides" },
+      { name: "Oreo Blast", calories: 640, protein: 12, carbs: 86, fat: 28, servingSize: "medium", category: "Desserts" },
+    ],
+    commonModifiers: [
+      { name: "Add Chili", caloriesDelta: 60, proteinDelta: 4, carbsDelta: 4, fatDelta: 3, type: "add" },
+      { name: "Add Cheese", caloriesDelta: 50, proteinDelta: 3, carbsDelta: 1, fatDelta: 4, type: "add" },
+      { name: "No Mayo", caloriesDelta: -80, proteinDelta: 0, carbsDelta: 0, fatDelta: -9, type: "remove" },
+    ],
+  },
+
+  "Arby's": {
+    name: "Arby's",
+    categories: ["Roast Beef", "Chicken", "Sides", "Desserts"],
+    items: [
+      { name: "Classic Roast Beef", calories: 360, protein: 23, carbs: 37, fat: 14, servingSize: "1 sandwich", category: "Roast Beef" },
+      { name: "Beef 'n Cheddar (Classic)", calories: 450, protein: 23, carbs: 44, fat: 20, servingSize: "1 sandwich", category: "Roast Beef" },
+      { name: "Half Pound Roast Beef", calories: 630, protein: 44, carbs: 41, fat: 32, servingSize: "1 sandwich", category: "Roast Beef" },
+      { name: "Crispy Chicken Sandwich", calories: 540, protein: 23, carbs: 48, fat: 28, servingSize: "1 sandwich", category: "Chicken" },
+      { name: "Chicken Tenders (3pc)", calories: 360, protein: 24, carbs: 22, fat: 20, servingSize: "3 tenders", category: "Chicken" },
+      { name: "Curly Fries (Medium)", calories: 410, protein: 5, carbs: 50, fat: 22, servingSize: "medium", category: "Sides" },
+      { name: "Mozzarella Sticks (4pc)", calories: 440, protein: 16, carbs: 38, fat: 24, servingSize: "4 sticks", category: "Sides" },
+      { name: "Jamocha Shake (Small)", calories: 490, protein: 11, carbs: 76, fat: 16, servingSize: "small", category: "Desserts" },
+    ],
+    commonModifiers: [
+      { name: "Add Cheese", caloriesDelta: 50, proteinDelta: 3, carbsDelta: 1, fatDelta: 4, type: "add" },
+      { name: "Add Bacon", caloriesDelta: 60, proteinDelta: 4, carbsDelta: 0, fatDelta: 5, type: "add" },
+      { name: "Horsey Sauce", caloriesDelta: 60, proteinDelta: 0, carbsDelta: 3, fatDelta: 5, type: "add" },
+      { name: "Arby's Sauce", caloriesDelta: 15, proteinDelta: 0, carbsDelta: 4, fatDelta: 0, type: "add" },
+    ],
+  },
+
+  "Nando's": {
+    name: "Nando's",
+    categories: ["Chicken", "Burgers & Wraps", "Sides", "Desserts"],
+    items: [
+      { name: "1/4 Chicken (Breast)", calories: 290, protein: 42, carbs: 0, fat: 13, servingSize: "quarter chicken", category: "Chicken" },
+      { name: "1/4 Chicken (Leg)", calories: 330, protein: 32, carbs: 0, fat: 22, servingSize: "quarter chicken", category: "Chicken" },
+      { name: "1/2 Chicken", calories: 620, protein: 74, carbs: 0, fat: 35, servingSize: "half chicken", category: "Chicken" },
+      { name: "Chicken Butterfly (Breast)", calories: 260, protein: 50, carbs: 0, fat: 6, servingSize: "1 butterfly", category: "Chicken" },
+      { name: "Grilled Chicken Wrap", calories: 490, protein: 30, carbs: 44, fat: 20, servingSize: "1 wrap", category: "Burgers & Wraps" },
+      { name: "Chicken Burger", calories: 480, protein: 32, carbs: 40, fat: 20, servingSize: "1 burger", category: "Burgers & Wraps" },
+      { name: "Peri-Peri Fries", calories: 380, protein: 5, carbs: 50, fat: 18, servingSize: "regular", category: "Sides" },
+      { name: "Coleslaw", calories: 120, protein: 1, carbs: 10, fat: 8, servingSize: "regular", category: "Sides" },
+      { name: "Corn on the Cob", calories: 100, protein: 3, carbs: 18, fat: 3, servingSize: "1 cob", category: "Sides" },
+      { name: "Spicy Rice", calories: 270, protein: 5, carbs: 50, fat: 6, servingSize: "regular", category: "Sides" },
+      { name: "Macho Peas", calories: 160, protein: 10, carbs: 18, fat: 5, servingSize: "regular", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "Extra Hot Sauce", caloriesDelta: 0, proteinDelta: 0, carbsDelta: 0, fatDelta: 0, type: "add" },
+      { name: "Add Halloumi", caloriesDelta: 120, proteinDelta: 8, carbsDelta: 2, fatDelta: 9, type: "add" },
+      { name: "Add Avocado", caloriesDelta: 90, proteinDelta: 1, carbsDelta: 4, fatDelta: 8, type: "add" },
+    ],
+  },
+
+  "Jersey Mike's": {
+    name: "Jersey Mike's",
+    categories: ["Cold Subs (Regular)", "Hot Subs (Regular)", "Wraps"],
+    items: [
+      { name: "#13 Original Italian (Regular)", calories: 740, protein: 34, carbs: 60, fat: 38, servingSize: "regular sub", category: "Cold Subs (Regular)" },
+      { name: "#7 Turkey & Provolone (Regular)", calories: 530, protein: 34, carbs: 54, fat: 18, servingSize: "regular sub", category: "Cold Subs (Regular)" },
+      { name: "#6 Roast Beef & Provolone (Regular)", calories: 530, protein: 34, carbs: 54, fat: 18, servingSize: "regular sub", category: "Cold Subs (Regular)" },
+      { name: "#5 Super Sub (Regular)", calories: 620, protein: 30, carbs: 54, fat: 28, servingSize: "regular sub", category: "Cold Subs (Regular)" },
+      { name: "#17 Mike's Famous Philly (Regular)", calories: 650, protein: 38, carbs: 56, fat: 30, servingSize: "regular sub", category: "Hot Subs (Regular)" },
+      { name: "#43 Chipotle Chicken Cheesesteak (Regular)", calories: 700, protein: 40, carbs: 58, fat: 34, servingSize: "regular sub", category: "Hot Subs (Regular)" },
+      { name: "#56 Big Kahuna Cheesesteak (Regular)", calories: 780, protein: 42, carbs: 58, fat: 38, servingSize: "regular sub", category: "Hot Subs (Regular)" },
+    ],
+    commonModifiers: [
+      { name: "Mike's Way (Oil, Vinegar, Spices)", caloriesDelta: 80, proteinDelta: 0, carbsDelta: 2, fatDelta: 8, type: "add" },
+      { name: "No Oil", caloriesDelta: -60, proteinDelta: 0, carbsDelta: 0, fatDelta: -7, type: "remove" },
+      { name: "Add Bacon", caloriesDelta: 60, proteinDelta: 4, carbsDelta: 0, fatDelta: 5, type: "add" },
+      { name: "Mini Size", caloriesDelta: -300, proteinDelta: -15, carbsDelta: -24, fatDelta: -16, type: "remove" },
+      { name: "Giant Size", caloriesDelta: 350, proteinDelta: 17, carbsDelta: 27, fatDelta: 19, type: "add" },
+    ],
+  },
+
+  "Tim Hortons": {
+    name: "Tim Hortons",
+    categories: ["Coffee", "Donuts", "Breakfast", "Sandwiches"],
+    items: [
+      { name: "Medium Double Double", calories: 230, protein: 2, carbs: 28, fat: 12, servingSize: "medium", category: "Coffee" },
+      { name: "Medium Iced Capp", calories: 360, protein: 4, carbs: 52, fat: 16, servingSize: "medium", category: "Coffee" },
+      { name: "Medium French Vanilla", calories: 220, protein: 1, carbs: 40, fat: 6, servingSize: "medium", category: "Coffee" },
+      { name: "Original Glazed Donut", calories: 260, protein: 4, carbs: 36, fat: 12, servingSize: "1 donut", category: "Donuts" },
+      { name: "Boston Cream Donut", calories: 280, protein: 4, carbs: 38, fat: 12, servingSize: "1 donut", category: "Donuts" },
+      { name: "Timbits (10 Assorted)", calories: 700, protein: 8, carbs: 96, fat: 32, servingSize: "10 pieces", category: "Donuts" },
+      { name: "Bacon, Egg & Cheese Biscuit", calories: 450, protein: 18, carbs: 34, fat: 28, servingSize: "1 biscuit", category: "Breakfast" },
+      { name: "Everything Bagel with Cream Cheese", calories: 420, protein: 14, carbs: 60, fat: 14, servingSize: "1 bagel", category: "Breakfast" },
+      { name: "Farmer's Wrap", calories: 400, protein: 20, carbs: 32, fat: 22, servingSize: "1 wrap", category: "Breakfast" },
+    ],
+    commonModifiers: [
+      { name: "Sub Oat Milk", caloriesDelta: -30, proteinDelta: -1, carbsDelta: 2, fatDelta: -3, type: "swap" },
+      { name: "No Sugar", caloriesDelta: -30, proteinDelta: 0, carbsDelta: -8, fatDelta: 0, type: "remove" },
+      { name: "Extra Cream", caloriesDelta: 40, proteinDelta: 0, carbsDelta: 1, fatDelta: 4, type: "add" },
+    ],
+  },
+
+  "Bojangles": {
+    name: "Bojangles",
+    categories: ["Chicken", "Biscuits", "Sides"],
+    items: [
+      { name: "Cajun Chicken Filet Biscuit", calories: 530, protein: 20, carbs: 48, fat: 28, servingSize: "1 biscuit", category: "Biscuits" },
+      { name: "Country Ham Biscuit", calories: 340, protein: 12, carbs: 32, fat: 18, servingSize: "1 biscuit", category: "Biscuits" },
+      { name: "Sausage Biscuit", calories: 400, protein: 10, carbs: 32, fat: 26, servingSize: "1 biscuit", category: "Biscuits" },
+      { name: "Supremes (3pc)", calories: 360, protein: 24, carbs: 16, fat: 22, servingSize: "3 pieces", category: "Chicken" },
+      { name: "Leg", calories: 190, protein: 16, carbs: 6, fat: 12, servingSize: "1 leg", category: "Chicken" },
+      { name: "Breast", calories: 340, protein: 34, carbs: 10, fat: 18, servingSize: "1 breast", category: "Chicken" },
+      { name: "Cajun Fries (Regular)", calories: 340, protein: 4, carbs: 42, fat: 18, servingSize: "regular", category: "Sides" },
+      { name: "Dirty Rice", calories: 190, protein: 6, carbs: 30, fat: 6, servingSize: "1 serving", category: "Sides" },
+      { name: "Bo-Berry Biscuit", calories: 350, protein: 4, carbs: 50, fat: 16, servingSize: "1 biscuit", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "Add Egg", caloriesDelta: 90, proteinDelta: 6, carbsDelta: 1, fatDelta: 7, type: "add" },
+      { name: "Add Cheese", caloriesDelta: 50, proteinDelta: 3, carbsDelta: 0, fatDelta: 4, type: "add" },
+    ],
+  },
+
+  "CAVA": {
+    name: "CAVA",
+    categories: ["Bowls", "Pitas", "Salads", "Sides"],
+    items: [
+      { name: "Grilled Chicken Bowl", calories: 620, protein: 38, carbs: 60, fat: 24, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Braised Lamb Bowl", calories: 700, protein: 34, carbs: 62, fat: 32, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Falafel Bowl", calories: 580, protein: 18, carbs: 72, fat: 24, servingSize: "1 bowl", category: "Bowls" },
+      { name: "Grilled Chicken Pita", calories: 530, protein: 34, carbs: 48, fat: 20, servingSize: "1 pita", category: "Pitas" },
+      { name: "Harissa Honey Chicken Pita", calories: 580, protein: 34, carbs: 52, fat: 24, servingSize: "1 pita", category: "Pitas" },
+      { name: "Greens & Grains Salad", calories: 400, protein: 28, carbs: 32, fat: 18, servingSize: "1 salad", category: "Salads" },
+      { name: "Crazy Feta Dip", calories: 120, protein: 4, carbs: 2, fat: 10, servingSize: "1 serving", category: "Sides" },
+      { name: "Pita Chips", calories: 180, protein: 4, carbs: 28, fat: 6, servingSize: "1 serving", category: "Sides" },
+    ],
+    commonModifiers: [
+      { name: "Add Hummus", caloriesDelta: 90, proteinDelta: 3, carbsDelta: 8, fatDelta: 5, type: "add" },
+      { name: "Add Feta", caloriesDelta: 60, proteinDelta: 4, carbsDelta: 0, fatDelta: 5, type: "add" },
+      { name: "No Dressing", caloriesDelta: -100, proteinDelta: 0, carbsDelta: -3, fatDelta: -10, type: "remove" },
+      { name: "Extra Protein", caloriesDelta: 120, proteinDelta: 18, carbsDelta: 0, fatDelta: 4, type: "add" },
+    ],
+  },
+};
+
+export function getRestaurantMenu(restaurantName: string): RestaurantMenu | null {
+  const normalizedInput = restaurantName.toLowerCase().replace(/[''`]/g, '').replace(/\s+/g, ' ').trim();
+
+  for (const [key, menu] of Object.entries(RESTAURANT_MENUS)) {
+    const normalizedKey = key.toLowerCase().replace(/[''`]/g, '').replace(/\s+/g, ' ').trim();
+    if (normalizedKey === normalizedInput || normalizedKey.includes(normalizedInput) || normalizedInput.includes(normalizedKey)) {
+      return menu;
+    }
+  }
+
+  const aliases: Record<string, string> = {
+    'mcdonalds': "McDonald's", 'mcd': "McDonald's", 'mickey d': "McDonald's",
+    'bk': "Burger King", 'wendys': "Wendy's", 'cfa': "Chick-fil-A",
+    'chickfila': "Chick-fil-A", 'chick fil a': "Chick-fil-A",
+    'tacobell': "Taco Bell", 'tb': "Taco Bell",
+    'dq': "Dairy Queen", 'dd': "Dunkin'", 'dunkin donuts': "Dunkin'",
+    'panda': "Panda Express", 'in n out': "In-N-Out", 'innout': "In-N-Out",
+    'in and out': "In-N-Out", '5 guys': "Five Guys", 'fiveguys': "Five Guys",
+    'jitb': "Jack in the Box", 'jack box': "Jack in the Box",
+    'dominos': "Domino's", 'pizza hut': "Pizza Hut", 'pizzahut': "Pizza Hut",
+    'shake shack': "Shake Shack", 'shakeshack': "Shake Shack",
+    'sweetgreen': "Sweetgreen", 'tcf': "The Cheesecake Factory",
+    'cheesecake factory': "The Cheesecake Factory",
+    'jersey mikes': "Jersey Mike's", 'jersey mike': "Jersey Mike's",
+    'carls jr': "Carl's Jr.", 'tims': "Tim Hortons", 'timmy': "Tim Hortons",
+    'nandos': "Nando's", 'canes': "Raising Cane's", 'raising canes': "Raising Cane's",
+    'popeye': "Popeyes", 'arbys': "Arby's", 'arby': "Arby's",
+    'el pollo loco': "El Pollo Loco", 'pollo loco': "El Pollo Loco",
+    'wing stop': "Wingstop", 'whata': "Whataburger", 'whatburger': "Whataburger",
+    'ihop': "IHOP", 'i hop': "IHOP", 'olive garden': "Olive Garden",
+    'papa johns': "Papa John's", 'papa john': "Papa John's",
+    'little caesars': "Little Caesars", 'panera': "Panera Bread",
+    'sonic drive-in': "Sonic", 'bojangles': "Bojangles",
+    'cracker barrel': "Cracker Barrel", 'texas roadhouse': "Texas Roadhouse",
+    'qdoba': "Qdoba", 'cava': "CAVA",
+  };
+
+  const aliasMatch = aliases[normalizedInput];
+  if (aliasMatch && RESTAURANT_MENUS[aliasMatch]) {
+    return RESTAURANT_MENUS[aliasMatch];
+  }
+
+  return null;
+}
+
+export function getAllRestaurantNames(): string[] {
+  return Object.keys(RESTAURANT_MENUS);
+}
+
+export function searchRestaurantMenuItems(restaurantName: string, query: string): MenuItem[] {
+  const menu = getRestaurantMenu(restaurantName);
+  if (!menu) return [];
+
+  const q = query.toLowerCase();
+  return menu.items.filter(item =>
+    item.name.toLowerCase().includes(q) ||
+    item.category.toLowerCase().includes(q)
+  );
+}
+
+export function applyModifiers(item: MenuItem, modifiers: MenuModifier[]): MenuItem {
+  let calories = item.calories;
+  let protein = item.protein;
+  let carbs = item.carbs;
+  let fat = item.fat;
+
+  for (const mod of modifiers) {
+    calories += mod.caloriesDelta;
+    protein += mod.proteinDelta;
+    carbs += mod.carbsDelta;
+    fat += mod.fatDelta;
+  }
+
+  return {
+    ...item,
+    calories: Math.max(0, Math.round(calories)),
+    protein: Math.max(0, Math.round(protein)),
+    carbs: Math.max(0, Math.round(carbs)),
+    fat: Math.max(0, Math.round(fat)),
+  };
+}
