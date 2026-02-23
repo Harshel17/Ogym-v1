@@ -4237,7 +4237,12 @@ NUMBER FORMAT PARSING:
 - "4x10 at 80kg" or "4x10 @ 80" = 4 sets, 10 reps, 80kg → actualSets: 4, actualReps: 10, actualWeight: "80kg"
 - "3 sets 12 reps" = 3 sets, 12 reps
 - "4s12r" = 4 sets, 12 reps
-- Always parse these number formats when present
+- IMPORTANT: Numbers/formats ALWAYS belong to the exercise name immediately BEFORE them in the input text. 
+  Example: "i did bench press, incline bench press 3X12, decline bench press" means:
+  - "bench press" → complete (no numbers given, use plan defaults)
+  - "incline bench press" → 3 sets x 12 reps (the "3X12" follows this exercise)
+  - "decline bench press" → complete (no numbers given)
+  NEVER assign numbers to a different exercise than the one they immediately follow.
 
 CRITICAL RULES:
 - "replace" should ONLY be used when the user uses EXPLICIT replacement language like "instead of", "replaced", "swapped", "in place of". If the user just lists exercises they did, NEVER use replace.
@@ -4250,7 +4255,9 @@ CRITICAL RULES:
 - Be generous with fuzzy matching ONLY for close variants (e.g., "bench" = "Bench Press", "squats" = "Barbell Squats", "OHP" = "Overhead Press")
 - Do NOT fuzzy match exercises that are genuinely different (e.g., "incline bench press" ≠ "Barbell Bench Press", "leg press" ≠ "Bench Press")
 
-Return ONLY a JSON object: {"actions": [...], "summary": "brief description of what will happen", "suggestions": ["next exercise suggestion 1", "exercise suggestion 2"]}
+Each action object MUST have the key "type" (not "action") set to one of: "complete", "complete_with_details", "replace", "add_extra", "batch_complete".
+
+Return ONLY a JSON object: {"actions": [{"type": "complete", "workoutItemId": 123}, ...], "summary": "brief description of what will happen", "suggestions": ["next exercise suggestion 1", "exercise suggestion 2"]}
 The suggestions should be the names of the NEXT 1-2 pending exercises they haven't mentioned yet (if any remain).
 No markdown, no code fences.`;
 
@@ -4268,6 +4275,17 @@ No markdown, no code fences.`;
       } catch {
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { actions: [], summary: "Couldn't understand that. Try again?", suggestions: [] };
+      }
+
+      // Normalize: AI sometimes returns "action" instead of "type"
+      if (parsed.actions) {
+        parsed.actions = parsed.actions.map((a: any) => {
+          if (a.action && !a.type) {
+            a.type = a.action;
+            delete a.action;
+          }
+          return a;
+        });
       }
 
       // Validate actions reference real workout item IDs

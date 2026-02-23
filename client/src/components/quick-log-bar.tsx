@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Sparkles, Send, Check, Loader2, X, Plus, ArrowRightLeft, ChevronRight, Zap, HelpCircle } from "lucide-react";
 
 function getClientLocalDate() {
@@ -118,8 +119,12 @@ export function QuickLogBar() {
     parseMutation.mutate(text);
   };
 
+  const hasIncompleteReplace = parseResult?.actions.some((a, i) =>
+    a.type === 'add_extra' && extraChoices[i]?.choice === 'replace' && !extraChoices[i]?.replaceId
+  ) ?? false;
+
   const handleConfirm = () => {
-    if (!parseResult?.actions.length) return;
+    if (!parseResult?.actions.length || hasIncompleteReplace) return;
     const finalActions = parseResult.actions.map((action, i) => {
       if (action.type === 'add_extra') {
         const choice = extraChoices[i];
@@ -255,7 +260,7 @@ export function QuickLogBar() {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <input
+              <Input
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -263,7 +268,7 @@ export function QuickLogBar() {
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
                 placeholder='Try "did bench press 3x12" or "finished all"'
-                className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/50"
+                className="border-0 bg-transparent h-auto px-0 text-sm font-medium focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
                 disabled={isParsing || isConfirming}
                 data-testid="input-quick-log"
               />
@@ -271,22 +276,24 @@ export function QuickLogBar() {
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               {input.trim() && (
-                <button
+                <Button
+                  size="icon"
+                  variant="ghost"
                   onClick={() => { setInput(""); setParsResult(null); setExtraChoices({}); }}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50 transition-colors"
                   data-testid="button-clear-quick-log"
                 >
                   <X className="w-3.5 h-3.5" />
-                </button>
+                </Button>
               )}
-              <button
+              <Button
+                size="icon"
                 onClick={handleSubmit}
                 disabled={!input.trim() || isParsing || isConfirming}
-                className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-purple-500/25 disabled:opacity-40 disabled:shadow-none hover:shadow-lg hover:shadow-purple-500/30 transition-all active:scale-95"
+                className="bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-md shadow-purple-500/25"
                 data-testid="button-send-quick-log"
               >
                 {isParsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -305,13 +312,9 @@ export function QuickLogBar() {
                   </div>
                   <p className="text-xs font-semibold text-foreground leading-snug">{parseResult.summary}</p>
                 </div>
-                <button
-                  onClick={handleDismiss}
-                  className="w-5 h-5 rounded-md flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50 transition-colors flex-shrink-0"
-                  data-testid="button-dismiss-preview"
-                >
+                <Button variant="ghost" size="icon" className="w-5 h-5" onClick={handleDismiss} data-testid="button-dismiss-preview">
                   <X className="w-3 h-3" />
-                </button>
+                </Button>
               </div>
               
               <div className="space-y-1.5">
@@ -335,59 +338,63 @@ export function QuickLogBar() {
                     </div>
 
                     {/* Clarifying question for extra exercises */}
-                    {action.type === 'add_extra' && pendingExercises.length > 0 && (
+                    {action.type === 'add_extra' && (
                       <div className="ml-8 mt-1.5 mb-1 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/15" data-testid={`extra-choice-${i}`}>
                         <div className="flex items-center gap-1.5 mb-2">
                           <HelpCircle className="w-3 h-3 text-amber-400" />
-                          <span className="text-[11px] font-medium text-amber-300/90">Is this replacing a planned exercise?</span>
+                          <span className="text-[11px] font-medium text-amber-300/90">
+                            {pendingExercises.length > 0 ? 'Is this replacing a planned exercise?' : 'This will be added as an extra exercise'}
+                          </span>
                         </div>
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => setExtraChoices(prev => ({ ...prev, [i]: { choice: 'extra' } }))}
-                            className={`flex-1 text-[10px] font-medium py-1.5 px-2 rounded-md border transition-all ${
-                              !extraChoices[i] || extraChoices[i]?.choice === 'extra'
-                                ? 'bg-violet-500/15 border-violet-500/30 text-violet-300'
-                                : 'bg-card/40 border-border/50 text-muted-foreground hover:bg-muted/30'
-                            }`}
-                            data-testid={`button-keep-extra-${i}`}
-                          >
-                            <Plus className="w-2.5 h-2.5 inline mr-1" />
-                            Keep as extra
-                          </button>
-                          <button
-                            onClick={() => setExtraChoices(prev => ({ ...prev, [i]: { choice: 'replace', replaceId: undefined } }))}
-                            className={`flex-1 text-[10px] font-medium py-1.5 px-2 rounded-md border transition-all ${
-                              extraChoices[i]?.choice === 'replace'
-                                ? 'bg-sky-500/15 border-sky-500/30 text-sky-300'
-                                : 'bg-card/40 border-border/50 text-muted-foreground hover:bg-muted/30'
-                            }`}
-                            data-testid={`button-replace-${i}`}
-                          >
-                            <ArrowRightLeft className="w-2.5 h-2.5 inline mr-1" />
-                            Replace
-                          </button>
-                        </div>
-                        {extraChoices[i]?.choice === 'replace' && (
-                          <div className="mt-2">
-                            <Select
-                              value={extraChoices[i]?.replaceId?.toString() || ""}
-                              onValueChange={(val) => setExtraChoices(prev => ({
-                                ...prev,
-                                [i]: { choice: 'replace', replaceId: parseInt(val) }
-                              }))}
-                            >
-                              <SelectTrigger className="h-7 text-[10px] bg-card/60 border-border/50" data-testid={`select-replace-target-${i}`}>
-                                <SelectValue placeholder="Which exercise to replace?" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {pendingExercises.map(ex => (
-                                  <SelectItem key={ex.id} value={ex.id.toString()} className="text-xs">
-                                    {ex.name} ({ex.sets}x{ex.reps})
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                        {pendingExercises.length > 0 ? (
+                          <>
+                            <div className="flex gap-1.5">
+                              <Button
+                                size="sm"
+                                variant={!extraChoices[i] || extraChoices[i]?.choice === 'extra' ? 'default' : 'outline'}
+                                className={`flex-1 text-[10px] ${!extraChoices[i] || extraChoices[i]?.choice === 'extra' ? 'bg-violet-500/15 border border-violet-500/30 text-violet-300' : ''}`}
+                                onClick={() => setExtraChoices(prev => ({ ...prev, [i]: { choice: 'extra' } }))}
+                                data-testid={`button-keep-extra-${i}`}
+                              >
+                                <Plus className="w-2.5 h-2.5 mr-1" />
+                                Keep as extra
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={extraChoices[i]?.choice === 'replace' ? 'default' : 'outline'}
+                                className={`flex-1 text-[10px] ${extraChoices[i]?.choice === 'replace' ? 'bg-sky-500/15 border border-sky-500/30 text-sky-300' : ''}`}
+                                onClick={() => setExtraChoices(prev => ({ ...prev, [i]: { choice: 'replace', replaceId: undefined } }))}
+                                data-testid={`button-replace-${i}`}
+                              >
+                                <ArrowRightLeft className="w-2.5 h-2.5 mr-1" />
+                                Replace
+                              </Button>
+                            </div>
+                            {extraChoices[i]?.choice === 'replace' && (
+                              <div className="mt-2">
+                                <Select
+                                  value={extraChoices[i]?.replaceId?.toString() || ""}
+                                  onValueChange={(val) => setExtraChoices(prev => ({
+                                    ...prev,
+                                    [i]: { choice: 'replace', replaceId: parseInt(val) }
+                                  }))}
+                                >
+                                  <SelectTrigger className="h-7 text-[10px] bg-card/60 border-border/50" data-testid={`select-replace-target-${i}`}>
+                                    <SelectValue placeholder="Which exercise to replace?" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {pendingExercises.map(ex => (
+                                      <SelectItem key={ex.id} value={ex.id.toString()} className="text-xs">
+                                        {ex.name} ({ex.sets}x{ex.reps})
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground/60">All planned exercises are already done. This will be logged as an extra.</p>
                         )}
                       </div>
                     )}
@@ -400,7 +407,7 @@ export function QuickLogBar() {
                   size="sm"
                   className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 border-0 text-white shadow-md shadow-emerald-500/25"
                   onClick={handleConfirm}
-                  disabled={isConfirming || (hasExtras && parseResult.actions.some((a, i) => a.type === 'add_extra' && extraChoices[i]?.choice === 'replace' && !extraChoices[i]?.replaceId))}
+                  disabled={isConfirming || hasIncompleteReplace}
                   data-testid="button-confirm-quick-log"
                 >
                   {isConfirming ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Check className="w-3.5 h-3.5 mr-1.5" />}
@@ -456,13 +463,9 @@ export function QuickLogBar() {
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={handleDismissSummary}
-                  className="w-5 h-5 rounded-md flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50 transition-colors"
-                  data-testid="button-dismiss-summary"
-                >
+                <Button variant="ghost" size="icon" className="w-5 h-5" onClick={handleDismissSummary} data-testid="button-dismiss-summary">
                   <X className="w-3 h-3" />
-                </button>
+                </Button>
               </div>
 
               {summaryResult.updatedProgress && (
@@ -503,15 +506,16 @@ export function QuickLogBar() {
         <div className="flex items-center gap-1.5 flex-wrap px-1" data-testid="quick-log-suggestions">
           <span className="text-[10px] text-muted-foreground/60 font-medium">Next up:</span>
           {parseResult.suggestions.map((suggestion, i) => (
-            <button
+            <Badge
               key={i}
-              className="inline-flex items-center gap-1 text-[10px] font-medium py-1 px-2.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 hover:border-purple-500/30 transition-all active:scale-95"
+              variant="outline"
+              className="text-[10px] py-0.5 px-2.5 cursor-pointer bg-purple-500/10 text-purple-400 border-purple-500/20"
               onClick={() => handleSuggestionClick(suggestion)}
               data-testid={`badge-suggestion-${i}`}
             >
-              <ChevronRight className="w-2.5 h-2.5" />
+              <ChevronRight className="w-2.5 h-2.5 mr-0.5" />
               {suggestion}
-            </button>
+            </Badge>
           ))}
         </div>
       )}
