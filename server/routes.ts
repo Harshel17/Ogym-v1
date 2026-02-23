@@ -1254,6 +1254,317 @@ Return JSON:
     }
   });
 
+  // Ask Dika - Members page
+  app.post("/api/owner/ask-dika-members", requireRole(["owner"]), async (req, res) => {
+    try {
+      const bodySchema = z.object({
+        question: z.string().min(1).max(500),
+      });
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+      const { question } = parsed.data;
+      const gymId = req.user!.gymId!;
+
+      const membersList = await db.select({
+        id: users.id,
+        username: users.username,
+        createdAt: users.createdAt,
+      }).from(users)
+        .where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+
+      const profiles = await db.select({
+        userId: userProfiles.userId,
+        fullName: userProfiles.fullName,
+      }).from(userProfiles)
+        .where(inArray(userProfiles.userId, membersList.map(m => m.id)));
+      const profileMap = new Map(profiles.map(p => [p.userId, p.fullName]));
+
+      const assignments = await db.select({
+        memberId: trainerMemberAssignments.memberId,
+        trainerId: trainerMemberAssignments.trainerId,
+      }).from(trainerMemberAssignments)
+        .where(and(eq(trainerMemberAssignments.gymId, gymId), isNull(trainerMemberAssignments.endedAt)));
+      const trainerIds = Array.from(new Set(assignments.map(a => a.trainerId)));
+      let trainerNameMap = new Map<number, string>();
+      if (trainerIds.length > 0) {
+        const trainerUsers = await db.select({ id: users.id, username: users.username })
+          .from(users).where(inArray(users.id, trainerIds));
+        trainerNameMap = new Map(trainerUsers.map(t => [t.id, t.username]));
+      }
+      const memberTrainerMap = new Map(assignments.map(a => [a.memberId, trainerNameMap.get(a.trainerId) || 'Unknown']));
+
+      const subs = await db.select({
+        memberId: memberSubscriptions.memberId,
+        status: memberSubscriptions.status,
+        endDate: memberSubscriptions.endDate,
+        planName: membershipPlans.name,
+      }).from(memberSubscriptions)
+        .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+        .where(and(eq(memberSubscriptions.gymId, gymId), sql`${memberSubscriptions.status} != 'ended'`));
+      const subMap = new Map(subs.map(s => [s.memberId, s]));
+
+      const today = new Date().toISOString().split('T')[0];
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+      const recentAttendance = await db.select({
+        memberId: attendance.memberId,
+        date: attendance.date,
+      }).from(attendance)
+        .where(and(eq(attendance.gymId, gymId), gte(attendance.date, weekAgo)));
+      const lastCheckInMap = new Map<number, string>();
+      recentAttendance.forEach(a => {
+        const cur = lastCheckInMap.get(a.memberId);
+        if (!cur || a.date > cur) lastCheckInMap.set(a.memberId, a.date);
+      });
+      const checkedInThisWeek = new Set(recentAttendance.map(a => a.memberId));
+
+      const membersData = membersList.map(m => {
+        const sub = subMap.get(m.id);
+        return {
+          username: m.username,
+          fullName: profileMap.get(m.id) || null,
+          joinedDate: m.createdAt ? new Date(m.createdAt).toISOString().split('T')[0] : null,
+          trainer: memberTrainerMap.get(m.id) || 'none',
+          subscription: sub ? { plan: sub.planName, status: sub.status, endDate: sub.endDate } : null,
+          lastCheckIn: lastCheckInMap.get(m.id) || 'no recent check-in',
+          checkedInThisWeek: checkedInThisWeek.has(m.id),
+        };
+      });
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const systemPrompt = `You are Dika, an AI assistant for gym member management. Today is ${today}.
+
+MEMBER DATA (${membersData.length} members):
+${JSON.stringify(membersData, null, 0)}
+
+RESPONSE FORMAT (JSON):
+{
+  "answer": "Brief natural language answer",
+  "results": [
+    { "member": "username", "detail": "relevant info like trainer, subscription, last check-in" }
+  ],
+  "filterNames": ["username1", "username2"]
+}
+- "filterNames" should contain the usernames that match the query so the table can be filtered.
+- For questions about counts/totals, results can be empty.
+- Match names case-insensitively with partial matching.
+- When asked "who hasn't checked in", look at checkedInThisWeek=false and lastCheckIn.
+- When asked about expiring members, check subscription endDate.
+- When asked about new members, check joinedDate.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const responseText = completion.choices[0]?.message?.content || '{"answer":"Sorry, I could not process that.","results":[],"filterNames":[]}';
+      try {
+        const parsed = JSON.parse(responseText);
+        res.json(parsed);
+      } catch {
+        res.json({ answer: responseText, results: [], filterNames: [] });
+      }
+    } catch (err: any) {
+      console.error("Ask Dika members error:", err);
+      res.status(500).json({ message: "Failed to process your question" });
+    }
+  });
+
+  // Ask Dika - Attendance page
+  app.post("/api/owner/ask-dika-attendance", requireRole(["owner"]), async (req, res) => {
+    try {
+      const bodySchema = z.object({
+        question: z.string().min(1).max(500),
+      });
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+      const { question } = parsed.data;
+      const gymId = req.user!.gymId!;
+
+      const today = new Date().toISOString().split('T')[0];
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+
+      const records = await db.select({
+        memberId: attendance.memberId,
+        date: attendance.date,
+        status: attendance.status,
+        verifiedMethod: attendance.verifiedMethod,
+        memberUsername: users.username,
+      }).from(attendance)
+        .leftJoin(users, eq(attendance.memberId, users.id))
+        .where(and(eq(attendance.gymId, gymId), gte(attendance.date, thirtyDaysAgo)));
+
+      const allMembers = await db.select({
+        id: users.id,
+        username: users.username,
+      }).from(users).where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+
+      const memberAttendanceSummary = allMembers.map(m => {
+        const memberRecords = records.filter(r => r.memberId === m.id);
+        const presentDays = memberRecords.filter(r => r.status === 'present').length;
+        const lastCheckIn = memberRecords.length > 0
+          ? memberRecords.sort((a, b) => b.date.localeCompare(a.date))[0].date
+          : null;
+        const daysSinceLastCheckIn = lastCheckIn
+          ? Math.floor((Date.now() - new Date(lastCheckIn).getTime()) / 86400000)
+          : null;
+        return {
+          username: m.username,
+          totalPresent30Days: presentDays,
+          lastCheckIn,
+          daysSinceLastCheckIn,
+          checkedInToday: memberRecords.some(r => r.date === today && r.status === 'present'),
+        };
+      });
+
+      const todayCount = memberAttendanceSummary.filter(m => m.checkedInToday).length;
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const systemPrompt = `You are Dika, an AI attendance assistant for a gym. Today is ${today}.
+
+ATTENDANCE SUMMARY (last 30 days, ${allMembers.length} members):
+- Checked in today: ${todayCount}
+- Not checked in today: ${allMembers.length - todayCount}
+
+MEMBER ATTENDANCE DATA:
+${JSON.stringify(memberAttendanceSummary, null, 0)}
+
+RESPONSE FORMAT (JSON):
+{
+  "answer": "Brief natural language answer",
+  "results": [
+    { "member": "username", "detail": "relevant attendance info" }
+  ],
+  "filterNames": ["username1", "username2"]
+}
+- "filterNames" should contain the usernames matching the query for table filtering.
+- When asked "who hasn't checked in" for X days, check daysSinceLastCheckIn >= X.
+- When asked about today's check-ins, use checkedInToday.
+- When asked about absent members, look for high daysSinceLastCheckIn values.
+- Match names case-insensitively with partial matching.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const responseText = completion.choices[0]?.message?.content || '{"answer":"Sorry, I could not process that.","results":[],"filterNames":[]}';
+      try {
+        const parsed = JSON.parse(responseText);
+        res.json(parsed);
+      } catch {
+        res.json({ answer: responseText, results: [], filterNames: [] });
+      }
+    } catch (err: any) {
+      console.error("Ask Dika attendance error:", err);
+      res.status(500).json({ message: "Failed to process your question" });
+    }
+  });
+
+  // Ask Dika - Trainers page
+  app.post("/api/owner/ask-dika-trainers", requireRole(["owner"]), async (req, res) => {
+    try {
+      const bodySchema = z.object({
+        question: z.string().min(1).max(500),
+      });
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+      const { question } = parsed.data;
+      const gymId = req.user!.gymId!;
+
+      const trainers = await db.select({
+        id: users.id,
+        username: users.username,
+        createdAt: users.createdAt,
+      }).from(users).where(and(eq(users.gymId, gymId), eq(users.role, 'trainer')));
+
+      const assignments = await db.select({
+        trainerId: trainerMemberAssignments.trainerId,
+        memberId: trainerMemberAssignments.memberId,
+      }).from(trainerMemberAssignments)
+        .where(and(eq(trainerMemberAssignments.gymId, gymId), isNull(trainerMemberAssignments.endedAt)));
+
+      const memberIds = Array.from(new Set(assignments.map(a => a.memberId)));
+      let memberNameMap = new Map<number, string>();
+      if (memberIds.length > 0) {
+        const memberUsers = await db.select({ id: users.id, username: users.username })
+          .from(users).where(inArray(users.id, memberIds));
+        memberNameMap = new Map(memberUsers.map(m => [m.id, m.username]));
+      }
+
+      const trainersData = trainers.map(t => {
+        const trainerAssignments = assignments.filter(a => a.trainerId === t.id);
+        return {
+          trainerName: t.username,
+          memberCount: trainerAssignments.length,
+          members: trainerAssignments.map(a => memberNameMap.get(a.memberId) || 'Unknown'),
+          joinedDate: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : null,
+        };
+      });
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const systemPrompt = `You are Dika, an AI assistant for gym trainer management. Today is ${new Date().toISOString().split('T')[0]}.
+
+TRAINER DATA (${trainersData.length} trainers):
+${JSON.stringify(trainersData, null, 0)}
+
+RESPONSE FORMAT (JSON):
+{
+  "answer": "Brief natural language answer",
+  "results": [
+    { "trainer": "trainer_name", "memberCount": 5, "members": "member1, member2, ..." }
+  ],
+  "filterNames": ["trainer_name1"]
+}
+- "filterNames" should contain the trainer usernames matching the query for filtering.
+- When asked "which trainer has the most members", compare memberCount values.
+- When asked about a specific member's trainer, search through each trainer's members array.
+- Match names case-insensitively with partial matching.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const responseText = completion.choices[0]?.message?.content || '{"answer":"Sorry, I could not process that.","results":[],"filterNames":[]}';
+      try {
+        const parsed = JSON.parse(responseText);
+        res.json(parsed);
+      } catch {
+        res.json({ answer: responseText, results: [], filterNames: [] });
+      }
+    } catch (err: any) {
+      console.error("Ask Dika trainers error:", err);
+      res.status(500).json({ message: "Failed to process your question" });
+    }
+  });
+
   // Members needing subscription
   app.get("/api/owner/members-need-subscription", requireRole(["owner"]), async (req, res) => {
     const members = await storage.getMembersNeedingSubscription(req.user!.gymId!);

@@ -7,9 +7,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { CalendarIcon, QrCode, CheckCircle2, XCircle, LogOut, LogIn, Search, X } from "lucide-react";
+import { CalendarIcon, QrCode, CheckCircle2, XCircle, LogOut, LogIn, Search, X, Sparkles, Send, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -28,8 +30,12 @@ type GymHistoryRecord = {
 
 export default function AttendancePage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [date, setDate] = useState<Date>(new Date());
   const [searchQuery, setSearchQuery] = useState("");
+  const [dikaQuery, setDikaQuery] = useState("");
+  const [dikaResponse, setDikaResponse] = useState<{ answer: string; results: { member: string; detail?: string }[]; filterNames?: string[] } | null>(null);
+  const [dikaFilterNames, setDikaFilterNames] = useState<string[] | null>(null);
   
   const dateStr = format(date, "yyyy-MM-dd");
   
@@ -43,18 +49,45 @@ export default function AttendancePage() {
 
   const isOwner = user?.role === 'owner';
   const isMember = user?.role === 'member';
+
+  const dikaMutation = useMutation({
+    mutationFn: async (question: string) => {
+      const res = await apiRequest("POST", "/api/owner/ask-dika-attendance", { question });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setDikaResponse(data);
+      if (data.filterNames && data.filterNames.length > 0) {
+        setDikaFilterNames(data.filterNames);
+      } else {
+        setDikaFilterNames(null);
+      }
+    },
+    onError: (err: Error) => {
+      toast({ title: "Dika couldn't answer", description: err.message, variant: "destructive" });
+    }
+  });
+
+  const handleDikaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dikaQuery.trim()) return;
+    dikaMutation.mutate(dikaQuery.trim());
+  };
   
   const attendanceList = (isOwner ? gymAttendance : myAttendance) as any[];
   const isLoading = isOwner ? gymLoading : myLoading;
   
-  // Apply date filter for owner, then apply search filter for members
   const dateFilteredList = isOwner 
     ? attendanceList.filter(a => a.date === dateStr)
     : attendanceList;
   
-  // Apply search filter for member's attendance history
+  const dikaFiltered = (isOwner && dikaFilterNames)
+    ? dateFilteredList.filter((a: any) => 
+        dikaFilterNames.some(name => a.member?.username?.toLowerCase().includes(name.toLowerCase())))
+    : dateFilteredList;
+  
   const filteredList = (!isOwner && searchQuery)
-    ? dateFilteredList.filter((a: any) => {
+    ? dikaFiltered.filter((a: any) => {
         const searchLower = searchQuery.toLowerCase();
         const dateMatch = a.date?.includes(searchQuery) || 
                          format(new Date(a.date), "EEEE, MMMM d").toLowerCase().includes(searchLower);
@@ -62,7 +95,7 @@ export default function AttendancePage() {
         const methodMatch = a.verifiedMethod?.toLowerCase().includes(searchLower);
         return dateMatch || statusMatch || methodMatch;
       })
-    : dateFilteredList;
+    : dikaFiltered;
     
   const getTransferStatus = (memberId: number, date: string): { left: boolean; joined: boolean } | null => {
     const record = gymHistory.find(h => {
@@ -88,6 +121,93 @@ export default function AttendancePage() {
           {isMember && <CheckinDialog />}
         </div>
       </div>
+
+      {isOwner && (
+        <div className="space-y-3">
+          <form onSubmit={handleDikaSubmit} className="relative" data-testid="form-ask-dika-attendance">
+            <div className="relative flex items-center">
+              <Sparkles className="absolute left-3 h-4 w-4 text-purple-500" />
+              <Input
+                placeholder='Ask Dika about attendance... e.g. "Who&#39;s been absent for 5+ days?" or "Show today&#39;s check-ins"'
+                value={dikaQuery}
+                onChange={(e) => setDikaQuery(e.target.value)}
+                className="pl-10 pr-12 h-11 bg-card border-purple-200 dark:border-purple-800 focus-visible:ring-purple-500 placeholder:text-muted-foreground/60"
+                data-testid="input-ask-dika-attendance"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                variant="ghost"
+                disabled={dikaMutation.isPending || !dikaQuery.trim()}
+                className="absolute right-1 text-purple-500"
+                data-testid="button-ask-dika-attendance-submit"
+              >
+                {dikaMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
+            </div>
+          </form>
+
+          {dikaMutation.isPending && (
+            <Card className="border-purple-200 dark:border-purple-800">
+              <CardContent className="py-6 flex items-center justify-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
+                <span className="text-sm text-muted-foreground">Dika is analyzing attendance...</span>
+              </CardContent>
+            </Card>
+          )}
+
+          {dikaResponse && !dikaMutation.isPending && (
+            <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10" data-testid="dika-attendance-results-card">
+              <CardContent className="pt-4 pb-3">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="h-4 w-4 text-purple-500 mt-0.5 shrink-0" />
+                    <p className="text-sm text-foreground" data-testid="text-dika-attendance-answer">{dikaResponse.answer}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => { setDikaResponse(null); setDikaQuery(""); setDikaFilterNames(null); }}
+                    data-testid="button-dismiss-dika-attendance"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                {dikaResponse.results && dikaResponse.results.length > 0 && (
+                  <div className="mt-2 space-y-1 ml-6">
+                    {dikaResponse.results.slice(0, 10).map((r, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">{r.member}</span>
+                        {r.detail && <span>— {r.detail}</span>}
+                      </div>
+                    ))}
+                    {dikaResponse.results.length > 10 && (
+                      <p className="text-xs text-muted-foreground">...and {dikaResponse.results.length - 10} more</p>
+                    )}
+                  </div>
+                )}
+                {dikaFilterNames && (
+                  <div className="flex items-center gap-2 mt-3 ml-6">
+                    <Badge variant="outline" className="text-[10px] border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400">
+                      Table filtered: {dikaFilterNames.length} member{dikaFilterNames.length !== 1 ? 's' : ''}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 text-[10px] px-2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setDikaFilterNames(null)}
+                      data-testid="button-clear-dika-attendance-filter"
+                    >
+                      Show all
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-4 gap-6">
         {isOwner && (

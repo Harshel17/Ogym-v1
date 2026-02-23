@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Shield, Check, X, Minus, Star, Loader2, ExternalLink, Dumbbell, Calendar, Layers, Moon, UserPlus, CreditCard, Users, AlertCircle } from "lucide-react";
+import { Search, Shield, Check, X, Minus, Star, Loader2, ExternalLink, Dumbbell, Calendar, Layers, Moon, UserPlus, CreditCard, Users, AlertCircle, Sparkles, Send } from "lucide-react";
 import { useLocation } from "wouter";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -68,7 +68,41 @@ export default function MembersPage() {
   const isOwner = user?.role === "owner";
   const isIOSNativeApp = isNative() && isIOS();
   const isTrainer = user?.role === "trainer";
-  
+
+  const [dikaQuery, setDikaQuery] = useState("");
+  const [dikaResponse, setDikaResponse] = useState<{ answer: string; results: { member: string; detail?: string }[]; filterNames?: string[] } | null>(null);
+
+  const dikaMutation = useMutation({
+    mutationFn: async (question: string) => {
+      const res = await apiRequest("POST", "/api/owner/ask-dika-members", { question });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setDikaResponse(data);
+      if (data.filterNames && data.filterNames.length === 1) {
+        setSearch(data.filterNames[0]);
+        setDikaFilterNames(null);
+      } else if (data.filterNames && data.filterNames.length > 1) {
+        setSearch("");
+        setDikaFilterNames(data.filterNames);
+      } else {
+        setSearch("");
+        setDikaFilterNames(null);
+      }
+    },
+    onError: (err: Error) => {
+      toast({ title: "Dika couldn't answer", description: err.message, variant: "destructive" });
+    }
+  });
+
+  const [dikaFilterNames, setDikaFilterNames] = useState<string[] | null>(null);
+
+  const handleDikaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dikaQuery.trim()) return;
+    dikaMutation.mutate(dikaQuery.trim());
+  };
+
   const { data: ownerMembersDetails = [], isLoading: ownerLoading } = useMembersDetails();
   const { data: trainerMembers = [], isLoading: trainerLoading } = useTrainerMembers();
   
@@ -135,15 +169,17 @@ export default function MembersPage() {
   const newMembers = (ownerMembersDetails as MemberDetail[]).filter(isNewMemberCheck);
 
   const filteredMembers = members.filter((m: any) => {
-    const matchesSearch = m.username?.toLowerCase().includes(search.toLowerCase()) || 
+    const matchesSearch = !search || m.username?.toLowerCase().includes(search.toLowerCase()) || 
       m.role?.toLowerCase().includes(search.toLowerCase());
+    const matchesDikaFilter = !dikaFilterNames || dikaFilterNames.some(name => 
+      m.username?.toLowerCase().includes(name.toLowerCase()));
     const matchesFilter = filter === "all" || (filter === "starred" && starMemberIds.has(m.id));
     
     if (isOwner && ownerTab === "new") {
-      return matchesSearch && isNewMemberCheck(m);
+      return matchesSearch && matchesDikaFilter && isNewMemberCheck(m);
     }
     
-    return matchesSearch && matchesFilter;
+    return matchesSearch && matchesDikaFilter && matchesFilter;
   });
   
   const toggleStar = (memberId: number) => {
@@ -165,6 +201,93 @@ export default function MembersPage() {
           {isOwner ? "View and manage all members in your gym." : "Members assigned to you for training."}
         </p>
       </div>
+
+      {isOwner && (
+        <div className="space-y-3">
+          <form onSubmit={handleDikaSubmit} className="relative" data-testid="form-ask-dika-members">
+            <div className="relative flex items-center">
+              <Sparkles className="absolute left-3 h-4 w-4 text-purple-500" />
+              <Input
+                placeholder='Ask Dika about members... e.g. "Who hasn&#39;t checked in this week?" or "Members expiring in March"'
+                value={dikaQuery}
+                onChange={(e) => setDikaQuery(e.target.value)}
+                className="pl-10 pr-12 h-11 bg-card border-purple-200 dark:border-purple-800 focus-visible:ring-purple-500 placeholder:text-muted-foreground/60"
+                data-testid="input-ask-dika-members"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                variant="ghost"
+                disabled={dikaMutation.isPending || !dikaQuery.trim()}
+                className="absolute right-1 text-purple-500"
+                data-testid="button-ask-dika-members-submit"
+              >
+                {dikaMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
+            </div>
+          </form>
+
+          {dikaMutation.isPending && (
+            <Card className="border-purple-200 dark:border-purple-800">
+              <CardContent className="py-6 flex items-center justify-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
+                <span className="text-sm text-muted-foreground">Dika is analyzing your members...</span>
+              </CardContent>
+            </Card>
+          )}
+
+          {dikaResponse && !dikaMutation.isPending && (
+            <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10" data-testid="dika-members-results-card">
+              <CardContent className="pt-4 pb-3">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="h-4 w-4 text-purple-500 mt-0.5 shrink-0" />
+                    <p className="text-sm text-foreground" data-testid="text-dika-members-answer">{dikaResponse.answer}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => { setDikaResponse(null); setDikaQuery(""); setSearch(""); setDikaFilterNames(null); }}
+                    data-testid="button-dismiss-dika-members"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                {dikaResponse.results && dikaResponse.results.length > 0 && (
+                  <div className="mt-2 space-y-1 ml-6">
+                    {dikaResponse.results.slice(0, 10).map((r, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">{r.member}</span>
+                        {r.detail && <span>— {r.detail}</span>}
+                      </div>
+                    ))}
+                    {dikaResponse.results.length > 10 && (
+                      <p className="text-xs text-muted-foreground">...and {dikaResponse.results.length - 10} more</p>
+                    )}
+                  </div>
+                )}
+                {(search || dikaFilterNames) && (
+                  <div className="flex items-center gap-2 mt-3 ml-6">
+                    <Badge variant="outline" className="text-[10px] border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400">
+                      Table filtered{search ? `: ${search}` : `: ${dikaFilterNames?.length} members`}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 text-[10px] px-2 text-muted-foreground hover:text-foreground"
+                      onClick={() => { setSearch(""); setDikaFilterNames(null); }}
+                      data-testid="button-clear-dika-members-filter"
+                    >
+                      Show all
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       <Card className="dashboard-card">
         <CardHeader className="pb-3">
@@ -193,7 +316,7 @@ export default function MembersPage() {
                   placeholder="Search members..."
                   className="pl-8"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setDikaFilterNames(null); }}
                   data-testid="input-search-members"
                 />
               </div>
