@@ -4143,7 +4143,7 @@ export class DatabaseStorage implements IStorage {
       completionsByDate.get(date)!.push(row);
     }
 
-    // For each date with completions, build a session
+    // For each date with completions, build a session including missed exercises
     for (const [date, dateCompletions] of completionsByDate.entries()) {
       // Skip if already added from standalone sessions
       if (sessionMap.has(date)) continue;
@@ -4152,7 +4152,9 @@ export class DatabaseStorage implements IStorage {
       const muscleTypes = Array.from(new Set(dateCompletions.map(c => c.item?.muscleType).filter(Boolean)));
       const title = muscleTypes.join(" + ") || "Workout";
 
-      const exercises = dateCompletions.map(row => ({
+      const completedItemIds = new Set(dateCompletions.map(c => c.completion.workoutItemId).filter(Boolean));
+
+      const exercises: any[] = dateCompletions.map(row => ({
         completionId: row.completion.id,
         exerciseName: row.completion.exerciseName || row.item?.exerciseName || "Extra Exercise",
         muscleType: row.item?.muscleType || "",
@@ -4165,6 +4167,40 @@ export class DatabaseStorage implements IStorage {
         notes: row.completion.notes,
         completed: true
       }));
+
+      // Find planned exercises that were missed on this date
+      if (memberCycle.length > 0) {
+        const cycle = memberCycle[0];
+        let dayIndex = -1;
+        const cycleStart = new Date(cycle.startDate);
+        const currentDate = new Date(date + 'T00:00:00');
+        if (!isNaN(cycleStart.getTime()) && !isNaN(currentDate.getTime()) && cycle.cycleLength > 0) {
+          const daysDiff = Math.floor((currentDate.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysDiff >= 0) {
+            dayIndex = daysDiff % cycle.cycleLength;
+          }
+        }
+        if (dayIndex >= 0) {
+          const plannedItems = scheduledItems.filter(si => si.dayIndex === dayIndex);
+          for (const planned of plannedItems) {
+            if (!completedItemIds.has(planned.id)) {
+              exercises.push({
+                completionId: null,
+                exerciseName: planned.exerciseName,
+                muscleType: planned.muscleType || "",
+                sets: planned.sets,
+                reps: planned.reps,
+                weight: planned.weight || null,
+                actualSets: null,
+                actualReps: null,
+                actualWeight: null,
+                notes: null,
+                completed: false
+              });
+            }
+          }
+        }
+      }
 
       sessionMap.set(date, { date, title, exercises });
     }
