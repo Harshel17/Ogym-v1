@@ -1785,9 +1785,9 @@ export default function NutritionPage() {
               </div>
 
               {foodMode === "menu" ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {!menuData ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <div className="relative">
                         <Input
                           placeholder="Search restaurants..."
@@ -1798,14 +1798,14 @@ export default function NutritionPage() {
                         />
                         <Search className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2" />
                       </div>
-                      <div className="space-y-1 max-h-[280px] overflow-y-auto">
+                      <div className="space-y-0.5 max-h-[280px] overflow-y-auto">
                         {(menuRestaurantSearch.trim().length >= 1
                           ? allRestaurants.filter(r => r.toLowerCase().includes(menuRestaurantSearch.toLowerCase()))
                           : allRestaurants
                         ).map((r, i) => (
                           <button
                             key={r}
-                            className="w-full px-3 py-2.5 text-left hover-elevate flex items-center justify-between gap-2 rounded-md border"
+                            className="w-full px-3 py-2 text-left hover:bg-muted/50 flex items-center justify-between gap-2 rounded-md"
                             onClick={async () => {
                               setMenuLoading(true);
                               setMenuRestaurant(r);
@@ -1828,242 +1828,159 @@ export default function NutritionPage() {
                               <Store className="w-4 h-4 text-orange-500" />
                               <span className="font-medium text-sm">{r}</span>
                             </div>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                           </button>
                         ))}
                         {allRestaurants.length === 0 && !menuLoading && (
-                          <div className="text-center py-6">
-                            <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-muted-foreground" />
-                            <p className="text-sm text-muted-foreground">Loading restaurants...</p>
+                          <div className="text-center py-4">
+                            <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1 text-muted-foreground" />
+                            <p className="text-xs text-muted-foreground">Loading...</p>
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground text-center">{allRestaurants.length} restaurants with real nutrition data</p>
+                      <p className="text-[10px] text-muted-foreground text-center">{allRestaurants.length} restaurants</p>
                     </div>
-                  ) : !menuSelectedItem ? (
-                    <div className="space-y-3">
+                  ) : (
+                    <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => { setMenuData(null); setMenuRestaurant(""); setMenuCategory(null); setMenuSearch(""); }} data-testid="button-menu-back-restaurants">
+                        <Button variant="ghost" size="icon" className="shrink-0 h-7 w-7" onClick={() => { setMenuData(null); setMenuRestaurant(""); setMenuCategory(null); setMenuSearch(""); setMenuSelectedItem(null); }} data-testid="button-menu-back-restaurants">
                           <ChevronLeft className="w-4 h-4" />
                         </Button>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm truncate">{menuRestaurant}</p>
-                          <p className="text-xs text-muted-foreground">{menuData.items.length} menu items</p>
-                        </div>
+                        <p className="font-semibold text-sm truncate flex-1">{menuRestaurant}</p>
+                        <Badge variant="outline" className="text-[10px] border-emerald-500 text-emerald-500 shrink-0">Verified</Badge>
                       </div>
                       
                       <Input
-                        placeholder={`Search ${menuRestaurant} menu...`}
+                        placeholder={`Search menu...`}
                         value={menuSearch}
                         onChange={(e) => setMenuSearch(e.target.value)}
-                        className="text-sm"
+                        className="text-sm h-8"
                         data-testid="input-menu-item-search"
                       />
 
                       {!menuSearch.trim() && (
-                        <div className="flex gap-1.5 flex-wrap">
-                          <Button
-                            variant={menuCategory === null ? "default" : "outline"}
-                            size="sm"
-                            className="text-xs h-7"
-                            onClick={() => setMenuCategory(null)}
-                            data-testid="button-menu-category-all"
-                          >
-                            All
-                          </Button>
+                        <div className="flex gap-1 flex-wrap">
                           {menuData.categories.map((cat) => (
-                            <Button
+                            <Badge
                               key={cat}
                               variant={menuCategory === cat ? "default" : "outline"}
-                              size="sm"
-                              className="text-xs h-7"
-                              onClick={() => setMenuCategory(cat)}
+                              className="cursor-pointer text-[10px] px-2 py-0.5"
+                              onClick={() => setMenuCategory(menuCategory === cat ? null : cat)}
                               data-testid={`button-menu-category-${cat}`}
                             >
                               {cat}
-                            </Button>
+                            </Badge>
                           ))}
                         </div>
                       )}
 
-                      <div className="space-y-0 max-h-[220px] overflow-y-auto rounded-lg border bg-card">
+                      <div className="space-y-0 max-h-[240px] overflow-y-auto rounded-lg border bg-card">
                         {menuData.items
                           .filter(item => {
                             const matchesCat = !menuCategory || item.category === menuCategory;
                             const matchesSearch = !menuSearch.trim() || item.name.toLowerCase().includes(menuSearch.toLowerCase());
                             return matchesCat && matchesSearch;
                           })
-                          .map((item, idx) => (
-                          <button
-                            key={`${item.name}-${idx}`}
-                            className={`w-full px-3 py-2.5 text-left hover-elevate flex items-center justify-between gap-2 ${idx > 0 ? 'border-t' : ''}`}
-                            onClick={() => {
-                              setMenuSelectedItem(item);
-                              setMenuSelectedMods(new Set());
-                            }}
-                            data-testid={`button-menu-item-${idx}`}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm">{item.name}</p>
-                              <p className="text-xs text-muted-foreground">{item.servingSize}</p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="font-semibold text-sm">{item.calories}</p>
-                              <p className="text-[10px] text-muted-foreground">P:{item.protein}g C:{item.carbs}g F:{item.fat}g</p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => { setMenuSelectedItem(null); setMenuSelectedMods(new Set()); }} data-testid="button-menu-back-items">
-                          <ChevronLeft className="w-4 h-4" />
-                        </Button>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm">{menuSelectedItem.name}</p>
-                          <p className="text-xs text-muted-foreground">{menuRestaurant} - {menuSelectedItem.servingSize}</p>
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border bg-card p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">Base Nutrition</span>
-                          <Badge variant="default" className="bg-emerald-600 text-xs">Verified</Badge>
-                        </div>
-                        <div className="grid grid-cols-4 gap-2 text-center">
-                          <div>
-                            <p className="text-lg font-bold">{(() => {
-                              let cal = menuSelectedItem.calories;
-                              menuSelectedMods.forEach(modName => {
-                                const mod = menuData?.commonModifiers.find(m => m.name === modName);
-                                if (mod) cal += mod.caloriesDelta;
-                              });
-                              return Math.max(0, cal);
-                            })()}</p>
-                            <p className="text-[10px] text-muted-foreground">cal</p>
-                          </div>
-                          <div>
-                            <p className="text-lg font-bold text-blue-500">{(() => {
-                              let p = menuSelectedItem.protein;
-                              menuSelectedMods.forEach(modName => {
-                                const mod = menuData?.commonModifiers.find(m => m.name === modName);
-                                if (mod) p += mod.proteinDelta;
-                              });
-                              return Math.max(0, p);
-                            })()}g</p>
-                            <p className="text-[10px] text-muted-foreground">protein</p>
-                          </div>
-                          <div>
-                            <p className="text-lg font-bold text-amber-500">{(() => {
-                              let c = menuSelectedItem.carbs;
-                              menuSelectedMods.forEach(modName => {
-                                const mod = menuData?.commonModifiers.find(m => m.name === modName);
-                                if (mod) c += mod.carbsDelta;
-                              });
-                              return Math.max(0, c);
-                            })()}g</p>
-                            <p className="text-[10px] text-muted-foreground">carbs</p>
-                          </div>
-                          <div>
-                            <p className="text-lg font-bold text-red-500">{(() => {
-                              let f = menuSelectedItem.fat;
-                              menuSelectedMods.forEach(modName => {
-                                const mod = menuData?.commonModifiers.find(m => m.name === modName);
-                                if (mod) f += mod.fatDelta;
-                              });
-                              return Math.max(0, f);
-                            })()}g</p>
-                            <p className="text-[10px] text-muted-foreground">fat</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {menuData && menuData.commonModifiers.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium flex items-center gap-1.5">
-                            <UtensilsCrossed className="w-3.5 h-3.5 text-orange-500" />
-                            Any customizations?
-                          </p>
-                          <div className="space-y-1 max-h-[140px] overflow-y-auto">
-                            {menuData.commonModifiers.map((mod) => {
-                              const isSelected = menuSelectedMods.has(mod.name);
-                              return (
+                          .map((item, idx) => {
+                            const isExpanded = menuSelectedItem?.name === item.name && menuSelectedItem?.category === item.category;
+                            return (
+                            <div key={`${item.name}-${idx}`} className={idx > 0 ? 'border-t' : ''}>
+                              <div
+                                className="w-full px-3 py-2 flex items-center gap-2 cursor-pointer hover:bg-muted/50"
+                              >
+                                <div className="flex-1 min-w-0" onClick={() => {
+                                  setMenuSelectedItem(isExpanded ? null : item);
+                                  setMenuSelectedMods(new Set());
+                                }}>
+                                  <p className="font-medium text-sm leading-tight">{item.name}</p>
+                                  <p className="text-[10px] text-muted-foreground">{item.calories} cal · P:{item.protein}g C:{item.carbs}g F:{item.fat}g</p>
+                                </div>
                                 <button
-                                  key={mod.name}
-                                  className={cn(
-                                    "w-full px-3 py-2 text-left rounded-md border text-sm flex items-center justify-between gap-2 transition-colors",
-                                    isSelected ? "bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700" : "hover:bg-muted/50"
-                                  )}
-                                  onClick={() => {
-                                    setMenuSelectedMods(prev => {
-                                      const next = new Set(prev);
-                                      if (next.has(mod.name)) next.delete(mod.name);
-                                      else next.add(mod.name);
-                                      return next;
+                                  className="shrink-0 h-7 w-7 rounded-full bg-orange-500 hover:bg-orange-600 flex items-center justify-center text-white transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    logFoodMutation.mutate({
+                                      date: dateStr,
+                                      mealType: selectedMealType,
+                                      mealLabel: selectedMealType === "extra" ? extraMealLabel.trim() : null,
+                                      foodName: item.name,
+                                      brandName: menuRestaurant,
+                                      servingSize: item.servingSize,
+                                      quantity: 1,
+                                      calories: item.calories,
+                                      protein: item.protein,
+                                      carbs: item.carbs,
+                                      fat: item.fat,
+                                      barcode: null,
+                                      isEstimate: false,
+                                      sourceType: "restaurant_menu",
                                     });
                                   }}
-                                  data-testid={`button-mod-${mod.name}`}
+                                  disabled={logFoodMutation.isPending}
+                                  data-testid={`button-quick-log-${idx}`}
                                 >
-                                  <div className="flex items-center gap-2">
-                                    <div className={cn("w-4 h-4 rounded border flex items-center justify-center", isSelected ? "bg-orange-500 border-orange-500" : "border-muted-foreground/30")}>
-                                      {isSelected && <Check className="w-3 h-3 text-white" />}
-                                    </div>
-                                    <span>{mod.name}</span>
-                                  </div>
-                                  <span className={cn("text-xs tabular-nums", mod.caloriesDelta > 0 ? "text-red-500" : mod.caloriesDelta < 0 ? "text-green-500" : "text-muted-foreground")}>
-                                    {mod.caloriesDelta > 0 ? `+${mod.caloriesDelta}` : mod.caloriesDelta} cal
-                                  </span>
+                                  <Plus className="w-3.5 h-3.5" />
                                 </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      <Button
-                        className="w-full bg-gradient-to-r from-orange-500 to-amber-600 text-white"
-                        onClick={() => {
-                          let cal = menuSelectedItem.calories;
-                          let protein = menuSelectedItem.protein;
-                          let carbs = menuSelectedItem.carbs;
-                          let fat = menuSelectedItem.fat;
-                          const modNames: string[] = [];
-                          menuSelectedMods.forEach(modName => {
-                            const mod = menuData?.commonModifiers.find(m => m.name === modName);
-                            if (mod) {
-                              cal += mod.caloriesDelta;
-                              protein += mod.proteinDelta;
-                              carbs += mod.carbsDelta;
-                              fat += mod.fatDelta;
-                              modNames.push(mod.name);
-                            }
-                          });
-                          const customSuffix = modNames.length > 0 ? ` (${modNames.join(", ")})` : "";
-                          logFoodMutation.mutate({
-                            date: dateStr,
-                            mealType: selectedMealType,
-                            mealLabel: selectedMealType === "extra" ? extraMealLabel.trim() : null,
-                            foodName: menuSelectedItem.name + customSuffix,
-                            brandName: menuRestaurant,
-                            servingSize: menuSelectedItem.servingSize,
-                            quantity: 1,
-                            calories: Math.max(0, cal),
-                            protein: Math.max(0, protein),
-                            carbs: Math.max(0, carbs),
-                            fat: Math.max(0, fat),
-                            barcode: null,
-                            isEstimate: false,
-                            sourceType: "restaurant_menu",
-                          });
-                        }}
-                        disabled={logFoodMutation.isPending}
-                        data-testid="button-log-menu-item"
-                      >
-                        {logFoodMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Check className="w-4 h-4 mr-1.5" />}
-                        Log This Item
-                      </Button>
+                              </div>
+                              {isExpanded && menuData.commonModifiers.length > 0 && (
+                                <div className="px-3 pb-2 space-y-1.5">
+                                  <div className="flex flex-wrap gap-1">
+                                    {menuData.commonModifiers.map((mod) => {
+                                      const isSelected = menuSelectedMods.has(mod.name);
+                                      return (
+                                        <Badge
+                                          key={mod.name}
+                                          variant={isSelected ? "default" : "outline"}
+                                          className={cn("cursor-pointer text-[10px] px-1.5 py-0.5", isSelected && "bg-orange-500")}
+                                          onClick={() => {
+                                            setMenuSelectedMods(prev => {
+                                              const next = new Set(prev);
+                                              if (next.has(mod.name)) next.delete(mod.name);
+                                              else next.add(mod.name);
+                                              return next;
+                                            });
+                                          }}
+                                          data-testid={`button-mod-${mod.name}`}
+                                        >
+                                          {mod.name} <span className={cn("ml-0.5", mod.caloriesDelta > 0 ? "text-red-400" : "text-green-400")}>{mod.caloriesDelta > 0 ? `+${mod.caloriesDelta}` : mod.caloriesDelta}</span>
+                                        </Badge>
+                                      );
+                                    })}
+                                  </div>
+                                  {menuSelectedMods.size > 0 && (
+                                    <Button
+                                      size="sm"
+                                      className="w-full h-7 text-xs bg-orange-500 hover:bg-orange-600 text-white"
+                                      onClick={() => {
+                                        let cal = item.calories, protein = item.protein, carbs = item.carbs, fat = item.fat;
+                                        const modNames: string[] = [];
+                                        menuSelectedMods.forEach(modName => {
+                                          const mod = menuData?.commonModifiers.find(m => m.name === modName);
+                                          if (mod) { cal += mod.caloriesDelta; protein += mod.proteinDelta; carbs += mod.carbsDelta; fat += mod.fatDelta; modNames.push(mod.name); }
+                                        });
+                                        logFoodMutation.mutate({
+                                          date: dateStr, mealType: selectedMealType,
+                                          mealLabel: selectedMealType === "extra" ? extraMealLabel.trim() : null,
+                                          foodName: `${item.name} (${modNames.join(", ")})`,
+                                          brandName: menuRestaurant, servingSize: item.servingSize, quantity: 1,
+                                          calories: Math.max(0, cal), protein: Math.max(0, protein),
+                                          carbs: Math.max(0, carbs), fat: Math.max(0, fat),
+                                          barcode: null, isEstimate: false, sourceType: "restaurant_menu",
+                                        });
+                                      }}
+                                      disabled={logFoodMutation.isPending}
+                                      data-testid="button-log-menu-item"
+                                    >
+                                      {logFoodMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                                      Log with changes ({(() => { let d = 0; menuSelectedMods.forEach(n => { const m = menuData?.commonModifiers.find(x => x.name === n); if (m) d += m.caloriesDelta; }); return d > 0 ? `+${d}` : d; })()} cal)
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
