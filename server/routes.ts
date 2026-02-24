@@ -8954,6 +8954,132 @@ Write a short, personal message. No subject line, just the message body. Use the
     res.json(metrics);
   });
 
+  // Enhanced Dashboard Data (subscription health, revenue comparison, payment method split, etc.)
+  app.get("/api/owner/dashboard-enhanced", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const clientToday = (req.query.clientToday as string) || getLocalDate(req);
+      const todayDate = new Date(clientToday + 'T00:00:00');
+      const clientYear = todayDate.getFullYear();
+      const clientMonth = todayDate.getMonth();
+
+      const monthStart = `${clientYear}-${String(clientMonth + 1).padStart(2, '0')}-01`;
+      const monthEnd = `${clientYear}-${String(clientMonth + 1).padStart(2, '0')}-${String(new Date(clientYear, clientMonth + 1, 0).getDate()).padStart(2, '0')}`;
+      const lastMonthDate = new Date(clientYear, clientMonth - 1, 1);
+      const lastMonthStart = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+      const lastMonthEnd = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}-${String(new Date(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+
+      // 1. Subscription Health
+      const allMembers = await db.select({ id: users.id }).from(users)
+        .where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+      const allMemberIds = new Set(allMembers.map(m => m.id));
+
+      const allSubs = await db.select({
+        memberId: memberSubscriptions.memberId,
+        endDate: memberSubscriptions.endDate,
+        status: memberSubscriptions.status,
+      }).from(memberSubscriptions).where(eq(memberSubscriptions.gymId, gymId));
+
+      const memberSubMap = new Map<number, { endDate: string | null; status: string }>();
+      for (const s of allSubs) {
+        const existing = memberSubMap.get(s.memberId);
+        if (!existing || (s.endDate && (!existing.endDate || s.endDate > existing.endDate))) {
+          memberSubMap.set(s.memberId, { endDate: s.endDate, status: s.status });
+        }
+      }
+
+      const sevenDaysFromNow = new Date(todayDate.getTime() + 7 * 86400000).toISOString().split('T')[0];
+      let subActive = 0, subExpiringSoon = 0, subExpired = 0, subNone = 0;
+      for (const memberId of allMemberIds) {
+        const sub = memberSubMap.get(memberId);
+        if (!sub || !sub.endDate) { subNone++; continue; }
+        if (sub.endDate < clientToday) { subExpired++; }
+        else if (sub.endDate <= sevenDaysFromNow) { subExpiringSoon++; }
+        else { subActive++; }
+      }
+
+      // 2. Revenue comparison (this month vs last month)
+      const thisMonthRevResult = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
+        .from(paymentTransactions)
+        .where(and(eq(paymentTransactions.gymId, gymId), gte(paymentTransactions.paidOn, monthStart), lte(paymentTransactions.paidOn, monthEnd)));
+      const thisMonthRevenue = Number(thisMonthRevResult[0]?.total) || 0;
+
+      const lastMonthRevResult = await db.select({ total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)` })
+        .from(paymentTransactions)
+        .where(and(eq(paymentTransactions.gymId, gymId), gte(paymentTransactions.paidOn, lastMonthStart), lte(paymentTransactions.paidOn, lastMonthEnd)));
+      const lastMonthRevenue = Number(lastMonthRevResult[0]?.total) || 0;
+      const revenueChangePercent = lastMonthRevenue > 0 ? Math.round(((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100) : (thisMonthRevenue > 0 ? 100 : 0);
+
+      // 3. Payment method breakdown (this month)
+      const methodBreakdown = await db.select({
+        method: paymentTransactions.method,
+        total: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)`,
+        count: sql<number>`COUNT(*)`,
+      }).from(paymentTransactions)
+        .where(and(eq(paymentTransactions.gymId, gymId), gte(paymentTransactions.paidOn, monthStart), lte(paymentTransactions.paidOn, monthEnd)))
+        .groupBy(paymentTransactions.method);
+
+      const paymentMethods = methodBreakdown.map(m => ({
+        method: m.method || 'other',
+        total: Number(m.total) || 0,
+        count: Number(m.count) || 0,
+      }));
+
+      // 4. Weekly comparison (this week vs last week attendance)
+      const weekStart = new Date(todayDate);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      const thisWeekStart = weekStart.toISOString().split('T')[0];
+      const lastWeekStart = new Date(weekStart.getTime() - 7 * 86400000).toISOString().split('T')[0];
+      const lastWeekEnd = new Date(weekStart.getTime() - 86400000).toISOString().split('T')[0];
+
+      const thisWeekAtt = await db.select({ count: sql<number>`COUNT(DISTINCT ${attendance.memberId})` })
+        .from(attendance)
+        .where(and(eq(attendance.gymId, gymId), gte(attendance.date, thisWeekStart), lte(attendance.date, clientToday), eq(attendance.status, 'present')));
+      const lastWeekAtt = await db.select({ count: sql<number>`COUNT(DISTINCT ${attendance.memberId})` })
+        .from(attendance)
+        .where(and(eq(attendance.gymId, gymId), gte(attendance.date, lastWeekStart), lte(attendance.date, lastWeekEnd), eq(attendance.status, 'present')));
+      const thisWeekCount = Number(thisWeekAtt[0]?.count) || 0;
+      const lastWeekCount = Number(lastWeekAtt[0]?.count) || 0;
+      const weeklyChangePercent = lastWeekCount > 0 ? Math.round(((thisWeekCount - lastWeekCount) / lastWeekCount) * 100) : (thisWeekCount > 0 ? 100 : 0);
+
+      // 5. Trainer coverage
+      const trainers = await db.select({ id: users.id }).from(users)
+        .where(and(eq(users.gymId, gymId), eq(users.role, 'trainer')));
+      const membersWithTrainer = await db.select({ count: sql<number>`COUNT(DISTINCT ${users.id})` })
+        .from(users)
+        .where(and(eq(users.gymId, gymId), eq(users.role, 'member'), sql`${users.trainerId} IS NOT NULL`));
+      const membersWithoutTrainer = allMembers.length - (Number(membersWithTrainer[0]?.count) || 0);
+
+      // 6. Month so far summary
+      const monthCheckIns = await db.select({ count: sql<number>`COUNT(*)` })
+        .from(attendance)
+        .where(and(eq(attendance.gymId, gymId), gte(attendance.date, monthStart), lte(attendance.date, clientToday), eq(attendance.status, 'present')));
+      const monthPaymentsCount = await db.select({ count: sql<number>`COUNT(*)` })
+        .from(paymentTransactions)
+        .where(and(eq(paymentTransactions.gymId, gymId), gte(paymentTransactions.paidOn, monthStart), lte(paymentTransactions.paidOn, monthEnd)));
+      const monthNewMembers = await db.select({ count: sql<number>`COUNT(*)` })
+        .from(users)
+        .where(and(eq(users.gymId, gymId), eq(users.role, 'member'), sql`${users.createdAt} >= ${monthStart}::date`));
+
+      res.json({
+        subscriptionHealth: { active: subActive, expiringSoon: subExpiringSoon, expired: subExpired, noSubscription: subNone, total: allMemberIds.size },
+        revenueComparison: { thisMonth: thisMonthRevenue, lastMonth: lastMonthRevenue, changePercent: revenueChangePercent },
+        paymentMethods,
+        weeklyComparison: { thisWeek: thisWeekCount, lastWeek: lastWeekCount, changePercent: weeklyChangePercent },
+        trainerCoverage: { totalTrainers: trainers.length, membersWithoutTrainer, totalMembers: allMembers.length },
+        monthSoFar: {
+          members: allMembers.length,
+          checkIns: Number(monthCheckIns[0]?.count) || 0,
+          payments: Number(monthPaymentsCount[0]?.count) || 0,
+          newJoins: Number(monthNewMembers[0]?.count) || 0,
+          revenue: thisMonthRevenue,
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Today's Activity Feed
   app.get("/api/owner/today-activity", requireRole(["owner"]), async (req, res) => {
     try {

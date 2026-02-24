@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward, Footprints, ExternalLink, X, Trophy } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward, Footprints, ExternalLink, X, Trophy, Lightbulb, Megaphone, Wallet, BarChart3, Shield, TrendingDown } from "lucide-react";
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
@@ -579,15 +579,159 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
   );
 }
 
+type EnhancedDashboardData = {
+  subscriptionHealth: { active: number; expiringSoon: number; expired: number; noSubscription: number; total: number };
+  revenueComparison: { thisMonth: number; lastMonth: number; changePercent: number };
+  paymentMethods: { method: string; total: number; count: number }[];
+  weeklyComparison: { thisWeek: number; lastWeek: number; changePercent: number };
+  trainerCoverage: { totalTrainers: number; membersWithoutTrainer: number; totalMembers: number };
+  monthSoFar: { members: number; checkIns: number; payments: number; newJoins: number; revenue: number };
+};
+
+function SubscriptionHealthMini({ data }: { data: EnhancedDashboardData['subscriptionHealth'] }) {
+  const [, navigate] = useLocation();
+  const total = data.total || 1;
+  const segments = [
+    { label: 'Active', value: data.active, color: '#22c55e' },
+    { label: 'Expiring', value: data.expiringSoon, color: '#f59e0b' },
+    { label: 'Expired', value: data.expired, color: '#ef4444' },
+    { label: 'None', value: data.noSubscription, color: '#6b7280' },
+  ].filter(s => s.value > 0);
+
+  return (
+    <Card className="card-elevated cursor-pointer hover-elevate" onClick={() => navigate("/payments")} data-testid="card-subscription-health">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+          <div className="p-1.5 rounded-lg bg-blue-500/10">
+            <Shield className="w-3.5 h-3.5 text-blue-500" />
+          </div>
+          Subscription Health
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0 pb-3 px-3">
+        <div className="flex items-center gap-3">
+          <div className="relative w-[72px] h-[72px] shrink-0">
+            <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+              {(() => {
+                let offset = 0;
+                return segments.map((seg, i) => {
+                  const pct = (seg.value / total) * 100;
+                  const dash = `${pct} ${100 - pct}`;
+                  const el = (
+                    <circle key={i} cx="18" cy="18" r="15.9" fill="none" strokeWidth="3.5"
+                      stroke={seg.color} strokeDasharray={dash} strokeDashoffset={-offset}
+                      strokeLinecap="round" className="transition-all duration-500" />
+                  );
+                  offset += pct;
+                  return el;
+                });
+              })()}
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-sm font-bold">{total}</span>
+            </div>
+          </div>
+          <div className="flex-1 grid grid-cols-2 gap-x-3 gap-y-1">
+            {segments.map(seg => (
+              <div key={seg.label} className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                <span className="text-[11px] text-muted-foreground">{seg.label}</span>
+                <span className="text-[11px] font-semibold ml-auto">{seg.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function WhoNeedsAttention({ aiInsights }: { aiInsights: any }) {
+  const [expanded, setExpanded] = useState(false);
+  const [, navigate] = useLocation();
+
+  const topRisk = aiInsights?.churnRisk?.members?.slice(0, 3) || [];
+  const topFollowUps = aiInsights?.followUpReminders?.items?.slice(0, 3) || [];
+  const combined = [
+    ...topRisk.map((m: any) => ({ name: m.name, detail: `${m.daysAbsent} days absent`, type: 'risk' as const, memberId: m.id })),
+    ...topFollowUps.map((f: any) => ({ name: f.name, detail: f.message, type: f.priority === 'high' ? 'risk' as const : 'follow' as const, memberId: f.memberId })),
+  ].slice(0, 5);
+
+  if (combined.length === 0) return null;
+
+  return (
+    <Card className="bg-gradient-to-br from-purple-500/5 via-transparent to-indigo-500/5" data-testid="card-who-needs-attention">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+          <div className="p-1.5 rounded-lg bg-purple-500/15">
+            <Brain className="w-3.5 h-3.5 text-purple-500" />
+          </div>
+          Who Needs Attention
+        </CardTitle>
+        <div className="flex items-center gap-1">
+          <Link href="/owner/ai-insights">
+            <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="link-ai-insights">
+              View All <ArrowRight className="w-3 h-3 ml-1" />
+            </Button>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0 pb-3 px-3">
+        <div className="flex gap-2 mb-2">
+          <div className="flex-1 text-center p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+            <p className="text-xl font-bold text-red-600 dark:text-red-400">{aiInsights?.churnRisk?.count || 0}</p>
+            <p className="text-xs font-medium text-muted-foreground">At risk</p>
+          </div>
+          <div className="flex-1 text-center p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{aiInsights?.followUpReminders?.count || 0}</p>
+            <p className="text-xs font-medium text-muted-foreground">Follow-ups</p>
+          </div>
+          <div className="flex-1 text-center p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{aiInsights?.memberInsights?.newThisMonth || 0}</p>
+            <p className="text-xs font-medium text-muted-foreground">New</p>
+          </div>
+        </div>
+        <Button variant="ghost" size="sm" className="w-full h-7 text-xs mt-1" onClick={() => setExpanded(!expanded)} data-testid="button-expand-attention">
+          {expanded ? 'Hide details' : `Show top ${combined.length} members`}
+          {expanded ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
+        </Button>
+        {expanded && (
+          <div className="space-y-1.5 mt-2">
+            {combined.map((item, i) => (
+              <div key={i} className="flex items-center gap-2.5 p-2 rounded-lg bg-background/50 cursor-pointer hover-elevate"
+                onClick={() => item.memberId && navigate(`/owner/members/${item.memberId}`)}
+                data-testid={`attention-item-${i}`}>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
+                  item.type === 'risk' ? 'bg-red-500/15 text-red-600 dark:text-red-400' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                }`}>
+                  {item.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate">{item.name}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{item.detail}</p>
+                </div>
+                <Badge variant="secondary" className={`text-[10px] h-5 shrink-0 ${
+                  item.type === 'risk' ? 'bg-red-500/10 text-red-600 dark:text-red-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                }`}>
+                  {item.type === 'risk' ? 'At risk' : 'Follow-up'}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function OwnerDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const { data: attendance = [] } = useAttendance();
   const { data: payments = [] } = usePayments();
-  const { format: formatMoney } = useGymCurrency();
+  const { format: formatMoney, symbol } = useGymCurrency();
   const isIOSNativeApp = isNative() && isIOS();
   
-  // Onboarding state (user-specific key to handle shared browsers)
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return !localStorage.getItem(`ogym_owner_onboarding_seen_${user?.id}`);
   });
@@ -597,7 +741,6 @@ function OwnerDashboard() {
     setShowOnboarding(false);
   };
 
-  // Get client's local date to handle timezone differences
   const getClientLocalDate = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -629,7 +772,17 @@ function OwnerDashboard() {
     staleTime: 1000 * 60 * 2,
   });
 
-  // AI Insights
+  const { data: enhanced } = useQuery<EnhancedDashboardData>({
+    queryKey: ["/api/owner/dashboard-enhanced", getClientLocalDate()],
+    queryFn: async () => {
+      const clientToday = getClientLocalDate();
+      const res = await fetch(`/api/owner/dashboard-enhanced?clientToday=${clientToday}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch enhanced data');
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 3,
+  });
+
   const { data: aiInsights } = useQuery<{
     churnRisk: { count: number; members: { id: number; name: string; daysAbsent: number; riskLevel: 'high' | 'medium' }[] };
     followUpReminders: { count: number; items: { type: string; memberId: number; name: string; message: string; priority: string }[] };
@@ -639,7 +792,6 @@ function OwnerDashboard() {
     staleTime: 1000 * 60 * 10,
   });
 
-  // Walk-in visitor stats
   const { data: walkInStats } = useQuery<{
     todayCount: number;
     weekCount: number;
@@ -652,13 +804,15 @@ function OwnerDashboard() {
   });
 
   const attendanceList = attendance as any[];
-  const paymentsList = payments as any[];
 
   const totalMembers = dashboardMetrics?.totalMembers || 0;
   const checkedInToday = dashboardMetrics?.checkedInToday || 0;
   const checkedInYesterday = dashboardMetrics?.checkedInYesterday || 0;
   const pendingPayments = dashboardMetrics?.pendingPayments || 0;
   const revenue = dashboardMetrics?.totalRevenue || 0;
+
+  const attendanceRate = totalMembers > 0 ? Math.round((checkedInToday / totalMembers) * 100) : 0;
+  const yesterdayRate = totalMembers > 0 ? Math.round((checkedInYesterday / totalMembers) * 100) : 0;
 
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -671,8 +825,6 @@ function OwnerDashboard() {
     count: attendanceList.filter(a => a.date === date && a.status === 'present').length
   }));
 
-  const isFirstTime = totalMembers === 0;
-
   if (showOnboarding) {
     return <OwnerOnboarding onComplete={completeOnboarding} />;
   }
@@ -680,6 +832,10 @@ function OwnerDashboard() {
   if (metricsLoading && !dashboardMetrics) {
     return <OwnerDashboardSkeleton />;
   }
+
+  const revenueChange = enhanced?.revenueComparison?.changePercent ?? 0;
+  const weekChange = enhanced?.weeklyComparison?.changePercent ?? 0;
+  const currentMonth = format(new Date(), 'MMM');
 
   return (
     <div className="space-y-3">
@@ -703,6 +859,40 @@ function OwnerDashboard() {
           </CardContent>
         </Card>
       )}
+
+      {ownerInsights?.insightOfTheDay && !isIOSNativeApp && (
+        <Card className={`border-0 ${
+          ownerInsights.insightOfTheDay.severity === 'positive' ? 'bg-emerald-500/5 border-emerald-500/20' :
+          ownerInsights.insightOfTheDay.severity === 'warning' ? 'bg-amber-500/5 border-amber-500/20' :
+          'bg-blue-500/5 border-blue-500/20'
+        }`} data-testid="card-insight-of-day">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-3">
+              <div className={`p-1.5 rounded-full flex-shrink-0 ${
+                ownerInsights.insightOfTheDay.severity === 'positive' ? 'bg-emerald-500/15' :
+                ownerInsights.insightOfTheDay.severity === 'warning' ? 'bg-amber-500/15' :
+                'bg-blue-500/15'
+              }`}>
+                <Lightbulb className={`h-3.5 w-3.5 ${
+                  ownerInsights.insightOfTheDay.severity === 'positive' ? 'text-emerald-500' :
+                  ownerInsights.insightOfTheDay.severity === 'warning' ? 'text-amber-500' :
+                  'text-blue-500'
+                }`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`text-[10px] font-medium uppercase tracking-wider ${
+                  ownerInsights.insightOfTheDay.severity === 'positive' ? 'text-emerald-600 dark:text-emerald-400' :
+                  ownerInsights.insightOfTheDay.severity === 'warning' ? 'text-amber-600 dark:text-amber-400' :
+                  'text-blue-600 dark:text-blue-400'
+                }`}>Insight of the Day</p>
+                <p className="text-sm font-medium">{ownerInsights.insightOfTheDay.title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{ownerInsights.insightOfTheDay.description}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-2.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <StatCard 
           title="Total Members" 
@@ -712,21 +902,52 @@ function OwnerDashboard() {
           color="primary"
           onClick={() => navigate("/owner/member-analytics")}
         />
-        <StatCard 
-          title="Checked-in Today" 
-          value={checkedInToday} 
-          icon={CalendarCheck} 
-          description="Active today"
-          color="green"
+        <Card 
+          className="overflow-visible border-0 rounded-2xl bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 hover-elevate transition-all duration-200 shadow-sm cursor-pointer active:scale-[0.98]"
           onClick={() => navigate("/owner/attendance")}
-        />
-        <StatCard 
-          title="Yesterday" 
-          value={checkedInYesterday} 
-          icon={Calendar} 
-          description="Checked in"
-          color="purple"
-        />
+          data-testid="stat-card-checkedin-today"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3">
+            <CardTitle className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              Checked-in Today
+            </CardTitle>
+            <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              <CalendarCheck className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0 pb-3 px-3">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-bold tracking-tight tabular-nums">{checkedInToday}</span>
+              <span className="text-sm text-muted-foreground/60 font-medium">/ {totalMembers}</span>
+            </div>
+            <div className="flex items-center gap-1 mt-0.5">
+              <div className="flex-1 h-1.5 rounded-full bg-muted/30 overflow-hidden">
+                <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${attendanceRate}%` }} />
+              </div>
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{attendanceRate}%</span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card 
+          className="overflow-visible border-0 rounded-2xl bg-gradient-to-br from-purple-500/5 to-purple-500/10 hover-elevate transition-all duration-200 shadow-sm"
+          data-testid="stat-card-yesterday"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3">
+            <CardTitle className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              Yesterday
+            </CardTitle>
+            <div className="p-2 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400">
+              <Calendar className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0 pb-3 px-3">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-bold tracking-tight tabular-nums">{checkedInYesterday}</span>
+              <span className="text-sm text-muted-foreground/60 font-medium">/ {totalMembers}</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground/70 mt-0.5 font-medium">{yesterdayRate}% attendance</p>
+          </CardContent>
+        </Card>
         {!isIOSNativeApp && (
           <StatCard 
             title="Pending" 
@@ -738,14 +959,33 @@ function OwnerDashboard() {
           />
         )}
         {!isIOSNativeApp && (
-          <StatCard 
-            title="Revenue" 
-            value={formatMoney(revenue)} 
-            icon={TrendingUp} 
-            description="This month"
-            color="green"
+          <Card 
+            className="overflow-visible border-0 rounded-2xl bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 hover-elevate transition-all duration-200 shadow-sm cursor-pointer active:scale-[0.98]"
             onClick={() => navigate("/owner/revenue")}
-          />
+            data-testid="stat-card-revenue"
+          >
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3">
+              <CardTitle className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                Revenue
+              </CardTitle>
+              <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                <TrendingUp className="h-4 w-4" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0 pb-3 px-3">
+              <div className="text-2xl font-bold tracking-tight tabular-nums">{formatMoney(revenue)}</div>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="text-[11px] text-muted-foreground/70 font-medium">vs last month</span>
+                {revenueChange !== 0 && (
+                  <span className={`text-[11px] font-semibold flex items-center gap-0.5 ${revenueChange > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {revenueChange > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                    {revenueChange > 0 ? '+' : ''}{revenueChange}%
+                  </span>
+                )}
+                {revenueChange === 0 && <span className="text-[11px] text-muted-foreground font-medium">--</span>}
+              </div>
+            </CardContent>
+          </Card>
         )}
         {!isIOSNativeApp && (
           <StatCard 
@@ -759,69 +999,139 @@ function OwnerDashboard() {
         )}
       </div>
 
+      {!isIOSNativeApp && enhanced?.paymentMethods && enhanced.paymentMethods.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap" data-testid="payment-method-pills">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            {currentMonth} by method:
+          </span>
+          {enhanced.paymentMethods.map(pm => (
+            <div key={pm.method} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border/50">
+              <Wallet className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[11px] font-medium capitalize">{pm.method}</span>
+              <span className="text-[11px] font-bold">{formatMoney(pm.total)}</span>
+              <span className="text-[10px] text-muted-foreground">({pm.count})</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {enhanced?.weeklyComparison && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/30 border border-border/30" data-testid="weekly-comparison-strip">
+          <BarChart3 className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-xs text-muted-foreground">This week vs last week:</span>
+          <span className="text-xs font-semibold">{enhanced.weeklyComparison.thisWeek} vs {enhanced.weeklyComparison.lastWeek} unique check-ins</span>
+          {weekChange !== 0 && (
+            <Badge variant="secondary" className={`text-[10px] h-5 ${weekChange > 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}`}>
+              {weekChange > 0 ? '+' : ''}{weekChange}%
+            </Badge>
+          )}
+        </div>
+      )}
+
       <FeatureDiscoveryTips role="owner" />
 
       {!isIOSNativeApp && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5" data-testid="quick-action-buttons">
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/payments")} data-testid="button-quick-log-payment">
+            <CreditCard className="w-3 h-3 mr-1" /> Log Payment
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/owner/announcements")} data-testid="button-quick-announcement">
+            <Megaphone className="w-3 h-3 mr-1" /> Send Announcement
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/owner/attendance")} data-testid="button-quick-attendance">
+            <CalendarCheck className="w-3 h-3 mr-1" /> Mark Attendance
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/members")} data-testid="button-quick-members">
+            <Users className="w-3 h-3 mr-1" /> View Members
+          </Button>
+          <div className="flex-1" />
           <a href="/api/owner/export/members" download>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="button-export-members">
-              <Download className="w-3 h-3 mr-1" />
-              Members
-            </Button>
-          </a>
-          <a href="/api/owner/export/payments" download>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="button-export-payments">
-              <Download className="w-3 h-3 mr-1" />
-              Payments
-            </Button>
-          </a>
-          <a href="/api/owner/export/attendance" download>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="button-export-attendance">
-              <Download className="w-3 h-3 mr-1" />
-              Attendance
+            <Button variant="ghost" size="sm" className="h-8 text-xs" data-testid="button-export-members">
+              <Download className="w-3 h-3 mr-1" /> Export
             </Button>
           </a>
         </div>
       )}
 
       <div className="grid gap-2.5 lg:grid-cols-2">
-        {/* AI Insights Summary */}
         {aiInsights && !isIOSNativeApp && (
-          <Card className="bg-gradient-to-br from-purple-500/5 via-transparent to-indigo-500/5">
+          <WhoNeedsAttention aiInsights={aiInsights} />
+        )}
+        <TodayActivitySection formatMoney={formatMoney} />
+      </div>
+
+      {!isIOSNativeApp && enhanced && (
+        <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+          <SubscriptionHealthMini data={enhanced.subscriptionHealth} />
+
+          <Card className="card-elevated" data-testid="card-trainer-coverage">
             <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                <div className="p-1.5 rounded-lg bg-purple-500/15">
-                  <Brain className="w-3.5 h-3.5 text-purple-500" />
+                <div className="p-1.5 rounded-lg bg-indigo-500/10">
+                  <Users className="w-3.5 h-3.5 text-indigo-500" />
                 </div>
-                AI Insights
+                Trainer Coverage
               </CardTitle>
-              <Link href="/owner/ai-insights">
-                <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="link-ai-insights">
-                  View All <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </Link>
             </CardHeader>
             <CardContent className="pt-0 pb-3 px-3">
-              <div className="flex gap-2">
-                <div className="flex-1 text-center p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
-                  <p className="text-xl font-bold text-red-600 dark:text-red-400">{aiInsights.churnRisk.count}</p>
-                  <p className="text-xs font-medium text-muted-foreground">At risk</p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Active Trainers</span>
+                  <span className="text-sm font-bold">{enhanced.trainerCoverage.totalTrainers}</span>
                 </div>
-                <div className="flex-1 text-center p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                  <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{aiInsights.followUpReminders.count}</p>
-                  <p className="text-xs font-medium text-muted-foreground">Follow-ups</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Members without Trainer</span>
+                  <span className={`text-sm font-bold ${enhanced.trainerCoverage.membersWithoutTrainer > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {enhanced.trainerCoverage.membersWithoutTrainer}
+                  </span>
                 </div>
-                <div className="flex-1 text-center p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{aiInsights.memberInsights.newThisMonth}</p>
-                  <p className="text-xs font-medium text-muted-foreground">New</p>
+                {enhanced.trainerCoverage.totalMembers > 0 && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <div className="flex-1 h-1.5 rounded-full bg-muted/30 overflow-hidden">
+                      <div className="h-full rounded-full bg-indigo-500 transition-all duration-500" 
+                        style={{ width: `${Math.round(((enhanced.trainerCoverage.totalMembers - enhanced.trainerCoverage.membersWithoutTrainer) / enhanced.trainerCoverage.totalMembers) * 100)}%` }} />
+                    </div>
+                    <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums">
+                      {Math.round(((enhanced.trainerCoverage.totalMembers - enhanced.trainerCoverage.membersWithoutTrainer) / enhanced.trainerCoverage.totalMembers) * 100)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="card-elevated" data-testid="card-month-so-far">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                <div className="p-1.5 rounded-lg bg-cyan-500/10">
+                  <BarChart3 className="w-3.5 h-3.5 text-cyan-500" />
+                </div>
+                {currentMonth} So Far
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 pb-3 px-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 rounded-lg bg-background/50 text-center">
+                  <p className="text-lg font-bold tabular-nums">{enhanced.monthSoFar.members}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Members</p>
+                </div>
+                <div className="p-2 rounded-lg bg-background/50 text-center">
+                  <p className="text-lg font-bold tabular-nums">{enhanced.monthSoFar.checkIns}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Check-ins</p>
+                </div>
+                <div className="p-2 rounded-lg bg-background/50 text-center">
+                  <p className="text-lg font-bold tabular-nums">{enhanced.monthSoFar.payments}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Payments</p>
+                </div>
+                <div className="p-2 rounded-lg bg-background/50 text-center">
+                  <p className="text-lg font-bold tabular-nums">{enhanced.monthSoFar.newJoins}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">New Joins</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-        )}
-
-        <TodayActivitySection formatMoney={formatMoney} />
-      </div>
+        </div>
+      )}
 
       <div className="grid gap-2.5 md:grid-cols-2">
         <Card className="card-elevated">
@@ -837,30 +1147,10 @@ function OwnerDashboard() {
             <div className="h-[180px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
-                  <XAxis 
-                    dataKey="date" 
-                    stroke="#888888" 
-                    fontSize={10} 
-                    tickLine={false} 
-                    axisLine={false} 
-                  />
-                  <YAxis 
-                    stroke="#888888" 
-                    fontSize={10} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    width={30}
-                  />
-                  <Tooltip 
-                    cursor={{ fill: 'transparent' }}
-                    contentStyle={{ borderRadius: '6px', border: '1px solid hsl(var(--border))', fontSize: '12px' }}
-                  />
-                  <Bar 
-                    dataKey="count" 
-                    fill="hsl(var(--primary))" 
-                    radius={[3, 3, 0, 0]} 
-                    barSize={30}
-                  />
+                  <XAxis dataKey="date" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#888888" fontSize={10} tickLine={false} axisLine={false} width={30} />
+                  <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '6px', border: '1px solid hsl(var(--border))', fontSize: '12px' }} />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} barSize={30} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
