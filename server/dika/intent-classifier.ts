@@ -50,6 +50,18 @@ export async function classifyAnalyticsIntent(
   const isOwner = role === "owner";
   const lower = message.toLowerCase();
 
+  if (isOwner) {
+    const paymentMethodQuery = /(?:(?:how\s+much|total|amount|revenue|money|payment|income)\s+.*(?:through|via|by|from|in)\s+(?:cash|upi|card|online|bank|cheque|check|gpay|phonepe|paytm|neft|imps)|(?:cash|upi|card)\s+(?:payments?|collections?|revenue|income|amount)|(?:breakdown|split)\s+(?:by|of)\s+(?:payment\s+)?(?:method|mode|type))/i;
+    if (paymentMethodQuery.test(lower)) {
+      return null;
+    }
+  }
+
+  const todoQuery = /(?:to.?do\s+list|daily\s+(?:priorities|briefing|tasks?|summary)|(?:what|give\s+me|show\s+me)\s+.*(?:to.?do|priorities|tasks?\s+for\s+today|action\s+items?)|what\s+should\s+i\s+(?:do|focus|prioritize)\s+today|my\s+(?:priorities|tasks?)\s+(?:for\s+)?today)/i;
+  if (isOwner && todoQuery.test(lower)) {
+    return null;
+  }
+
   const quickPatterns: Array<{ pattern: RegExp; intent: string; params?: Record<string, any> }> = [
     { pattern: /(?:how\s+)?(?:often|frequent|many\s+times)\s+(?:do\s+i|am\s+i)\s+(?:work|train)/i, intent: "workout_frequency_trend" },
     { pattern: /(?:workout|training)\s+(?:frequency|trend|pattern)/i, intent: "workout_frequency_trend" },

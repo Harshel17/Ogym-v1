@@ -2749,6 +2749,18 @@ export async function processWithAI(
   }
 
   if (role === 'owner' && gymId) {
+    const isTodoRequest = /(?:to.?do\s+list|daily\s+(?:priorities|briefing|tasks?|summary)|(?:what|give\s+me|show\s+me)\s+.*(?:to.?do|priorities|tasks?\s+for\s+today|action\s+items?)|what\s+should\s+i\s+(?:do|focus|prioritize)\s+today|my\s+(?:priorities|tasks?)\s+(?:for\s+)?today)/i.test(message);
+    if (isTodoRequest) {
+      try {
+        const [user] = await db.select({ username: users.username }).from(users).where(eq(users.id, userId));
+        const [profile] = await db.select({ fullName: userProfiles.fullName }).from(userProfiles).where(eq(userProfiles.userId, userId));
+        const ownerName = profile?.fullName || user?.username || 'Owner';
+        return await generateOwnerBriefing(gymId, ownerName, isIOSNative);
+      } catch (error: any) {
+        console.error('Owner briefing generation failed:', error?.message || error);
+      }
+    }
+
     const ownerAction = detectOwnerAction(message);
     const blockedOnIOS = isIOSNative && ownerAction && ['log_payment', 'navigate'].includes(ownerAction);
     if (ownerAction && ownerAction !== 'create_support_ticket' && !blockedOnIOS) {
