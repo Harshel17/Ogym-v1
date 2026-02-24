@@ -124,6 +124,87 @@ export default function AttendancePage() {
         </div>
       </div>
 
+      {isMember && myAttendance.length > 0 && (() => {
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
+        const attendanceDates = new Set(myAttendance.filter((a: any) => a.status === 'present' && a.date).map((a: any) => {
+          const d = a.date?.split('T')[0];
+          return d || a.date;
+        }));
+        const monthName = format(new Date(currentYear, currentMonth, 1), 'MMMM yyyy');
+        const presentCount = Array.from({ length: daysInMonth }, (_, i) => {
+          const d = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`;
+          return attendanceDates.has(d) ? 1 : 0;
+        }).reduce((a, b) => a + b, 0);
+
+        return (
+          <Card className="card-ambient" data-testid="card-attendance-heatmap">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-sm">
+                    <CalendarIcon className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">{monthName}</p>
+                    <p className="text-[10px] text-muted-foreground">{presentCount} check-ins this month</p>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-7 gap-1 text-center">
+                {['S','M','T','W','T','F','S'].map((d, i) => (
+                  <div key={i} className="text-[9px] text-muted-foreground font-medium py-1">{d}</div>
+                ))}
+                {Array.from({ length: firstDayOfWeek }, (_, i) => (
+                  <div key={`empty-${i}`} />
+                ))}
+                {Array.from({ length: daysInMonth }, (_, i) => {
+                  const dayNum = i + 1;
+                  const dateStr2 = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                  const isPresent = attendanceDates.has(dateStr2);
+                  const isToday2 = dayNum === today.getDate();
+                  const isFuture = dayNum > today.getDate();
+                  return (
+                    <div
+                      key={dayNum}
+                      className={`aspect-square rounded-md flex items-center justify-center text-[10px] font-medium transition-colors ${
+                        isPresent
+                          ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/30'
+                          : isFuture
+                            ? 'bg-muted/20 text-muted-foreground/40'
+                            : isToday2
+                              ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                              : 'bg-muted/30 text-muted-foreground/60'
+                      }`}
+                      data-testid={`heatmap-day-${dayNum}`}
+                    >
+                      {dayNum}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-3 mt-3 justify-center" data-testid="heatmap-legend">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded bg-emerald-500" />
+                  <span className="text-[10px] text-muted-foreground">Present</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded bg-muted/30 border border-border/50" />
+                  <span className="text-[10px] text-muted-foreground">Absent</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded bg-primary/15 ring-1 ring-primary/30" />
+                  <span className="text-[10px] text-muted-foreground">Today</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {isOwner && (
         <div className="space-y-3">
           <form onSubmit={handleDikaSubmit} className="relative" data-testid="form-ask-dika-attendance">

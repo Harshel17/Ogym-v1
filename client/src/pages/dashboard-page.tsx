@@ -1444,6 +1444,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const isPersonalMode = user?.role === 'member' && !user?.gymId;
   const isTrainerLed = user?.gymId && trainingModeData?.trainingMode === 'trainer_led';
   const canManageOwnWorkouts = !isTrainerLed;
+  const isIOSNativeApp = isNative() && isIOS();
   const [isWorkoutOpen, setIsWorkoutOpen] = useState(false);
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [exerciseInputs, setExerciseInputs] = useState<Record<number, { sets: string; reps: string; weight: string; durationMinutes?: string; distanceKm?: string }>>({});
@@ -1741,6 +1742,16 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   });
   const { data: todayWorkout, isLoading: workoutLoading } = useTodayWorkout();
   const { data: profile } = useMemberProfile();
+
+  const { data: enhancedDash } = useQuery<{
+    attendance: { monthCheckIns: number; weekCheckIns: number; streak: number; lastCheckIn: string | null };
+    weeklyProgress: { workoutsDone: number; workoutsPlanned: number; exercisesCompleted: number };
+    personalBests: { heaviestLift: { exercise: string; weight: string; date: string } | null; longestStreak: number; currentStreak: number; totalExercisesCompleted: number };
+    recentFeed: { id: number; type: string; content: string; createdAt: string; userId: number; username: string }[];
+  }>({
+    queryKey: ["/api/member/dashboard-enhanced"],
+    staleTime: 1000 * 60 * 5,
+  });
 
   const workoutItemsList = (todayWorkout as any)?.items || [];
   const exerciseNamesForPrefill = workoutItemsList.map((i: any) => i.exerciseName).filter(Boolean);
@@ -2276,6 +2287,32 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       {user?.isGuest && <GuestConversionBanner variant="banner" />}
 
       <FeatureDiscoveryTips role="member" isPersonalMode={isPersonalMode} />
+
+      {!isPersonalMode && user?.gymId && (
+        <Link href="/attendance">
+          <Button variant="outline" className="w-full h-11 text-sm font-medium border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10" data-testid="button-quick-checkin">
+            <CalendarCheck className="w-4 h-4 mr-2" />
+            Quick Check-In
+          </Button>
+        </Link>
+      )}
+
+      {!isPersonalMode && (
+        <div className="grid grid-cols-2 gap-2">
+          <Link href="/nutrition">
+            <Button variant="outline" className="w-full h-10 text-xs font-medium" data-testid="button-quick-nutrition">
+              <Flame className="w-3.5 h-3.5 mr-1.5 text-orange-500" />
+              Log Meal
+            </Button>
+          </Link>
+          <Link href="/progress/workouts">
+            <Button variant="outline" className="w-full h-10 text-xs font-medium" data-testid="button-view-progress">
+              <BarChart3 className="w-3.5 h-3.5 mr-1.5 text-blue-500" />
+              View Progress
+            </Button>
+          </Link>
+        </div>
+      )}
 
       <ProactiveNudges />
 
@@ -3091,6 +3128,159 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       <div className="mt-1">
         <HealthActivityDashboard />
       </div>
+
+      {!isPersonalMode && enhancedDash?.attendance && (
+        <Card className="card-ambient" data-testid="card-attendance-summary">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-sm">
+                <CalendarCheck className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Attendance</p>
+                <p className="text-[10px] text-muted-foreground">This month</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center p-2 rounded-lg bg-muted/30" data-testid="stat-month-checkins">
+                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{enhancedDash.attendance.monthCheckIns}</p>
+                <p className="text-[10px] text-muted-foreground">Check-ins</p>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-muted/30" data-testid="stat-attendance-streak">
+                <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{enhancedDash.attendance.streak}</p>
+                <p className="text-[10px] text-muted-foreground">Day Streak</p>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-muted/30" data-testid="stat-last-visit">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {enhancedDash.attendance.lastCheckIn 
+                    ? format(parseISO(enhancedDash.attendance.lastCheckIn), 'MMM d')
+                    : 'Never'}
+                </p>
+                <p className="text-[10px] text-muted-foreground">Last Visit</p>
+              </div>
+            </div>
+            <Link href="/attendance">
+              <Button variant="ghost" size="sm" className="w-full mt-2 text-xs h-8" data-testid="button-view-attendance">
+                View Full Attendance
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {enhancedDash?.weeklyProgress && enhancedDash.weeklyProgress.workoutsPlanned > 0 && (
+        <Card className="card-ambient" data-testid="card-weekly-progress">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm">
+                  <Target className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">This Week</p>
+                  <p className="text-[10px] text-muted-foreground">Workout progress</p>
+                </div>
+              </div>
+              {(() => {
+                const pct = enhancedDash.weeklyProgress.workoutsPlanned > 0 
+                  ? Math.round((enhancedDash.weeklyProgress.workoutsDone / enhancedDash.weeklyProgress.workoutsPlanned) * 100) 
+                  : 0;
+                return (
+                  <Badge 
+                    variant={pct >= 80 ? "default" : "secondary"} 
+                    className={pct >= 80 
+                      ? "bg-gradient-to-r from-green-500 to-emerald-500 border-0 text-white no-default-hover-elevate no-default-active-elevate" 
+                      : "no-default-hover-elevate no-default-active-elevate"}
+                    data-testid="badge-weekly-completion"
+                  >
+                    {pct}%
+                  </Badge>
+                );
+              })()}
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{enhancedDash.weeklyProgress.workoutsDone} of {enhancedDash.weeklyProgress.workoutsPlanned} workouts</span>
+              </div>
+              <div className="h-2 bg-muted/40 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-700"
+                  style={{ width: `${Math.min(enhancedDash.weeklyProgress.workoutsPlanned > 0 ? (enhancedDash.weeklyProgress.workoutsDone / enhancedDash.weeklyProgress.workoutsPlanned) * 100 : 0, 100)}%` }}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {enhancedDash?.personalBests && (enhancedDash.personalBests.heaviestLift || enhancedDash.personalBests.totalExercisesCompleted > 0) && (
+        <Card className="card-ambient" data-testid="card-personal-bests">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-sm">
+                <Trophy className="w-4 h-4 text-white" />
+              </div>
+              <p className="text-sm font-semibold">Personal Records</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {enhancedDash.personalBests.heaviestLift && (
+                <div className="p-2.5 rounded-lg bg-gradient-to-br from-amber-500/[0.06] to-transparent border border-amber-500/10">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Heaviest Lift</p>
+                  <p className="text-sm font-bold mt-0.5">{enhancedDash.personalBests.heaviestLift.weight}</p>
+                  <p className="text-[10px] text-muted-foreground">{enhancedDash.personalBests.heaviestLift.exercise}</p>
+                </div>
+              )}
+              <div className="p-2.5 rounded-lg bg-gradient-to-br from-orange-500/[0.06] to-transparent border border-orange-500/10">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Best Streak</p>
+                <p className="text-sm font-bold mt-0.5">{enhancedDash.personalBests.longestStreak} days</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-gradient-to-br from-blue-500/[0.06] to-transparent border border-blue-500/10">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Current Streak</p>
+                <p className="text-sm font-bold mt-0.5">{enhancedDash.personalBests.currentStreak} days</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-gradient-to-br from-purple-500/[0.06] to-transparent border border-purple-500/10">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Exercises Done</p>
+                <p className="text-sm font-bold mt-0.5">{enhancedDash.personalBests.totalExercisesCompleted}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isPersonalMode && enhancedDash?.recentFeed && enhancedDash.recentFeed.length > 0 && (
+        <Card className="card-ambient" data-testid="card-social-feed">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 shadow-sm">
+                  <Heart className="w-4 h-4 text-white" />
+                </div>
+                <p className="text-sm font-semibold">Gym Feed</p>
+              </div>
+              <Link href="/social">
+                <Button variant="ghost" size="sm" className="text-xs h-7" data-testid="button-view-feed">
+                  See All <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {enhancedDash.recentFeed.slice(0, 2).map((post) => (
+                <div key={post.id} className="p-2.5 rounded-lg bg-muted/30 border border-border/30" data-testid={`feed-post-${post.id}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-white">{post.username?.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <span className="text-xs font-medium">{post.username}</span>
+                    <span className="text-[10px] text-muted-foreground ml-auto">{format(parseISO(post.createdAt), 'MMM d')}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{post.content}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Calendar */}
       <MemberCalendarWidget />
