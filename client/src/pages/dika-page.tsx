@@ -850,6 +850,12 @@ function DikaPageInner({ userId }: { userId: number }) {
                 variant="ghost"
                 size="icon"
                 className="text-slate-400/70 rounded-xl"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                  }
+                }}
                 onClick={async () => {
                   try {
                     const { Browser } = await import("@capacitor/browser");
