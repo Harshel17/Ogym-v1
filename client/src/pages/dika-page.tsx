@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { RoboDIcon } from '@/components/dika/dika-icons';
 import { useVisualViewportHeight } from '@/hooks/use-keyboard';
@@ -846,31 +847,40 @@ function DikaPageInner({ userId }: { userId: number }) {
           </div>
           <div className="flex items-center gap-1">
             {isNative() && isIOS() && user?.role !== 'owner' && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-slate-400/70 rounded-xl"
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  if (document.activeElement instanceof HTMLElement) {
-                    document.activeElement.blur();
-                  }
-                }}
-                onClick={async () => {
-                  try {
-                    const { Browser } = await import("@capacitor/browser");
-                    try { await Browser.close(); } catch {}
-                    const res = await fetch("/api/auth/link-token", { method: "POST", credentials: "include" });
-                    if (!res.ok) return;
-                    const data = await res.json();
-                    if (!data.token) return;
-                    await Browser.open({ url: `https://app.ogym.fitness/dika-web?token=${data.token}&mode=simple` });
-                  } catch {}
-                }}
-                data-testid="button-dika-open-browser"
-              >
-                <Globe className="w-4 h-4" />
-              </Button>
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-slate-400/70 rounded-xl"
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        if (document.activeElement instanceof HTMLElement) {
+                          document.activeElement.blur();
+                        }
+                      }}
+                      onClick={async () => {
+                        try {
+                          const { Browser } = await import("@capacitor/browser");
+                          try { await Browser.close(); } catch {}
+                          const res = await fetch("/api/auth/link-token", { method: "POST", credentials: "include" });
+                          if (!res.ok) return;
+                          const data = await res.json();
+                          if (!data.token) return;
+                          await Browser.open({ url: `https://app.ogym.fitness/dika-web?token=${data.token}&mode=simple` });
+                        } catch {}
+                      }}
+                      data-testid="button-dika-open-browser"
+                    >
+                      <Globe className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs max-w-[180px] text-center">
+                    For a better Dika chat experience, open here
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
             {messages.length > 0 && (
               <AlertDialog>
