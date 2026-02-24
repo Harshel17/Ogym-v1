@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Dumbbell, User, Ruler, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
+import { Dumbbell, User, Target, Ruler, ArrowRight, Loader2, CheckCircle2, ChevronDown, ChevronUp, Flame, Heart, Scale, Activity } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,6 +24,15 @@ const profileSchema = z.object({
   address: z.string().optional(),
 });
 
+const goalsSchema = z.object({
+  primaryGoal: z.enum(["lose_fat", "build_muscle", "maintain", "improve_endurance", "general_health"], {
+    required_error: "Please select a goal",
+  }),
+  targetWeight: z.string().optional(),
+  targetWeightUnit: z.enum(["kg", "lbs"]).default("kg"),
+  weeklyWorkoutDays: z.number().min(1).max(7).optional(),
+});
+
 const bodyMeasurementSchema = z.object({
   height: z.number().min(50, "Height must be at least 50 cm").max(300, "Height must be less than 300 cm"),
   weight: z.number().min(20, "Weight must be at least 20 kg").max(500, "Weight must be less than 500 kg"),
@@ -34,10 +43,28 @@ const bodyMeasurementSchema = z.object({
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
+type GoalsFormData = z.infer<typeof goalsSchema>;
 type BodyFormData = z.infer<typeof bodyMeasurementSchema>;
 
+type StepType = "profile" | "goals" | "body";
+
+const PRIMARY_GOALS = [
+  { value: "lose_fat", label: "Lose Fat", icon: Flame, color: "text-orange-500" },
+  { value: "build_muscle", label: "Build Muscle", icon: Dumbbell, color: "text-blue-500" },
+  { value: "maintain", label: "Stay Fit", icon: Scale, color: "text-emerald-500" },
+  { value: "improve_endurance", label: "Build Endurance", icon: Activity, color: "text-purple-500" },
+  { value: "general_health", label: "General Health", icon: Heart, color: "text-rose-500" },
+] as const;
+
+const STEPS: { key: StepType; label: string }[] = [
+  { key: "profile", label: "Profile" },
+  { key: "goals", label: "Goals" },
+  { key: "body", label: "Body" },
+];
+
 export default function MemberOnboardingPage() {
-  const [step, setStep] = useState<"profile" | "body">("profile");
+  const [step, setStep] = useState<StepType>("profile");
+  const [showExtraMeasurements, setShowExtraMeasurements] = useState(false);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -50,6 +77,16 @@ export default function MemberOnboardingPage() {
       gender: undefined,
       dob: "",
       address: "",
+    },
+  });
+
+  const goalsForm = useForm<GoalsFormData>({
+    resolver: zodResolver(goalsSchema),
+    defaultValues: {
+      primaryGoal: undefined,
+      targetWeight: "",
+      targetWeightUnit: "kg",
+      weeklyWorkoutDays: undefined,
     },
   });
 
@@ -71,8 +108,27 @@ export default function MemberOnboardingPage() {
       return res.json();
     },
     onSuccess: () => {
+      setStep("goals");
+      toast({ title: "Profile saved", description: "Now let's set your fitness goals." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const goalsMutation = useMutation({
+    mutationFn: async (data: GoalsFormData) => {
+      const res = await apiRequest("PUT", "/api/user/goals", {
+        primaryGoal: data.primaryGoal,
+        targetWeight: data.targetWeight || null,
+        targetWeightUnit: data.targetWeightUnit,
+        weeklyWorkoutDays: data.weeklyWorkoutDays || null,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
       setStep("body");
-      toast({ title: "Profile saved", description: "Now let's record your body measurements." });
+      toast({ title: "Goals saved", description: "Last step - your body measurements." });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -98,9 +154,19 @@ export default function MemberOnboardingPage() {
     profileMutation.mutate(data);
   };
 
+  const handleGoalsSubmit = (data: GoalsFormData) => {
+    goalsMutation.mutate(data);
+  };
+
+  const handleSkipGoals = () => {
+    setStep("body");
+  };
+
   const handleBodySubmit = (data: BodyFormData) => {
     bodyMutation.mutate(data);
   };
+
+  const currentStepIndex = STEPS.findIndex(s => s.key === step);
 
   return (
     <div 
@@ -117,28 +183,34 @@ export default function MemberOnboardingPage() {
             <Dumbbell className="h-10 w-10 text-primary" />
             <span className="text-3xl font-bold">OGym</span>
           </div>
-          <h1 className="text-2xl font-bold">Welcome! Let's get you set up</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-onboarding-title">Welcome! Let's get you set up</h1>
           <p className="text-muted-foreground mt-2">Complete your profile to get started</p>
         </div>
 
-        <div className="flex items-center justify-center gap-4 mb-6">
-          <div className={`flex items-center gap-2 ${step === "profile" ? "text-primary" : "text-muted-foreground"}`}>
-            {step === "body" ? (
-              <CheckCircle2 className="h-6 w-6 text-green-500" />
-            ) : (
-              <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium">1</div>
-            )}
-            <span className="font-medium">Profile</span>
-          </div>
-          <div className="h-px w-8 bg-muted" />
-          <div className={`flex items-center gap-2 ${step === "body" ? "text-primary" : "text-muted-foreground"}`}>
-            <div className={`h-6 w-6 rounded-full flex items-center justify-center text-sm font-medium ${step === "body" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>2</div>
-            <span className="font-medium">Body</span>
-          </div>
+        <div className="flex items-center justify-center gap-2 mb-6" data-testid="stepper-member">
+          {STEPS.map((s, i) => (
+            <div key={s.key} className="flex items-center gap-2">
+              {i > 0 && <div className={`h-px w-8 ${i <= currentStepIndex ? 'bg-primary' : 'bg-muted'}`} />}
+              <div className="flex items-center gap-1.5">
+                <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
+                  i < currentStepIndex
+                    ? 'bg-emerald-500 text-white'
+                    : i === currentStepIndex
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
+                }`}>
+                  {i < currentStepIndex ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
+                </div>
+                <span className={`text-xs font-medium ${i === currentStepIndex ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  {s.label}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
 
         {step === "profile" && (
-          <Card>
+          <Card data-testid="card-profile-step">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -243,7 +315,7 @@ export default function MemberOnboardingPage() {
                     ) : (
                       <ArrowRight className="h-4 w-4 mr-2" />
                     )}
-                    Continue to Body Measurements
+                    Next: Set Your Goals
                   </Button>
                 </form>
               </Form>
@@ -251,15 +323,142 @@ export default function MemberOnboardingPage() {
           </Card>
         )}
 
+        {step === "goals" && (
+          <Card data-testid="card-goals-step">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Target className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>Your Fitness Goal</CardTitle>
+                  <CardDescription>This powers smarter AI recommendations for you</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Form {...goalsForm}>
+                <form onSubmit={goalsForm.handleSubmit(handleGoalsSubmit)} className="space-y-4">
+                  <FormField
+                    control={goalsForm.control}
+                    name="primaryGoal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>What's your main goal?</FormLabel>
+                        <div className="grid grid-cols-1 gap-2">
+                          {PRIMARY_GOALS.map((goal) => {
+                            const GoalIcon = goal.icon;
+                            return (
+                              <button
+                                key={goal.value}
+                                type="button"
+                                onClick={() => field.onChange(goal.value)}
+                                className={`flex items-center gap-3 p-3 rounded-lg border text-left text-sm transition-all ${
+                                  field.value === goal.value
+                                    ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                                    : 'border-border hover:border-primary/40 hover:bg-muted/30'
+                                }`}
+                                data-testid={`goal-option-${goal.value}`}
+                              >
+                                <GoalIcon className={`h-5 w-5 ${goal.color}`} />
+                                <span className="font-medium">{goal.label}</span>
+                                {field.value === goal.value && (
+                                  <CheckCircle2 className="h-4 w-4 text-primary ml-auto" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={goalsForm.control}
+                      name="targetWeight"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Target Weight <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="70" 
+                              data-testid="input-target-weight"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={goalsForm.control}
+                      name="weeklyWorkoutDays"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Workouts / Week <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
+                          <Select 
+                            onValueChange={(v) => field.onChange(v ? Number(v) : undefined)} 
+                            defaultValue={field.value?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-workout-days">
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {[1,2,3,4,5,6,7].map(n => (
+                                <SelectItem key={n} value={n.toString()}>{n} day{n > 1 ? 's' : ''}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      className="flex-1" 
+                      onClick={handleSkipGoals}
+                      data-testid="button-skip-goals"
+                    >
+                      Skip for Now
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      className="flex-1" 
+                      disabled={goalsMutation.isPending}
+                      data-testid="button-next-body"
+                    >
+                      {goalsMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <ArrowRight className="h-4 w-4 mr-2" />
+                      )}
+                      Next: Body
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        )}
+
         {step === "body" && (
-          <Card>
+          <Card data-testid="card-body-step">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Ruler className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle>Initial Body Measurements</CardTitle>
+                  <CardTitle>Body Measurements</CardTitle>
                   <CardDescription>These will help track your progress</CardDescription>
                 </div>
               </div>
@@ -273,13 +472,14 @@ export default function MemberOnboardingPage() {
                       name="height"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Height (cm)</FormLabel>
+                          <FormLabel>Height (cm) <span className="text-destructive">*</span></FormLabel>
                           <FormControl>
                             <Input 
                               type="number" 
                               placeholder="170" 
                               data-testid="input-height"
                               {...field}
+                              value={field.value ?? ""}
                               onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                             />
                           </FormControl>
@@ -293,13 +493,14 @@ export default function MemberOnboardingPage() {
                       name="weight"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Weight (kg)</FormLabel>
+                          <FormLabel>Weight (kg) <span className="text-destructive">*</span></FormLabel>
                           <FormControl>
                             <Input 
                               type="number" 
                               placeholder="70" 
                               data-testid="input-weight"
                               {...field}
+                              value={field.value ?? ""}
                               onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                             />
                           </FormControl>
@@ -309,89 +510,100 @@ export default function MemberOnboardingPage() {
                     />
                   </div>
 
-                  <p className="text-sm text-muted-foreground">Optional measurements (for detailed tracking):</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowExtraMeasurements(!showExtraMeasurements)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full justify-center py-1"
+                    data-testid="button-toggle-extra-measurements"
+                  >
+                    {showExtraMeasurements ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    {showExtraMeasurements ? "Hide" : "Show"} additional measurements (optional)
+                  </button>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={bodyForm.control}
-                      name="bodyFat"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Body Fat %</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              placeholder="15" 
-                              data-testid="input-bodyfat"
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={bodyForm.control}
-                      name="chest"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Chest (cm)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              placeholder="95" 
-                              data-testid="input-chest"
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={bodyForm.control}
-                      name="waist"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Waist (cm)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              placeholder="80" 
-                              data-testid="input-waist"
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={bodyForm.control}
-                      name="hips"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Hips (cm)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              placeholder="95" 
-                              data-testid="input-hips"
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  {showExtraMeasurements && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={bodyForm.control}
+                        name="bodyFat"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Body Fat %</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="15" 
+                                data-testid="input-bodyfat"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={bodyForm.control}
+                        name="chest"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Chest (cm)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="95" 
+                                data-testid="input-chest"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={bodyForm.control}
+                        name="waist"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Waist (cm)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="80" 
+                                data-testid="input-waist"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={bodyForm.control}
+                        name="hips"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Hips (cm)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="95" 
+                                data-testid="input-hips"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
 
                   <Button 
                     type="submit" 
