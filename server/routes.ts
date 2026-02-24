@@ -10,8 +10,8 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors } from "@shared/schema";
-import { eq, and, isNotNull, inArray, sql, desc, gte, lte, like, asc } from "drizzle-orm";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors, trainerMemberAssignments } from "@shared/schema";
+import { eq, and, isNotNull, isNull, inArray, sql, desc, gte, lte, like, asc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing } from "./dika";
 import { executeOwnerAction, executeSupportTicket, type ActionData } from "./dika/owner-actions";
@@ -9045,10 +9045,10 @@ Write a short, personal message. No subject line, just the message body. Use the
       // 5. Trainer coverage
       const trainers = await db.select({ id: users.id }).from(users)
         .where(and(eq(users.gymId, gymId), eq(users.role, 'trainer')));
-      const membersWithTrainer = await db.select({ count: sql<number>`COUNT(DISTINCT ${users.id})` })
-        .from(users)
-        .where(and(eq(users.gymId, gymId), eq(users.role, 'member'), sql`${users.trainerId} IS NOT NULL`));
-      const membersWithoutTrainer = allMembers.length - (Number(membersWithTrainer[0]?.count) || 0);
+      const membersWithTrainerResult = await db.select({ count: sql<number>`COUNT(DISTINCT ${trainerMemberAssignments.memberId})` })
+        .from(trainerMemberAssignments)
+        .where(and(eq(trainerMemberAssignments.gymId, gymId), isNull(trainerMemberAssignments.endedAt)));
+      const membersWithoutTrainer = allMembers.length - (Number(membersWithTrainerResult[0]?.count) || 0);
 
       // 6. Month so far summary
       const monthCheckIns = await db.select({ count: sql<number>`COUNT(*)` })
