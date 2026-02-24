@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { RoboDIcon } from '@/components/dika/dika-icons';
 import { useVisualViewportHeight } from '@/hooks/use-keyboard';
@@ -615,6 +614,10 @@ function DikaPageInner({ userId }: { userId: number }) {
   const [findFoodState, setFindFoodState] = useState<Record<string, 'idle' | 'loading' | 'done' | 'error'>>({});
   const [findFoodResults, setFindFoodResults] = useState<Record<string, { restaurants: FindFoodRestaurant[]; dikaMessage: string; goalType: string; remainingCalories: number }>>({});
 
+  const [showWebHint, setShowWebHint] = useState(() => {
+    try { return !localStorage.getItem('dika-web-hint-seen'); } catch { return true; }
+  });
+
   const lastExerciseQuery = useRef<string | null>(null);
   useEffect(() => {
     if (isLoading) return;
@@ -847,40 +850,50 @@ function DikaPageInner({ userId }: { userId: number }) {
           </div>
           <div className="flex items-center gap-1">
             {isNative() && isIOS() && user?.role !== 'owner' && (
-              <TooltipProvider delayDuration={0}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-slate-400/70 rounded-xl"
-                      onPointerDown={(e) => {
-                        e.preventDefault();
-                        if (document.activeElement instanceof HTMLElement) {
-                          document.activeElement.blur();
-                        }
-                      }}
-                      onClick={async () => {
-                        try {
-                          const { Browser } = await import("@capacitor/browser");
-                          try { await Browser.close(); } catch {}
-                          const res = await fetch("/api/auth/link-token", { method: "POST", credentials: "include" });
-                          if (!res.ok) return;
-                          const data = await res.json();
-                          if (!data.token) return;
-                          await Browser.open({ url: `https://app.ogym.fitness/dika-web?token=${data.token}&mode=simple` });
-                        } catch {}
-                      }}
-                      data-testid="button-dika-open-browser"
-                    >
-                      <Globe className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-xs max-w-[180px] text-center">
-                    For a better Dika chat experience, open here
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-slate-400/70 rounded-xl"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    if (document.activeElement instanceof HTMLElement) {
+                      document.activeElement.blur();
+                    }
+                  }}
+                  onClick={async () => {
+                    setShowWebHint(false);
+                    try { localStorage.setItem('dika-web-hint-seen', '1'); } catch {}
+                    try {
+                      const { Browser } = await import("@capacitor/browser");
+                      try { await Browser.close(); } catch {}
+                      const res = await fetch("/api/auth/link-token", { method: "POST", credentials: "include" });
+                      if (!res.ok) return;
+                      const data = await res.json();
+                      if (!data.token) return;
+                      await Browser.open({ url: `https://app.ogym.fitness/dika-web?token=${data.token}&mode=simple` });
+                    } catch {}
+                  }}
+                  data-testid="button-dika-open-browser"
+                >
+                  <Globe className="w-4 h-4" />
+                </Button>
+                {showWebHint && (
+                  <div
+                    className="absolute top-full right-0 mt-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-300"
+                    onClick={() => {
+                      setShowWebHint(false);
+                      try { localStorage.setItem('dika-web-hint-seen', '1'); } catch {}
+                    }}
+                    data-testid="hint-dika-web"
+                  >
+                    <div className="relative bg-amber-500 text-white text-[11px] font-medium px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
+                      <div className="absolute -top-1 right-3 w-2 h-2 bg-amber-500 rotate-45" />
+                      For a better experience, open Dika here
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             {messages.length > 0 && (
               <AlertDialog>
