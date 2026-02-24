@@ -10,7 +10,7 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors, trainerMemberAssignments } from "@shared/schema";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors, trainerMemberAssignments, feedPosts } from "@shared/schema";
 import { eq, and, isNotNull, isNull, inArray, sql, desc, gte, lte, like, asc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing } from "./dika";
@@ -6326,6 +6326,130 @@ Return ONLY JSON.`
     const endDate = req.query.endDate as string | undefined;
     const workouts = await storage.getMemberDailyWorkouts(req.user!.id, startDate, endDate);
     res.json(workouts);
+  });
+
+  // === MEMBER DASHBOARD ENHANCED ROUTES ===
+
+  app.get("/api/member/dashboard-enhanced", requireRole(["member"]), async (req, res) => {
+    try {
+      const memberId = req.user!.id;
+      const gymId = req.user!.gymId;
+      const today = getLocalDate(req);
+      const todayDate = new Date(today + 'T00:00:00');
+      const dayOfWeek = todayDate.getDay();
+      const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const weekStart = new Date(todayDate);
+      weekStart.setDate(todayDate.getDate() - mondayOffset);
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+
+      const monthStart = today.substring(0, 7) + '-01';
+
+      const allAttendance = await storage.getMemberAttendance(memberId);
+
+      const monthCheckIns = allAttendance.filter(a => a.date >= monthStart && a.date <= today).length;
+      const weekCheckIns = allAttendance.filter(a => a.date >= weekStartStr && a.date <= today).length;
+      const lastCheckIn = allAttendance.length > 0 ? allAttendance[0].date : null;
+
+      let attendanceStreak = 0;
+      const sortedDates = allAttendance.map(a => a.date).sort((a, b) => b.localeCompare(a));
+      if (sortedDates.length > 0) {
+        const checkDate = new Date(today + 'T12:00:00');
+        for (let i = 0; i < 365; i++) {
+          const dateStr = checkDate.toISOString().split('T')[0];
+          if (sortedDates.includes(dateStr)) {
+            attendanceStreak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+          } else if (i === 0) {
+            checkDate.setDate(checkDate.getDate() - 1);
+            continue;
+          } else {
+            break;
+          }
+        }
+      }
+
+      const weekCompletions = await db.select().from(workoutCompletions)
+        .where(and(
+          eq(workoutCompletions.memberId, memberId),
+          gte(workoutCompletions.completedDate, weekStartStr),
+          lte(workoutCompletions.completedDate, today)
+        ));
+      const weekWorkoutsDone = new Set(weekCompletions.map(c => c.completedDate)).size;
+
+      let weekWorkoutsPlanned = 0;
+      const memberCycle = await storage.getMemberCycle(memberId);
+      if (memberCycle) {
+        const totalDays = 7;
+        const restDays = memberCycle.restDays || [];
+        weekWorkoutsPlanned = totalDays - restDays.length;
+      }
+
+      const completions = await db.select().from(workoutCompletions)
+        .where(eq(workoutCompletions.memberId, memberId))
+        .orderBy(desc(workoutCompletions.createdAt));
+
+      let heaviestLift: { exercise: string; weight: string; date: string } | null = null;
+      let maxWeight = 0;
+      for (const c of completions) {
+        if (c.actualWeight) {
+          const w = parseFloat(c.actualWeight.replace(/[^0-9.]/g, ''));
+          if (w > maxWeight) {
+            maxWeight = w;
+            heaviestLift = { exercise: c.exerciseName || 'Unknown', weight: c.actualWeight, date: c.completedDate };
+          }
+        }
+      }
+
+      let longestStreak = 0;
+      const workoutSummary = await storage.getMemberWorkoutSummary(gymId, memberId);
+      longestStreak = workoutSummary.streak;
+
+      const totalExercisesCompleted = completions.length;
+
+      let recentFeed: any[] = [];
+      if (gymId) {
+        const feedResults = await db.select({
+          id: feedPosts.id,
+          type: feedPosts.type,
+          content: feedPosts.content,
+          createdAt: feedPosts.createdAt,
+          userId: feedPosts.userId,
+          username: users.username,
+        }).from(feedPosts)
+          .innerJoin(users, eq(feedPosts.userId, users.id))
+          .where(and(
+            eq(feedPosts.gymId, gymId),
+            eq(feedPosts.isHidden, false)
+          ))
+          .orderBy(desc(feedPosts.createdAt))
+          .limit(3);
+        recentFeed = feedResults;
+      }
+
+      res.json({
+        attendance: {
+          monthCheckIns,
+          weekCheckIns,
+          lastCheckIn,
+          streak: attendanceStreak,
+        },
+        weeklyProgress: {
+          workoutsDone: weekWorkoutsDone,
+          workoutsPlanned: weekWorkoutsPlanned,
+          exercisesCompleted: weekCompletions.length,
+        },
+        personalBests: {
+          heaviestLift,
+          longestStreak,
+          totalExercisesCompleted,
+          currentStreak: workoutSummary.streak,
+        },
+        recentFeed,
+      });
+    } catch (error: any) {
+      console.error("Member dashboard enhanced error:", error);
+      res.status(500).json({ message: "Failed to load dashboard data" });
+    }
   });
 
   // === MEMBER WORKOUT SESSION ROUTES ===
