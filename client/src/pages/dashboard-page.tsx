@@ -290,7 +290,7 @@ export default function DashboardPage() {
   );
 }
 
-function GreetingBanner({ greeting, greetingIcon, username, motiveLine }: { greeting: string; greetingIcon: string; username: string; motiveLine?: string }) {
+function GreetingBanner({ greeting, greetingIcon, username, motiveLine, summaryLine }: { greeting: string; greetingIcon: string; username: string; motiveLine?: string; summaryLine?: string }) {
   return (
     <div className="greeting-banner" data-testid="greeting-banner">
       <div className="relative z-10 flex items-center justify-between">
@@ -308,6 +308,9 @@ function GreetingBanner({ greeting, greetingIcon, username, motiveLine }: { gree
               <span className="text-xs text-muted-foreground/80 font-medium italic" data-testid="text-motivational">{motiveLine}</span>
             </div>
           )}
+          {summaryLine && (
+            <p className="text-xs text-muted-foreground/70 mt-1 font-medium" data-testid="text-gym-summary">{summaryLine}</p>
+          )}
         </div>
         <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/25' : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/25'}`}>
           {greetingIcon === 'sun' ? <Sun className="w-5 h-5 text-white" /> : <Moon className="w-5 h-5 text-white" />}
@@ -317,32 +320,49 @@ function GreetingBanner({ greeting, greetingIcon, username, motiveLine }: { gree
   );
 }
 
-function StatCard({ title, value, icon: Icon, description, onClick, color = "primary" }: any) {
-  const colorClasses: Record<string, { bg: string; icon: string; accent: string }> = {
+function StatCard({ title, value, icon: Icon, description, onClick, color = "primary", featured = false }: any) {
+  const colorClasses: Record<string, { bg: string; featuredBg: string; icon: string; accent: string; valueColor: string }> = {
     primary: { 
       bg: "bg-gradient-to-br from-primary/5 to-primary/10", 
+      featuredBg: "bg-gradient-to-br from-primary/10 to-primary/20 ring-1 ring-primary/20",
       icon: "bg-primary/15 text-primary",
-      accent: "border-l-primary"
+      accent: "border-l-primary",
+      valueColor: "text-primary"
     },
     green: { 
       bg: "bg-gradient-to-br from-emerald-500/5 to-emerald-500/10", 
+      featuredBg: "bg-gradient-to-br from-emerald-500/10 to-emerald-500/20 ring-1 ring-emerald-500/20",
       icon: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-      accent: "border-l-emerald-500"
+      accent: "border-l-emerald-500",
+      valueColor: "text-emerald-600 dark:text-emerald-400"
     },
     amber: { 
       bg: "bg-gradient-to-br from-amber-500/5 to-amber-500/10", 
+      featuredBg: "bg-gradient-to-br from-amber-500/10 to-amber-500/20 ring-1 ring-amber-500/20",
       icon: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-      accent: "border-l-amber-500"
+      accent: "border-l-amber-500",
+      valueColor: "text-amber-600 dark:text-amber-400"
     },
     red: { 
       bg: "bg-gradient-to-br from-red-500/5 to-red-500/10", 
+      featuredBg: "bg-gradient-to-br from-red-500/10 to-red-500/20 ring-1 ring-red-500/20",
       icon: "bg-red-500/15 text-red-600 dark:text-red-400",
-      accent: "border-l-red-500"
+      accent: "border-l-red-500",
+      valueColor: "text-red-600 dark:text-red-400"
     },
     purple: { 
       bg: "bg-gradient-to-br from-purple-500/5 to-purple-500/10", 
+      featuredBg: "bg-gradient-to-br from-purple-500/10 to-purple-500/20 ring-1 ring-purple-500/20",
       icon: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
-      accent: "border-l-purple-500"
+      accent: "border-l-purple-500",
+      valueColor: "text-purple-600 dark:text-purple-400"
+    },
+    blue: { 
+      bg: "bg-gradient-to-br from-blue-500/5 to-blue-500/10", 
+      featuredBg: "bg-gradient-to-br from-blue-500/10 to-blue-500/20 ring-1 ring-blue-500/20",
+      icon: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+      accent: "border-l-blue-500",
+      valueColor: "text-blue-600 dark:text-blue-400"
     },
   };
 
@@ -352,7 +372,7 @@ function StatCard({ title, value, icon: Icon, description, onClick, color = "pri
   
   return (
     <Card 
-      className={`overflow-visible border-0 rounded-2xl ${colorConfig.bg} hover-elevate transition-all duration-200 shadow-sm ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}`}
+      className={`overflow-visible border-0 rounded-2xl ${featured ? colorConfig.featuredBg : colorConfig.bg} hover-elevate transition-all duration-200 shadow-sm ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}`}
       onClick={onClick}
     >
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3">
@@ -364,7 +384,7 @@ function StatCard({ title, value, icon: Icon, description, onClick, color = "pri
         </div>
       </CardHeader>
       <CardContent className="pt-0 pb-3 px-3">
-        <div className={`text-2xl font-bold tracking-tight tabular-nums ${isZero ? 'zero-state-value' : ''}`}>{value}</div>
+        <div className={`${featured ? 'text-[1.7rem]' : 'text-2xl'} font-bold tracking-tight tabular-nums ${isZero ? 'zero-state-value' : featured ? colorConfig.valueColor : ''}`}>{value}</div>
         <p className="text-[11px] text-muted-foreground/70 mt-0.5 font-medium">
           {description}
         </p>
@@ -418,17 +438,17 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
   if (!activity || totalItems === 0) {
     return (
       <Card className="card-elevated zero-state-card cursor-pointer hover-elevate" onClick={() => navigate("/owner/daily-activity")} data-testid="card-today-activity-empty">
-        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <div className="p-2 rounded-xl bg-primary/10">
-              <Activity className="w-4 h-4 text-primary" />
+        <CardContent className="p-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-muted/50">
+              <Activity className="w-4 h-4 text-muted-foreground/50" />
             </div>
-            Today's Activity
-          </CardTitle>
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent className="pt-0 pb-3 px-3">
-          <p className="text-xs text-muted-foreground text-center py-3 zero-state-value">No activity yet today. Check back later!</p>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-muted-foreground/60">Today's Activity</p>
+              <p className="text-[11px] text-muted-foreground/40">No activity yet today</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+          </div>
         </CardContent>
       </Card>
     );
@@ -837,8 +857,24 @@ function OwnerDashboard() {
   const weekChange = enhanced?.weeklyComparison?.changePercent ?? 0;
   const currentMonth = format(new Date(), 'MMM');
 
+  const gymSummaryLine = (() => {
+    const parts: string[] = [];
+    if (checkedInToday > 0) parts.push(`${checkedInToday} checked in today`);
+    const atRisk = aiInsights?.churnRisk?.count || 0;
+    if (atRisk > 0) parts.push(`${atRisk} need${atRisk === 1 ? 's' : ''} attention`);
+    if (pendingPayments > 0) parts.push(`${pendingPayments} pending payment${pendingPayments !== 1 ? 's' : ''}`);
+    if (parts.length === 0) return totalMembers > 0 ? `${totalMembers} members strong` : undefined;
+    return parts.join(' · ');
+  })();
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3.5">
+      {gymSummaryLine && (
+        <div className="flex items-center gap-2 -mt-1 mb-0.5" data-testid="gym-pulse-summary">
+          <div className="pulse-dot" />
+          <p className="text-xs text-muted-foreground/70 font-medium">{gymSummaryLine}</p>
+        </div>
+      )}
       {ownerInsights?.todayPriority && !isIOSNativeApp && (
         <Card className="border-primary/30 bg-primary/5" data-testid="card-owner-today-priority">
           <CardContent className="p-3">
@@ -900,6 +936,7 @@ function OwnerDashboard() {
           icon={Users} 
           description="View analytics"
           color="primary"
+          featured
           onClick={() => navigate("/owner/member-analytics")}
         />
         <Card 
@@ -960,7 +997,7 @@ function OwnerDashboard() {
         )}
         {!isIOSNativeApp && (
           <Card 
-            className="overflow-visible border-0 rounded-2xl bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 hover-elevate transition-all duration-200 shadow-sm cursor-pointer active:scale-[0.98]"
+            className="overflow-visible border-0 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/20 ring-1 ring-emerald-500/20 hover-elevate transition-all duration-200 shadow-sm cursor-pointer active:scale-[0.98]"
             onClick={() => navigate("/owner/revenue")}
             data-testid="stat-card-revenue"
           >
@@ -973,7 +1010,7 @@ function OwnerDashboard() {
               </div>
             </CardHeader>
             <CardContent className="pt-0 pb-3 px-3">
-              <div className="text-2xl font-bold tracking-tight tabular-nums">{formatMoney(revenue)}</div>
+              <div className="text-[1.7rem] font-bold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400">{formatMoney(revenue)}</div>
               <div className="flex items-center gap-1 mt-0.5">
                 <span className="text-[11px] text-muted-foreground/70 font-medium">vs last month</span>
                 {revenueChange !== 0 && (
@@ -1038,7 +1075,7 @@ function OwnerDashboard() {
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/owner/announcements")} data-testid="button-quick-announcement">
             <Megaphone className="w-3 h-3 mr-1" /> Send Announcement
           </Button>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/owner/attendance")} data-testid="button-quick-attendance">
+          <Button variant="default" size="sm" className="h-8 text-xs" onClick={() => navigate("/owner/attendance")} data-testid="button-quick-attendance">
             <CalendarCheck className="w-3 h-3 mr-1" /> Mark Attendance
           </Button>
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/members")} data-testid="button-quick-members">
@@ -1110,21 +1147,21 @@ function OwnerDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0 pb-3 px-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 rounded-lg bg-background/50 text-center">
-                  <p className="text-lg font-bold tabular-nums">{enhanced.monthSoFar.members}</p>
+              <div className="grid grid-cols-2 gap-px bg-border/40 rounded-lg overflow-hidden">
+                <div className="p-3 bg-card text-center">
+                  <p className="text-lg font-bold tabular-nums text-primary">{enhanced.monthSoFar.members}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Members</p>
                 </div>
-                <div className="p-2 rounded-lg bg-background/50 text-center">
-                  <p className="text-lg font-bold tabular-nums">{enhanced.monthSoFar.checkIns}</p>
+                <div className="p-3 bg-card text-center">
+                  <p className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{enhanced.monthSoFar.checkIns}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Check-ins</p>
                 </div>
-                <div className="p-2 rounded-lg bg-background/50 text-center">
-                  <p className="text-lg font-bold tabular-nums">{enhanced.monthSoFar.payments}</p>
+                <div className="p-3 bg-card text-center">
+                  <p className="text-lg font-bold tabular-nums text-blue-600 dark:text-blue-400">{enhanced.monthSoFar.payments}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Payments</p>
                 </div>
-                <div className="p-2 rounded-lg bg-background/50 text-center">
-                  <p className="text-lg font-bold tabular-nums">{enhanced.monthSoFar.newJoins}</p>
+                <div className="p-3 bg-card text-center">
+                  <p className="text-lg font-bold tabular-nums text-purple-600 dark:text-purple-400">{enhanced.monthSoFar.newJoins}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">New Joins</p>
                 </div>
               </div>
@@ -1147,10 +1184,16 @@ function OwnerDashboard() {
             <div className="h-[180px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
+                  <defs>
+                    <linearGradient id="attendanceGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                    </linearGradient>
+                  </defs>
                   <XAxis dataKey="date" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
                   <YAxis stroke="#888888" fontSize={10} tickLine={false} axisLine={false} width={30} />
-                  <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '6px', border: '1px solid hsl(var(--border))', fontSize: '12px' }} />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} barSize={30} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted) / 0.3)' }} contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="count" fill="url(#attendanceGradient)" radius={[4, 4, 0, 0]} barSize={28} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -1166,21 +1209,26 @@ function OwnerDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3">
-            <div className="space-y-2">
-              {attendanceList.slice(0, 5).map((record: any) => (
-                <div key={record.id} className="flex items-center gap-2.5 p-2 rounded-lg bg-background/50">
-                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
-                    {record.member?.username?.slice(0, 2).toUpperCase() || '??'}
+            <div className="space-y-1.5">
+              {attendanceList.slice(0, 5).map((record: any) => {
+                const method = record.verifiedMethod || record.status;
+                const methodColor = method === 'qr' ? 'bg-blue-500' : method === 'workout' ? 'bg-emerald-500' : 'bg-primary';
+                return (
+                  <div key={record.id} className="flex items-center gap-2.5 p-2 rounded-lg bg-background/50">
+                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                      {record.member?.username?.slice(0, 2).toUpperCase() || '??'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{record.member?.username || 'Unknown'}</p>
+                      <p className="text-[10px] text-muted-foreground">{record.date}</p>
+                    </div>
+                    <Badge variant="secondary" className="text-[10px] h-5 shrink-0 gap-1">
+                      <span className={`w-1.5 h-1.5 rounded-full ${methodColor}`} />
+                      {method}
+                    </Badge>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">{record.member?.username || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground">{record.date}</p>
-                  </div>
-                  <Badge variant="secondary" className="text-xs h-5 shrink-0">
-                    {record.verifiedMethod || record.status}
-                  </Badge>
-                </div>
-              ))}
+                );
+              })}
               {attendanceList.length === 0 && <p className="text-xs text-muted-foreground py-4 text-center">No recent activity.</p>}
             </div>
           </CardContent>
