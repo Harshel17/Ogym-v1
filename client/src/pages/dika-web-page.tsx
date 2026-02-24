@@ -3,7 +3,7 @@ import {
   Send, Loader2, Copy, Check, Trash2, Plus, Search, Menu, X,
   Utensils, Dumbbell, TrendingUp, Heart, Pin, PinOff,
   ChevronDown, ChevronRight, MessageSquare, Pencil, Mic,
-  Zap, Lightbulb, Activity, Sparkles, Camera, ImageIcon,
+  Zap, Lightbulb, Activity, Sparkles, Camera, ImageIcon, ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -791,6 +791,32 @@ export default function DikaWebPage() {
               </div>
             </div>
           )}
+          <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+            {activeChat && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-slate-400 rounded-xl"
+                onClick={() => setDeleteDialogChat(activeChat)}
+                data-testid="button-delete-active-chat"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+            {isSimpleMode && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-slate-400 rounded-xl"
+                onClick={() => {
+                  window.open(window.location.origin + '/dika-web', '_blank');
+                }}
+                data-testid="button-dika-open-full"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-6 bg-gradient-to-b from-[#0a0f1a] to-[#0d1220]">
