@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -801,12 +802,13 @@ export default function OwnerGymIntelligencePage() {
         </Card>
       </div>
 
-      {selectedEquip && (
+      {selectedEquip && createPortal(
         <EquipmentDetailPanel
           equip={selectedEquip}
           prediction={selectedPrediction}
           onClose={() => setSelectedEquipId(null)}
-        />
+        />,
+        document.body
       )}
     </div>
   );
