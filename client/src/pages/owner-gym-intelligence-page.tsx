@@ -642,70 +642,6 @@ export default function OwnerGymIntelligencePage() {
                         </div>
                       </div>
 
-                      {(() => {
-                        const sorted = [...all].sort((a, b) => b.totalUsage - a.totalUsage);
-                        const top3 = sorted.filter(e => e.totalUsage > 0).slice(0, 3);
-                        const busiest = top3[0];
-                        const needsAttentionCount = predictions.filter(p => p.action === 'buy_more').length;
-
-                        const narrativeText = busiest
-                          ? `Your busiest equipment this month is ${busiest.name} with ${busiest.totalUsage} uses${busiest.changePercent !== 0 ? ` — ${busiest.changePercent > 0 ? 'up' : 'down'} ${Math.abs(busiest.changePercent)}% from last month` : ''}.${needsAttentionCount > 0 ? ` ${needsAttentionCount} item${needsAttentionCount > 1 ? 's' : ''} need${needsAttentionCount === 1 ? 's' : ''} attention.` : ` All equipment is operating within normal ranges.`}`
-                          : 'No equipment usage recorded this month yet.';
-
-                        return (
-                          <>
-                            <div className="rounded-xl border border-border/50 bg-muted/10 p-3" data-testid="equipment-narrative-summary">
-                              <div className="flex items-start gap-2">
-                                <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                                <p className="text-xs text-muted-foreground leading-relaxed">{narrativeText}</p>
-                              </div>
-                            </div>
-
-                            {top3.length > 0 && (
-                              <div data-testid="top-3-equipment-section">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Zap className="w-3.5 h-3.5 text-amber-500" />
-                                  <span className="text-xs font-semibold">Top 3 Equipment This Month</span>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                  {top3.map((equip, idx) => {
-                                    const pred = predictions.find(p => p.id === equip.id);
-                                    const reason = pred?.reason || (equip.changePercent > 0 ? `Usage up ${equip.changePercent}% — highest demand this month` : equip.changePercent < 0 ? `Usage down ${Math.abs(equip.changePercent)}% from last month` : 'Consistent usage this month');
-                                    const stress = stressColors[equip.stressLevel];
-                                    return (
-                                      <button
-                                        key={equip.id}
-                                        type="button"
-                                        className={`rounded-xl border ${stress.border} bg-card p-3 text-left cursor-pointer hover-elevate`}
-                                        onClick={() => setSelectedEquipId(equip.id)}
-                                        data-testid={`top-equipment-${idx}`}
-                                      >
-                                        <div className="flex items-center gap-2 mb-1.5">
-                                          <span className="text-base">{categoryIcons[equip.category] || '🔧'}</span>
-                                          <span className="text-xs font-semibold truncate">{equip.name}</span>
-                                          <span className={`w-1.5 h-1.5 rounded-full ml-auto ${stress.dot}`} />
-                                        </div>
-                                        <div className="flex items-center gap-2 mb-1.5">
-                                          <span className="text-sm font-bold tabular-nums">{equip.totalUsage}</span>
-                                          <span className="text-[10px] text-muted-foreground">uses</span>
-                                          {equip.changePercent !== 0 && (
-                                            <span className={`flex items-center gap-0.5 text-[10px] font-semibold ml-auto ${equip.changePercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                                              {equip.changePercent > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                                              {equip.changePercent > 0 ? '+' : ''}{equip.changePercent}%
-                                            </span>
-                                          )}
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{reason}</p>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
-
                       <div data-testid="equipment-recommendations-section">
                         <div className="flex items-center gap-2 mb-2">
                           <Lightbulb className="w-3.5 h-3.5 text-emerald-500" />
@@ -818,6 +754,70 @@ export default function OwnerGymIntelligencePage() {
                           </div>
                         )}
                       </div>
+
+                      {(() => {
+                        const sorted = [...all].sort((a, b) => b.totalUsage - a.totalUsage);
+                        const top3 = sorted.filter(e => e.totalUsage > 0).slice(0, 3);
+                        const busiest = top3[0];
+                        const needsAttentionCount = predictions.filter(p => p.action === 'buy_more').length;
+
+                        const narrativeText = busiest
+                          ? `Your busiest equipment this month is ${busiest.name} with ${busiest.totalUsage} uses${busiest.changePercent !== 0 ? ` — ${busiest.changePercent > 0 ? 'up' : 'down'} ${Math.abs(busiest.changePercent)}% from last month` : ''}.${needsAttentionCount > 0 ? ` ${needsAttentionCount} item${needsAttentionCount > 1 ? 's' : ''} need${needsAttentionCount === 1 ? 's' : ''} attention.` : ` All equipment is operating within normal ranges.`}`
+                          : 'No equipment usage recorded this month yet.';
+
+                        return (
+                          <>
+                            <div className="rounded-xl border border-border/50 bg-muted/10 p-3" data-testid="equipment-narrative-summary">
+                              <div className="flex items-start gap-2">
+                                <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                <p className="text-xs text-muted-foreground leading-relaxed">{narrativeText}</p>
+                              </div>
+                            </div>
+
+                            {top3.length > 0 && (
+                              <div data-testid="top-3-equipment-section">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Zap className="w-3.5 h-3.5 text-amber-500" />
+                                  <span className="text-xs font-semibold">Top 3 Equipment This Month</span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                  {top3.map((equip, idx) => {
+                                    const pred = predictions.find(p => p.id === equip.id);
+                                    const reason = pred?.reason || (equip.changePercent > 0 ? `Usage up ${equip.changePercent}% — highest demand this month` : equip.changePercent < 0 ? `Usage down ${Math.abs(equip.changePercent)}% from last month` : 'Consistent usage this month');
+                                    const stress = stressColors[equip.stressLevel];
+                                    return (
+                                      <button
+                                        key={equip.id}
+                                        type="button"
+                                        className={`rounded-xl border ${stress.border} bg-card p-3 text-left cursor-pointer hover-elevate`}
+                                        onClick={() => setSelectedEquipId(equip.id)}
+                                        data-testid={`top-equipment-${idx}`}
+                                      >
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                          <span className="text-base">{categoryIcons[equip.category] || '🔧'}</span>
+                                          <span className="text-xs font-semibold truncate">{equip.name}</span>
+                                          <span className={`w-1.5 h-1.5 rounded-full ml-auto ${stress.dot}`} />
+                                        </div>
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                          <span className="text-sm font-bold tabular-nums">{equip.totalUsage}</span>
+                                          <span className="text-[10px] text-muted-foreground">uses</span>
+                                          {equip.changePercent !== 0 && (
+                                            <span className={`flex items-center gap-0.5 text-[10px] font-semibold ml-auto ${equip.changePercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                              {equip.changePercent > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                              {equip.changePercent > 0 ? '+' : ''}{equip.changePercent}%
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{reason}</p>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
 
                       {predictions.length > 0 && (
                         <div data-testid="equipment-planning-section">
