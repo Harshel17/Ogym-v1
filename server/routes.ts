@@ -9384,14 +9384,16 @@ Write a short, personal message. No subject line, just the message body. Use the
 
       const recentExercises = await db.select({
         exerciseName: workoutLogExercises.exerciseName,
+        muscleType: workoutLogExercises.muscleType,
         count: sql<number>`count(*)::int`,
       }).from(workoutLogExercises)
         .innerJoin(workoutLogs, eq(workoutLogExercises.workoutLogId, workoutLogs.id))
         .where(and(eq(workoutLogs.gymId, gymId), gte(workoutLogs.completedDate, thirtyDaysAgo)))
-        .groupBy(workoutLogExercises.exerciseName);
+        .groupBy(workoutLogExercises.exerciseName, workoutLogExercises.muscleType);
 
       const previousExercises = await db.select({
         exerciseName: workoutLogExercises.exerciseName,
+        muscleType: workoutLogExercises.muscleType,
         count: sql<number>`count(*)::int`,
       }).from(workoutLogExercises)
         .innerJoin(workoutLogs, eq(workoutLogExercises.workoutLogId, workoutLogs.id))
@@ -9400,7 +9402,12 @@ Write a short, personal message. No subject line, just the message body. Use the
           gte(workoutLogs.completedDate, sixtyDaysAgo),
           lte(workoutLogs.completedDate, thirtyDaysAgo)
         ))
-        .groupBy(workoutLogExercises.exerciseName);
+        .groupBy(workoutLogExercises.exerciseName, workoutLogExercises.muscleType);
+
+      const exerciseMuscleMap = new Map<string, string>();
+      for (const e of [...recentExercises, ...previousExercises]) {
+        if (e.muscleType) exerciseMuscleMap.set(e.exerciseName.toLowerCase(), e.muscleType);
+      }
 
       const exerciseCountMap = new Map(recentExercises.map(e => [e.exerciseName.toLowerCase(), e.count]));
       const prevExerciseCountMap = new Map(previousExercises.map(e => [e.exerciseName.toLowerCase(), e.count]));
@@ -9430,13 +9437,18 @@ Write a short, personal message. No subject line, just the message body. Use the
         'preacher curl bench': ['preacher curl'],
       };
 
-      const getUsageForEquip = (equip: any, countMap: Map<string, number>) => {
+      const getUsageForEquip = (equip: any, countMap: Map<string, number>, collectBreakdown = false) => {
         const customMappings = mappings.filter(m => m.equipmentId === equip.id);
         let totalUsage = 0;
+        const breakdown: { exercise: string; count: number; muscle: string | null }[] = [];
         if (customMappings.length > 0) {
           for (const cm of customMappings) {
             const count = countMap.get(cm.exerciseName.toLowerCase()) || 0;
-            totalUsage += cm.priority === 'primary' ? count : Math.round(count * 0.5);
+            const effectiveCount = cm.priority === 'primary' ? count : Math.round(count * 0.5);
+            totalUsage += effectiveCount;
+            if (collectBreakdown && effectiveCount > 0) {
+              breakdown.push({ exercise: cm.exerciseName, count: effectiveCount, muscle: exerciseMuscleMap.get(cm.exerciseName.toLowerCase()) || null });
+            }
           }
         } else {
           const equipNameLower = equip.name.toLowerCase();
@@ -9446,6 +9458,9 @@ Write a short, personal message. No subject line, just the message body. Use the
                 for (const [loggedName, count] of countMap) {
                   if (loggedName.includes(ex) || ex.includes(loggedName)) {
                     totalUsage += count;
+                    if (collectBreakdown && count > 0) {
+                      breakdown.push({ exercise: loggedName, count, muscle: exerciseMuscleMap.get(loggedName) || null });
+                    }
                   }
                 }
               }
@@ -9453,15 +9468,24 @@ Write a short, personal message. No subject line, just the message body. Use the
             }
           }
         }
-        return totalUsage;
+        return { totalUsage, breakdown };
       };
 
       const results = equipment.map(equip => {
         const customMappings = mappings.filter(m => m.equipmentId === equip.id);
-        const totalUsage = getUsageForEquip(equip, exerciseCountMap);
-        const prevUsage = getUsageForEquip(equip, prevExerciseCountMap);
+        const { totalUsage, breakdown } = getUsageForEquip(equip, exerciseCountMap, true);
+        const { totalUsage: prevUsage } = getUsageForEquip(equip, prevExerciseCountMap);
         const usagePerUnit = equip.quantity ? Math.round(totalUsage / equip.quantity) : totalUsage;
         const changePercent = prevUsage > 0 ? Math.round(((totalUsage - prevUsage) / prevUsage) * 100) : (totalUsage > 0 ? 100 : 0);
+
+        const muscleGroups = new Map<string, number>();
+        let topExercise = '';
+        let topExerciseCount = 0;
+        for (const b of breakdown) {
+          if (b.muscle) muscleGroups.set(b.muscle, (muscleGroups.get(b.muscle) || 0) + b.count);
+          if (b.count > topExerciseCount) { topExercise = b.exercise; topExerciseCount = b.count; }
+        }
+        const muscles = [...muscleGroups.entries()].sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count }));
 
         return {
           id: equip.id,
@@ -9474,6 +9498,9 @@ Write a short, personal message. No subject line, just the message body. Use the
           usagePerUnit,
           hasCustomMapping: customMappings.length > 0,
           mappedExercises: customMappings.length,
+          topExercise: topExercise || null,
+          muscles,
+          exerciseBreakdown: breakdown.sort((a, b) => b.count - a.count).slice(0, 5),
         };
       });
 

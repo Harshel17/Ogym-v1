@@ -1,8 +1,14 @@
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Flame, TrendingUp, TrendingDown, Minus, ArrowLeft, Clock, Dumbbell, BarChart3, Wrench, Settings2, AlertTriangle, Lightbulb, ShoppingCart, Eye, RefreshCcw, CheckCircle2, Target } from "lucide-react";
+import {
+  Flame, TrendingUp, TrendingDown, Minus, ArrowLeft, Clock, Dumbbell, BarChart3,
+  Wrench, Settings2, AlertTriangle, Lightbulb, ShoppingCart, Eye, RefreshCcw,
+  CheckCircle2, Target, Filter, X, ChevronRight, Activity, Zap, Package,
+  Timer, ArrowUpRight, ArrowDownRight, Bookmark, Calendar
+} from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend } from "recharts";
 import { useLocation } from "wouter";
 
@@ -42,39 +48,313 @@ type EquipmentPrediction = {
   reason: string;
 };
 
+type EquipmentItem = {
+  id: number;
+  name: string;
+  category: string;
+  quantity: number;
+  totalUsage: number;
+  prevUsage: number;
+  changePercent: number;
+  usagePerUnit: number;
+  hasCustomMapping: boolean;
+  mappedExercises: number;
+  stressLevel: 'high' | 'medium' | 'low';
+  topExercise: string | null;
+  muscles: { name: string; count: number }[];
+  exerciseBreakdown: { exercise: string; count: number; muscle: string | null }[];
+};
+
 type EquipmentStressData = {
-  equipment: {
-    id: number;
-    name: string;
-    category: string;
-    quantity: number;
-    totalUsage: number;
-    prevUsage: number;
-    changePercent: number;
-    usagePerUnit: number;
-    hasCustomMapping: boolean;
-    mappedExercises: number;
-    stressLevel: 'high' | 'medium' | 'low';
-  }[];
+  equipment: EquipmentItem[];
   insights: EquipmentInsight[];
   predictions: EquipmentPrediction[];
   hasSetup: boolean;
 };
 
-const levelColors = {
-  peak: '#ef4444',
-  moderate: '#f59e0b',
-  low: '#22c55e',
+const MUSCLE_FILTERS = ['All', 'Chest', 'Back', 'Quadriceps', 'Shoulders', 'Biceps', 'Triceps', 'Cardio', 'Core'];
+
+const categoryIcons: Record<string, string> = {
+  'Racks': '🏋️',
+  'Benches': '🛋️',
+  'Cardio': '🏃',
+  'Cable': '🔗',
+  'Free Weights': '💪',
+  'Machines': '⚙️',
 };
 
-const levelGradients = {
-  peak: ['#ef4444', '#dc2626'],
-  moderate: ['#f59e0b', '#d97706'],
-  low: ['#22c55e', '#16a34a'],
+const stressColors = {
+  high: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-600 dark:text-red-400', dot: 'bg-red-500' },
+  medium: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500' },
+  low: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' },
 };
+
+const actionConfig = {
+  buy_more: { icon: <ShoppingCart className="w-3.5 h-3.5" />, label: 'Plan Purchase', color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20', signal: 'Priority', signalBg: 'bg-red-500' },
+  monitor: { icon: <Eye className="w-3.5 h-3.5" />, label: 'Watch', color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20', signal: 'Watch', signalBg: 'bg-blue-500' },
+  consider_replacing: { icon: <RefreshCcw className="w-3.5 h-3.5" />, label: 'Review', color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', signal: 'Review', signalBg: 'bg-amber-500' },
+  maintain: { icon: <CheckCircle2 className="w-3.5 h-3.5" />, label: 'Stable', color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', signal: 'Stable', signalBg: 'bg-emerald-500' },
+};
+
+function EquipmentDetailPanel({ equip, prediction, onClose }: {
+  equip: EquipmentItem;
+  prediction: EquipmentPrediction | undefined;
+  onClose: () => void;
+}) {
+  const config = prediction ? actionConfig[prediction.action] : null;
+  const exerciseBreakdown = equip.exerciseBreakdown || [];
+  const muscles = equip.muscles || [];
+  const maxBreakdown = Math.max(...exerciseBreakdown.map(b => b.count), 1);
+
+  const comparisonData = [
+    { name: 'Last Month', value: equip.prevUsage, fill: '#64748b' },
+    { name: 'This Month', value: equip.totalUsage, fill: '#3b82f6' },
+    ...(prediction ? [{ name: 'Predicted', value: prediction.predictedNext, fill: '#8b5cf6' }] : []),
+  ];
+
+  const confidenceScore = prediction ? Math.min(95, Math.max(40,
+    50 + (equip.prevUsage > 0 ? 20 : 0) + (equip.totalUsage > 10 ? 15 : equip.totalUsage > 5 ? 10 : 0) + (equip.hasCustomMapping ? 10 : 0)
+  )) : 0;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div className="bg-background rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-background z-10 px-5 pt-5 pb-3 border-b border-border/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{categoryIcons[equip.category] || '🔧'}</span>
+              <div>
+                <h3 className="font-bold text-base" data-testid="detail-equipment-name">{equip.name}</h3>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <Badge variant="secondary" className="text-[10px]">{equip.category}</Badge>
+                  {equip.quantity > 1 && <span className="text-[10px] text-muted-foreground">{equip.quantity} units</span>}
+                </div>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" className="rounded-full" onClick={onClose} data-testid="button-close-detail">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-5">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-muted/30 p-3 text-center">
+              <div className="text-lg font-bold tabular-nums">{equip.totalUsage}</div>
+              <div className="text-[10px] text-muted-foreground">This Month</div>
+            </div>
+            <div className="rounded-xl bg-muted/30 p-3 text-center">
+              <div className="text-lg font-bold tabular-nums">{equip.usagePerUnit}</div>
+              <div className="text-[10px] text-muted-foreground">Per Unit</div>
+            </div>
+            <div className={`rounded-xl p-3 text-center ${stressColors[equip.stressLevel].bg}`}>
+              <div className={`text-lg font-bold tabular-nums ${stressColors[equip.stressLevel].text}`}>
+                {equip.changePercent > 0 ? '+' : ''}{equip.changePercent}%
+              </div>
+              <div className="text-[10px] text-muted-foreground">vs Last Month</div>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart3 className="w-3.5 h-3.5 text-blue-500" />
+              <span className="text-xs font-semibold">Usage Comparison</span>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-background/50 p-3">
+              <ResponsiveContainer width="100%" height={140}>
+                <BarChart data={comparisonData} barCategoryGap="30%">
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={30} />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', fontSize: '11px' }} />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                    {comparisonData.map((entry, i) => (
+                      <Cell key={i} fill={entry.fill} opacity={entry.name === 'Predicted' ? 0.6 : 1} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {exerciseBreakdown.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Activity className="w-3.5 h-3.5 text-purple-500" />
+                <span className="text-xs font-semibold">Exercise Breakdown</span>
+              </div>
+              <div className="space-y-1.5">
+                {exerciseBreakdown.map((ex, idx) => (
+                  <div key={idx} className="flex items-center gap-2" data-testid={`exercise-breakdown-${idx}`}>
+                    <span className="text-xs w-[120px] truncate capitalize">{ex.exercise}</span>
+                    <div className="flex-1 h-4 rounded-full bg-muted/30 overflow-hidden relative">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-purple-500/60 to-purple-500 transition-all duration-500"
+                        style={{ width: `${(ex.count / maxBreakdown) * 100}%` }}
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold tabular-nums">
+                        {ex.count}
+                      </span>
+                    </div>
+                    {ex.muscle && <Badge variant="outline" className="text-[8px] shrink-0">{ex.muscle}</Badge>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {muscles.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Dumbbell className="w-3.5 h-3.5 text-orange-500" />
+                <span className="text-xs font-semibold">Muscle Groups Served</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {muscles.map(m => (
+                  <div key={m.name} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border/30">
+                    <span className="text-xs font-medium">{m.name}</span>
+                    <span className="text-[10px] text-muted-foreground tabular-nums">{m.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {prediction && config && (
+            <div className={`rounded-xl border ${config.border} ${config.bg} p-4`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs font-semibold">Next Month Forecast</span>
+                <Badge className={`text-[9px] text-white ml-auto ${config.signalBg}`}>{config.signal}</Badge>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <Target className="w-3 h-3 text-violet-500" />
+                    <span className="text-muted-foreground text-xs">Predicted:</span>
+                    <span className="font-bold">{prediction.predictedNext} uses</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground text-xs">Per unit:</span>
+                    <span className="font-bold">{prediction.predictedPerUnit}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground">Confidence:</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-muted/30 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${confidenceScore >= 70 ? 'bg-emerald-500' : confidenceScore >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                      style={{ width: `${confidenceScore}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-semibold tabular-nums">{confidenceScore}%</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{prediction.reason}</p>
+                {prediction.action === 'buy_more' && (
+                  <div className="mt-2 flex items-start gap-2 px-3 py-2 rounded-lg bg-background/60 border border-border/30">
+                    <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                    <span className="text-[11px] text-muted-foreground">
+                      Based on growth trend, you may need additional units within 2-3 months. Save this to your planning list and revisit next month.
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EquipmentCard({ equip, prediction, onClick }: {
+  equip: EquipmentItem;
+  prediction: EquipmentPrediction | undefined;
+  onClick: () => void;
+}) {
+  const stress = stressColors[equip.stressLevel];
+  const maxUsage = Math.max(equip.totalUsage, equip.prevUsage, 1);
+  const config = prediction ? actionConfig[prediction.action] : null;
+
+  return (
+    <div
+      className={`rounded-xl border ${stress.border} bg-card cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/30 group`}
+      onClick={onClick}
+      data-testid={`equipment-card-${equip.id}`}
+    >
+      <div className="p-3 space-y-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-base shrink-0">{categoryIcons[equip.category] || '🔧'}</span>
+            <div className="min-w-0">
+              <span className="text-xs font-semibold truncate block">{equip.name}</span>
+              <span className="text-[10px] text-muted-foreground">{equip.category}{equip.quantity > 1 ? ` · ${equip.quantity}x` : ''}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <span className={`w-1.5 h-1.5 rounded-full ${stress.dot}`} />
+            <ChevronRight className="w-3 h-3 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+          </div>
+        </div>
+
+        <div className="flex items-end gap-1">
+          <div className="flex-1 flex items-end gap-[3px]">
+            <div className="flex-1 flex flex-col items-center gap-0.5">
+              <div className="w-full rounded-t bg-slate-400/60 transition-all" style={{ height: `${Math.max((equip.prevUsage / maxUsage) * 32, 2)}px` }} />
+              <span className="text-[8px] text-muted-foreground/60">Prev</span>
+            </div>
+            <div className="flex-1 flex flex-col items-center gap-0.5">
+              <div className="w-full rounded-t bg-blue-500 transition-all" style={{ height: `${Math.max((equip.totalUsage / maxUsage) * 32, 2)}px` }} />
+              <span className="text-[8px] text-muted-foreground/60">Now</span>
+            </div>
+          </div>
+          <div className="text-right ml-2">
+            <div className="text-base font-bold tabular-nums leading-none">{equip.totalUsage}</div>
+            <div className="text-[9px] text-muted-foreground">uses</div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          {equip.changePercent !== 0 ? (
+            <span className={`flex items-center gap-0.5 text-[10px] font-semibold ${equip.changePercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+              {equip.changePercent > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+              {equip.changePercent > 0 ? '+' : ''}{equip.changePercent}%
+            </span>
+          ) : (
+            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+              <Minus className="w-3 h-3" /> Stable
+            </span>
+          )}
+          {equip.topExercise && (
+            <span className="text-[9px] text-muted-foreground truncate max-w-[80px] capitalize">{equip.topExercise}</span>
+          )}
+        </div>
+
+        {(equip.muscles || []).length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {(equip.muscles || []).slice(0, 2).map(m => (
+              <span key={m.name} className="text-[8px] px-1.5 py-0.5 rounded-full bg-muted/50 text-muted-foreground">{m.name}</span>
+            ))}
+            {(equip.muscles || []).length > 2 && (
+              <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-muted/50 text-muted-foreground">+{equip.muscles.length - 2}</span>
+            )}
+          </div>
+        )}
+
+        {config && (
+          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${config.bg} ${config.border} border`}>
+            <span className={config.color}>{config.icon}</span>
+            <span className={`text-[9px] font-medium ${config.color}`}>{config.label}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function OwnerGymIntelligencePage() {
   const [, navigate] = useLocation();
+  const [muscleFilter, setMuscleFilter] = useState('All');
+  const [selectedEquipId, setSelectedEquipId] = useState<number | null>(null);
 
   const { data: peakHours, isLoading: peakLoading } = useQuery<PeakHourData>({
     queryKey: ["/api/owner/gym-intelligence/peak-hours"],
@@ -90,6 +370,29 @@ export default function OwnerGymIntelligencePage() {
     queryKey: ["/api/owner/gym-intelligence/equipment-stress"],
     staleTime: 1000 * 60 * 10,
   });
+
+  const filteredEquipment = useMemo(() => {
+    if (!equipmentStress) return [];
+    const all = equipmentStress.equipment;
+    if (muscleFilter === 'All') return all;
+    return all.filter(e =>
+      (e.muscles || []).some(m => m.name.toLowerCase() === muscleFilter.toLowerCase()) ||
+      (muscleFilter === 'Cardio' && e.category === 'Cardio')
+    );
+  }, [equipmentStress, muscleFilter]);
+
+  const availableMuscles = useMemo(() => {
+    if (!equipmentStress) return new Set<string>();
+    const muscles = new Set<string>();
+    for (const e of equipmentStress.equipment) {
+      for (const m of (e.muscles || [])) muscles.add(m.name);
+      if (e.category === 'Cardio') muscles.add('Cardio');
+    }
+    return muscles;
+  }, [equipmentStress]);
+
+  const selectedEquip = equipmentStress?.equipment.find(e => e.id === selectedEquipId);
+  const selectedPrediction = equipmentStress?.predictions?.find(p => p.id === selectedEquipId);
 
   return (
     <div className="space-y-5 lg:max-w-5xl">
@@ -296,111 +599,152 @@ export default function OwnerGymIntelligencePage() {
                 <div className="animate-pulse text-xs text-muted-foreground">Analyzing equipment usage...</div>
               </div>
             ) : equipmentStress && equipmentStress.hasSetup && equipmentStress.equipment.length > 0 ? (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {(() => {
                   const all = equipmentStress.equipment;
                   const active = all.filter(e => e.totalUsage > 0);
-                  const unused = all.filter(e => e.totalUsage === 0);
                   const totalUsage = all.reduce((s, e) => s + e.totalUsage, 0);
+                  const highStress = all.filter(e => e.stressLevel === 'high');
                   const predictions = equipmentStress.predictions || [];
-
-                  const chartData = all
-                    .filter(e => e.totalUsage > 0 || e.prevUsage > 0)
-                    .sort((a, b) => b.totalUsage - a.totalUsage)
-                    .slice(0, 8)
-                    .map(e => {
-                      const pred = predictions.find(p => p.id === e.id);
-                      return {
-                        name: e.name.length > 12 ? e.name.substring(0, 12) + '…' : e.name,
-                        fullName: e.name,
-                        'Last Month': e.prevUsage,
-                        'This Month': e.totalUsage,
-                        'Predicted': pred?.predictedNext || 0,
-                      };
-                    });
-
-                  const actionIcons = {
-                    buy_more: <ShoppingCart className="w-4 h-4" />,
-                    monitor: <Eye className="w-4 h-4" />,
-                    consider_replacing: <RefreshCcw className="w-4 h-4" />,
-                    maintain: <CheckCircle2 className="w-4 h-4" />,
-                  };
-                  const actionColors = {
-                    buy_more: { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-600 dark:text-red-400', icon: 'text-red-500', label: 'Buy More', labelBg: 'bg-red-500' },
-                    monitor: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-600 dark:text-blue-400', icon: 'text-blue-500', label: 'Monitor', labelBg: 'bg-blue-500' },
-                    consider_replacing: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-600 dark:text-amber-400', icon: 'text-amber-500', label: 'Review', labelBg: 'bg-amber-500' },
-                    maintain: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400', icon: 'text-emerald-500', label: 'OK', labelBg: 'bg-emerald-500' },
-                  };
 
                   return (
                     <>
                       <div className="grid grid-cols-4 gap-2" data-testid="equipment-summary">
-                        <div className="rounded-lg bg-muted/30 p-2 text-center">
+                        <div className="rounded-xl bg-muted/30 p-2.5 text-center">
                           <div className="text-base font-bold tabular-nums">{all.length}</div>
-                          <div className="text-[9px] text-muted-foreground">Total</div>
+                          <div className="text-[9px] text-muted-foreground">Equipment</div>
                         </div>
-                        <div className="rounded-lg bg-emerald-500/10 p-2 text-center">
-                          <div className="text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{active.length}</div>
-                          <div className="text-[9px] text-emerald-600/70 dark:text-emerald-400/70">In Use</div>
-                        </div>
-                        <div className="rounded-lg bg-amber-500/10 p-2 text-center">
-                          <div className="text-base font-bold tabular-nums text-amber-600 dark:text-amber-400">{unused.length}</div>
-                          <div className="text-[9px] text-amber-600/70 dark:text-amber-400/70">Not Tracked</div>
-                        </div>
-                        <div className="rounded-lg bg-blue-500/10 p-2 text-center">
+                        <div className="rounded-xl bg-blue-500/10 p-2.5 text-center">
                           <div className="text-base font-bold tabular-nums text-blue-600 dark:text-blue-400">{totalUsage}</div>
                           <div className="text-[9px] text-blue-600/70 dark:text-blue-400/70">Total Uses</div>
                         </div>
+                        <div className="rounded-xl bg-emerald-500/10 p-2.5 text-center">
+                          <div className="text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{active.length}</div>
+                          <div className="text-[9px] text-emerald-600/70 dark:text-emerald-400/70">Active</div>
+                        </div>
+                        <div className="rounded-xl bg-red-500/10 p-2.5 text-center">
+                          <div className="text-base font-bold tabular-nums text-red-600 dark:text-red-400">{highStress.length}</div>
+                          <div className="text-[9px] text-red-600/70 dark:text-red-400/70">High Load</div>
+                        </div>
                       </div>
 
-                      {chartData.length > 0 && (
-                        <div data-testid="equipment-usage-chart">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-1 h-4 rounded-full bg-blue-500" />
-                            <span className="text-xs font-semibold">Usage Comparison</span>
-                            <span className="text-[10px] text-muted-foreground">Last Month vs This Month vs Predicted Next</span>
+                      <div data-testid="muscle-filter-bar">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Filter className="w-3 h-3 text-muted-foreground" />
+                          <span className="text-[10px] font-medium text-muted-foreground">Filter by muscle</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {MUSCLE_FILTERS.filter(f => f === 'All' || availableMuscles.has(f)).map(filter => (
+                            <button
+                              key={filter}
+                              onClick={() => setMuscleFilter(filter)}
+                              className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all border ${
+                                muscleFilter === filter
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'bg-muted/30 text-muted-foreground border-border/50 hover:bg-muted/60'
+                              }`}
+                              data-testid={`filter-muscle-${filter.toLowerCase()}`}
+                            >
+                              {filter}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Package className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="text-xs font-semibold">
+                              {muscleFilter === 'All' ? 'All Equipment' : `${muscleFilter} Equipment`}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">({filteredEquipment.length})</span>
                           </div>
-                          <div className="rounded-xl border border-border/50 bg-background/50 p-3">
-                            <ResponsiveContainer width="100%" height={200}>
-                              <BarChart data={chartData} barGap={2} barCategoryGap="20%">
-                                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={30} />
-                                <Tooltip
-                                  contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '11px' }}
-                                  labelStyle={{ fontWeight: 'bold', marginBottom: '4px' }}
-                                  labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
-                                />
-                                <Bar dataKey="Last Month" fill="#64748b" radius={[2, 2, 0, 0]} />
-                                <Bar dataKey="This Month" fill="#3b82f6" radius={[2, 2, 0, 0]} />
-                                <Bar dataKey="Predicted" fill="#8b5cf6" radius={[2, 2, 0, 0]} opacity={0.6} />
-                                <Legend wrapperStyle={{ fontSize: '10px' }} iconSize={8} />
-                              </BarChart>
-                            </ResponsiveContainer>
+                          <div className="flex items-center gap-3 text-[9px] text-muted-foreground/60">
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" /> High</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Medium</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Low</span>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" data-testid="equipment-cards-grid">
+                          {filteredEquipment.map(equip => (
+                            <EquipmentCard
+                              key={equip.id}
+                              equip={equip}
+                              prediction={predictions.find(p => p.id === equip.id)}
+                              onClick={() => setSelectedEquipId(equip.id)}
+                            />
+                          ))}
+                        </div>
+                        {filteredEquipment.length === 0 && (
+                          <div className="py-6 text-center">
+                            <Dumbbell className="w-6 h-6 text-muted-foreground/30 mx-auto mb-2" />
+                            <p className="text-xs text-muted-foreground">No equipment matches "{muscleFilter}" muscle group</p>
+                            <button onClick={() => setMuscleFilter('All')} className="text-xs text-primary mt-1" data-testid="button-clear-filter">
+                              Clear filter
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {predictions.length > 0 && (
+                        <div data-testid="equipment-planning-section">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Target className="w-3.5 h-3.5 text-violet-500" />
+                            <span className="text-xs font-semibold">Planning Overview</span>
+                            <Badge variant="secondary" className="text-[10px]">Next 30 days</Badge>
+                          </div>
+                          <div className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2">
+                            <div className="grid grid-cols-4 gap-2 text-center">
+                              {(['Priority', 'Watch', 'Review', 'Stable'] as const).map(signal => {
+                                const signalKey = signal === 'Priority' ? 'buy_more' : signal === 'Watch' ? 'monitor' : signal === 'Review' ? 'consider_replacing' : 'maintain';
+                                const count = predictions.filter(p => p.action === signalKey).length;
+                                const cfg = actionConfig[signalKey];
+                                return (
+                                  <div key={signal} className={`rounded-lg p-2 ${cfg.bg} border ${cfg.border}`}>
+                                    <div className={`text-sm font-bold ${cfg.color}`}>{count}</div>
+                                    <div className="text-[9px] text-muted-foreground">{signal}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {predictions.filter(p => p.action === 'buy_more').length > 0 && (
+                              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-background/60 border border-border/30">
+                                <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                <span className="text-[11px] text-muted-foreground leading-relaxed">
+                                  {predictions.filter(p => p.action === 'buy_more').length} item{predictions.filter(p => p.action === 'buy_more').length > 1 ? 's' : ''} flagged for planning.
+                                  These are based on {predictions.some(p => p.prevUsage > 0) ? '2+ months of usage trends' : 'recent usage patterns'}.
+                                  Tap any equipment card above for detailed analysis and timeline.
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
 
                       {equipmentStress.insights && equipmentStress.insights.length > 0 && (
-                        <div data-testid="equipment-insights-section">
-                          <div className="flex items-center gap-2 mb-2">
+                        <details className="group" data-testid="equipment-insights-section">
+                          <summary className="flex items-center gap-2 cursor-pointer list-none mb-2">
                             <div className="w-1 h-4 rounded-full bg-amber-500" />
                             <span className="text-xs font-semibold">Key Insights</span>
-                          </div>
+                            <span className="text-[10px] text-muted-foreground">({equipmentStress.insights.length})</span>
+                            <ChevronRight className="w-3 h-3 text-muted-foreground ml-auto transition-transform group-open:rotate-90" />
+                          </summary>
                           <div className="space-y-1.5">
                             {equipmentStress.insights.map((insight, idx) => {
-                              const bgMap = {
+                              const bgMap: Record<string, string> = {
                                 action: 'bg-red-500/10 border-red-500/20',
                                 warning: 'bg-amber-500/10 border-amber-500/20',
                                 success: 'bg-emerald-500/10 border-emerald-500/20',
                                 info: 'bg-blue-500/10 border-blue-500/20',
                               };
-                              const iconMap = {
+                              const iconMap: Record<string, JSX.Element> = {
                                 action: <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />,
                                 warning: <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />,
                                 success: <Lightbulb className="w-3.5 h-3.5 text-emerald-500 shrink-0" />,
                                 info: <Lightbulb className="w-3.5 h-3.5 text-blue-500 shrink-0" />,
                               };
-                              const textColorMap = {
+                              const textColorMap: Record<string, string> = {
                                 action: 'text-red-700 dark:text-red-300',
                                 warning: 'text-amber-700 dark:text-amber-300',
                                 success: 'text-emerald-700 dark:text-emerald-300',
@@ -416,88 +760,7 @@ export default function OwnerGymIntelligencePage() {
                               );
                             })}
                           </div>
-                        </div>
-                      )}
-
-                      {predictions.length > 0 && (
-                        <div data-testid="equipment-predictions-section">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-1 h-4 rounded-full bg-violet-500" />
-                            <span className="text-xs font-semibold">Investment Predictions</span>
-                            <Badge variant="secondary" className="text-[10px]">Next 30 days</Badge>
-                          </div>
-                          <div className="space-y-2">
-                            {predictions.sort((a, b) => {
-                              const order = { high: 0, medium: 1, low: 2 };
-                              return order[a.urgency] - order[b.urgency];
-                            }).map(pred => {
-                              const colors = actionColors[pred.action];
-                              return (
-                                <div key={pred.id} className={`rounded-xl border ${colors.border} overflow-hidden`} data-testid={`prediction-${pred.id}`}>
-                                  <div className="p-3">
-                                    <div className="flex items-start gap-3">
-                                      <div className={`p-2 rounded-lg ${colors.bg} ${colors.icon} shrink-0 mt-0.5`}>
-                                        {actionIcons[pred.action]}
-                                      </div>
-                                      <div className="flex-1 min-w-0 space-y-1.5">
-                                        <div className="flex items-center justify-between gap-2">
-                                          <span className="text-[13px] font-semibold truncate">{pred.name}</span>
-                                          <Badge className={`text-[9px] text-white shrink-0 ${colors.labelBg}`}>{colors.label}</Badge>
-                                        </div>
-                                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                                          <span>Last: <span className="font-bold text-foreground">{pred.prevUsage}</span></span>
-                                          <span>Now: <span className="font-bold text-foreground">{pred.currentUsage}</span></span>
-                                          <span>Next: <span className="font-bold text-violet-600 dark:text-violet-400">{pred.predictedNext}</span></span>
-                                          {pred.trend !== 0 && (
-                                            <span className={`flex items-center gap-0.5 font-bold ml-auto ${pred.trend > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                                              {pred.trend > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                              {pred.trend > 0 ? '+' : ''}{pred.trend}%
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden flex gap-[1px]">
-                                          <div className="h-full rounded-l-full bg-slate-400" style={{ width: `${pred.prevUsage ? Math.max((pred.prevUsage / Math.max(pred.prevUsage, pred.currentUsage, pred.predictedNext, 1)) * 100, 3) : 0}%` }} title="Last month" />
-                                          <div className="h-full bg-blue-500" style={{ width: `${pred.currentUsage ? Math.max((pred.currentUsage / Math.max(pred.prevUsage, pred.currentUsage, pred.predictedNext, 1)) * 100, 3) : 0}%` }} title="This month" />
-                                          <div className="h-full rounded-r-full bg-violet-500/60" style={{ width: `${pred.predictedNext ? Math.max((pred.predictedNext / Math.max(pred.prevUsage, pred.currentUsage, pred.predictedNext, 1)) * 100, 3) : 0}%` }} title="Predicted" />
-                                        </div>
-                                        <p className={`text-[11px] leading-relaxed ${colors.text}`}>
-                                          {pred.reason}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {unused.length > 0 && (
-                        <div data-testid="equipment-unused-section">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-1 h-4 rounded-full bg-slate-400" />
-                            <span className="text-xs font-semibold">Untracked Equipment</span>
-                            <span className="text-[10px] text-muted-foreground">— no usage data in 60 days</span>
-                          </div>
-                          <div className="rounded-xl border border-border/50 bg-muted/10 p-3">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                              {unused.map(equip => (
-                                <div key={equip.id} className="flex items-center gap-2 p-2 rounded-lg bg-background/60 border border-border/30" data-testid={`equipment-unused-${equip.id}`}>
-                                  <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
-                                  <div className="min-w-0">
-                                    <span className="text-xs font-medium truncate block">{equip.name}</span>
-                                    <span className="text-[10px] text-muted-foreground/60">{equip.category}{equip.quantity > 1 ? ` · ${equip.quantity}x` : ''}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                            <p className="text-[10px] text-muted-foreground/60 mt-2.5 flex items-start gap-1.5">
-                              <Lightbulb className="w-3 h-3 shrink-0 mt-0.5" />
-                              Map exercises to these items in Equipment Setup for automatic tracking, or check if they need promotion to members.
-                            </p>
-                          </div>
-                        </div>
+                        </details>
                       )}
 
                       <div className="flex items-center justify-end px-1">
@@ -536,6 +799,14 @@ export default function OwnerGymIntelligencePage() {
           </CardContent>
         </Card>
       </div>
+
+      {selectedEquip && (
+        <EquipmentDetailPanel
+          equip={selectedEquip}
+          prediction={selectedPrediction}
+          onClose={() => setSelectedEquipId(null)}
+        />
+      )}
     </div>
   );
 }
