@@ -66,10 +66,22 @@ type EquipmentItem = {
   exerciseBreakdown: { exercise: string; count: number; muscle: string | null }[];
 };
 
+type EquipmentRecommendation = {
+  muscle: string;
+  demand: number;
+  demandChange: number;
+  equipmentCount: number;
+  currentEquipment: string[];
+  suggestion: string;
+  reason: string;
+  priority: 'high' | 'medium' | 'low';
+};
+
 type EquipmentStressData = {
   equipment: EquipmentItem[];
   insights: EquipmentInsight[];
   predictions: EquipmentPrediction[];
+  recommendations: EquipmentRecommendation[];
   hasSetup: boolean;
 };
 
@@ -693,6 +705,60 @@ export default function OwnerGymIntelligencePage() {
                           </>
                         );
                       })()}
+
+                      <div data-testid="equipment-recommendations-section">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Lightbulb className="w-3.5 h-3.5 text-emerald-500" />
+                          <span className="text-xs font-semibold">Recommended Equipment</span>
+                          <Badge variant="secondary" className="text-[10px]">Based on member demand</Badge>
+                        </div>
+                        {(equipmentStress.recommendations || []).length > 0 ? (<div className="space-y-2">{(equipmentStress.recommendations || []).map((rec, idx) => {
+                          const priorityStyles = {
+                            high: { bg: 'bg-red-500/5', border: 'border-red-500/20', dot: 'bg-red-500', label: 'High Priority' },
+                            medium: { bg: 'bg-amber-500/5', border: 'border-amber-500/20', dot: 'bg-amber-500', label: 'Suggested' },
+                            low: { bg: 'bg-blue-500/5', border: 'border-blue-500/20', dot: 'bg-blue-500', label: 'Consider' },
+                          };
+                          const style = priorityStyles[rec.priority];
+                          return (
+                            <div key={idx} className={`rounded-xl border ${style.border} ${style.bg} p-3`} data-testid={`recommendation-${idx}`}>
+                              <div className="flex items-start gap-3">
+                                <div className="mt-0.5 shrink-0">
+                                  <span className={`block w-2 h-2 rounded-full ${style.dot}`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                                    <span className="text-xs font-bold">{rec.suggestion}</span>
+                                    <Badge variant="outline" className="text-[9px]">{rec.muscle}</Badge>
+                                    <span className="text-[9px] text-muted-foreground ml-auto">{style.label}</span>
+                                  </div>
+                                  <p className="text-[11px] text-muted-foreground leading-relaxed">{rec.reason}</p>
+                                  <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                    <span className="text-[10px] text-muted-foreground/70">
+                                      <span className="font-semibold tabular-nums">{rec.demand}</span> exercises this month
+                                    </span>
+                                    {rec.demandChange > 0 && (
+                                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
+                                        <ArrowUpRight className="w-3 h-3" />+{rec.demandChange}%
+                                      </span>
+                                    )}
+                                    {rec.currentEquipment.length > 0 && (
+                                      <span className="text-[10px] text-muted-foreground/70">
+                                        Current: {rec.currentEquipment.join(', ')}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}</div>) : (
+                          <div className="rounded-xl border border-border/50 bg-muted/5 p-4 text-center" data-testid="no-recommendations">
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500 mx-auto mb-1.5" />
+                            <p className="text-xs text-muted-foreground">No equipment gaps detected this month</p>
+                            <p className="text-[10px] text-muted-foreground/60 mt-0.5">Your equipment covers member demand well</p>
+                          </div>
+                        )}
+                      </div>
 
                       <div data-testid="muscle-filter-bar">
                         <div className="flex items-center gap-2 mb-2">

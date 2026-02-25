@@ -9651,7 +9651,110 @@ Write a short, personal message. No subject line, just the message body. Use the
         };
       });
 
-      res.json({ equipment: stressResults, insights, predictions, hasSetup: true });
+      const muscleDemand = new Map<string, number>();
+      const prevMuscleDemand = new Map<string, number>();
+      for (const ex of recentExercises) {
+        if (ex.muscleType) muscleDemand.set(ex.muscleType, (muscleDemand.get(ex.muscleType) || 0) + ex.count);
+      }
+      for (const ex of previousExercises) {
+        if (ex.muscleType) prevMuscleDemand.set(ex.muscleType, (prevMuscleDemand.get(ex.muscleType) || 0) + ex.count);
+      }
+
+      const muscleEquipCount = new Map<string, { count: number; totalQty: number; names: string[] }>();
+      for (const r of stressResults) {
+        for (const m of r.muscles || []) {
+          const existing = muscleEquipCount.get(m.name) || { count: 0, totalQty: 0, names: [] };
+          existing.count++;
+          existing.totalQty += r.quantity;
+          existing.names.push(r.name);
+          muscleEquipCount.set(m.name, existing);
+        }
+      }
+
+      const EQUIPMENT_SUGGESTIONS: Record<string, string[]> = {
+        'Quadriceps': ['Hack Squat Machine', 'Leg Extension Machine', 'Leg Press Machine', 'Sissy Squat Bench'],
+        'Back': ['Lat Pulldown Machine', 'Seated Row Machine', 'T-Bar Row', 'Assisted Pull-Up Machine'],
+        'Chest': ['Incline Bench', 'Pec Deck Machine', 'Chest Press Machine', 'Decline Bench'],
+        'Shoulders': ['Shoulder Press Machine', 'Lateral Raise Machine', 'Rear Delt Machine', 'Cable Crossover'],
+        'Biceps': ['Preacher Curl Bench', 'Cable Curl Station', 'EZ Curl Bar'],
+        'Triceps': ['Tricep Dip Station', 'Cable Pushdown Station', 'Skull Crusher Bench'],
+        'Hamstrings': ['Leg Curl Machine', 'Romanian Deadlift Platform', 'Glute Ham Developer'],
+        'Glutes': ['Hip Thrust Station', 'Glute Kickback Machine', 'Cable Pull-Through Station'],
+        'Core': ['Ab Crunch Machine', 'Captain\'s Chair', 'Cable Woodchop Station', 'Decline Ab Bench'],
+        'Calves': ['Standing Calf Raise Machine', 'Seated Calf Raise Machine'],
+        'Cardio': ['Treadmill', 'Rowing Machine', 'Stairmaster', 'Assault Bike'],
+      };
+
+      const recommendations: { muscle: string; demand: number; demandChange: number; equipmentCount: number; currentEquipment: string[]; suggestion: string; reason: string; priority: 'high' | 'medium' | 'low' }[] = [];
+
+      const sortedMuscles = [...muscleDemand.entries()].sort((a, b) => b[1] - a[1]);
+      for (const [muscle, demand] of sortedMuscles) {
+        const prevDem = prevMuscleDemand.get(muscle) || 0;
+        const demandChange = prevDem > 0 ? Math.round(((demand - prevDem) / prevDem) * 100) : (demand > 0 ? 100 : 0);
+        const equipInfo = muscleEquipCount.get(muscle);
+        const equipCount = equipInfo?.totalQty || 0;
+        const equipNames = equipInfo?.names || [];
+
+        const demandPerEquip = equipCount > 0 ? demand / equipCount : demand;
+        const isNoEquipment = equipCount === 0;
+        const isUnderserved = demandPerEquip > 15;
+        const isGrowing = demandChange > 30;
+        const minDemand = isNoEquipment ? 5 : 10;
+
+        if ((isNoEquipment || isUnderserved || isGrowing) && demand >= minDemand) {
+          const existingNamesLower = equipNames.map(n => n.toLowerCase());
+          const suggestions = EQUIPMENT_SUGGESTIONS[muscle] || [];
+          const newSuggestion = suggestions.find(s => {
+            const suggLower = s.toLowerCase();
+            return !existingNamesLower.some(en => en.includes(suggLower) || suggLower.includes(en));
+          });
+
+          let suggestion = '';
+          let reason = '';
+          let priority: 'high' | 'medium' | 'low' = 'medium';
+
+          if (equipCount === 0) {
+            suggestion = newSuggestion || `Add ${muscle}-focused equipment`;
+            reason = `Your members logged ${demand} ${muscle.toLowerCase()} exercises this month but you have no dedicated ${muscle.toLowerCase()} equipment registered.`;
+            priority = 'high';
+          } else if (demandPerEquip > 25) {
+            const highStressEquip = stressResults.filter(r => (r.muscles || []).some(m => m.name === muscle) && r.stressLevel === 'high');
+            if (highStressEquip.length > 0) {
+              suggestion = newSuggestion || `Add another ${equipNames[0]}`;
+              reason = `${equipNames[0]} is overloaded with ${demand} ${muscle.toLowerCase()} exercises across ${equipCount} unit${equipCount > 1 ? 's' : ''}. Adding ${suggestion.toLowerCase()} would spread the load.`;
+              priority = 'high';
+            } else {
+              suggestion = newSuggestion || `Consider more ${muscle.toLowerCase()} equipment`;
+              reason = `High demand (${demand} exercises) for only ${equipCount} ${muscle.toLowerCase()} equipment unit${equipCount > 1 ? 's' : ''}.`;
+              priority = 'medium';
+            }
+          } else if (isGrowing && demand >= minDemand) {
+            suggestion = newSuggestion || `Consider adding ${muscle.toLowerCase()} variety`;
+            reason = `${muscle} exercises grew ${demandChange}% this month (${prevDem} → ${demand}). ${equipCount > 0 ? `Currently served by ${equipNames.slice(0, 2).join(' & ')}.` : ''} Adding variety could keep members engaged.`;
+            priority = 'medium';
+          }
+
+          if (suggestion) {
+            recommendations.push({
+              muscle,
+              demand,
+              demandChange,
+              equipmentCount: equipCount,
+              currentEquipment: equipNames.slice(0, 3),
+              suggestion,
+              reason,
+              priority,
+            });
+          }
+        }
+      }
+
+      recommendations.sort((a, b) => {
+        const p = { high: 3, medium: 2, low: 1 };
+        return p[b.priority] - p[a.priority] || b.demand - a.demand;
+      });
+
+      res.json({ equipment: stressResults, insights, predictions, recommendations: recommendations.slice(0, 3), hasSetup: true });
     } catch (error) {
       console.error('Equipment stress error:', error);
       res.status(500).json({ error: 'Failed to compute equipment stress' });
