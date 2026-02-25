@@ -697,6 +697,7 @@ interface OwnerContext {
   checkedInTodayNames: string[];
   expiringMemberNames: string[];
   notCheckedInTodayNames: string[];
+  newMemberNames: string[];
   aiInsights: {
     churnRisk: {
       count: number;
@@ -1424,6 +1425,25 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
     gte(users.createdAt, new Date(dates.monthStart))
   ));
   
+  let newMemberNames: string[] = [];
+  const newMembersList = await db.select({ id: users.id, username: users.username, createdAt: users.createdAt })
+    .from(users)
+    .where(and(
+      eq(users.gymId, gymId),
+      eq(users.role, 'member'),
+      gte(users.createdAt, new Date(dates.monthStart))
+    ))
+    .orderBy(desc(users.createdAt))
+    .limit(20);
+  if (newMembersList.length > 0) {
+    const newMemberIds = newMembersList.map(m => m.id);
+    const newMemberProfiles = await db.select({ userId: userProfiles.userId, fullName: userProfiles.fullName })
+      .from(userProfiles)
+      .where(inArray(userProfiles.userId, newMemberIds));
+    const profileMap = new Map(newMemberProfiles.map(p => [p.userId, p.fullName]));
+    newMemberNames = newMembersList.map(u => profileMap.get(u.id) || u.username);
+  }
+
   // Get names of members who checked in today
   const checkedInMemberIds = await db.select({ memberId: attendance.memberId })
     .from(attendance)
@@ -1638,6 +1658,7 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
     checkedInTodayNames,
     expiringMemberNames,
     notCheckedInTodayNames,
+    newMemberNames,
     aiInsights,
     paymentBreakdown,
     subscriptionSummary,
@@ -2041,16 +2062,21 @@ Do NOT try to solve technical issues yourself - offer to report them instead.`;
         ? `\n- NOT checked in today (sample): ${ctx.notCheckedInTodayNames.join(', ')}`
         : '';
 
+      const newMemberList = ctx.newMemberNames.length > 0
+        ? `\n  Names: ${ctx.newMemberNames.join(', ')}`
+        : '';
+
       return basePrompt + `
 GYM OVERVIEW:
 - Total members: ${ctx.totalMembers}
 - Checked in today: ${ctx.checkedInToday} (${ctx.attendanceRate}% of total)${checkedInList}${notCheckedInList}
-- New members this month: ${ctx.recentTrends.newMembersThisMonth}
+- New members this month: ${ctx.recentTrends.newMembersThisMonth}${newMemberList}
 
 You can help this owner with:
 - Member lists and attendance tracking
 - Attendance trends and patterns
 - Who checked in today and who hasn't
+- Who joined this month (new members)
 - Strategic recommendations for member engagement
 - Creating support tickets to report issues or request help
 
@@ -2174,6 +2200,10 @@ SUBSCRIPTION STATUS:
 - Ending within 30 days: ${ctx.subscriptionSummary.endingSoonCount}${ctx.subscriptionSummary.endingSoonMembers.length > 0 ? ` (${ctx.subscriptionSummary.endingSoonMembers.join(', ')})` : ''}
 - Overdue: ${ctx.subscriptionSummary.overdueCount}` : '';
 
+    const newMemberList = ctx.newMemberNames.length > 0
+      ? `\n  Names: ${ctx.newMemberNames.join(', ')}`
+      : '';
+
     return basePrompt + `
 GYM OVERVIEW:
 - Total members: ${ctx.totalMembers}
@@ -2182,12 +2212,13 @@ GYM OVERVIEW:
 - Unpaid this month: ${ctx.unpaidThisMonth}${unpaidList}
 - Expiring within 30 days: ${ctx.expiringThisMonth}${expiringList}
 - Revenue this month: ${currency}${ctx.revenueThisMonth.toLocaleString()}
-- New members this month: ${ctx.recentTrends.newMembersThisMonth}
+- New members this month: ${ctx.recentTrends.newMembersThisMonth}${newMemberList}
 ${paymentSection}${subSection}
 ${insightsSection}
 
 You can help this owner with:
 - Business performance analysis and member lists
+- Who joined this month (new members) — always list their names when asked
 - Member retention insights with specific names and churn scores
 - Revenue and payment tracking (by method: cash, card, UPI, etc.) with month-over-month comparisons
 - Detailed payment breakdowns by time period (this week, this month, last 30 days, all time)
