@@ -52,6 +52,7 @@ Preferred communication style: Simple, everyday language.
 - **Fitness Device Integration (Level 2):** Health & Activity page with HealthKit (iOS) / Google Fit (Android) integration for activity overview, recovery score, calorie balance, and health insights.
 - **Feature Discovery Tips:** Role-specific rotating tips on dashboards with persistent dismissal.
 - **Guided Empty States:** Enhanced empty state components with action buttons for various pages.
+- **Gym Intelligence Dashboard (Level 1):** Data-driven insights for owners including Peak Hour Pressure (check-in density by hour with color-coded bar chart) and Muscle Trend Intelligence (muscle group usage comparison month-over-month). Accessible from sidebar and dashboard teaser card. API endpoints at `/api/owner/gym-intelligence/`.
 
 ## External Dependencies
 - **PostgreSQL:** Primary database.

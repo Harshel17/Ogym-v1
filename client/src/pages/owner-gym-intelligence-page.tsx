@@ -1,0 +1,240 @@
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Flame, TrendingUp, TrendingDown, Minus, ArrowLeft, Clock, Dumbbell, BarChart3 } from "lucide-react";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
+import { useLocation } from "wouter";
+
+type PeakHourData = {
+  hourData: { hour: number; count: number; label: string; level: 'peak' | 'moderate' | 'low' }[];
+  peakSummary: string | null;
+  lowSummary: string | null;
+  totalCheckIns: number;
+  daysAnalyzed: number;
+};
+
+type MuscleTrendData = {
+  trends: { muscle: string; thisMonth: number; lastMonth: number; change: number; direction: 'up' | 'down' | 'stable' }[];
+  totalThisMonth: number;
+  totalLastMonth: number;
+  overallChange: number;
+};
+
+const levelColors = {
+  peak: '#ef4444',
+  moderate: '#f59e0b',
+  low: '#22c55e',
+};
+
+const levelGradients = {
+  peak: ['#ef4444', '#dc2626'],
+  moderate: ['#f59e0b', '#d97706'],
+  low: ['#22c55e', '#16a34a'],
+};
+
+export default function OwnerGymIntelligencePage() {
+  const [, navigate] = useLocation();
+
+  const { data: peakHours, isLoading: peakLoading } = useQuery<PeakHourData>({
+    queryKey: ["/api/owner/gym-intelligence/peak-hours"],
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const { data: muscleTrends, isLoading: muscleLoading } = useQuery<MuscleTrendData>({
+    queryKey: ["/api/owner/gym-intelligence/muscle-trends"],
+    staleTime: 1000 * 60 * 10,
+  });
+
+  return (
+    <div className="space-y-5 lg:max-w-5xl">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => navigate("/dashboard")} data-testid="button-back-dashboard">
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight" data-testid="heading-gym-intelligence">Gym Intelligence</h1>
+          <p className="text-xs text-muted-foreground">Data-driven insights from your gym's activity</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="card-elevated md:col-span-2" data-testid="card-peak-hours">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <div className="p-1.5 rounded-lg bg-red-500/10">
+                <Flame className="w-4 h-4 text-red-500" />
+              </div>
+              Peak Hour Pressure
+              <Badge variant="secondary" className="text-[10px] ml-auto">Last 30 days</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            {peakLoading ? (
+              <div className="h-[220px] flex items-center justify-center">
+                <div className="animate-pulse text-xs text-muted-foreground">Analyzing check-in patterns...</div>
+              </div>
+            ) : peakHours && peakHours.totalCheckIns > 0 ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-3">
+                  {peakHours.peakSummary && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <Flame className="w-3.5 h-3.5 text-red-500" />
+                      <span className="text-xs font-semibold text-red-600 dark:text-red-400">Peak: {peakHours.peakSummary}</span>
+                    </div>
+                  )}
+                  {peakHours.lowSummary && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                      <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Quiet: {peakHours.lowSummary}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="h-[200px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={peakHours.hourData} barCategoryGap="15%">
+                      <defs>
+                        <linearGradient id="peakGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#ef4444" stopOpacity={0.9} />
+                          <stop offset="100%" stopColor="#ef4444" stopOpacity={0.4} />
+                        </linearGradient>
+                        <linearGradient id="modGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.9} />
+                          <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.4} />
+                        </linearGradient>
+                        <linearGradient id="lowGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#22c55e" stopOpacity={0.9} />
+                          <stop offset="100%" stopColor="#22c55e" stopOpacity={0.4} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="label" stroke="#888888" fontSize={9} tickLine={false} axisLine={false} interval={1} />
+                      <YAxis stroke="#888888" fontSize={10} tickLine={false} axisLine={false} width={30} />
+                      <Tooltip
+                        cursor={{ fill: 'hsl(var(--muted) / 0.3)' }}
+                        contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        formatter={(value: number) => [`${value} check-ins`, 'Count']}
+                      />
+                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                        {peakHours.hourData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.level === 'peak' ? 'url(#peakGrad)' : entry.level === 'moderate' ? 'url(#modGrad)' : 'url(#lowGrad)'}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex items-center justify-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                    <span className="text-[10px] text-muted-foreground">Peak</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <span className="text-[10px] text-muted-foreground">Moderate</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <span className="text-[10px] text-muted-foreground">Quiet</span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-center text-muted-foreground/60">Based on {peakHours.totalCheckIns} check-ins over {peakHours.daysAnalyzed} days</p>
+              </div>
+            ) : (
+              <div className="py-8 text-center">
+                <Flame className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Not enough check-in data yet</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Peak hour analysis will appear once members start checking in</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="card-elevated md:col-span-2" data-testid="card-muscle-trends">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <div className="p-1.5 rounded-lg bg-purple-500/10">
+                <Dumbbell className="w-4 h-4 text-purple-500" />
+              </div>
+              Muscle Trend Intelligence
+              <Badge variant="secondary" className="text-[10px] ml-auto">This month vs last</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            {muscleLoading ? (
+              <div className="h-[200px] flex items-center justify-center">
+                <div className="animate-pulse text-xs text-muted-foreground">Analyzing workout patterns...</div>
+              </div>
+            ) : muscleTrends && muscleTrends.trends.length > 0 ? (
+              <div className="space-y-3">
+                {muscleTrends.overallChange !== 0 && (
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${muscleTrends.overallChange > 0 ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
+                    <BarChart3 className={`w-3.5 h-3.5 ${muscleTrends.overallChange > 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+                    <span className="text-xs font-medium">
+                      Overall workout volume {muscleTrends.overallChange > 0 ? 'up' : 'down'}{' '}
+                      <span className="font-bold">{Math.abs(muscleTrends.overallChange)}%</span> this month
+                      <span className="text-muted-foreground ml-1">({muscleTrends.totalThisMonth} vs {muscleTrends.totalLastMonth} exercises)</span>
+                    </span>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  {muscleTrends.trends.map((trend) => {
+                    const maxCount = Math.max(...muscleTrends.trends.map(t => t.thisMonth), 1);
+                    const barWidth = (trend.thisMonth / maxCount) * 100;
+                    return (
+                      <div key={trend.muscle} className="group" data-testid={`muscle-trend-${trend.muscle}`}>
+                        <div className="flex items-center gap-3 p-2 rounded-lg bg-background/50">
+                          <div className="w-[100px] sm:w-[120px] shrink-0">
+                            <span className="text-xs font-medium truncate block">{trend.muscle}</span>
+                          </div>
+                          <div className="flex-1 flex items-center gap-2">
+                            <div className="flex-1 h-5 rounded-full bg-muted/30 overflow-hidden relative">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  trend.direction === 'up' ? 'bg-gradient-to-r from-emerald-500/70 to-emerald-500' :
+                                  trend.direction === 'down' ? 'bg-gradient-to-r from-red-400/70 to-red-500' :
+                                  'bg-gradient-to-r from-slate-400/70 to-slate-500'
+                                }`}
+                                style={{ width: `${barWidth}%` }}
+                              />
+                              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular-nums">
+                                {trend.thisMonth}
+                              </span>
+                            </div>
+                          </div>
+                          <div className={`flex items-center gap-0.5 shrink-0 min-w-[60px] justify-end ${
+                            trend.direction === 'up' ? 'text-emerald-600 dark:text-emerald-400' :
+                            trend.direction === 'down' ? 'text-red-600 dark:text-red-400' :
+                            'text-muted-foreground'
+                          }`}>
+                            {trend.direction === 'up' && <TrendingUp className="w-3 h-3" />}
+                            {trend.direction === 'down' && <TrendingDown className="w-3 h-3" />}
+                            {trend.direction === 'stable' && <Minus className="w-3 h-3" />}
+                            <span className="text-xs font-bold tabular-nums">
+                              {trend.change > 0 ? '+' : ''}{trend.change}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between px-2">
+                  <span className="text-[10px] text-muted-foreground/60">Muscle group</span>
+                  <span className="text-[10px] text-muted-foreground/60">vs last month</span>
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 text-center">
+                <Dumbbell className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No workout data yet</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Muscle trends will appear once members log workouts</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

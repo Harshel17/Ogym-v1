@@ -9070,6 +9070,159 @@ Write a short, personal message. No subject line, just the message body. Use the
     }
   });
 
+  // === GYM INTELLIGENCE ===
+  app.get("/api/owner/gym-intelligence/peak-hours", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+      const records = await db.select({
+        createdAt: attendance.createdAt,
+      }).from(attendance).where(
+        and(
+          eq(attendance.gymId, gymId),
+          eq(attendance.status, 'present'),
+          gte(attendance.date, thirtyDaysAgoStr)
+        )
+      );
+
+      const hourCounts: Record<number, number> = {};
+      for (let h = 5; h <= 23; h++) hourCounts[h] = 0;
+
+      for (const r of records) {
+        if (r.createdAt) {
+          const hour = new Date(r.createdAt).getHours();
+          if (hour >= 5 && hour <= 23) {
+            hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+          }
+        }
+      }
+
+      const hourData = Object.entries(hourCounts).map(([hour, count]) => ({
+        hour: parseInt(hour),
+        count,
+        label: `${parseInt(hour) > 12 ? parseInt(hour) - 12 : parseInt(hour)} ${parseInt(hour) >= 12 ? 'PM' : 'AM'}`,
+      }));
+
+      const maxCount = Math.max(...hourData.map(h => h.count), 1);
+      const peakThreshold = maxCount * 0.7;
+      const lowThreshold = maxCount * 0.3;
+
+      const peakHours = hourData.filter(h => h.count >= peakThreshold && h.count > 0).map(h => h.hour);
+      const lowHours = hourData.filter(h => h.count <= lowThreshold || h.count === 0).map(h => h.hour);
+
+      const formatRange = (hours: number[]) => {
+        if (hours.length === 0) return null;
+        hours.sort((a, b) => a - b);
+        const ranges: string[] = [];
+        let start = hours[0];
+        let end = hours[0];
+        for (let i = 1; i < hours.length; i++) {
+          if (hours[i] === end + 1) {
+            end = hours[i];
+          } else {
+            const fmt = (h: number) => `${h > 12 ? h - 12 : h} ${h >= 12 ? 'PM' : 'AM'}`;
+            ranges.push(start === end ? fmt(start) : `${fmt(start)}–${fmt(end + 1)}`);
+            start = hours[i];
+            end = hours[i];
+          }
+        }
+        const fmt = (h: number) => `${h > 12 ? h - 12 : h} ${h >= 12 ? 'PM' : 'AM'}`;
+        ranges.push(start === end ? fmt(start) : `${fmt(start)}–${fmt(end + 1)}`);
+        return ranges.join(', ');
+      };
+
+      res.json({
+        hourData: hourData.map(h => ({
+          ...h,
+          level: h.count >= peakThreshold && h.count > 0 ? 'peak' : h.count <= lowThreshold || h.count === 0 ? 'low' : 'moderate',
+        })),
+        peakSummary: formatRange(peakHours),
+        lowSummary: formatRange(lowHours),
+        totalCheckIns: records.length,
+        daysAnalyzed: 30,
+      });
+    } catch (error) {
+      console.error('Peak hours error:', error);
+      res.status(500).json({ error: 'Failed to compute peak hours' });
+    }
+  });
+
+  app.get("/api/owner/gym-intelligence/muscle-trends", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const now = new Date();
+      const thisMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthStart = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+      const lastMonthEnd = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}-${String(new Date(lastMonthDate.getFullYear(), lastMonthDate.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+
+      const thisMonthExercises = await db.select({
+        muscleType: workoutLogExercises.muscleType,
+        count: sql<number>`count(*)::int`,
+      }).from(workoutLogExercises)
+        .innerJoin(workoutLogs, eq(workoutLogExercises.workoutLogId, workoutLogs.id))
+        .where(
+          and(
+            eq(workoutLogs.gymId, gymId),
+            gte(workoutLogs.completedDate, thisMonthStart),
+            isNotNull(workoutLogExercises.muscleType)
+          )
+        )
+        .groupBy(workoutLogExercises.muscleType);
+
+      const lastMonthExercises = await db.select({
+        muscleType: workoutLogExercises.muscleType,
+        count: sql<number>`count(*)::int`,
+      }).from(workoutLogExercises)
+        .innerJoin(workoutLogs, eq(workoutLogExercises.workoutLogId, workoutLogs.id))
+        .where(
+          and(
+            eq(workoutLogs.gymId, gymId),
+            gte(workoutLogs.completedDate, lastMonthStart),
+            lte(workoutLogs.completedDate, lastMonthEnd),
+            isNotNull(workoutLogExercises.muscleType)
+          )
+        )
+        .groupBy(workoutLogExercises.muscleType);
+
+      const lastMonthMap = new Map(lastMonthExercises.map(e => [e.muscleType, e.count]));
+      const allMuscles = new Set([
+        ...thisMonthExercises.map(e => e.muscleType),
+        ...lastMonthExercises.map(e => e.muscleType),
+      ]);
+
+      const trends = Array.from(allMuscles).filter(Boolean).map(muscle => {
+        const thisCount = thisMonthExercises.find(e => e.muscleType === muscle)?.count || 0;
+        const lastCount = lastMonthMap.get(muscle) || 0;
+        const change = lastCount > 0 ? Math.round(((thisCount - lastCount) / lastCount) * 100) : (thisCount > 0 ? 100 : 0);
+        return {
+          muscle: muscle!,
+          thisMonth: thisCount,
+          lastMonth: lastCount,
+          change,
+          direction: change > 0 ? 'up' : change < 0 ? 'down' : 'stable',
+        };
+      }).sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+
+      const totalThisMonth = thisMonthExercises.reduce((sum, e) => sum + e.count, 0);
+      const totalLastMonth = lastMonthExercises.reduce((sum, e) => sum + e.count, 0);
+      const overallChange = totalLastMonth > 0 ? Math.round(((totalThisMonth - totalLastMonth) / totalLastMonth) * 100) : 0;
+
+      res.json({
+        trends,
+        totalThisMonth,
+        totalLastMonth,
+        overallChange,
+      });
+    } catch (error) {
+      console.error('Muscle trends error:', error);
+      res.status(500).json({ error: 'Failed to compute muscle trends' });
+    }
+  });
+
   // === OWNER DASHBOARD & ATTENDANCE ANALYTICS ===
   app.get("/api/owner/dashboard-metrics", requireRole(["owner"]), async (req, res) => {
     // Accept client's local date to handle timezone differences

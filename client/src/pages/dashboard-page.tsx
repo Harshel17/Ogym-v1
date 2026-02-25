@@ -1170,6 +1170,27 @@ function OwnerDashboard() {
         </div>
       )}
 
+      {!isIOSNativeApp && (
+        <Card
+          className="card-elevated cursor-pointer hover-elevate bg-gradient-to-r from-purple-500/5 via-transparent to-blue-500/5"
+          onClick={() => navigate("/owner/gym-intelligence")}
+          data-testid="card-gym-intelligence-teaser"
+        >
+          <CardContent className="p-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500/15 to-blue-500/15">
+                <BarChart3 className="w-4 h-4 text-purple-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">Gym Intelligence</p>
+                <p className="text-[11px] text-muted-foreground">Peak hours, muscle trends & equipment insights</p>
+              </div>
+              <Badge variant="secondary" className="text-[9px] bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">New</Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-2.5 md:grid-cols-2">
         <Card className="card-elevated">
           <CardHeader className="pb-2 pt-3 px-3">
