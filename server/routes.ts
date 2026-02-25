@@ -9365,6 +9365,10 @@ Write a short, personal message. No subject line, just the message body. Use the
       const equipmentIds = equipment.map(e => e.id);
       const mappings = await db.select().from(equipmentExerciseMappings).where(inArray(equipmentExerciseMappings.equipmentId, equipmentIds));
 
+      const sixtyDaysAgoDate = new Date();
+      sixtyDaysAgoDate.setDate(sixtyDaysAgoDate.getDate() - 60);
+      const sixtyDaysAgo = sixtyDaysAgoDate.toISOString().split('T')[0];
+
       const recentExercises = await db.select({
         exerciseName: workoutLogExercises.exerciseName,
         count: sql<number>`count(*)::int`,
@@ -9373,7 +9377,20 @@ Write a short, personal message. No subject line, just the message body. Use the
         .where(and(eq(workoutLogs.gymId, gymId), gte(workoutLogs.completedDate, thirtyDaysAgo)))
         .groupBy(workoutLogExercises.exerciseName);
 
+      const previousExercises = await db.select({
+        exerciseName: workoutLogExercises.exerciseName,
+        count: sql<number>`count(*)::int`,
+      }).from(workoutLogExercises)
+        .innerJoin(workoutLogs, eq(workoutLogExercises.workoutLogId, workoutLogs.id))
+        .where(and(
+          eq(workoutLogs.gymId, gymId),
+          gte(workoutLogs.completedDate, sixtyDaysAgo),
+          lte(workoutLogs.completedDate, thirtyDaysAgo)
+        ))
+        .groupBy(workoutLogExercises.exerciseName);
+
       const exerciseCountMap = new Map(recentExercises.map(e => [e.exerciseName.toLowerCase(), e.count]));
+      const prevExerciseCountMap = new Map(previousExercises.map(e => [e.exerciseName.toLowerCase(), e.count]));
 
       const GENERIC_MAP: Record<string, string[]> = {
         'bench': ['bench press', 'dumbbell bench', 'incline bench', 'decline bench', 'chest press', 'dumbbell press', 'incline press', 'decline press'],
@@ -9398,13 +9415,12 @@ Write a short, personal message. No subject line, just the message body. Use the
         'preacher curl bench': ['preacher curl'],
       };
 
-      const results = equipment.map(equip => {
+      const getUsageForEquip = (equip: any, countMap: Map<string, number>) => {
         const customMappings = mappings.filter(m => m.equipmentId === equip.id);
         let totalUsage = 0;
-
         if (customMappings.length > 0) {
           for (const cm of customMappings) {
-            const count = exerciseCountMap.get(cm.exerciseName.toLowerCase()) || 0;
+            const count = countMap.get(cm.exerciseName.toLowerCase()) || 0;
             totalUsage += cm.priority === 'primary' ? count : Math.round(count * 0.5);
           }
         } else {
@@ -9412,7 +9428,7 @@ Write a short, personal message. No subject line, just the message body. Use the
           for (const [genericName, exercises] of Object.entries(GENERIC_MAP)) {
             if (equipNameLower.includes(genericName) || genericName.includes(equipNameLower)) {
               for (const ex of exercises) {
-                for (const [loggedName, count] of exerciseCountMap) {
+                for (const [loggedName, count] of countMap) {
                   if (loggedName.includes(ex) || ex.includes(loggedName)) {
                     totalUsage += count;
                   }
@@ -9422,8 +9438,15 @@ Write a short, personal message. No subject line, just the message body. Use the
             }
           }
         }
+        return totalUsage;
+      };
 
+      const results = equipment.map(equip => {
+        const customMappings = mappings.filter(m => m.equipmentId === equip.id);
+        const totalUsage = getUsageForEquip(equip, exerciseCountMap);
+        const prevUsage = getUsageForEquip(equip, prevExerciseCountMap);
         const usagePerUnit = equip.quantity ? Math.round(totalUsage / equip.quantity) : totalUsage;
+        const changePercent = prevUsage > 0 ? Math.round(((totalUsage - prevUsage) / prevUsage) * 100) : (totalUsage > 0 ? 100 : 0);
 
         return {
           id: equip.id,
@@ -9431,6 +9454,8 @@ Write a short, personal message. No subject line, just the message body. Use the
           category: equip.category,
           quantity: equip.quantity,
           totalUsage,
+          prevUsage,
+          changePercent,
           usagePerUnit,
           hasCustomMapping: customMappings.length > 0,
           mappedExercises: customMappings.length,
@@ -9444,7 +9469,97 @@ Write a short, personal message. No subject line, just the message body. Use the
           r.usagePerUnit >= maxUsagePerUnit * 0.3 ? 'medium' as const : 'low' as const,
       })).sort((a, b) => b.totalUsage - a.totalUsage);
 
-      res.json({ equipment: stressResults, hasSetup: true });
+      const insights: { type: 'warning' | 'success' | 'info' | 'action'; icon: string; text: string }[] = [];
+
+      const highStress = stressResults.filter(r => r.stressLevel === 'high');
+      const lowStress = stressResults.filter(r => r.stressLevel === 'low' && r.totalUsage === 0);
+      const risingEquip = stressResults.filter(r => r.changePercent >= 30 && r.totalUsage > 0);
+      const droppingEquip = stressResults.filter(r => r.changePercent <= -30 && r.prevUsage > 0);
+      const totalCurrentUsage = stressResults.reduce((s, r) => s + r.totalUsage, 0);
+      const totalPrevUsage = stressResults.reduce((s, r) => s + r.prevUsage, 0);
+
+      for (const equip of highStress) {
+        if (equip.quantity === 1) {
+          insights.push({
+            type: 'action',
+            icon: '🔴',
+            text: `Add more ${equip.name} units — usage per unit is very high (${equip.usagePerUnit} uses/unit)`,
+          });
+        } else {
+          insights.push({
+            type: 'warning',
+            icon: '⚠️',
+            text: `${equip.name} is under heavy stress with ${equip.usagePerUnit} uses per unit across ${equip.quantity} units`,
+          });
+        }
+      }
+
+      for (const equip of risingEquip) {
+        insights.push({
+          type: 'info',
+          icon: '📈',
+          text: `${equip.name} demand increasing — usage up ${equip.changePercent}% vs last month`,
+        });
+      }
+
+      for (const equip of droppingEquip) {
+        insights.push({
+          type: 'info',
+          icon: '📉',
+          text: `${equip.name} usage dropped ${Math.abs(equip.changePercent)}% — consider if it needs maintenance or replacement`,
+        });
+      }
+
+      for (const equip of lowStress) {
+        if (equip.totalUsage === 0 && equip.prevUsage === 0) {
+          insights.push({
+            type: 'warning',
+            icon: '💤',
+            text: `${equip.name} is completely unused — consider repositioning, replacing, or promoting it`,
+          });
+        }
+      }
+
+      const categoryUsage = new Map<string, number>();
+      for (const r of stressResults) {
+        categoryUsage.set(r.category, (categoryUsage.get(r.category) || 0) + r.totalUsage);
+      }
+      const topCategory = [...categoryUsage.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (topCategory && topCategory[1] > 0) {
+        insights.push({
+          type: 'success',
+          icon: '🏆',
+          text: `${topCategory[0]} equipment is the most used category with ${topCategory[1]} total uses this month`,
+        });
+      }
+
+      if (totalCurrentUsage > 0 && totalPrevUsage > 0) {
+        const overallChange = Math.round(((totalCurrentUsage - totalPrevUsage) / totalPrevUsage) * 100);
+        if (overallChange > 10) {
+          insights.push({
+            type: 'success',
+            icon: '💪',
+            text: `Overall equipment usage is up ${overallChange}% — your gym is getting busier!`,
+          });
+        } else if (overallChange < -10) {
+          insights.push({
+            type: 'warning',
+            icon: '📊',
+            text: `Overall equipment usage dropped ${Math.abs(overallChange)}% compared to last month`,
+          });
+        }
+      }
+
+      const unmappedHigh = highStress.filter(r => !r.hasCustomMapping);
+      if (unmappedHigh.length > 0) {
+        insights.push({
+          type: 'info',
+          icon: '🔗',
+          text: `${unmappedHigh.length} high-stress item${unmappedHigh.length > 1 ? 's use' : ' uses'} generic mapping — add custom exercise mappings for more precise tracking`,
+        });
+      }
+
+      res.json({ equipment: stressResults, insights, hasSetup: true });
     } catch (error) {
       console.error('Equipment stress error:', error);
       res.status(500).json({ error: 'Failed to compute equipment stress' });

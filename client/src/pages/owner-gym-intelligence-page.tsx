@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Flame, TrendingUp, TrendingDown, Minus, ArrowLeft, Clock, Dumbbell, BarChart3, Wrench, Settings2, AlertTriangle } from "lucide-react";
+import { Flame, TrendingUp, TrendingDown, Minus, ArrowLeft, Clock, Dumbbell, BarChart3, Wrench, Settings2, AlertTriangle, Lightbulb } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
 import { useLocation } from "wouter";
 
@@ -21,6 +21,12 @@ type MuscleTrendData = {
   overallChange: number;
 };
 
+type EquipmentInsight = {
+  type: 'warning' | 'success' | 'info' | 'action';
+  icon: string;
+  text: string;
+};
+
 type EquipmentStressData = {
   equipment: {
     id: number;
@@ -28,11 +34,14 @@ type EquipmentStressData = {
     category: string;
     quantity: number;
     totalUsage: number;
+    prevUsage: number;
+    changePercent: number;
     usagePerUnit: number;
     hasCustomMapping: boolean;
     mappedExercises: number;
     stressLevel: 'high' | 'medium' | 'low';
   }[];
+  insights: EquipmentInsight[];
   hasSetup: boolean;
 };
 
@@ -272,12 +281,36 @@ export default function OwnerGymIntelligencePage() {
               </div>
             ) : equipmentStress && equipmentStress.hasSetup && equipmentStress.equipment.length > 0 ? (
               <div className="space-y-3">
-                {equipmentStress.equipment.some(e => e.stressLevel === 'high') && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                    <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                    <span className="text-xs font-medium text-red-600 dark:text-red-400">
-                      {equipmentStress.equipment.filter(e => e.stressLevel === 'high').length} equipment item{equipmentStress.equipment.filter(e => e.stressLevel === 'high').length > 1 ? 's' : ''} under high stress
-                    </span>
+                {equipmentStress.insights && equipmentStress.insights.length > 0 && (
+                  <div className="space-y-1.5" data-testid="equipment-insights">
+                    {equipmentStress.insights.map((insight, idx) => {
+                      const bgMap = {
+                        action: 'bg-red-500/10 border-red-500/20',
+                        warning: 'bg-amber-500/10 border-amber-500/20',
+                        success: 'bg-emerald-500/10 border-emerald-500/20',
+                        info: 'bg-blue-500/10 border-blue-500/20',
+                      };
+                      const iconMap = {
+                        action: <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />,
+                        warning: <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />,
+                        success: <Lightbulb className="w-3.5 h-3.5 text-emerald-500 shrink-0" />,
+                        info: <Lightbulb className="w-3.5 h-3.5 text-blue-500 shrink-0" />,
+                      };
+                      const textColorMap = {
+                        action: 'text-red-700 dark:text-red-300',
+                        warning: 'text-amber-700 dark:text-amber-300',
+                        success: 'text-emerald-700 dark:text-emerald-300',
+                        info: 'text-blue-700 dark:text-blue-300',
+                      };
+                      return (
+                        <div key={idx} className={`flex items-start gap-2 px-3 py-2 rounded-lg border ${bgMap[insight.type]}`} data-testid={`insight-${idx}`}>
+                          {iconMap[insight.type]}
+                          <span className={`text-xs font-medium leading-snug ${textColorMap[insight.type]}`}>
+                            {insight.icon} {insight.text}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 <div className="space-y-1.5">
@@ -317,9 +350,16 @@ export default function OwnerGymIntelligencePage() {
                               </span>
                             </div>
                           </div>
-                          <div className="shrink-0 min-w-[50px] text-right">
+                          <div className="shrink-0 min-w-[70px] text-right flex items-center justify-end gap-1">
                             <span className="text-xs font-bold tabular-nums">{equip.totalUsage}</span>
-                            <span className="text-[10px] text-muted-foreground ml-0.5">uses</span>
+                            {equip.changePercent !== 0 && (equip.totalUsage > 0 || equip.prevUsage > 0) && (
+                              <span className={`flex items-center text-[10px] font-bold tabular-nums ${
+                                equip.changePercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                {equip.changePercent > 0 ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
+                                {equip.changePercent > 0 ? '+' : ''}{equip.changePercent}%
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
