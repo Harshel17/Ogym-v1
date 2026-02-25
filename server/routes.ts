@@ -6801,6 +6801,19 @@ Return ONLY JSON.`
     }
     
     try {
+      if (history && history.length > 0) {
+        const badPatterns = /I don't have the (current )?list|I currently don't have|check your membership (records|system)|I don't have access to the details/i;
+        history = history.filter((msg, idx) => {
+          if (msg.role === 'assistant' && badPatterns.test(msg.content)) {
+            if (idx > 0 && history![idx - 1].role === 'user') {
+              history![idx - 1] = { role: 'user', content: '[previous question - reanswer with current data]' };
+            }
+            return false;
+          }
+          return true;
+        });
+      }
+
       const response = await handleDikaQuery(
         user.id,
         role,
