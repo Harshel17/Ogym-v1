@@ -280,118 +280,196 @@ export default function OwnerGymIntelligencePage() {
                 <div className="animate-pulse text-xs text-muted-foreground">Analyzing equipment usage...</div>
               </div>
             ) : equipmentStress && equipmentStress.hasSetup && equipmentStress.equipment.length > 0 ? (
-              <div className="space-y-3">
-                {equipmentStress.insights && equipmentStress.insights.length > 0 && (
-                  <div className="space-y-1.5" data-testid="equipment-insights">
-                    {equipmentStress.insights.map((insight, idx) => {
-                      const bgMap = {
-                        action: 'bg-red-500/10 border-red-500/20',
-                        warning: 'bg-amber-500/10 border-amber-500/20',
-                        success: 'bg-emerald-500/10 border-emerald-500/20',
-                        info: 'bg-blue-500/10 border-blue-500/20',
-                      };
-                      const iconMap = {
-                        action: <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />,
-                        warning: <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />,
-                        success: <Lightbulb className="w-3.5 h-3.5 text-emerald-500 shrink-0" />,
-                        info: <Lightbulb className="w-3.5 h-3.5 text-blue-500 shrink-0" />,
-                      };
-                      const textColorMap = {
-                        action: 'text-red-700 dark:text-red-300',
-                        warning: 'text-amber-700 dark:text-amber-300',
-                        success: 'text-emerald-700 dark:text-emerald-300',
-                        info: 'text-blue-700 dark:text-blue-300',
-                      };
-                      return (
-                        <div key={idx} className={`flex items-start gap-2 px-3 py-2 rounded-lg border ${bgMap[insight.type]}`} data-testid={`insight-${idx}`}>
-                          {iconMap[insight.type]}
-                          <span className={`text-xs font-medium leading-snug ${textColorMap[insight.type]}`}>
-                            {insight.icon} {insight.text}
-                          </span>
+              <div className="space-y-4">
+                {(() => {
+                  const active = equipmentStress.equipment.filter(e => e.totalUsage > 0);
+                  const unused = equipmentStress.equipment.filter(e => e.totalUsage === 0);
+                  const highStress = active.filter(e => e.stressLevel === 'high');
+                  const rising = active.filter(e => e.changePercent >= 20);
+                  const dropping = equipmentStress.equipment.filter(e => e.changePercent <= -20 && e.prevUsage > 0);
+                  const totalUsage = equipmentStress.equipment.reduce((s, e) => s + e.totalUsage, 0);
+
+                  return (
+                    <>
+                      <div className="grid grid-cols-3 gap-2" data-testid="equipment-summary">
+                        <div className="rounded-lg bg-muted/30 p-2.5 text-center">
+                          <div className="text-lg font-bold tabular-nums" data-testid="text-total-equipment">{equipmentStress.equipment.length}</div>
+                          <div className="text-[10px] text-muted-foreground">Equipment</div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-                <div className="space-y-1.5">
-                  {equipmentStress.equipment.map((equip) => {
-                    const maxUsage = Math.max(...equipmentStress.equipment.map(e => e.usagePerUnit), 1);
-                    const barWidth = (equip.usagePerUnit / maxUsage) * 100;
-                    const stressColors = {
-                      high: 'bg-gradient-to-r from-red-400/70 to-red-500',
-                      medium: 'bg-gradient-to-r from-amber-400/70 to-amber-500',
-                      low: 'bg-gradient-to-r from-emerald-400/70 to-emerald-500',
-                    };
-                    const stressDots = {
-                      high: 'bg-red-500',
-                      medium: 'bg-amber-500',
-                      low: 'bg-emerald-500',
-                    };
-                    return (
-                      <div key={equip.id} className="group" data-testid={`equipment-stress-${equip.id}`}>
-                        <div className="flex items-center gap-3 p-2 rounded-lg bg-background/50">
-                          <div className="w-[100px] sm:w-[140px] shrink-0 flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${stressDots[equip.stressLevel]}`} />
-                            <div className="min-w-0">
-                              <span className="text-xs font-medium truncate block">{equip.name}</span>
-                              <span className="text-[10px] text-muted-foreground/60 truncate block">
-                                {equip.quantity > 1 ? `${equip.quantity} units` : equip.category}
-                              </span>
-                            </div>
+                        <div className="rounded-lg bg-muted/30 p-2.5 text-center">
+                          <div className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400" data-testid="text-active-count">{active.length}</div>
+                          <div className="text-[10px] text-muted-foreground">Active</div>
+                        </div>
+                        <div className="rounded-lg bg-muted/30 p-2.5 text-center">
+                          <div className={`text-lg font-bold tabular-nums ${unused.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} data-testid="text-unused-count">{unused.length}</div>
+                          <div className="text-[10px] text-muted-foreground">Unused</div>
+                        </div>
+                      </div>
+
+                      {active.length > 0 && (
+                        <div data-testid="equipment-active-section">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-1 h-4 rounded-full bg-emerald-500" />
+                            <span className="text-xs font-semibold">Active Equipment</span>
+                            <span className="text-[10px] text-muted-foreground">({totalUsage} total uses)</span>
                           </div>
-                          <div className="flex-1 flex items-center gap-2">
-                            <div className="flex-1 h-5 rounded-full bg-muted/30 overflow-hidden relative">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${stressColors[equip.stressLevel]}`}
-                                style={{ width: `${Math.max(barWidth, 2)}%` }}
-                              />
-                              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular-nums">
-                                {equip.usagePerUnit}/unit
-                              </span>
-                            </div>
+                          <div className="space-y-1">
+                            {active.sort((a, b) => b.usagePerUnit - a.usagePerUnit).map(equip => {
+                              const maxUsage = Math.max(...active.map(e => e.usagePerUnit), 1);
+                              const barWidth = Math.max((equip.usagePerUnit / maxUsage) * 100, 4);
+                              const stressGradient = equip.stressLevel === 'high'
+                                ? 'from-red-500 to-red-400' : equip.stressLevel === 'medium'
+                                ? 'from-amber-500 to-amber-400' : 'from-emerald-500 to-emerald-400';
+                              const stressLabel = equip.stressLevel === 'high'
+                                ? 'Overloaded' : equip.stressLevel === 'medium'
+                                ? 'Normal' : 'Light use';
+                              const recommendation = equip.stressLevel === 'high' && equip.quantity <= 1
+                                ? 'Consider adding more units'
+                                : equip.stressLevel === 'high'
+                                ? 'High demand — monitor wear'
+                                : equip.changePercent >= 30
+                                ? 'Demand rising — plan ahead'
+                                : equip.changePercent <= -30
+                                ? 'Declining use — investigate why'
+                                : equip.stressLevel === 'medium'
+                                ? 'Healthy usage level'
+                                : 'Room for more utilization';
+
+                              return (
+                                <div key={equip.id} className="rounded-lg border border-border/50 p-3 space-y-2" data-testid={`equipment-stress-${equip.id}`}>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                                        equip.stressLevel === 'high' ? 'bg-red-500' : equip.stressLevel === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
+                                      }`} />
+                                      <span className="text-sm font-medium truncate">{equip.name}</span>
+                                      {equip.quantity > 1 && <Badge variant="secondary" className="text-[10px] shrink-0">{equip.quantity} units</Badge>}
+                                    </div>
+                                    <Badge variant={equip.stressLevel === 'high' ? 'destructive' : 'secondary'} className="text-[10px] shrink-0">
+                                      {stressLabel}
+                                    </Badge>
+                                  </div>
+                                  <div className="h-3 rounded-full bg-muted/40 overflow-hidden">
+                                    <div className={`h-full rounded-full bg-gradient-to-r ${stressGradient} transition-all duration-700`} style={{ width: `${barWidth}%` }} />
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-[11px] text-muted-foreground">
+                                        <span className="font-semibold text-foreground">{equip.usagePerUnit}</span> uses/unit
+                                      </span>
+                                      <span className="text-[11px] text-muted-foreground">
+                                        <span className="font-semibold text-foreground">{equip.totalUsage}</span> total
+                                      </span>
+                                    </div>
+                                    {equip.changePercent !== 0 && (
+                                      <span className={`flex items-center gap-0.5 text-[11px] font-bold ${
+                                        equip.changePercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                                      }`}>
+                                        {equip.changePercent > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                        {equip.changePercent > 0 ? '+' : ''}{equip.changePercent}% vs last month
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className={`text-[11px] px-2 py-1 rounded-md ${
+                                    equip.stressLevel === 'high' ? 'bg-red-500/10 text-red-700 dark:text-red-300' :
+                                    equip.changePercent >= 30 ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300' :
+                                    equip.changePercent <= -30 ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300' :
+                                    'bg-muted/30 text-muted-foreground'
+                                  }`}>
+                                    <Lightbulb className="w-3 h-3 inline mr-1 -mt-0.5" />
+                                    {recommendation}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <div className="shrink-0 min-w-[70px] text-right flex items-center justify-end gap-1">
-                            <span className="text-xs font-bold tabular-nums">{equip.totalUsage}</span>
-                            {equip.changePercent !== 0 && (equip.totalUsage > 0 || equip.prevUsage > 0) && (
-                              <span className={`flex items-center text-[10px] font-bold tabular-nums ${
-                                equip.changePercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-                              }`}>
-                                {equip.changePercent > 0 ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-                                {equip.changePercent > 0 ? '+' : ''}{equip.changePercent}%
-                              </span>
+                        </div>
+                      )}
+
+                      {unused.length > 0 && (
+                        <div data-testid="equipment-unused-section">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-1 h-4 rounded-full bg-amber-500" />
+                            <span className="text-xs font-semibold">Unused Equipment</span>
+                            <span className="text-[10px] text-muted-foreground">— no tracked usage in last 30 days</span>
+                          </div>
+                          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              {unused.map(equip => (
+                                <div key={equip.id} className="flex items-center gap-2 p-2 rounded-md bg-background/50" data-testid={`equipment-unused-${equip.id}`}>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                                  <div className="min-w-0">
+                                    <span className="text-xs font-medium truncate block">{equip.name}</span>
+                                    <span className="text-[10px] text-muted-foreground/60">{equip.category}{equip.quantity > 1 ? ` · ${equip.quantity}x` : ''}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-[10px] text-amber-700/70 dark:text-amber-300/70 mt-2">
+                              These items have no workout data matched. Members may not be logging exercises for them, or exercise-to-equipment mappings need setup.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {(highStress.length > 0 || rising.length > 0 || dropping.length > 0 || unused.length > active.length) && (
+                        <div data-testid="equipment-recommendations">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-1 h-4 rounded-full bg-blue-500" />
+                            <span className="text-xs font-semibold">Investment Recommendations</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {highStress.map(e => (
+                              <div key={`rec-high-${e.id}`} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                                <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                                <span className="text-xs text-red-700 dark:text-red-300">
+                                  <strong>Buy more {e.name}</strong> — {e.usagePerUnit} uses per unit is very high{e.quantity <= 1 ? '. You only have 1 unit' : ` across ${e.quantity} units`}. Adding units will reduce wait times and wear.
+                                </span>
+                              </div>
+                            ))}
+                            {rising.filter(e => e.stressLevel !== 'high').map(e => (
+                              <div key={`rec-rise-${e.id}`} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                                <TrendingUp className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+                                <span className="text-xs text-blue-700 dark:text-blue-300">
+                                  <strong>{e.name} demand growing</strong> — up {e.changePercent}% this month. If this trend continues, consider investing in additional units.
+                                </span>
+                              </div>
+                            ))}
+                            {dropping.map(e => (
+                              <div key={`rec-drop-${e.id}`} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                <TrendingDown className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                <span className="text-xs text-amber-700 dark:text-amber-300">
+                                  <strong>{e.name} declining</strong> — usage down {Math.abs(e.changePercent)}%. Consider if members prefer alternatives, or if equipment needs maintenance.
+                                </span>
+                              </div>
+                            ))}
+                            {unused.length > active.length && (
+                              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                <span className="text-xs text-amber-700 dark:text-amber-300">
+                                  <strong>{unused.length} of {equipmentStress.equipment.length} equipment items are unused.</strong> Map exercises to them in Equipment Setup for better tracking, or consider if they should be replaced with in-demand equipment.
+                                </span>
+                              </div>
                             )}
                           </div>
                         </div>
+                      )}
+
+                      <div className="flex items-center justify-end px-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-[10px] text-muted-foreground"
+                          onClick={() => navigate("/owner/equipment-setup")}
+                          data-testid="button-manage-equipment"
+                        >
+                          <Settings2 className="w-3 h-3 mr-1" />
+                          Manage Equipment
+                        </Button>
                       </div>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center justify-between px-2">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-red-500" />
-                      <span className="text-[10px] text-muted-foreground">High</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-amber-500" />
-                      <span className="text-[10px] text-muted-foreground">Medium</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="text-[10px] text-muted-foreground">Low</span>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-[10px] text-muted-foreground"
-                    onClick={() => navigate("/owner/equipment-setup")}
-                    data-testid="button-manage-equipment"
-                  >
-                    <Settings2 className="w-3 h-3 mr-1" />
-                    Manage Equipment
-                  </Button>
-                </div>
+                    </>
+                  );
+                })()}
               </div>
             ) : (
               <div className="py-8 text-center">
