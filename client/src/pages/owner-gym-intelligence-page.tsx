@@ -282,180 +282,111 @@ export default function OwnerGymIntelligencePage() {
             ) : equipmentStress && equipmentStress.hasSetup && equipmentStress.equipment.length > 0 ? (
               <div className="space-y-4">
                 {(() => {
-                  const active = equipmentStress.equipment.filter(e => e.totalUsage > 0);
-                  const unused = equipmentStress.equipment.filter(e => e.totalUsage === 0);
-                  const highStress = active.filter(e => e.stressLevel === 'high');
-                  const rising = active.filter(e => e.changePercent >= 20);
-                  const dropping = equipmentStress.equipment.filter(e => e.changePercent <= -20 && e.prevUsage > 0);
-                  const totalUsage = equipmentStress.equipment.reduce((s, e) => s + e.totalUsage, 0);
+                  const all = equipmentStress.equipment;
+                  const active = all.filter(e => e.totalUsage > 0);
+                  const unused = all.filter(e => e.totalUsage === 0);
+                  const totalUsage = all.reduce((s, e) => s + e.totalUsage, 0);
+                  const sorted = [...all].sort((a, b) => b.totalUsage - a.totalUsage);
+                  const maxUsage = Math.max(...all.map(e => e.usagePerUnit), 1);
+
+                  const getStatus = (e: typeof all[0]) => {
+                    if (e.totalUsage === 0 && e.prevUsage === 0) return { label: 'No Data', color: 'text-slate-400', bg: 'bg-slate-500/10', dot: 'bg-slate-400', border: 'border-slate-500/20' };
+                    if (e.totalUsage === 0 && e.prevUsage > 0) return { label: 'Dropped Off', color: 'text-red-500', bg: 'bg-red-500/10', dot: 'bg-red-500', border: 'border-red-500/20' };
+                    if (e.stressLevel === 'high') return { label: 'Overloaded', color: 'text-red-500', bg: 'bg-red-500/10', dot: 'bg-red-500', border: 'border-red-500/20' };
+                    if (e.changePercent >= 30) return { label: 'Rising', color: 'text-blue-500', bg: 'bg-blue-500/10', dot: 'bg-blue-500', border: 'border-blue-500/20' };
+                    if (e.changePercent <= -30 && e.prevUsage > 0) return { label: 'Declining', color: 'text-amber-500', bg: 'bg-amber-500/10', dot: 'bg-amber-500', border: 'border-amber-500/20' };
+                    if (e.stressLevel === 'medium') return { label: 'Healthy', color: 'text-emerald-500', bg: 'bg-emerald-500/10', dot: 'bg-emerald-500', border: 'border-emerald-500/20' };
+                    if (e.totalUsage > 0) return { label: 'Light Use', color: 'text-emerald-500', bg: 'bg-emerald-500/10', dot: 'bg-emerald-500', border: 'border-emerald-500/20' };
+                    return { label: 'No Data', color: 'text-slate-400', bg: 'bg-slate-500/10', dot: 'bg-slate-400', border: 'border-slate-500/20' };
+                  };
+
+                  const getAdvice = (e: typeof all[0]) => {
+                    if (e.totalUsage === 0 && e.prevUsage > 0) return { icon: '🔻', text: `Was used last month (${e.prevUsage} times) but dropped to zero. Check if it needs repair or if members switched to alternatives.` };
+                    if (e.totalUsage === 0 && !e.hasCustomMapping) return { icon: '🔗', text: `No usage tracked. Map exercises to this equipment in Equipment Setup so the system can track its usage automatically.` };
+                    if (e.totalUsage === 0) return { icon: '💤', text: `No member workouts match this equipment. It may need repositioning or promotion to increase visibility.` };
+                    if (e.stressLevel === 'high' && e.quantity <= 1) return { icon: '🚨', text: `Very high demand with only 1 unit. Strongly consider buying a second unit to reduce wait times and equipment wear.` };
+                    if (e.stressLevel === 'high') return { icon: '⚠️', text: `Under heavy load (${e.usagePerUnit} uses/unit). Monitor for wear and consider adding more units if this continues.` };
+                    if (e.changePercent >= 50) return { icon: '🚀', text: `Demand surging — up ${e.changePercent}% this month! Plan to invest in additional units before it becomes a bottleneck.` };
+                    if (e.changePercent >= 20) return { icon: '📈', text: `Growing demand — up ${e.changePercent}% vs last month. Keep monitoring; may need more units soon.` };
+                    if (e.changePercent <= -50 && e.prevUsage > 0) return { icon: '📉', text: `Usage dropped sharply by ${Math.abs(e.changePercent)}%. Investigate — could be seasonal, or members may prefer other equipment.` };
+                    if (e.changePercent <= -20 && e.prevUsage > 0) return { icon: '📉', text: `Usage declining (${Math.abs(e.changePercent)}% down). Worth checking if it needs maintenance or better placement.` };
+                    if (e.stressLevel === 'medium') return { icon: '✅', text: `Healthy usage at ${e.usagePerUnit} uses/unit. No action needed — well balanced for current member demand.` };
+                    return { icon: '💡', text: `Light usage at ${e.usagePerUnit} uses/unit. Room for more utilization — consider promoting it or adding related exercises to workout plans.` };
+                  };
 
                   return (
                     <>
-                      <div className="grid grid-cols-3 gap-2" data-testid="equipment-summary">
-                        <div className="rounded-lg bg-muted/30 p-2.5 text-center">
-                          <div className="text-lg font-bold tabular-nums" data-testid="text-total-equipment">{equipmentStress.equipment.length}</div>
-                          <div className="text-[10px] text-muted-foreground">Equipment</div>
+                      <div className="grid grid-cols-4 gap-2" data-testid="equipment-summary">
+                        <div className="rounded-lg bg-muted/30 p-2 text-center">
+                          <div className="text-base font-bold tabular-nums">{all.length}</div>
+                          <div className="text-[9px] text-muted-foreground">Total</div>
                         </div>
-                        <div className="rounded-lg bg-muted/30 p-2.5 text-center">
-                          <div className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400" data-testid="text-active-count">{active.length}</div>
-                          <div className="text-[10px] text-muted-foreground">Active</div>
+                        <div className="rounded-lg bg-emerald-500/10 p-2 text-center">
+                          <div className="text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{active.length}</div>
+                          <div className="text-[9px] text-emerald-600/70 dark:text-emerald-400/70">In Use</div>
                         </div>
-                        <div className="rounded-lg bg-muted/30 p-2.5 text-center">
-                          <div className={`text-lg font-bold tabular-nums ${unused.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`} data-testid="text-unused-count">{unused.length}</div>
-                          <div className="text-[10px] text-muted-foreground">Unused</div>
+                        <div className="rounded-lg bg-amber-500/10 p-2 text-center">
+                          <div className="text-base font-bold tabular-nums text-amber-600 dark:text-amber-400">{unused.length}</div>
+                          <div className="text-[9px] text-amber-600/70 dark:text-amber-400/70">Not Tracked</div>
+                        </div>
+                        <div className="rounded-lg bg-blue-500/10 p-2 text-center">
+                          <div className="text-base font-bold tabular-nums text-blue-600 dark:text-blue-400">{totalUsage}</div>
+                          <div className="text-[9px] text-blue-600/70 dark:text-blue-400/70">Total Uses</div>
                         </div>
                       </div>
 
-                      {active.length > 0 && (
-                        <div data-testid="equipment-active-section">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-1 h-4 rounded-full bg-emerald-500" />
-                            <span className="text-xs font-semibold">Active Equipment</span>
-                            <span className="text-[10px] text-muted-foreground">({totalUsage} total uses)</span>
-                          </div>
-                          <div className="space-y-1">
-                            {active.sort((a, b) => b.usagePerUnit - a.usagePerUnit).map(equip => {
-                              const maxUsage = Math.max(...active.map(e => e.usagePerUnit), 1);
-                              const barWidth = Math.max((equip.usagePerUnit / maxUsage) * 100, 4);
-                              const stressGradient = equip.stressLevel === 'high'
-                                ? 'from-red-500 to-red-400' : equip.stressLevel === 'medium'
-                                ? 'from-amber-500 to-amber-400' : 'from-emerald-500 to-emerald-400';
-                              const stressLabel = equip.stressLevel === 'high'
-                                ? 'Overloaded' : equip.stressLevel === 'medium'
-                                ? 'Normal' : 'Light use';
-                              const recommendation = equip.stressLevel === 'high' && equip.quantity <= 1
-                                ? 'Consider adding more units'
-                                : equip.stressLevel === 'high'
-                                ? 'High demand — monitor wear'
-                                : equip.changePercent >= 30
-                                ? 'Demand rising — plan ahead'
-                                : equip.changePercent <= -30
-                                ? 'Declining use — investigate why'
-                                : equip.stressLevel === 'medium'
-                                ? 'Healthy usage level'
-                                : 'Room for more utilization';
+                      <div className="space-y-2" data-testid="equipment-detail-list">
+                        {sorted.map(equip => {
+                          const status = getStatus(equip);
+                          const advice = getAdvice(equip);
+                          const barWidth = maxUsage > 0 ? Math.max((equip.usagePerUnit / maxUsage) * 100, 0) : 0;
 
-                              return (
-                                <div key={equip.id} className="rounded-lg border border-border/50 p-3 space-y-2" data-testid={`equipment-stress-${equip.id}`}>
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                                        equip.stressLevel === 'high' ? 'bg-red-500' : equip.stressLevel === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
-                                      }`} />
-                                      <span className="text-sm font-medium truncate">{equip.name}</span>
-                                      {equip.quantity > 1 && <Badge variant="secondary" className="text-[10px] shrink-0">{equip.quantity} units</Badge>}
-                                    </div>
-                                    <Badge variant={equip.stressLevel === 'high' ? 'destructive' : 'secondary'} className="text-[10px] shrink-0">
-                                      {stressLabel}
-                                    </Badge>
+                          return (
+                            <div key={equip.id} className={`rounded-xl border ${status.border} overflow-hidden`} data-testid={`equipment-card-${equip.id}`}>
+                              <div className="p-3 space-y-2.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${status.dot}`} />
+                                    <span className="text-[13px] font-semibold truncate">{equip.name}</span>
+                                    {equip.quantity > 1 && <Badge variant="secondary" className="text-[10px] shrink-0">{equip.quantity}x</Badge>}
                                   </div>
-                                  <div className="h-3 rounded-full bg-muted/40 overflow-hidden">
-                                    <div className={`h-full rounded-full bg-gradient-to-r ${stressGradient} transition-all duration-700`} style={{ width: `${barWidth}%` }} />
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                      <span className="text-[11px] text-muted-foreground">
-                                        <span className="font-semibold text-foreground">{equip.usagePerUnit}</span> uses/unit
-                                      </span>
-                                      <span className="text-[11px] text-muted-foreground">
-                                        <span className="font-semibold text-foreground">{equip.totalUsage}</span> total
-                                      </span>
-                                    </div>
-                                    {equip.changePercent !== 0 && (
-                                      <span className={`flex items-center gap-0.5 text-[11px] font-bold ${
-                                        equip.changePercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-                                      }`}>
-                                        {equip.changePercent > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                        {equip.changePercent > 0 ? '+' : ''}{equip.changePercent}% vs last month
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className={`text-[11px] px-2 py-1 rounded-md ${
-                                    equip.stressLevel === 'high' ? 'bg-red-500/10 text-red-700 dark:text-red-300' :
-                                    equip.changePercent >= 30 ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300' :
-                                    equip.changePercent <= -30 ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300' :
-                                    'bg-muted/30 text-muted-foreground'
-                                  }`}>
-                                    <Lightbulb className="w-3 h-3 inline mr-1 -mt-0.5" />
-                                    {recommendation}
-                                  </div>
+                                  <Badge variant="outline" className={`text-[10px] shrink-0 ${status.color} border-current/30`}>
+                                    {status.label}
+                                  </Badge>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
 
-                      {unused.length > 0 && (
-                        <div data-testid="equipment-unused-section">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-1 h-4 rounded-full bg-amber-500" />
-                            <span className="text-xs font-semibold">Unused Equipment</span>
-                            <span className="text-[10px] text-muted-foreground">— no tracked usage in last 30 days</span>
-                          </div>
-                          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                              {unused.map(equip => (
-                                <div key={equip.id} className="flex items-center gap-2 p-2 rounded-md bg-background/50" data-testid={`equipment-unused-${equip.id}`}>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                                  <div className="min-w-0">
-                                    <span className="text-xs font-medium truncate block">{equip.name}</span>
-                                    <span className="text-[10px] text-muted-foreground/60">{equip.category}{equip.quantity > 1 ? ` · ${equip.quantity}x` : ''}</span>
-                                  </div>
+                                {equip.totalUsage > 0 && (
+                                  <>
+                                    <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
+                                      <div className={`h-full rounded-full ${status.bg.replace('/10', '')} transition-all duration-700`}
+                                        style={{ width: `${Math.max(barWidth, 3)}%`, background: equip.stressLevel === 'high' ? 'linear-gradient(90deg, #ef4444, #dc2626)' : equip.stressLevel === 'medium' ? 'linear-gradient(90deg, #f59e0b, #d97706)' : 'linear-gradient(90deg, #22c55e, #16a34a)' }}
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-4 text-[11px]">
+                                      <span className="text-muted-foreground"><span className="font-bold text-foreground">{equip.usagePerUnit}</span> uses/unit</span>
+                                      <span className="text-muted-foreground"><span className="font-bold text-foreground">{equip.totalUsage}</span> total</span>
+                                      {equip.changePercent !== 0 && (
+                                        <span className={`flex items-center gap-0.5 font-bold ml-auto ${equip.changePercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                          {equip.changePercent > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                          {equip.changePercent > 0 ? '+' : ''}{equip.changePercent}%
+                                        </span>
+                                      )}
+                                    </div>
+                                  </>
+                                )}
+
+                                <div className={`text-[11px] leading-relaxed px-2.5 py-2 rounded-lg ${status.bg} ${status.color}`}>
+                                  <span className="mr-1">{advice.icon}</span>
+                                  {advice.text}
                                 </div>
-                              ))}
+                              </div>
                             </div>
-                            <p className="text-[10px] text-amber-700/70 dark:text-amber-300/70 mt-2">
-                              These items have no workout data matched. Members may not be logging exercises for them, or exercise-to-equipment mappings need setup.
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                          );
+                        })}
+                      </div>
 
-                      {(highStress.length > 0 || rising.length > 0 || dropping.length > 0 || unused.length > active.length) && (
-                        <div data-testid="equipment-recommendations">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-1 h-4 rounded-full bg-blue-500" />
-                            <span className="text-xs font-semibold">Investment Recommendations</span>
-                          </div>
-                          <div className="space-y-1.5">
-                            {highStress.map(e => (
-                              <div key={`rec-high-${e.id}`} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                                <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
-                                <span className="text-xs text-red-700 dark:text-red-300">
-                                  <strong>Buy more {e.name}</strong> — {e.usagePerUnit} uses per unit is very high{e.quantity <= 1 ? '. You only have 1 unit' : ` across ${e.quantity} units`}. Adding units will reduce wait times and wear.
-                                </span>
-                              </div>
-                            ))}
-                            {rising.filter(e => e.stressLevel !== 'high').map(e => (
-                              <div key={`rec-rise-${e.id}`} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                                <TrendingUp className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
-                                <span className="text-xs text-blue-700 dark:text-blue-300">
-                                  <strong>{e.name} demand growing</strong> — up {e.changePercent}% this month. If this trend continues, consider investing in additional units.
-                                </span>
-                              </div>
-                            ))}
-                            {dropping.map(e => (
-                              <div key={`rec-drop-${e.id}`} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                                <TrendingDown className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                                <span className="text-xs text-amber-700 dark:text-amber-300">
-                                  <strong>{e.name} declining</strong> — usage down {Math.abs(e.changePercent)}%. Consider if members prefer alternatives, or if equipment needs maintenance.
-                                </span>
-                              </div>
-                            ))}
-                            {unused.length > active.length && (
-                              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                                <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                                <span className="text-xs text-amber-700 dark:text-amber-300">
-                                  <strong>{unused.length} of {equipmentStress.equipment.length} equipment items are unused.</strong> Map exercises to them in Equipment Setup for better tracking, or consider if they should be replaced with in-demand equipment.
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-end px-1">
+                      <div className="flex items-center justify-between px-1">
+                        <p className="text-[10px] text-muted-foreground/50">Based on member workout logs from the last 30 days</p>
                         <Button
                           variant="ghost"
                           size="sm"
