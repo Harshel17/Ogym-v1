@@ -17,7 +17,11 @@ import {
   sportProfiles,
   sportPrograms,
   matchLogs,
-  userGoals
+  userGoals,
+  gymEquipment,
+  equipmentExerciseMappings,
+  workoutLogs,
+  workoutLogExercises
 } from "@shared/schema";
 import { eq, and, gte, lte, desc, sql, inArray, isNull, or, not, count } from "drizzle-orm";
 import { storage } from "../storage";
@@ -748,6 +752,12 @@ interface OwnerContext {
     endingSoonCount: number;
     overdueCount: number;
     endingSoonMembers: string[];
+  } | null;
+  equipmentIntelligence: {
+    topEquipment: { name: string; usage: number; changePercent: number; stressLevel: string }[];
+    needsAttention: { name: string; usage: number; reason: string }[];
+    totalEquipment: number;
+    highStressCount: number;
   } | null;
 }
 
@@ -1642,6 +1652,115 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
     console.error('Failed to fetch payment breakdown for Dika:', err);
   }
 
+  let equipmentIntelligence: OwnerContext['equipmentIntelligence'] = null;
+  try {
+    const equipment = await db.select().from(gymEquipment).where(eq(gymEquipment.gymId, gymId));
+    if (equipment.length > 0) {
+      const equipmentIds = equipment.map(e => e.id);
+      const mappings = await db.select().from(equipmentExerciseMappings).where(inArray(equipmentExerciseMappings.equipmentId, equipmentIds));
+
+      const thirtyDaysAgoDate = new Date();
+      thirtyDaysAgoDate.setDate(thirtyDaysAgoDate.getDate() - 30);
+      const thirtyDaysAgo = thirtyDaysAgoDate.toISOString().split('T')[0];
+      const sixtyDaysAgoDate = new Date();
+      sixtyDaysAgoDate.setDate(sixtyDaysAgoDate.getDate() - 60);
+      const sixtyDaysAgo = sixtyDaysAgoDate.toISOString().split('T')[0];
+
+      const recentExercises = await db.select({
+        exerciseName: workoutLogExercises.exerciseName,
+        count: sql<number>`count(*)::int`,
+      }).from(workoutLogExercises)
+        .innerJoin(workoutLogs, eq(workoutLogExercises.workoutLogId, workoutLogs.id))
+        .where(and(eq(workoutLogs.gymId, gymId), gte(workoutLogs.completedDate, thirtyDaysAgo)))
+        .groupBy(workoutLogExercises.exerciseName);
+
+      const previousExercises = await db.select({
+        exerciseName: workoutLogExercises.exerciseName,
+        count: sql<number>`count(*)::int`,
+      }).from(workoutLogExercises)
+        .innerJoin(workoutLogs, eq(workoutLogExercises.workoutLogId, workoutLogs.id))
+        .where(and(eq(workoutLogs.gymId, gymId), gte(workoutLogs.completedDate, sixtyDaysAgo), lte(workoutLogs.completedDate, thirtyDaysAgo)))
+        .groupBy(workoutLogExercises.exerciseName);
+
+      const exerciseCountMap = new Map(recentExercises.map(e => [e.exerciseName.toLowerCase(), e.count]));
+      const prevExerciseCountMap = new Map(previousExercises.map(e => [e.exerciseName.toLowerCase(), e.count]));
+
+      const GENERIC_MAP: Record<string, string[]> = {
+        'bench': ['bench press', 'dumbbell bench', 'incline bench', 'decline bench', 'chest press', 'dumbbell press'],
+        'cable': ['cable fly', 'cable crossover', 'tricep pushdown', 'cable curl', 'face pull', 'lat pulldown', 'cable row'],
+        'squat rack': ['squat', 'back squat', 'front squat', 'overhead press', 'barbell row'],
+        'power rack': ['squat', 'back squat', 'front squat', 'overhead press', 'barbell row', 'deadlift'],
+        'leg press': ['leg press', 'calf raise'],
+        'treadmill': ['treadmill', 'running', 'walking'],
+        'pull-up bar': ['pull up', 'chin up', 'hanging leg raise'],
+        'dumbbell': ['dumbbell', 'db curl', 'hammer curl', 'lateral raise', 'shoulder press'],
+        'barbell': ['deadlift', 'barbell curl', 'barbell row', 'clean', 'snatch'],
+      };
+
+      const getUsage = (equip: any, countMap: Map<string, number>) => {
+        const customMappings = mappings.filter(m => m.equipmentId === equip.id);
+        let totalUsage = 0;
+        if (customMappings.length > 0) {
+          for (const cm of customMappings) {
+            const c = countMap.get(cm.exerciseName.toLowerCase()) || 0;
+            totalUsage += cm.priority === 'primary' ? c : Math.round(c * 0.5);
+          }
+        } else {
+          const equipNameLower = equip.name.toLowerCase();
+          for (const [genericName, exercises] of Object.entries(GENERIC_MAP)) {
+            if (equipNameLower.includes(genericName) || genericName.includes(equipNameLower)) {
+              for (const ex of exercises) {
+                countMap.forEach((c, loggedName) => {
+                  if (loggedName.includes(ex) || ex.includes(loggedName)) totalUsage += c;
+                });
+              }
+              break;
+            }
+          }
+        }
+        return totalUsage;
+      };
+
+      const results = equipment.map(equip => {
+        const totalUsage = getUsage(equip, exerciseCountMap);
+        const prevUsage = getUsage(equip, prevExerciseCountMap);
+        const usagePerUnit = equip.quantity ? Math.round(totalUsage / equip.quantity) : totalUsage;
+        const changePercent = prevUsage > 0 ? Math.round(((totalUsage - prevUsage) / prevUsage) * 100) : (totalUsage > 0 ? 100 : 0);
+        return { name: equip.name, totalUsage, prevUsage, changePercent, usagePerUnit, quantity: equip.quantity };
+      });
+
+      const maxUsagePerUnit = Math.max(...results.map(r => r.usagePerUnit), 1);
+      const withStress = results.map(r => ({
+        ...r,
+        stressLevel: r.usagePerUnit >= maxUsagePerUnit * 0.7 && r.usagePerUnit > 0 ? 'high' : r.usagePerUnit >= maxUsagePerUnit * 0.3 ? 'medium' : 'low',
+      })).sort((a, b) => b.totalUsage - a.totalUsage);
+
+      const topEquipment = withStress.slice(0, 3).map(e => ({
+        name: e.name, usage: e.totalUsage, changePercent: e.changePercent, stressLevel: e.stressLevel,
+      }));
+
+      const needsAttention = withStress
+        .filter(e => e.stressLevel === 'high' || (e.changePercent >= 50 && e.totalUsage > 0))
+        .slice(0, 5)
+        .map(e => ({
+          name: e.name,
+          usage: e.totalUsage,
+          reason: e.stressLevel === 'high'
+            ? `High stress — ${e.usagePerUnit} uses/unit${e.quantity === 1 ? ', consider adding more units' : ` across ${e.quantity} units`}`
+            : `Usage up ${e.changePercent}% vs last month`,
+        }));
+
+      equipmentIntelligence = {
+        topEquipment,
+        needsAttention,
+        totalEquipment: equipment.length,
+        highStressCount: withStress.filter(e => e.stressLevel === 'high').length,
+      };
+    }
+  } catch (err) {
+    console.error('Failed to fetch equipment intelligence for Dika:', err);
+  }
+
   return {
     totalMembers,
     activeMembers: activeMembersResult?.count || 0,
@@ -1662,6 +1781,7 @@ async function getOwnerDataContext(gymId: number): Promise<OwnerContext> {
     aiInsights,
     paymentBreakdown,
     subscriptionSummary,
+    equipmentIntelligence,
   };
 }
 
@@ -2210,6 +2330,18 @@ SUBSCRIPTION STATUS:
       ? `\n  Names: ${ctx.newMemberNames.join(', ')}`
       : '';
 
+    const equipmentSection = ctx.equipmentIntelligence ? (() => {
+      const ei = ctx.equipmentIntelligence;
+      const topList = ei.topEquipment.map(e => `${e.name} (${e.usage} uses, ${e.changePercent >= 0 ? '+' : ''}${e.changePercent}%)`).join(', ');
+      const attentionList = ei.needsAttention.map(e => `${e.name} — ${e.reason}`).join('\n  - ');
+      return `
+EQUIPMENT INTELLIGENCE:
+- Total equipment registered: ${ei.totalEquipment}
+- High stress items: ${ei.highStressCount}
+- Top equipment: ${topList || 'No usage data yet'}${ei.needsAttention.length > 0 ? `\n- Needs attention:\n  - ${attentionList}` : ''}
+When asked about equipment, busiest machines, or what needs attention, use this data.`;
+    })() : '';
+
     return basePrompt + `
 GYM OVERVIEW:
 - Total members: ${ctx.totalMembers}
@@ -2220,10 +2352,11 @@ GYM OVERVIEW:
 - Revenue this month: ${currency}${ctx.revenueThisMonth.toLocaleString()}
 - New members this month: ${ctx.recentTrends.newMembersThisMonth}${newMemberList}
 ${paymentSection}${subSection}
-${insightsSection}
+${insightsSection}${equipmentSection}
 
 You can help this owner with:
 - Business performance analysis and member lists
+- Equipment usage insights and what needs attention
 - Who joined this month (new members) — always list their names when asked
 - Member retention insights with specific names and churn scores
 - Revenue and payment tracking (by method: cash, card, UPI, etc.) with month-over-month comparisons

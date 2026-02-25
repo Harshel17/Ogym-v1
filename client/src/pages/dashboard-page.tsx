@@ -774,6 +774,12 @@ function OwnerDashboard() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const { data: equipmentStressData } = useQuery<any>({
+    queryKey: ["/api/owner/gym-intelligence/equipment-stress"],
+    staleTime: 1000 * 60 * 10,
+    enabled: !isIOSNativeApp,
+  });
+
   const { data: dashboardMetrics, isLoading: metricsLoading } = useQuery<{
     totalMembers: number;
     checkedInToday: number;
@@ -1170,26 +1176,49 @@ function OwnerDashboard() {
         </div>
       )}
 
-      {!isIOSNativeApp && (
-        <Card
-          className="card-elevated cursor-pointer hover-elevate bg-gradient-to-r from-purple-500/5 via-transparent to-blue-500/5"
-          onClick={() => navigate("/owner/gym-intelligence")}
-          data-testid="card-gym-intelligence-teaser"
-        >
-          <CardContent className="p-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500/15 to-blue-500/15">
-                <BarChart3 className="w-4 h-4 text-purple-500" />
+      {!isIOSNativeApp && (() => {
+        const eqData = equipmentStressData?.equipment;
+        let insightText = "Peak hours, muscle trends & equipment insights";
+        let insightBadge = "New";
+
+        if (eqData && Array.isArray(eqData) && eqData.length > 0) {
+          const sorted = [...eqData].sort((a: any, b: any) => (b.totalUsage || 0) - (a.totalUsage || 0));
+          const top = sorted[0];
+          const needsAttention = sorted.filter((e: any) => e.stressLevel === 'high');
+
+          if (top) {
+            const changeStr = top.changePercent !== undefined && top.changePercent !== null
+              ? ` (${top.changePercent > 0 ? '+' : ''}${Math.round(top.changePercent)}%)`
+              : '';
+            const attentionStr = needsAttention.length > 0
+              ? ` — ${needsAttention.length} need${needsAttention.length === 1 ? 's' : ''} attention`
+              : '';
+            insightText = `${top.name} is at ${top.totalUsage} uses${changeStr}${attentionStr}`;
+            insightBadge = needsAttention.length > 0 ? "Attention" : "Live";
+          }
+        }
+
+        return (
+          <Card
+            className="card-elevated cursor-pointer hover-elevate bg-gradient-to-r from-purple-500/5 via-transparent to-blue-500/5"
+            onClick={() => navigate("/owner/gym-intelligence")}
+            data-testid="card-gym-intelligence-teaser"
+          >
+            <CardContent className="p-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500/15 to-blue-500/15">
+                  <BarChart3 className="w-4 h-4 text-purple-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold" data-testid="text-gym-intelligence-title">Gym Intelligence</p>
+                  <p className="text-[11px] text-muted-foreground truncate" data-testid="text-gym-intelligence-insight">{insightText}</p>
+                </div>
+                <Badge variant="secondary" className={`text-[9px] shrink-0 ${insightBadge === 'Attention' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400'}`} data-testid="badge-gym-intelligence">{insightBadge}</Badge>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold">Gym Intelligence</p>
-                <p className="text-[11px] text-muted-foreground">Peak hours, muscle trends & equipment insights</p>
-              </div>
-              <Badge variant="secondary" className="text-[9px] bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">New</Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       <div className="grid gap-2.5 md:grid-cols-2">
         <Card className="card-elevated">
