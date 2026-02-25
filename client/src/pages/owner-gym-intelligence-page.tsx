@@ -276,9 +276,10 @@ function EquipmentCard({ equip, prediction, onClick }: {
   const config = prediction ? actionConfig[prediction.action] : null;
 
   return (
-    <div
-      className={`rounded-xl border ${stress.border} bg-card cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/30 group`}
-      onClick={onClick}
+    <button
+      type="button"
+      className={`rounded-xl border ${stress.border} bg-card cursor-pointer transition-all duration-200 hover:shadow-md hover:border-primary/30 group text-left w-full`}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
       data-testid={`equipment-card-${equip.id}`}
     >
       <div className="p-3 space-y-2.5">
@@ -347,7 +348,7 @@ function EquipmentCard({ equip, prediction, onClick }: {
           </div>
         )}
       </div>
-    </div>
+    </button>
   );
 }
 
