@@ -979,6 +979,31 @@ export const insertDikaChatMessageSchema = createInsertSchema(dikaChatMessages).
 export const insertDikaInsightSchema = createInsertSchema(dikaInsights).omit({ id: true, updatedAt: true });
 export const insertDikaActionFeedSchema = createInsertSchema(dikaActionFeed).omit({ id: true, createdAt: true });
 
+// Gym Equipment & Exercise Mapping
+export const gymEquipment = pgTable("gym_equipment", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  quantity: integer("quantity").default(1),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  gymIdx: index("gym_equipment_gym_idx").on(table.gymId),
+}));
+
+export const equipmentExerciseMappings = pgTable("equipment_exercise_mappings", {
+  id: serial("id").primaryKey(),
+  equipmentId: integer("equipment_id").references(() => gymEquipment.id).notNull(),
+  exerciseName: text("exercise_name").notNull(),
+  priority: text("priority", { enum: ["primary", "secondary"] }).default("primary"),
+}, (table) => ({
+  equipmentIdx: index("equipment_exercise_mapping_equip_idx").on(table.equipmentId),
+}));
+
+export const insertGymEquipmentSchema = createInsertSchema(gymEquipment).omit({ id: true, createdAt: true });
+export const insertEquipmentExerciseMappingSchema = createInsertSchema(equipmentExerciseMappings).omit({ id: true });
+
 // Owner intervention tracking (Pillar 4: Adaptive Loops)
 export const ownerInterventions = pgTable("owner_interventions", {
   id: serial("id").primaryKey(),
@@ -1404,3 +1429,8 @@ export type DikaInsight = typeof dikaInsights.$inferSelect;
 export type InsertDikaInsight = z.infer<typeof insertDikaInsightSchema>;
 export type DikaActionFeedEntry = typeof dikaActionFeed.$inferSelect;
 export type InsertDikaActionFeedEntry = z.infer<typeof insertDikaActionFeedSchema>;
+
+export type GymEquipment = typeof gymEquipment.$inferSelect;
+export type InsertGymEquipment = z.infer<typeof insertGymEquipmentSchema>;
+export type EquipmentExerciseMapping = typeof equipmentExerciseMappings.$inferSelect;
+export type InsertEquipmentExerciseMapping = z.infer<typeof insertEquipmentExerciseMappingSchema>;

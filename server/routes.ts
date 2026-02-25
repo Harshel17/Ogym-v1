@@ -10,7 +10,7 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors, trainerMemberAssignments, feedPosts } from "@shared/schema";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors, trainerMemberAssignments, feedPosts, gymEquipment, equipmentExerciseMappings } from "@shared/schema";
 import { eq, and, isNotNull, isNull, inArray, sql, desc, gte, lte, like, asc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing } from "./dika";
@@ -9220,6 +9220,234 @@ Write a short, personal message. No subject line, just the message body. Use the
     } catch (error) {
       console.error('Muscle trends error:', error);
       res.status(500).json({ error: 'Failed to compute muscle trends' });
+    }
+  });
+
+  // === GYM EQUIPMENT MANAGEMENT ===
+  app.get("/api/owner/gym-equipment", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const equipment = await db.select().from(gymEquipment).where(eq(gymEquipment.gymId, gymId)).orderBy(asc(gymEquipment.category), asc(gymEquipment.name));
+
+      const equipmentIds = equipment.map(e => e.id);
+      const mappings = equipmentIds.length > 0
+        ? await db.select().from(equipmentExerciseMappings).where(inArray(equipmentExerciseMappings.equipmentId, equipmentIds))
+        : [];
+
+      const result = equipment.map(e => ({
+        ...e,
+        exercises: mappings.filter(m => m.equipmentId === e.id),
+      }));
+
+      res.json(result);
+    } catch (error) {
+      console.error('Get equipment error:', error);
+      res.status(500).json({ error: 'Failed to fetch equipment' });
+    }
+  });
+
+  app.post("/api/owner/gym-equipment", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const { name, category, quantity, notes } = req.body;
+      if (!name || !category) return res.status(400).json({ error: 'Name and category are required' });
+
+      const [created] = await db.insert(gymEquipment).values({
+        gymId,
+        name: name.trim(),
+        category: category.trim(),
+        quantity: quantity || 1,
+        notes: notes?.trim() || null,
+      }).returning();
+
+      res.json({ ...created, exercises: [] });
+    } catch (error) {
+      console.error('Add equipment error:', error);
+      res.status(500).json({ error: 'Failed to add equipment' });
+    }
+  });
+
+  app.patch("/api/owner/gym-equipment/:id", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const equipId = parseInt(req.params.id);
+      const existing = await db.select().from(gymEquipment).where(and(eq(gymEquipment.id, equipId), eq(gymEquipment.gymId, gymId)));
+      if (existing.length === 0) return res.status(404).json({ error: 'Equipment not found' });
+
+      const { name, category, quantity, notes } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name.trim();
+      if (category !== undefined) updates.category = category.trim();
+      if (quantity !== undefined) updates.quantity = quantity;
+      if (notes !== undefined) updates.notes = notes?.trim() || null;
+
+      const [updated] = await db.update(gymEquipment).set(updates).where(eq(gymEquipment.id, equipId)).returning();
+      res.json(updated);
+    } catch (error) {
+      console.error('Update equipment error:', error);
+      res.status(500).json({ error: 'Failed to update equipment' });
+    }
+  });
+
+  app.delete("/api/owner/gym-equipment/:id", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const equipId = parseInt(req.params.id);
+      const existing = await db.select().from(gymEquipment).where(and(eq(gymEquipment.id, equipId), eq(gymEquipment.gymId, gymId)));
+      if (existing.length === 0) return res.status(404).json({ error: 'Equipment not found' });
+
+      await db.delete(equipmentExerciseMappings).where(eq(equipmentExerciseMappings.equipmentId, equipId));
+      await db.delete(gymEquipment).where(eq(gymEquipment.id, equipId));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Delete equipment error:', error);
+      res.status(500).json({ error: 'Failed to delete equipment' });
+    }
+  });
+
+  app.post("/api/owner/gym-equipment/:id/exercises", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const equipId = parseInt(req.params.id);
+      const existing = await db.select().from(gymEquipment).where(and(eq(gymEquipment.id, equipId), eq(gymEquipment.gymId, gymId)));
+      if (existing.length === 0) return res.status(404).json({ error: 'Equipment not found' });
+
+      const { exerciseName, priority } = req.body;
+      if (!exerciseName) return res.status(400).json({ error: 'Exercise name is required' });
+
+      const [mapping] = await db.insert(equipmentExerciseMappings).values({
+        equipmentId: equipId,
+        exerciseName: exerciseName.trim(),
+        priority: priority || 'primary',
+      }).returning();
+
+      res.json(mapping);
+    } catch (error) {
+      console.error('Add exercise mapping error:', error);
+      res.status(500).json({ error: 'Failed to add exercise mapping' });
+    }
+  });
+
+  app.delete("/api/owner/gym-equipment/exercises/:mappingId", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const mappingId = parseInt(req.params.mappingId);
+
+      const [mapping] = await db.select({
+        id: equipmentExerciseMappings.id,
+        equipmentId: equipmentExerciseMappings.equipmentId,
+      }).from(equipmentExerciseMappings)
+        .innerJoin(gymEquipment, eq(equipmentExerciseMappings.equipmentId, gymEquipment.id))
+        .where(and(eq(equipmentExerciseMappings.id, mappingId), eq(gymEquipment.gymId, gymId)));
+
+      if (!mapping) return res.status(404).json({ error: 'Mapping not found' });
+
+      await db.delete(equipmentExerciseMappings).where(eq(equipmentExerciseMappings.id, mappingId));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Delete exercise mapping error:', error);
+      res.status(500).json({ error: 'Failed to delete exercise mapping' });
+    }
+  });
+
+  app.get("/api/owner/gym-intelligence/equipment-stress", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const thirtyDaysAgoDate = new Date();
+      thirtyDaysAgoDate.setDate(thirtyDaysAgoDate.getDate() - 30);
+      const thirtyDaysAgo = thirtyDaysAgoDate.toISOString().split('T')[0];
+
+      const equipment = await db.select().from(gymEquipment).where(eq(gymEquipment.gymId, gymId));
+      if (equipment.length === 0) {
+        return res.json({ equipment: [], hasSetup: false });
+      }
+
+      const equipmentIds = equipment.map(e => e.id);
+      const mappings = await db.select().from(equipmentExerciseMappings).where(inArray(equipmentExerciseMappings.equipmentId, equipmentIds));
+
+      const recentExercises = await db.select({
+        exerciseName: workoutLogExercises.exerciseName,
+        count: sql<number>`count(*)::int`,
+      }).from(workoutLogExercises)
+        .innerJoin(workoutLogs, eq(workoutLogExercises.workoutLogId, workoutLogs.id))
+        .where(and(eq(workoutLogs.gymId, gymId), gte(workoutLogs.completedDate, thirtyDaysAgo)))
+        .groupBy(workoutLogExercises.exerciseName);
+
+      const exerciseCountMap = new Map(recentExercises.map(e => [e.exerciseName.toLowerCase(), e.count]));
+
+      const GENERIC_MAP: Record<string, string[]> = {
+        'bench': ['bench press', 'dumbbell bench', 'incline bench', 'decline bench', 'chest press', 'dumbbell press', 'incline press', 'decline press'],
+        'cable machine': ['cable fly', 'cable crossover', 'tricep pushdown', 'cable curl', 'face pull', 'lat pulldown', 'cable row', 'cable crunch', 'rope pushdown', 'cable lateral raise'],
+        'squat rack': ['squat', 'back squat', 'front squat', 'overhead press', 'barbell row', 'military press', 'rack pull'],
+        'leg press': ['leg press', 'calf raise', 'seated calf raise'],
+        'smith machine': ['smith machine', 'smith squat', 'smith bench'],
+        'treadmill': ['treadmill', 'running', 'walking', 'jogging'],
+        'elliptical': ['elliptical'],
+        'stationary bike': ['cycling', 'bike', 'stationary bike'],
+        'rowing machine': ['rowing', 'row machine'],
+        'pull-up bar': ['pull up', 'chin up', 'hanging leg raise', 'pullup', 'chinup'],
+        'dumbbell': ['dumbbell', 'db curl', 'hammer curl', 'lateral raise', 'shoulder press', 'dumbbell fly'],
+        'barbell': ['deadlift', 'barbell curl', 'barbell row', 'clean', 'snatch'],
+        'leg curl machine': ['leg curl', 'hamstring curl'],
+        'leg extension machine': ['leg extension', 'quad extension'],
+        'chest fly machine': ['pec deck', 'chest fly machine', 'pec fly'],
+        'shoulder press machine': ['shoulder press machine', 'overhead press machine'],
+        'lat pulldown machine': ['lat pulldown'],
+        'seated row machine': ['seated row', 'machine row'],
+        'ab machine': ['ab crunch machine', 'ab machine'],
+        'preacher curl bench': ['preacher curl'],
+      };
+
+      const results = equipment.map(equip => {
+        const customMappings = mappings.filter(m => m.equipmentId === equip.id);
+        let totalUsage = 0;
+
+        if (customMappings.length > 0) {
+          for (const cm of customMappings) {
+            const count = exerciseCountMap.get(cm.exerciseName.toLowerCase()) || 0;
+            totalUsage += cm.priority === 'primary' ? count : Math.round(count * 0.5);
+          }
+        } else {
+          const equipNameLower = equip.name.toLowerCase();
+          for (const [genericName, exercises] of Object.entries(GENERIC_MAP)) {
+            if (equipNameLower.includes(genericName) || genericName.includes(equipNameLower)) {
+              for (const ex of exercises) {
+                for (const [loggedName, count] of exerciseCountMap) {
+                  if (loggedName.includes(ex) || ex.includes(loggedName)) {
+                    totalUsage += count;
+                  }
+                }
+              }
+              break;
+            }
+          }
+        }
+
+        const usagePerUnit = equip.quantity ? Math.round(totalUsage / equip.quantity) : totalUsage;
+
+        return {
+          id: equip.id,
+          name: equip.name,
+          category: equip.category,
+          quantity: equip.quantity,
+          totalUsage,
+          usagePerUnit,
+          hasCustomMapping: customMappings.length > 0,
+          mappedExercises: customMappings.length,
+        };
+      });
+
+      const maxUsagePerUnit = Math.max(...results.map(r => r.usagePerUnit), 1);
+      const stressResults = results.map(r => ({
+        ...r,
+        stressLevel: r.usagePerUnit >= maxUsagePerUnit * 0.7 && r.usagePerUnit > 0 ? 'high' as const :
+          r.usagePerUnit >= maxUsagePerUnit * 0.3 ? 'medium' as const : 'low' as const,
+      })).sort((a, b) => b.totalUsage - a.totalUsage);
+
+      res.json({ equipment: stressResults, hasSetup: true });
+    } catch (error) {
+      console.error('Equipment stress error:', error);
+      res.status(500).json({ error: 'Failed to compute equipment stress' });
     }
   });
 

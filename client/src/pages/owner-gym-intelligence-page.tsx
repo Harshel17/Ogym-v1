@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Flame, TrendingUp, TrendingDown, Minus, ArrowLeft, Clock, Dumbbell, BarChart3 } from "lucide-react";
+import { Flame, TrendingUp, TrendingDown, Minus, ArrowLeft, Clock, Dumbbell, BarChart3, Wrench, Settings2, AlertTriangle } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
 import { useLocation } from "wouter";
 
@@ -19,6 +19,21 @@ type MuscleTrendData = {
   totalThisMonth: number;
   totalLastMonth: number;
   overallChange: number;
+};
+
+type EquipmentStressData = {
+  equipment: {
+    id: number;
+    name: string;
+    category: string;
+    quantity: number;
+    totalUsage: number;
+    usagePerUnit: number;
+    hasCustomMapping: boolean;
+    mappedExercises: number;
+    stressLevel: 'high' | 'medium' | 'low';
+  }[];
+  hasSetup: boolean;
 };
 
 const levelColors = {
@@ -43,6 +58,11 @@ export default function OwnerGymIntelligencePage() {
 
   const { data: muscleTrends, isLoading: muscleLoading } = useQuery<MuscleTrendData>({
     queryKey: ["/api/owner/gym-intelligence/muscle-trends"],
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const { data: equipmentStress, isLoading: equipmentLoading } = useQuery<EquipmentStressData>({
+    queryKey: ["/api/owner/gym-intelligence/equipment-stress"],
     staleTime: 1000 * 60 * 10,
   });
 
@@ -230,6 +250,124 @@ export default function OwnerGymIntelligencePage() {
                 <Dumbbell className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">No workout data yet</p>
                 <p className="text-xs text-muted-foreground/60 mt-1">Muscle trends will appear once members log workouts</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="card-elevated md:col-span-2" data-testid="card-equipment-stress">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <div className="p-1.5 rounded-lg bg-orange-500/10">
+                <Wrench className="w-4 h-4 text-orange-500" />
+              </div>
+              Equipment Intelligence
+              <Badge variant="secondary" className="text-[10px] ml-auto">Last 30 days</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            {equipmentLoading ? (
+              <div className="h-[200px] flex items-center justify-center">
+                <div className="animate-pulse text-xs text-muted-foreground">Analyzing equipment usage...</div>
+              </div>
+            ) : equipmentStress && equipmentStress.hasSetup && equipmentStress.equipment.length > 0 ? (
+              <div className="space-y-3">
+                {equipmentStress.equipment.some(e => e.stressLevel === 'high') && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                    <span className="text-xs font-medium text-red-600 dark:text-red-400">
+                      {equipmentStress.equipment.filter(e => e.stressLevel === 'high').length} equipment item{equipmentStress.equipment.filter(e => e.stressLevel === 'high').length > 1 ? 's' : ''} under high stress
+                    </span>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  {equipmentStress.equipment.map((equip) => {
+                    const maxUsage = Math.max(...equipmentStress.equipment.map(e => e.usagePerUnit), 1);
+                    const barWidth = (equip.usagePerUnit / maxUsage) * 100;
+                    const stressColors = {
+                      high: 'bg-gradient-to-r from-red-400/70 to-red-500',
+                      medium: 'bg-gradient-to-r from-amber-400/70 to-amber-500',
+                      low: 'bg-gradient-to-r from-emerald-400/70 to-emerald-500',
+                    };
+                    const stressDots = {
+                      high: 'bg-red-500',
+                      medium: 'bg-amber-500',
+                      low: 'bg-emerald-500',
+                    };
+                    return (
+                      <div key={equip.id} className="group" data-testid={`equipment-stress-${equip.id}`}>
+                        <div className="flex items-center gap-3 p-2 rounded-lg bg-background/50">
+                          <div className="w-[100px] sm:w-[140px] shrink-0 flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${stressDots[equip.stressLevel]}`} />
+                            <div className="min-w-0">
+                              <span className="text-xs font-medium truncate block">{equip.name}</span>
+                              <span className="text-[10px] text-muted-foreground/60 truncate block">
+                                {equip.quantity > 1 ? `${equip.quantity} units` : equip.category}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex-1 flex items-center gap-2">
+                            <div className="flex-1 h-5 rounded-full bg-muted/30 overflow-hidden relative">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${stressColors[equip.stressLevel]}`}
+                                style={{ width: `${Math.max(barWidth, 2)}%` }}
+                              />
+                              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular-nums">
+                                {equip.usagePerUnit}/unit
+                              </span>
+                            </div>
+                          </div>
+                          <div className="shrink-0 min-w-[50px] text-right">
+                            <span className="text-xs font-bold tabular-nums">{equip.totalUsage}</span>
+                            <span className="text-[10px] text-muted-foreground ml-0.5">uses</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between px-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-red-500" />
+                      <span className="text-[10px] text-muted-foreground">High</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      <span className="text-[10px] text-muted-foreground">Medium</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="text-[10px] text-muted-foreground">Low</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-[10px] text-muted-foreground"
+                    onClick={() => navigate("/owner/equipment-setup")}
+                    data-testid="button-manage-equipment"
+                  >
+                    <Settings2 className="w-3 h-3 mr-1" />
+                    Manage Equipment
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 text-center">
+                <Wrench className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No equipment registered yet</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Register your gym's equipment to see usage stress analysis</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 text-xs"
+                  onClick={() => navigate("/owner/equipment-setup")}
+                  data-testid="button-setup-equipment"
+                >
+                  <Settings2 className="w-3.5 h-3.5 mr-1.5" />
+                  Set Up Equipment
+                </Button>
               </div>
             )}
           </CardContent>
