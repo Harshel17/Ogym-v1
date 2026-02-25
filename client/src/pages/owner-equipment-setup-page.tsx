@@ -206,13 +206,14 @@ export default function OwnerEquipmentSetupPage() {
       const res = await apiRequest("POST", "/api/owner/gym-equipment", data);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: EquipmentItem) => {
       queryClient.invalidateQueries({ queryKey: ["/api/owner/gym-equipment"] });
       queryClient.invalidateQueries({ queryKey: ["/api/owner/gym-intelligence/equipment-stress"] });
       setNewName("");
       setNewCategory("");
       setNewQuantity("1");
-      toast({ title: "Equipment added" });
+      setExpandedId(data.id);
+      toast({ title: "Equipment added — now map exercises to it below" });
     },
     onError: () => toast({ title: "Failed to add equipment", variant: "destructive" }),
   });
@@ -403,14 +404,14 @@ export default function OwnerEquipmentSetupPage() {
                         </div>
                       </div>
                       <Button
-                        variant="ghost"
+                        variant={equip.exercises.length === 0 ? "outline" : "ghost"}
                         size="sm"
-                        className="text-xs text-muted-foreground shrink-0"
+                        className={`text-xs shrink-0 ${equip.exercises.length === 0 ? 'text-primary border-primary/30' : 'text-muted-foreground'}`}
                         onClick={() => setExpandedId(expandedId === equip.id ? null : equip.id)}
                         data-testid={`button-toggle-exercises-${equip.id}`}
                       >
                         <Link2 className="w-3.5 h-3.5 mr-1" />
-                        Map
+                        {equip.exercises.length === 0 ? 'Map Exercises' : `${equip.exercises.length} Mapped`}
                       </Button>
                       <Button
                         variant="ghost"
