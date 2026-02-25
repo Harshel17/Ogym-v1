@@ -388,36 +388,41 @@ export default function OwnerEquipmentSetupPage() {
               <div className="space-y-2">
                 {items.map(equip => (
                   <Card key={equip.id} className={`card-elevated transition-all ${expandedId === equip.id ? 'ring-1 ring-primary/30' : ''}`} data-testid={`equipment-item-${equip.id}`}>
-                    <div className="px-4 py-3 flex items-center gap-3">
+                    <div
+                      className="px-4 py-3 flex items-center gap-3 cursor-pointer"
+                      onClick={() => {
+                        setExpandedId(expandedId === equip.id ? null : equip.id);
+                        setNewExercise("");
+                      }}
+                      data-testid={`row-equipment-${equip.id}`}
+                    >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium truncate" data-testid={`equipment-name-${equip.id}`}>{equip.name}</span>
                           {equip.quantity > 1 && (
                             <Badge variant="secondary" className="text-[10px] shrink-0">{equip.quantity}x</Badge>
                           )}
-                          {equip.exercises.length > 0 && (
+                          {equip.exercises.length > 0 ? (
                             <Badge variant="outline" className="text-[10px] shrink-0">
                               <Link2 className="w-2.5 h-2.5 mr-0.5" />
-                              {equip.exercises.length}
+                              {equip.exercises.length} mapped
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] shrink-0 text-primary border-primary/30">
+                              <Plus className="w-2.5 h-2.5 mr-0.5" />
+                              Map exercises
                             </Badge>
                           )}
                         </div>
                       </div>
                       <Button
-                        variant={equip.exercises.length === 0 ? "outline" : "ghost"}
-                        size="sm"
-                        className={`text-xs shrink-0 ${equip.exercises.length === 0 ? 'text-primary border-primary/30' : 'text-muted-foreground'}`}
-                        onClick={() => setExpandedId(expandedId === equip.id ? null : equip.id)}
-                        data-testid={`button-toggle-exercises-${equip.id}`}
-                      >
-                        <Link2 className="w-3.5 h-3.5 mr-1" />
-                        {equip.exercises.length === 0 ? 'Map Exercises' : `${equip.exercises.length} Mapped`}
-                      </Button>
-                      <Button
                         variant="ghost"
                         size="icon"
                         className="text-muted-foreground shrink-0"
-                        onClick={() => deleteMutation.mutate(equip.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteMutation.mutate(equip.id);
+                        }}
                         disabled={deleteMutation.isPending}
                         data-testid={`button-delete-equipment-${equip.id}`}
                       >
