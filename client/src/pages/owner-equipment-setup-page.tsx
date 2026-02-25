@@ -179,6 +179,10 @@ export default function OwnerEquipmentSetupPage() {
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const { data: equipment = [], isLoading } = useQuery<EquipmentItem[]>({
+    queryKey: ["/api/owner/gym-equipment"],
+  });
+
   const filteredSuggestions = newName.trim().length > 0
     ? EQUIPMENT_DATABASE.filter(e =>
         e.name.toLowerCase().includes(newName.toLowerCase()) &&
@@ -196,10 +200,6 @@ export default function OwnerEquipmentSetupPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  const { data: equipment = [], isLoading } = useQuery<EquipmentItem[]>({
-    queryKey: ["/api/owner/gym-equipment"],
-  });
 
   const addMutation = useMutation({
     mutationFn: async (data: { name: string; category: string; quantity: number }) => {
