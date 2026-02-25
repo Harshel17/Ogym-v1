@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Flame, TrendingUp, TrendingDown, Minus, ArrowLeft, Clock, Dumbbell, BarChart3, Wrench, Settings2, AlertTriangle, Lightbulb } from "lucide-react";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
+import { Flame, TrendingUp, TrendingDown, Minus, ArrowLeft, Clock, Dumbbell, BarChart3, Wrench, Settings2, AlertTriangle, Lightbulb, ShoppingCart, Eye, RefreshCcw, CheckCircle2, Target } from "lucide-react";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend } from "recharts";
 import { useLocation } from "wouter";
 
 type PeakHourData = {
@@ -27,6 +27,21 @@ type EquipmentInsight = {
   text: string;
 };
 
+type EquipmentPrediction = {
+  id: number;
+  name: string;
+  category: string;
+  quantity: number;
+  currentUsage: number;
+  prevUsage: number;
+  predictedNext: number;
+  predictedPerUnit: number;
+  trend: number;
+  action: 'buy_more' | 'monitor' | 'consider_replacing' | 'maintain';
+  urgency: 'high' | 'medium' | 'low';
+  reason: string;
+};
+
 type EquipmentStressData = {
   equipment: {
     id: number;
@@ -42,6 +57,7 @@ type EquipmentStressData = {
     stressLevel: 'high' | 'medium' | 'low';
   }[];
   insights: EquipmentInsight[];
+  predictions: EquipmentPrediction[];
   hasSetup: boolean;
 };
 
@@ -280,38 +296,40 @@ export default function OwnerGymIntelligencePage() {
                 <div className="animate-pulse text-xs text-muted-foreground">Analyzing equipment usage...</div>
               </div>
             ) : equipmentStress && equipmentStress.hasSetup && equipmentStress.equipment.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {(() => {
                   const all = equipmentStress.equipment;
                   const active = all.filter(e => e.totalUsage > 0);
                   const unused = all.filter(e => e.totalUsage === 0);
                   const totalUsage = all.reduce((s, e) => s + e.totalUsage, 0);
-                  const sorted = [...all].sort((a, b) => b.totalUsage - a.totalUsage);
-                  const maxUsage = Math.max(...all.map(e => e.usagePerUnit), 1);
+                  const predictions = equipmentStress.predictions || [];
 
-                  const getStatus = (e: typeof all[0]) => {
-                    if (e.totalUsage === 0 && e.prevUsage === 0) return { label: 'No Data', color: 'text-slate-400', bg: 'bg-slate-500/10', dot: 'bg-slate-400', border: 'border-slate-500/20' };
-                    if (e.totalUsage === 0 && e.prevUsage > 0) return { label: 'Dropped Off', color: 'text-red-500', bg: 'bg-red-500/10', dot: 'bg-red-500', border: 'border-red-500/20' };
-                    if (e.stressLevel === 'high') return { label: 'Overloaded', color: 'text-red-500', bg: 'bg-red-500/10', dot: 'bg-red-500', border: 'border-red-500/20' };
-                    if (e.changePercent >= 30) return { label: 'Rising', color: 'text-blue-500', bg: 'bg-blue-500/10', dot: 'bg-blue-500', border: 'border-blue-500/20' };
-                    if (e.changePercent <= -30 && e.prevUsage > 0) return { label: 'Declining', color: 'text-amber-500', bg: 'bg-amber-500/10', dot: 'bg-amber-500', border: 'border-amber-500/20' };
-                    if (e.stressLevel === 'medium') return { label: 'Healthy', color: 'text-emerald-500', bg: 'bg-emerald-500/10', dot: 'bg-emerald-500', border: 'border-emerald-500/20' };
-                    if (e.totalUsage > 0) return { label: 'Light Use', color: 'text-emerald-500', bg: 'bg-emerald-500/10', dot: 'bg-emerald-500', border: 'border-emerald-500/20' };
-                    return { label: 'No Data', color: 'text-slate-400', bg: 'bg-slate-500/10', dot: 'bg-slate-400', border: 'border-slate-500/20' };
+                  const chartData = all
+                    .filter(e => e.totalUsage > 0 || e.prevUsage > 0)
+                    .sort((a, b) => b.totalUsage - a.totalUsage)
+                    .slice(0, 8)
+                    .map(e => {
+                      const pred = predictions.find(p => p.id === e.id);
+                      return {
+                        name: e.name.length > 12 ? e.name.substring(0, 12) + '…' : e.name,
+                        fullName: e.name,
+                        'Last Month': e.prevUsage,
+                        'This Month': e.totalUsage,
+                        'Predicted': pred?.predictedNext || 0,
+                      };
+                    });
+
+                  const actionIcons = {
+                    buy_more: <ShoppingCart className="w-4 h-4" />,
+                    monitor: <Eye className="w-4 h-4" />,
+                    consider_replacing: <RefreshCcw className="w-4 h-4" />,
+                    maintain: <CheckCircle2 className="w-4 h-4" />,
                   };
-
-                  const getAdvice = (e: typeof all[0]) => {
-                    if (e.totalUsage === 0 && e.prevUsage > 0) return { icon: '🔻', text: `Was used last month (${e.prevUsage} times) but dropped to zero. Check if it needs repair or if members switched to alternatives.` };
-                    if (e.totalUsage === 0 && !e.hasCustomMapping) return { icon: '🔗', text: `No usage tracked. Map exercises to this equipment in Equipment Setup so the system can track its usage automatically.` };
-                    if (e.totalUsage === 0) return { icon: '💤', text: `No member workouts match this equipment. It may need repositioning or promotion to increase visibility.` };
-                    if (e.stressLevel === 'high' && e.quantity <= 1) return { icon: '🚨', text: `Very high demand with only 1 unit. Strongly consider buying a second unit to reduce wait times and equipment wear.` };
-                    if (e.stressLevel === 'high') return { icon: '⚠️', text: `Under heavy load (${e.usagePerUnit} uses/unit). Monitor for wear and consider adding more units if this continues.` };
-                    if (e.changePercent >= 50) return { icon: '🚀', text: `Demand surging — up ${e.changePercent}% this month! Plan to invest in additional units before it becomes a bottleneck.` };
-                    if (e.changePercent >= 20) return { icon: '📈', text: `Growing demand — up ${e.changePercent}% vs last month. Keep monitoring; may need more units soon.` };
-                    if (e.changePercent <= -50 && e.prevUsage > 0) return { icon: '📉', text: `Usage dropped sharply by ${Math.abs(e.changePercent)}%. Investigate — could be seasonal, or members may prefer other equipment.` };
-                    if (e.changePercent <= -20 && e.prevUsage > 0) return { icon: '📉', text: `Usage declining (${Math.abs(e.changePercent)}% down). Worth checking if it needs maintenance or better placement.` };
-                    if (e.stressLevel === 'medium') return { icon: '✅', text: `Healthy usage at ${e.usagePerUnit} uses/unit. No action needed — well balanced for current member demand.` };
-                    return { icon: '💡', text: `Light usage at ${e.usagePerUnit} uses/unit. Room for more utilization — consider promoting it or adding related exercises to workout plans.` };
+                  const actionColors = {
+                    buy_more: { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-600 dark:text-red-400', icon: 'text-red-500', label: 'Buy More', labelBg: 'bg-red-500' },
+                    monitor: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-600 dark:text-blue-400', icon: 'text-blue-500', label: 'Monitor', labelBg: 'bg-blue-500' },
+                    consider_replacing: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-600 dark:text-amber-400', icon: 'text-amber-500', label: 'Review', labelBg: 'bg-amber-500' },
+                    maintain: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-600 dark:text-emerald-400', icon: 'text-emerald-500', label: 'OK', labelBg: 'bg-emerald-500' },
                   };
 
                   return (
@@ -335,58 +353,154 @@ export default function OwnerGymIntelligencePage() {
                         </div>
                       </div>
 
-                      <div className="space-y-2" data-testid="equipment-detail-list">
-                        {sorted.map(equip => {
-                          const status = getStatus(equip);
-                          const advice = getAdvice(equip);
-                          const barWidth = maxUsage > 0 ? Math.max((equip.usagePerUnit / maxUsage) * 100, 0) : 0;
+                      {chartData.length > 0 && (
+                        <div data-testid="equipment-usage-chart">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-1 h-4 rounded-full bg-blue-500" />
+                            <span className="text-xs font-semibold">Usage Comparison</span>
+                            <span className="text-[10px] text-muted-foreground">Last Month vs This Month vs Predicted Next</span>
+                          </div>
+                          <div className="rounded-xl border border-border/50 bg-background/50 p-3">
+                            <ResponsiveContainer width="100%" height={200}>
+                              <BarChart data={chartData} barGap={2} barCategoryGap="20%">
+                                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={30} />
+                                <Tooltip
+                                  contentStyle={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '11px' }}
+                                  labelStyle={{ fontWeight: 'bold', marginBottom: '4px' }}
+                                  labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
+                                />
+                                <Bar dataKey="Last Month" fill="#64748b" radius={[2, 2, 0, 0]} />
+                                <Bar dataKey="This Month" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+                                <Bar dataKey="Predicted" fill="#8b5cf6" radius={[2, 2, 0, 0]} opacity={0.6} />
+                                <Legend wrapperStyle={{ fontSize: '10px' }} iconSize={8} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      )}
 
-                          return (
-                            <div key={equip.id} className={`rounded-xl border ${status.border} overflow-hidden`} data-testid={`equipment-card-${equip.id}`}>
-                              <div className="p-3 space-y-2.5">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${status.dot}`} />
-                                    <span className="text-[13px] font-semibold truncate">{equip.name}</span>
-                                    {equip.quantity > 1 && <Badge variant="secondary" className="text-[10px] shrink-0">{equip.quantity}x</Badge>}
+                      {equipmentStress.insights && equipmentStress.insights.length > 0 && (
+                        <div data-testid="equipment-insights-section">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-1 h-4 rounded-full bg-amber-500" />
+                            <span className="text-xs font-semibold">Key Insights</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {equipmentStress.insights.map((insight, idx) => {
+                              const bgMap = {
+                                action: 'bg-red-500/10 border-red-500/20',
+                                warning: 'bg-amber-500/10 border-amber-500/20',
+                                success: 'bg-emerald-500/10 border-emerald-500/20',
+                                info: 'bg-blue-500/10 border-blue-500/20',
+                              };
+                              const iconMap = {
+                                action: <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />,
+                                warning: <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />,
+                                success: <Lightbulb className="w-3.5 h-3.5 text-emerald-500 shrink-0" />,
+                                info: <Lightbulb className="w-3.5 h-3.5 text-blue-500 shrink-0" />,
+                              };
+                              const textColorMap = {
+                                action: 'text-red-700 dark:text-red-300',
+                                warning: 'text-amber-700 dark:text-amber-300',
+                                success: 'text-emerald-700 dark:text-emerald-300',
+                                info: 'text-blue-700 dark:text-blue-300',
+                              };
+                              return (
+                                <div key={idx} className={`flex items-start gap-2 px-3 py-2 rounded-lg border ${bgMap[insight.type]}`} data-testid={`insight-${idx}`}>
+                                  {iconMap[insight.type]}
+                                  <span className={`text-xs font-medium leading-snug ${textColorMap[insight.type]}`}>
+                                    {insight.icon} {insight.text}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {predictions.length > 0 && (
+                        <div data-testid="equipment-predictions-section">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-1 h-4 rounded-full bg-violet-500" />
+                            <span className="text-xs font-semibold">Investment Predictions</span>
+                            <Badge variant="secondary" className="text-[10px]">Next 30 days</Badge>
+                          </div>
+                          <div className="space-y-2">
+                            {predictions.sort((a, b) => {
+                              const order = { high: 0, medium: 1, low: 2 };
+                              return order[a.urgency] - order[b.urgency];
+                            }).map(pred => {
+                              const colors = actionColors[pred.action];
+                              return (
+                                <div key={pred.id} className={`rounded-xl border ${colors.border} overflow-hidden`} data-testid={`prediction-${pred.id}`}>
+                                  <div className="p-3">
+                                    <div className="flex items-start gap-3">
+                                      <div className={`p-2 rounded-lg ${colors.bg} ${colors.icon} shrink-0 mt-0.5`}>
+                                        {actionIcons[pred.action]}
+                                      </div>
+                                      <div className="flex-1 min-w-0 space-y-1.5">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="text-[13px] font-semibold truncate">{pred.name}</span>
+                                          <Badge className={`text-[9px] text-white shrink-0 ${colors.labelBg}`}>{colors.label}</Badge>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                                          <span>Last: <span className="font-bold text-foreground">{pred.prevUsage}</span></span>
+                                          <span>Now: <span className="font-bold text-foreground">{pred.currentUsage}</span></span>
+                                          <span>Next: <span className="font-bold text-violet-600 dark:text-violet-400">{pred.predictedNext}</span></span>
+                                          {pred.trend !== 0 && (
+                                            <span className={`flex items-center gap-0.5 font-bold ml-auto ${pred.trend > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                              {pred.trend > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                              {pred.trend > 0 ? '+' : ''}{pred.trend}%
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden flex gap-[1px]">
+                                          <div className="h-full rounded-l-full bg-slate-400" style={{ width: `${pred.prevUsage ? Math.max((pred.prevUsage / Math.max(pred.prevUsage, pred.currentUsage, pred.predictedNext, 1)) * 100, 3) : 0}%` }} title="Last month" />
+                                          <div className="h-full bg-blue-500" style={{ width: `${pred.currentUsage ? Math.max((pred.currentUsage / Math.max(pred.prevUsage, pred.currentUsage, pred.predictedNext, 1)) * 100, 3) : 0}%` }} title="This month" />
+                                          <div className="h-full rounded-r-full bg-violet-500/60" style={{ width: `${pred.predictedNext ? Math.max((pred.predictedNext / Math.max(pred.prevUsage, pred.currentUsage, pred.predictedNext, 1)) * 100, 3) : 0}%` }} title="Predicted" />
+                                        </div>
+                                        <p className={`text-[11px] leading-relaxed ${colors.text}`}>
+                                          {pred.reason}
+                                        </p>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <Badge variant="outline" className={`text-[10px] shrink-0 ${status.color} border-current/30`}>
-                                    {status.label}
-                                  </Badge>
                                 </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
-                                {equip.totalUsage > 0 && (
-                                  <>
-                                    <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
-                                      <div className={`h-full rounded-full ${status.bg.replace('/10', '')} transition-all duration-700`}
-                                        style={{ width: `${Math.max(barWidth, 3)}%`, background: equip.stressLevel === 'high' ? 'linear-gradient(90deg, #ef4444, #dc2626)' : equip.stressLevel === 'medium' ? 'linear-gradient(90deg, #f59e0b, #d97706)' : 'linear-gradient(90deg, #22c55e, #16a34a)' }}
-                                      />
-                                    </div>
-                                    <div className="flex items-center gap-4 text-[11px]">
-                                      <span className="text-muted-foreground"><span className="font-bold text-foreground">{equip.usagePerUnit}</span> uses/unit</span>
-                                      <span className="text-muted-foreground"><span className="font-bold text-foreground">{equip.totalUsage}</span> total</span>
-                                      {equip.changePercent !== 0 && (
-                                        <span className={`flex items-center gap-0.5 font-bold ml-auto ${equip.changePercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                                          {equip.changePercent > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                          {equip.changePercent > 0 ? '+' : ''}{equip.changePercent}%
-                                        </span>
-                                      )}
-                                    </div>
-                                  </>
-                                )}
-
-                                <div className={`text-[11px] leading-relaxed px-2.5 py-2 rounded-lg ${status.bg} ${status.color}`}>
-                                  <span className="mr-1">{advice.icon}</span>
-                                  {advice.text}
+                      {unused.length > 0 && (
+                        <div data-testid="equipment-unused-section">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-1 h-4 rounded-full bg-slate-400" />
+                            <span className="text-xs font-semibold">Untracked Equipment</span>
+                            <span className="text-[10px] text-muted-foreground">— no usage data in 60 days</span>
+                          </div>
+                          <div className="rounded-xl border border-border/50 bg-muted/10 p-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              {unused.map(equip => (
+                                <div key={equip.id} className="flex items-center gap-2 p-2 rounded-lg bg-background/60 border border-border/30" data-testid={`equipment-unused-${equip.id}`}>
+                                  <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
+                                  <div className="min-w-0">
+                                    <span className="text-xs font-medium truncate block">{equip.name}</span>
+                                    <span className="text-[10px] text-muted-foreground/60">{equip.category}{equip.quantity > 1 ? ` · ${equip.quantity}x` : ''}</span>
+                                  </div>
                                 </div>
-                              </div>
+                              ))}
                             </div>
-                          );
-                        })}
-                      </div>
+                            <p className="text-[10px] text-muted-foreground/60 mt-2.5 flex items-start gap-1.5">
+                              <Lightbulb className="w-3 h-3 shrink-0 mt-0.5" />
+                              Map exercises to these items in Equipment Setup for automatic tracking, or check if they need promotion to members.
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
-                      <div className="flex items-center justify-between px-1">
-                        <p className="text-[10px] text-muted-foreground/50">Based on member workout logs from the last 30 days</p>
+                      <div className="flex items-center justify-end px-1">
                         <Button
                           variant="ghost"
                           size="sm"

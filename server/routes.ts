@@ -9394,8 +9394,10 @@ Write a short, personal message. No subject line, just the message body. Use the
 
       const GENERIC_MAP: Record<string, string[]> = {
         'bench': ['bench press', 'dumbbell bench', 'incline bench', 'decline bench', 'chest press', 'dumbbell press', 'incline press', 'decline press'],
-        'cable machine': ['cable fly', 'cable crossover', 'tricep pushdown', 'cable curl', 'face pull', 'lat pulldown', 'cable row', 'cable crunch', 'rope pushdown', 'cable lateral raise'],
+        'cable': ['cable fly', 'cable crossover', 'tricep pushdown', 'cable curl', 'face pull', 'lat pulldown', 'cable row', 'cable crunch', 'rope pushdown', 'cable lateral raise'],
         'squat rack': ['squat', 'back squat', 'front squat', 'overhead press', 'barbell row', 'military press', 'rack pull'],
+        'power rack': ['squat', 'back squat', 'front squat', 'overhead press', 'barbell row', 'military press', 'rack pull', 'deadlift'],
+        'rack': ['squat', 'back squat', 'front squat', 'overhead press', 'rack pull'],
         'leg press': ['leg press', 'calf raise', 'seated calf raise'],
         'smith machine': ['smith machine', 'smith squat', 'smith bench'],
         'treadmill': ['treadmill', 'running', 'walking', 'jogging'],
@@ -9559,7 +9561,57 @@ Write a short, personal message. No subject line, just the message body. Use the
         });
       }
 
-      res.json({ equipment: stressResults, insights, hasSetup: true });
+      const predictions = stressResults.filter(r => r.totalUsage > 0 || r.prevUsage > 0).map(r => {
+        const trend = r.prevUsage > 0 ? (r.totalUsage - r.prevUsage) / r.prevUsage : 0;
+        const predictedNext = Math.max(0, Math.round(r.totalUsage * (1 + trend)));
+        const predictedPerUnit = r.quantity ? Math.round(predictedNext / r.quantity) : predictedNext;
+        let action: 'buy_more' | 'monitor' | 'consider_replacing' | 'maintain' = 'maintain';
+        let urgency: 'high' | 'medium' | 'low' = 'low';
+        let reason = '';
+
+        if (r.stressLevel === 'high' && trend >= 0) {
+          action = 'buy_more';
+          urgency = 'high';
+          reason = `Currently overloaded at ${r.usagePerUnit} uses/unit${trend > 0 ? ` and still growing ${Math.round(trend * 100)}%` : ''}. Predicted ${predictedPerUnit} uses/unit next month.`;
+        } else if (trend >= 0.3) {
+          action = 'buy_more';
+          urgency = 'medium';
+          reason = `Demand growing rapidly at +${Math.round(trend * 100)}%. Expected to reach ${predictedNext} uses next month (${predictedPerUnit}/unit).`;
+        } else if (r.totalUsage === 0 && r.prevUsage > 0) {
+          action = 'consider_replacing';
+          urgency = 'medium';
+          reason = `Usage dropped from ${r.prevUsage} to 0 this month. May need maintenance or replacement.`;
+        } else if (trend <= -0.3 && r.prevUsage > 3) {
+          action = 'consider_replacing';
+          urgency = 'low';
+          reason = `Usage declining ${Math.round(Math.abs(trend) * 100)}%. Predicted ${predictedNext} uses next month. Members may be shifting to alternatives.`;
+        } else if (r.stressLevel === 'medium') {
+          action = 'monitor';
+          urgency = 'low';
+          reason = `Healthy usage at ${r.usagePerUnit}/unit. Predicted ${predictedNext} uses next month. No action needed now.`;
+        } else if (r.totalUsage > 0) {
+          action = 'maintain';
+          urgency = 'low';
+          reason = `Light usage. Predicted ${predictedNext} uses next month (${predictedPerUnit}/unit).`;
+        }
+
+        return {
+          id: r.id,
+          name: r.name,
+          category: r.category,
+          quantity: r.quantity,
+          currentUsage: r.totalUsage,
+          prevUsage: r.prevUsage,
+          predictedNext,
+          predictedPerUnit,
+          trend: Math.round(trend * 100),
+          action,
+          urgency,
+          reason,
+        };
+      });
+
+      res.json({ equipment: stressResults, insights, predictions, hasSetup: true });
     } catch (error) {
       console.error('Equipment stress error:', error);
       res.status(500).json({ error: 'Failed to compute equipment stress' });
