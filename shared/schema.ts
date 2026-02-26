@@ -809,6 +809,7 @@ export const gymEmailSettings = pgTable("gym_email_settings", {
   id: serial("id").primaryKey(),
   gymId: integer("gym_id").references(() => gyms.id).notNull().unique(),
   sendMode: text("send_mode", { enum: ["ogym", "custom"] }).notNull().default("ogym"),
+  senderName: text("sender_name"),
   replyToEmail: text("reply_to_email"),
   connectedProvider: text("connected_provider", { enum: ["gmail", "outlook"] }),
   connectedEmail: text("connected_email"),

@@ -25,6 +25,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 
 type EmailSettings = {
   sendMode: "ogym" | "custom";
+  senderName?: string;
   replyToEmail?: string;
   connectedProvider?: "gmail" | "outlook";
   connectedEmail?: string;
@@ -618,10 +619,11 @@ function SenderSetupCard() {
   });
 
   const [sendMode, setSendMode] = useState<"ogym" | "custom">("ogym");
+  const [senderName, setSenderName] = useState("");
   const [replyToEmail, setReplyToEmail] = useState("");
 
   const saveMutation = useMutation({
-    mutationFn: async (data: { sendMode: string; replyToEmail: string }) => {
+    mutationFn: async (data: { sendMode: string; replyToEmail: string; senderName: string }) => {
       return apiRequest("POST", "/api/gym/email/settings", data);
     },
     onSuccess: () => {
@@ -637,6 +639,7 @@ function SenderSetupCard() {
   useEffect(() => {
     if (data?.settings) {
       setSendMode(data.settings.sendMode || "ogym");
+      setSenderName(data.settings.senderName || "");
       setReplyToEmail(data.settings.replyToEmail || "");
     }
   }, [data]);
@@ -651,7 +654,7 @@ function SenderSetupCard() {
         data-testid="button-expand-settings"
       >
         <Settings className="w-3.5 h-3.5" />
-        <span>Sender: {data?.gymName} via OGym</span>
+        <span>Sender: {data?.settings?.senderName || data?.gymName} via OGym</span>
         {data?.settings?.replyToEmail && <span className="text-muted-foreground/60">· Reply-to: {data.settings.replyToEmail}</span>}
         <ChevronRight className="w-3 h-3" />
       </button>
@@ -709,6 +712,19 @@ function SenderSetupCard() {
               <div className="font-medium">{data?.gymName} &lt;no-reply@ogym.fitness&gt;</div>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="senderName" className="text-sm">Your Name</Label>
+              <Input 
+                id="senderName"
+                type="text"
+                placeholder="Name used to sign off emails"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                className="h-11"
+                data-testid="input-sender-name"
+              />
+              <p className="text-xs text-muted-foreground">AI will use this name to sign off follow-up messages</p>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="replyTo" className="text-sm">Reply-To Email</Label>
               <Input 
                 id="replyTo"
@@ -721,7 +737,7 @@ function SenderSetupCard() {
               />
             </div>
             <Button 
-              onClick={() => saveMutation.mutate({ sendMode, replyToEmail })}
+              onClick={() => saveMutation.mutate({ sendMode, replyToEmail, senderName })}
               disabled={saveMutation.isPending}
               className="w-full sm:w-auto"
               data-testid="button-save-settings"

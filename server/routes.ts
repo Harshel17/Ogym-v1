@@ -10645,13 +10645,14 @@ Respond with just the summary text, no formatting.`;
   // Save gym email settings
   app.post("/api/gym/email/settings", requireRole(["owner"]), async (req, res) => {
     try {
-      const { sendMode, replyToEmail } = req.body;
+      const { sendMode, replyToEmail, senderName } = req.body;
       const existing = await storage.getGymEmailSettings(req.user!.gymId!);
       
       if (existing) {
         const updated = await storage.updateGymEmailSettings(req.user!.gymId!, {
           sendMode,
-          replyToEmail
+          replyToEmail,
+          senderName
         });
         return res.json(updated);
       }
@@ -10659,7 +10660,8 @@ Respond with just the summary text, no formatting.`;
       const created = await storage.createGymEmailSettings({
         gymId: req.user!.gymId!,
         sendMode,
-        replyToEmail
+        replyToEmail,
+        senderName
       });
       res.status(201).json(created);
     } catch (err: any) {
@@ -10855,7 +10857,8 @@ Respond with just the summary text, no formatting.`;
 
       const gym = await storage.getGym(req.user!.gymId!);
       const gymName = gym?.name || "our gym";
-      const ownerName = req.user!.fullName || req.user!.username;
+      const emailSettings = await storage.getGymEmailSettings(req.user!.gymId!);
+      const ownerName = emailSettings?.senderName || req.user!.fullName || req.user!.username;
 
       const goalDescriptions: Record<string, string> = {
         renew: "Encourage the member to renew their membership",
