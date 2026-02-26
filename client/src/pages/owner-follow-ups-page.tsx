@@ -363,7 +363,7 @@ function AiMessageComposer({
   const generateMutation = useMutation({
     mutationFn: async (data: { memberId: number; memberName: string; category: string; goal: string; reason: string; details: Record<string, any> }) => {
       const res = await apiRequest("POST", "/api/followups/ai-generate-message", data);
-      return res as { subject: string; message: string; suggestions: AiSuggestion[] };
+      return await res.json() as { subject: string; message: string; suggestions: AiSuggestion[] };
     },
     onSuccess: (data) => {
       setSubject(data.subject);
