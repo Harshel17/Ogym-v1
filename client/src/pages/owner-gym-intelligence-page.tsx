@@ -420,27 +420,28 @@ export default function OwnerGymIntelligencePage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border/20 bg-gradient-to-br from-card/80 via-card/60 to-purple-500/[0.02] backdrop-blur-md p-4 shadow-sm" data-testid="section-nav-bar-gi">
+      <div className="rounded-2xl border border-border/20 bg-gradient-to-br from-card via-card/90 to-purple-500/5 p-4" data-testid="section-nav-bar-gi">
         <div className="flex items-center gap-2 mb-3">
-          <div className="p-1 rounded-md bg-purple-500/10">
+          <div className="p-1.5 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 shadow-sm shadow-purple-500/10">
             <Sparkles className="w-3.5 h-3.5 text-purple-500" />
           </div>
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Jump to Section</span>
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Navigate Intelligence</span>
+          <div className="h-px flex-1 bg-gradient-to-r from-border/50 to-transparent" />
         </div>
         <div className="flex flex-wrap gap-2">
           {[
-            { id: 'gi-peak-hours', label: 'Peak Hours', icon: <Flame className="w-3.5 h-3.5" />, color: 'hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30' },
-            { id: 'gi-muscle-trends', label: 'Muscle Trends', icon: <Dumbbell className="w-3.5 h-3.5" />, color: 'hover:bg-purple-500/10 hover:text-purple-500 hover:border-purple-500/30' },
-            { id: 'gi-equipment', label: 'Equipment', icon: <Wrench className="w-3.5 h-3.5" />, color: 'hover:bg-orange-500/10 hover:text-orange-500 hover:border-orange-500/30' },
+            { id: 'gi-peak-hours', label: 'Peak Hours', icon: <Flame className="w-3.5 h-3.5" />, gradient: 'from-red-500/20 to-orange-500/20', iconBg: 'bg-red-500', text: 'text-red-300', shadow: 'shadow-red-500/20' },
+            { id: 'gi-muscle-trends', label: 'Muscle Trends', icon: <Dumbbell className="w-3.5 h-3.5" />, gradient: 'from-purple-500/20 to-violet-500/20', iconBg: 'bg-purple-500', text: 'text-purple-300', shadow: 'shadow-purple-500/20' },
+            { id: 'gi-equipment', label: 'Equipment', icon: <Wrench className="w-3.5 h-3.5" />, gradient: 'from-orange-500/20 to-amber-500/20', iconBg: 'bg-orange-500', text: 'text-orange-300', shadow: 'shadow-orange-500/20' },
           ].map(s => (
             <button
               key={s.id}
               onClick={() => { const el = document.getElementById(s.id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
-              className={`ai-nav-btn flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-muted-foreground overflow-hidden ${s.color}`}
+              className={`ai-chip flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r ${s.gradient} shadow-sm ${s.shadow} cursor-pointer`}
               data-testid={`nav-${s.id}`}
             >
-              <span className="relative z-10 p-1.5 rounded-lg bg-gradient-to-br from-muted/60 to-muted/30">{s.icon}</span>
-              <span className="relative z-10">{s.label}</span>
+              <span className={`relative z-10 p-1.5 rounded-lg ${s.iconBg} text-white shadow-sm`}>{s.icon}</span>
+              <span className={`relative z-10 text-xs font-semibold ${s.text}`}>{s.label}</span>
             </button>
           ))}
         </div>

@@ -334,17 +334,17 @@ export default function OwnerAiInsightsPage() {
   };
 
   const navSections = [
-    { id: 'section-priority', label: 'Priority', icon: <Zap className="w-3 h-3" />, color: 'hover:bg-amber-500/10 hover:text-amber-500 hover:border-amber-500/30' },
-    { id: 'section-overview', label: 'Overview', icon: <BarChart3 className="w-3 h-3" />, color: 'hover:bg-blue-500/10 hover:text-blue-500 hover:border-blue-500/30' },
-    { id: 'section-churn', label: 'Churn Risk', icon: <AlertTriangle className="w-3 h-3" />, color: 'hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30' },
-    { id: 'section-followups', label: 'Follow-ups', icon: <Bell className="w-3 h-3" />, color: 'hover:bg-yellow-500/10 hover:text-yellow-500 hover:border-yellow-500/30' },
-    { id: 'section-attendance', label: 'Attendance', icon: <Activity className="w-3 h-3" />, color: 'hover:bg-emerald-500/10 hover:text-emerald-500 hover:border-emerald-500/30' },
-    { id: 'section-recommendations', label: 'AI Recs', icon: <Wand2 className="w-3 h-3" />, color: 'hover:bg-violet-500/10 hover:text-violet-500 hover:border-violet-500/30' },
-    ...(!isLoading && insights?.equipmentActions && insights.equipmentActions.length > 0 ? [{ id: 'section-equipment', label: 'Equipment', icon: <Wrench className="w-3 h-3" />, color: 'hover:bg-orange-500/10 hover:text-orange-500 hover:border-orange-500/30' }] : []),
-    ...(!isLoading && insights?.paymentFollowUps && insights.paymentFollowUps.length > 0 ? [{ id: 'section-payments', label: 'Payments', icon: <DollarSign className="w-3 h-3" />, color: 'hover:bg-green-500/10 hover:text-green-500 hover:border-green-500/30' }] : []),
-    { id: 'section-briefing', label: 'Briefing', icon: <FileText className="w-3 h-3" />, color: 'hover:bg-indigo-500/10 hover:text-indigo-500 hover:border-indigo-500/30' },
-    { id: 'section-trainers', label: 'Trainers', icon: <GraduationCap className="w-3 h-3" />, color: 'hover:bg-cyan-500/10 hover:text-cyan-500 hover:border-cyan-500/30' },
-    { id: 'section-reengagement', label: 'Re-engage', icon: <Megaphone className="w-3 h-3" />, color: 'hover:bg-pink-500/10 hover:text-pink-500 hover:border-pink-500/30' },
+    { id: 'section-priority', label: 'Priority', icon: <Zap className="w-3.5 h-3.5" />, gradient: 'from-amber-500/20 to-orange-500/20', iconBg: 'bg-amber-500', text: 'text-amber-300', shadow: 'shadow-amber-500/20' },
+    { id: 'section-overview', label: 'Overview', icon: <BarChart3 className="w-3.5 h-3.5" />, gradient: 'from-blue-500/20 to-cyan-500/20', iconBg: 'bg-blue-500', text: 'text-blue-300', shadow: 'shadow-blue-500/20' },
+    { id: 'section-churn', label: 'Churn Risk', icon: <AlertTriangle className="w-3.5 h-3.5" />, gradient: 'from-red-500/20 to-rose-500/20', iconBg: 'bg-red-500', text: 'text-red-300', shadow: 'shadow-red-500/20' },
+    { id: 'section-followups', label: 'Follow-ups', icon: <Bell className="w-3.5 h-3.5" />, gradient: 'from-yellow-500/20 to-amber-500/20', iconBg: 'bg-yellow-500', text: 'text-yellow-300', shadow: 'shadow-yellow-500/20' },
+    { id: 'section-attendance', label: 'Attendance', icon: <Activity className="w-3.5 h-3.5" />, gradient: 'from-emerald-500/20 to-green-500/20', iconBg: 'bg-emerald-500', text: 'text-emerald-300', shadow: 'shadow-emerald-500/20' },
+    { id: 'section-recommendations', label: 'AI Recs', icon: <Wand2 className="w-3.5 h-3.5" />, gradient: 'from-violet-500/20 to-purple-500/20', iconBg: 'bg-violet-500', text: 'text-violet-300', shadow: 'shadow-violet-500/20' },
+    ...(!isLoading && insights?.equipmentActions && insights.equipmentActions.length > 0 ? [{ id: 'section-equipment', label: 'Equipment', icon: <Wrench className="w-3.5 h-3.5" />, gradient: 'from-orange-500/20 to-amber-500/20', iconBg: 'bg-orange-500', text: 'text-orange-300', shadow: 'shadow-orange-500/20' }] : []),
+    ...(!isLoading && insights?.paymentFollowUps && insights.paymentFollowUps.length > 0 ? [{ id: 'section-payments', label: 'Payments', icon: <DollarSign className="w-3.5 h-3.5" />, gradient: 'from-green-500/20 to-teal-500/20', iconBg: 'bg-green-500', text: 'text-green-300', shadow: 'shadow-green-500/20' }] : []),
+    { id: 'section-briefing', label: 'Briefing', icon: <FileText className="w-3.5 h-3.5" />, gradient: 'from-indigo-500/20 to-blue-500/20', iconBg: 'bg-indigo-500', text: 'text-indigo-300', shadow: 'shadow-indigo-500/20' },
+    { id: 'section-trainers', label: 'Trainers', icon: <GraduationCap className="w-3.5 h-3.5" />, gradient: 'from-cyan-500/20 to-sky-500/20', iconBg: 'bg-cyan-500', text: 'text-cyan-300', shadow: 'shadow-cyan-500/20' },
+    { id: 'section-reengagement', label: 'Re-engage', icon: <Megaphone className="w-3.5 h-3.5" />, gradient: 'from-pink-500/20 to-rose-500/20', iconBg: 'bg-pink-500', text: 'text-pink-300', shadow: 'shadow-pink-500/20' },
   ];
 
   if (!insights && !isLoading) {
@@ -373,23 +373,24 @@ export default function OwnerAiInsightsPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border/20 bg-gradient-to-br from-card/80 via-card/60 to-primary/[0.02] backdrop-blur-md p-4 shadow-sm" data-testid="section-nav-bar">
+      <div className="rounded-2xl border border-border/20 bg-gradient-to-br from-card via-card/90 to-primary/5 p-4" data-testid="section-nav-bar">
         <div className="flex items-center gap-2 mb-3">
-          <div className="p-1 rounded-md bg-primary/10">
+          <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary/20 to-violet-500/20 shadow-sm shadow-primary/10">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
           </div>
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Jump to Section</span>
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Navigate Insights</span>
+          <div className="h-px flex-1 bg-gradient-to-r from-border/50 to-transparent" />
         </div>
         <div className="flex flex-wrap gap-2">
           {navSections.map(s => (
             <button
               key={s.id}
               onClick={() => scrollToSection(s.id)}
-              className={`ai-nav-btn flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-muted-foreground overflow-hidden ${s.color}`}
+              className={`ai-chip flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r ${s.gradient} shadow-sm ${s.shadow} cursor-pointer`}
               data-testid={`nav-${s.id}`}
             >
-              <span className="relative z-10 p-1.5 rounded-lg bg-gradient-to-br from-muted/60 to-muted/30">{s.icon}</span>
-              <span className="relative z-10">{s.label}</span>
+              <span className={`relative z-10 p-1.5 rounded-lg ${s.iconBg} text-white shadow-sm`}>{s.icon}</span>
+              <span className={`relative z-10 text-xs font-semibold ${s.text}`}>{s.label}</span>
             </button>
           ))}
         </div>
