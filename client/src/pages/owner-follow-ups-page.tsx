@@ -267,12 +267,14 @@ function QueueMemberCard({
             </div>
           </div>
           {item.email && (
-            <Checkbox 
-              checked={isSelected} 
-              onCheckedChange={() => onSelect()}
-              className="mt-0.5 shrink-0 h-5 w-5"
-              data-testid={`checkbox-queue-${item.memberId}`}
-            />
+            <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+              <Checkbox 
+                checked={isSelected} 
+                onCheckedChange={() => onSelect()}
+                className="mt-0.5 h-5 w-5"
+                data-testid={`checkbox-queue-${item.memberId}`}
+              />
+            </div>
           )}
         </div>
       </div>
