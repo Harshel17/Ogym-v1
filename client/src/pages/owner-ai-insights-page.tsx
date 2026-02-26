@@ -373,23 +373,27 @@ export default function OwnerAiInsightsPage() {
         </div>
       </div>
 
-      <Card className="border-border/40 bg-card/50 backdrop-blur-sm" data-testid="section-nav-bar">
-        <CardContent className="p-3">
-          <div className="flex flex-wrap gap-2">
-            {navSections.map(s => (
-              <button
-                key={s.id}
-                onClick={() => scrollToSection(s.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium border border-border/40 bg-muted/20 text-muted-foreground ${s.color} transition-all duration-200`}
-                data-testid={`nav-${s.id}`}
-              >
-                <span className="p-1 rounded-lg bg-muted/50">{s.icon}</span>
-                {s.label}
-              </button>
-            ))}
+      <div className="rounded-2xl border border-border/20 bg-gradient-to-br from-card/80 via-card/60 to-primary/[0.02] backdrop-blur-md p-4 shadow-sm" data-testid="section-nav-bar">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="p-1 rounded-md bg-primary/10">
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
           </div>
-        </CardContent>
-      </Card>
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Jump to Section</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {navSections.map(s => (
+            <button
+              key={s.id}
+              onClick={() => scrollToSection(s.id)}
+              className={`ai-nav-btn flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-muted-foreground overflow-hidden ${s.color}`}
+              data-testid={`nav-${s.id}`}
+            >
+              <span className="relative z-10 p-1.5 rounded-lg bg-gradient-to-br from-muted/60 to-muted/30">{s.icon}</span>
+              <span className="relative z-10">{s.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {isLoading && (
         <div className="space-y-4">
