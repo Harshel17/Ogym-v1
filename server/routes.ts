@@ -10,7 +10,7 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors, trainerMemberAssignments, feedPosts, gymEquipment, equipmentExerciseMappings } from "@shared/schema";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors, trainerMemberAssignments, feedPosts, gymEquipment, equipmentExerciseMappings, payments } from "@shared/schema";
 import { eq, and, isNotNull, isNull, inArray, sql, desc, gte, lte, like, asc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing } from "./dika";
@@ -8775,13 +8775,158 @@ Return ONLY JSON.`
       return res.status(403).json({ message: "This feature is available on the web version at app.ogym.fitness" });
     }
     const clientDate = req.params.date || getLocalDate(req);
-    const insights = await storage.getAiInsights(req.user!.gymId!, clientDate);
+    const gymId = req.user!.gymId!;
+    const insights = await storage.getAiInsights(gymId, clientDate);
+
+    let equipmentActions: { name: string; category: string; action: string; urgency: string; reason: string; usage: number; changePercent: number; confidence: 'high' | 'medium' | 'low' }[] = [];
+    let paymentFollowUps: { memberId: number; name: string; amount: number; month: string; daysOverdue: number }[] = [];
+    let equipmentSummaryForAi = '';
+
+    try {
+      const gymEquipList = await db.select().from(gymEquipment).where(eq(gymEquipment.gymId, gymId));
+      if (gymEquipList.length > 0) {
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const sixtyDaysAgo = new Date(now); sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+        const ninetyDaysAgo = new Date(now); ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        const thirtyStr = thirtyDaysAgo.toISOString().split('T')[0];
+        const sixtyStr = sixtyDaysAgo.toISOString().split('T')[0];
+        const ninetyStr = ninetyDaysAgo.toISOString().split('T')[0];
+
+        const recentExercises = await db.select({
+          exerciseName: workoutLogExercises.exerciseName,
+          count: sql<number>`count(*)::int`,
+        }).from(workoutLogExercises)
+          .innerJoin(workoutLogs, eq(workoutLogExercises.workoutLogId, workoutLogs.id))
+          .where(and(eq(workoutLogs.gymId, gymId), gte(workoutLogs.completedDate, thirtyStr)))
+          .groupBy(workoutLogExercises.exerciseName);
+
+        const prevExercises = await db.select({
+          exerciseName: workoutLogExercises.exerciseName,
+          count: sql<number>`count(*)::int`,
+        }).from(workoutLogExercises)
+          .innerJoin(workoutLogs, eq(workoutLogExercises.workoutLogId, workoutLogs.id))
+          .where(and(eq(workoutLogs.gymId, gymId), gte(workoutLogs.completedDate, sixtyStr), lte(workoutLogs.completedDate, thirtyStr)))
+          .groupBy(workoutLogExercises.exerciseName);
+
+        const has3MonthData = await db.select({ cnt: sql<number>`count(*)::int` }).from(workoutLogs)
+          .where(and(eq(workoutLogs.gymId, gymId), gte(workoutLogs.completedDate, ninetyStr), lte(workoutLogs.completedDate, sixtyStr)));
+        const hasThreeMonths = Number(has3MonthData[0]?.cnt || 0) > 0;
+
+        const exerciseCountMap = new Map(recentExercises.map(e => [e.exerciseName.toLowerCase(), e.count]));
+        const prevCountMap = new Map(prevExercises.map(e => [e.exerciseName.toLowerCase(), e.count]));
+
+        const GENERIC_MAP: Record<string, string[]> = {
+          'bench': ['bench press', 'dumbbell bench', 'incline bench', 'decline bench', 'chest press', 'dumbbell press'],
+          'cable': ['cable fly', 'cable crossover', 'tricep pushdown', 'cable curl', 'face pull', 'lat pulldown', 'cable row'],
+          'power rack': ['squat', 'back squat', 'front squat', 'overhead press', 'barbell row', 'military press', 'deadlift'],
+          'squat rack': ['squat', 'back squat', 'front squat', 'overhead press', 'barbell row'],
+          'smith machine': ['smith squat', 'smith bench', 'smith press', 'smith row', 'smith lunge'],
+          'leg press': ['leg press'],
+          'dumbbell': ['dumbbell curl', 'dumbbell row', 'lateral raise', 'shoulder press', 'dumbbell fly', 'hammer curl'],
+          'treadmill': ['treadmill', 'running', 'walking', 'jogging'],
+          'elliptical': ['elliptical'],
+          'rowing machine': ['rowing'],
+          'pull-up bar': ['pull-up', 'chin-up', 'hanging leg raise'],
+        };
+
+        for (const equip of gymEquipList) {
+          const nameKey = equip.name.toLowerCase();
+          let matchedExercises: string[] = [];
+          for (const [key, exercises] of Object.entries(GENERIC_MAP)) {
+            if (nameKey.includes(key)) { matchedExercises = exercises; break; }
+          }
+
+          let totalUsage = 0, prevUsage = 0;
+          for (const ex of matchedExercises) {
+            totalUsage += exerciseCountMap.get(ex) || 0;
+            prevUsage += prevCountMap.get(ex) || 0;
+          }
+
+          const usagePerUnit = equip.quantity ? Math.round(totalUsage / equip.quantity) : totalUsage;
+          const changePercent = prevUsage > 0 ? Math.round(((totalUsage - prevUsage) / prevUsage) * 100) : (totalUsage > 0 ? 100 : 0);
+          const trend = prevUsage > 0 ? (totalUsage - prevUsage) / prevUsage : 0;
+
+          const confidence: 'high' | 'medium' | 'low' = hasThreeMonths && prevUsage > 3 ? 'high' : prevUsage > 0 ? 'medium' : 'low';
+
+          let action = 'ok';
+          let urgency = 'low';
+          let reason = '';
+
+          if (usagePerUnit >= 30 && trend >= 0) {
+            action = 'overloaded';
+            urgency = 'high';
+            reason = `${equip.name} is heavily used at ${usagePerUnit} uses/unit${trend > 0 ? `, up ${changePercent}%` : ''}. Consider adding capacity.`;
+          } else if (trend >= 0.5 && totalUsage >= 10) {
+            action = 'growing_fast';
+            urgency = 'medium';
+            reason = `Usage surging +${changePercent}% (${prevUsage} → ${totalUsage}). May need attention soon.`;
+          } else if (totalUsage === 0 && prevUsage > 5) {
+            action = 'unused';
+            urgency = 'medium';
+            reason = `Dropped from ${prevUsage} to 0 uses. Check if it needs maintenance or replacement.`;
+          } else if (trend <= -0.5 && prevUsage > 5) {
+            action = 'declining';
+            urgency = 'low';
+            reason = `Usage dropped ${Math.abs(changePercent)}%. Members may be shifting to alternatives.`;
+          }
+
+          if (action !== 'ok') {
+            equipmentActions.push({
+              name: equip.name,
+              category: equip.category || 'Other',
+              action,
+              urgency,
+              reason,
+              usage: totalUsage,
+              changePercent,
+              confidence,
+            });
+          }
+        }
+
+        equipmentActions.sort((a, b) => {
+          const urgencyOrder = { high: 0, medium: 1, low: 2 };
+          return (urgencyOrder[a.urgency as keyof typeof urgencyOrder] || 2) - (urgencyOrder[b.urgency as keyof typeof urgencyOrder] || 2);
+        });
+
+        if (equipmentActions.length > 0) {
+          equipmentSummaryForAi = `Equipment: ${equipmentActions.slice(0, 3).map(e => `${e.name} (${e.action}, ${e.usage} uses, ${e.changePercent > 0 ? '+' : ''}${e.changePercent}%)`).join('; ')}`;
+        }
+      }
+    } catch (err) {
+      console.error("Equipment actions error (non-fatal):", err);
+    }
+
+    try {
+      const currentMonth = clientDate.slice(0, 7);
+      const allPayments = await db.select().from(payments)
+        .where(and(eq(payments.gymId, gymId), eq(payments.month, currentMonth)));
+      const unpaid = allPayments.filter(p => p.status === 'unpaid' || p.status === 'partial');
+
+      for (const p of unpaid) {
+        const member = await db.select({ id: users.id, username: users.username })
+          .from(users).where(eq(users.id, p.memberId)).limit(1);
+        if (member[0]) {
+          const daysOverdue = Math.max(0, Math.floor((new Date().getTime() - new Date(p.updatedAt || p.month + '-01').getTime()) / (1000 * 60 * 60 * 24)));
+          paymentFollowUps.push({
+            memberId: member[0].id,
+            name: member[0].username,
+            amount: (p.amountDue - (p.amountPaid || 0)) / 100,
+            month: p.month,
+            daysOverdue,
+          });
+        }
+      }
+      paymentFollowUps.sort((a, b) => b.amount - a.amount);
+    } catch (err) {
+      console.error("Payment follow-ups error (non-fatal):", err);
+    }
 
     try {
       const { generateChurnExplanations, generateAiInsightOfTheDay } = await import('./dika/owner-ai-engine');
 
       const churnDataForAi = insights.churnRisk.members.slice(0, 8).map(m => {
-        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         return {
           name: m.name,
           daysAbsent: m.daysAbsent,
@@ -8795,6 +8940,10 @@ Return ONLY JSON.`
           preferredDay: m.recommendation?.match(/on (\w+)s/)?.[1],
         };
       });
+
+      const paymentSummaryForAi = paymentFollowUps.length > 0
+        ? `Overdue payments: ${paymentFollowUps.length} members owe total $${paymentFollowUps.reduce((s, p) => s + p.amount, 0).toFixed(0)}`
+        : '';
 
       const [explanations, aiInsight] = await Promise.all([
         churnDataForAi.length > 0 ? generateChurnExplanations(churnDataForAi) : Promise.resolve(new Map()),
@@ -8814,6 +8963,8 @@ Return ONLY JSON.`
           highRiskMembers: insights.churnRisk.members.filter(m => m.riskLevel === 'high').length,
           neverVisitedNewMembers: insights.followUpReminders.items.filter(i => i.type === 'new_member').length,
           interventionSuccessRate: insights.interventionStats?.successRate || 0,
+          equipmentContext: equipmentSummaryForAi,
+          paymentContext: paymentSummaryForAi,
         }),
       ]);
 
@@ -8831,7 +8982,7 @@ Return ONLY JSON.`
       console.error("AI enrichment error (non-fatal):", err);
     }
 
-    res.json(insights);
+    res.json({ ...insights, equipmentActions, paymentFollowUps });
   });
 
   // === OWNER INTERVENTIONS ===

@@ -43,6 +43,8 @@ import {
   Megaphone,
   RefreshCw,
   UserCheck,
+  Wrench,
+  DollarSign,
 } from "lucide-react";
 import { Link } from "wouter";
 import { Progress } from "@/components/ui/progress";
@@ -103,6 +105,23 @@ interface AiInsightsData {
     avgReturnDays: number;
     pending: number;
   };
+  equipmentActions?: {
+    name: string;
+    category: string;
+    action: string;
+    urgency: string;
+    reason: string;
+    usage: number;
+    changePercent: number;
+    confidence: 'high' | 'medium' | 'low';
+  }[];
+  paymentFollowUps?: {
+    memberId: number;
+    name: string;
+    amount: number;
+    month: string;
+    daysOverdue: number;
+  }[];
 }
 
 function ChangeIndicator({ value, suffix = "%" }: { value: number; suffix?: string }) {

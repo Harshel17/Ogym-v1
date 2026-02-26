@@ -98,12 +98,16 @@ export async function generateAiInsightOfTheDay(
     highRiskMembers: number;
     neverVisitedNewMembers: number;
     interventionSuccessRate: number;
+    equipmentContext?: string;
+    paymentContext?: string;
   }
 ): Promise<{ title: string; description: string; severity: 'info' | 'warning' | 'positive' } | null> {
   const attendanceRatio = gymData.totalMembers > 0 ? Math.round((gymData.avgDailyAttendance / gymData.totalMembers) * 100) : 0;
   const lowEngagement = attendanceRatio < 20;
 
-  const prompt = `You are a gym business intelligence analyst. Based on this gym's data, generate ONE actionable insight. Pick the most important pattern or opportunity. Be specific with numbers.${lowEngagement ? ' Note: Low daily attendance ratio suggests many members may track workouts elsewhere — focus insights on check-in patterns and retention rather than workout data.' : ''}
+  const extraContext = [gymData.equipmentContext, gymData.paymentContext].filter(Boolean).join('\n- ');
+
+  const prompt = `You are a gym business intelligence analyst. Based on this gym's data, generate ONE actionable insight. Pick the most important pattern or opportunity. Be specific with numbers. If equipment and payment data are available, try to connect them with attendance or member patterns for a cross-domain insight.${lowEngagement ? ' Note: Low daily attendance ratio suggests many members may track workouts elsewhere — focus insights on check-in patterns and retention rather than workout data.' : ''}
 
 Gym Data:
 - Total members: ${gymData.totalMembers}, Active: ${gymData.activeMembers}
@@ -115,7 +119,7 @@ Gym Data:
 - Revenue this month: ${gymData.revenueThisMonth}, Last month: ${gymData.revenuePrevMonth}
 - Weekly attendance (last 4 weeks): ${gymData.weeklyAttendance.join(', ')}
 - New members who never visited: ${gymData.neverVisitedNewMembers}
-- Intervention success rate: ${gymData.interventionSuccessRate}%
+- Intervention success rate: ${gymData.interventionSuccessRate}%${extraContext ? `\n- ${extraContext}` : ''}
 
 Respond with ONLY a JSON object: {"title": "short title (8 words max)", "description": "2-3 sentence actionable insight with specific numbers", "severity": "info|warning|positive"}
 No markdown, no code fences.`;
