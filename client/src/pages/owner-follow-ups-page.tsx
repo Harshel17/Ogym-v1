@@ -156,15 +156,15 @@ function AiQueueSummary({ summary, onFilter, activeFilter }: {
                 onClick={() => onFilter(activeFilter === key ? null : key)}
                 className={`group flex items-center gap-2.5 p-3 rounded-xl transition-all ${
                   activeFilter === key 
-                    ? 'bg-white/25 ring-1 ring-white/30 shadow-lg' 
-                    : 'bg-white/8 hover:bg-white/15 border border-white/5'
+                    ? 'bg-white/30 ring-1 ring-white/40 shadow-lg' 
+                    : 'bg-white/15 hover:bg-white/22 border border-white/15'
                 }`}
                 data-testid={`filter-${key}`}
               >
-                <Icon className="w-4 h-4 text-white/80 shrink-0" />
+                <Icon className="w-4 h-4 text-white shrink-0" />
                 <div className="text-left min-w-0">
                   <div className="text-lg font-bold text-white leading-none">{count}</div>
-                  <div className="text-[10px] text-white/60 uppercase tracking-wider mt-0.5 truncate">{label}</div>
+                  <div className="text-[10px] text-white/80 uppercase tracking-wider mt-0.5 truncate">{label}</div>
                 </div>
               </button>
             ))}
