@@ -10669,6 +10669,334 @@ Respond with just the summary text, no formatting.`;
 
   // === FOLLOW-UPS API (Day Pass, Inactive, Payments) ===
 
+  app.get("/api/followups/ai-queue", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const today = getLocalDate(req);
+
+      const cutoff14 = new Date(); cutoff14.setDate(cutoff14.getDate() - 14);
+      const cutoff14Str = cutoff14.toISOString().split("T")[0];
+      const cutoff30 = new Date(); cutoff30.setDate(cutoff30.getDate() - 30);
+      const cutoff30Str = cutoff30.toISOString().split("T")[0];
+      const next7 = new Date(); next7.setDate(next7.getDate() + 7);
+      const next7Str = next7.toISOString().split("T")[0];
+
+      const [members, lastAttendanceQuery, subsWithMembers, paymentTotals, recentInterventions] = await Promise.all([
+        storage.getGymMembers(gymId),
+        db.select({
+          memberId: attendance.memberId,
+          lastDate: sql<string>`MAX(${attendance.date})`,
+          totalVisits: sql<number>`count(*)::int`,
+        }).from(attendance)
+          .where(and(eq(attendance.gymId, gymId), eq(attendance.status, "present")))
+          .groupBy(attendance.memberId),
+        db.select({
+          id: memberSubscriptions.id,
+          memberId: memberSubscriptions.memberId,
+          totalAmount: memberSubscriptions.totalAmount,
+          endDate: memberSubscriptions.endDate,
+          status: memberSubscriptions.status,
+          planName: membershipPlans.name,
+        }).from(memberSubscriptions)
+          .leftJoin(membershipPlans, eq(memberSubscriptions.planId, membershipPlans.id))
+          .where(eq(memberSubscriptions.gymId, gymId)),
+        db.select({
+          subscriptionId: paymentTransactions.subscriptionId,
+          totalPaid: sql<number>`COALESCE(SUM(${paymentTransactions.amountPaid}), 0)`,
+        }).from(paymentTransactions).groupBy(paymentTransactions.subscriptionId),
+        storage.getOwnerInterventions(gymId, 200),
+      ]);
+
+      const lastPresentMap = new Map(lastAttendanceQuery.map(r => [r.memberId, { lastDate: r.lastDate, totalVisits: r.totalVisits }]));
+      const paymentMap = new Map(paymentTotals.map(p => [p.subscriptionId, Number(p.totalPaid)]));
+      const memberMap = new Map(members.map(m => [m.id, m]));
+      const recentInterventionIds = new Set(recentInterventions
+        .filter(i => {
+          const created = i.createdAt ? new Date(i.createdAt).getTime() : 0;
+          return Date.now() - created < 7 * 24 * 60 * 60 * 1000;
+        })
+        .map(i => i.memberId));
+
+      type QueueItem = {
+        memberId: number;
+        name: string;
+        email: string | null;
+        category: 'churn_risk' | 'expiring' | 'inactive' | 'payment_due' | 'new_member';
+        priority: 'high' | 'medium' | 'low';
+        reason: string;
+        details: Record<string, any>;
+        alreadyContacted: boolean;
+      };
+
+      const queue: QueueItem[] = [];
+      const addedMemberCategories = new Set<string>();
+
+      for (const member of members) {
+        const attData = lastPresentMap.get(member.id);
+        const lastVisit = attData?.lastDate || null;
+        const totalVisits = attData?.totalVisits || 0;
+        const alreadyContacted = recentInterventionIds.has(member.id);
+        const key = (cat: string) => `${member.id}-${cat}`;
+
+        if (lastVisit) {
+          const daysSince = Math.floor((Date.now() - new Date(lastVisit).getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysSince >= 7 && daysSince < 14 && totalVisits > 5 && !addedMemberCategories.has(key('churn_risk'))) {
+            addedMemberCategories.add(key('churn_risk'));
+            queue.push({
+              memberId: member.id,
+              name: member.username,
+              email: member.email || null,
+              category: 'churn_risk',
+              priority: 'high',
+              reason: `Absent ${daysSince} days — was a regular (${totalVisits} visits). Risk of losing them.`,
+              details: { daysSince, totalVisits, lastVisit },
+              alreadyContacted,
+            });
+          } else if (daysSince >= 14 && daysSince < 45 && !addedMemberCategories.has(key('inactive'))) {
+            addedMemberCategories.add(key('inactive'));
+            queue.push({
+              memberId: member.id,
+              name: member.username,
+              email: member.email || null,
+              category: 'inactive',
+              priority: daysSince >= 30 ? 'high' : 'medium',
+              reason: `No visit in ${daysSince} days. ${totalVisits > 3 ? 'They used to come regularly.' : 'Low engagement.'}`,
+              details: { daysSince, totalVisits, lastVisit },
+              alreadyContacted,
+            });
+          }
+        } else if (totalVisits === 0) {
+          const joined = member.createdAt ? new Date(member.createdAt) : null;
+          if (joined) {
+            const daysSinceJoin = Math.floor((Date.now() - joined.getTime()) / (1000 * 60 * 60 * 24));
+            if (daysSinceJoin >= 3 && daysSinceJoin <= 14 && !addedMemberCategories.has(key('new_member'))) {
+              addedMemberCategories.add(key('new_member'));
+              queue.push({
+                memberId: member.id,
+                name: member.username,
+                email: member.email || null,
+                category: 'new_member',
+                priority: 'medium',
+                reason: `Joined ${daysSinceJoin} days ago but hasn't visited yet. Welcome them!`,
+                details: { daysSinceJoin },
+                alreadyContacted,
+              });
+            }
+          }
+        }
+      }
+
+      for (const sub of subsWithMembers) {
+        const member = memberMap.get(sub.memberId);
+        if (!member) continue;
+        const alreadyContacted = recentInterventionIds.has(sub.memberId);
+        const totalPaid = paymentMap.get(sub.id) || 0;
+        const balance = sub.totalAmount - totalPaid;
+
+        if (sub.endDate && sub.endDate >= today && sub.endDate <= next7Str && !addedMemberCategories.has(`${sub.memberId}-expiring`)) {
+          addedMemberCategories.add(`${sub.memberId}-expiring`);
+          const daysLeft = Math.ceil((new Date(sub.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          queue.push({
+            memberId: sub.memberId,
+            name: member.username,
+            email: member.email || null,
+            category: 'expiring',
+            priority: daysLeft <= 2 ? 'high' : 'medium',
+            reason: `${sub.planName || 'Subscription'} expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}. Renew now.`,
+            details: { planName: sub.planName, expiryDate: sub.endDate, daysLeft },
+            alreadyContacted,
+          });
+        }
+
+        if (balance > 0 && !addedMemberCategories.has(`${sub.memberId}-payment_due`)) {
+          addedMemberCategories.add(`${sub.memberId}-payment_due`);
+          queue.push({
+            memberId: sub.memberId,
+            name: member.username,
+            email: member.email || null,
+            category: 'payment_due',
+            priority: balance >= sub.totalAmount * 0.5 ? 'high' : 'medium',
+            reason: `Outstanding balance of ${balance}. ${sub.planName || 'Subscription'} payment pending.`,
+            details: { planName: sub.planName, balance, totalAmount: sub.totalAmount },
+            alreadyContacted,
+          });
+        }
+      }
+
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      queue.sort((a, b) => {
+        if (a.alreadyContacted !== b.alreadyContacted) return a.alreadyContacted ? 1 : -1;
+        return (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2);
+      });
+
+      const summary = {
+        churnRisk: queue.filter(q => q.category === 'churn_risk').length,
+        expiring: queue.filter(q => q.category === 'expiring').length,
+        inactive: queue.filter(q => q.category === 'inactive').length,
+        paymentDue: queue.filter(q => q.category === 'payment_due').length,
+        newMember: queue.filter(q => q.category === 'new_member').length,
+        total: queue.length,
+        contactedToday: queue.filter(q => q.alreadyContacted).length,
+      };
+
+      res.json({ queue, summary });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to get AI follow-up queue" });
+    }
+  });
+
+  app.post("/api/followups/ai-generate-message", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { memberId, memberName, category, goal, reason, details } = req.body;
+      if (!memberName || !category) {
+        return res.status(400).json({ message: "memberName and category are required" });
+      }
+
+      const gym = await storage.getGym(req.user!.gymId!);
+      const gymName = gym?.name || "our gym";
+      const ownerName = req.user!.fullName || req.user!.username;
+
+      const goalDescriptions: Record<string, string> = {
+        renew: "Encourage the member to renew their membership",
+        bring_back: "Motivate the member to come back to the gym",
+        collect_payment: "Professionally remind the member about their pending payment",
+        welcome: "Give a warm welcome and encourage their first visit",
+        general: "Send a friendly check-in message",
+      };
+
+      const toneGuide: Record<string, string> = {
+        renew: "friendly and appreciative, highlighting their value as a member",
+        bring_back: "motivational and supportive, no guilt-tripping",
+        collect_payment: "professional and respectful, brief and clear",
+        welcome: "warm, excited, and welcoming",
+        general: "casual and friendly",
+      };
+
+      const selectedGoal = goal || 'general';
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI();
+
+      const prompt = `You are a gym owner writing a personal email. Generate both a subject line and message body.
+
+Gym: ${gymName}
+Owner: ${ownerName}
+Member: ${memberName}
+Goal: ${goalDescriptions[selectedGoal] || goalDescriptions.general}
+Tone: ${toneGuide[selectedGoal] || toneGuide.general}
+Context: ${reason || 'General follow-up'}
+${details ? `Additional details: ${JSON.stringify(details)}` : ''}
+
+Rules:
+- Keep the message 2-4 sentences
+- Use the member's first name
+- Be genuine, not corporate
+- Don't use too many exclamation marks
+- Sign off with just the owner's first name
+- Match the tone to the goal
+
+Return a JSON object with "subject" and "message" fields.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 300,
+        temperature: 0.8,
+        response_format: { type: "json_object" },
+      });
+
+      const content = response.choices[0]?.message?.content?.trim();
+      let result = { subject: `Message from ${gymName}`, message: `Hey ${memberName}, hope you're doing great! - ${ownerName}` };
+      
+      try {
+        if (content) {
+          const parsed = JSON.parse(content);
+          result = { subject: parsed.subject || result.subject, message: parsed.message || result.message };
+        }
+      } catch {}
+
+      const suggestions = [];
+      if (selectedGoal === 'renew' || selectedGoal === 'bring_back') {
+        suggestions.push(
+          { id: 'free_session', label: 'Offer a free trainer session', active: false },
+          { id: 'discount', label: 'Include a renewal discount', active: false },
+        );
+      }
+      if (selectedGoal === 'bring_back' || selectedGoal === 'general') {
+        suggestions.push(
+          { id: 'reminder_3d', label: 'Schedule follow-up in 3 days', active: false },
+        );
+      }
+      if (selectedGoal === 'collect_payment') {
+        suggestions.push(
+          { id: 'payment_plan', label: 'Offer a payment plan', active: false },
+          { id: 'reminder_3d', label: 'Schedule payment reminder in 3 days', active: false },
+        );
+      }
+      if (selectedGoal === 'welcome') {
+        suggestions.push(
+          { id: 'free_session', label: 'Offer a complimentary first session', active: false },
+          { id: 'gym_tour', label: 'Invite for a guided gym tour', active: false },
+        );
+      }
+
+      res.json({ ...result, suggestions });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to generate AI message" });
+    }
+  });
+
+  app.get("/api/followups/ai-tracking", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const interventions = await storage.getOwnerInterventions(gymId, 500);
+
+      const now = Date.now();
+      const last30Days = interventions.filter(i => {
+        const created = i.createdAt ? new Date(i.createdAt).getTime() : 0;
+        return now - created < 30 * 24 * 60 * 60 * 1000;
+      });
+      const last7Days = last30Days.filter(i => {
+        const created = i.createdAt ? new Date(i.createdAt).getTime() : 0;
+        return now - created < 7 * 24 * 60 * 60 * 1000;
+      });
+
+      const totalSent = last30Days.length;
+      const returned = last30Days.filter(i => i.memberReturnedWithin7Days === true).length;
+      const pending = last30Days.filter(i => i.memberReturnedWithin7Days === null).length;
+      const notReturned = last30Days.filter(i => i.memberReturnedWithin7Days === false).length;
+
+      const byReason: Record<string, { sent: number; returned: number }> = {};
+      for (const i of last30Days) {
+        const r = i.triggerReason || 'other';
+        if (!byReason[r]) byReason[r] = { sent: 0, returned: 0 };
+        byReason[r].sent++;
+        if (i.memberReturnedWithin7Days) byReason[r].returned++;
+      }
+
+      res.json({
+        period: '30_days',
+        totalSent,
+        returned,
+        pending,
+        notReturned,
+        successRate: totalSent > 0 ? Math.round((returned / totalSent) * 100) : 0,
+        sentThisWeek: last7Days.length,
+        byReason,
+        recentActions: last7Days.slice(0, 10).map(i => ({
+          id: i.id,
+          memberId: i.memberId,
+          actionType: i.actionType,
+          triggerReason: i.triggerReason,
+          returned: i.memberReturnedWithin7Days,
+          createdAt: i.createdAt,
+        })),
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to get AI tracking data" });
+    }
+  });
+
   // Get day pass visitors for follow-up
   app.get("/api/followups/daypass", requireRole(["owner"]), async (req, res) => {
     try {

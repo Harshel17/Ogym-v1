@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { 
   Mail, Loader2, Send, Settings, Search, Calendar, Users, CreditCard,
-  UserX, Clock, AlertCircle, Check, Filter, ChevronRight, Sparkles, BarChart3, Brain
+  UserX, Clock, AlertCircle, Check, Filter, ChevronRight, Sparkles, BarChart3, Brain,
+  Target, Zap, TrendingUp, RefreshCw, CheckCircle2, XCircle,
+  MessageSquare, Star, UserPlus, AlertTriangle
 } from "lucide-react";
 import { Link } from "wouter";
 import { format, subDays } from "date-fns";
@@ -28,37 +30,543 @@ type EmailSettings = {
   connectedEmail?: string;
 };
 
-type DayPassMember = {
-  id: number;
+type QueueItem = {
+  memberId: number;
   name: string;
   email: string | null;
-  phone: string | null;
-  visitsCount: number;
-  lastVisitDate: string;
-  dayPassCount: number;
+  category: 'churn_risk' | 'expiring' | 'inactive' | 'payment_due' | 'new_member';
+  priority: 'high' | 'medium' | 'low';
+  reason: string;
+  details: Record<string, any>;
+  alreadyContacted: boolean;
 };
 
-type InactiveMember = {
-  id: number;
-  name: string;
-  email: string | null;
-  lastVisit: string | null;
-  membershipStatus: string;
+type AiQueueData = {
+  queue: QueueItem[];
+  summary: {
+    churnRisk: number;
+    expiring: number;
+    inactive: number;
+    paymentDue: number;
+    newMember: number;
+    total: number;
+    contactedToday: number;
+  };
 };
 
-type PaymentMember = {
-  id: number;
-  name: string;
-  email: string | null;
-  planName: string | null;
-  expiryDate: string | null;
-  balance: number;
-  lastPaymentDate: string | null;
-  status: string;
+type TrackingData = {
+  period: string;
+  totalSent: number;
+  returned: number;
+  pending: number;
+  notReturned: number;
+  successRate: number;
+  sentThisWeek: number;
+  byReason: Record<string, { sent: number; returned: number }>;
+  recentActions: Array<{
+    id: number;
+    memberId: number;
+    actionType: string;
+    triggerReason: string;
+    returned: boolean | null;
+    createdAt: string;
+  }>;
 };
+
+type AiSuggestion = {
+  id: string;
+  label: string;
+  active: boolean;
+};
+
+const CATEGORY_CONFIG: Record<string, { label: string; icon: any; color: string; bgColor: string }> = {
+  churn_risk: { label: "Churn Risk", icon: AlertTriangle, color: "text-red-500", bgColor: "bg-red-500/10" },
+  expiring: { label: "Expiring", icon: Clock, color: "text-amber-500", bgColor: "bg-amber-500/10" },
+  inactive: { label: "Inactive", icon: UserX, color: "text-orange-500", bgColor: "bg-orange-500/10" },
+  payment_due: { label: "Payment Due", icon: CreditCard, color: "text-purple-500", bgColor: "bg-purple-500/10" },
+  new_member: { label: "New Member", icon: UserPlus, color: "text-blue-500", bgColor: "bg-blue-500/10" },
+};
+
+const GOAL_OPTIONS = [
+  { value: "bring_back", label: "Bring member back", icon: RefreshCw, description: "Motivational message to return" },
+  { value: "renew", label: "Renew membership", icon: Star, description: "Encourage renewal" },
+  { value: "collect_payment", label: "Collect payment", icon: CreditCard, description: "Professional payment reminder" },
+  { value: "welcome", label: "Welcome new member", icon: UserPlus, description: "Warm onboarding message" },
+  { value: "general", label: "General check-in", icon: MessageSquare, description: "Friendly follow-up" },
+];
+
+function getDefaultGoal(category: string): string {
+  switch (category) {
+    case 'churn_risk': return 'bring_back';
+    case 'expiring': return 'renew';
+    case 'inactive': return 'bring_back';
+    case 'payment_due': return 'collect_payment';
+    case 'new_member': return 'welcome';
+    default: return 'general';
+  }
+}
+
+function AiQueueSummary({ summary, onFilter, activeFilter }: { 
+  summary: AiQueueData['summary']; 
+  onFilter: (cat: string | null) => void;
+  activeFilter: string | null;
+}) {
+  const categories = [
+    { key: 'churn_risk', count: summary.churnRisk, ...CATEGORY_CONFIG.churn_risk },
+    { key: 'expiring', count: summary.expiring, ...CATEGORY_CONFIG.expiring },
+    { key: 'inactive', count: summary.inactive, ...CATEGORY_CONFIG.inactive },
+    { key: 'payment_due', count: summary.paymentDue, ...CATEGORY_CONFIG.payment_due },
+    { key: 'new_member', count: summary.newMember, ...CATEGORY_CONFIG.new_member },
+  ].filter(c => c.count > 0);
+
+  return (
+    <Card className="border-0 shadow-sm bg-gradient-to-br from-primary/5 via-violet-500/5 to-transparent" data-testid="ai-queue-summary">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary to-violet-600 shadow-lg shadow-primary/20">
+            <Zap className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <CardTitle className="text-lg">Dika AI Today's Follow-ups</CardTitle>
+            <CardDescription className="text-sm mt-0.5">
+              {summary.total} member{summary.total !== 1 ? 's' : ''} need attention
+              {summary.contactedToday > 0 && ` · ${summary.contactedToday} already contacted`}
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <ScrollArea className="w-full">
+          <div className="flex gap-2 pb-1">
+            <Button
+              variant={activeFilter === null ? "default" : "outline"}
+              size="sm"
+              onClick={() => onFilter(null)}
+              className="whitespace-nowrap flex-shrink-0"
+              data-testid="filter-all"
+            >
+              All ({summary.total})
+            </Button>
+            {categories.map(({ key, count, label, icon: Icon, color }) => (
+              <Button
+                key={key}
+                variant={activeFilter === key ? "default" : "outline"}
+                size="sm"
+                onClick={() => onFilter(activeFilter === key ? null : key)}
+                className="whitespace-nowrap flex-shrink-0"
+                data-testid={`filter-${key}`}
+              >
+                <Icon className={`w-3.5 h-3.5 mr-1.5 ${activeFilter === key ? "" : color}`} />
+                {count} {label}
+              </Button>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  );
+}
+
+function QueueMemberCard({ 
+  item, 
+  isSelected, 
+  onSelect 
+}: { 
+  item: QueueItem; 
+  isSelected: boolean; 
+  onSelect: () => void;
+}) {
+  const config = CATEGORY_CONFIG[item.category];
+  const Icon = config?.icon || AlertCircle;
+
+  return (
+    <div 
+      className={`p-3 rounded-xl border transition-all cursor-pointer ${
+        isSelected 
+          ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm' 
+          : 'bg-card hover:bg-accent/50 hover:border-accent'
+      } ${item.alreadyContacted ? 'opacity-60' : ''}`}
+      onClick={() => item.email && onSelect()}
+      data-testid={`queue-card-${item.memberId}`}
+    >
+      <div className="flex items-start gap-2.5">
+        <div className={`p-1.5 rounded-lg ${config?.bgColor || 'bg-muted'} shrink-0 mt-0.5`}>
+          <Icon className={`w-3.5 h-3.5 ${config?.color || 'text-muted-foreground'}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-sm text-foreground truncate">{item.name}</span>
+            {!item.email && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">No email</Badge>
+            )}
+            {item.alreadyContacted && (
+              <Badge className="bg-green-500/10 text-green-600 border-0 text-[10px] px-1.5 py-0">
+                <Check className="w-2.5 h-2.5 mr-0.5" />
+                Contacted
+              </Badge>
+            )}
+          </div>
+          {item.email && (
+            <p className="text-[11px] text-muted-foreground truncate">{item.email}</p>
+          )}
+          <p className="text-xs text-muted-foreground/80 mt-1.5 leading-relaxed">{item.reason}</p>
+          <div className="flex items-center gap-1.5 mt-2">
+            <Badge 
+              variant="outline" 
+              className={`text-[10px] px-1.5 py-0 ${
+                item.priority === 'high' ? 'border-red-200 text-red-600 bg-red-50' :
+                item.priority === 'medium' ? 'border-amber-200 text-amber-600 bg-amber-50' :
+                'border-gray-200'
+              }`}
+            >
+              {item.priority}
+            </Badge>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+              {config?.label || item.category}
+            </Badge>
+          </div>
+        </div>
+        {item.email && (
+          <Checkbox 
+            checked={isSelected} 
+            onCheckedChange={() => onSelect()}
+            className="mt-1 shrink-0"
+            data-testid={`checkbox-queue-${item.memberId}`}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GoalSelector({ 
+  selectedGoal, 
+  onSelect, 
+  category 
+}: { 
+  selectedGoal: string; 
+  onSelect: (goal: string) => void; 
+  category: string;
+}) {
+  const defaultGoal = getDefaultGoal(category);
+
+  return (
+    <Card className="border-0 shadow-sm" data-testid="goal-selector">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Target className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <CardTitle className="text-base">What's your goal?</CardTitle>
+            <CardDescription className="text-xs">AI will craft the perfect message</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {GOAL_OPTIONS.map(({ value, label, icon: GoalIcon, description }) => (
+            <button
+              key={value}
+              onClick={() => onSelect(value)}
+              className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all ${
+                selectedGoal === value 
+                  ? 'border-primary bg-primary/5 ring-1 ring-primary/20' 
+                  : 'hover:bg-accent/50 hover:border-accent'
+              } ${value === defaultGoal && selectedGoal !== value ? 'border-dashed border-primary/30' : ''}`}
+              data-testid={`goal-${value}`}
+            >
+              <GoalIcon className={`w-4 h-4 mt-0.5 shrink-0 ${selectedGoal === value ? 'text-primary' : 'text-muted-foreground'}`} />
+              <div>
+                <div className={`text-sm font-medium ${selectedGoal === value ? 'text-primary' : 'text-foreground'}`}>
+                  {label}
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">{description}</div>
+              </div>
+              {value === defaultGoal && selectedGoal !== value && (
+                <Badge className="bg-primary/10 text-primary border-0 text-[9px] px-1 py-0 ml-auto shrink-0">
+                  Suggested
+                </Badge>
+              )}
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AiMessageComposer({ 
+  selectedItems,
+  goal,
+  onSend,
+  isPending,
+}: { 
+  selectedItems: QueueItem[];
+  goal: string;
+  onSend: (subject: string, message: string, memberIds: number[]) => void;
+  isPending: boolean;
+}) {
+  const { toast } = useToast();
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
+  const [hasGenerated, setHasGenerated] = useState(false);
+  const prevGenKey = useRef("");
+
+  const firstSelected = selectedItems[0];
+  const genKey = `${firstSelected?.memberId}-${firstSelected?.category}-${goal}`;
+
+  const generateMutation = useMutation({
+    mutationFn: async (data: { memberId: number; memberName: string; category: string; goal: string; reason: string; details: Record<string, any> }) => {
+      const res = await apiRequest("POST", "/api/followups/ai-generate-message", data);
+      return res as { subject: string; message: string; suggestions: AiSuggestion[] };
+    },
+    onSuccess: (data) => {
+      setSubject(data.subject);
+      setMessage(data.message);
+      setSuggestions(data.suggestions || []);
+      setHasGenerated(true);
+      prevGenKey.current = genKey;
+    },
+    onError: (error: Error) => {
+      toast({ title: "AI generation failed", description: error.message, variant: "destructive" });
+    }
+  });
+
+  useEffect(() => {
+    if (firstSelected && goal && genKey !== prevGenKey.current) {
+      generateMutation.mutate({
+        memberId: firstSelected.memberId,
+        memberName: firstSelected.name,
+        category: firstSelected.category,
+        goal,
+        reason: firstSelected.reason,
+        details: firstSelected.details,
+      });
+    }
+  }, [firstSelected?.memberId, firstSelected?.category, goal]);
+
+  const toggleSuggestion = (id: string) => {
+    setSuggestions(prev => prev.map(s => s.id === id ? { ...s, active: !s.active } : s));
+  };
+
+  const handleRegenerate = () => {
+    if (firstSelected) {
+      prevGenKey.current = "";
+      generateMutation.mutate({
+        memberId: firstSelected.memberId,
+        memberName: firstSelected.name,
+        category: firstSelected.category,
+        goal,
+        reason: firstSelected.reason,
+        details: firstSelected.details,
+      });
+    }
+  };
+
+  const handleSend = () => {
+    if (subject && message && selectedItems.length > 0) {
+      const activeSuggestions = suggestions.filter(s => s.active);
+      let finalMessage = message;
+      if (activeSuggestions.length > 0) {
+        finalMessage += "\n\n" + activeSuggestions.map(s => `• ${s.label}`).join("\n");
+      }
+      onSend(subject, finalMessage, selectedItems.map(i => i.memberId));
+    }
+  };
+
+  if (selectedItems.length === 0) {
+    return (
+      <Card className="border-0 shadow-sm border-dashed">
+        <CardContent className="py-10 text-center">
+          <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+            <Mail className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-medium text-muted-foreground">Select a member to get started</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">Dika AI will write the message for you</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-primary/5" data-testid="ai-message-composer">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-violet-600 shadow-sm">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-base">AI-Crafted Message</CardTitle>
+              <CardDescription className="text-xs">
+                {selectedItems.length === 1 
+                  ? `For ${firstSelected?.name}` 
+                  : `For ${selectedItems.length} members`}
+              </CardDescription>
+            </div>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleRegenerate}
+            disabled={generateMutation.isPending}
+            data-testid="button-regenerate"
+          >
+            <RefreshCw className={`w-4 h-4 mr-1.5 ${generateMutation.isPending ? 'animate-spin' : ''}`} />
+            Regenerate
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-0">
+        {generateMutation.isPending && !hasGenerated ? (
+          <div className="space-y-3 py-4">
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <span>Dika is writing the perfect message...</span>
+            </div>
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="ai-subject" className="text-xs text-muted-foreground flex items-center gap-1.5">
+                Subject
+                {generateMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+              </Label>
+              <Input 
+                id="ai-subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="h-10"
+                data-testid="input-ai-subject"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ai-message" className="text-xs text-muted-foreground flex items-center gap-1.5">
+                Message
+                <Badge className="bg-primary/10 text-primary border-0 text-[9px] px-1 py-0">AI Generated</Badge>
+              </Label>
+              <Textarea 
+                id="ai-message"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={4}
+                className="resize-none"
+                data-testid="textarea-ai-message"
+              />
+            </div>
+
+            {suggestions.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Suggested actions</Label>
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => toggleSuggestion(s.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                        s.active 
+                          ? 'bg-primary/10 text-primary border-primary/30' 
+                          : 'bg-background text-muted-foreground border-border hover:border-primary/20'
+                      }`}
+                      data-testid={`suggestion-${s.id}`}
+                    >
+                      {s.active ? <CheckCircle2 className="w-3 h-3" /> : <Check className="w-3 h-3 opacity-40" />}
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-sm text-muted-foreground">
+                  {selectedItems.length} recipient{selectedItems.length !== 1 ? 's' : ''} selected
+                </span>
+              </div>
+              <Button 
+                onClick={handleSend}
+                disabled={!subject || !message || isPending}
+                className="w-full sm:w-auto bg-gradient-to-r from-primary to-violet-600 hover:opacity-90"
+                data-testid="button-send-ai"
+              >
+                {isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                Send to {selectedItems.length > 1 ? `${selectedItems.length} Members` : firstSelected?.name}
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AiTrackingCard() {
+  const { data: tracking, isLoading } = useQuery<TrackingData>({
+    queryKey: ["/api/followups/ai-tracking"],
+  });
+
+  if (isLoading) {
+    return <Skeleton className="h-32 w-full rounded-xl" />;
+  }
+
+  if (!tracking || tracking.totalSent === 0) {
+    return null;
+  }
+
+  return (
+    <Card className="border-0 shadow-sm" data-testid="ai-tracking">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500/20 to-green-500/10">
+            <TrendingUp className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Follow-up Results</CardTitle>
+            <CardDescription className="text-xs">Last 30 days performance</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="p-3 rounded-xl bg-muted/30 text-center">
+            <div className="text-2xl font-bold text-foreground">{tracking.totalSent}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">Sent</div>
+          </div>
+          <div className="p-3 rounded-xl bg-emerald-500/5 text-center">
+            <div className="text-2xl font-bold text-emerald-600">{tracking.returned}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">Returned</div>
+          </div>
+          <div className="p-3 rounded-xl bg-amber-500/5 text-center">
+            <div className="text-2xl font-bold text-amber-600">{tracking.pending}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">Pending</div>
+          </div>
+          <div className="p-3 rounded-xl bg-primary/5 text-center">
+            <div className="text-2xl font-bold text-primary">{tracking.successRate}%</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">Success Rate</div>
+          </div>
+        </div>
+
+        {tracking.sentThisWeek > 0 && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground px-1">
+            <Sparkles className="w-3 h-3 text-primary" />
+            <span>{tracking.sentThisWeek} message{tracking.sentThisWeek !== 1 ? 's' : ''} sent this week</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function SenderSetupCard() {
   const { toast } = useToast();
+  const [expanded, setExpanded] = useState(false);
   
   const { data, isLoading } = useQuery<{ settings: EmailSettings; gymName: string }>({
     queryKey: ["/api/gym/email/settings"]
@@ -74,6 +582,7 @@ function SenderSetupCard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gym/email/settings"] });
       toast({ title: "Settings saved" });
+      setExpanded(false);
     },
     onError: (error: Error) => {
       toast({ title: "Failed to save", description: error.message, variant: "destructive" });
@@ -87,30 +596,39 @@ function SenderSetupCard() {
     }
   }, [data]);
 
-  if (isLoading) {
+  if (isLoading) return null;
+
+  if (!expanded) {
     return (
-      <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-muted/20">
-        <CardHeader className="pb-4">
-          <Skeleton className="h-6 w-32" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-20 w-full" />
-        </CardContent>
-      </Card>
+      <button
+        onClick={() => setExpanded(true)}
+        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors px-1"
+        data-testid="button-expand-settings"
+      >
+        <Settings className="w-3.5 h-3.5" />
+        <span>Sender: {data?.gymName} via OGym</span>
+        {data?.settings?.replyToEmail && <span className="text-muted-foreground/60">· Reply-to: {data.settings.replyToEmail}</span>}
+        <ChevronRight className="w-3 h-3" />
+      </button>
     );
   }
 
   return (
     <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-muted/20">
       <CardHeader className="pb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Settings className="w-5 h-5 text-primary" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Settings className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Sender Setup</CardTitle>
+              <CardDescription className="text-sm">Configure how emails are sent</CardDescription>
+            </div>
           </div>
-          <div>
-            <CardTitle className="text-lg">Sender Setup</CardTitle>
-            <CardDescription className="text-sm">Configure how emails are sent</CardDescription>
-          </div>
+          <Button variant="ghost" size="sm" onClick={() => setExpanded(false)} data-testid="button-collapse-settings">
+            <XCircle className="w-4 h-4" />
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -120,7 +638,7 @@ function SenderSetupCard() {
           className="space-y-3"
         >
           <div 
-            className="flex items-center gap-3 p-4 rounded-xl border bg-background/50 hover-elevate cursor-pointer transition-all" 
+            className="flex items-center gap-3 p-4 rounded-xl border bg-background/50 hover:bg-accent/30 cursor-pointer transition-all" 
             onClick={() => setSendMode("ogym")}
           >
             <RadioGroupItem value="ogym" id="ogym" data-testid="radio-send-ogym" />
@@ -173,383 +691,60 @@ function SenderSetupCard() {
   );
 }
 
-function MessageComposer({ 
-  selectedCount, 
-  onSend, 
-  isPending,
-  category,
-  initialSubject,
-  initialMessage
+function ManualTab({ 
+  tabType, 
+  autoSelectMemberId, 
+  initialSubject, 
+  initialMessage 
 }: { 
-  selectedCount: number; 
-  onSend: (subject: string, message: string) => void; 
-  isPending: boolean;
-  category: string;
+  tabType: 'daypass' | 'inactive' | 'payments';
+  autoSelectMemberId?: number;
   initialSubject?: string;
   initialMessage?: string;
 }) {
+  const { toast } = useToast();
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [search, setSearch] = useState("");
   const [subject, setSubject] = useState(initialSubject || "");
   const [message, setMessage] = useState(initialMessage || "");
-
-  useEffect(() => {
-    if (initialSubject) setSubject(initialSubject);
-  }, [initialSubject]);
-
-  useEffect(() => {
-    if (initialMessage) setMessage(initialMessage);
-  }, [initialMessage]);
-
-  const handleSend = () => {
-    if (subject && message) {
-      onSend(subject, message);
-      setSubject("");
-      setMessage("");
-    }
-  };
-
-  return (
-    <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-primary/5">
-      <CardHeader className="pb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Mail className="w-5 h-5 text-primary" />
-          </div>
-          <CardTitle className="text-lg">Compose Message</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="subject" className="text-sm">Subject</Label>
-          <Input 
-            id="subject"
-            placeholder="Enter email subject"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="h-11"
-            data-testid={`input-subject-${category}`}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="message" className="text-sm">Message</Label>
-          <Textarea 
-            id="message"
-            placeholder="Write your message here..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={5}
-            className="resize-none"
-            data-testid={`textarea-message-${category}`}
-          />
-        </div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-sm text-muted-foreground">
-              {selectedCount} recipient{selectedCount !== 1 ? 's' : ''} selected
-            </span>
-          </div>
-          <Button 
-            onClick={handleSend}
-            disabled={selectedCount === 0 || !subject || !message || isPending}
-            className="w-full sm:w-auto"
-            data-testid={`button-send-${category}`}
-          >
-            {isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-            Send to Selected
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function MemberCard({ 
-  member, 
-  isSelected, 
-  onToggle, 
-  children,
-  testIdPrefix
-}: { 
-  member: { id: number; name: string; email: string | null }; 
-  isSelected: boolean; 
-  onToggle: () => void;
-  children: React.ReactNode;
-  testIdPrefix: string;
-}) {
-  return (
-    <div 
-      className={`p-3 rounded-lg border transition-all ${isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'bg-card hover-elevate'}`}
-      data-testid={`card-${testIdPrefix}-${member.id}`}
-    >
-      <div className="flex items-start gap-2">
-        <Checkbox 
-          checked={isSelected}
-          onCheckedChange={onToggle}
-          disabled={!member.email}
-          className="mt-0.5"
-          data-testid={`checkbox-${testIdPrefix}-${member.id}`}
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-medium text-sm text-foreground truncate">{member.name}</span>
-            {!member.email && (
-              <Badge variant="secondary" className="text-xs px-1.5 py-0">No email</Badge>
-            )}
-          </div>
-          {member.email && (
-            <p className="text-xs text-muted-foreground truncate">{member.email}</p>
-          )}
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {children}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DayPassTab() {
-  const { toast } = useToast();
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [search, setSearch] = useState("");
-  const [minVisits, setMinVisits] = useState("1");
+  const [inactiveDays, setInactiveDays] = useState("30");
+  const [filterType, setFilterType] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [minVisits, setMinVisits] = useState("1");
 
-  const buildDayPassUrl = () => {
+  useEffect(() => { if (initialSubject) setSubject(initialSubject); }, [initialSubject]);
+  useEffect(() => { if (initialMessage) setMessage(initialMessage); }, [initialMessage]);
+
+  const buildUrl = () => {
     const params = new URLSearchParams();
-    if (fromDate) params.set("from", fromDate);
-    if (toDate) params.set("to", toDate);
-    if (minVisits && minVisits !== "1") params.set("min_visits", minVisits);
     if (search) params.set("search", search);
+    if (tabType === 'inactive' && inactiveDays) params.set("inactive_days", inactiveDays);
+    if (tabType === 'payments' && filterType) params.set("type", filterType);
+    if (tabType === 'daypass') {
+      if (fromDate) params.set("from", fromDate);
+      if (toDate) params.set("to", toDate);
+      if (minVisits && minVisits !== "1") params.set("min_visits", minVisits);
+    }
     const qs = params.toString();
-    return `/api/followups/daypass${qs ? `?${qs}` : ""}`;
+    return `/api/followups/${tabType}${qs ? `?${qs}` : ""}`;
   };
 
-  const { data: members = [], isLoading } = useQuery<DayPassMember[]>({
-    queryKey: ["/api/followups/daypass", fromDate, toDate, minVisits, search],
+  const { data: members = [], isLoading } = useQuery<any[]>({
+    queryKey: [`/api/followups/${tabType}`, search, inactiveDays, filterType, fromDate, toDate, minVisits],
     queryFn: async () => {
-      const res = await fetch(buildDayPassUrl(), { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch day pass members");
+      const res = await fetch(buildUrl(), { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     }
   });
-
-  const sendMutation = useMutation({
-    mutationFn: async (data: { category: string; member_ids: number[]; subject: string; message: string }) => {
-      return apiRequest("POST", "/api/followups/send", data);
-    },
-    onSuccess: (data: any) => {
-      toast({ title: `Sent ${data.sent} email(s)` });
-      setSelectedIds([]);
-    },
-    onError: (error: Error) => {
-      toast({ title: "Failed to send", description: error.message, variant: "destructive" });
-    }
-  });
-
-  const toggleSelect = (id: number) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
-  const toggleAll = () => {
-    const emailMembers = members.filter(m => m.email);
-    if (emailMembers.every(m => selectedIds.includes(m.id))) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(emailMembers.map(m => m.id));
-    }
-  };
-
-  const handleSend = (subject: string, message: string) => {
-    sendMutation.mutate({
-      category: "DAY_PASS",
-      member_ids: selectedIds,
-      subject,
-      message
-    });
-  };
-
-  const filteredMembers = useMemo(() => {
-    let filtered = members;
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(m => 
-        m.name?.toLowerCase().includes(q) ||
-        m.email?.toLowerCase().includes(q) ||
-        m.phone?.includes(q)
-      );
-    }
-    return filtered;
-  }, [members, search]);
-
-  const emailableCount = filteredMembers.filter(m => m.email).length;
-
-  return (
-    <div className="space-y-4">
-      <Card className="border-0 shadow-sm">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Filter className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Filters</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">From Date</Label>
-              <Input 
-                type="date" 
-                value={fromDate} 
-                onChange={(e) => setFromDate(e.target.value)}
-                className="h-10"
-                data-testid="input-from-date"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">To Date</Label>
-              <Input 
-                type="date" 
-                value={toDate} 
-                onChange={(e) => setToDate(e.target.value)}
-                className="h-10"
-                data-testid="input-to-date"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Min Visits</Label>
-              <Select value={minVisits} onValueChange={setMinVisits}>
-                <SelectTrigger className="h-10" data-testid="select-min-visits">
-                  <SelectValue placeholder="Min visits" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">All visitors</SelectItem>
-                  <SelectItem value="2">2+ visits</SelectItem>
-                  <SelectItem value="3">3+ visits</SelectItem>
-                  <SelectItem value="5">5+ visits</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Search</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Name, email, phone"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 h-10"
-                  data-testid="input-search-daypass"
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {emailableCount > 0 && (
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <Checkbox 
-              checked={filteredMembers.filter(m => m.email).every(m => selectedIds.includes(m.id))}
-              onCheckedChange={toggleAll}
-              data-testid="checkbox-select-all-daypass"
-            />
-            <span className="text-sm text-muted-foreground">Select all ({emailableCount})</span>
-          </div>
-          {selectedIds.length > 0 && (
-            <Badge variant="secondary">{selectedIds.length} selected</Badge>
-          )}
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
-        </div>
-      ) : filteredMembers.length === 0 ? (
-        <Card className="border-0 shadow-sm">
-          <CardContent className="py-12 text-center">
-            <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
-              <Users className="w-6 h-6 text-muted-foreground" />
-            </div>
-            <p className="font-medium text-foreground text-sm">No day pass visitors found</p>
-            <p className="text-xs text-muted-foreground mt-1">Adjust your filters or date range</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="max-h-[400px] overflow-y-auto rounded-lg border bg-muted/20 p-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {filteredMembers.map(member => (
-              <MemberCard
-                key={member.id}
-                member={member}
-                isSelected={selectedIds.includes(member.id)}
-                onToggle={() => toggleSelect(member.id)}
-                testIdPrefix="daypass"
-              >
-                <Badge variant="secondary" className="gap-1 text-xs px-1.5 py-0">
-                  <Users className="w-2.5 h-2.5" />
-                  {member.visitsCount}
-                </Badge>
-                <Badge variant="outline" className="gap-1 text-xs px-1.5 py-0">
-                  <Calendar className="w-2.5 h-2.5" />
-                  {format(new Date(member.lastVisitDate), "MMM d")}
-                </Badge>
-              </MemberCard>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <MessageComposer 
-        selectedCount={selectedIds.length} 
-        onSend={handleSend}
-        isPending={sendMutation.isPending}
-        category="daypass"
-      />
-    </div>
-  );
-}
-
-function InactiveTab({ autoSelectMemberId, initialSubject, initialMessage }: { autoSelectMemberId?: number; initialSubject?: string; initialMessage?: string }) {
-  const { toast } = useToast();
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [search, setSearch] = useState("");
-  const urlParams = new URLSearchParams(window.location.search);
-  const initialDays = urlParams.get("days") || "30";
-  const [inactiveDays, setInactiveDays] = useState(initialDays);
-  const [autoSelected, setAutoSelected] = useState(false);
-
-  const buildInactiveUrl = () => {
-    const params = new URLSearchParams();
-    if (inactiveDays) params.set("inactive_days", inactiveDays);
-    if (search) params.set("search", search);
-    const qs = params.toString();
-    return `/api/followups/inactive${qs ? `?${qs}` : ""}`;
-  };
-
-  const { data: members = [], isLoading } = useQuery<InactiveMember[]>({
-    queryKey: ["/api/followups/inactive", inactiveDays, search],
-    queryFn: async () => {
-      const res = await fetch(buildInactiveUrl(), { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch inactive members");
-      return res.json();
-    }
-  });
-
-  const prevMemberIdRef = { current: autoSelectMemberId };
 
   useEffect(() => {
     if (autoSelectMemberId && members.length > 0) {
-      if (!autoSelected || prevMemberIdRef.current !== autoSelectMemberId) {
-        const member = members.find(m => m.id === autoSelectMemberId);
-        if (member) {
-          setSelectedIds([autoSelectMemberId]);
-          setAutoSelected(true);
-          prevMemberIdRef.current = autoSelectMemberId;
-        }
-      }
+      const member = members.find((m: any) => m.id === autoSelectMemberId);
+      if (member) setSelectedIds([autoSelectMemberId]);
     }
-  }, [autoSelectMemberId, members, autoSelected]);
+  }, [autoSelectMemberId, members]);
 
   const sendMutation = useMutation({
     mutationFn: async (data: { category: string; member_ids: number[]; subject: string; message: string }) => {
@@ -558,6 +753,8 @@ function InactiveTab({ autoSelectMemberId, initialSubject, initialMessage }: { a
     onSuccess: (data: any) => {
       toast({ title: `Sent ${data.sent} email(s)` });
       setSelectedIds([]);
+      setSubject("");
+      setMessage("");
     },
     onError: (error: Error) => {
       toast({ title: "Failed to send", description: error.message, variant: "destructive" });
@@ -568,52 +765,26 @@ function InactiveTab({ autoSelectMemberId, initialSubject, initialMessage }: { a
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
+  const emailableMembers = members.filter((m: any) => m.email);
+
   const toggleAll = () => {
-    const emailMembers = members.filter(m => m.email);
-    if (emailMembers.every(m => selectedIds.includes(m.id))) {
+    if (emailableMembers.every((m: any) => selectedIds.includes(m.id))) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(emailMembers.map(m => m.id));
+      setSelectedIds(emailableMembers.map((m: any) => m.id));
     }
   };
 
-  const handleSend = (subject: string, message: string) => {
-    sendMutation.mutate({
-      category: "INACTIVE",
-      member_ids: selectedIds,
-      subject,
-      message
-    });
+  const handleSend = () => {
+    if (subject && message && selectedIds.length > 0) {
+      sendMutation.mutate({
+        category: tabType === 'daypass' ? 'DAY_PASS' : tabType === 'inactive' ? 'INACTIVE' : 'PAYMENTS',
+        member_ids: selectedIds,
+        subject,
+        message
+      });
+    }
   };
-
-  const selectedCardRef = useRef<HTMLDivElement>(null);
-
-  const filteredMembers = useMemo(() => {
-    let filtered = members;
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(m => 
-        m.name?.toLowerCase().includes(q) ||
-        m.email?.toLowerCase().includes(q)
-      );
-    }
-    if (autoSelectMemberId && !search) {
-      const selectedIdx = filtered.findIndex(m => m.id === autoSelectMemberId);
-      if (selectedIdx > 0) {
-        const selected = filtered[selectedIdx];
-        filtered = [selected, ...filtered.slice(0, selectedIdx), ...filtered.slice(selectedIdx + 1)];
-      }
-    }
-    return filtered;
-  }, [members, search, autoSelectMemberId]);
-
-  useEffect(() => {
-    if (autoSelected && selectedCardRef.current) {
-      setTimeout(() => selectedCardRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 200);
-    }
-  }, [autoSelected]);
-
-  const emailableCount = filteredMembers.filter(m => m.email).length;
 
   return (
     <div className="space-y-4">
@@ -624,21 +795,50 @@ function InactiveTab({ autoSelectMemberId, initialSubject, initialMessage }: { a
             <span className="text-sm font-medium">Filters</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Inactive Since</Label>
-              <Select value={inactiveDays} onValueChange={setInactiveDays}>
-                <SelectTrigger className="h-10" data-testid="select-inactive-days">
-                  <SelectValue placeholder="Inactive since" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7">7+ days</SelectItem>
-                  <SelectItem value="14">14+ days</SelectItem>
-                  <SelectItem value="30">30+ days</SelectItem>
-                  <SelectItem value="60">60+ days</SelectItem>
-                  <SelectItem value="90">90+ days</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {tabType === 'inactive' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Inactive Since</Label>
+                <Select value={inactiveDays} onValueChange={setInactiveDays}>
+                  <SelectTrigger className="h-10" data-testid="select-inactive-days">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">7+ days</SelectItem>
+                    <SelectItem value="14">14+ days</SelectItem>
+                    <SelectItem value="30">30+ days</SelectItem>
+                    <SelectItem value="60">60+ days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {tabType === 'payments' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Payment Filter</Label>
+                <Select value={filterType || "all"} onValueChange={(v) => setFilterType(v === "all" ? "" : v)}>
+                  <SelectTrigger className="h-10" data-testid="select-payment-filter">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="expires_soon">Expires in 7d</SelectItem>
+                    <SelectItem value="balance">Has balance</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {tabType === 'daypass' && (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">From Date</Label>
+                  <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-10" data-testid="input-from-date" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">To Date</Label>
+                  <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-10" data-testid="input-to-date" />
+                </div>
+              </>
+            )}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Search</Label>
               <div className="relative">
@@ -648,7 +848,7 @@ function InactiveTab({ autoSelectMemberId, initialSubject, initialMessage }: { a
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-9 h-10"
-                  data-testid="input-search-inactive"
+                  data-testid={`input-search-${tabType}`}
                 />
               </div>
             </div>
@@ -656,19 +856,17 @@ function InactiveTab({ autoSelectMemberId, initialSubject, initialMessage }: { a
         </CardContent>
       </Card>
 
-      {emailableCount > 0 && (
+      {emailableMembers.length > 0 && (
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
             <Checkbox 
-              checked={filteredMembers.filter(m => m.email).every(m => selectedIds.includes(m.id))}
+              checked={emailableMembers.every((m: any) => selectedIds.includes(m.id))}
               onCheckedChange={toggleAll}
-              data-testid="checkbox-select-all-inactive"
+              data-testid={`checkbox-select-all-${tabType}`}
             />
-            <span className="text-sm text-muted-foreground">Select all ({emailableCount})</span>
+            <span className="text-sm text-muted-foreground">Select all ({emailableMembers.length})</span>
           </div>
-          {selectedIds.length > 0 && (
-            <Badge variant="secondary">{selectedIds.length} selected</Badge>
-          )}
+          {selectedIds.length > 0 && <Badge variant="secondary">{selectedIds.length} selected</Badge>}
         </div>
       )}
 
@@ -676,343 +874,211 @@ function InactiveTab({ autoSelectMemberId, initialSubject, initialMessage }: { a
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
         </div>
-      ) : filteredMembers.length === 0 ? (
+      ) : members.length === 0 ? (
         <Card className="border-0 shadow-sm">
           <CardContent className="py-12 text-center">
-            <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-3">
-              <Sparkles className="w-6 h-6 text-green-500" />
+            <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+              <Users className="w-6 h-6 text-muted-foreground" />
             </div>
-            <p className="font-medium text-foreground text-sm">All members are active!</p>
-            <p className="text-xs text-muted-foreground mt-1">Great news - no inactive members</p>
+            <p className="font-medium text-foreground text-sm">No members found</p>
+            <p className="text-xs text-muted-foreground mt-1">Adjust your filters</p>
           </CardContent>
         </Card>
       ) : (
         <div className="max-h-[400px] overflow-y-auto rounded-lg border bg-muted/20 p-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {filteredMembers.map(member => {
-              const isAutoSelected = member.id === autoSelectMemberId && selectedIds.includes(member.id);
-              return (
-                <div key={member.id} ref={isAutoSelected ? selectedCardRef : undefined}>
-                  {isAutoSelected && (
-                    <div className="text-xs text-primary font-medium mb-1 flex items-center gap-1 px-1">
-                      <Sparkles className="w-3 h-3" />
-                      AI suggested this member
+            {members.map((member: any, idx: number) => (
+              <div 
+                key={`${member.id}-${idx}`}
+                className={`p-3 rounded-lg border transition-all ${selectedIds.includes(member.id) ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'bg-card hover:bg-accent/50'}`}
+                data-testid={`card-manual-${member.id}`}
+              >
+                <div className="flex items-start gap-2">
+                  <Checkbox 
+                    checked={selectedIds.includes(member.id)}
+                    onCheckedChange={() => toggleSelect(member.id)}
+                    disabled={!member.email}
+                    className="mt-0.5"
+                    data-testid={`checkbox-manual-${member.id}`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-sm truncate">{member.name || member.visitorName}</span>
+                      {!member.email && <Badge variant="secondary" className="text-xs px-1.5 py-0">No email</Badge>}
                     </div>
-                  )}
-                  <MemberCard
-                    member={member}
-                    isSelected={selectedIds.includes(member.id)}
-                    onToggle={() => toggleSelect(member.id)}
-                    testIdPrefix="inactive"
-                  >
-                    <Badge variant="outline" className="gap-1 text-xs px-1.5 py-0">
-                      <Clock className="w-2.5 h-2.5" />
-                      {member.lastVisit ? format(new Date(member.lastVisit), "MMM d") : "Never"}
-                    </Badge>
-                    <Badge 
-                      variant={member.membershipStatus === "active" ? "default" : "secondary"}
-                      className="text-xs px-1.5 py-0"
-                    >
-                      {member.membershipStatus.replace("_", " ")}
-                    </Badge>
-                  </MemberCard>
+                    {member.email && <p className="text-xs text-muted-foreground truncate">{member.email}</p>}
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {member.lastVisit && (
+                        <Badge variant="outline" className="gap-1 text-xs px-1.5 py-0">
+                          <Clock className="w-2.5 h-2.5" />
+                          {format(new Date(member.lastVisit), "MMM d")}
+                        </Badge>
+                      )}
+                      {member.planName && <Badge variant="secondary" className="text-xs px-1.5 py-0">{member.planName}</Badge>}
+                      {member.balance > 0 && (
+                        <Badge variant="destructive" className="text-xs px-1.5 py-0">₹{(member.balance / 100).toLocaleString()}</Badge>
+                      )}
+                      {member.visitsCount && (
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0">{member.visitsCount} visits</Badge>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      <MessageComposer 
-        selectedCount={selectedIds.length} 
-        onSend={handleSend}
-        isPending={sendMutation.isPending}
-        category="inactive"
-        initialSubject={initialSubject}
-        initialMessage={initialMessage}
-      />
+      <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-primary/5">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Mail className="w-5 h-5 text-primary" />
+            </div>
+            <CardTitle className="text-lg">Compose Message</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor={`subject-${tabType}`} className="text-sm">Subject</Label>
+            <Input 
+              id={`subject-${tabType}`}
+              placeholder="Enter email subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="h-11"
+              data-testid={`input-subject-${tabType}`}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`message-${tabType}`} className="text-sm">Message</Label>
+            <Textarea 
+              id={`message-${tabType}`}
+              placeholder="Write your message here..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={5}
+              className="resize-none"
+              data-testid={`textarea-message-${tabType}`}
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span className="text-sm text-muted-foreground">
+                {selectedIds.length} recipient{selectedIds.length !== 1 ? 's' : ''} selected
+              </span>
+            </div>
+            <Button 
+              onClick={handleSend}
+              disabled={selectedIds.length === 0 || !subject || !message || sendMutation.isPending}
+              className="w-full sm:w-auto"
+              data-testid={`button-send-${tabType}`}
+            >
+              {sendMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+              Send to Selected
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-function PaymentsTab({ autoSelectMemberId, initialSubject, initialMessage }: { autoSelectMemberId?: number; initialSubject?: string; initialMessage?: string }) {
+export default function OwnerFollowUpsPage() {
   const { toast } = useToast();
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState("");
-  const [autoSelected, setAutoSelected] = useState(false);
+  const urlParams = new URLSearchParams(window.location.search);
+  const [activeView, setActiveView] = useState<'ai' | 'manual'>(urlParams.get("tab") ? 'manual' : 'ai');
+  const [selectedItems, setSelectedItems] = useState<QueueItem[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [selectedGoal, setSelectedGoal] = useState("");
 
-  const buildPaymentsUrl = () => {
-    const params = new URLSearchParams();
-    if (filterType) params.set("type", filterType);
-    if (search) params.set("search", search);
-    const qs = params.toString();
-    return `/api/followups/payments${qs ? `?${qs}` : ""}`;
-  };
+  const aiReason = urlParams.get("reason");
+  const aiMemberId = urlParams.get("memberId") ? parseInt(urlParams.get("memberId")!) : undefined;
+  const aiSubject = urlParams.get("subject") || undefined;
+  const aiMessage = urlParams.get("message") || undefined;
+  const manualTab = (urlParams.get("tab") as 'daypass' | 'inactive' | 'payments') || 'inactive';
 
-  const { data: members = [], isLoading } = useQuery<PaymentMember[]>({
-    queryKey: ["/api/followups/payments", filterType, search],
-    queryFn: async () => {
-      const res = await fetch(buildPaymentsUrl(), { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch payment members");
-      return res.json();
-    }
+  const { data: aiQueue, isLoading: queueLoading } = useQuery<AiQueueData>({
+    queryKey: ["/api/followups/ai-queue"],
+    enabled: activeView === 'ai',
   });
 
-  const prevMemberIdRef = { current: autoSelectMemberId };
+  const filteredQueue = useMemo(() => {
+    if (!aiQueue?.queue) return [];
+    let items = aiQueue.queue;
+    if (categoryFilter) {
+      items = items.filter(i => i.category === categoryFilter);
+    }
+    return items;
+  }, [aiQueue, categoryFilter]);
 
   useEffect(() => {
-    if (autoSelectMemberId && members.length > 0) {
-      if (!autoSelected || prevMemberIdRef.current !== autoSelectMemberId) {
-        const member = members.find(m => m.id === autoSelectMemberId);
-        if (member) {
-          setSelectedIds([autoSelectMemberId]);
-          setAutoSelected(true);
-          prevMemberIdRef.current = autoSelectMemberId;
-        }
-      }
+    if (selectedItems.length === 1 && !selectedGoal) {
+      setSelectedGoal(getDefaultGoal(selectedItems[0].category));
     }
-  }, [autoSelectMemberId, members, autoSelected]);
+  }, [selectedItems]);
+
+  const toggleQueueItem = (item: QueueItem) => {
+    setSelectedItems(prev => {
+      const exists = prev.find(i => i.memberId === item.memberId);
+      if (exists) return prev.filter(i => i.memberId !== item.memberId);
+      return [...prev, item];
+    });
+  };
 
   const sendMutation = useMutation({
     mutationFn: async (data: { category: string; member_ids: number[]; subject: string; message: string }) => {
       return apiRequest("POST", "/api/followups/send", data);
     },
-    onSuccess: (data: any) => {
-      toast({ title: `Sent ${data.sent} email(s)` });
-      setSelectedIds([]);
+    onSuccess: async (data: any) => {
+      for (const item of selectedItems) {
+        try {
+          await apiRequest("POST", "/api/owner/interventions", {
+            memberId: item.memberId,
+            actionType: 'email_sent',
+            triggerReason: item.category,
+            messageSent: 'AI follow-up',
+          });
+        } catch {}
+      }
+      toast({ title: `Sent ${data.sent} email(s) successfully` });
+      setSelectedItems([]);
+      setSelectedGoal("");
+      queryClient.invalidateQueries({ queryKey: ["/api/followups/ai-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/followups/ai-tracking"] });
     },
     onError: (error: Error) => {
       toast({ title: "Failed to send", description: error.message, variant: "destructive" });
     }
   });
 
-  const toggleSelect = (id: number) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
-  const toggleAll = () => {
-    const emailMembers = members.filter(m => m.email);
-    if (emailMembers.every(m => selectedIds.includes(m.id))) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(emailMembers.map(m => m.id));
-    }
-  };
-
-  const handleSend = (subject: string, message: string) => {
+  const handleAiSend = (subject: string, message: string, memberIds: number[]) => {
+    const catMap: Record<string, string> = {
+      churn_risk: 'INACTIVE',
+      inactive: 'INACTIVE',
+      expiring: 'PAYMENTS',
+      payment_due: 'PAYMENTS',
+      new_member: 'INACTIVE',
+    };
+    const category = catMap[selectedItems[0]?.category] || 'INACTIVE';
     sendMutation.mutate({
-      category: "PAYMENTS",
-      member_ids: selectedIds,
+      category,
+      member_ids: memberIds,
       subject,
       message
     });
   };
 
-  const selectedCardRef = useRef<HTMLDivElement>(null);
-
-  const filteredMembers = useMemo(() => {
-    let filtered = members;
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(m => 
-        m.name?.toLowerCase().includes(q) ||
-        m.email?.toLowerCase().includes(q)
-      );
-    }
-    if (autoSelectMemberId && !search) {
-      const selectedIdx = filtered.findIndex(m => m.id === autoSelectMemberId);
-      if (selectedIdx > 0) {
-        const selected = filtered[selectedIdx];
-        filtered = [selected, ...filtered.slice(0, selectedIdx), ...filtered.slice(selectedIdx + 1)];
-      }
-    }
-    return filtered;
-  }, [members, search, autoSelectMemberId]);
-
-  useEffect(() => {
-    if (autoSelected && selectedCardRef.current) {
-      setTimeout(() => selectedCardRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 200);
-    }
-  }, [autoSelected]);
-
-  const formatAmount = (paise: number) => {
-    return `₹${(paise / 100).toLocaleString()}`;
-  };
-
-  const emailableCount = filteredMembers.filter(m => m.email).length;
-
-  const filterButtons = [
-    { key: "expires_soon", label: "Expires 7d", icon: Clock, color: "text-amber-500" },
-    { key: "next_month", label: "Next 30d", icon: Calendar, color: "text-blue-500" },
-    { key: "balance", label: "Has balance", icon: CreditCard, color: "text-purple-500" },
-    { key: "expired", label: "Expired", icon: AlertCircle, color: "text-red-500" },
-  ];
-
   return (
-    <div className="space-y-4">
-      <Card className="border-0 shadow-sm">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Filter className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Quick Filters</span>
-          </div>
-          <ScrollArea className="w-full">
-            <div className="flex gap-2 pb-2">
-              {filterButtons.map(({ key, label, icon: Icon, color }) => (
-                <Button 
-                  key={key}
-                  variant={filterType === key ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setFilterType(filterType === key ? "" : key)}
-                  className="whitespace-nowrap flex-shrink-0"
-                  data-testid={`filter-${key}`}
-                >
-                  <Icon className={`w-4 h-4 mr-1.5 ${filterType === key ? "" : color}`} />
-                  {label}
-                </Button>
-              ))}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-          <div className="mt-3 space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Search</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="Name or email"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 h-10"
-                data-testid="input-search-payments"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {emailableCount > 0 && (
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <Checkbox 
-              checked={filteredMembers.filter(m => m.email).every(m => selectedIds.includes(m.id))}
-              onCheckedChange={toggleAll}
-              data-testid="checkbox-select-all-payments"
-            />
-            <span className="text-sm text-muted-foreground">Select all ({emailableCount})</span>
-          </div>
-          {selectedIds.length > 0 && (
-            <Badge variant="secondary">{selectedIds.length} selected</Badge>
-          )}
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
-        </div>
-      ) : filteredMembers.length === 0 ? (
-        <Card className="border-0 shadow-sm">
-          <CardContent className="py-12 text-center">
-            <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
-              <CreditCard className="w-6 h-6 text-muted-foreground" />
-            </div>
-            <p className="font-medium text-foreground text-sm">No members found</p>
-            <p className="text-xs text-muted-foreground mt-1">Try adjusting your filters</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="max-h-[400px] overflow-y-auto rounded-lg border bg-muted/20 p-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {filteredMembers.map(member => {
-              const isExpired = member.expiryDate && new Date(member.expiryDate) < new Date();
-              const isAutoSelected = member.id === autoSelectMemberId && selectedIds.includes(member.id);
-              return (
-                <div key={member.id} ref={isAutoSelected ? selectedCardRef : undefined}>
-                  {isAutoSelected && (
-                    <div className="text-xs text-primary font-medium mb-1 flex items-center gap-1 px-1">
-                      <Sparkles className="w-3 h-3" />
-                      AI suggested this member
-                    </div>
-                  )}
-                  <MemberCard
-                    member={member}
-                    isSelected={selectedIds.includes(member.id)}
-                    onToggle={() => toggleSelect(member.id)}
-                    testIdPrefix="payment"
-                  >
-                    {member.planName && (
-                      <Badge variant="secondary" className="text-xs px-1.5 py-0">{member.planName}</Badge>
-                    )}
-                    {member.expiryDate && (
-                      <Badge variant={isExpired ? "destructive" : "outline"} className="gap-1 text-xs px-1.5 py-0">
-                        <Calendar className="w-2.5 h-2.5" />
-                        {format(new Date(member.expiryDate), "MMM d")}
-                      </Badge>
-                    )}
-                    {member.balance > 0 && (
-                      <Badge variant="destructive" className="gap-1 text-xs px-1.5 py-0">
-                        <CreditCard className="w-2.5 h-2.5" />
-                        {formatAmount(member.balance)}
-                      </Badge>
-                    )}
-                    {member.balance === 0 && (
-                      <Badge className="bg-green-500/10 text-green-600 border-0 text-xs px-1.5 py-0">Paid</Badge>
-                    )}
-                  </MemberCard>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <MessageComposer 
-        selectedCount={selectedIds.length} 
-        onSend={handleSend}
-        isPending={sendMutation.isPending}
-        category="payments"
-        initialSubject={initialSubject}
-        initialMessage={initialMessage}
-      />
-    </div>
-  );
-}
-
-function AiContextBar({ reason, onDismiss }: { reason: string; onDismiss: () => void }) {
-  return (
-    <div className="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-r from-primary/5 via-violet-500/5 to-transparent border border-primary/20" data-testid="ai-context-bar">
-      <div className="p-1.5 rounded-lg bg-primary/10 shrink-0 mt-0.5">
-        <Brain className="w-3.5 h-3.5 text-primary" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/70">Dika AI Suggested This</p>
-        <p className="text-sm text-foreground mt-0.5">{reason}</p>
-      </div>
-      <button onClick={onDismiss} className="text-muted-foreground hover:text-foreground transition-colors shrink-0 mt-0.5" data-testid="button-dismiss-context">
-        <AlertCircle className="w-4 h-4" />
-      </button>
-    </div>
-  );
-}
-
-export default function OwnerFollowUpsPage() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const initialTab = urlParams.get("tab") || "daypass";
-  const [activeTab, setActiveTab] = useState(initialTab);
-
-  const aiReason = urlParams.get("reason");
-  const aiMemberId = urlParams.get("memberId") ? parseInt(urlParams.get("memberId")!) : undefined;
-  const aiSubject = urlParams.get("subject") || undefined;
-  const aiMessage = urlParams.get("message") || undefined;
-  const [showContext, setShowContext] = useState(!!aiReason);
-
-  return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-5 pb-24">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold font-display text-foreground">Follow-ups</h1>
-          <p className="text-sm text-muted-foreground">Send targeted emails to your members</p>
+          <h1 className="text-2xl font-bold font-display text-foreground" data-testid="text-page-title">Follow-ups</h1>
+          <p className="text-sm text-muted-foreground">
+            {activeView === 'ai' ? 'Dika AI prepared everything — just approve and send' : 'Send targeted emails to your members'}
+          </p>
         </div>
         <div className="flex gap-2">
           <Link href="/owner/member-analytics?tab=inactive">
@@ -1030,66 +1096,167 @@ export default function OwnerFollowUpsPage() {
         </div>
       </div>
 
-      {showContext && aiReason && (
-        <AiContextBar reason={aiReason} onDismiss={() => setShowContext(false)} />
+      <div className="flex gap-1 p-1 bg-muted/50 rounded-xl w-fit">
+        <button
+          onClick={() => setActiveView('ai')}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeView === 'ai' 
+              ? 'bg-background shadow-sm text-foreground' 
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+          data-testid="toggle-ai-view"
+        >
+          <Zap className="w-4 h-4" />
+          AI Engine
+        </button>
+        <button
+          onClick={() => setActiveView('manual')}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeView === 'manual' 
+              ? 'bg-background shadow-sm text-foreground' 
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+          data-testid="toggle-manual-view"
+        >
+          <Mail className="w-4 h-4" />
+          Manual
+        </button>
+      </div>
+
+      {activeView === 'ai' ? (
+        <div className="space-y-5">
+          <AiTrackingCard />
+
+          {queueLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-32 w-full rounded-xl" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
+              </div>
+            </div>
+          ) : aiQueue && aiQueue.summary.total > 0 ? (
+            <>
+              <AiQueueSummary 
+                summary={aiQueue.summary} 
+                onFilter={setCategoryFilter}
+                activeFilter={categoryFilter}
+              />
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-sm font-medium text-foreground">
+                    {filteredQueue.length} member{filteredQueue.length !== 1 ? 's' : ''} to follow up
+                  </span>
+                  {selectedItems.length > 0 && (
+                    <Badge className="bg-primary/10 text-primary border-0">
+                      {selectedItems.length} selected
+                    </Badge>
+                  )}
+                </div>
+                <div className="max-h-[420px] overflow-y-auto rounded-xl border bg-muted/10 p-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {filteredQueue.map(item => (
+                      <QueueMemberCard
+                        key={`${item.memberId}-${item.category}`}
+                        item={item}
+                        isSelected={!!selectedItems.find(i => i.memberId === item.memberId)}
+                        onSelect={() => toggleQueueItem(item)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {selectedItems.length > 0 && (
+                <GoalSelector
+                  selectedGoal={selectedGoal}
+                  onSelect={setSelectedGoal}
+                  category={selectedItems[0]?.category || ''}
+                />
+              )}
+
+              {selectedItems.length > 0 && selectedGoal && (
+                <AiMessageComposer
+                  selectedItems={selectedItems}
+                  goal={selectedGoal}
+                  onSend={handleAiSend}
+                  isPending={sendMutation.isPending}
+                />
+              )}
+            </>
+          ) : (
+            <Card className="border-0 shadow-sm">
+              <CardContent className="py-16 text-center">
+                <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-7 h-7 text-green-500" />
+                </div>
+                <p className="font-semibold text-foreground text-lg">All caught up!</p>
+                <p className="text-sm text-muted-foreground mt-1.5 max-w-sm mx-auto">
+                  No members need follow-up right now. Dika AI will alert you when action is needed.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          <SenderSetupCard />
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {aiReason && (
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-r from-primary/5 via-violet-500/5 to-transparent border border-primary/20" data-testid="ai-context-bar">
+              <div className="p-1.5 rounded-lg bg-primary/10 shrink-0 mt-0.5">
+                <Brain className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/70">Dika AI Suggested This</p>
+                <p className="text-sm text-foreground mt-0.5">{aiReason}</p>
+              </div>
+            </div>
+          )}
+
+          <Tabs defaultValue={manualTab} className="space-y-4">
+            <ScrollArea className="w-full">
+              <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-3 sm:w-full h-auto p-1 gap-1">
+                <TabsTrigger value="daypass" className="flex-1 py-2.5 px-4 data-[state=active]:shadow-sm whitespace-nowrap" data-testid="tab-daypass">
+                  <Users className="w-4 h-4 mr-2 flex-shrink-0" />
+                  Day Pass
+                </TabsTrigger>
+                <TabsTrigger value="inactive" className="flex-1 py-2.5 px-4 data-[state=active]:shadow-sm whitespace-nowrap" data-testid="tab-inactive">
+                  <UserX className="w-4 h-4 mr-2 flex-shrink-0" />
+                  Inactive
+                </TabsTrigger>
+                <TabsTrigger value="payments" className="flex-1 py-2.5 px-4 data-[state=active]:shadow-sm whitespace-nowrap" data-testid="tab-payments">
+                  <CreditCard className="w-4 h-4 mr-2 flex-shrink-0" />
+                  Payments
+                </TabsTrigger>
+              </TabsList>
+              <ScrollBar orientation="horizontal" className="sm:hidden" />
+            </ScrollArea>
+
+            <TabsContent value="daypass" className="mt-4">
+              <ManualTab tabType="daypass" />
+            </TabsContent>
+            <TabsContent value="inactive" className="mt-4">
+              <ManualTab 
+                tabType="inactive"
+                autoSelectMemberId={aiMemberId}
+                initialSubject={aiSubject}
+                initialMessage={aiMessage}
+              />
+            </TabsContent>
+            <TabsContent value="payments" className="mt-4">
+              <ManualTab 
+                tabType="payments"
+                autoSelectMemberId={aiMemberId}
+                initialSubject={aiSubject}
+                initialMessage={aiMessage}
+              />
+            </TabsContent>
+          </Tabs>
+
+          <SenderSetupCard />
+        </div>
       )}
-
-      <SenderSetupCard />
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <ScrollArea className="w-full">
-          <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-3 sm:w-full h-auto p-1 gap-1">
-            <TabsTrigger 
-              value="daypass" 
-              className="flex-1 py-2.5 px-4 data-[state=active]:shadow-sm whitespace-nowrap"
-              data-testid="tab-daypass"
-            >
-              <Users className="w-4 h-4 mr-2 flex-shrink-0" />
-              <span className="hidden sm:inline">Day Pass</span>
-              <span className="sm:hidden">Day Pass</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="inactive" 
-              className="flex-1 py-2.5 px-4 data-[state=active]:shadow-sm whitespace-nowrap"
-              data-testid="tab-inactive"
-            >
-              <UserX className="w-4 h-4 mr-2 flex-shrink-0" />
-              <span className="hidden sm:inline">Inactive</span>
-              <span className="sm:hidden">Inactive</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="payments" 
-              className="flex-1 py-2.5 px-4 data-[state=active]:shadow-sm whitespace-nowrap"
-              data-testid="tab-payments"
-            >
-              <CreditCard className="w-4 h-4 mr-2 flex-shrink-0" />
-              <span className="hidden sm:inline">Payments</span>
-              <span className="sm:hidden">Payments</span>
-            </TabsTrigger>
-          </TabsList>
-          <ScrollBar orientation="horizontal" className="sm:hidden" />
-        </ScrollArea>
-
-        <TabsContent value="daypass" className="mt-4">
-          <DayPassTab />
-        </TabsContent>
-
-        <TabsContent value="inactive" className="mt-4">
-          <InactiveTab 
-            autoSelectMemberId={activeTab === 'inactive' ? aiMemberId : undefined}
-            initialSubject={activeTab === 'inactive' ? aiSubject : undefined}
-            initialMessage={activeTab === 'inactive' ? aiMessage : undefined}
-          />
-        </TabsContent>
-
-        <TabsContent value="payments" className="mt-4">
-          <PaymentsTab 
-            autoSelectMemberId={activeTab === 'payments' ? aiMemberId : undefined}
-            initialSubject={activeTab === 'payments' ? aiSubject : undefined}
-            initialMessage={activeTab === 'payments' ? aiMessage : undefined}
-          />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }

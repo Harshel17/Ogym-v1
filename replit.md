@@ -45,6 +45,7 @@ Preferred communication style: Simple, everyday language.
     - **Dika Weekly Report:** AI-generated personalized fitness progress reports.
     - **Owner AI Insights (5-Pillar System):** AI-driven churn explanations, weekly owner briefings, insight of the day, trainer performance summaries, and re-engagement campaign suggestions.
     - **Member AI Coach System:** AI workout insights, progress summaries, smart workout suggestions, nutrition coaching, and proactive dashboard nudges.
+- **AI Follow-up Engine:** Transformed Follow-ups page from manual messaging tool to AI-powered execution engine. Features: AI-generated priority follow-up queue (churn risk, expiring, inactive, payment due, new members), outcome-based goal selection, GPT-4o-mini message generation with tone matching, smart action suggestions, follow-up result tracking (sent/returned/success rate), and one-click action flow from AI Insights. API endpoints: `/api/followups/ai-queue`, `/api/followups/ai-generate-message`, `/api/followups/ai-tracking`.
 - **Automated Email Reminders:** System for subscription expiry and owner summaries.
 - **Production Security:** Implemented with Helmet.js, secure session cookies, rate limiting, and request body limits.
 - **Error Handling:** React Error Boundary for graceful UI error recovery.
