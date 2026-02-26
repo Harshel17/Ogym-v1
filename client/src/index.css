@@ -4,6 +4,11 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
 /* 
  * LAYOUT ARCHITECTURE - Production iOS Safe Area Handling
  * - Uses height: 100% chain (avoids 100vh/100dvh iOS issues)

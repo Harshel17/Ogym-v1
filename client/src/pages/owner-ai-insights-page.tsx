@@ -364,9 +364,28 @@ export default function OwnerAiInsightsPage() {
     );
   }
 
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const navSections = [
+    { id: 'section-priority', label: 'Priority', icon: <Zap className="w-3 h-3" /> },
+    { id: 'section-overview', label: 'Overview', icon: <BarChart3 className="w-3 h-3" /> },
+    { id: 'section-churn', label: 'Churn Risk', icon: <AlertTriangle className="w-3 h-3" /> },
+    { id: 'section-followups', label: 'Follow-ups', icon: <Bell className="w-3 h-3" /> },
+    { id: 'section-attendance', label: 'Attendance', icon: <Activity className="w-3 h-3" /> },
+    { id: 'section-recommendations', label: 'AI Recs', icon: <Wand2 className="w-3 h-3" /> },
+    ...(insights.equipmentActions && insights.equipmentActions.length > 0 ? [{ id: 'section-equipment', label: 'Equipment', icon: <Wrench className="w-3 h-3" /> }] : []),
+    ...(insights.paymentFollowUps && insights.paymentFollowUps.length > 0 ? [{ id: 'section-payments', label: 'Payments', icon: <DollarSign className="w-3 h-3" /> }] : []),
+    { id: 'section-briefing', label: 'Briefing', icon: <FileText className="w-3 h-3" /> },
+    { id: 'section-trainers', label: 'Trainers', icon: <GraduationCap className="w-3 h-3" /> },
+    { id: 'section-reengagement', label: 'Re-engage', icon: <Megaphone className="w-3 h-3" /> },
+  ];
+
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-2">
         <div className="p-2 bg-primary/10 rounded-lg">
           <Brain className="h-6 w-6 text-primary" />
         </div>
@@ -382,8 +401,24 @@ export default function OwnerAiInsightsPage() {
         </div>
       </div>
 
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm -mx-4 px-4 md:-mx-6 md:px-6 py-2 border-b border-border/50" data-testid="section-nav-bar">
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+          {navSections.map(s => (
+            <button
+              key={s.id}
+              onClick={() => scrollToSection(s.id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap border border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all shrink-0"
+              data-testid={`nav-${s.id}`}
+            >
+              {s.icon}
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {insights.todayPriority && (
-        <Card className="border-primary/30 bg-primary/5" data-testid="card-today-priority">
+        <Card id="section-priority" className="border-primary/30 bg-primary/5 scroll-mt-16" data-testid="card-today-priority">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-primary/10 rounded-full flex-shrink-0 mt-0.5">
@@ -435,7 +470,7 @@ export default function OwnerAiInsightsPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div id="section-overview" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 scroll-mt-16">
         <Card data-testid="card-total-active">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
             <CardTitle className="text-sm font-medium">Active Members</CardTitle>
@@ -600,7 +635,7 @@ export default function OwnerAiInsightsPage() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card data-testid="card-churn-risk">
+        <Card id="section-churn" className="scroll-mt-16" data-testid="card-churn-risk">
           <CardHeader>
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>
@@ -683,7 +718,7 @@ export default function OwnerAiInsightsPage() {
           </CardContent>
         </Card>
 
-        <Card data-testid="card-follow-up">
+        <Card id="section-followups" className="scroll-mt-16" data-testid="card-follow-up">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-blue-500" />
@@ -723,7 +758,7 @@ export default function OwnerAiInsightsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card data-testid="card-attendance-patterns">
+        <Card id="section-attendance" className="scroll-mt-16" data-testid="card-attendance-patterns">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-purple-500" />
@@ -802,7 +837,7 @@ export default function OwnerAiInsightsPage() {
           </CardContent>
         </Card>
 
-        <Card data-testid="card-ai-recommendations">
+        <Card id="section-recommendations" className="scroll-mt-16" data-testid="card-ai-recommendations">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-yellow-500" />
@@ -874,7 +909,7 @@ export default function OwnerAiInsightsPage() {
       </div>
 
       {insights.equipmentActions && insights.equipmentActions.length > 0 && (
-        <Card className="card-elevated" data-testid="card-equipment-actions">
+        <Card id="section-equipment" className="card-elevated scroll-mt-16" data-testid="card-equipment-actions">
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
               <div className="p-1.5 rounded-lg bg-orange-500/10">
@@ -942,7 +977,7 @@ export default function OwnerAiInsightsPage() {
       )}
 
       {insights.paymentFollowUps && insights.paymentFollowUps.length > 0 && (
-        <Card className="card-elevated" data-testid="card-payment-followups">
+        <Card id="section-payments" className="card-elevated scroll-mt-16" data-testid="card-payment-followups">
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2 text-sm font-semibold">
               <div className="p-1.5 rounded-lg bg-emerald-500/10">
@@ -983,9 +1018,15 @@ export default function OwnerAiInsightsPage() {
         </Card>
       )}
 
-      <WeeklyBriefingSection />
-      <TrainerPerformanceSection />
-      <ReengagementSection />
+      <div id="section-briefing" className="scroll-mt-16">
+        <WeeklyBriefingSection />
+      </div>
+      <div id="section-trainers" className="scroll-mt-16">
+        <TrainerPerformanceSection />
+      </div>
+      <div id="section-reengagement" className="scroll-mt-16">
+        <ReengagementSection />
+      </div>
     </div>
   );
 }
