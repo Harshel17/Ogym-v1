@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -586,6 +586,8 @@ function InactiveTab({ autoSelectMemberId, initialSubject, initialMessage }: { a
     });
   };
 
+  const selectedCardRef = useRef<HTMLDivElement>(null);
+
   const filteredMembers = useMemo(() => {
     let filtered = members;
     if (search) {
@@ -595,8 +597,21 @@ function InactiveTab({ autoSelectMemberId, initialSubject, initialMessage }: { a
         m.email?.toLowerCase().includes(q)
       );
     }
+    if (autoSelectMemberId && !search) {
+      const selectedIdx = filtered.findIndex(m => m.id === autoSelectMemberId);
+      if (selectedIdx > 0) {
+        const selected = filtered[selectedIdx];
+        filtered = [selected, ...filtered.slice(0, selectedIdx), ...filtered.slice(selectedIdx + 1)];
+      }
+    }
     return filtered;
-  }, [members, search]);
+  }, [members, search, autoSelectMemberId]);
+
+  useEffect(() => {
+    if (autoSelected && selectedCardRef.current) {
+      setTimeout(() => selectedCardRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 200);
+    }
+  }, [autoSelected]);
 
   const emailableCount = filteredMembers.filter(m => m.email).length;
 
@@ -674,26 +689,36 @@ function InactiveTab({ autoSelectMemberId, initialSubject, initialMessage }: { a
       ) : (
         <div className="max-h-[400px] overflow-y-auto rounded-lg border bg-muted/20 p-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {filteredMembers.map(member => (
-              <MemberCard
-                key={member.id}
-                member={member}
-                isSelected={selectedIds.includes(member.id)}
-                onToggle={() => toggleSelect(member.id)}
-                testIdPrefix="inactive"
-              >
-                <Badge variant="outline" className="gap-1 text-xs px-1.5 py-0">
-                  <Clock className="w-2.5 h-2.5" />
-                  {member.lastVisit ? format(new Date(member.lastVisit), "MMM d") : "Never"}
-                </Badge>
-                <Badge 
-                  variant={member.membershipStatus === "active" ? "default" : "secondary"}
-                  className="text-xs px-1.5 py-0"
-                >
-                  {member.membershipStatus.replace("_", " ")}
-                </Badge>
-              </MemberCard>
-            ))}
+            {filteredMembers.map(member => {
+              const isAutoSelected = member.id === autoSelectMemberId && selectedIds.includes(member.id);
+              return (
+                <div key={member.id} ref={isAutoSelected ? selectedCardRef : undefined}>
+                  {isAutoSelected && (
+                    <div className="text-xs text-primary font-medium mb-1 flex items-center gap-1 px-1">
+                      <Sparkles className="w-3 h-3" />
+                      AI suggested this member
+                    </div>
+                  )}
+                  <MemberCard
+                    member={member}
+                    isSelected={selectedIds.includes(member.id)}
+                    onToggle={() => toggleSelect(member.id)}
+                    testIdPrefix="inactive"
+                  >
+                    <Badge variant="outline" className="gap-1 text-xs px-1.5 py-0">
+                      <Clock className="w-2.5 h-2.5" />
+                      {member.lastVisit ? format(new Date(member.lastVisit), "MMM d") : "Never"}
+                    </Badge>
+                    <Badge 
+                      variant={member.membershipStatus === "active" ? "default" : "secondary"}
+                      className="text-xs px-1.5 py-0"
+                    >
+                      {member.membershipStatus.replace("_", " ")}
+                    </Badge>
+                  </MemberCard>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -784,6 +809,8 @@ function PaymentsTab({ autoSelectMemberId, initialSubject, initialMessage }: { a
     });
   };
 
+  const selectedCardRef = useRef<HTMLDivElement>(null);
+
   const filteredMembers = useMemo(() => {
     let filtered = members;
     if (search) {
@@ -793,8 +820,21 @@ function PaymentsTab({ autoSelectMemberId, initialSubject, initialMessage }: { a
         m.email?.toLowerCase().includes(q)
       );
     }
+    if (autoSelectMemberId && !search) {
+      const selectedIdx = filtered.findIndex(m => m.id === autoSelectMemberId);
+      if (selectedIdx > 0) {
+        const selected = filtered[selectedIdx];
+        filtered = [selected, ...filtered.slice(0, selectedIdx), ...filtered.slice(selectedIdx + 1)];
+      }
+    }
     return filtered;
-  }, [members, search]);
+  }, [members, search, autoSelectMemberId]);
+
+  useEffect(() => {
+    if (autoSelected && selectedCardRef.current) {
+      setTimeout(() => selectedCardRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 200);
+    }
+  }, [autoSelected]);
 
   const formatAmount = (paise: number) => {
     return `₹${(paise / 100).toLocaleString()}`;
@@ -886,33 +926,41 @@ function PaymentsTab({ autoSelectMemberId, initialSubject, initialMessage }: { a
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {filteredMembers.map(member => {
               const isExpired = member.expiryDate && new Date(member.expiryDate) < new Date();
+              const isAutoSelected = member.id === autoSelectMemberId && selectedIds.includes(member.id);
               return (
-                <MemberCard
-                  key={member.id}
-                  member={member}
-                  isSelected={selectedIds.includes(member.id)}
-                  onToggle={() => toggleSelect(member.id)}
-                  testIdPrefix="payment"
-                >
-                  {member.planName && (
-                    <Badge variant="secondary" className="text-xs px-1.5 py-0">{member.planName}</Badge>
+                <div key={member.id} ref={isAutoSelected ? selectedCardRef : undefined}>
+                  {isAutoSelected && (
+                    <div className="text-xs text-primary font-medium mb-1 flex items-center gap-1 px-1">
+                      <Sparkles className="w-3 h-3" />
+                      AI suggested this member
+                    </div>
                   )}
-                  {member.expiryDate && (
-                    <Badge variant={isExpired ? "destructive" : "outline"} className="gap-1 text-xs px-1.5 py-0">
-                      <Calendar className="w-2.5 h-2.5" />
-                      {format(new Date(member.expiryDate), "MMM d")}
-                    </Badge>
-                  )}
-                  {member.balance > 0 && (
-                    <Badge variant="destructive" className="gap-1 text-xs px-1.5 py-0">
-                      <CreditCard className="w-2.5 h-2.5" />
-                      {formatAmount(member.balance)}
-                    </Badge>
-                  )}
-                  {member.balance === 0 && (
-                    <Badge className="bg-green-500/10 text-green-600 border-0 text-xs px-1.5 py-0">Paid</Badge>
-                  )}
-                </MemberCard>
+                  <MemberCard
+                    member={member}
+                    isSelected={selectedIds.includes(member.id)}
+                    onToggle={() => toggleSelect(member.id)}
+                    testIdPrefix="payment"
+                  >
+                    {member.planName && (
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0">{member.planName}</Badge>
+                    )}
+                    {member.expiryDate && (
+                      <Badge variant={isExpired ? "destructive" : "outline"} className="gap-1 text-xs px-1.5 py-0">
+                        <Calendar className="w-2.5 h-2.5" />
+                        {format(new Date(member.expiryDate), "MMM d")}
+                      </Badge>
+                    )}
+                    {member.balance > 0 && (
+                      <Badge variant="destructive" className="gap-1 text-xs px-1.5 py-0">
+                        <CreditCard className="w-2.5 h-2.5" />
+                        {formatAmount(member.balance)}
+                      </Badge>
+                    )}
+                    {member.balance === 0 && (
+                      <Badge className="bg-green-500/10 text-green-600 border-0 text-xs px-1.5 py-0">Paid</Badge>
+                    )}
+                  </MemberCard>
+                </div>
               );
             })}
           </div>
