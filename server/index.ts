@@ -10,12 +10,10 @@ import { sql } from "drizzle-orm";
 // Global error handlers to prevent crashes
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught Exception:', err.message, err.stack);
-  // Don't exit - try to keep running
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('[FATAL] Unhandled Rejection at:', promise, 'reason:', reason);
-  // Don't exit - try to keep running
 });
 
 const app = express();
