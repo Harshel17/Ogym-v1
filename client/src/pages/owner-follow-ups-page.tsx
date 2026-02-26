@@ -1091,7 +1091,8 @@ export default function OwnerFollowUpsPage() {
 
   const sendMutation = useMutation({
     mutationFn: async (data: { category: string; member_ids: number[]; subject: string; message: string }) => {
-      return apiRequest("POST", "/api/followups/send", data);
+      const res = await apiRequest("POST", "/api/followups/send", data);
+      return await res.json();
     },
     onSuccess: async (data: any) => {
       for (const item of selectedItems) {
@@ -1104,7 +1105,7 @@ export default function OwnerFollowUpsPage() {
           });
         } catch {}
       }
-      toast({ title: `Sent ${data.sent} email(s) successfully` });
+      toast({ title: `Sent ${data.sent || selectedItems.length} email(s) successfully` });
       setSelectedItems([]);
       setSelectedGoal("");
       queryClient.invalidateQueries({ queryKey: ["/api/followups/ai-queue"] });
