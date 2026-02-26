@@ -629,6 +629,7 @@ export interface IStorage {
   // Owner Interventions
   createOwnerIntervention(data: InsertOwnerIntervention): Promise<OwnerIntervention>;
   getOwnerInterventions(gymId: number, limit?: number): Promise<OwnerIntervention[]>;
+  updateOwnerIntervention(id: number, data: Partial<OwnerIntervention>): Promise<OwnerIntervention>;
   getMemberWorkoutActivity(gymId: number, memberId: number, limit?: number): Promise<{ exerciseName: string; completedDate: string; actualSets: number | null; actualReps: number | null; actualWeight: string | null }[]>;
   
   // Workout Sessions
@@ -9958,6 +9959,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(ownerInterventions.gymId, gymId))
       .orderBy(desc(ownerInterventions.createdAt))
       .limit(limit);
+  }
+
+  async updateOwnerIntervention(id: number, data: Partial<OwnerIntervention>): Promise<OwnerIntervention> {
+    const [updated] = await db.update(ownerInterventions)
+      .set(data)
+      .where(eq(ownerInterventions.id, id))
+      .returning();
+    return updated;
   }
 
   async getMemberWorkoutActivity(gymId: number, memberId: number, limit: number = 20): Promise<{ exerciseName: string; completedDate: string; actualSets: number | null; actualReps: number | null; actualWeight: string | null }[]> {

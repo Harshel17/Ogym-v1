@@ -16,7 +16,8 @@ import {
   Mail, Loader2, Send, Settings, Search, Calendar, Users, CreditCard,
   UserX, Clock, AlertCircle, Check, Filter, ChevronRight, Sparkles, BarChart3, Brain,
   Target, Zap, TrendingUp, RefreshCw, CheckCircle2, XCircle,
-  MessageSquare, Star, UserPlus, AlertTriangle
+  MessageSquare, Star, UserPlus, AlertTriangle, ArrowRight, Phone, Gift,
+  Trophy, DollarSign, UserCheck, Activity
 } from "lucide-react";
 import { Link } from "wouter";
 import { format, subDays } from "date-fns";
@@ -78,6 +79,67 @@ type AiSuggestion = {
   id: string;
   label: string;
   active: boolean;
+};
+
+type OutcomesData = {
+  period: string;
+  totalSent: number;
+  outcomes: {
+    returned: number;
+    paid: number;
+    renewed: number;
+    converted: number;
+    pending: number;
+    noResponse: number;
+  };
+  successRate: number;
+  recentOutcomes: Array<{
+    id: number;
+    memberId: number;
+    memberName: string;
+    outcomeType: string;
+    followUpGoal: string | null;
+    triggerReason: string | null;
+    daysSinceIntervention: number | null;
+    outcomeDetectedAt: string | null;
+    createdAt: string;
+  }>;
+  pendingActions: Array<{
+    id: number;
+    memberId: number;
+    memberName: string;
+    triggerReason: string | null;
+    followUpGoal: string | null;
+    daysSinceContact: number;
+    suggestion: string;
+    dueDate: string | null;
+    createdAt: string;
+  }>;
+};
+
+type PerformanceData = {
+  period: string;
+  totalSent: number;
+  goalPerformance: Array<{
+    goal: string;
+    label: string;
+    sent: number;
+    returned: number;
+    paid: number;
+    renewed: number;
+    converted: number;
+    successRate: number;
+  }>;
+  categoryPerformance: Array<{
+    category: string;
+    label: string;
+    sent: number;
+    returned: number;
+    paid: number;
+    renewed: number;
+    converted: number;
+    successRate: number;
+  }>;
 };
 
 const CATEGORY_CONFIG: Record<string, { label: string; icon: any; color: string; bgColor: string }> = {
@@ -610,6 +672,254 @@ function AiTrackingCard() {
   );
 }
 
+const OUTCOME_CONFIG: Record<string, { label: string; icon: any; color: string; bgColor: string }> = {
+  returned: { label: "Returned", icon: UserCheck, color: "text-emerald-600", bgColor: "bg-emerald-500/10" },
+  paid: { label: "Paid", icon: DollarSign, color: "text-blue-600", bgColor: "bg-blue-500/10" },
+  renewed: { label: "Renewed", icon: RefreshCw, color: "text-violet-600", bgColor: "bg-violet-500/10" },
+  converted: { label: "Converted", icon: Trophy, color: "text-amber-600", bgColor: "bg-amber-500/10" },
+};
+
+function ResultsView() {
+  const { data: outcomes, isLoading: outcomesLoading } = useQuery<OutcomesData>({
+    queryKey: ["/api/followups/outcomes"],
+  });
+  const { data: performance, isLoading: perfLoading } = useQuery<PerformanceData>({
+    queryKey: ["/api/followups/performance"],
+  });
+
+  const { toast } = useToast();
+  const detectMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/followups/detect-outcomes", {});
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/followups/outcomes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/followups/performance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/followups/ai-tracking"] });
+      if (data?.updated > 0) {
+        toast({ title: `Updated ${data.updated} outcome${data.updated !== 1 ? 's' : ''}` });
+      }
+    },
+    onError: () => {
+      toast({ title: "Failed to detect outcomes", variant: "destructive" });
+    },
+  });
+
+  if (outcomesLoading || perfLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-40 w-full rounded-2xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <Skeleton className="h-48 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  const totalPositive = outcomes ? outcomes.outcomes.returned + outcomes.outcomes.paid + outcomes.outcomes.renewed + outcomes.outcomes.converted : 0;
+
+  return (
+    <div className="space-y-5">
+      <div className="relative overflow-hidden rounded-2xl" data-testid="outcomes-summary">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/90 via-teal-600/85 to-cyan-700/90" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.15),transparent_60%)]" />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
+
+        <div className="relative p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-white/15 backdrop-blur-sm border border-white/10">
+                <Activity className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">Follow-up Outcomes</h3>
+                <p className="text-white/70 text-sm">Last 30 days · {outcomes?.totalSent || 0} messages sent</p>
+              </div>
+            </div>
+            <button
+              onClick={() => detectMutation.mutate()}
+              disabled={detectMutation.isPending}
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors border border-white/10"
+              data-testid="button-detect-outcomes"
+            >
+              <RefreshCw className={`w-4 h-4 text-white ${detectMutation.isPending ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+            <div className="p-3 rounded-xl bg-white/15 border border-white/10 text-center">
+              <div className="text-2xl font-bold text-white">{outcomes?.totalSent || 0}</div>
+              <div className="text-[10px] text-white/70 uppercase tracking-wider mt-0.5">Total Sent</div>
+            </div>
+            <div className="p-3 rounded-xl bg-white/15 border border-white/10 text-center">
+              <div className="text-2xl font-bold text-emerald-300">{outcomes?.outcomes.returned || 0}</div>
+              <div className="text-[10px] text-white/70 uppercase tracking-wider mt-0.5">Returned</div>
+            </div>
+            <div className="p-3 rounded-xl bg-white/15 border border-white/10 text-center">
+              <div className="text-2xl font-bold text-blue-300">{outcomes?.outcomes.paid || 0}</div>
+              <div className="text-[10px] text-white/70 uppercase tracking-wider mt-0.5">Paid</div>
+            </div>
+            <div className="p-3 rounded-xl bg-white/15 border border-white/10 text-center">
+              <div className="text-2xl font-bold text-violet-300">{outcomes?.outcomes.renewed || 0}</div>
+              <div className="text-[10px] text-white/70 uppercase tracking-wider mt-0.5">Renewed</div>
+            </div>
+            <div className="p-3 rounded-xl bg-white/15 border border-white/10 text-center">
+              <div className="text-2xl font-bold text-amber-300">{outcomes?.outcomes.converted || 0}</div>
+              <div className="text-[10px] text-white/70 uppercase tracking-wider mt-0.5">Converted</div>
+            </div>
+            <div className="p-3 rounded-xl bg-white/15 border border-white/10 text-center">
+              <div className="text-2xl font-bold text-white">{outcomes?.successRate || 0}%</div>
+              <div className="text-[10px] text-white/70 uppercase tracking-wider mt-0.5">Success</div>
+            </div>
+          </div>
+
+          {totalPositive > 0 && (
+            <div className="flex items-center gap-2 text-sm text-white/80">
+              <Trophy className="w-4 h-4 text-amber-300" />
+              <span>{totalPositive} positive outcome{totalPositive !== 1 ? 's' : ''} from your follow-ups</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {performance && performance.goalPerformance.length > 0 && (
+        <Card className="border-0 shadow-sm" data-testid="performance-by-goal">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <Target className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">What Worked</h4>
+                <p className="text-[11px] text-muted-foreground">Performance by follow-up goal</p>
+              </div>
+            </div>
+            <div className="space-y-2.5">
+              {performance.goalPerformance.map(g => (
+                <div key={g.goal} className="flex items-center gap-3 p-3 rounded-xl bg-muted/20 border border-border/50" data-testid={`perf-goal-${g.goal}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm font-medium text-foreground">{g.label}</span>
+                      <span className="text-sm font-bold text-primary">{g.successRate}%</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-muted/50 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-primary to-violet-500 transition-all duration-500"
+                        style={{ width: `${Math.min(g.successRate, 100)}%` }}
+                      />
+                    </div>
+                    <div className="flex gap-3 mt-1.5 text-[10px] text-muted-foreground">
+                      <span>{g.sent} sent</span>
+                      {g.returned > 0 && <span className="text-emerald-600">{g.returned} returned</span>}
+                      {g.paid > 0 && <span className="text-blue-600">{g.paid} paid</span>}
+                      {g.renewed > 0 && <span className="text-violet-600">{g.renewed} renewed</span>}
+                      {g.converted > 0 && <span className="text-amber-600">{g.converted} converted</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {outcomes && outcomes.recentOutcomes.length > 0 && (
+        <Card className="border-0 shadow-sm" data-testid="recent-outcomes">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">Recent Outcomes</h4>
+                <p className="text-[11px] text-muted-foreground">What happened after your messages</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {outcomes.recentOutcomes.map(o => {
+                const config = OUTCOME_CONFIG[o.outcomeType];
+                const OutcomeIcon = config?.icon || CheckCircle2;
+                return (
+                  <div key={o.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/20 border border-border/50" data-testid={`outcome-${o.id}`}>
+                    <div className={`p-1.5 rounded-lg ${config?.bgColor || 'bg-muted'} shrink-0`}>
+                      <OutcomeIcon className={`w-3.5 h-3.5 ${config?.color || 'text-muted-foreground'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground truncate">{o.memberName}</span>
+                        <Badge className={`text-[10px] px-1.5 py-0 border-0 ${config?.bgColor} ${config?.color}`}>
+                          {config?.label || o.outcomeType}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {o.daysSinceIntervention !== null
+                          ? `${o.daysSinceIntervention} day${o.daysSinceIntervention !== 1 ? 's' : ''} after your message`
+                          : 'Recently detected'}
+                        {o.followUpGoal && ` · Goal: ${o.followUpGoal}`}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {outcomes && outcomes.pendingActions.length > 0 && (
+        <Card className="border-0 shadow-sm" data-testid="pending-actions">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="p-1.5 rounded-lg bg-amber-500/10">
+                <AlertCircle className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">Needs Your Attention</h4>
+                <p className="text-[11px] text-muted-foreground">No response yet — here's what to do next</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {outcomes.pendingActions.map(a => (
+                <div key={a.id} className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10" data-testid={`action-${a.id}`}>
+                  <div className="p-1.5 rounded-lg bg-amber-500/10 shrink-0 mt-0.5">
+                    <Phone className="w-3.5 h-3.5 text-amber-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground truncate">{a.memberName}</span>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        {a.daysSinceContact}d ago
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 flex items-center gap-1.5">
+                      <ArrowRight className="w-3 h-3 shrink-0" />
+                      {a.suggestion}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {(!outcomes || outcomes.totalSent === 0) && (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="py-16 text-center">
+            <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+              <Activity className="w-7 h-7 text-muted-foreground" />
+            </div>
+            <p className="font-semibold text-foreground text-lg">No follow-ups yet</p>
+            <p className="text-sm text-muted-foreground mt-1.5 max-w-sm mx-auto">
+              Start sending follow-ups from the AI Engine tab and outcomes will appear here automatically.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 function SenderSetupCard() {
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(false);
@@ -1050,7 +1360,7 @@ function ManualTab({
 export default function OwnerFollowUpsPage() {
   const { toast } = useToast();
   const urlParams = new URLSearchParams(window.location.search);
-  const [activeView, setActiveView] = useState<'ai' | 'manual'>(urlParams.get("tab") ? 'manual' : 'ai');
+  const [activeView, setActiveView] = useState<'ai' | 'manual' | 'results'>(urlParams.get("tab") ? 'manual' : 'ai');
   const [selectedItems, setSelectedItems] = useState<QueueItem[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [selectedGoal, setSelectedGoal] = useState("");
@@ -1102,6 +1412,8 @@ export default function OwnerFollowUpsPage() {
             actionType: 'email_sent',
             triggerReason: item.category,
             messageSent: 'AI follow-up',
+            followUpGoal: selectedGoal,
+            messageSubject: data.subject || 'AI follow-up',
           });
         } catch {}
       }
@@ -1110,6 +1422,8 @@ export default function OwnerFollowUpsPage() {
       setSelectedGoal("");
       queryClient.invalidateQueries({ queryKey: ["/api/followups/ai-queue"] });
       queryClient.invalidateQueries({ queryKey: ["/api/followups/ai-tracking"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/followups/outcomes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/followups/performance"] });
     },
     onError: (error: Error) => {
       toast({ title: "Failed to send", description: error.message, variant: "destructive" });
@@ -1139,7 +1453,7 @@ export default function OwnerFollowUpsPage() {
         <div className="space-y-1">
           <h1 className="text-2xl font-bold font-display text-foreground" data-testid="text-page-title">Follow-ups</h1>
           <p className="text-sm text-muted-foreground">
-            {activeView === 'ai' ? 'Dika AI prepared everything — just approve and send' : 'Send targeted emails to your members'}
+            {activeView === 'ai' ? 'Dika AI prepared everything — just approve and send' : activeView === 'results' ? 'Track what happened after your follow-ups' : 'Send targeted emails to your members'}
           </p>
         </div>
         <div className="flex gap-2">
@@ -1182,6 +1496,18 @@ export default function OwnerFollowUpsPage() {
         >
           <Mail className="w-4 h-4" />
           Manual
+        </button>
+        <button
+          onClick={() => setActiveView('results')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeView === 'results' 
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20' 
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+          }`}
+          data-testid="toggle-results-view"
+        >
+          <Trophy className="w-4 h-4" />
+          Results
         </button>
       </div>
 
@@ -1265,6 +1591,8 @@ export default function OwnerFollowUpsPage() {
 
           <SenderSetupCard />
         </div>
+      ) : activeView === 'results' ? (
+        <ResultsView />
       ) : (
         <div className="space-y-5">
           {aiReason && (

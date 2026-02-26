@@ -11003,6 +11003,268 @@ Return a JSON object with "subject" and "message" fields.`;
     }
   });
 
+  // === OUTCOME DETECTION & PERFORMANCE ===
+
+  app.post("/api/followups/detect-outcomes", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const interventions = await storage.getOwnerInterventions(gymId, 500);
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const pending = interventions.filter(i => {
+        if (i.outcomeType && i.outcomeType !== 'pending') return false;
+        const created = i.createdAt ? new Date(i.createdAt) : null;
+        return created && created > thirtyDaysAgo;
+      });
+
+      let updated = 0;
+
+      const attendanceRecords = await storage.getAttendance(gymId);
+      const allMembers = await storage.getMembers(gymId);
+      const memberEmailMap = new Map(allMembers.filter(m => m.email).map(m => [m.id, m.email!.toLowerCase()]));
+
+      for (const intervention of pending) {
+        const created = new Date(intervention.createdAt!);
+        let detectedOutcome: string | null = null;
+
+        const memberAttendance = attendanceRecords.filter(a =>
+          a.memberId === intervention.memberId &&
+          a.status === 'present' &&
+          new Date(a.date) > created
+        );
+
+        const subs = await db.select().from(memberSubscriptions)
+          .where(eq(memberSubscriptions.memberId, intervention.memberId));
+        const renewedSub = subs.find(s => {
+          const start = s.startDate ? new Date(s.startDate) : null;
+          return start && start > created && s.status === 'active';
+        });
+
+        const memberPayments = await db.select().from(paymentTransactions)
+          .where(eq(paymentTransactions.memberId, intervention.memberId));
+        const recentPayment = memberPayments.find(p => {
+          const paidOn = p.paidOn ? new Date(p.paidOn) : null;
+          return paidOn && paidOn > created;
+        });
+
+        const memberEmail = memberEmailMap.get(intervention.memberId);
+        let wasConverted = false;
+        if (memberEmail) {
+          const walkins = await db.select().from(walkInVisitors)
+            .where(eq(walkInVisitors.gymId, gymId));
+          wasConverted = walkins.some(w =>
+            w.convertedToMember === true &&
+            w.email &&
+            w.email.toLowerCase() === memberEmail &&
+            w.visitDate &&
+            new Date(w.visitDate) <= created
+          );
+        }
+
+        if (wasConverted) {
+          detectedOutcome = 'converted';
+        } else if (renewedSub) {
+          detectedOutcome = 'renewed';
+        } else if (recentPayment) {
+          detectedOutcome = 'paid';
+        } else if (memberAttendance.length > 0) {
+          detectedOutcome = 'returned';
+        }
+
+        const daysSince = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+
+        let nextAction: string | null = null;
+        let nextActionDate: Date | null = null;
+
+        if (!detectedOutcome) {
+          if (daysSince >= 10) {
+            nextAction = 'Send a final personal follow-up with a special offer';
+            nextActionDate = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000);
+          } else if (daysSince >= 7) {
+            nextAction = 'Offer a discount or free session to re-engage';
+            nextActionDate = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000);
+          } else if (daysSince >= 5) {
+            nextAction = 'Try a phone call or WhatsApp message';
+            nextActionDate = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+          }
+        }
+
+        if (detectedOutcome || nextAction) {
+          const updateData: any = {};
+          if (detectedOutcome) {
+            updateData.outcomeType = detectedOutcome;
+            updateData.outcomeDetectedAt = now;
+            updateData.memberReturnedWithin7Days = ['returned', 'renewed', 'paid', 'converted'].includes(detectedOutcome);
+            if (memberAttendance.length > 0) {
+              updateData.memberReturnDate = memberAttendance[0].date;
+            }
+          }
+          if (nextAction && !detectedOutcome) {
+            updateData.nextActionSuggestion = nextAction;
+            updateData.nextActionDueDate = nextActionDate;
+          }
+          await storage.updateOwnerIntervention(intervention.id, updateData);
+          updated++;
+        }
+      }
+
+      res.json({ scanned: pending.length, updated, message: `Detected outcomes for ${updated} interventions` });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to detect outcomes" });
+    }
+  });
+
+  app.get("/api/followups/outcomes", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const interventions = await storage.getOwnerInterventions(gymId, 500);
+      const now = Date.now();
+      const last30Days = interventions.filter(i => {
+        const created = i.createdAt ? new Date(i.createdAt).getTime() : 0;
+        return now - created < 30 * 24 * 60 * 60 * 1000;
+      });
+
+      const totalSent = last30Days.length;
+      const returned = last30Days.filter(i => i.outcomeType === 'returned').length;
+      const paid = last30Days.filter(i => i.outcomeType === 'paid').length;
+      const renewed = last30Days.filter(i => i.outcomeType === 'renewed').length;
+      const converted = last30Days.filter(i => i.outcomeType === 'converted').length;
+      const pending = last30Days.filter(i => !i.outcomeType || i.outcomeType === 'pending').length;
+      const noResponse = last30Days.filter(i => i.outcomeType === 'no_response').length;
+
+      const allMembers = await storage.getMembers(gymId);
+      const memberMap = new Map(allMembers.map(m => [m.id, m]));
+
+      const recentOutcomes = last30Days
+        .filter(i => i.outcomeType && i.outcomeType !== 'pending')
+        .slice(0, 15)
+        .map(i => {
+          const member = memberMap.get(i.memberId);
+          const daysSinceIntervention = i.outcomeDetectedAt && i.createdAt
+            ? Math.floor((new Date(i.outcomeDetectedAt).getTime() - new Date(i.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+            : null;
+          return {
+            id: i.id,
+            memberId: i.memberId,
+            memberName: member?.fullName || member?.username || 'Unknown',
+            outcomeType: i.outcomeType,
+            followUpGoal: i.followUpGoal,
+            triggerReason: i.triggerReason,
+            daysSinceIntervention,
+            outcomeDetectedAt: i.outcomeDetectedAt,
+            createdAt: i.createdAt,
+          };
+        });
+
+      const pendingActions = last30Days
+        .filter(i => (!i.outcomeType || i.outcomeType === 'pending') && i.nextActionSuggestion)
+        .slice(0, 10)
+        .map(i => {
+          const member = memberMap.get(i.memberId);
+          const daysSince = i.createdAt
+            ? Math.floor((now - new Date(i.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+            : 0;
+          return {
+            id: i.id,
+            memberId: i.memberId,
+            memberName: member?.fullName || member?.username || 'Unknown',
+            triggerReason: i.triggerReason,
+            followUpGoal: i.followUpGoal,
+            daysSinceContact: daysSince,
+            suggestion: i.nextActionSuggestion,
+            dueDate: i.nextActionDueDate,
+            createdAt: i.createdAt,
+          };
+        });
+
+      res.json({
+        period: '30_days',
+        totalSent,
+        outcomes: { returned, paid, renewed, converted, pending, noResponse },
+        successRate: totalSent > 0 ? Math.round(((returned + paid + renewed + converted) / totalSent) * 100) : 0,
+        recentOutcomes,
+        pendingActions,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to get outcomes" });
+    }
+  });
+
+  app.get("/api/followups/performance", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const interventions = await storage.getOwnerInterventions(gymId, 500);
+      const now = Date.now();
+      const last30Days = interventions.filter(i => {
+        const created = i.createdAt ? new Date(i.createdAt).getTime() : 0;
+        return now - created < 30 * 24 * 60 * 60 * 1000;
+      });
+
+      const byGoal: Record<string, { sent: number; returned: number; paid: number; renewed: number; converted: number }> = {};
+      const byCategory: Record<string, { sent: number; returned: number; paid: number; renewed: number; converted: number }> = {};
+
+      for (const i of last30Days) {
+        const goal = i.followUpGoal || 'unknown';
+        const cat = i.triggerReason || 'unknown';
+
+        if (!byGoal[goal]) byGoal[goal] = { sent: 0, returned: 0, paid: 0, renewed: 0, converted: 0 };
+        if (!byCategory[cat]) byCategory[cat] = { sent: 0, returned: 0, paid: 0, renewed: 0, converted: 0 };
+
+        byGoal[goal].sent++;
+        byCategory[cat].sent++;
+
+        const outcome = i.outcomeType;
+        if (outcome === 'returned' || i.memberReturnedWithin7Days === true) {
+          byGoal[goal].returned++;
+          byCategory[cat].returned++;
+        }
+        if (outcome === 'paid') { byGoal[goal].paid++; byCategory[cat].paid++; }
+        if (outcome === 'renewed') { byGoal[goal].renewed++; byCategory[cat].renewed++; }
+        if (outcome === 'converted') { byGoal[goal].converted++; byCategory[cat].converted++; }
+      }
+
+      const goalLabels: Record<string, string> = {
+        bring_back: 'Bring Back',
+        renew: 'Renew',
+        collect_payment: 'Collect Payment',
+        welcome: 'Welcome',
+        general: 'General Check-in',
+      };
+
+      const categoryLabels: Record<string, string> = {
+        churn_risk: 'Churn Risk',
+        inactive: 'Inactive',
+        expiring: 'Expiring',
+        payment_due: 'Payment Due',
+        new_member: 'New Member',
+      };
+
+      const goalPerformance = Object.entries(byGoal).map(([key, stats]) => ({
+        goal: key,
+        label: goalLabels[key] || key,
+        ...stats,
+        successRate: stats.sent > 0 ? Math.round(((stats.returned + stats.paid + stats.renewed + stats.converted) / stats.sent) * 100) : 0,
+      })).sort((a, b) => b.successRate - a.successRate);
+
+      const categoryPerformance = Object.entries(byCategory).map(([key, stats]) => ({
+        category: key,
+        label: categoryLabels[key] || key,
+        ...stats,
+        successRate: stats.sent > 0 ? Math.round(((stats.returned + stats.paid + stats.renewed + stats.converted) / stats.sent) * 100) : 0,
+      })).sort((a, b) => b.successRate - a.successRate);
+
+      res.json({
+        period: '30_days',
+        totalSent: last30Days.length,
+        goalPerformance,
+        categoryPerformance,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to get performance data" });
+    }
+  });
+
   // Get day pass visitors for follow-up
   app.get("/api/followups/daypass", requireRole(["owner"]), async (req, res) => {
     try {

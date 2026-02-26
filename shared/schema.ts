@@ -1016,13 +1016,19 @@ export const ownerInterventions = pgTable("owner_interventions", {
   messageSent: text("message_sent"),
   memberReturnedWithin7Days: boolean("member_returned_within_7_days"),
   memberReturnDate: text("member_return_date"),
+  outcomeType: text("outcome_type"),
+  outcomeDetectedAt: timestamp("outcome_detected_at"),
+  followUpGoal: text("follow_up_goal"),
+  messageSubject: text("message_subject"),
+  nextActionSuggestion: text("next_action_suggestion"),
+  nextActionDueDate: timestamp("next_action_due_date"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   gymIdx: index("owner_interventions_gym_idx").on(table.gymId),
   memberIdx: index("owner_interventions_member_idx").on(table.memberId),
 }));
 
-export const insertOwnerInterventionSchema = createInsertSchema(ownerInterventions).omit({ id: true, createdAt: true, memberReturnedWithin7Days: true, memberReturnDate: true });
+export const insertOwnerInterventionSchema = createInsertSchema(ownerInterventions).omit({ id: true, createdAt: true, memberReturnedWithin7Days: true, memberReturnDate: true, outcomeType: true, outcomeDetectedAt: true, nextActionSuggestion: true, nextActionDueDate: true });
 export type InsertOwnerIntervention = z.infer<typeof insertOwnerInterventionSchema>;
 export type OwnerIntervention = typeof ownerInterventions.$inferSelect;
 
