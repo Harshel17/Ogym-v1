@@ -483,7 +483,7 @@ function AiMessageComposer({
                 id="ai-subject"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                className="h-10"
+                className="h-10 bg-background text-foreground border-border"
                 data-testid="input-ai-subject"
               />
             </div>
@@ -497,7 +497,7 @@ function AiMessageComposer({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={4}
-                className="resize-none"
+                className="resize-none bg-background text-foreground border-border"
                 data-testid="textarea-ai-message"
               />
             </div>
