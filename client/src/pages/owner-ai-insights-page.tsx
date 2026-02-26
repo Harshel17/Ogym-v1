@@ -328,42 +328,6 @@ export default function OwnerAiInsightsPage() {
     return months[parseInt(m) - 1] || m;
   };
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-4 md:p-6 space-y-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Brain className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">AI Insights</h1>
-            <p className="text-muted-foreground">Smart analytics powered by your gym data</p>
-          </div>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map(i => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-24" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-16" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (!insights) {
-    return (
-      <div className="container mx-auto p-4 md:p-6">
-        <p className="text-muted-foreground">Unable to load insights</p>
-      </div>
-    );
-  }
-
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -376,12 +340,20 @@ export default function OwnerAiInsightsPage() {
     { id: 'section-followups', label: 'Follow-ups', icon: <Bell className="w-3 h-3" /> },
     { id: 'section-attendance', label: 'Attendance', icon: <Activity className="w-3 h-3" /> },
     { id: 'section-recommendations', label: 'AI Recs', icon: <Wand2 className="w-3 h-3" /> },
-    ...(insights.equipmentActions && insights.equipmentActions.length > 0 ? [{ id: 'section-equipment', label: 'Equipment', icon: <Wrench className="w-3 h-3" /> }] : []),
-    ...(insights.paymentFollowUps && insights.paymentFollowUps.length > 0 ? [{ id: 'section-payments', label: 'Payments', icon: <DollarSign className="w-3 h-3" /> }] : []),
+    ...(!isLoading && insights?.equipmentActions && insights.equipmentActions.length > 0 ? [{ id: 'section-equipment', label: 'Equipment', icon: <Wrench className="w-3 h-3" /> }] : []),
+    ...(!isLoading && insights?.paymentFollowUps && insights.paymentFollowUps.length > 0 ? [{ id: 'section-payments', label: 'Payments', icon: <DollarSign className="w-3 h-3" /> }] : []),
     { id: 'section-briefing', label: 'Briefing', icon: <FileText className="w-3 h-3" /> },
     { id: 'section-trainers', label: 'Trainers', icon: <GraduationCap className="w-3 h-3" /> },
     { id: 'section-reengagement', label: 'Re-engage', icon: <Megaphone className="w-3 h-3" /> },
   ];
+
+  if (!insights && !isLoading) {
+    return (
+      <div className="container mx-auto p-4 md:p-6">
+        <p className="text-muted-foreground">Unable to load insights</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
@@ -401,21 +373,43 @@ export default function OwnerAiInsightsPage() {
         </div>
       </div>
 
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm -mx-4 px-4 md:-mx-6 md:px-6 py-2 border-b border-border/50" data-testid="section-nav-bar">
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-          {navSections.map(s => (
-            <button
-              key={s.id}
-              onClick={() => scrollToSection(s.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap border border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all shrink-0"
-              data-testid={`nav-${s.id}`}
-            >
-              {s.icon}
-              {s.label}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-wrap gap-1.5" data-testid="section-nav-bar">
+        {navSections.map(s => (
+          <button
+            key={s.id}
+            onClick={() => scrollToSection(s.id)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap border border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all"
+            data-testid={`nav-${s.id}`}
+          >
+            {s.icon}
+            {s.label}
+          </button>
+        ))}
       </div>
+
+      {isLoading && (
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map(i => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-16" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card><CardContent className="p-4"><Skeleton className="h-32" /></CardContent></Card>
+            <Card><CardContent className="p-4"><Skeleton className="h-32" /></CardContent></Card>
+          </div>
+        </div>
+      )}
+
+      {!insights ? null : (<>
+
 
       {insights.todayPriority && (
         <Card id="section-priority" className="border-primary/30 bg-primary/5 scroll-mt-16" data-testid="card-today-priority">
@@ -1027,6 +1021,7 @@ export default function OwnerAiInsightsPage() {
       <div id="section-reengagement" className="scroll-mt-16">
         <ReengagementSection />
       </div>
+      </>)}
     </div>
   );
 }
