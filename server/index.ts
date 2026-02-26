@@ -16,6 +16,15 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('[FATAL] Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
+const originalExit = process.exit;
+process.exit = function(code?: number) {
+  if (code !== 0) {
+    console.error(`[PROCESS] process.exit(${code}) blocked — keeping server alive`);
+    return undefined as never;
+  }
+  return originalExit.call(process, code);
+} as typeof process.exit;
+
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
 app.set('trust proxy', 1); // Trust first proxy (for rate limiting to work correctly)
