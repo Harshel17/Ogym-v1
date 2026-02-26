@@ -642,65 +642,6 @@ export default function OwnerGymIntelligencePage() {
                         </div>
                       </div>
 
-                      <div data-testid="muscle-filter-bar">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Filter className="w-3 h-3 text-muted-foreground" />
-                          <span className="text-[10px] font-medium text-muted-foreground">Filter by muscle</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {MUSCLE_FILTERS.filter(f => f === 'All' || availableMuscles.has(f)).map(filter => (
-                            <button
-                              key={filter}
-                              onClick={() => setMuscleFilter(filter)}
-                              className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all border ${
-                                muscleFilter === filter
-                                  ? 'bg-primary text-primary-foreground border-primary'
-                                  : 'bg-muted/30 text-muted-foreground border-border/50 hover:bg-muted/60'
-                              }`}
-                              data-testid={`filter-muscle-${filter.toLowerCase()}`}
-                            >
-                              {filter}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Package className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="text-xs font-semibold">
-                              {muscleFilter === 'All' ? 'All Equipment' : `${muscleFilter} Equipment`}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">({filteredEquipment.length})</span>
-                          </div>
-                          <div className="flex items-center gap-3 text-[9px] text-muted-foreground/60">
-                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" /> High</span>
-                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Medium</span>
-                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Low</span>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" data-testid="equipment-cards-grid">
-                          {filteredEquipment.map(equip => (
-                            <EquipmentCard
-                              key={equip.id}
-                              equip={equip}
-                              prediction={predictions.find(p => p.id === equip.id)}
-                              onClick={() => setSelectedEquipId(equip.id)}
-                            />
-                          ))}
-                        </div>
-                        {filteredEquipment.length === 0 && (
-                          <div className="py-6 text-center">
-                            <Dumbbell className="w-6 h-6 text-muted-foreground/30 mx-auto mb-2" />
-                            <p className="text-xs text-muted-foreground">No equipment matches "{muscleFilter}" muscle group</p>
-                            <button onClick={() => setMuscleFilter('All')} className="text-xs text-primary mt-1" data-testid="button-clear-filter">
-                              Clear filter
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
                       {(() => {
                         const sorted = [...all].sort((a, b) => b.totalUsage - a.totalUsage);
                         const top3 = sorted.filter(e => e.totalUsage > 0).slice(0, 3);
@@ -764,6 +705,65 @@ export default function OwnerGymIntelligencePage() {
                           </>
                         );
                       })()}
+
+                      <div data-testid="muscle-filter-bar">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Filter className="w-3 h-3 text-muted-foreground" />
+                          <span className="text-[10px] font-medium text-muted-foreground">Filter by muscle</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {MUSCLE_FILTERS.filter(f => f === 'All' || availableMuscles.has(f)).map(filter => (
+                            <button
+                              key={filter}
+                              onClick={() => setMuscleFilter(filter)}
+                              className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all border ${
+                                muscleFilter === filter
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'bg-muted/30 text-muted-foreground border-border/50 hover:bg-muted/60'
+                              }`}
+                              data-testid={`filter-muscle-${filter.toLowerCase()}`}
+                            >
+                              {filter}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Package className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="text-xs font-semibold">
+                              {muscleFilter === 'All' ? 'All Equipment' : `${muscleFilter} Equipment`}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">({filteredEquipment.length})</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[9px] text-muted-foreground/60">
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" /> High</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Medium</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Low</span>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" data-testid="equipment-cards-grid">
+                          {filteredEquipment.map(equip => (
+                            <EquipmentCard
+                              key={equip.id}
+                              equip={equip}
+                              prediction={predictions.find(p => p.id === equip.id)}
+                              onClick={() => setSelectedEquipId(equip.id)}
+                            />
+                          ))}
+                        </div>
+                        {filteredEquipment.length === 0 && (
+                          <div className="py-6 text-center">
+                            <Dumbbell className="w-6 h-6 text-muted-foreground/30 mx-auto mb-2" />
+                            <p className="text-xs text-muted-foreground">No equipment matches "{muscleFilter}" muscle group</p>
+                            <button onClick={() => setMuscleFilter('All')} className="text-xs text-primary mt-1" data-testid="button-clear-filter">
+                              Clear filter
+                            </button>
+                          </div>
+                        )}
+                      </div>
 
                       <div data-testid="equipment-recommendations-section">
                         <div className="flex items-center gap-2 mb-2">

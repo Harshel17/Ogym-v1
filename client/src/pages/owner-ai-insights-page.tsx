@@ -873,6 +873,116 @@ export default function OwnerAiInsightsPage() {
         </Card>
       </div>
 
+      {insights.equipmentActions && insights.equipmentActions.length > 0 && (
+        <Card className="card-elevated" data-testid="card-equipment-actions">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <div className="p-1.5 rounded-lg bg-orange-500/10">
+                <Wrench className="w-4 h-4 text-orange-500" />
+              </div>
+              Equipment Actions
+              <Badge variant="secondary" className="text-[10px] ml-auto">{insights.equipmentActions.length} item{insights.equipmentActions.length !== 1 ? 's' : ''}</Badge>
+            </CardTitle>
+            <CardDescription className="text-xs">Equipment that needs your attention based on usage patterns</CardDescription>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="space-y-2">
+              {insights.equipmentActions.map((item, idx) => {
+                const urgencyStyles = {
+                  high: { bg: 'bg-red-500/5', border: 'border-red-500/20', badge: 'bg-red-500/10 text-red-600 dark:text-red-400', icon: 'text-red-500' },
+                  medium: { bg: 'bg-amber-500/5', border: 'border-amber-500/20', badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', icon: 'text-amber-500' },
+                  low: { bg: 'bg-blue-500/5', border: 'border-blue-500/20', badge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400', icon: 'text-blue-500' },
+                };
+                const style = urgencyStyles[item.urgency as keyof typeof urgencyStyles] || urgencyStyles.low;
+                const actionLabels: Record<string, string> = {
+                  overloaded: 'Overloaded',
+                  growing_fast: 'Growing Fast',
+                  unused: 'Unused',
+                  declining: 'Declining',
+                };
+                const confidenceLabels: Record<string, { text: string; color: string }> = {
+                  high: { text: 'High confidence', color: 'text-emerald-600 dark:text-emerald-400' },
+                  medium: { text: 'Medium confidence', color: 'text-amber-600 dark:text-amber-400' },
+                  low: { text: 'Low confidence', color: 'text-muted-foreground' },
+                };
+                const conf = confidenceLabels[item.confidence] || confidenceLabels.low;
+
+                return (
+                  <div key={idx} className={`rounded-xl border ${style.border} ${style.bg} p-3`} data-testid={`equipment-action-${idx}`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-0.5 shrink-0 ${style.icon}`}>
+                        <AlertTriangle className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="text-xs font-bold">{item.name}</span>
+                          <Badge variant="outline" className={`text-[9px] ${style.badge}`}>{actionLabels[item.action] || item.action}</Badge>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed mb-1.5">{item.reason}</p>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-[10px] text-muted-foreground/70">
+                            <span className="font-semibold tabular-nums">{item.usage}</span> uses this month
+                          </span>
+                          {item.changePercent !== 0 && (
+                            <span className={`text-[10px] font-semibold flex items-center gap-0.5 ${item.changePercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {item.changePercent > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                              {item.changePercent > 0 ? '+' : ''}{item.changePercent}%
+                            </span>
+                          )}
+                          <span className={`text-[10px] ${conf.color} ml-auto`}>{conf.text}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {insights.paymentFollowUps && insights.paymentFollowUps.length > 0 && (
+        <Card className="card-elevated" data-testid="card-payment-followups">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                <DollarSign className="w-4 h-4 text-emerald-500" />
+              </div>
+              Payment Follow-ups
+              <Badge variant="secondary" className="text-[10px] ml-auto">{insights.paymentFollowUps.length} pending</Badge>
+            </CardTitle>
+            <CardDescription className="text-xs">Members with outstanding payments this month</CardDescription>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="space-y-2">
+              {insights.paymentFollowUps.map((item, idx) => (
+                <div key={idx} className="rounded-xl border border-border/50 bg-muted/5 p-3 flex items-center gap-3" data-testid={`payment-followup-${idx}`}>
+                  <div className="p-1.5 rounded-lg bg-amber-500/10 shrink-0">
+                    <CreditCard className="w-3.5 h-3.5 text-amber-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xs font-semibold truncate">{item.name}</span>
+                      {item.daysOverdue > 7 && (
+                        <Badge variant="outline" className="text-[9px] bg-red-500/10 text-red-600 dark:text-red-400">{item.daysOverdue}d overdue</Badge>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Owes <span className="font-semibold tabular-nums">${item.amount.toFixed(0)}</span> for {item.month}
+                    </p>
+                  </div>
+                  <Link href={`/owner/payments`}>
+                    <Button variant="ghost" size="sm" className="text-[10px] px-2 py-1 h-auto" data-testid={`button-followup-${idx}`}>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <WeeklyBriefingSection />
       <TrainerPerformanceSection />
       <ReengagementSection />
