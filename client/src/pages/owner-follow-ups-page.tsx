@@ -120,51 +120,80 @@ function AiQueueSummary({ summary, onFilter, activeFilter }: {
   ].filter(c => c.count > 0);
 
   return (
-    <Card className="border-0 shadow-sm bg-gradient-to-br from-primary/5 via-violet-500/5 to-transparent" data-testid="ai-queue-summary">
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary to-violet-600 shadow-lg shadow-primary/20">
-            <Zap className="w-5 h-5 text-white" />
+    <div className="relative overflow-hidden rounded-2xl" data-testid="ai-queue-summary">
+      <div className="absolute inset-0 bg-gradient-to-br from-violet-600/90 via-primary/85 to-indigo-700/90" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.15),transparent_60%)]" />
+      <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
+      
+      <div className="relative p-5 sm:p-6">
+        <div className="flex items-start gap-4 mb-5">
+          <div className="p-3 rounded-2xl bg-white/15 backdrop-blur-sm border border-white/10 shadow-lg">
+            <Zap className="w-6 h-6 text-white" />
           </div>
-          <div className="flex-1">
-            <CardTitle className="text-lg">Dika AI Today's Follow-ups</CardTitle>
-            <CardDescription className="text-sm mt-0.5">
-              {summary.total} member{summary.total !== 1 ? 's' : ''} need attention
-              {summary.contactedToday > 0 && ` · ${summary.contactedToday} already contacted`}
-            </CardDescription>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-bold text-white tracking-tight">Dika AI Today's Follow-ups</h3>
+            <p className="text-white/70 text-sm mt-0.5">
+              {summary.total > 0 ? (
+                <>
+                  <span className="text-white font-semibold">{summary.total}</span> member{summary.total !== 1 ? 's' : ''} need your attention
+                  {summary.contactedToday > 0 && (
+                    <span className="ml-1.5">
+                      · <span className="text-emerald-300">{summary.contactedToday} already contacted</span>
+                    </span>
+                  )}
+                </>
+              ) : "Everyone's on track today"}
+            </p>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <ScrollArea className="w-full">
-          <div className="flex gap-2 pb-1">
-            <Button
-              variant={activeFilter === null ? "default" : "outline"}
-              size="sm"
-              onClick={() => onFilter(null)}
-              className="whitespace-nowrap flex-shrink-0"
-              data-testid="filter-all"
-            >
-              All ({summary.total})
-            </Button>
-            {categories.map(({ key, count, label, icon: Icon, color }) => (
-              <Button
+
+        {categories.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-5">
+            {categories.map(({ key, count, label, icon: Icon }) => (
+              <button
                 key={key}
-                variant={activeFilter === key ? "default" : "outline"}
-                size="sm"
                 onClick={() => onFilter(activeFilter === key ? null : key)}
-                className="whitespace-nowrap flex-shrink-0"
+                className={`group flex items-center gap-2.5 p-3 rounded-xl transition-all ${
+                  activeFilter === key 
+                    ? 'bg-white/25 ring-1 ring-white/30 shadow-lg' 
+                    : 'bg-white/8 hover:bg-white/15 border border-white/5'
+                }`}
                 data-testid={`filter-${key}`}
               >
-                <Icon className={`w-3.5 h-3.5 mr-1.5 ${activeFilter === key ? "" : color}`} />
-                {count} {label}
-              </Button>
+                <Icon className="w-4 h-4 text-white/80 shrink-0" />
+                <div className="text-left min-w-0">
+                  <div className="text-lg font-bold text-white leading-none">{count}</div>
+                  <div className="text-[10px] text-white/60 uppercase tracking-wider mt-0.5 truncate">{label}</div>
+                </div>
+              </button>
             ))}
           </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
-      </CardContent>
-    </Card>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => onFilter(null)}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              activeFilter === null 
+                ? 'bg-white text-primary shadow-md' 
+                : 'bg-white/10 text-white/80 hover:bg-white/20 border border-white/10'
+            }`}
+            data-testid="filter-all"
+          >
+            Show All ({summary.total})
+          </button>
+          {activeFilter && (
+            <button
+              onClick={() => onFilter(null)}
+              className="px-3 py-1.5 rounded-full text-xs text-white/60 hover:text-white/90 transition-colors"
+            >
+              Clear filter
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -180,61 +209,72 @@ function QueueMemberCard({
   const config = CATEGORY_CONFIG[item.category];
   const Icon = config?.icon || AlertCircle;
 
+  const priorityIndicator = item.priority === 'high' 
+    ? 'from-red-500 to-red-600' 
+    : item.priority === 'medium' 
+    ? 'from-amber-400 to-amber-500' 
+    : 'from-gray-300 to-gray-400';
+
   return (
     <div 
-      className={`p-3 rounded-xl border transition-all cursor-pointer ${
+      className={`group relative rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden ${
         isSelected 
-          ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm' 
-          : 'bg-card hover:bg-accent/50 hover:border-accent'
-      } ${item.alreadyContacted ? 'opacity-60' : ''}`}
+          ? 'border-primary/40 bg-primary/5 ring-2 ring-primary/20 shadow-md shadow-primary/5' 
+          : 'bg-card hover:bg-accent/30 hover:border-border/80 hover:shadow-sm'
+      } ${item.alreadyContacted ? 'opacity-50' : ''}`}
       onClick={() => item.email && onSelect()}
       data-testid={`queue-card-${item.memberId}`}
     >
-      <div className="flex items-start gap-2.5">
-        <div className={`p-1.5 rounded-lg ${config?.bgColor || 'bg-muted'} shrink-0 mt-0.5`}>
-          <Icon className={`w-3.5 h-3.5 ${config?.color || 'text-muted-foreground'}`} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm text-foreground truncate">{item.name}</span>
-            {!item.email && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">No email</Badge>
+      <div className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl bg-gradient-to-b ${priorityIndicator}`} />
+      
+      <div className="p-3.5 pl-4">
+        <div className="flex items-start gap-3">
+          <div className={`p-2 rounded-xl ${config?.bgColor || 'bg-muted'} shrink-0`}>
+            <Icon className={`w-4 h-4 ${config?.color || 'text-muted-foreground'}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-sm text-foreground truncate">{item.name}</span>
+              {!item.email && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-muted/50">No email</Badge>
+              )}
+              {item.alreadyContacted && (
+                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0 text-[10px] px-1.5 py-0">
+                  <Check className="w-2.5 h-2.5 mr-0.5" />
+                  Contacted
+                </Badge>
+              )}
+            </div>
+            {item.email && (
+              <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">{item.email}</p>
             )}
-            {item.alreadyContacted && (
-              <Badge className="bg-green-500/10 text-green-600 border-0 text-[10px] px-1.5 py-0">
-                <Check className="w-2.5 h-2.5 mr-0.5" />
-                Contacted
+            <p className="text-xs text-muted-foreground mt-2 leading-relaxed line-clamp-2">{item.reason}</p>
+            <div className="flex items-center gap-1.5 mt-2.5">
+              <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-md ${
+                item.priority === 'high' ? 'bg-red-500/10 text-red-500 dark:text-red-400' :
+                item.priority === 'medium' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' :
+                'bg-muted text-muted-foreground'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  item.priority === 'high' ? 'bg-red-500' :
+                  item.priority === 'medium' ? 'bg-amber-500' : 'bg-gray-400'
+                }`} />
+                {item.priority}
+              </span>
+              <Badge variant="secondary" className="text-[10px] px-2 py-0.5 bg-muted/50 font-medium">
+                {config?.label || item.category}
               </Badge>
-            )}
+            </div>
           </div>
           {item.email && (
-            <p className="text-[11px] text-muted-foreground truncate">{item.email}</p>
+            <Checkbox 
+              checked={isSelected} 
+              onCheckedChange={() => onSelect()}
+              className="mt-0.5 shrink-0 h-5 w-5"
+              data-testid={`checkbox-queue-${item.memberId}`}
+            />
           )}
-          <p className="text-xs text-muted-foreground/80 mt-1.5 leading-relaxed">{item.reason}</p>
-          <div className="flex items-center gap-1.5 mt-2">
-            <Badge 
-              variant="outline" 
-              className={`text-[10px] px-1.5 py-0 ${
-                item.priority === 'high' ? 'border-red-200 text-red-600 bg-red-50' :
-                item.priority === 'medium' ? 'border-amber-200 text-amber-600 bg-amber-50' :
-                'border-gray-200'
-              }`}
-            >
-              {item.priority}
-            </Badge>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-              {config?.label || item.category}
-            </Badge>
-          </div>
         </div>
-        {item.email && (
-          <Checkbox 
-            checked={isSelected} 
-            onCheckedChange={() => onSelect()}
-            className="mt-1 shrink-0"
-            data-testid={`checkbox-queue-${item.memberId}`}
-          />
-        )}
       </div>
     </div>
   );
@@ -521,44 +561,47 @@ function AiTrackingCard() {
   }
 
   return (
-    <Card className="border-0 shadow-sm" data-testid="ai-tracking">
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500/20 to-green-500/10">
-            <TrendingUp className="w-5 h-5 text-emerald-600" />
+    <Card className="border-0 shadow-sm bg-gradient-to-br from-card to-muted/10" data-testid="ai-tracking">
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-emerald-500/10">
+              <TrendingUp className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">Follow-up Results</h4>
+              <p className="text-[11px] text-muted-foreground">Last 30 days</p>
+            </div>
           </div>
-          <div>
-            <CardTitle className="text-base">Follow-up Results</CardTitle>
-            <CardDescription className="text-xs">Last 30 days performance</CardDescription>
+          {tracking.sentThisWeek > 0 && (
+            <Badge className="bg-primary/10 text-primary border-0 text-[10px] px-2 py-0.5">
+              <Sparkles className="w-3 h-3 mr-1" />
+              {tracking.sentThisWeek} this week
+            </Badge>
+          )}
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          <div className="relative p-3 rounded-xl bg-muted/30 text-center overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-blue-400 to-blue-500" />
+            <div className="text-xl font-bold text-foreground">{tracking.totalSent}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-medium">Sent</div>
+          </div>
+          <div className="relative p-3 rounded-xl bg-emerald-500/5 text-center overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-emerald-400 to-emerald-500" />
+            <div className="text-xl font-bold text-emerald-600">{tracking.returned}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-medium">Returned</div>
+          </div>
+          <div className="relative p-3 rounded-xl bg-amber-500/5 text-center overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500" />
+            <div className="text-xl font-bold text-amber-600">{tracking.pending}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-medium">Pending</div>
+          </div>
+          <div className="relative p-3 rounded-xl bg-primary/5 text-center overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary to-violet-500" />
+            <div className="text-xl font-bold text-primary">{tracking.successRate}%</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-medium">Success</div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3 rounded-xl bg-muted/30 text-center">
-            <div className="text-2xl font-bold text-foreground">{tracking.totalSent}</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">Sent</div>
-          </div>
-          <div className="p-3 rounded-xl bg-emerald-500/5 text-center">
-            <div className="text-2xl font-bold text-emerald-600">{tracking.returned}</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">Returned</div>
-          </div>
-          <div className="p-3 rounded-xl bg-amber-500/5 text-center">
-            <div className="text-2xl font-bold text-amber-600">{tracking.pending}</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">Pending</div>
-          </div>
-          <div className="p-3 rounded-xl bg-primary/5 text-center">
-            <div className="text-2xl font-bold text-primary">{tracking.successRate}%</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">Success Rate</div>
-          </div>
-        </div>
-
-        {tracking.sentThisWeek > 0 && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground px-1">
-            <Sparkles className="w-3 h-3 text-primary" />
-            <span>{tracking.sentThisWeek} message{tracking.sentThisWeek !== 1 ? 's' : ''} sent this week</span>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -1096,13 +1139,13 @@ export default function OwnerFollowUpsPage() {
         </div>
       </div>
 
-      <div className="flex gap-1 p-1 bg-muted/50 rounded-xl w-fit">
+      <div className="flex gap-1 p-1 bg-muted/40 rounded-xl w-fit border border-border/50">
         <button
           onClick={() => setActiveView('ai')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
             activeView === 'ai' 
-              ? 'bg-background shadow-sm text-foreground' 
-              : 'text-muted-foreground hover:text-foreground'
+              ? 'bg-gradient-to-r from-primary to-violet-600 text-white shadow-md shadow-primary/20' 
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
           }`}
           data-testid="toggle-ai-view"
         >
@@ -1111,10 +1154,10 @@ export default function OwnerFollowUpsPage() {
         </button>
         <button
           onClick={() => setActiveView('manual')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
             activeView === 'manual' 
               ? 'bg-background shadow-sm text-foreground' 
-              : 'text-muted-foreground hover:text-foreground'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
           }`}
           data-testid="toggle-manual-view"
         >
@@ -1142,19 +1185,22 @@ export default function OwnerFollowUpsPage() {
                 activeFilter={categoryFilter}
               />
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-sm font-medium text-foreground">
-                    {filteredQueue.length} member{filteredQueue.length !== 1 ? 's' : ''} to follow up
-                  </span>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold text-foreground">
+                      {filteredQueue.length} member{filteredQueue.length !== 1 ? 's' : ''} to follow up
+                    </span>
+                  </div>
                   {selectedItems.length > 0 && (
-                    <Badge className="bg-primary/10 text-primary border-0">
+                    <Badge className="bg-primary/10 text-primary border-0 font-semibold">
                       {selectedItems.length} selected
                     </Badge>
                   )}
                 </div>
-                <div className="max-h-[420px] overflow-y-auto rounded-xl border bg-muted/10 p-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="max-h-[450px] overflow-y-auto rounded-xl p-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {filteredQueue.map(item => (
                       <QueueMemberCard
                         key={`${item.memberId}-${item.category}`}
