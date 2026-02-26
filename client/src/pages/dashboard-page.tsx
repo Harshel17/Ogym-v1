@@ -916,7 +916,20 @@ function OwnerDashboard() {
                 <p className="text-sm font-medium truncate">{ownerInsights.todayPriority.description}</p>
               </div>
               {ownerInsights.todayPriority.memberId && (
-                <Button size="sm" variant="default" onClick={() => navigate(`/owner/members/${ownerInsights.todayPriority.memberId}`)} data-testid="button-dash-priority-action">
+                <Button size="sm" variant="default" onClick={() => {
+                  const p = ownerInsights.todayPriority!;
+                  const tab = p.type === 'subscription_expiring' ? 'payments' : 'inactive';
+                  const params = new URLSearchParams({
+                    tab,
+                    memberId: String(p.memberId),
+                    reason: p.description,
+                    subject: p.type === 'subscription_expiring' ? `Your membership at our gym` : `We miss you at the gym!`,
+                    message: p.type === 'subscription_expiring'
+                      ? `Hi ${p.memberName || 'there'}, your subscription is ending soon. We'd love to have you continue with us — renew today to keep your progress going!`
+                      : `Hi ${p.memberName || 'there'}, we noticed you haven't visited recently. We'd love to see you back — your fitness journey matters to us!`
+                  });
+                  navigate(`/owner/follow-ups?${params.toString()}`);
+                }} data-testid="button-dash-priority-action">
                   Act
                 </Button>
               )}

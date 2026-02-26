@@ -434,9 +434,22 @@ export default function OwnerAiInsightsPage() {
                 <p className="text-sm text-muted-foreground mt-0.5">{insights.todayPriority.description}</p>
               </div>
               {insights.todayPriority.memberId && (
-                <Link href={`/owner/members/${insights.todayPriority.memberId}`}>
+                <Link href={(() => {
+                  const p = insights.todayPriority!;
+                  const tab = p.type === 'subscription_expiring' ? 'payments' : 'inactive';
+                  const params = new URLSearchParams({
+                    tab,
+                    memberId: String(p.memberId),
+                    reason: p.description,
+                    subject: p.type === 'subscription_expiring' ? `Your membership at our gym` : `We miss you at the gym!`,
+                    message: p.type === 'subscription_expiring'
+                      ? `Hi ${p.memberName || 'there'}, your subscription is ending soon. We'd love to have you continue with us — renew today to keep your progress going!`
+                      : `Hi ${p.memberName || 'there'}, we noticed you haven't visited recently. We'd love to see you back — your fitness journey matters to us!`
+                  });
+                  return `/owner/follow-ups?${params.toString()}`;
+                })()}>
                   <Button size="sm" variant="default" data-testid="button-priority-action">
-                    <ChevronRight className="h-4 w-4" />
+                    Take Action
                   </Button>
                 </Link>
               )}
@@ -712,6 +725,18 @@ export default function OwnerAiInsightsPage() {
                       </div>
                     )}
                     <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <Link href={`/owner/follow-ups?${new URLSearchParams({
+                        tab: 'inactive',
+                        memberId: String(member.id),
+                        reason: `Churn risk: ${member.name} has a score of ${member.churnScore}/100${member.daysAbsent < 999 ? ` and has been absent ${member.daysAbsent} days` : ' and has never visited'}`,
+                        subject: `We miss you at the gym!`,
+                        message: `Hi ${member.name}, we noticed you haven't been around lately and wanted to check in. Your fitness journey matters to us — we'd love to help you get back on track!`
+                      }).toString()}`}>
+                        <Button size="sm" variant="default" data-testid={`button-take-action-${member.id}`}>
+                          <Send className="h-3 w-3 mr-1" />
+                          Take Action
+                        </Button>
+                      </Link>
                       <ReachOutDialog member={member} onSuccess={handleInterventionSuccess} />
                       <LogReachOutButton member={member} onSuccess={handleInterventionSuccess} />
                     </div>
@@ -739,22 +764,47 @@ export default function OwnerAiInsightsPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {insights.followUpReminders.items.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-background">
+                {insights.followUpReminders.items.map((item, idx) => {
+                  const followUpTab = item.type === 'subscription_ending' ? 'payments' : 'inactive';
+                  const followUpSubject = item.type === 'subscription_ending' ? 'Your membership at our gym'
+                    : item.type === 'inactive' ? 'We miss you at the gym!'
+                    : item.type === 'new_member' ? 'Welcome to the gym!'
+                    : 'A quick note from your gym';
+                  const followUpMessage = item.type === 'subscription_ending' ? `Hi ${item.name}, your subscription is ending soon. We'd love to have you continue — renew today to keep your progress going!`
+                    : item.type === 'inactive' ? `Hi ${item.name}, we noticed you haven't been around lately. We'd love to see you back — your fitness journey matters to us!`
+                    : item.type === 'new_member' ? `Hi ${item.name}, welcome! We're excited to have you. Let us know if you need help getting started with your workouts!`
+                    : `Hi ${item.name}, just checking in from your gym. Let us know if there's anything we can help with!`;
+                  return (
+                  <div key={idx} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/50" data-testid={`followup-item-${idx}`}>
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="p-2 rounded-full bg-background shrink-0">
                         {getTypeIcon(item.type)}
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-medium text-sm">{item.name}</p>
                         <p className="text-xs text-muted-foreground">{item.message}</p>
                       </div>
                     </div>
-                    <Badge variant={getPriorityColor(item.priority) as any}>
-                      {item.priority}
-                    </Badge>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge variant={getPriorityColor(item.priority) as any}>
+                        {item.priority}
+                      </Badge>
+                      <Link href={`/owner/follow-ups?${new URLSearchParams({
+                        tab: followUpTab,
+                        memberId: String(item.memberId),
+                        reason: item.message,
+                        subject: followUpSubject,
+                        message: followUpMessage
+                      }).toString()}`}>
+                        <Button size="sm" variant="outline" className="text-xs" data-testid={`button-followup-action-${idx}`}>
+                          <Send className="h-3 w-3 mr-1" />
+                          Act
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -1342,9 +1392,16 @@ function ReengagementSection() {
                   <p className="text-[11px] text-muted-foreground leading-tight">{member.suggestedAction}</p>
                 </div>
               </div>
-              <Link href={`/owner/members/${member.id}`}>
-                <Button size="sm" variant="outline" data-testid={`button-view-expired-${member.id}`}>
-                  View
+              <Link href={`/owner/follow-ups?${new URLSearchParams({
+                tab: 'inactive',
+                memberId: String(member.id),
+                reason: `Re-engagement: ${member.name} expired ${member.daysSinceExpiry} days ago. ${member.suggestedAction}`,
+                subject: `We'd love to see you back!`,
+                message: `Hi ${member.name}, we noticed your membership has expired. We'd love to welcome you back — your fitness progress is worth continuing!`
+              }).toString()}`}>
+                <Button size="sm" variant="default" data-testid={`button-reengage-${member.id}`}>
+                  <Send className="h-3 w-3 mr-1" />
+                  Act
                 </Button>
               </Link>
             </div>

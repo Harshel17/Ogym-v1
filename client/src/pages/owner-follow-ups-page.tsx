@@ -177,15 +177,27 @@ function MessageComposer({
   selectedCount, 
   onSend, 
   isPending,
-  category
+  category,
+  initialSubject,
+  initialMessage
 }: { 
   selectedCount: number; 
   onSend: (subject: string, message: string) => void; 
   isPending: boolean;
   category: string;
+  initialSubject?: string;
+  initialMessage?: string;
 }) {
-  const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
+  const [subject, setSubject] = useState(initialSubject || "");
+  const [message, setMessage] = useState(initialMessage || "");
+
+  useEffect(() => {
+    if (initialSubject) setSubject(initialSubject);
+  }, [initialSubject]);
+
+  useEffect(() => {
+    if (initialMessage) setMessage(initialMessage);
+  }, [initialMessage]);
 
   const handleSend = () => {
     if (subject && message) {
@@ -498,14 +510,14 @@ function DayPassTab() {
   );
 }
 
-function InactiveTab() {
+function InactiveTab({ autoSelectMemberId, initialSubject, initialMessage }: { autoSelectMemberId?: number; initialSubject?: string; initialMessage?: string }) {
   const { toast } = useToast();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [search, setSearch] = useState("");
-  // Read days from URL parameter (from AI Insights link), default to 30
   const urlParams = new URLSearchParams(window.location.search);
   const initialDays = urlParams.get("days") || "30";
   const [inactiveDays, setInactiveDays] = useState(initialDays);
+  const [autoSelected, setAutoSelected] = useState(false);
 
   const buildInactiveUrl = () => {
     const params = new URLSearchParams();
@@ -523,6 +535,21 @@ function InactiveTab() {
       return res.json();
     }
   });
+
+  const prevMemberIdRef = { current: autoSelectMemberId };
+
+  useEffect(() => {
+    if (autoSelectMemberId && members.length > 0) {
+      if (!autoSelected || prevMemberIdRef.current !== autoSelectMemberId) {
+        const member = members.find(m => m.id === autoSelectMemberId);
+        if (member) {
+          setSelectedIds([autoSelectMemberId]);
+          setAutoSelected(true);
+          prevMemberIdRef.current = autoSelectMemberId;
+        }
+      }
+    }
+  }, [autoSelectMemberId, members, autoSelected]);
 
   const sendMutation = useMutation({
     mutationFn: async (data: { category: string; member_ids: number[]; subject: string; message: string }) => {
@@ -676,16 +703,19 @@ function InactiveTab() {
         onSend={handleSend}
         isPending={sendMutation.isPending}
         category="inactive"
+        initialSubject={initialSubject}
+        initialMessage={initialMessage}
       />
     </div>
   );
 }
 
-function PaymentsTab() {
+function PaymentsTab({ autoSelectMemberId, initialSubject, initialMessage }: { autoSelectMemberId?: number; initialSubject?: string; initialMessage?: string }) {
   const { toast } = useToast();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
+  const [autoSelected, setAutoSelected] = useState(false);
 
   const buildPaymentsUrl = () => {
     const params = new URLSearchParams();
@@ -703,6 +733,21 @@ function PaymentsTab() {
       return res.json();
     }
   });
+
+  const prevMemberIdRef = { current: autoSelectMemberId };
+
+  useEffect(() => {
+    if (autoSelectMemberId && members.length > 0) {
+      if (!autoSelected || prevMemberIdRef.current !== autoSelectMemberId) {
+        const member = members.find(m => m.id === autoSelectMemberId);
+        if (member) {
+          setSelectedIds([autoSelectMemberId]);
+          setAutoSelected(true);
+          prevMemberIdRef.current = autoSelectMemberId;
+        }
+      }
+    }
+  }, [autoSelectMemberId, members, autoSelected]);
 
   const sendMutation = useMutation({
     mutationFn: async (data: { category: string; member_ids: number[]; subject: string; message: string }) => {
@@ -879,16 +924,40 @@ function PaymentsTab() {
         onSend={handleSend}
         isPending={sendMutation.isPending}
         category="payments"
+        initialSubject={initialSubject}
+        initialMessage={initialMessage}
       />
     </div>
   );
 }
 
+function AiContextBar({ reason, onDismiss }: { reason: string; onDismiss: () => void }) {
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-r from-primary/5 via-violet-500/5 to-transparent border border-primary/20" data-testid="ai-context-bar">
+      <div className="p-1.5 rounded-lg bg-primary/10 shrink-0 mt-0.5">
+        <Brain className="w-3.5 h-3.5 text-primary" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/70">Dika AI Suggested This</p>
+        <p className="text-sm text-foreground mt-0.5">{reason}</p>
+      </div>
+      <button onClick={onDismiss} className="text-muted-foreground hover:text-foreground transition-colors shrink-0 mt-0.5" data-testid="button-dismiss-context">
+        <AlertCircle className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
 export default function OwnerFollowUpsPage() {
-  // Read ?tab= from URL and default to that tab
   const urlParams = new URLSearchParams(window.location.search);
   const initialTab = urlParams.get("tab") || "daypass";
   const [activeTab, setActiveTab] = useState(initialTab);
+
+  const aiReason = urlParams.get("reason");
+  const aiMemberId = urlParams.get("memberId") ? parseInt(urlParams.get("memberId")!) : undefined;
+  const aiSubject = urlParams.get("subject") || undefined;
+  const aiMessage = urlParams.get("message") || undefined;
+  const [showContext, setShowContext] = useState(!!aiReason);
 
   return (
     <div className="space-y-6 pb-24">
@@ -907,11 +976,15 @@ export default function OwnerFollowUpsPage() {
           <Link href="/owner/ai-insights">
             <Button variant="outline" size="sm" data-testid="link-ai-insights">
               <Brain className="w-4 h-4 mr-1.5" />
-              <span className="hidden sm:inline">AI Insights</span>
+              <span className="hidden sm:inline">Dika AI</span>
             </Button>
           </Link>
         </div>
       </div>
+
+      {showContext && aiReason && (
+        <AiContextBar reason={aiReason} onDismiss={() => setShowContext(false)} />
+      )}
 
       <SenderSetupCard />
 
@@ -954,11 +1027,19 @@ export default function OwnerFollowUpsPage() {
         </TabsContent>
 
         <TabsContent value="inactive" className="mt-4">
-          <InactiveTab />
+          <InactiveTab 
+            autoSelectMemberId={activeTab === 'inactive' ? aiMemberId : undefined}
+            initialSubject={activeTab === 'inactive' ? aiSubject : undefined}
+            initialMessage={activeTab === 'inactive' ? aiMessage : undefined}
+          />
         </TabsContent>
 
         <TabsContent value="payments" className="mt-4">
-          <PaymentsTab />
+          <PaymentsTab 
+            autoSelectMemberId={activeTab === 'payments' ? aiMemberId : undefined}
+            initialSubject={activeTab === 'payments' ? aiSubject : undefined}
+            initialMessage={activeTab === 'payments' ? aiMessage : undefined}
+          />
         </TabsContent>
       </Tabs>
     </div>
