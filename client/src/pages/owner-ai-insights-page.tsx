@@ -358,18 +358,19 @@ export default function OwnerAiInsightsPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
       <div className="flex items-center gap-3 mb-2">
-        <div className="p-2 bg-primary/10 rounded-lg">
+        <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary/20 to-violet-500/20 shadow-sm shadow-primary/10">
           <Brain className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            AI Insights
-            <Badge variant="secondary" className="text-xs">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/70 mb-0.5">Dika AI</p>
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            Decision Engine
+            <Badge variant="secondary" className="text-[10px]">
               <Sparkles className="h-3 w-3 mr-1" />
-              Beta
+              AI
             </Badge>
           </h1>
-          <p className="text-muted-foreground">Smart analytics powered by your gym data</p>
+          <p className="text-xs text-muted-foreground">What to do today — priorities, risks & actions</p>
         </div>
       </div>
 
@@ -378,7 +379,7 @@ export default function OwnerAiInsightsPage() {
           <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary/20 to-violet-500/20 shadow-sm shadow-primary/10">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
           </div>
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Navigate Insights</span>
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Navigate Actions</span>
           <div className="h-px flex-1 bg-gradient-to-r from-border/50 to-transparent" />
         </div>
         <div className="flex flex-wrap gap-2">

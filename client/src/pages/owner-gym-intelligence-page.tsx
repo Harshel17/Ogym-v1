@@ -415,8 +415,9 @@ export default function OwnerGymIntelligencePage() {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="text-xl font-bold tracking-tight" data-testid="heading-gym-intelligence">Gym Intelligence</h1>
-          <p className="text-xs text-muted-foreground">Data-driven insights from your gym's activity</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-purple-500/70 mb-0.5">Dika AI</p>
+          <h1 className="text-xl font-bold tracking-tight" data-testid="heading-gym-intelligence">Behavior Engine</h1>
+          <p className="text-xs text-muted-foreground">What's happening — patterns, trends & signals</p>
         </div>
       </div>
 
@@ -425,7 +426,7 @@ export default function OwnerGymIntelligencePage() {
           <div className="p-1.5 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 shadow-sm shadow-purple-500/10">
             <Sparkles className="w-3.5 h-3.5 text-purple-500" />
           </div>
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Navigate Intelligence</span>
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Navigate Signals</span>
           <div className="h-px flex-1 bg-gradient-to-r from-border/50 to-transparent" />
         </div>
         <div className="flex flex-wrap gap-2">

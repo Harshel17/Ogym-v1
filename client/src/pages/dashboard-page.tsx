@@ -881,35 +881,54 @@ function OwnerDashboard() {
           <p className="text-xs text-muted-foreground/70 font-medium">{gymSummaryLine}</p>
         </div>
       )}
-      {ownerInsights?.todayPriority && !isIOSNativeApp && (
-        <Card className="border-primary/30 bg-primary/5" data-testid="card-owner-today-priority">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-3">
+
+      {!isIOSNativeApp && (ownerInsights?.todayPriority || ownerInsights?.insightOfTheDay) && (
+        <div className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.04] via-transparent to-violet-500/[0.03] p-3.5 space-y-2.5" data-testid="dika-ai-command-center">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary/20 to-violet-500/20">
+                <Brain className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-primary/70">Dika AI</p>
+                <p className="text-xs font-bold text-foreground -mt-0.5">Today's Actions</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => navigate("/owner/ai-insights")} className="ai-chip px-2.5 py-1 rounded-lg bg-gradient-to-r from-primary/15 to-violet-500/15 text-[10px] font-semibold text-primary cursor-pointer" data-testid="link-dika-actions">
+                Decision Engine
+                <ChevronRight className="w-3 h-3 inline ml-0.5" />
+              </button>
+              <button onClick={() => navigate("/owner/gym-intelligence")} className="ai-chip px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-500/15 to-blue-500/15 text-[10px] font-semibold text-purple-500 cursor-pointer" data-testid="link-dika-intelligence">
+                Behavior Engine
+                <ChevronRight className="w-3 h-3 inline ml-0.5" />
+              </button>
+            </div>
+          </div>
+
+          {ownerInsights?.todayPriority && (
+            <div className="flex items-center gap-3 p-2.5 rounded-xl bg-card/80 border border-border/30" data-testid="card-owner-today-priority">
               <div className="p-1.5 bg-primary/10 rounded-full flex-shrink-0">
                 <Zap className="h-3.5 w-3.5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-primary font-medium uppercase tracking-wider">Today's Priority</p>
+                <p className="text-[10px] text-primary font-medium uppercase tracking-wider">Priority Action</p>
                 <p className="text-sm font-medium truncate">{ownerInsights.todayPriority.description}</p>
               </div>
               {ownerInsights.todayPriority.memberId && (
                 <Button size="sm" variant="default" onClick={() => navigate(`/owner/members/${ownerInsights.todayPriority.memberId}`)} data-testid="button-dash-priority-action">
-                  View
+                  Act
                 </Button>
               )}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
 
-      {ownerInsights?.insightOfTheDay && !isIOSNativeApp && (
-        <Card className={`border-0 ${
-          ownerInsights.insightOfTheDay.severity === 'positive' ? 'bg-emerald-500/5 border-emerald-500/20' :
-          ownerInsights.insightOfTheDay.severity === 'warning' ? 'bg-amber-500/5 border-amber-500/20' :
-          'bg-blue-500/5 border-blue-500/20'
-        }`} data-testid="card-insight-of-day">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-3">
+          {ownerInsights?.insightOfTheDay && (
+            <div className={`flex items-center gap-3 p-2.5 rounded-xl border border-border/30 ${
+              ownerInsights.insightOfTheDay.severity === 'positive' ? 'bg-emerald-500/5' :
+              ownerInsights.insightOfTheDay.severity === 'warning' ? 'bg-amber-500/5' :
+              'bg-blue-500/5'
+            }`} data-testid="card-insight-of-day">
               <div className={`p-1.5 rounded-full flex-shrink-0 ${
                 ownerInsights.insightOfTheDay.severity === 'positive' ? 'bg-emerald-500/15' :
                 ownerInsights.insightOfTheDay.severity === 'warning' ? 'bg-amber-500/15' :
@@ -926,13 +945,37 @@ function OwnerDashboard() {
                   ownerInsights.insightOfTheDay.severity === 'positive' ? 'text-emerald-600 dark:text-emerald-400' :
                   ownerInsights.insightOfTheDay.severity === 'warning' ? 'text-amber-600 dark:text-amber-400' :
                   'text-blue-600 dark:text-blue-400'
-                }`}>Insight of the Day</p>
+                }`}>AI Insight</p>
                 <p className="text-sm font-medium">{ownerInsights.insightOfTheDay.title}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{ownerInsights.insightOfTheDay.description}</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          )}
+
+          {(() => {
+            const eqData = equipmentStressData?.equipment;
+            if (!eqData || !Array.isArray(eqData) || eqData.length === 0) return null;
+            const sorted = [...eqData].sort((a: any, b: any) => (b.totalUsage || 0) - (a.totalUsage || 0));
+            const top = sorted[0];
+            const highStress = sorted.filter((e: any) => e.stressLevel === 'high');
+            if (!top) return null;
+            return (
+              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-card/80 border border-border/30 cursor-pointer" onClick={() => navigate("/owner/gym-intelligence")} data-testid="dika-equipment-signal">
+                <div className="p-1.5 rounded-full bg-orange-500/15 flex-shrink-0">
+                  <BarChart3 className="h-3.5 w-3.5 text-orange-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-orange-600 dark:text-orange-400 font-medium uppercase tracking-wider">Equipment Signal</p>
+                  <p className="text-sm font-medium truncate">
+                    {top.name}: {top.totalUsage} uses{top.changePercent > 0 ? ` (+${Math.round(top.changePercent)}%)` : ''}
+                    {highStress.length > 0 ? ` · ${highStress.length} need${highStress.length === 1 ? 's' : ''} attention` : ''}
+                  </p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </div>
+            );
+          })()}
+        </div>
       )}
 
       <div className="grid gap-2.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
@@ -1176,49 +1219,7 @@ function OwnerDashboard() {
         </div>
       )}
 
-      {!isIOSNativeApp && (() => {
-        const eqData = equipmentStressData?.equipment;
-        let insightText = "Peak hours, muscle trends & equipment insights";
-        let insightBadge = "New";
-
-        if (eqData && Array.isArray(eqData) && eqData.length > 0) {
-          const sorted = [...eqData].sort((a: any, b: any) => (b.totalUsage || 0) - (a.totalUsage || 0));
-          const top = sorted[0];
-          const needsAttention = sorted.filter((e: any) => e.stressLevel === 'high');
-
-          if (top) {
-            const changeStr = top.changePercent !== undefined && top.changePercent !== null
-              ? ` (${top.changePercent > 0 ? '+' : ''}${Math.round(top.changePercent)}%)`
-              : '';
-            const attentionStr = needsAttention.length > 0
-              ? ` — ${needsAttention.length} need${needsAttention.length === 1 ? 's' : ''} attention`
-              : '';
-            insightText = `${top.name} is at ${top.totalUsage} uses${changeStr}${attentionStr}`;
-            insightBadge = needsAttention.length > 0 ? "Attention" : "Live";
-          }
-        }
-
-        return (
-          <Card
-            className="card-elevated cursor-pointer hover-elevate bg-gradient-to-r from-purple-500/5 via-transparent to-blue-500/5"
-            onClick={() => navigate("/owner/gym-intelligence")}
-            data-testid="card-gym-intelligence-teaser"
-          >
-            <CardContent className="p-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500/15 to-blue-500/15">
-                  <BarChart3 className="w-4 h-4 text-purple-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold" data-testid="text-gym-intelligence-title">Gym Intelligence</p>
-                  <p className="text-[11px] text-muted-foreground truncate" data-testid="text-gym-intelligence-insight">{insightText}</p>
-                </div>
-                <Badge variant="secondary" className={`text-[9px] shrink-0 ${insightBadge === 'Attention' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400'}`} data-testid="badge-gym-intelligence">{insightBadge}</Badge>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })()}
+      
 
       <div className="grid gap-2.5 md:grid-cols-2">
         <Card className="card-elevated">

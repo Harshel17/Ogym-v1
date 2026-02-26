@@ -301,14 +301,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
       badge: 0
     },
     { 
-      label: "AI Insights", 
+      label: "Dika Actions", 
       href: "/owner/ai-insights", 
       icon: Brain,
       visible: isOwner && hasGym && !isIOSNativeApp,
       badge: 0
     },
     { 
-      label: "Gym Intelligence", 
+      label: "Dika Intelligence", 
       href: "/owner/gym-intelligence", 
       icon: BarChart3,
       visible: isOwner && hasGym && !isIOSNativeApp,
@@ -391,8 +391,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             { label: "Follow-ups", href: "/owner/follow-ups", icon: PhoneCall },
           ] : []),
           { label: "Self Check-in", href: "/owner/kiosk", icon: QrCode },
-          ...(!isIOSNativeApp ? [{ label: "AI Insights", href: "/owner/ai-insights", icon: Brain }] : []),
-          ...(!isIOSNativeApp ? [{ label: "Gym Intelligence", href: "/owner/gym-intelligence", icon: BarChart3 }] : []),
+          ...(!isIOSNativeApp ? [{ label: "Dika Actions", href: "/owner/ai-insights", icon: Brain }] : []),
+          ...(!isIOSNativeApp ? [{ label: "Dika Intelligence", href: "/owner/gym-intelligence", icon: BarChart3 }] : []),
           ...(!isIOSNativeApp ? [{ label: "Auto Emails", href: "/owner/automated-emails", icon: MailCheck }] : []),
           { label: "Feed", href: "/feed", icon: Activity },
           { label: "Tournaments", href: "/tournaments", icon: Trophy },
