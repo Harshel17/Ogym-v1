@@ -334,17 +334,17 @@ export default function OwnerAiInsightsPage() {
   };
 
   const navSections = [
-    { id: 'section-priority', label: 'Priority', icon: <Zap className="w-3 h-3" /> },
-    { id: 'section-overview', label: 'Overview', icon: <BarChart3 className="w-3 h-3" /> },
-    { id: 'section-churn', label: 'Churn Risk', icon: <AlertTriangle className="w-3 h-3" /> },
-    { id: 'section-followups', label: 'Follow-ups', icon: <Bell className="w-3 h-3" /> },
-    { id: 'section-attendance', label: 'Attendance', icon: <Activity className="w-3 h-3" /> },
-    { id: 'section-recommendations', label: 'AI Recs', icon: <Wand2 className="w-3 h-3" /> },
-    ...(!isLoading && insights?.equipmentActions && insights.equipmentActions.length > 0 ? [{ id: 'section-equipment', label: 'Equipment', icon: <Wrench className="w-3 h-3" /> }] : []),
-    ...(!isLoading && insights?.paymentFollowUps && insights.paymentFollowUps.length > 0 ? [{ id: 'section-payments', label: 'Payments', icon: <DollarSign className="w-3 h-3" /> }] : []),
-    { id: 'section-briefing', label: 'Briefing', icon: <FileText className="w-3 h-3" /> },
-    { id: 'section-trainers', label: 'Trainers', icon: <GraduationCap className="w-3 h-3" /> },
-    { id: 'section-reengagement', label: 'Re-engage', icon: <Megaphone className="w-3 h-3" /> },
+    { id: 'section-priority', label: 'Priority', icon: <Zap className="w-3 h-3" />, color: 'hover:bg-amber-500/10 hover:text-amber-500 hover:border-amber-500/30' },
+    { id: 'section-overview', label: 'Overview', icon: <BarChart3 className="w-3 h-3" />, color: 'hover:bg-blue-500/10 hover:text-blue-500 hover:border-blue-500/30' },
+    { id: 'section-churn', label: 'Churn Risk', icon: <AlertTriangle className="w-3 h-3" />, color: 'hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30' },
+    { id: 'section-followups', label: 'Follow-ups', icon: <Bell className="w-3 h-3" />, color: 'hover:bg-yellow-500/10 hover:text-yellow-500 hover:border-yellow-500/30' },
+    { id: 'section-attendance', label: 'Attendance', icon: <Activity className="w-3 h-3" />, color: 'hover:bg-emerald-500/10 hover:text-emerald-500 hover:border-emerald-500/30' },
+    { id: 'section-recommendations', label: 'AI Recs', icon: <Wand2 className="w-3 h-3" />, color: 'hover:bg-violet-500/10 hover:text-violet-500 hover:border-violet-500/30' },
+    ...(!isLoading && insights?.equipmentActions && insights.equipmentActions.length > 0 ? [{ id: 'section-equipment', label: 'Equipment', icon: <Wrench className="w-3 h-3" />, color: 'hover:bg-orange-500/10 hover:text-orange-500 hover:border-orange-500/30' }] : []),
+    ...(!isLoading && insights?.paymentFollowUps && insights.paymentFollowUps.length > 0 ? [{ id: 'section-payments', label: 'Payments', icon: <DollarSign className="w-3 h-3" />, color: 'hover:bg-green-500/10 hover:text-green-500 hover:border-green-500/30' }] : []),
+    { id: 'section-briefing', label: 'Briefing', icon: <FileText className="w-3 h-3" />, color: 'hover:bg-indigo-500/10 hover:text-indigo-500 hover:border-indigo-500/30' },
+    { id: 'section-trainers', label: 'Trainers', icon: <GraduationCap className="w-3 h-3" />, color: 'hover:bg-cyan-500/10 hover:text-cyan-500 hover:border-cyan-500/30' },
+    { id: 'section-reengagement', label: 'Re-engage', icon: <Megaphone className="w-3 h-3" />, color: 'hover:bg-pink-500/10 hover:text-pink-500 hover:border-pink-500/30' },
   ];
 
   if (!insights && !isLoading) {
@@ -373,19 +373,23 @@ export default function OwnerAiInsightsPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5" data-testid="section-nav-bar">
-        {navSections.map(s => (
-          <button
-            key={s.id}
-            onClick={() => scrollToSection(s.id)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap border border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all"
-            data-testid={`nav-${s.id}`}
-          >
-            {s.icon}
-            {s.label}
-          </button>
-        ))}
-      </div>
+      <Card className="border-border/40 bg-card/50 backdrop-blur-sm" data-testid="section-nav-bar">
+        <CardContent className="p-3">
+          <div className="flex flex-wrap gap-2">
+            {navSections.map(s => (
+              <button
+                key={s.id}
+                onClick={() => scrollToSection(s.id)}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium border border-border/40 bg-muted/20 text-muted-foreground ${s.color} transition-all duration-200`}
+                data-testid={`nav-${s.id}`}
+              >
+                <span className="p-1 rounded-lg bg-muted/50">{s.icon}</span>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {isLoading && (
         <div className="space-y-4">

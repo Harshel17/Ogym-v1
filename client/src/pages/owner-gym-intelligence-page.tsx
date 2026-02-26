@@ -420,25 +420,27 @@ export default function OwnerGymIntelligencePage() {
         </div>
       </div>
 
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm -mx-4 px-4 py-2 border-b border-border/50" data-testid="section-nav-bar-gi">
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-          {[
-            { id: 'gi-peak-hours', label: 'Peak Hours', icon: <Flame className="w-3 h-3" /> },
-            { id: 'gi-muscle-trends', label: 'Muscle Trends', icon: <Dumbbell className="w-3 h-3" /> },
-            { id: 'gi-equipment', label: 'Equipment', icon: <Wrench className="w-3 h-3" /> },
-          ].map(s => (
-            <button
-              key={s.id}
-              onClick={() => { const el = document.getElementById(s.id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap border border-border/50 bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all shrink-0"
-              data-testid={`nav-${s.id}`}
-            >
-              {s.icon}
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Card className="border-border/40 bg-card/50 backdrop-blur-sm" data-testid="section-nav-bar-gi">
+        <CardContent className="p-3">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: 'gi-peak-hours', label: 'Peak Hours', icon: <Flame className="w-3 h-3" />, color: 'hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30' },
+              { id: 'gi-muscle-trends', label: 'Muscle Trends', icon: <Dumbbell className="w-3 h-3" />, color: 'hover:bg-purple-500/10 hover:text-purple-500 hover:border-purple-500/30' },
+              { id: 'gi-equipment', label: 'Equipment', icon: <Wrench className="w-3 h-3" />, color: 'hover:bg-orange-500/10 hover:text-orange-500 hover:border-orange-500/30' },
+            ].map(s => (
+              <button
+                key={s.id}
+                onClick={() => { const el = document.getElementById(s.id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium border border-border/40 bg-muted/20 text-muted-foreground ${s.color} transition-all duration-200`}
+                data-testid={`nav-${s.id}`}
+              >
+                <span className="p-1 rounded-lg bg-muted/50">{s.icon}</span>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card id="gi-peak-hours" className="card-elevated md:col-span-2 scroll-mt-16" data-testid="card-peak-hours">
