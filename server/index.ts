@@ -16,10 +16,31 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('[FATAL] Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
+process.on('SIGTERM', () => {
+  console.error('[SIGNAL] SIGTERM received — process being terminated');
+});
+
+process.on('SIGINT', () => {
+  console.error('[SIGNAL] SIGINT received');
+});
+
+process.on('SIGHUP', () => {
+  console.error('[SIGNAL] SIGHUP received');
+});
+
+process.on('beforeExit', (code) => {
+  console.error(`[PROCESS] beforeExit with code ${code}`);
+});
+
+process.on('exit', (code) => {
+  console.error(`[PROCESS] exit with code ${code}`);
+});
+
 const originalExit = process.exit;
 process.exit = function(code?: number) {
   if (code !== 0) {
     console.error(`[PROCESS] process.exit(${code}) blocked — keeping server alive`);
+    console.error(new Error('process.exit call stack').stack);
     return undefined as never;
   }
   return originalExit.call(process, code);
@@ -148,28 +169,11 @@ export function log(message: string, source = "express") {
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        const sanitized = JSON.parse(JSON.stringify(capturedJsonResponse, (key, value) => {
-          if (key === 'password' || key === 'password_hash' || key === 'verificationCode') return '[REDACTED]';
-          return value;
-        }));
-        const responseStr = JSON.stringify(sanitized);
-        logLine += ` :: ${responseStr.length > 2000 ? responseStr.slice(0, 2000) + '...[truncated]' : responseStr}`;
-      }
-
-      log(logLine);
+      log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
     }
   });
 
