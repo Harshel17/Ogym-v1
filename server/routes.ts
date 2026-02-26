@@ -10895,7 +10895,7 @@ Rules:
 - Use the member's first name
 - Be genuine, not corporate
 - Don't use too many exclamation marks
-- Sign off with just the owner's first name
+- Sign off with the actual name "${ownerName.split(' ')[0]}" — NEVER use placeholders like [Your Name] or [Owner Name]
 - Match the tone to the goal
 
 Return a JSON object with "subject" and "message" fields.`;
