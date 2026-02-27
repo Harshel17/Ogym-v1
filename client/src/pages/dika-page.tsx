@@ -613,6 +613,8 @@ function DikaPageInner({ userId }: { userId: number }) {
 
   const [findFoodState, setFindFoodState] = useState<Record<string, 'idle' | 'loading' | 'done' | 'error'>>({});
   const [findFoodResults, setFindFoodResults] = useState<Record<string, { restaurants: FindFoodRestaurant[]; dikaMessage: string; goalType: string; remainingCalories: number }>>({});
+  const navigatedMessageIds = useRef<Set<string>>(new Set());
+  const initialLoadRef = useRef(true);
 
   const [showWebHint, setShowWebHint] = useState(() => {
     try { return !localStorage.getItem('dika-web-hint-seen'); } catch { return true; }
@@ -772,10 +774,17 @@ function DikaPageInner({ userId }: { userId: number }) {
 
   useEffect(() => {
     if (messages.length === 0) return;
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      messages.forEach(m => navigatedMessageIds.current.add(m.id));
+      return;
+    }
     const lastMsg = messages[messages.length - 1];
     if (lastMsg.role !== 'assistant') return;
+    if (navigatedMessageIds.current.has(lastMsg.id)) return;
     const actionData = extractActionFromContent(lastMsg.content);
     if (actionData && actionData.actionType === 'navigate' && actionData.status === 'ready') {
+      navigatedMessageIds.current.add(lastMsg.id);
       setTimeout(() => setLocation(actionData.payload.path), 600);
     }
   }, [messages, setLocation]);
