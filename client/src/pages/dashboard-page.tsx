@@ -375,17 +375,17 @@ function StatCard({ title, value, icon: Icon, description, onClick, color = "pri
       className={`overflow-visible border-0 rounded-2xl ${featured ? colorConfig.featuredBg : colorConfig.bg} hover-elevate transition-all duration-200 shadow-sm ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}`}
       onClick={onClick}
     >
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1.5 pt-3.5 px-3.5">
-        <CardTitle className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1.5 dash-card-pt dash-card-padding">
+        <CardTitle className="dash-card-title font-semibold uppercase tracking-wider text-muted-foreground/70">
           {title}
         </CardTitle>
-        <div className={`p-2.5 rounded-xl ${colorConfig.icon}`}>
-          <Icon className="h-5 w-5" />
+        <div className={`dash-icon-container rounded-xl ${colorConfig.icon}`}>
+          <Icon className="dash-icon-md" />
         </div>
       </CardHeader>
-      <CardContent className="pt-0 pb-3.5 px-3.5">
-        <div className={`${featured ? 'text-[2rem]' : 'text-[1.75rem]'} font-bold tracking-tight tabular-nums ${isZero ? 'zero-state-value' : featured ? colorConfig.valueColor : ''}`}>{value}</div>
-        <p className="text-xs text-muted-foreground/70 mt-1 font-medium">
+      <CardContent className="pt-0 dash-card-pb dash-card-padding">
+        <div className={`${featured ? 'dash-stat-featured' : 'dash-stat-value'} font-bold tracking-tight tabular-nums ${isZero ? 'zero-state-value' : featured ? colorConfig.valueColor : ''}`}>{value}</div>
+        <p className="dash-card-desc text-muted-foreground/70 mt-1 font-medium">
           {description}
         </p>
       </CardContent>

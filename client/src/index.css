@@ -9,6 +9,55 @@
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
 
+.dash-stat-value {
+  font-size: clamp(1.5rem, 1.2rem + 0.8vw, 2.25rem);
+  line-height: 1.1;
+}
+.dash-stat-featured {
+  font-size: clamp(1.75rem, 1.4rem + 0.9vw, 2.5rem);
+  line-height: 1.1;
+}
+.dash-card-title {
+  font-size: clamp(0.625rem, 0.55rem + 0.2vw, 0.8rem);
+}
+.dash-card-desc {
+  font-size: clamp(0.6875rem, 0.6rem + 0.2vw, 0.875rem);
+}
+.dash-section-title {
+  font-size: clamp(0.875rem, 0.75rem + 0.3vw, 1.125rem);
+}
+.dash-body-text {
+  font-size: clamp(0.75rem, 0.65rem + 0.25vw, 0.9375rem);
+}
+.dash-small-text {
+  font-size: clamp(0.625rem, 0.55rem + 0.2vw, 0.8125rem);
+}
+.dash-big-number {
+  font-size: clamp(1.25rem, 1rem + 0.6vw, 1.75rem);
+  line-height: 1.2;
+}
+.dash-icon-sm {
+  width: clamp(1rem, 0.85rem + 0.35vw, 1.375rem);
+  height: clamp(1rem, 0.85rem + 0.35vw, 1.375rem);
+}
+.dash-icon-md {
+  width: clamp(1.125rem, 0.95rem + 0.4vw, 1.5rem);
+  height: clamp(1.125rem, 0.95rem + 0.4vw, 1.5rem);
+}
+.dash-icon-container {
+  padding: clamp(0.5rem, 0.4rem + 0.2vw, 0.75rem);
+}
+.dash-card-padding {
+  padding-left: clamp(0.75rem, 0.6rem + 0.3vw, 1.25rem);
+  padding-right: clamp(0.75rem, 0.6rem + 0.3vw, 1.25rem);
+}
+.dash-card-pt {
+  padding-top: clamp(0.75rem, 0.6rem + 0.3vw, 1.25rem);
+}
+.dash-card-pb {
+  padding-bottom: clamp(0.75rem, 0.6rem + 0.3vw, 1.25rem);
+}
+
 @keyframes ai-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
