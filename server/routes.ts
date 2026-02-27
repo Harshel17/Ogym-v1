@@ -9108,6 +9108,23 @@ Write a short, personal message. No subject line, just the message body. Use the
           triggerReason: 'churn_risk_outreach',
           messageSent: message,
         });
+        try {
+          await storage.createSentEmail({
+            gymId: req.user!.gymId!,
+            ownerId: req.user!.id,
+            recipientEmail: member.email!,
+            recipientName: member.fullName || member.username,
+            recipientType: 'member',
+            recipientId: memberId,
+            category: 'INTERVENTION',
+            goal: null,
+            subject: subject || `Message from ${gymName}`,
+            message,
+            status: 'sent',
+          });
+        } catch (logErr) {
+          console.error(`[SENT EMAIL LOG] Failed to log:`, logErr);
+        }
         res.json({ success: true, intervention });
       } else {
         res.status(500).json({ message: "Failed to send email" });
@@ -11676,7 +11693,7 @@ Return a JSON object with "subject" and "message" fields.`;
   // Send bulk emails for follow-up
   app.post("/api/followups/send", requireRole(["owner"]), async (req, res) => {
     try {
-      const { category, member_ids, subject, message } = req.body;
+      const { category, member_ids, subject, message, goal } = req.body;
       
       if (!subject || !message || !Array.isArray(member_ids) || member_ids.length === 0) {
         return res.status(400).json({ message: "subject, message, and member_ids are required" });
@@ -11687,40 +11704,34 @@ Return a JSON object with "subject" and "message" fields.`;
       const settings = await storage.getGymEmailSettings(gymId);
       const replyTo = settings?.replyToEmail || req.user!.email || undefined;
       
-      // Collect emails based on category
-      let emails: string[] = [];
+      let recipients: { email: string; name: string; type: string; id: number }[] = [];
       
       if (category === "DAY_PASS") {
         const visitors = await storage.getWalkInVisitors(gymId);
-        // Use email from day pass visitors by ID (actually their visitor IDs)
-        const visitorEmails = visitors
+        recipients = visitors
           .filter(v => member_ids.includes(v.id) && v.email)
-          .map(v => v.email!);
-        // Also handle aggregated - look up by email if passed as string
-        emails = Array.from(new Set(visitorEmails));
+          .map(v => ({ email: v.email!, name: v.visitorName, type: 'walk_in', id: v.id }));
       } else {
-        // For inactive and payments, member_ids are user IDs — batch query
         const members = await storage.getUsersByIds(member_ids);
-        emails = members
+        recipients = members
           .filter(m => m.gymId === gymId && !!m.email)
-          .map(m => m.email!);
+          .map(m => ({ email: m.email!, name: m.fullName || m.username, type: 'member', id: m.id }));
       }
       
-      if (emails.length === 0) {
+      if (recipients.length === 0) {
         return res.status(400).json({ message: "No valid email addresses found" });
       }
       
-      // Send emails
       const results = {
         sent: 0,
         failed: 0,
         emails: [] as string[]
       };
       
-      for (const email of emails) {
+      for (const recipient of recipients) {
         try {
           const success = await sendEmail({
-            to: email,
+            to: recipient.email,
             subject,
             text: message,
             html: `
@@ -11738,12 +11749,29 @@ Return a JSON object with "subject" and "message" fields.`;
           
           if (success) {
             results.sent++;
-            results.emails.push(email);
+            results.emails.push(recipient.email);
+            try {
+              await storage.createSentEmail({
+                gymId,
+                ownerId: req.user!.id,
+                recipientEmail: recipient.email,
+                recipientName: recipient.name,
+                recipientType: recipient.type,
+                recipientId: recipient.id,
+                category: category || 'GENERAL',
+                goal: goal || null,
+                subject,
+                message,
+                status: 'sent',
+              });
+            } catch (logErr) {
+              console.error(`[SENT EMAIL LOG] Failed to log:`, logErr);
+            }
           } else {
             results.failed++;
           }
         } catch (err) {
-          console.error(`[FOLLOWUP EMAIL] Failed to send to ${email}:`, err);
+          console.error(`[FOLLOWUP EMAIL] Failed to send to ${recipient.email}:`, err);
           results.failed++;
         }
       }
@@ -11752,6 +11780,36 @@ Return a JSON object with "subject" and "message" fields.`;
       res.json(results);
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to send emails" });
+    }
+  });
+
+  app.get("/api/followups/sent-history", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const { category, goal, search, startDate, endDate, limit, offset } = req.query;
+      const result = await storage.getSentEmails(gymId, {
+        category: category as string | undefined,
+        goal: goal as string | undefined,
+        search: search as string | undefined,
+        startDate: startDate as string | undefined,
+        endDate: endDate as string | undefined,
+        limit: limit ? parseInt(limit as string) : 50,
+        offset: offset ? parseInt(offset as string) : 0,
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to fetch sent history" });
+    }
+  });
+
+  app.get("/api/followups/last-contact/:email", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const email = decodeURIComponent(req.params.email);
+      const lastEmail = await storage.getLastEmailToRecipient(gymId, email);
+      res.json(lastEmail);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to check last contact" });
     }
   });
 

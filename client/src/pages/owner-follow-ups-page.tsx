@@ -1062,6 +1062,300 @@ function SenderSetupCard() {
   );
 }
 
+type SentEmailItem = {
+  id: number;
+  recipientEmail: string;
+  recipientName: string | null;
+  recipientType: string;
+  category: string;
+  goal: string | null;
+  subject: string;
+  message: string;
+  status: string;
+  sentAt: string;
+};
+
+function SentHistoryView() {
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [goalFilter, setGoalFilter] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
+
+  const buildQueryKey = () => {
+    const params: string[] = ["/api/followups/sent-history"];
+    const qs = new URLSearchParams();
+    if (search) qs.set("search", search);
+    if (categoryFilter) qs.set("category", categoryFilter);
+    if (goalFilter) qs.set("goal", goalFilter);
+    if (startDate) qs.set("startDate", startDate);
+    if (endDate) qs.set("endDate", endDate);
+    qs.set("limit", String(pageSize));
+    qs.set("offset", String(page * pageSize));
+    return [params[0], qs.toString()];
+  };
+
+  const { data, isLoading } = useQuery<{ emails: SentEmailItem[]; total: number }>({
+    queryKey: buildQueryKey(),
+    queryFn: async () => {
+      const qs = new URLSearchParams();
+      if (search) qs.set("search", search);
+      if (categoryFilter) qs.set("category", categoryFilter);
+      if (goalFilter) qs.set("goal", goalFilter);
+      if (startDate) qs.set("startDate", startDate);
+      if (endDate) qs.set("endDate", endDate);
+      qs.set("limit", String(pageSize));
+      qs.set("offset", String(page * pageSize));
+      const res = await fetch(`/api/followups/sent-history?${qs.toString()}`, { credentials: 'include' });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  const emails = data?.emails || [];
+  const total = data?.total || 0;
+  const totalPages = Math.ceil(total / pageSize);
+
+  const getCategoryLabel = (cat: string) => {
+    const map: Record<string, string> = {
+      INACTIVE: 'Inactive Members', PAYMENTS: 'Payment Reminders', DAY_PASS: 'Walk-in / Day Pass',
+      INTERVENTION: 'Direct Outreach', GENERAL: 'General',
+    };
+    return map[cat] || cat;
+  };
+
+  const getCategoryColor = (cat: string) => {
+    const map: Record<string, string> = {
+      INACTIVE: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+      PAYMENTS: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+      DAY_PASS: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+      INTERVENTION: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    };
+    return map[cat] || 'bg-muted text-muted-foreground';
+  };
+
+  const getGoalLabel = (goal: string) => {
+    const map: Record<string, string> = {
+      renew: 'Renew', bring_back: 'Bring Back', collect_payment: 'Collect Payment',
+      welcome: 'Welcome', general: 'General', convert: 'Convert',
+    };
+    return map[goal] || goal;
+  };
+
+  const grouped = useMemo(() => {
+    const groups: Record<string, SentEmailItem[]> = {};
+    for (const e of emails) {
+      const day = format(new Date(e.sentAt), 'yyyy-MM-dd');
+      if (!groups[day]) groups[day] = [];
+      groups[day].push(e);
+    }
+    return groups;
+  }, [emails]);
+
+  return (
+    <div className="space-y-4" data-testid="sent-history-view">
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/10">
+              <Mail className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <CardTitle className="text-base">Email History</CardTitle>
+              <CardDescription className="text-xs">{total} email{total !== 1 ? 's' : ''} sent</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search name, email, or subject..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+                className="pl-9 h-9 text-sm"
+                data-testid="input-sent-search"
+              />
+            </div>
+            <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v === 'all' ? '' : v); setPage(0); }}>
+              <SelectTrigger className="w-[150px] h-9 text-sm" data-testid="select-sent-category">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="INACTIVE">Inactive Members</SelectItem>
+                <SelectItem value="PAYMENTS">Payment Reminders</SelectItem>
+                <SelectItem value="DAY_PASS">Walk-in / Day Pass</SelectItem>
+                <SelectItem value="INTERVENTION">Direct Outreach</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={goalFilter} onValueChange={(v) => { setGoalFilter(v === 'all' ? '' : v); setPage(0); }}>
+              <SelectTrigger className="w-[130px] h-9 text-sm" data-testid="select-sent-goal">
+                <SelectValue placeholder="All Goals" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Goals</SelectItem>
+                <SelectItem value="bring_back">Bring Back</SelectItem>
+                <SelectItem value="renew">Renew</SelectItem>
+                <SelectItem value="collect_payment">Collect Payment</SelectItem>
+                <SelectItem value="welcome">Welcome</SelectItem>
+                <SelectItem value="convert">Convert</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => { setStartDate(e.target.value); setPage(0); }}
+                className="h-9 text-sm w-[140px]"
+                data-testid="input-sent-start-date"
+              />
+              <span className="text-xs text-muted-foreground">to</span>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => { setEndDate(e.target.value); setPage(0); }}
+                className="h-9 text-sm w-[140px]"
+                data-testid="input-sent-end-date"
+              />
+            </div>
+            {(search || categoryFilter || goalFilter || startDate || endDate) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setSearch(""); setCategoryFilter(""); setGoalFilter(""); setStartDate(""); setEndDate(""); setPage(0); }}
+                className="h-9 text-xs"
+                data-testid="button-clear-filters"
+              >
+                <XCircle className="w-3.5 h-3.5 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+        </div>
+      ) : emails.length === 0 ? (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="py-12 text-center">
+            <div className="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center mx-auto mb-3">
+              <Mail className="w-6 h-6 text-blue-400" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">No emails sent yet</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Emails you send through Follow-ups will appear here</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {Object.entries(grouped).map(([day, dayEmails]) => (
+            <div key={day}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs font-semibold text-muted-foreground px-2">
+                  {format(new Date(day), 'MMM d, yyyy')}
+                </span>
+                <Badge variant="secondary" className="text-[10px]">{dayEmails.length}</Badge>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+              <div className="space-y-2">
+                {dayEmails.map((email) => (
+                  <Card
+                    key={email.id}
+                    className={`border-0 shadow-sm cursor-pointer transition-all hover:shadow-md ${expandedId === email.id ? 'ring-1 ring-primary/30' : ''}`}
+                    onClick={() => setExpandedId(expandedId === email.id ? null : email.id)}
+                    data-testid={`sent-email-card-${email.id}`}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 mt-0.5">
+                          <Send className="w-3.5 h-3.5 text-blue-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-sm font-semibold truncate" data-testid={`text-recipient-${email.id}`}>
+                                {email.recipientName || email.recipientEmail}
+                              </span>
+                              <Badge className={`text-[10px] px-1.5 ${getCategoryColor(email.category)}`}>
+                                {getCategoryLabel(email.category)}
+                              </Badge>
+                              {email.goal && (
+                                <Badge variant="outline" className="text-[10px] px-1.5">
+                                  {getGoalLabel(email.goal)}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                              {format(new Date(email.sentAt), 'h:mm a')}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground truncate">{email.recipientEmail}</span>
+                            <span className="text-xs text-muted-foreground">·</span>
+                            <Badge variant="secondary" className={`text-[10px] px-1.5 ${email.recipientType === 'walk_in' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' : ''}`}>
+                              {email.recipientType === 'walk_in' ? 'Walk-in' : 'Member'}
+                            </Badge>
+                          </div>
+                          <p className="text-xs font-medium mt-1.5 text-foreground/80">{email.subject}</p>
+                          {expandedId === email.id && (
+                            <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+                              <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed" data-testid={`text-message-${email.id}`}>
+                                {email.message}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform shrink-0 mt-1 ${expandedId === email.id ? 'rotate-90' : ''}`} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                data-testid="button-prev-page"
+              >
+                Previous
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Page {page + 1} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage(p => p + 1)}
+                data-testid="button-next-page"
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ManualTab({ 
   tabType, 
   autoSelectMemberId, 
@@ -1362,7 +1656,7 @@ export default function OwnerFollowUpsPage() {
   const urlParams = new URLSearchParams(window.location.search);
   const walkInId = urlParams.get("walkInId") ? parseInt(urlParams.get("walkInId")!) : undefined;
   const walkInGoal = urlParams.get("goal") || undefined;
-  const [activeView, setActiveView] = useState<'ai' | 'manual' | 'results'>(urlParams.get("tab") ? 'manual' : 'ai');
+  const [activeView, setActiveView] = useState<'ai' | 'manual' | 'results' | 'sent'>(urlParams.get("tab") ? 'manual' : 'ai');
   const [selectedItems, setSelectedItems] = useState<QueueItem[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [selectedGoal, setSelectedGoal] = useState(walkInGoal || "");
@@ -1435,7 +1729,7 @@ export default function OwnerFollowUpsPage() {
   };
 
   const sendMutation = useMutation({
-    mutationFn: async (data: { category: string; member_ids: number[]; subject: string; message: string }) => {
+    mutationFn: async (data: { category: string; member_ids: number[]; subject: string; message: string; goal?: string }) => {
       const res = await apiRequest("POST", "/api/followups/send", data);
       return await res.json();
     },
@@ -1468,6 +1762,7 @@ export default function OwnerFollowUpsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/followups/ai-tracking"] });
       queryClient.invalidateQueries({ queryKey: ["/api/followups/outcomes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/followups/performance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/followups/sent-history"] });
       queryClient.invalidateQueries({ queryKey: ["/api/owner/walk-in-visitors"] });
     },
     onError: (error: Error) => {
@@ -1482,7 +1777,8 @@ export default function OwnerFollowUpsPage() {
         category: 'DAY_PASS',
         member_ids: memberIds,
         subject,
-        message
+        message,
+        goal: selectedGoal || undefined,
       });
       return;
     }
@@ -1498,7 +1794,8 @@ export default function OwnerFollowUpsPage() {
       category,
       member_ids: memberIds,
       subject,
-      message
+      message,
+      goal: selectedGoal || undefined,
     });
   };
 
@@ -1508,7 +1805,7 @@ export default function OwnerFollowUpsPage() {
         <div className="space-y-1">
           <h1 className="text-2xl font-bold font-display text-foreground" data-testid="text-page-title">Follow-ups</h1>
           <p className="text-sm text-muted-foreground">
-            {activeView === 'ai' ? 'Dika AI prepared everything — just approve and send' : activeView === 'results' ? 'Track what happened after your follow-ups' : 'Send targeted emails to your members'}
+            {activeView === 'ai' ? 'Dika AI prepared everything — just approve and send' : activeView === 'results' ? 'Track what happened after your follow-ups' : activeView === 'sent' ? 'See every email you\'ve sent and to whom' : 'Send targeted emails to your members'}
           </p>
         </div>
         <div className="flex gap-2">
@@ -1563,6 +1860,18 @@ export default function OwnerFollowUpsPage() {
         >
           <Trophy className="w-4 h-4" />
           Results
+        </button>
+        <button
+          onClick={() => setActiveView('sent')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeView === 'sent' 
+              ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-md shadow-blue-500/20' 
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+          }`}
+          data-testid="toggle-sent-view"
+        >
+          <Clock className="w-4 h-4" />
+          Sent
         </button>
       </div>
 
@@ -1665,7 +1974,7 @@ export default function OwnerFollowUpsPage() {
         </div>
       ) : activeView === 'results' ? (
         <ResultsView />
-      ) : (
+      ) : activeView === 'manual' ? (
         <div className="space-y-5">
           {aiReason && (
             <div className="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-r from-primary/5 via-violet-500/5 to-transparent border border-primary/20" data-testid="ai-context-bar">
@@ -1721,7 +2030,9 @@ export default function OwnerFollowUpsPage() {
 
           <SenderSetupCard />
         </div>
-      )}
+      ) : activeView === 'sent' ? (
+        <SentHistoryView />
+      ) : null}
     </div>
   );
 }

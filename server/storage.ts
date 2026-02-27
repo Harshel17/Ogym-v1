@@ -74,6 +74,8 @@ import {
   type MatchLog, type InsertMatchLog,
   ownerInterventions,
   type OwnerIntervention, type InsertOwnerIntervention,
+  sentEmails,
+  type SentEmail, type InsertSentEmail,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, gte, lt, lte, sql, isNull, isNotNull, or, ilike } from "drizzle-orm";
@@ -630,6 +632,10 @@ export interface IStorage {
   createOwnerIntervention(data: InsertOwnerIntervention): Promise<OwnerIntervention>;
   getOwnerInterventions(gymId: number, limit?: number): Promise<OwnerIntervention[]>;
   updateOwnerIntervention(id: number, data: Partial<OwnerIntervention>): Promise<OwnerIntervention>;
+
+  createSentEmail(data: InsertSentEmail): Promise<SentEmail>;
+  getSentEmails(gymId: number, filters?: { category?: string; goal?: string; search?: string; startDate?: string; endDate?: string; limit?: number; offset?: number }): Promise<{ emails: SentEmail[]; total: number }>;
+  getLastEmailToRecipient(gymId: number, recipientEmail: string): Promise<SentEmail | null>;
   getMemberWorkoutActivity(gymId: number, memberId: number, limit?: number): Promise<{ exerciseName: string; completedDate: string; actualSets: number | null; actualReps: number | null; actualWeight: string | null }[]>;
   
   // Workout Sessions
@@ -9983,6 +9989,47 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(workoutLogs.completedDate))
       .limit(limit);
     return logs;
+  }
+  async createSentEmail(data: InsertSentEmail): Promise<SentEmail> {
+    const [email] = await db.insert(sentEmails).values(data).returning();
+    return email;
+  }
+
+  async getSentEmails(gymId: number, filters?: { category?: string; goal?: string; search?: string; startDate?: string; endDate?: string; limit?: number; offset?: number }): Promise<{ emails: SentEmail[]; total: number }> {
+    const conditions = [eq(sentEmails.gymId, gymId)];
+    if (filters?.category) conditions.push(eq(sentEmails.category, filters.category));
+    if (filters?.goal) conditions.push(eq(sentEmails.goal, filters.goal));
+    if (filters?.search) {
+      conditions.push(
+        or(
+          ilike(sentEmails.recipientName, `%${filters.search}%`),
+          ilike(sentEmails.recipientEmail, `%${filters.search}%`),
+          ilike(sentEmails.subject, `%${filters.search}%`)
+        )!
+      );
+    }
+    if (filters?.startDate) conditions.push(gte(sentEmails.sentAt, new Date(filters.startDate)));
+    if (filters?.endDate) {
+      const end = new Date(filters.endDate);
+      end.setDate(end.getDate() + 1);
+      conditions.push(lt(sentEmails.sentAt, end));
+    }
+    const where = and(...conditions);
+    const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(sentEmails).where(where);
+    const emails = await db.select().from(sentEmails)
+      .where(where)
+      .orderBy(desc(sentEmails.sentAt))
+      .limit(filters?.limit || 50)
+      .offset(filters?.offset || 0);
+    return { emails, total: Number(countResult.count) };
+  }
+
+  async getLastEmailToRecipient(gymId: number, recipientEmail: string): Promise<SentEmail | null> {
+    const [result] = await db.select().from(sentEmails)
+      .where(and(eq(sentEmails.gymId, gymId), eq(sentEmails.recipientEmail, recipientEmail)))
+      .orderBy(desc(sentEmails.sentAt))
+      .limit(1);
+    return result || null;
   }
 }
 

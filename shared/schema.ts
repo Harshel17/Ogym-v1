@@ -1443,3 +1443,26 @@ export type GymEquipment = typeof gymEquipment.$inferSelect;
 export type InsertGymEquipment = z.infer<typeof insertGymEquipmentSchema>;
 export type EquipmentExerciseMapping = typeof equipmentExerciseMappings.$inferSelect;
 export type InsertEquipmentExerciseMapping = z.infer<typeof insertEquipmentExerciseMappingSchema>;
+
+export const sentEmails = pgTable("sent_emails", {
+  id: serial("id").primaryKey(),
+  gymId: integer("gym_id").references(() => gyms.id).notNull(),
+  ownerId: integer("owner_id").references(() => users.id).notNull(),
+  recipientEmail: text("recipient_email").notNull(),
+  recipientName: text("recipient_name"),
+  recipientType: text("recipient_type").notNull(),
+  recipientId: integer("recipient_id"),
+  category: text("category").notNull(),
+  goal: text("goal"),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  status: text("status").notNull().default("sent"),
+  sentAt: timestamp("sent_at").defaultNow(),
+}, (table) => ({
+  gymIdx: index("sent_emails_gym_idx").on(table.gymId),
+  sentAtIdx: index("sent_emails_sent_at_idx").on(table.sentAt),
+}));
+
+export const insertSentEmailSchema = createInsertSchema(sentEmails).omit({ id: true, sentAt: true });
+export type InsertSentEmail = z.infer<typeof insertSentEmailSchema>;
+export type SentEmail = typeof sentEmails.$inferSelect;
