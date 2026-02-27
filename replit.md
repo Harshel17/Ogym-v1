@@ -65,7 +65,7 @@ Preferred communication style: Simple, everyday language.
 - **Production Security:** Implemented with Helmet.js, secure session cookies, rate limiting, and request body limits.
 - **Error Handling:** React Error Boundary for graceful UI error recovery.
 - **Deployment:** Same-origin deployment with Express serving API and static frontend.
-- **Fitness Device Integration (Level 2):** Health & Activity page with HealthKit (iOS) / Google Fit (Android) integration for activity overview, recovery score, calorie balance, and health insights.
+- **Fitness Device Integration (Level 2):** Health & Activity page with HealthKit (iOS) / Google Fit (Android) integration for activity overview, recovery score, calorie balance, and health insights. Uses dual-plugin approach: `@capgo/capacitor-health` v7.2.15 for passive heart rate samples (`readSamples` with `heartRate` data type), distance, and calories; `capacitor-health` v7.0.0 for steps aggregation (`queryAggregated` with `steps`/`active-calories`), workout queries (`queryWorkouts`), and sleep detection from sleep-type workouts. The capgo plugin provides actual passive HR readings from Apple Health/Google Fit that the old plugin cannot access.
 - **Feature Discovery Tips:** Role-specific rotating tips on dashboards with persistent dismissal.
 - **Guided Empty States:** Enhanced empty state components with action buttons for various pages.
 - **Gym Intelligence Dashboard (Level 1):** Data-driven insights for owners including Peak Hour Pressure (check-in density by hour with color-coded bar chart), Muscle Trend Intelligence (muscle group usage comparison month-over-month), and Equipment Intelligence (card-based per-equipment analytics with muscle group filtering, click-to-expand detail panels via React portal with exercise breakdowns/usage charts/predictions, trust-building "Planning Overview" with traffic-light signals using "Needs Attention" labels, narrative summary, and Top 3 Equipment highlight with reasons). Dashboard teaser card shows live equipment insight preview. Dika AI has equipment intelligence context for owner queries. Accessible from sidebar and dashboard teaser card. API endpoints at `/api/owner/gym-intelligence/`.
@@ -91,3 +91,5 @@ Preferred communication style: Simple, everyday language.
 - **OpenStreetMap Overpass API:** Location-based restaurant data.
 - **Tesseract.js:** Client-side OCR.
 - **Capacitor Plugins:** For camera, push notifications, splash screen, status bar, keyboard, haptics, app, and browser functionalities.
+- **@capgo/capacitor-health (v7.2.15):** Extended health plugin with `readSamples()` API supporting passive heart rate, distance, calories, steps, and weight data types from Apple Health/Google Fit.
+- **capacitor-health (v7.0.0):** Legacy health plugin for `queryAggregated` (steps, active-calories, mindfulness) and `queryWorkouts` (workout sessions with HR samples, sleep detection).

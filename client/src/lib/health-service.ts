@@ -37,7 +37,8 @@ export interface HealthConnectionStatus {
 class HealthService {
   private isNative: boolean;
   private platform: 'ios' | 'android' | 'web';
-  private healthPlugin: any = null;
+  private oldPlugin: any = null;
+  private capgoPlugin: any = null;
 
   constructor() {
     this.isNative = Capacitor.isNativePlatform();
@@ -50,20 +51,30 @@ class HealthService {
       return false;
     }
 
-    if (this.healthPlugin) return true;
+    if (this.capgoPlugin) return true;
 
     try {
-      const mod = await import('capacitor-health');
-      this.healthPlugin = mod.Health || mod.default?.Health || mod.default;
-      if (!this.healthPlugin) {
-        console.error('Health plugin loaded but Health class not found');
-        return false;
-      }
-      return true;
+      const capgoMod = await import('@capgo/capacitor-health');
+      this.capgoPlugin = capgoMod.CapacitorHealth || capgoMod.Health || capgoMod.default;
+      console.log('[HealthService] @capgo/capacitor-health loaded');
     } catch (error) {
-      console.error('Failed to initialize health plugin:', error);
+      console.error('[HealthService] Failed to load @capgo/capacitor-health:', error);
+    }
+
+    try {
+      const oldMod = await import('capacitor-health');
+      this.oldPlugin = oldMod.Health || oldMod.default?.Health || oldMod.default;
+      console.log('[HealthService] capacitor-health (old) loaded');
+    } catch (error) {
+      console.error('[HealthService] Failed to load capacitor-health:', error);
+    }
+
+    if (!this.capgoPlugin && !this.oldPlugin) {
+      console.error('[HealthService] No health plugin available');
       return false;
     }
+
+    return true;
   }
 
   getAvailableSource(): HealthSource | null {
@@ -76,45 +87,62 @@ class HealthService {
   }
 
   async checkPermissions(): Promise<boolean> {
-    if (!this.healthPlugin) {
-      await this.initialize();
-    }
-    
-    if (!this.healthPlugin) return false;
+    await this.initialize();
 
-    try {
-      const result = await this.healthPlugin.isHealthAvailable();
-      return result.available;
-    } catch (error) {
-      console.error('Failed to check health permissions:', error);
-      return false;
+    if (this.capgoPlugin) {
+      try {
+        const result = await this.capgoPlugin.isAvailable();
+        return result.available;
+      } catch (e) {
+        console.log('[HealthService] capgo isAvailable failed:', e);
+      }
     }
+
+    if (this.oldPlugin) {
+      try {
+        const result = await this.oldPlugin.isHealthAvailable();
+        return result.available;
+      } catch (e) {
+        console.log('[HealthService] old isHealthAvailable failed:', e);
+      }
+    }
+
+    return false;
   }
 
   async requestPermissions(): Promise<boolean> {
-    try {
-      if (!this.healthPlugin) {
-        const initialized = await this.initialize();
-        if (!initialized) return false;
+    await this.initialize();
+
+    if (this.capgoPlugin) {
+      try {
+        await this.capgoPlugin.requestAuthorization({
+          read: ['steps', 'distance', 'calories', 'heartRate', 'weight'],
+        });
+        console.log('[HealthService] capgo permissions granted');
+      } catch (error) {
+        console.error('[HealthService] capgo permissions failed:', error);
       }
-      
-      if (!this.healthPlugin) return false;
-
-      const permissions = [
-        'READ_STEPS',
-        'READ_ACTIVE_CALORIES', 
-        'READ_TOTAL_CALORIES',
-        'READ_HEART_RATE',
-        'READ_DISTANCE',
-        'READ_WORKOUTS',
-      ];
-
-      await this.healthPlugin.requestHealthPermissions({ permissions });
-      return true;
-    } catch (error) {
-      console.error('Failed to request health permissions:', error);
-      return false;
     }
+
+    if (this.oldPlugin) {
+      try {
+        await this.oldPlugin.requestHealthPermissions({
+          permissions: [
+            'READ_STEPS',
+            'READ_ACTIVE_CALORIES',
+            'READ_TOTAL_CALORIES',
+            'READ_HEART_RATE',
+            'READ_DISTANCE',
+            'READ_WORKOUTS',
+          ],
+        });
+        console.log('[HealthService] old plugin permissions granted');
+      } catch (error) {
+        console.error('[HealthService] old plugin permissions failed:', error);
+      }
+    }
+
+    return true;
   }
 
   private getDayRange(dateStr: string): { startISO: string; endISO: string } {
@@ -125,12 +153,10 @@ class HealthService {
   }
 
   async fetchDataForDate(dateStr: string): Promise<HealthDataPayload | null> {
-    if (!this.healthPlugin) {
-      await this.initialize();
-    }
-    
-    if (!this.healthPlugin) {
-      console.log('[HealthService] Plugin not available');
+    await this.initialize();
+
+    if (!this.capgoPlugin && !this.oldPlugin) {
+      console.log('[HealthService] No plugin available');
       return null;
     }
 
@@ -139,87 +165,160 @@ class HealthService {
 
     const { startISO, endISO } = this.getDayRange(dateStr);
 
-    try {
-      const data: HealthDataPayload = {
-        date: dateStr,
-        source,
-      };
+    const data: HealthDataPayload = {
+      date: dateStr,
+      source,
+    };
 
-      console.log(`[HealthService] Fetching data for ${dateStr} (range: ${startISO} to ${endISO})`);
+    console.log(`[HealthService] Fetching data for ${dateStr} (range: ${startISO} to ${endISO})`);
+
+    if (this.capgoPlugin) {
+      try {
+        const stepsResult = await this.capgoPlugin.readSamples({
+          dataType: 'steps',
+          startDate: startISO,
+          endDate: endISO,
+          limit: 1000,
+        });
+        if (stepsResult?.samples?.length > 0) {
+          const totalSteps = stepsResult.samples.reduce((sum: number, s: any) => sum + (s.value || 0), 0);
+          if (totalSteps > 0) {
+            data.steps = Math.round(totalSteps);
+            console.log(`[HealthService] capgo steps: ${data.steps}`);
+          }
+        }
+      } catch (e) {
+        console.log('[HealthService] capgo steps failed:', e);
+      }
 
       try {
-        const stepsResult = await this.healthPlugin.queryAggregated({
+        const calResult = await this.capgoPlugin.readSamples({
+          dataType: 'calories',
+          startDate: startISO,
+          endDate: endISO,
+          limit: 1000,
+        });
+        if (calResult?.samples?.length > 0) {
+          const totalCal = calResult.samples.reduce((sum: number, s: any) => sum + (s.value || 0), 0);
+          if (totalCal > 0) {
+            data.caloriesBurned = Math.round(totalCal);
+            data.activeCalories = Math.round(totalCal);
+            console.log(`[HealthService] capgo calories: ${data.caloriesBurned}`);
+          }
+        }
+      } catch (e) {
+        console.log('[HealthService] capgo calories failed:', e);
+      }
+
+      try {
+        const hrResult = await this.capgoPlugin.readSamples({
+          dataType: 'heartRate',
+          startDate: startISO,
+          endDate: endISO,
+          limit: 5000,
+        });
+        if (hrResult?.samples?.length > 0) {
+          const validHR = hrResult.samples
+            .map((s: any) => s.value)
+            .filter((v: number) => v > 30 && v < 250);
+          if (validHR.length > 0) {
+            validHR.sort((a: number, b: number) => a - b);
+            data.avgHeartRate = Math.round(validHR.reduce((a: number, b: number) => a + b, 0) / validHR.length);
+            data.maxHeartRate = Math.round(validHR[validHR.length - 1]);
+            const lowestTenPct = validHR.slice(0, Math.max(1, Math.floor(validHR.length * 0.10)));
+            data.restingHeartRate = Math.round(lowestTenPct.reduce((a: number, b: number) => a + b, 0) / lowestTenPct.length);
+            console.log(`[HealthService] capgo HR: avg=${data.avgHeartRate}, rest=${data.restingHeartRate}, max=${data.maxHeartRate} from ${validHR.length} samples`);
+          }
+        }
+      } catch (e) {
+        console.log('[HealthService] capgo heartRate failed:', e);
+      }
+
+      try {
+        const distResult = await this.capgoPlugin.readSamples({
+          dataType: 'distance',
+          startDate: startISO,
+          endDate: endISO,
+          limit: 1000,
+        });
+        if (distResult?.samples?.length > 0) {
+          const totalDist = distResult.samples.reduce((sum: number, s: any) => sum + (s.value || 0), 0);
+          if (totalDist > 0) {
+            data.distanceMeters = Math.round(totalDist);
+            console.log(`[HealthService] capgo distance: ${data.distanceMeters}m`);
+          }
+        }
+      } catch (e) {
+        console.log('[HealthService] capgo distance failed:', e);
+      }
+    }
+
+    if (!data.steps && this.oldPlugin) {
+      try {
+        const stepsResult = await this.oldPlugin.queryAggregated({
           startDate: startISO,
           endDate: endISO,
           dataType: 'steps',
-          bucket: 'day'
+          bucket: 'day',
         });
         if (stepsResult?.aggregatedData?.[0]?.value) {
           data.steps = Math.round(stepsResult.aggregatedData[0].value);
+          console.log(`[HealthService] old plugin steps fallback: ${data.steps}`);
         }
       } catch (e) {
-        console.log('[HealthService] Could not fetch steps:', e);
+        console.log('[HealthService] old plugin steps failed:', e);
       }
+    }
 
+    if (!data.caloriesBurned && this.oldPlugin) {
       try {
-        const caloriesResult = await this.healthPlugin.queryAggregated({
+        const calResult = await this.oldPlugin.queryAggregated({
           startDate: startISO,
           endDate: endISO,
           dataType: 'active-calories',
-          bucket: 'day'
+          bucket: 'day',
         });
-        if (caloriesResult?.aggregatedData?.[0]?.value) {
-          data.activeCalories = Math.round(caloriesResult.aggregatedData[0].value);
+        if (calResult?.aggregatedData?.[0]?.value) {
+          data.activeCalories = Math.round(calResult.aggregatedData[0].value);
           data.caloriesBurned = data.activeCalories;
+          console.log(`[HealthService] old plugin calories fallback: ${data.caloriesBurned}`);
         }
       } catch (e) {
-        console.log('[HealthService] Could not fetch calories:', e);
+        console.log('[HealthService] old plugin calories failed:', e);
       }
+    }
 
+    if (this.oldPlugin) {
       try {
-        const mindfulnessResult = await this.healthPlugin.queryAggregated({
-          startDate: startISO,
-          endDate: endISO,
-          dataType: 'mindfulness',
-          bucket: 'day'
-        });
-        if (mindfulnessResult?.aggregatedData?.[0]?.value) {
-          const mindfulMinutes = Math.round(mindfulnessResult.aggregatedData[0].value / 60);
-          console.log(`[HealthService] Mindfulness: ${mindfulMinutes} minutes`);
-        }
-      } catch (e) {
-        console.log('[HealthService] Could not fetch mindfulness:', e);
-      }
-
-      try {
-        const workoutsResult = await this.healthPlugin.queryWorkouts({
+        const workoutsResult = await this.oldPlugin.queryWorkouts({
           startDate: startISO,
           endDate: endISO,
           includeHeartRate: true,
           includeRoute: false,
-          includeSteps: true
+          includeSteps: true,
         });
-        
+
         if (workoutsResult?.workouts?.length > 0) {
           const workouts: Array<{ type: string; duration: number; calories: number }> = [];
           let totalDurationSeconds = 0;
           let totalCalories = 0;
           let totalDistance = 0;
           const heartRates: number[] = [];
-          
+
           for (const workout of workoutsResult.workouts) {
+            const wType = (workout.workoutType || '').toLowerCase();
+            if (wType.includes('sleep') || wType === 'sleeping' || wType === 'inbed') continue;
+
             const durationSec = workout.duration || 0;
-            const durationMin = Math.round(durationSec / 60);
-            
             workouts.push({
               type: workout.workoutType || 'unknown',
-              duration: durationMin,
-              calories: Math.round(workout.calories || 0)
+              duration: Math.round(durationSec / 60),
+              calories: Math.round(workout.calories || 0),
             });
             totalDurationSeconds += durationSec;
             totalCalories += (workout.calories || 0);
             if (workout.distance) totalDistance += workout.distance;
-            
+
             if (workout.heartRate?.length > 0) {
               for (const hr of workout.heartRate) {
                 if (hr.bpm && hr.bpm > 30 && hr.bpm < 250) {
@@ -228,68 +327,65 @@ class HealthService {
               }
             }
           }
-          
-          data.watchWorkouts = workouts;
-          
+
+          if (workouts.length > 0) data.watchWorkouts = workouts;
+
           if (totalDurationSeconds > 0) {
             data.activeMinutes = Math.round(totalDurationSeconds / 60);
           }
-          
-          if (totalCalories > 0) {
-            if (!data.caloriesBurned || totalCalories > data.caloriesBurned) {
-              data.caloriesBurned = Math.round(totalCalories);
-            }
+
+          if (totalCalories > 0 && (!data.caloriesBurned || totalCalories > data.caloriesBurned)) {
+            data.caloriesBurned = Math.round(totalCalories);
           }
-          
+
           if (totalDistance > 0 && !data.distanceMeters) {
             data.distanceMeters = Math.round(totalDistance);
           }
-          
-          if (heartRates.length > 0) {
+
+          if (heartRates.length > 0 && !data.avgHeartRate) {
             heartRates.sort((a, b) => a - b);
             data.avgHeartRate = Math.round(heartRates.reduce((a, b) => a + b, 0) / heartRates.length);
             data.maxHeartRate = Math.round(heartRates[heartRates.length - 1]);
-            
             const lowestQuartile = heartRates.slice(0, Math.max(1, Math.floor(heartRates.length * 0.25)));
             data.restingHeartRate = Math.round(lowestQuartile.reduce((a, b) => a + b, 0) / lowestQuartile.length);
           }
         }
       } catch (e) {
-        console.log('[HealthService] Could not fetch workouts:', e);
+        console.log('[HealthService] workouts query failed:', e);
       }
 
       try {
         const sleepWindow = 20 * 60 * 60 * 1000;
         const sleepStartISO = new Date(new Date(dateStr + 'T00:00:00').getTime() - sleepWindow).toISOString();
-        
-        const sleepWorkouts = await this.healthPlugin.queryWorkouts({
+
+        const sleepWorkouts = await this.oldPlugin.queryWorkouts({
           startDate: sleepStartISO,
           endDate: endISO,
           includeHeartRate: true,
           includeRoute: false,
-          includeSteps: false
+          includeSteps: false,
         });
-        
+
         if (sleepWorkouts?.workouts?.length > 0) {
           let totalSleepMinutes = 0;
           let earliestBedtime: Date | null = null;
           let latestWakeTime: Date | null = null;
           const sleepHeartRates: number[] = [];
-          
+
           for (const workout of sleepWorkouts.workouts) {
             const wType = (workout.workoutType || '').toLowerCase();
-            const isSleep = wType.includes('sleep') || wType === 'sleeping' || wType === 'inbed' || wType === 'sleep';
-            
+            const isSleep = wType.includes('sleep') || wType === 'sleeping' || wType === 'inbed';
+
             if (isSleep) {
               const durationMin = Math.round((workout.duration || 0) / 60);
               if (durationMin > 0) {
                 totalSleepMinutes += durationMin;
-                
+
                 const start = new Date(workout.startDate);
                 const end = new Date(workout.endDate);
                 if (!earliestBedtime || start < earliestBedtime) earliestBedtime = start;
                 if (!latestWakeTime || end > latestWakeTime) latestWakeTime = end;
-                
+
                 if (workout.heartRate?.length > 0) {
                   for (const hr of workout.heartRate) {
                     if (hr.bpm && hr.bpm > 30 && hr.bpm < 200) {
@@ -300,7 +396,7 @@ class HealthService {
               }
             }
           }
-          
+
           if (totalSleepMinutes > 0) {
             data.sleepMinutes = totalSleepMinutes;
             const hours = totalSleepMinutes / 60;
@@ -308,17 +404,18 @@ class HealthService {
             else if (hours >= 6.5) data.sleepQuality = 'good';
             else if (hours >= 5) data.sleepQuality = 'fair';
             else data.sleepQuality = 'poor';
-            
+
             if (earliestBedtime) {
               data.bedtime = earliestBedtime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
             }
             if (latestWakeTime) {
               data.wakeTime = latestWakeTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
             }
-            
+
             if (sleepHeartRates.length > 0) {
               sleepHeartRates.sort((a, b) => a - b);
-              const restingFromSleep = Math.round(sleepHeartRates.slice(0, Math.max(1, Math.floor(sleepHeartRates.length * 0.1))).reduce((a, b) => a + b, 0) / Math.max(1, Math.floor(sleepHeartRates.length * 0.1)));
+              const bottomTenPct = sleepHeartRates.slice(0, Math.max(1, Math.floor(sleepHeartRates.length * 0.1)));
+              const restingFromSleep = Math.round(bottomTenPct.reduce((a, b) => a + b, 0) / bottomTenPct.length);
               if (!data.restingHeartRate || restingFromSleep < data.restingHeartRate) {
                 data.restingHeartRate = restingFromSleep;
               }
@@ -326,40 +423,34 @@ class HealthService {
           }
         }
       } catch (e) {
-        console.log('[HealthService] Could not fetch sleep workouts:', e);
+        console.log('[HealthService] sleep workouts query failed:', e);
       }
-
-      console.log('[HealthService] Final data to sync:', JSON.stringify(data));
-      return data;
-    } catch (error) {
-      console.error('[HealthService] Failed to fetch health data:', error);
-      return null;
     }
+
+    console.log('[HealthService] Final data to sync:', JSON.stringify(data));
+    return data;
   }
 
   async fetchTodayData(): Promise<HealthDataPayload | null> {
     return this.fetchDataForDate(getLocalDate());
   }
 
-  // Fix 4: Backfill missed days when app opens
   async backfillMissedDays(): Promise<number> {
-    if (!this.healthPlugin) {
-      await this.initialize();
-    }
-    if (!this.healthPlugin) return 0;
+    await this.initialize();
+    if (!this.capgoPlugin && !this.oldPlugin) return 0;
 
     try {
       const response = await fetch('/api/health/last-sync-date', { credentials: 'include' });
       if (!response.ok) return 0;
       const { lastSyncDate } = await response.json();
-      
+
       const today = getLocalDate();
       if (!lastSyncDate || lastSyncDate === today) return 0;
 
       const lastSync = new Date(lastSyncDate + 'T12:00:00');
       const todayDate = new Date(today + 'T12:00:00');
       const daysDiff = Math.floor((todayDate.getTime() - lastSync.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       const maxBackfill = Math.min(daysDiff - 1, 7);
       if (maxBackfill <= 0) return 0;
 
@@ -368,10 +459,10 @@ class HealthService {
         const d = new Date(todayDate);
         d.setDate(d.getDate() - i);
         const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        
+
         try {
           const dayData = await this.fetchDataForDate(dateStr);
-          if (dayData && (dayData.steps || dayData.sleepMinutes || dayData.caloriesBurned)) {
+          if (dayData && (dayData.steps || dayData.sleepMinutes || dayData.caloriesBurned || dayData.avgHeartRate)) {
             await apiRequest('POST', '/api/health/sync', dayData);
             synced++;
           }
@@ -379,7 +470,7 @@ class HealthService {
           console.log(`[HealthService] Could not backfill ${dateStr}:`, e);
         }
       }
-      
+
       console.log(`[HealthService] Backfilled ${synced} missed days`);
       return synced;
     } catch (error) {
@@ -394,12 +485,11 @@ class HealthService {
 
     try {
       await apiRequest('POST', '/api/health/sync', data);
-      
-      // Fix 4: Also backfill any missed days
-      this.backfillMissedDays().catch(e => 
+
+      this.backfillMissedDays().catch(e =>
         console.log('[HealthService] Background backfill error:', e)
       );
-      
+
       return true;
     } catch (error) {
       console.error('Failed to sync health data to backend:', error);
@@ -407,7 +497,6 @@ class HealthService {
     }
   }
 
-  // Fix 3: Setup background sync (call this on app start)
   async setupBackgroundSync(): Promise<void> {
     if (!this.isNative) return;
 
@@ -447,14 +536,14 @@ class HealthService {
       const authorized = await this.requestPermissions();
       if (!authorized) return false;
     } catch (error) {
-      console.error('Health permissions request failed (plugin may not be configured):', error);
+      console.error('Health permissions request failed:', error);
       return false;
     }
 
     try {
       await apiRequest('POST', '/api/health/connect', {
         connected: true,
-        source
+        source,
       });
 
       await this.syncToBackend();
@@ -470,7 +559,7 @@ class HealthService {
     try {
       await apiRequest('POST', '/api/health/connect', {
         connected: false,
-        source: null
+        source: null,
       });
       return true;
     } catch (error) {
