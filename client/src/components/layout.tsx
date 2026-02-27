@@ -110,260 +110,63 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const isPersonalMode = isMember && !hasGym;
   
-  const navItems = [
-    { 
-      label: "Dashboard", 
-      href: "/", 
-      icon: LayoutDashboard,
-      visible: hasGym || isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "Dika AI", 
-      href: "/dika", 
-      icon: DikaNavIcon,
-      visible: hasGym || isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "Register Gym", 
-      href: "/gym-request", 
-      icon: Building2,
-      visible: isOwnerWithoutGym && !isIOSNativeApp,
-      badge: 0
-    },
-    { 
-      label: "My Workouts", 
-      href: "/my-workouts", 
-      icon: Swords,
-      visible: isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "Join a Gym", 
-      href: "/join-gym", 
-      icon: Building2,
-      visible: isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "Profile", 
-      href: "/profile", 
-      icon: UserCircle,
-      visible: hasGym || isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "Trainers", 
-      href: "/trainers", 
-      icon: Users,
-      visible: isOwner && hasGym,
-      badge: 0
-    },
-    { 
-      label: "Members", 
-      href: "/members", 
-      icon: Users,
-      visible: (isOwner && hasGym) || isTrainer,
-      badge: 0
-    },
-    { 
-      label: "Attendance", 
-      href: "/attendance", 
-      icon: CalendarCheck,
-      visible: hasGym && !isTrainer,
-      badge: 0
-    },
-    { 
-      label: "Payments", 
-      href: "/payments", 
-      icon: CreditCard,
-      visible: ((isOwner && hasGym) && !isIOSNativeApp) || (isMember && !isIOSNativeApp),
-      badge: 0
-    },
-    { 
-      label: "Workouts", 
-      href: "/workouts", 
-      icon: Swords,
-      visible: isTrainer,
-      badge: 0
-    },
-    { 
-      label: "Star Members", 
-      href: "/star-members", 
-      icon: Star,
-      visible: isTrainer,
-      badge: 0
-    },
-    { 
-      label: "Diet Plans", 
-      href: "/diet-plans", 
-      icon: Utensils,
-      visible: isTrainer,
-      badge: 0
-    },
-    { 
-      label: "Templates", 
-      href: "/templates", 
-      icon: FileText,
-      visible: isTrainer,
-      badge: 0
-    },
-    { 
-      label: "My Workout", 
-      href: "/my-workout", 
-      icon: Swords,
-      visible: isMember,
-      badge: 0
-    },
-    { 
-      label: "Progress", 
-      href: "/progress", 
-      icon: TrendingUp,
-      visible: isMember || isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "My Diet Plan", 
-      href: "/my-diet-plan", 
-      icon: Utensils,
-      visible: isMember,
-      badge: 0
-    },
-    { 
-      label: "My Body", 
-      href: "/my-body", 
-      icon: Scale,
-      visible: isMember || isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "Nutrition", 
-      href: "/nutrition", 
-      icon: Apple,
-      visible: isMember || isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "Sports Mode", 
-      href: "/sports-mode", 
-      icon: Medal,
-      visible: isMember || isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "My Goals", 
-      href: "/goals", 
-      icon: Target,
-      visible: isMember || isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "Health", 
-      href: "/health", 
-      icon: HeartPulse,
-      visible: isMember || isPersonalMode,
-      badge: 0
-    },
-    { 
-      label: "Requests", 
-      href: "/requests", 
-      icon: MessageSquare,
-      visible: isMember || isTrainer,
-      badge: notificationCounts?.pendingRequests || 0
-    },
-    { 
-      label: "Transfers", 
-      href: "/transfers", 
-      icon: ArrowRightLeft,
-      visible: isOwner && hasGym && !isIOSNativeApp,
-      badge: notificationCounts?.pendingTransfers || 0
-    },
-    { 
-      label: "Announcements", 
-      href: "/owner/announcements", 
-      icon: Megaphone,
-      visible: isOwner && hasGym,
-      badge: 0  // Owners create announcements, they don't receive them
-    },
-    { 
-      label: "Walk-ins", 
-      href: "/owner/walk-in-visitors", 
-      icon: PersonStanding,
-      visible: isOwner && hasGym && !isIOSNativeApp,
-      badge: notificationCounts?.hotLeadsCount || 0
-    },
-    { 
-      label: "Follow-ups", 
-      href: "/owner/follow-ups", 
-      icon: PhoneCall,
-      visible: isOwner && hasGym && !isIOSNativeApp,
-      badge: 0
-    },
-    { 
-      label: "Dika Actions", 
-      href: "/owner/ai-insights", 
-      icon: Brain,
-      visible: isOwner && hasGym && !isIOSNativeApp,
-      badge: 0
-    },
-    { 
-      label: "Dika Intelligence", 
-      href: "/owner/gym-intelligence", 
-      icon: BarChart3,
-      visible: isOwner && hasGym && !isIOSNativeApp,
-      badge: 0
-    },
-    { 
-      label: "Self Check-in", 
-      href: "/owner/kiosk", 
-      icon: QrCode,
-      visible: isOwner && hasGym,
-      badge: 0
-    },
-    { 
-      label: "Announcements", 
-      href: "/announcements", 
-      icon: Megaphone,
-      visible: isTrainer || isMember,
-      badge: notificationCounts?.unreadAnnouncements || 0
-    },
-    { 
-      label: "Feed", 
-      href: "/feed", 
-      icon: Activity,
-      visible: hasGym,
-      badge: 0
-    },
-    { 
-      label: "Tournaments", 
-      href: "/tournaments", 
-      icon: Trophy,
-      visible: hasGym,
-      badge: 0
-    },
-    { 
-      label: "Join Requests", 
-      href: "/owner/join-requests", 
-      icon: UserPlus,
-      visible: isOwner && !!user.gymId,
-      badge: notificationCounts?.pendingJoinRequests || 0
-    },
-    { 
-      label: "Help", 
-      href: "/help", 
-      icon: HelpCircle,
-      visible: true,
-      badge: 0
-    },
-    { 
-      label: "Support", 
-      href: "/support", 
-      icon: MessageSquare,
-      visible: true,
-      badge: 0
-    },
+  type NavItem = {
+    label: string;
+    href: string;
+    icon: LucideIcon | React.ComponentType<{ className?: string }>;
+    visible: boolean;
+    badge: number;
+    section: string;
+    iconColor: string;
+  };
+
+  const navItems: NavItem[] = [
+    { label: "Dashboard", href: "/", icon: LayoutDashboard, visible: hasGym || isPersonalMode, badge: 0, section: "Main", iconColor: "text-blue-500 bg-blue-500/10" },
+    { label: "Dika AI", href: "/dika", icon: DikaNavIcon, visible: hasGym || isPersonalMode, badge: 0, section: "Main", iconColor: "text-amber-500 bg-amber-500/10" },
+    { label: "Register Gym", href: "/gym-request", icon: Building2, visible: isOwnerWithoutGym && !isIOSNativeApp, badge: 0, section: "Main", iconColor: "text-emerald-500 bg-emerald-500/10" },
+    { label: "My Workouts", href: "/my-workouts", icon: Swords, visible: isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-orange-500 bg-orange-500/10" },
+    { label: "Join a Gym", href: "/join-gym", icon: Building2, visible: isPersonalMode, badge: 0, section: "More", iconColor: "text-emerald-500 bg-emerald-500/10" },
+    { label: "Profile", href: "/profile", icon: UserCircle, visible: hasGym || isPersonalMode, badge: 0, section: "Account", iconColor: "text-violet-500 bg-violet-500/10" },
+    { label: "Trainers", href: "/trainers", icon: Users, visible: isOwner && hasGym, badge: 0, section: "Management", iconColor: "text-cyan-500 bg-cyan-500/10" },
+    { label: "Members", href: "/members", icon: Users, visible: (isOwner && hasGym) || isTrainer, badge: 0, section: "Management", iconColor: "text-blue-500 bg-blue-500/10" },
+    { label: "Attendance", href: "/attendance", icon: CalendarCheck, visible: hasGym && !isTrainer, badge: 0, section: "Management", iconColor: "text-emerald-500 bg-emerald-500/10" },
+    { label: "Payments", href: "/payments", icon: CreditCard, visible: ((isOwner && hasGym) && !isIOSNativeApp) || (isMember && !isIOSNativeApp), badge: 0, section: "Management", iconColor: "text-green-500 bg-green-500/10" },
+    { label: "Workouts", href: "/workouts", icon: Swords, visible: isTrainer, badge: 0, section: "Training", iconColor: "text-orange-500 bg-orange-500/10" },
+    { label: "Star Members", href: "/star-members", icon: Star, visible: isTrainer, badge: 0, section: "Training", iconColor: "text-yellow-500 bg-yellow-500/10" },
+    { label: "Diet Plans", href: "/diet-plans", icon: Utensils, visible: isTrainer, badge: 0, section: "Training", iconColor: "text-lime-500 bg-lime-500/10" },
+    { label: "Templates", href: "/templates", icon: FileText, visible: isTrainer, badge: 0, section: "Training", iconColor: "text-slate-500 bg-slate-500/10" },
+    { label: "My Workout", href: "/my-workout", icon: Swords, visible: isMember, badge: 0, section: "Fitness", iconColor: "text-orange-500 bg-orange-500/10" },
+    { label: "Progress", href: "/progress", icon: TrendingUp, visible: isMember || isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-emerald-500 bg-emerald-500/10" },
+    { label: "My Diet Plan", href: "/my-diet-plan", icon: Utensils, visible: isMember, badge: 0, section: "Fitness", iconColor: "text-lime-500 bg-lime-500/10" },
+    { label: "My Body", href: "/my-body", icon: Scale, visible: isMember || isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-pink-500 bg-pink-500/10" },
+    { label: "Nutrition", href: "/nutrition", icon: Apple, visible: isMember || isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-red-500 bg-red-500/10" },
+    { label: "Sports Mode", href: "/sports-mode", icon: Medal, visible: isMember || isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-amber-500 bg-amber-500/10" },
+    { label: "My Goals", href: "/goals", icon: Target, visible: isMember || isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-rose-500 bg-rose-500/10" },
+    { label: "Health", href: "/health", icon: HeartPulse, visible: isMember || isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-red-500 bg-red-500/10" },
+    { label: "Requests", href: "/requests", icon: MessageSquare, visible: isMember || isTrainer, badge: notificationCounts?.pendingRequests || 0, section: "More", iconColor: "text-blue-500 bg-blue-500/10" },
+    { label: "Transfers", href: "/transfers", icon: ArrowRightLeft, visible: isOwner && hasGym && !isIOSNativeApp, badge: notificationCounts?.pendingTransfers || 0, section: "Management", iconColor: "text-indigo-500 bg-indigo-500/10" },
+    { label: "Announcements", href: "/owner/announcements", icon: Megaphone, visible: isOwner && hasGym, badge: 0, section: "Growth", iconColor: "text-violet-500 bg-violet-500/10" },
+    { label: "Walk-ins", href: "/owner/walk-in-visitors", icon: PersonStanding, visible: isOwner && hasGym && !isIOSNativeApp, badge: notificationCounts?.hotLeadsCount || 0, section: "Growth", iconColor: "text-orange-500 bg-orange-500/10" },
+    { label: "Follow-ups", href: "/owner/follow-ups", icon: PhoneCall, visible: isOwner && hasGym && !isIOSNativeApp, badge: 0, section: "Growth", iconColor: "text-teal-500 bg-teal-500/10" },
+    { label: "Dika Actions", href: "/owner/ai-insights", icon: Brain, visible: isOwner && hasGym && !isIOSNativeApp, badge: 0, section: "AI Tools", iconColor: "text-purple-500 bg-purple-500/10" },
+    { label: "Dika Intelligence", href: "/owner/gym-intelligence", icon: BarChart3, visible: isOwner && hasGym && !isIOSNativeApp, badge: 0, section: "AI Tools", iconColor: "text-indigo-500 bg-indigo-500/10" },
+    { label: "Self Check-in", href: "/owner/kiosk", icon: QrCode, visible: isOwner && hasGym, badge: 0, section: "More", iconColor: "text-sky-500 bg-sky-500/10" },
+    { label: "Announcements", href: "/announcements", icon: Megaphone, visible: isTrainer || isMember, badge: notificationCounts?.unreadAnnouncements || 0, section: "More", iconColor: "text-violet-500 bg-violet-500/10" },
+    { label: "Feed", href: "/feed", icon: Activity, visible: hasGym, badge: 0, section: "More", iconColor: "text-sky-500 bg-sky-500/10" },
+    { label: "Tournaments", href: "/tournaments", icon: Trophy, visible: hasGym, badge: 0, section: "More", iconColor: "text-yellow-500 bg-yellow-500/10" },
+    { label: "Join Requests", href: "/owner/join-requests", icon: UserPlus, visible: isOwner && !!user.gymId, badge: notificationCounts?.pendingJoinRequests || 0, section: "Management", iconColor: "text-teal-500 bg-teal-500/10" },
+    { label: "Help", href: "/help", icon: HelpCircle, visible: true, badge: 0, section: "Account", iconColor: "text-slate-400 bg-slate-400/10" },
+    { label: "Support", href: "/support", icon: MessageSquare, visible: true, badge: 0, section: "Account", iconColor: "text-slate-400 bg-slate-400/10" },
   ];
+
+  const sectionOrder = ["Main", "Management", "Training", "Fitness", "Growth", "AI Tools", "More", "Account"];
+  const visibleItems = navItems.filter(item => item.visible);
+  const groupedNav = sectionOrder
+    .map(section => ({
+      section,
+      items: visibleItems.filter(item => item.section === section),
+    }))
+    .filter(group => group.items.length > 0);
 
   const getMobileNavigation = (): { primary: MobileTabItem[], secondary: MobileTabItem[] } => {
     if (isOwner && hasGym) {
@@ -504,11 +307,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-[100dvh] bg-secondary/30 flex flex-col md:flex-row md:overflow-hidden">
       {/* Sidebar - Desktop only */}
-      <aside className="w-64 bg-sidebar border-r border-sidebar-border hidden md:flex flex-col min-h-[100dvh] z-10">
-        <div className="p-4 border-b border-sidebar-border">
+      <aside className="w-64 hidden md:flex flex-col min-h-[100dvh] z-10 sidebar-premium">
+        <div className="p-4 pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl shadow-lg shadow-primary/25 overflow-hidden flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl shadow-lg shadow-primary/25 overflow-hidden flex items-center justify-center ring-1 ring-white/10">
                 <img src={ogymLogo} alt="OGym" className="w-full h-full object-cover" />
               </div>
               <div>
@@ -528,69 +331,98 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navItems.filter(item => item.visible).map((item) => {
-            const isActive = location === item.href;
-            return (
-              <Link key={item.href} href={item.href}>
-                <div 
-                  className={`
-                    flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer
-                    ${isActive 
-                      ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" 
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    }
-                  `}
-                >
-                  <div className="flex items-center gap-3">
-                    <item.icon className={`w-5 h-5 ${isActive ? "text-primary-foreground" : "text-muted-foreground"}`} />
-                    {item.label}
-                  </div>
-                  {item.badge > 0 && (
-                    <Badge 
-                      variant="secondary" 
-                      className={`text-xs px-1.5 py-0.5 min-w-[20px] text-center ${isActive ? "bg-white/20 text-primary-foreground" : "bg-primary text-primary-foreground"}`}
-                      data-testid={`badge-${item.label.toLowerCase().replace(/\s+/g, '-')}-count`}
-                    >
-                      {item.badge}
-                    </Badge>
-                  )}
-                </div>
-              </Link>
-            );
-          })}
+        <nav className="flex-1 px-3 pb-2 overflow-y-auto sidebar-nav-scroll">
+          {groupedNav.map((group, gi) => (
+            <div key={group.section} className={gi > 0 ? "mt-4" : ""}>
+              {group.section !== "Main" && (
+                <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/50">
+                  {group.section}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive = location === item.href;
+                  return (
+                    <Link key={item.href} href={item.href}>
+                      <div 
+                        className={cn(
+                          "group relative flex items-center justify-between gap-2.5 pl-3 pr-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 cursor-pointer",
+                          isActive 
+                            ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" 
+                            : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        )}
+                        data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                      >
+                        {isActive && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary-foreground/70" />
+                        )}
+                        <div className="flex items-center gap-2.5">
+                          <div className={cn(
+                            "w-7 h-7 rounded-md flex items-center justify-center shrink-0 transition-colors",
+                            isActive ? "bg-white/15" : item.iconColor.split(' ').slice(1).join(' ')
+                          )}>
+                            <item.icon className={cn(
+                              "w-[15px] h-[15px]",
+                              isActive ? "text-primary-foreground" : item.iconColor.split(' ')[0]
+                            )} />
+                          </div>
+                          <span className="truncate">{item.label}</span>
+                        </div>
+                        {item.badge > 0 && (
+                          <span 
+                            className={cn(
+                              "text-[10px] font-bold px-1.5 py-0.5 min-w-[18px] text-center rounded-full",
+                              isActive 
+                                ? "bg-white/20 text-primary-foreground" 
+                                : "bg-primary text-primary-foreground"
+                            )}
+                            data-testid={`badge-${item.label.toLowerCase().replace(/\s+/g, '-')}-count`}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
-        <div className="p-4 border-t border-border/50">
-          <div className="bg-secondary/50 rounded-xl p-4 mb-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">My Profile</p>
+        <div className="p-3 pt-0">
+          <div className="rounded-xl p-3 mb-3 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 border border-border/30">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xs">
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-primary/20 ring-2 ring-primary/10">
                 {user.username.slice(0, 2).toUpperCase()}
               </div>
-              <div className="overflow-hidden">
-                <p className="text-sm font-medium truncate">{user.username}</p>
-                <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+              <div className="overflow-hidden flex-1">
+                <p className="text-sm font-semibold truncate">{user.username}</p>
+                <p className="text-[11px] text-muted-foreground capitalize">{user.role}</p>
               </div>
             </div>
             {user.gym && isOwner && (
-              <div className="mt-3 pt-3 border-t border-border/50">
-                 <p className="text-xs text-muted-foreground">Gym Code:</p>
-                 <p className="font-mono text-xs font-bold bg-background p-1 rounded border border-border mt-1 text-center select-all">
-                   {user.gym.code}
-                 </p>
+              <div className="mt-2.5 pt-2.5 border-t border-border/30">
+                 <div className="flex items-center justify-between">
+                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Gym Code</p>
+                   <p className="font-mono text-[11px] font-bold bg-background/80 px-2 py-0.5 rounded-md border border-border/50 select-all">
+                     {user.gym.code}
+                   </p>
+                 </div>
               </div>
             )}
           </div>
           
-          <Button 
-            variant="outline" 
-            className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
+          <button 
+            className="w-full flex items-center gap-2.5 pl-3 pr-3 py-2 rounded-lg text-[13px] font-medium text-destructive/70 hover:text-destructive hover:bg-destructive/8 transition-all duration-200"
             onClick={() => logoutMutation.mutate()}
+            data-testid="button-sign-out"
           >
-            <LogOut className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-destructive/8">
+              <LogOut className="w-[15px] h-[15px]" />
+            </div>
             Sign Out
-          </Button>
+          </button>
         </div>
       </aside>
 
