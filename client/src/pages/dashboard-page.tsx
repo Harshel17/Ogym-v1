@@ -375,17 +375,17 @@ function StatCard({ title, value, icon: Icon, description, onClick, color = "pri
       className={`overflow-visible border-0 rounded-2xl ${featured ? colorConfig.featuredBg : colorConfig.bg} hover-elevate transition-all duration-200 shadow-sm ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}`}
       onClick={onClick}
     >
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3">
-        <CardTitle className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3 lg:pt-4 lg:px-4">
+        <CardTitle className="text-[10px] lg:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
           {title}
         </CardTitle>
-        <div className={`p-2 rounded-xl ${colorConfig.icon}`}>
-          <Icon className="h-4 w-4" />
+        <div className={`p-2 lg:p-2.5 rounded-xl ${colorConfig.icon}`}>
+          <Icon className="h-4 w-4 lg:h-5 lg:w-5" />
         </div>
       </CardHeader>
-      <CardContent className="pt-0 pb-3 px-3">
-        <div className={`${featured ? 'text-[1.7rem]' : 'text-2xl'} font-bold tracking-tight tabular-nums ${isZero ? 'zero-state-value' : featured ? colorConfig.valueColor : ''}`}>{value}</div>
-        <p className="text-[11px] text-muted-foreground/70 mt-0.5 font-medium">
+      <CardContent className="pt-0 pb-3 px-3 lg:pb-4 lg:px-4">
+        <div className={`${featured ? 'text-[1.7rem] lg:text-[2rem]' : 'text-2xl lg:text-3xl'} font-bold tracking-tight tabular-nums ${isZero ? 'zero-state-value' : featured ? colorConfig.valueColor : ''}`}>{value}</div>
+        <p className="text-[11px] lg:text-xs text-muted-foreground/70 mt-0.5 lg:mt-1 font-medium">
           {description}
         </p>
       </CardContent>
@@ -459,9 +459,9 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
 
   return (
     <Card className="card-elevated">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold cursor-pointer" onClick={() => navigate("/owner/daily-activity")} data-testid="link-daily-activity">
-          <div className="p-2 rounded-xl bg-primary/10">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3 lg:pt-4 lg:px-4">
+        <CardTitle className="flex items-center gap-2 text-sm lg:text-base font-semibold cursor-pointer" onClick={() => navigate("/owner/daily-activity")} data-testid="link-daily-activity">
+          <div className="p-2 lg:p-2.5 rounded-xl bg-primary/10">
             <Activity className="w-4 h-4 text-primary" />
           </div>
           Today's Activity
@@ -470,7 +470,7 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 text-xs"
+          className="h-7 lg:h-8 text-xs lg:text-sm"
           onClick={() => setExpanded(!expanded)}
           data-testid="button-toggle-today-activity"
         >
@@ -478,7 +478,7 @@ function TodayActivitySection({ formatMoney }: { formatMoney: (v: number) => str
           {expanded ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
         </Button>
       </CardHeader>
-      <CardContent className="pt-0 pb-3 px-3">
+      <CardContent className="pt-0 pb-3 px-3 lg:pb-4 lg:px-4">
         <div className="flex gap-2 mb-2">
           <div
             className="flex-1 text-center p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 cursor-pointer hover-elevate"
@@ -620,17 +620,17 @@ function SubscriptionHealthMini({ data }: { data: EnhancedDashboardData['subscri
 
   return (
     <Card className="card-elevated cursor-pointer hover-elevate" onClick={() => navigate("/payments")} data-testid="card-subscription-health">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <div className="p-1.5 rounded-lg bg-blue-500/10">
-            <Shield className="w-3.5 h-3.5 text-blue-500" />
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3 lg:pt-4 lg:px-4">
+        <CardTitle className="flex items-center gap-2 text-sm lg:text-base font-semibold">
+          <div className="p-1.5 lg:p-2 rounded-lg bg-blue-500/10">
+            <Shield className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-blue-500" />
           </div>
           Subscription Health
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0 pb-3 px-3">
-        <div className="flex items-center gap-3">
-          <div className="relative w-[72px] h-[72px] shrink-0">
+      <CardContent className="pt-0 pb-3 px-3 lg:pb-4 lg:px-4">
+        <div className="flex items-center gap-3 lg:gap-4">
+          <div className="relative w-[72px] h-[72px] lg:w-[88px] lg:h-[88px] shrink-0">
             <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
               {(() => {
                 let offset = 0;
@@ -648,15 +648,15 @@ function SubscriptionHealthMini({ data }: { data: EnhancedDashboardData['subscri
               })()}
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-sm font-bold">{total}</span>
+              <span className="text-sm lg:text-base font-bold">{total}</span>
             </div>
           </div>
-          <div className="flex-1 grid grid-cols-2 gap-x-3 gap-y-1">
+          <div className="flex-1 grid grid-cols-2 gap-x-3 gap-y-1 lg:gap-y-2">
             {segments.map(seg => (
               <div key={seg.label} className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-                <span className="text-[11px] text-muted-foreground">{seg.label}</span>
-                <span className="text-[11px] font-semibold ml-auto">{seg.value}</span>
+                <div className="w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                <span className="text-[11px] lg:text-xs text-muted-foreground">{seg.label}</span>
+                <span className="text-[11px] lg:text-xs font-semibold ml-auto">{seg.value}</span>
               </div>
             ))}
           </div>
@@ -681,34 +681,34 @@ function WhoNeedsAttention({ aiInsights }: { aiInsights: any }) {
 
   return (
     <Card className="bg-gradient-to-br from-purple-500/5 via-transparent to-indigo-500/5" data-testid="card-who-needs-attention">
-      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <div className="p-1.5 rounded-lg bg-purple-500/15">
-            <Brain className="w-3.5 h-3.5 text-purple-500" />
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3 lg:pt-4 lg:px-4">
+        <CardTitle className="flex items-center gap-2 text-sm lg:text-base font-semibold">
+          <div className="p-1.5 lg:p-2 rounded-lg bg-purple-500/15">
+            <Brain className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-purple-500" />
           </div>
           Who Needs Attention
         </CardTitle>
         <div className="flex items-center gap-1">
           <Link href="/owner/ai-insights">
-            <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="link-ai-insights">
+            <Button variant="ghost" size="sm" className="h-7 lg:h-8 text-xs lg:text-sm" data-testid="link-ai-insights">
               View All <ArrowRight className="w-3 h-3 ml-1" />
             </Button>
           </Link>
         </div>
       </CardHeader>
-      <CardContent className="pt-0 pb-3 px-3">
-        <div className="flex gap-2 mb-2">
-          <div className="flex-1 text-center p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
-            <p className="text-xl font-bold text-red-600 dark:text-red-400">{aiInsights?.churnRisk?.count || 0}</p>
-            <p className="text-xs font-medium text-muted-foreground">At risk</p>
+      <CardContent className="pt-0 pb-3 px-3 lg:pb-4 lg:px-4">
+        <div className="flex gap-2 lg:gap-3 mb-2 lg:mb-3">
+          <div className="flex-1 text-center p-2.5 lg:p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <p className="text-xl lg:text-2xl font-bold text-red-600 dark:text-red-400">{aiInsights?.churnRisk?.count || 0}</p>
+            <p className="text-xs lg:text-sm font-medium text-muted-foreground">At risk</p>
           </div>
-          <div className="flex-1 text-center p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
-            <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{aiInsights?.followUpReminders?.count || 0}</p>
-            <p className="text-xs font-medium text-muted-foreground">Follow-ups</p>
+          <div className="flex-1 text-center p-2.5 lg:p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <p className="text-xl lg:text-2xl font-bold text-amber-600 dark:text-amber-400">{aiInsights?.followUpReminders?.count || 0}</p>
+            <p className="text-xs lg:text-sm font-medium text-muted-foreground">Follow-ups</p>
           </div>
-          <div className="flex-1 text-center p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-            <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{aiInsights?.memberInsights?.newThisMonth || 0}</p>
-            <p className="text-xs font-medium text-muted-foreground">New</p>
+          <div className="flex-1 text-center p-2.5 lg:p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <p className="text-xl lg:text-2xl font-bold text-emerald-600 dark:text-emerald-400">{aiInsights?.memberInsights?.newThisMonth || 0}</p>
+            <p className="text-xs lg:text-sm font-medium text-muted-foreground">New</p>
           </div>
         </div>
         <Button variant="ghost" size="sm" className="w-full h-7 text-xs mt-1" onClick={() => setExpanded(!expanded)} data-testid="button-expand-attention">
@@ -874,7 +874,7 @@ function OwnerDashboard() {
   })();
 
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-3.5 lg:space-y-5">
       {gymSummaryLine && (
         <div className="flex items-center gap-2 -mt-1 mb-0.5" data-testid="gym-pulse-summary">
           <div className="pulse-dot" />
@@ -883,7 +883,7 @@ function OwnerDashboard() {
       )}
 
       {!isIOSNativeApp && (ownerInsights?.todayPriority || ownerInsights?.insightOfTheDay) && (
-        <div className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.04] via-transparent to-violet-500/[0.03] p-3.5 space-y-2.5" data-testid="dika-ai-command-center">
+        <div className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.04] via-transparent to-violet-500/[0.03] p-3.5 lg:p-5 space-y-2.5 lg:space-y-3" data-testid="dika-ai-command-center">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary/20 to-violet-500/20">
@@ -991,7 +991,7 @@ function OwnerDashboard() {
         </div>
       )}
 
-      <div className="grid gap-2.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-2.5 lg:gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
         <StatCard 
           title="Total Members" 
           value={totalMembers} 
@@ -1006,24 +1006,24 @@ function OwnerDashboard() {
           onClick={() => navigate("/owner/attendance")}
           data-testid="stat-card-checkedin-today"
         >
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3">
-            <CardTitle className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3 lg:pt-4 lg:px-4">
+            <CardTitle className="text-[10px] lg:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
               Checked-in Today
             </CardTitle>
-            <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-              <CalendarCheck className="h-4 w-4" />
+            <div className="p-2 lg:p-2.5 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              <CalendarCheck className="h-4 w-4 lg:h-5 lg:w-5" />
             </div>
           </CardHeader>
-          <CardContent className="pt-0 pb-3 px-3">
+          <CardContent className="pt-0 pb-3 px-3 lg:pb-4 lg:px-4">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold tracking-tight tabular-nums">{checkedInToday}</span>
+              <span className="text-2xl lg:text-3xl font-bold tracking-tight tabular-nums">{checkedInToday}</span>
               <span className="text-sm text-muted-foreground/60 font-medium">/ {totalMembers}</span>
             </div>
-            <div className="flex items-center gap-1 mt-0.5">
-              <div className="flex-1 h-1.5 rounded-full bg-muted/30 overflow-hidden">
+            <div className="flex items-center gap-1 mt-0.5 lg:mt-1">
+              <div className="flex-1 h-1.5 lg:h-2 rounded-full bg-muted/30 overflow-hidden">
                 <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${attendanceRate}%` }} />
               </div>
-              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{attendanceRate}%</span>
+              <span className="text-[11px] lg:text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{attendanceRate}%</span>
             </div>
           </CardContent>
         </Card>
@@ -1031,20 +1031,20 @@ function OwnerDashboard() {
           className="overflow-visible border-0 rounded-2xl bg-gradient-to-br from-purple-500/5 to-purple-500/10 hover-elevate transition-all duration-200 shadow-sm"
           data-testid="stat-card-yesterday"
         >
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3">
-            <CardTitle className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3 lg:pt-4 lg:px-4">
+            <CardTitle className="text-[10px] lg:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
               Yesterday
             </CardTitle>
-            <div className="p-2 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400">
-              <Calendar className="h-4 w-4" />
+            <div className="p-2 lg:p-2.5 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400">
+              <Calendar className="h-4 w-4 lg:h-5 lg:w-5" />
             </div>
           </CardHeader>
-          <CardContent className="pt-0 pb-3 px-3">
+          <CardContent className="pt-0 pb-3 px-3 lg:pb-4 lg:px-4">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold tracking-tight tabular-nums">{checkedInYesterday}</span>
+              <span className="text-2xl lg:text-3xl font-bold tracking-tight tabular-nums">{checkedInYesterday}</span>
               <span className="text-sm text-muted-foreground/60 font-medium">/ {totalMembers}</span>
             </div>
-            <p className="text-[11px] text-muted-foreground/70 mt-0.5 font-medium">{yesterdayRate}% attendance</p>
+            <p className="text-[11px] lg:text-xs text-muted-foreground/70 mt-0.5 lg:mt-1 font-medium">{yesterdayRate}% attendance</p>
           </CardContent>
         </Card>
         {!isIOSNativeApp && (
@@ -1063,17 +1063,17 @@ function OwnerDashboard() {
             onClick={() => navigate("/owner/revenue")}
             data-testid="stat-card-revenue"
           >
-            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3">
-              <CardTitle className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-1 pt-3 px-3 lg:pt-4 lg:px-4">
+              <CardTitle className="text-[10px] lg:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                 Revenue
               </CardTitle>
-              <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                <TrendingUp className="h-4 w-4" />
+              <div className="p-2 lg:p-2.5 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                <TrendingUp className="h-4 w-4 lg:h-5 lg:w-5" />
               </div>
             </CardHeader>
-            <CardContent className="pt-0 pb-3 px-3">
-              <div className="text-[1.7rem] font-bold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400">{formatMoney(revenue)}</div>
-              <div className="flex items-center gap-1 mt-0.5">
+            <CardContent className="pt-0 pb-3 px-3 lg:pb-4 lg:px-4">
+              <div className="text-[1.7rem] lg:text-[2rem] font-bold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400">{formatMoney(revenue)}</div>
+              <div className="flex items-center gap-1 mt-0.5 lg:mt-1">
                 <span className="text-[11px] text-muted-foreground/70 font-medium">vs last month</span>
                 {revenueChange !== 0 && (
                   <span className={`text-[11px] font-semibold flex items-center gap-0.5 ${revenueChange > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -1130,18 +1130,18 @@ function OwnerDashboard() {
       <FeatureDiscoveryTips role="owner" />
 
       {!isIOSNativeApp && (
-        <div className="flex flex-wrap gap-1.5" data-testid="quick-action-buttons">
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/payments")} data-testid="button-quick-log-payment">
-            <CreditCard className="w-3 h-3 mr-1" /> Log Payment
+        <div className="flex flex-wrap gap-1.5 lg:gap-2" data-testid="quick-action-buttons">
+          <Button variant="outline" size="sm" className="h-8 lg:h-9 text-xs lg:text-sm" onClick={() => navigate("/payments")} data-testid="button-quick-log-payment">
+            <CreditCard className="w-3 h-3 lg:w-4 lg:h-4 mr-1" /> Log Payment
           </Button>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/owner/announcements")} data-testid="button-quick-announcement">
-            <Megaphone className="w-3 h-3 mr-1" /> Send Announcement
+          <Button variant="outline" size="sm" className="h-8 lg:h-9 text-xs lg:text-sm" onClick={() => navigate("/owner/announcements")} data-testid="button-quick-announcement">
+            <Megaphone className="w-3 h-3 lg:w-4 lg:h-4 mr-1" /> Send Announcement
           </Button>
-          <Button variant="default" size="sm" className="h-8 text-xs" onClick={() => navigate("/owner/attendance")} data-testid="button-quick-attendance">
-            <CalendarCheck className="w-3 h-3 mr-1" /> Mark Attendance
+          <Button variant="default" size="sm" className="h-8 lg:h-9 text-xs lg:text-sm" onClick={() => navigate("/owner/attendance")} data-testid="button-quick-attendance">
+            <CalendarCheck className="w-3 h-3 lg:w-4 lg:h-4 mr-1" /> Mark Attendance
           </Button>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/members")} data-testid="button-quick-members">
-            <Users className="w-3 h-3 mr-1" /> View Members
+          <Button variant="outline" size="sm" className="h-8 lg:h-9 text-xs lg:text-sm" onClick={() => navigate("/members")} data-testid="button-quick-members">
+            <Users className="w-3 h-3 lg:w-4 lg:h-4 mr-1" /> View Members
           </Button>
           <div className="flex-1" />
           <a href="/api/owner/export/members" download>
@@ -1152,7 +1152,7 @@ function OwnerDashboard() {
         </div>
       )}
 
-      <div className="grid gap-2.5 lg:grid-cols-2">
+      <div className="grid gap-2.5 lg:gap-3 lg:grid-cols-2">
         {aiInsights && !isIOSNativeApp && (
           <WhoNeedsAttention aiInsights={aiInsights} />
         )}
@@ -1160,37 +1160,37 @@ function OwnerDashboard() {
       </div>
 
       {!isIOSNativeApp && enhanced && (
-        <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-2.5 lg:gap-3 md:grid-cols-2 lg:grid-cols-3">
           <SubscriptionHealthMini data={enhanced.subscriptionHealth} />
 
           <Card className="card-elevated" data-testid="card-trainer-coverage">
-            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
-              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                <div className="p-1.5 rounded-lg bg-indigo-500/10">
-                  <Users className="w-3.5 h-3.5 text-indigo-500" />
+            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3 lg:pt-4 lg:px-4">
+              <CardTitle className="flex items-center gap-2 text-sm lg:text-base font-semibold">
+                <div className="p-1.5 lg:p-2 rounded-lg bg-indigo-500/10">
+                  <Users className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-indigo-500" />
                 </div>
                 Trainer Coverage
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0 pb-3 px-3">
-              <div className="space-y-2">
+            <CardContent className="pt-0 pb-3 px-3 lg:pb-4 lg:px-4">
+              <div className="space-y-2 lg:space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Active Trainers</span>
-                  <span className="text-sm font-bold">{enhanced.trainerCoverage.totalTrainers}</span>
+                  <span className="text-xs lg:text-sm text-muted-foreground">Active Trainers</span>
+                  <span className="text-sm lg:text-base font-bold">{enhanced.trainerCoverage.totalTrainers}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Members without Trainer</span>
-                  <span className={`text-sm font-bold ${enhanced.trainerCoverage.membersWithoutTrainer > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  <span className="text-xs lg:text-sm text-muted-foreground">Members without Trainer</span>
+                  <span className={`text-sm lg:text-base font-bold ${enhanced.trainerCoverage.membersWithoutTrainer > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                     {enhanced.trainerCoverage.membersWithoutTrainer}
                   </span>
                 </div>
                 {enhanced.trainerCoverage.totalMembers > 0 && (
                   <div className="flex items-center gap-1 mt-1">
-                    <div className="flex-1 h-1.5 rounded-full bg-muted/30 overflow-hidden">
+                    <div className="flex-1 h-1.5 lg:h-2 rounded-full bg-muted/30 overflow-hidden">
                       <div className="h-full rounded-full bg-indigo-500 transition-all duration-500" 
                         style={{ width: `${Math.round(((enhanced.trainerCoverage.totalMembers - enhanced.trainerCoverage.membersWithoutTrainer) / enhanced.trainerCoverage.totalMembers) * 100)}%` }} />
                     </div>
-                    <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums">
+                    <span className="text-[11px] lg:text-xs font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums">
                       {Math.round(((enhanced.trainerCoverage.totalMembers - enhanced.trainerCoverage.membersWithoutTrainer) / enhanced.trainerCoverage.totalMembers) * 100)}%
                     </span>
                   </div>
@@ -1200,31 +1200,31 @@ function OwnerDashboard() {
           </Card>
 
           <Card className="card-elevated" data-testid="card-month-so-far">
-            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3">
-              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                <div className="p-1.5 rounded-lg bg-cyan-500/10">
-                  <BarChart3 className="w-3.5 h-3.5 text-cyan-500" />
+            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 pt-3 px-3 lg:pt-4 lg:px-4">
+              <CardTitle className="flex items-center gap-2 text-sm lg:text-base font-semibold">
+                <div className="p-1.5 lg:p-2 rounded-lg bg-cyan-500/10">
+                  <BarChart3 className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-cyan-500" />
                 </div>
                 {currentMonth} So Far
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0 pb-3 px-3">
+            <CardContent className="pt-0 pb-3 px-3 lg:pb-4 lg:px-4">
               <div className="grid grid-cols-2 gap-px bg-border/40 rounded-lg overflow-hidden">
-                <div className="p-3 bg-card text-center">
-                  <p className="text-lg font-bold tabular-nums text-primary">{enhanced.monthSoFar.members}</p>
-                  <p className="text-[10px] text-muted-foreground font-medium">Members</p>
+                <div className="p-3 lg:p-4 bg-card text-center">
+                  <p className="text-lg lg:text-xl font-bold tabular-nums text-primary">{enhanced.monthSoFar.members}</p>
+                  <p className="text-[10px] lg:text-xs text-muted-foreground font-medium">Members</p>
                 </div>
-                <div className="p-3 bg-card text-center">
-                  <p className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{enhanced.monthSoFar.checkIns}</p>
-                  <p className="text-[10px] text-muted-foreground font-medium">Check-ins</p>
+                <div className="p-3 lg:p-4 bg-card text-center">
+                  <p className="text-lg lg:text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{enhanced.monthSoFar.checkIns}</p>
+                  <p className="text-[10px] lg:text-xs text-muted-foreground font-medium">Check-ins</p>
                 </div>
-                <div className="p-3 bg-card text-center">
-                  <p className="text-lg font-bold tabular-nums text-blue-600 dark:text-blue-400">{enhanced.monthSoFar.payments}</p>
-                  <p className="text-[10px] text-muted-foreground font-medium">Payments</p>
+                <div className="p-3 lg:p-4 bg-card text-center">
+                  <p className="text-lg lg:text-xl font-bold tabular-nums text-blue-600 dark:text-blue-400">{enhanced.monthSoFar.payments}</p>
+                  <p className="text-[10px] lg:text-xs text-muted-foreground font-medium">Payments</p>
                 </div>
-                <div className="p-3 bg-card text-center">
-                  <p className="text-lg font-bold tabular-nums text-purple-600 dark:text-purple-400">{enhanced.monthSoFar.newJoins}</p>
-                  <p className="text-[10px] text-muted-foreground font-medium">New Joins</p>
+                <div className="p-3 lg:p-4 bg-card text-center">
+                  <p className="text-lg lg:text-xl font-bold tabular-nums text-purple-600 dark:text-purple-400">{enhanced.monthSoFar.newJoins}</p>
+                  <p className="text-[10px] lg:text-xs text-muted-foreground font-medium">New Joins</p>
                 </div>
               </div>
             </CardContent>
@@ -1234,18 +1234,18 @@ function OwnerDashboard() {
 
       
 
-      <div className="grid gap-2.5 md:grid-cols-2">
+      <div className="grid gap-2.5 lg:gap-3 md:grid-cols-2">
         <Card className="card-elevated">
-          <CardHeader className="pb-2 pt-3 px-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <div className="p-1.5 rounded-lg bg-primary/10">
-                <CalendarCheck className="w-3.5 h-3.5 text-primary" />
+          <CardHeader className="pb-2 pt-3 px-3 lg:pt-4 lg:px-4">
+            <CardTitle className="flex items-center gap-2 text-sm lg:text-base font-semibold">
+              <div className="p-1.5 lg:p-2 rounded-lg bg-primary/10">
+                <CalendarCheck className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary" />
               </div>
               Attendance (Last 7 days)
             </CardTitle>
           </CardHeader>
-          <CardContent className="px-3 pb-3">
-            <div className="h-[180px] w-full">
+          <CardContent className="px-3 pb-3 lg:px-4 lg:pb-4">
+            <div className="h-[180px] lg:h-[220px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <defs>
@@ -1264,29 +1264,29 @@ function OwnerDashboard() {
           </CardContent>
         </Card>
         <Card className="card-elevated">
-          <CardHeader className="pb-2 pt-3 px-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <div className="p-1.5 rounded-lg bg-emerald-500/10">
-                <Clock className="w-3.5 h-3.5 text-emerald-500" />
+          <CardHeader className="pb-2 pt-3 px-3 lg:pt-4 lg:px-4">
+            <CardTitle className="flex items-center gap-2 text-sm lg:text-base font-semibold">
+              <div className="p-1.5 lg:p-2 rounded-lg bg-emerald-500/10">
+                <Clock className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-emerald-500" />
               </div>
               Recent Activity
             </CardTitle>
           </CardHeader>
-          <CardContent className="px-3 pb-3">
-            <div className="space-y-1.5">
+          <CardContent className="px-3 pb-3 lg:px-4 lg:pb-4">
+            <div className="space-y-1.5 lg:space-y-2">
               {attendanceList.slice(0, 5).map((record: any) => {
                 const method = record.verifiedMethod || record.status;
                 const methodColor = method === 'qr' ? 'bg-blue-500' : method === 'workout' ? 'bg-emerald-500' : 'bg-primary';
                 return (
-                  <div key={record.id} className="flex items-center gap-2.5 p-2 rounded-lg bg-background/50">
-                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                  <div key={record.id} className="flex items-center gap-2.5 p-2 lg:p-2.5 rounded-lg bg-background/50">
+                    <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs lg:text-sm font-semibold text-primary shrink-0">
                       {record.member?.username?.slice(0, 2).toUpperCase() || '??'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate">{record.member?.username || 'Unknown'}</p>
-                      <p className="text-[10px] text-muted-foreground">{record.date}</p>
+                      <p className="text-xs lg:text-sm font-medium truncate">{record.member?.username || 'Unknown'}</p>
+                      <p className="text-[10px] lg:text-xs text-muted-foreground">{record.date}</p>
                     </div>
-                    <Badge variant="secondary" className="text-[10px] h-5 shrink-0 gap-1">
+                    <Badge variant="secondary" className="text-[10px] lg:text-xs h-5 lg:h-6 shrink-0 gap-1">
                       <span className={`w-1.5 h-1.5 rounded-full ${methodColor}`} />
                       {method}
                     </Badge>
