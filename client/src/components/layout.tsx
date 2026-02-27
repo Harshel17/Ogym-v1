@@ -190,7 +190,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           ...(!isIOSNativeApp ? [{ label: "Transfers", href: "/transfers", icon: ArrowRightLeft, badge: notificationCounts?.pendingTransfers || 0 }] : []),
           { label: "Announcements", href: "/owner/announcements", icon: Megaphone },
           ...(!isIOSNativeApp ? [
-            { label: "Walk-ins", href: "/owner/walk-in-visitors", icon: PersonStanding },
+            { label: "Walk-ins", href: "/owner/walk-in-visitors", icon: PersonStanding, badge: notificationCounts?.hotLeadsCount || 0 },
             { label: "Follow-ups", href: "/owner/follow-ups", icon: PhoneCall },
           ] : []),
           { label: "Self Check-in", href: "/owner/kiosk", icon: QrCode },

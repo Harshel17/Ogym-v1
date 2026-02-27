@@ -124,6 +124,7 @@ function HealthActivityDashboard() {
   const { user } = useAuth();
   const { data: status, isLoading: statusLoading } = useHealthStatus();
   const { data: healthData, isLoading: dataLoading } = useHealthDataToday();
+  const { data: userGoals } = useQuery<any>({ queryKey: ['/api/user/goals'] });
 
   const connected = status?.connected || (user as any)?.healthConnected || !!healthData;
   const hasData = connected && healthData;
@@ -134,6 +135,10 @@ function HealthActivityDashboard() {
   const restingHR = hasData ? (healthData.restingHeartRate || 0) : 0;
   const avgHR = hasData ? (healthData.avgHeartRate || 0) : 0;
   const activeMinutes = hasData ? (healthData.activeMinutes || 0) : 0;
+
+  const stepGoal = userGoals?.dailyStepGoal || 10000;
+  const calorieGoal = userGoals?.dailyCalorieTarget || 500;
+  const sleepGoal = userGoals?.dailySleepGoalMinutes || 480;
 
   const computeRecovery = () => {
     if (!hasData) return 0;
@@ -235,17 +240,17 @@ function HealthActivityDashboard() {
             ) : (
               <div className="grid grid-cols-4 gap-2">
                 <div className="flex flex-col items-center gap-1" data-testid="health-steps">
-                  <MiniRing value={steps} max={10000} color="#3b82f6" icon={Footprints} />
+                  <MiniRing value={steps} max={stepGoal} color="#3b82f6" icon={Footprints} />
                   <span className="text-[13px] font-bold tabular-nums">{formatNumber(steps)}</span>
                   <span className="text-[10px] text-muted-foreground">Steps</span>
                 </div>
                 <div className="flex flex-col items-center gap-1" data-testid="health-calories">
-                  <MiniRing value={caloriesBurned} max={500} color="#f97316" icon={Flame} />
+                  <MiniRing value={caloriesBurned} max={calorieGoal} color="#f97316" icon={Flame} />
                   <span className="text-[13px] font-bold tabular-nums">{caloriesBurned}</span>
                   <span className="text-[10px] text-muted-foreground">Burned</span>
                 </div>
                 <div className="flex flex-col items-center gap-1" data-testid="health-sleep">
-                  <MiniRing value={sleepMinutes} max={480} color="#a855f7" icon={Moon} />
+                  <MiniRing value={sleepMinutes} max={sleepGoal} color="#a855f7" icon={Moon} />
                   <span className="text-[13px] font-bold tabular-nums">{formatSleep(sleepMinutes)}</span>
                   <span className="text-[10px] text-muted-foreground">Sleep</span>
                 </div>
