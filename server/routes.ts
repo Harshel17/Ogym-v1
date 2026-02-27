@@ -10,7 +10,7 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors, trainerMemberAssignments, feedPosts, gymEquipment, equipmentExerciseMappings, payments } from "@shared/schema";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors, trainerMemberAssignments, feedPosts, gymEquipment, equipmentExerciseMappings, payments, userGoals } from "@shared/schema";
 import { eq, and, isNotNull, isNull, inArray, sql, desc, gte, lte, like, asc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing } from "./dika";
@@ -5978,8 +5978,15 @@ Return ONLY JSON.`
       restingHeartRate: z.number().optional(),
       avgHeartRate: z.number().optional(),
       maxHeartRate: z.number().optional(),
+      hrv: z.number().optional(),
       sleepMinutes: z.number().optional(),
       sleepQuality: z.enum(["poor", "fair", "good", "excellent"]).optional(),
+      bedtime: z.string().optional(),
+      wakeTime: z.string().optional(),
+      sleepStages: z.array(z.object({
+        stage: z.enum(["awake", "light", "deep", "rem", "core"]),
+        minutes: z.number()
+      })).optional(),
       watchWorkouts: z.array(z.object({
         type: z.string(),
         duration: z.number(),
@@ -5998,6 +6005,16 @@ Return ONLY JSON.`
     } catch (error) {
       console.error("Health sync error:", error);
       res.status(400).json({ message: "Invalid health data" });
+    }
+  });
+
+  app.get("/api/health/last-sync-date", requireRole(["member"]), async (req, res) => {
+    try {
+      const allData = await storage.getHealthDataByRange(req.user!.id, '2000-01-01', '2099-12-31');
+      const lastSyncDate = allData.length > 0 ? allData[0].date : null;
+      res.json({ lastSyncDate });
+    } catch (error) {
+      res.json({ lastSyncDate: null });
     }
   });
 
@@ -6037,6 +6054,9 @@ Return ONLY JSON.`
       const userId = req.user!.id;
       const allData = await storage.getHealthDataByRange(userId, '2000-01-01', '2099-12-31');
       
+      const [goals] = await db.select().from(userGoals).where(eq(userGoals.userId, userId)).limit(1);
+      const userStepGoal = (goals as any)?.dailyStepGoal || 10000;
+
       let bestStepsDay = { date: '', steps: 0 };
       let bestCaloriesDay = { date: '', calories: 0 };
       let totalSteps = 0;
@@ -6055,7 +6075,7 @@ Return ONLY JSON.`
           if (d.steps > bestStepsDay.steps) {
             bestStepsDay = { date: d.date, steps: d.steps };
           }
-          if (d.steps >= 10000) {
+          if (d.steps >= userStepGoal) {
             stepGoalDays++;
           }
         }
@@ -6080,7 +6100,7 @@ Return ONLY JSON.`
         while (cursor <= lastDate) {
           const ds = cursor.toISOString().split('T')[0];
           const entry = dataByDate.get(ds);
-          if (entry && entry.steps && entry.steps >= 10000) {
+          if (entry && entry.steps && entry.steps >= userStepGoal) {
             tempStreak++;
             if (tempStreak > maxStreak) maxStreak = tempStreak;
           } else {
@@ -6095,7 +6115,7 @@ Return ONLY JSON.`
       for (let i = 0; i < 365; i++) {
         const ds = checkDate.toISOString().split('T')[0];
         const entry = dataByDate.get(ds);
-        if (entry && entry.steps && entry.steps >= 10000) {
+        if (entry && entry.steps && entry.steps >= userStepGoal) {
           activeStreak++;
         } else {
           break;

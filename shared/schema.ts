@@ -1051,10 +1051,14 @@ export const healthData = pgTable("health_data", {
   restingHeartRate: integer("resting_heart_rate"),
   avgHeartRate: integer("avg_heart_rate"),
   maxHeartRate: integer("max_heart_rate"),
+  hrv: integer("hrv"),
   
   // Sleep
   sleepMinutes: integer("sleep_minutes"),
   sleepQuality: text("sleep_quality", { enum: ["poor", "fair", "good", "excellent"] }),
+  bedtime: text("bedtime"),
+  wakeTime: text("wake_time"),
+  sleepStages: jsonb("sleep_stages"),
   
   // Workouts auto-detected by watch
   watchWorkouts: jsonb("watch_workouts"), // [{type: 'running', duration: 30, calories: 250}]
@@ -1261,6 +1265,9 @@ export const userGoals = pgTable("user_goals", {
   weeklyWorkoutDays: integer("weekly_workout_days"),
   primaryGoal: text("primary_goal", { enum: ["lose_fat", "build_muscle", "maintain", "improve_endurance", "general_health"] }),
   customGoalText: text("custom_goal_text"),
+  dailyStepGoal: integer("daily_step_goal").default(10000),
+  dailySleepGoalMinutes: integer("daily_sleep_goal_minutes").default(480),
+  dailyActiveMinutesGoal: integer("daily_active_minutes_goal").default(30),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({

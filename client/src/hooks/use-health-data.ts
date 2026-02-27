@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { healthService, type HealthSource } from '@/lib/health-service';
@@ -91,4 +92,25 @@ export function useHealthServiceInfo() {
     isAvailable: healthService.isAvailable(),
     availableSource: healthService.getAvailableSource(),
   };
+}
+
+export function useHealthAutoSync() {
+  const setupDone = useRef(false);
+  const { data: status } = useHealthStatus();
+
+  useEffect(() => {
+    if (setupDone.current) return;
+    if (!status?.connected) return;
+    if (!healthService.isAvailable()) return;
+
+    setupDone.current = true;
+    healthService.setupBackgroundSync().catch(e => 
+      console.log('[useHealthAutoSync] Setup failed:', e)
+    );
+    healthService.syncToBackend().then(() => {
+      queryClient.invalidateQueries({ queryKey: ['/api/health/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/health/range'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/health/stats'] });
+    }).catch(e => console.log('[useHealthAutoSync] Initial sync failed:', e));
+  }, [status?.connected]);
 }

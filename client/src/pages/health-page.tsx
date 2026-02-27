@@ -15,6 +15,7 @@ import {
   useDisconnectHealth,
   useSyncHealth,
   useHealthServiceInfo,
+  useHealthAutoSync,
 } from '@/hooks/use-health-data';
 import { useQuery } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
@@ -194,10 +195,10 @@ function RecoveryGauge({ score, dataPoints }: { score: number; dataPoints: numbe
           <span className="text-[11px] font-medium text-muted-foreground">{config.label}</span>
         </div>
       </div>
-      {dataPoints < 4 && (
+      {dataPoints < 5 && (
         <div className="flex items-center gap-1 mt-2">
           <Info className="w-3 h-3 text-muted-foreground" />
-          <span className="text-[10px] text-muted-foreground">{dataPoints}/4 metrics</span>
+          <span className="text-[10px] text-muted-foreground">{dataPoints}/5 metrics</span>
         </div>
       )}
     </div>
@@ -243,42 +244,66 @@ function DayDetailSheet({ data, date, onClose }: { data: any; date: string; onCl
         </div>
         
         {data ? (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/10">
-              <div className="flex items-center gap-2 mb-1">
-                <Footprints className="w-4 h-4 text-blue-500" />
-                <span className="text-xs text-muted-foreground">Steps</span>
-              </div>
-              <p className="text-xl font-bold">{data.steps ? data.steps.toLocaleString() : '--'}</p>
-            </div>
-            <div className="p-3 bg-orange-500/5 rounded-xl border border-orange-500/10">
-              <div className="flex items-center gap-2 mb-1">
-                <Flame className="w-4 h-4 text-orange-500" />
-                <span className="text-xs text-muted-foreground">Burned</span>
-              </div>
-              <p className="text-xl font-bold">{data.calories ? `${data.calories} cal` : '--'}</p>
-            </div>
-            <div className="p-3 bg-red-500/5 rounded-xl border border-red-500/10">
-              <div className="flex items-center gap-2 mb-1">
-                <Heart className="w-4 h-4 text-red-500" />
-                <span className="text-xs text-muted-foreground">Avg HR</span>
-              </div>
-              <p className="text-xl font-bold">{data.hr ? `${data.hr} bpm` : '--'}</p>
-            </div>
-            <div className="p-3 bg-purple-500/5 rounded-xl border border-purple-500/10">
-              <div className="flex items-center gap-2 mb-1">
-                <Moon className="w-4 h-4 text-purple-500" />
-                <span className="text-xs text-muted-foreground">Sleep</span>
-              </div>
-              <p className="text-xl font-bold">{data.sleep > 0 ? formatSleep(data.sleepMinutes) : '--'}</p>
-            </div>
-            {data.activeMinutes > 0 && (
-              <div className="col-span-2 p-3 bg-green-500/5 rounded-xl border border-green-500/10">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/10">
                 <div className="flex items-center gap-2 mb-1">
-                  <Timer className="w-4 h-4 text-green-500" />
-                  <span className="text-xs text-muted-foreground">Active Minutes</span>
+                  <Footprints className="w-4 h-4 text-blue-500" />
+                  <span className="text-xs text-muted-foreground">Steps</span>
                 </div>
-                <p className="text-xl font-bold">{data.activeMinutes} min</p>
+                <p className="text-xl font-bold">{data.steps ? data.steps.toLocaleString() : '--'}</p>
+              </div>
+              <div className="p-3 bg-orange-500/5 rounded-xl border border-orange-500/10">
+                <div className="flex items-center gap-2 mb-1">
+                  <Flame className="w-4 h-4 text-orange-500" />
+                  <span className="text-xs text-muted-foreground">Burned</span>
+                </div>
+                <p className="text-xl font-bold">{data.calories ? `${data.calories} cal` : '--'}</p>
+              </div>
+              <div className="p-3 bg-red-500/5 rounded-xl border border-red-500/10">
+                <div className="flex items-center gap-2 mb-1">
+                  <Heart className="w-4 h-4 text-red-500" />
+                  <span className="text-xs text-muted-foreground">Avg HR</span>
+                </div>
+                <p className="text-xl font-bold">{data.hr ? `${data.hr} bpm` : '--'}</p>
+              </div>
+              <div className="p-3 bg-purple-500/5 rounded-xl border border-purple-500/10">
+                <div className="flex items-center gap-2 mb-1">
+                  <Moon className="w-4 h-4 text-purple-500" />
+                  <span className="text-xs text-muted-foreground">Sleep</span>
+                </div>
+                <p className="text-xl font-bold">{data.sleep > 0 ? formatSleep(data.sleepMinutes) : '--'}</p>
+              </div>
+              {data.activeMinutes > 0 && (
+                <div className="p-3 bg-green-500/5 rounded-xl border border-green-500/10">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Timer className="w-4 h-4 text-green-500" />
+                    <span className="text-xs text-muted-foreground">Active</span>
+                  </div>
+                  <p className="text-xl font-bold">{data.activeMinutes} min</p>
+                </div>
+              )}
+              {data.hrv > 0 && (
+                <div className="p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Heart className="w-4 h-4 text-emerald-500" />
+                    <span className="text-xs text-muted-foreground">HRV</span>
+                  </div>
+                  <p className="text-xl font-bold">{data.hrv} ms</p>
+                </div>
+              )}
+            </div>
+            {data.bedtime && data.wakeTime && (
+              <div className="flex items-center justify-center gap-4 py-2 bg-indigo-500/5 rounded-xl border border-indigo-500/10">
+                <div className="text-center">
+                  <p className="text-[10px] text-muted-foreground">Bedtime</p>
+                  <p className="text-sm font-bold">{data.bedtime}</p>
+                </div>
+                <div className="w-6 h-px bg-muted-foreground/30" />
+                <div className="text-center">
+                  <p className="text-[10px] text-muted-foreground">Wake up</p>
+                  <p className="text-sm font-bold">{data.wakeTime}</p>
+                </div>
               </div>
             )}
           </div>
@@ -293,8 +318,8 @@ function DayDetailSheet({ data, date, onClose }: { data: any; date: string; onCl
   );
 }
 
-function computeRecoveryScore(healthData: HealthData | null): { score: number; factors: { label: string; value: string; impact: 'positive' | 'neutral' | 'negative'; source: string }[]; dataPoints: number; hasEnoughData: boolean } {
-  if (!healthData) return { score: 0, factors: [], dataPoints: 0, hasEnoughData: false };
+function computeRecoveryScore(healthData: HealthData | null): { score: number; factors: { label: string; value: string; impact: 'positive' | 'neutral' | 'negative'; source: string }[]; dataPoints: number; maxDataPoints: number; hasEnoughData: boolean } {
+  if (!healthData) return { score: 0, factors: [], dataPoints: 0, maxDataPoints: 5, hasEnoughData: false };
 
   const factors: { label: string; value: string; impact: 'positive' | 'neutral' | 'negative'; source: string }[] = [];
   let totalWeight = 0;
@@ -304,7 +329,7 @@ function computeRecoveryScore(healthData: HealthData | null): { score: number; f
   if (healthData.sleepMinutes && healthData.sleepMinutes > 0) {
     dataPoints++;
     const hours = healthData.sleepMinutes / 60;
-    const weight = 35;
+    const weight = 30;
     totalWeight += weight;
     if (hours >= 7.5) {
       weightedScore += weight;
@@ -318,9 +343,24 @@ function computeRecoveryScore(healthData: HealthData | null): { score: number; f
     }
   }
 
-  if (healthData.restingHeartRate && healthData.restingHeartRate > 0) {
+  if ((healthData as any).hrv && (healthData as any).hrv > 0) {
     dataPoints++;
+    const hrvVal = (healthData as any).hrv as number;
     const weight = 25;
+    totalWeight += weight;
+    if (hrvVal >= 50) {
+      weightedScore += weight;
+      factors.push({ label: 'HRV', value: `${hrvVal} ms`, impact: 'positive', source: 'Device' });
+    } else if (hrvVal >= 30) {
+      weightedScore += weight * 0.6;
+      factors.push({ label: 'HRV', value: `${hrvVal} ms`, impact: 'neutral', source: 'Device' });
+    } else {
+      weightedScore += weight * 0.2;
+      factors.push({ label: 'HRV', value: `${hrvVal} ms`, impact: 'negative', source: 'Device' });
+    }
+  } else if (healthData.restingHeartRate && healthData.restingHeartRate > 0) {
+    dataPoints++;
+    const weight = 20;
     totalWeight += weight;
     if (healthData.restingHeartRate < 60) {
       weightedScore += weight;
@@ -352,7 +392,7 @@ function computeRecoveryScore(healthData: HealthData | null): { score: number; f
 
   if (healthData.steps && healthData.steps > 0) {
     dataPoints++;
-    const weight = 20;
+    const weight = 15;
     totalWeight += weight;
     if (healthData.steps >= 8000) {
       weightedScore += weight;
@@ -366,13 +406,33 @@ function computeRecoveryScore(healthData: HealthData | null): { score: number; f
     }
   }
 
+  const sleepStages = (healthData as any).sleepStages as Array<{ stage: string; minutes: number }> | null;
+  if (sleepStages && Array.isArray(sleepStages) && sleepStages.length > 0) {
+    dataPoints++;
+    const deepMins = sleepStages.filter(s => s.stage === 'deep').reduce((sum, s) => sum + s.minutes, 0);
+    const remMins = sleepStages.filter(s => s.stage === 'rem').reduce((sum, s) => sum + s.minutes, 0);
+    const weight = 10;
+    totalWeight += weight;
+    const qualityMins = deepMins + remMins;
+    if (qualityMins >= 120) {
+      weightedScore += weight;
+      factors.push({ label: 'Deep+REM', value: `${Math.round(qualityMins)}min`, impact: 'positive', source: 'Device' });
+    } else if (qualityMins >= 60) {
+      weightedScore += weight * 0.6;
+      factors.push({ label: 'Deep+REM', value: `${Math.round(qualityMins)}min`, impact: 'neutral', source: 'Device' });
+    } else {
+      weightedScore += weight * 0.2;
+      factors.push({ label: 'Deep+REM', value: `${Math.round(qualityMins)}min`, impact: 'negative', source: 'Device' });
+    }
+  }
+
   const hasEnoughData = dataPoints >= 1;
   const score = totalWeight > 0 ? Math.round((weightedScore / totalWeight) * 100) : 0;
 
-  return { score, factors, dataPoints, hasEnoughData };
+  return { score, factors, dataPoints, maxDataPoints: 5, hasEnoughData };
 }
 
-function generateInsights(healthData: HealthData | null, caloriesEaten: number, recoveryScore: number, stepGoal: number): string[] {
+function generateInsights(healthData: HealthData | null, caloriesEaten: number, recoveryScore: number, stepGoal: number, sleepGoalMinutes: number): string[] {
   const insights: string[] = [];
   if (!healthData) return [];
 
@@ -396,10 +456,28 @@ function generateInsights(healthData: HealthData | null, caloriesEaten: number, 
   }
 
   if (healthData.sleepMinutes && healthData.sleepMinutes > 0) {
-    if (healthData.sleepMinutes >= 420 && healthData.sleepMinutes <= 540) {
-      insights.push('Great sleep duration \u2014 your body had optimal recovery time');
+    const sleepGoalHours = sleepGoalMinutes / 60;
+    if (healthData.sleepMinutes >= sleepGoalMinutes) {
+      insights.push(`Great sleep \u2014 you hit your ${sleepGoalHours}h goal with ${(healthData.sleepMinutes / 60).toFixed(1)}h`);
     } else if (healthData.sleepMinutes < 360) {
       insights.push('Sleep was below 6 hours \u2014 try to get more rest for better recovery');
+    }
+  }
+
+  const hrvVal = (healthData as any)?.hrv;
+  if (hrvVal && hrvVal > 0) {
+    if (hrvVal < 25) {
+      insights.push('HRV is low \u2014 your body may need more recovery time today');
+    } else if (hrvVal >= 60) {
+      insights.push('HRV is high \u2014 your nervous system is well-recovered');
+    }
+  }
+
+  const sleepStages = (healthData as any)?.sleepStages as Array<{ stage: string; minutes: number }> | null;
+  if (sleepStages && Array.isArray(sleepStages)) {
+    const deepMins = sleepStages.filter(s => s.stage === 'deep').reduce((sum, s) => sum + s.minutes, 0);
+    if (deepMins > 0 && deepMins < 45) {
+      insights.push('Low deep sleep \u2014 muscle recovery may be affected. Try avoiding screens before bed');
     }
   }
 
@@ -414,7 +492,7 @@ function generateInsights(healthData: HealthData | null, caloriesEaten: number, 
     insights.push('Resting heart rate is elevated \u2014 could be stress or dehydration');
   }
 
-  return insights.slice(0, 3);
+  return insights.slice(0, 4);
 }
 
 function getRecoveryBgClass(score: number): string {
@@ -450,6 +528,7 @@ export default function HealthPage() {
   const disconnectHealth = useDisconnectHealth();
   const syncHealth = useSyncHealth();
   const { isAvailable, availableSource } = useHealthServiceInfo();
+  useHealthAutoSync();
 
   const [chartRange, setChartRange] = useState<'7d' | '30d'>('7d');
   const [selectedDay, setSelectedDay] = useState<{ date: string; data: any } | null>(null);
@@ -476,7 +555,9 @@ export default function HealthPage() {
     queryKey: ['/api/health/stats'],
   });
 
-  const stepGoal = 10000;
+  const stepGoal = (userGoals as any)?.dailyStepGoal || 10000;
+  const sleepGoalMinutes = (userGoals as any)?.dailySleepGoalMinutes || 480;
+  const activeMinutesGoal = (userGoals as any)?.dailyActiveMinutesGoal || 30;
   const calorieGoal = userGoals?.dailyCalorieTarget || 500;
 
   const caloriesEaten = useMemo(() => {
@@ -485,14 +566,14 @@ export default function HealthPage() {
   }, [todayFoodLogs]);
 
   const recovery = useMemo(() => computeRecoveryScore(todayData || null), [todayData]);
-  const insights = useMemo(() => generateInsights(todayData || null, caloriesEaten, recovery.score, stepGoal), [todayData, caloriesEaten, recovery.score, stepGoal]);
+  const insights = useMemo(() => generateInsights(todayData || null, caloriesEaten, recovery.score, stepGoal, sleepGoalMinutes), [todayData, caloriesEaten, recovery.score, stepGoal, sleepGoalMinutes]);
 
   const animSteps = useCountUp(todayData?.steps || 0, 1200, !!(todayData?.steps && todayData.steps > 0));
   const animCals = useCountUp(todayData?.caloriesBurned || 0, 1000, !!(todayData?.caloriesBurned && todayData.caloriesBurned > 0));
   const animHR = useCountUp(todayData?.avgHeartRate || 0, 800, !!(todayData?.avgHeartRate && todayData.avgHeartRate > 0));
 
   const chartData = useMemo(() => {
-    const days: { date: string; label: string; steps: number; calories: number; hr: number; sleep: number; sleepMinutes: number; activeMinutes: number; hasData: boolean }[] = [];
+    const days: { date: string; label: string; steps: number; calories: number; hr: number; sleep: number; sleepMinutes: number; activeMinutes: number; hrv: number; bedtime: string; wakeTime: string; hasData: boolean }[] = [];
     for (let i = rangeDays; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
@@ -512,6 +593,9 @@ export default function HealthPage() {
         sleep: match?.sleepMinutes ? Math.round(match.sleepMinutes / 60 * 10) / 10 : 0,
         sleepMinutes: match?.sleepMinutes || 0,
         activeMinutes: match?.activeMinutes || 0,
+        hrv: (match as any)?.hrv || 0,
+        bedtime: (match as any)?.bedtime || '',
+        wakeTime: (match as any)?.wakeTime || '',
         hasData: !!match,
       });
     }
@@ -746,7 +830,7 @@ export default function HealthPage() {
                   {healthStats.currentStreak} day step streak!
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  You've hit your 10k step goal {healthStats.currentStreak} day{healthStats.currentStreak > 1 ? 's' : ''} in a row
+                  You've hit your {stepGoal >= 1000 ? `${(stepGoal / 1000).toFixed(0)}k` : stepGoal} step goal {healthStats.currentStreak} day{healthStats.currentStreak > 1 ? 's' : ''} in a row
                 </p>
               </div>
               {healthStats.maxStreak > healthStats.currentStreak && (
@@ -810,7 +894,7 @@ export default function HealthPage() {
               hasData={hasHR}
             />
             <AnimatedRing
-              value={todayData?.sleepMinutes ? todayData.sleepMinutes / 60 : 0} max={9}
+              value={todayData?.sleepMinutes ? todayData.sleepMinutes / 60 : 0} max={sleepGoalMinutes / 60}
               color="#a855f7" glowColor="rgba(168,85,247,0.15)"
               icon={Moon} label="Sleep"
               displayValue={hasSleep ? formatSleep(todayData!.sleepMinutes!) : '--'}
@@ -857,7 +941,7 @@ export default function HealthPage() {
                 <div className="flex items-center gap-1.5 mb-3">
                   <Zap className="w-4 h-4 text-emerald-500" />
                   <span className="text-sm font-semibold">Recovery Score</span>
-                  {recovery.dataPoints < 4 && (
+                  {recovery.dataPoints < 5 && (
                     <Badge variant="outline" className="text-[9px] ml-auto px-1.5 py-0 h-4 rounded-md border-amber-500/30 text-amber-600">Partial</Badge>
                   )}
                 </div>
@@ -1015,6 +1099,94 @@ export default function HealthPage() {
           </div>
         </Card>
       )}
+
+      {(() => {
+        const sleepStages = (todayData as any)?.sleepStages as Array<{ stage: string; minutes: number }> | null;
+        const bedtime = (todayData as any)?.bedtime as string | null;
+        const wakeTime = (todayData as any)?.wakeTime as string | null;
+        const hrvVal = (todayData as any)?.hrv as number | null;
+        if (!sleepStages?.length && !bedtime && !hrvVal) return null;
+        
+        const stageColors: Record<string, string> = { deep: '#6366f1', rem: '#a855f7', light: '#c4b5fd', core: '#818cf8', awake: '#f59e0b' };
+        const stageLabels: Record<string, string> = { deep: 'Deep', rem: 'REM', light: 'Light', core: 'Core', awake: 'Awake' };
+        const totalStageMins = sleepStages?.reduce((sum, s) => sum + s.minutes, 0) || 0;
+
+        return (
+          <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-sleep-detail">
+            <div className="bg-gradient-to-br from-indigo-500/[0.03] via-card to-card">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <Moon className="w-4 h-4 text-indigo-500" />
+                  <span className="text-sm font-semibold">Sleep Detail</span>
+                  <DataSourceBadge label={sourceName} />
+                </div>
+                
+                {(bedtime || wakeTime) && (
+                  <div className="flex items-center justify-center gap-6 mb-3 py-2 bg-muted/20 rounded-xl">
+                    {bedtime && (
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground">Bedtime</p>
+                        <p className="text-sm font-bold">{bedtime}</p>
+                      </div>
+                    )}
+                    {bedtime && wakeTime && <div className="w-8 h-px bg-muted-foreground/30" />}
+                    {wakeTime && (
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground">Wake up</p>
+                        <p className="text-sm font-bold">{wakeTime}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {sleepStages && sleepStages.length > 0 && (
+                  <>
+                    <div className="w-full h-3 rounded-full overflow-hidden flex mb-2">
+                      {sleepStages.filter(s => s.minutes > 0).sort((a, b) => {
+                        const order = ['deep', 'rem', 'core', 'light', 'awake'];
+                        return order.indexOf(a.stage) - order.indexOf(b.stage);
+                      }).map((s, i) => (
+                        <div
+                          key={i}
+                          className="h-full"
+                          style={{
+                            width: `${(s.minutes / totalStageMins) * 100}%`,
+                            backgroundColor: stageColors[s.stage] || '#94a3b8',
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {sleepStages.filter(s => s.minutes > 0).map((s, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stageColors[s.stage] || '#94a3b8' }} />
+                          <span className="text-[10px] text-muted-foreground">{stageLabels[s.stage] || s.stage}</span>
+                          <span className="text-[10px] font-semibold">{s.minutes >= 60 ? `${Math.floor(s.minutes / 60)}h ${s.minutes % 60}m` : `${s.minutes}m`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {hrvVal && hrvVal > 0 && (
+                  <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border/20">
+                    <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                      <Heart className="w-3.5 h-3.5 text-emerald-500" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[10px] text-muted-foreground">Heart Rate Variability</p>
+                      <p className="text-sm font-bold">{hrvVal} ms</p>
+                    </div>
+                    <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-4 rounded-md ${hrvVal >= 50 ? 'border-green-500/30 text-green-600' : hrvVal >= 30 ? 'border-amber-500/30 text-amber-600' : 'border-red-500/30 text-red-600'}`}>
+                      {hrvVal >= 50 ? 'Good' : hrvVal >= 30 ? 'Fair' : 'Low'}
+                    </Badge>
+                  </div>
+                )}
+              </CardContent>
+            </div>
+          </Card>
+        );
+      })()}
 
       {chartData.some(d => d.steps > 0) && (
         <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-chart-steps">
