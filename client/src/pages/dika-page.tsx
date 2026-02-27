@@ -825,8 +825,8 @@ function DikaPageInner({ userId }: { userId: number }) {
       style={visualHeight && window.innerWidth < 1024 ? { height: `${keyboardVisible ? visualHeight : visualHeight - 56}px` } : undefined}
       data-testid="page-dika"
     >
-      <div className="flex-shrink-0 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 border-b border-white/[0.06] px-4 py-3 backdrop-blur-xl" style={{ paddingTop: document.documentElement.classList.contains('is-android') ? '4px' : 'calc(var(--cached-safe-top, env(safe-area-inset-top, 0px)) + 4px)' }}>
-        <div className="flex items-center justify-between lg:max-w-3xl lg:mx-auto">
+      <div className="flex-shrink-0 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 border-b border-white/[0.06] px-4 py-3 backdrop-blur-xl overflow-visible" style={{ paddingTop: document.documentElement.classList.contains('is-android') ? '4px' : 'calc(var(--cached-safe-top, env(safe-area-inset-top, 0px)) + 4px)', zIndex: 20 }}>
+        <div className="flex items-center justify-between lg:max-w-3xl lg:mx-auto overflow-visible">
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -857,9 +857,9 @@ function DikaPageInner({ userId }: { userId: number }) {
               <p className="text-[11px] text-slate-400/80 font-medium">Your fitness intelligence assistant</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 overflow-visible">
             {isNative() && isIOS() && user?.role !== 'owner' && (
-              <div className="relative">
+              <div className="relative overflow-visible">
                 <Button
                   variant="ghost"
                   size="icon"
