@@ -274,8 +274,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-3">
       {user.role === "owner" && (
-        <div className="lg:max-w-5xl space-y-3">
-          <GreetingBanner greeting={greeting} greetingIcon={greetingIcon} username={user.username} />
+        <div className="space-y-3">
+          <GreetingBanner greeting={greeting} greetingIcon={greetingIcon} username={user.gym?.name || user.username} />
           <OwnerDashboard />
         </div>
       )}

@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle, Dumbbell, Shield, ChevronDown, ChevronUp, UserCircle } from "lucide-react";
+import { Mail, ArrowLeft, Loader2, KeyRound, HelpCircle, CheckCircle, Dumbbell, Shield, ChevronDown, ChevronUp, UserCircle, Brain, CalendarCheck, TrendingUp } from "lucide-react";
 import { isIOS, isNative } from "@/lib/capacitor-init";
 
 // Helper: Check if we're running on iOS native app (not web)
@@ -438,11 +438,61 @@ export default function AuthPage() {
               ? <>Your fitness journey, <span className="text-white/90">simplified</span> and <span className="bg-gradient-to-r from-amber-200 to-yellow-100 bg-clip-text text-transparent">elevated</span>.</>
               : <>Manage your fitness business with <span className="text-white/90">precision</span> and <span className="bg-gradient-to-r from-amber-200 to-yellow-100 bg-clip-text text-transparent">style</span>.</>}
           </h2>
-          <p className="text-xl text-white/70 font-light leading-relaxed">
+          <p className="text-xl text-white/70 font-light leading-relaxed mb-8">
             {isIOSNativeApp() 
               ? "Track your workouts, connect with trainers, and crush your fitness goals — all in one place."
               : "Whether you're an owner, trainer, or dedicated member, OGym connects your community and tracks your progress effortlessly."}
           </p>
+          
+          {!isIOSNativeApp() && (
+            <div className="grid grid-cols-2 gap-3 mb-8">
+              <div className="flex items-center gap-3 bg-white/8 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/10">
+                <div className="w-9 h-9 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <Brain className="w-4 h-4 text-amber-300" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white/90">Dika AI Engine</p>
+                  <p className="text-[11px] text-white/50">Smart member insights</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-white/8 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/10">
+                <div className="w-9 h-9 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0">
+                  <CalendarCheck className="w-4 h-4 text-emerald-300" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white/90">Attendance</p>
+                  <p className="text-[11px] text-white/50">QR & biometric check-in</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-white/8 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/10">
+                <div className="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-4 h-4 text-blue-300" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white/90">Growth Pipeline</p>
+                  <p className="text-[11px] text-white/50">Walk-in to member</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-white/8 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/10">
+                <div className="w-9 h-9 rounded-lg bg-violet-500/20 flex items-center justify-center shrink-0">
+                  <Shield className="w-4 h-4 text-violet-300" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white/90">Full Control</p>
+                  <p className="text-[11px] text-white/50">Payments & analytics</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 text-white/40 text-sm">
+            <div className="flex -space-x-2">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-zinc-900 flex items-center justify-center text-[10px] font-bold text-white">GF</div>
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 border-2 border-zinc-900 flex items-center justify-center text-[10px] font-bold text-white">PT</div>
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 border-2 border-zinc-900 flex items-center justify-center text-[10px] font-bold text-white">MK</div>
+            </div>
+            <span>Trusted by gym owners across India</span>
+          </div>
         </div>
         
         <div className="relative z-20 text-sm text-white/40 animate-slide-in-up" style={{ animationDelay: '0.4s' }}>
