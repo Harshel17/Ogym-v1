@@ -1,0 +1,44 @@
+
+Summary
+
+The meeting centered on Harshel Srivatsava presenting his software platform, Origin, to Justin Campbell, focusing on its application for gyms and fitness centers. Harshel explained that Origin aims to unify fragmented data sources by providing a comprehensive management tool for gym owners, a control interface for trainers, and a full-featured fitness app for members. The platform leverages AI to deliver actionable insights and predictions for owners, such as equipment usage, member behavior, and payment reminders, with the goal of improving decision-making and operational efficiency. Justin probed into the platform's differentiation, integration with existing member management systems, and its potential to aggregate and interpret data for actionable insights. He advised that for success, the app should be integrated into existing member-facing mobile apps rather than as a standalone, and suggested exploring verticals beyond traditional gyms, such as multi-tenant residential buildings and universities, where wellness data can drive significant value. Harshel noted that the app is live on the App Store and is being piloted in a few gyms, with long-term plans to expand in India. The meeting concluded with an agreement to reconnect after further consideration, with Justin emphasizing the importance of data collection and suggesting a focus on vertical markets for greater impact.
+
+Action items
+
+Harshel Srivatsava
+
+ 
+•	Follow up with Justin Campbell in two to two and a half weeks to reconnect, share any new insights or questions, and discuss next steps based on feedback from this introductory call.
+Discussion
+
+Introduction and Context for Meeting
+
+The meeting was arranged as an introduction between Harshel Srivatsava and Justin Campbell, facilitated by Albert. Justin brings nearly 30 years of experience in the fitness industry, with a strong background in software development and experiential training. The purpose was to discuss Harshel's software platform for gyms, its origin, and to seek feedback or potential collaboration with Justin, who is well-versed in both fitness operations and technology.
+
+Problem Statement Fragmented Data in Fitness Industry
+
+Harshel identified that gym owners, both in India and the US, often rely on Excel sheets or overly complex software like Mindbody, leading to fragmented data management. Members use various apps for tracking workouts and nutrition, resulting in disconnected data streams. Owners lack visibility into member behavior and gym usage, missing out on actionable insights. This fragmentation persists despite technological advancements and is a pain point for both owners and members.
+
+Solution Overview Origin Platform
+
+Origin is a software platform designed to unify gym management for owners, trainers, and members. It provides a management tool for owners, a control interface for trainers, and a comprehensive fitness app for members. The platform aggregates data from all stakeholders, offering owners visibility into member activities, equipment usage, payments, and behavioral trends. AI is used to generate actionable insights and predictions, such as identifying members at risk of leaving or equipment needing attention. The platform aims to replace fragmented tools with a single, integrated solution.
+
+AI and Data Aggregation for Insights
+
+The platform leverages AI to aggregate and interpret data from members, trainers, and owners. It provides dashboards with actionable insights, such as which equipment is most used, peak hours, and member engagement patterns. AI-driven predictions help owners identify members at risk of leaving and optimize equipment planning. The system also tracks walk-ins, day passes, and follow-ups, enhancing operational efficiency. The approach is to use AI not as a replacement for trainers or owners, but as a tool for better decision-making.
+
+Integration with Existing Systems and Competitive Positioning
+
+Origin is designed to either sit on top of existing member management systems (MMS/CMS) like Mindbody, ABC, or Club Ready, or potentially replace them in the future. Its competitive advantage lies in providing a full-featured fitness app for members and deeper insights for owners, beyond just attendance and check-ins. The platform collects more granular data from members, enabling more accurate predictions. The approach is to offer a simple, role-based app that maximizes data collection and utility for all stakeholders.
+
+User Experience and Application Structure
+
+Origin is a role-based application, meaning members, trainers, and owners access different interfaces within the same app. Members can log workouts, track nutrition (including food logging via photos), and receive AI-generated insights about their progress. Trainers can manage their assigned members and monitor their activities. Owners have access to dashboards with operational and financial data. The app aims to be a comprehensive fitness solution, replacing the need for multiple fragmented apps. There is an emphasis on making the app user-friendly and valuable for all parties.
+
+Market Feedback and Strategic Advice
+
+Justin provided strategic feedback, emphasizing that for-profit gyms are a congested market and that Origin's features should ideally be integrated into existing member-facing apps via API or SDK, rather than as a standalone app. He suggested exploring other verticals such as multi-tenant residential buildings, universities, and hospitality, where wellness and asset management are critical and less saturated. He cited examples where increased fitness engagement leads to higher resident retention and lifetime value, making such markets attractive for Origin's data-driven insights. Justin also advised focusing on selling to organizations rather than individual members for better adoption and monetization.
+
+Next Steps and Future Plans
+
+Harshel mentioned that Origin is recently live on the App Store and is being rolled out in a few gyms. He plans to use initial deployments to build credibility, especially for future expansion into the Indian market, where many gyms lack modern software solutions. Justin suggested taking time to reflect on the discussion, collect more data, and reconnect in a few weeks to discuss further. The emphasis is on data collection, interpretation, and targeting verticals with less competition for greater impact.
