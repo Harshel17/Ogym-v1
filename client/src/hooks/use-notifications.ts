@@ -5,6 +5,7 @@ interface NotificationCounts {
   pendingRequests: number;
   pendingTransfers?: number;
   pendingJoinRequests?: number;
+  hotLeadsCount?: number;
 }
 
 export function useNotificationCounts() {

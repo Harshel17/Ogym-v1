@@ -761,6 +761,8 @@ export const walkInVisitors = pgTable("walk_in_visitors", {
     timestamp: string;
     byUserId: number;
   }>>(),
+  enquiryCategory: text("enquiry_category"),
+  enquiryDetails: text("enquiry_details"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

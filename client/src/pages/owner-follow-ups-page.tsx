@@ -1360,16 +1360,51 @@ function ManualTab({
 export default function OwnerFollowUpsPage() {
   const { toast } = useToast();
   const urlParams = new URLSearchParams(window.location.search);
+  const walkInId = urlParams.get("walkInId") ? parseInt(urlParams.get("walkInId")!) : undefined;
+  const walkInGoal = urlParams.get("goal") || undefined;
   const [activeView, setActiveView] = useState<'ai' | 'manual' | 'results'>(urlParams.get("tab") ? 'manual' : 'ai');
   const [selectedItems, setSelectedItems] = useState<QueueItem[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [selectedGoal, setSelectedGoal] = useState("");
+  const [selectedGoal, setSelectedGoal] = useState(walkInGoal || "");
+  const [walkInVisitor, setWalkInVisitor] = useState<{ id: number; name: string; email: string; phone: string | null } | null>(null);
 
   const aiReason = urlParams.get("reason");
   const aiMemberId = urlParams.get("memberId") ? parseInt(urlParams.get("memberId")!) : undefined;
   const aiSubject = urlParams.get("subject") || undefined;
   const aiMessage = urlParams.get("message") || undefined;
   const manualTab = (urlParams.get("tab") as 'daypass' | 'inactive' | 'payments') || 'inactive';
+
+  useEffect(() => {
+    if (walkInId) {
+      fetch(`/api/owner/walk-in-visitors/${walkInId}`, { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.visitorName) {
+            setWalkInVisitor({ id: data.id, name: data.visitorName, email: data.email || '', phone: data.phone });
+            const syntheticItem: QueueItem = {
+              memberId: data.id,
+              name: data.visitorName,
+              email: data.email || null,
+              category: 'inactive' as const,
+              priority: 'high' as const,
+              reason: `Walk-in visitor${data.enquiryCategory ? ` — enquired about ${data.enquiryCategory}` : ''}`,
+              details: {
+                visitType: data.visitType,
+                enquiryCategory: data.enquiryCategory,
+                enquiryDetails: data.enquiryDetails,
+                phone: data.phone,
+                isWalkIn: true,
+                walkInId: data.id,
+              },
+              alreadyContacted: false,
+            };
+            setSelectedItems([syntheticItem]);
+            if (walkInGoal) setSelectedGoal(walkInGoal);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [walkInId]);
 
   const { data: aiQueue, isLoading: queueLoading } = useQuery<AiQueueData>({
     queryKey: ["/api/followups/ai-queue"],
@@ -1406,24 +1441,34 @@ export default function OwnerFollowUpsPage() {
     },
     onSuccess: async (data: any) => {
       for (const item of selectedItems) {
-        try {
-          await apiRequest("POST", "/api/owner/interventions", {
-            memberId: item.memberId,
-            actionType: 'email_sent',
-            triggerReason: item.category,
-            messageSent: 'AI follow-up',
-            followUpGoal: selectedGoal,
-            messageSubject: data.subject || 'AI follow-up',
-          });
-        } catch {}
+        if (item.details?.isWalkIn) {
+          try {
+            await apiRequest("PATCH", `/api/owner/walk-in-visitors/${item.details.walkInId}`, {
+              followUpStatus: 'contacted',
+            });
+          } catch {}
+        } else {
+          try {
+            await apiRequest("POST", "/api/owner/interventions", {
+              memberId: item.memberId,
+              actionType: 'email_sent',
+              triggerReason: item.category,
+              messageSent: 'AI follow-up',
+              followUpGoal: selectedGoal,
+              messageSubject: data.subject || 'AI follow-up',
+            });
+          } catch {}
+        }
       }
       toast({ title: `Sent ${data.sent || selectedItems.length} email(s) successfully` });
       setSelectedItems([]);
       setSelectedGoal("");
+      setWalkInVisitor(null);
       queryClient.invalidateQueries({ queryKey: ["/api/followups/ai-queue"] });
       queryClient.invalidateQueries({ queryKey: ["/api/followups/ai-tracking"] });
       queryClient.invalidateQueries({ queryKey: ["/api/followups/outcomes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/followups/performance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/owner/walk-in-visitors"] });
     },
     onError: (error: Error) => {
       toast({ title: "Failed to send", description: error.message, variant: "destructive" });
@@ -1431,6 +1476,16 @@ export default function OwnerFollowUpsPage() {
   });
 
   const handleAiSend = (subject: string, message: string, memberIds: number[]) => {
+    const isWalkIn = selectedItems[0]?.details?.isWalkIn;
+    if (isWalkIn) {
+      sendMutation.mutate({
+        category: 'DAY_PASS',
+        member_ids: memberIds,
+        subject,
+        message
+      });
+      return;
+    }
     const catMap: Record<string, string> = {
       churn_risk: 'INACTIVE',
       inactive: 'INACTIVE',
@@ -1513,6 +1568,23 @@ export default function OwnerFollowUpsPage() {
 
       {activeView === 'ai' ? (
         <div className="space-y-5">
+          {walkInVisitor && (
+            <div className="p-4 rounded-xl bg-gradient-to-r from-violet-500/10 via-primary/10 to-transparent border border-violet-500/20" data-testid="walk-in-context-banner">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-violet-500/10">
+                  <Zap className="w-4 h-4 text-violet-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-semibold">Walk-in Follow-up: {walkInVisitor.name}</h4>
+                  <p className="text-xs text-muted-foreground">
+                    {walkInVisitor.email && <span>{walkInVisitor.email}</span>}
+                    {walkInVisitor.phone && <span className="ml-2">{walkInVisitor.phone}</span>}
+                    {walkInGoal && <span className="ml-2">Goal: {walkInGoal.replace('_', ' ')}</span>}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           <AiTrackingCard />
 
           {queueLoading ? (

@@ -49,6 +49,18 @@ Preferred communication style: Simple, everyday language.
     - **Outcome Tracking & Conversions:** Auto-detects outcomes (returned/paid/renewed/converted) from attendance, payments, and subscription data. Next-action suggestions for pending follow-ups (5d → call, 7d → discount, 10d → final offer). Performance dashboard showing success rates by goal type and category.
     - API endpoints: `/api/followups/ai-queue`, `/api/followups/ai-generate-message`, `/api/followups/ai-tracking`, `/api/followups/detect-outcomes`, `/api/followups/outcomes`, `/api/followups/performance`.
     - Schema: `owner_interventions` table extended with `outcomeType`, `outcomeDetectedAt`, `followUpGoal`, `messageSubject`, `nextActionSuggestion`, `nextActionDueDate`. `gym_email_settings` has `senderName` field.
+- **Walk-in Visitors AI Pipeline:** Upgraded walk-in visitors page from passive list to AI conversion pipeline:
+    - **Conversion Funnel:** Visual pipeline (Enquiry → Trial → Day Pass → Converted) with conversion rates
+    - **Visitor Type Filters:** Segmented control (All | Day Pass | Enquiry | Trial) with date range picker; visitors grouped by date when filtered
+    - **Lead Scoring:** Auto-calculated 0-100 score per visitor (visit frequency, city match, enquiry type, payment status, recency, contact info). Color-coded badges on cards (green 70+, yellow 40-69, red <40)
+    - **Repeat Visitor Detection:** Detects repeat visitors by email, shows "2nd visit" / "3rd visit" badges
+    - **Enquiry Details Capture:** New `enquiryCategory` (Pricing/PT/Weight Loss/Strength/Other) and `enquiryDetails` fields in schema, captured on kiosk self check-in and editable by owner
+    - **Dika AI Suggestions:** 4 action lanes (Hot Leads, Nurture, Win Back, Payment Pending) with scored visitors and reason strings
+    - **Take Action Flow:** Each suggestion has [Take Action] button → navigates to Follow-ups page with walk-in visitor injected as synthetic queue item, goal pre-selected, AI message auto-generated. Send uses DAY_PASS category for walk-in email resolution, auto-updates walk-in follow-up status to 'contacted' on success
+    - **Repeat Detection:** Uses both email and phone-based matching for repeat visitor detection across lead-scores, ai-suggestions, and notification-counts endpoints
+    - **Quick-Win Nav Badge:** Walk-ins nav item shows badge count for hot leads (score >= 70) via notification-counts endpoint
+    - API endpoints: `/api/owner/walk-in-visitors/lead-scores`, `/api/owner/walk-in-visitors/ai-suggestions`, `/api/owner/walk-in-visitors/conversion-funnel`
+    - Schema: `walk_in_visitors` extended with `enquiryCategory`, `enquiryDetails`
 - **Automated Email Reminders:** System for subscription expiry and owner summaries.
 - **Production Security:** Implemented with Helmet.js, secure session cookies, rate limiting, and request body limits.
 - **Error Handling:** React Error Boundary for graceful UI error recovery.

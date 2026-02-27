@@ -10436,7 +10436,7 @@ Respond with just the summary text, no formatting.`;
   // === WALK-IN VISITORS ===
   app.post("/api/owner/walk-in-visitors", requireRole(["owner"]), async (req, res) => {
     try {
-      const { name, phone, city, email, visitDate, visitType, daysCount, amountPaid, notes } = req.body;
+      const { name, phone, city, email, visitDate, visitType, daysCount, amountPaid, notes, enquiryCategory, enquiryDetails } = req.body;
       if (!name || !visitDate) {
         return res.status(400).json({ message: "Name and visit date are required" });
       }
@@ -10451,6 +10451,8 @@ Respond with just the summary text, no formatting.`;
         daysCount: daysCount || 1,
         amountPaid: amountPaid || 0,
         notes,
+        enquiryCategory: enquiryCategory || null,
+        enquiryDetails: enquiryDetails || null,
         createdByUserId: req.user!.id
       });
       res.status(201).json(visitor);
@@ -10478,6 +10480,165 @@ Respond with just the summary text, no formatting.`;
       res.json(stats);
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to fetch walk-in visitor stats" });
+    }
+  });
+
+  app.get("/api/owner/walk-in-visitors/lead-scores", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const visitors = await storage.getWalkInVisitors(gymId, {});
+      const gym = await storage.getGym(gymId);
+      const gymCity = gym?.city?.toLowerCase()?.trim() || '';
+
+      const visitCounts = new Map<string, number>();
+      for (const v of visitors) {
+        const key = v.email?.toLowerCase()?.trim() || (v.phone?.trim() ? `phone:${v.phone.trim()}` : null);
+        if (key) visitCounts.set(key, (visitCounts.get(key) || 0) + 1);
+      }
+
+      const getRepeatCount = (v: any) => {
+        const key = v.email?.toLowerCase()?.trim() || (v.phone?.trim() ? `phone:${v.phone.trim()}` : null);
+        return key ? (visitCounts.get(key) || 1) : 1;
+      };
+
+      const scoreVisitor = (v: any) => {
+        let score = 0;
+        const reasons: string[] = [];
+        const repeatCount = getRepeatCount(v);
+        if (repeatCount >= 2) { score += 25; reasons.push(`Visited ${repeatCount} times`); }
+        if (v.city && gymCity && v.city.toLowerCase().trim() === gymCity) { score += 15; reasons.push('Same city as gym'); }
+        if (v.enquiryCategory && v.enquiryCategory !== 'Other') { score += 20; reasons.push(`Enquired about ${v.enquiryCategory}`); }
+        else if (v.visitType === 'enquiry') { score += 10; reasons.push('Made an enquiry'); }
+        if (v.paymentVerified) { score += 10; reasons.push('Payment verified'); }
+        const visitTime = v.visitDate ? new Date(v.visitDate).getTime() : 0;
+        const now = Date.now();
+        if (visitTime && (now - visitTime) < 3 * 24 * 60 * 60 * 1000) { score += 15; reasons.push('Visited in last 3 days'); }
+        if (v.email || v.phone) { score += 10; reasons.push('Contact info available'); }
+        if (v.visitType === 'trial') { score += 5; reasons.push('Tried a free session'); }
+        return { leadScore: Math.min(score, 100), reasons, repeatVisitCount: repeatCount };
+      };
+
+      const scored = visitors.map(v => ({ ...v, ...scoreVisitor(v) }));
+      scored.sort((a, b) => b.leadScore - a.leadScore);
+      res.json(scored);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to calculate lead scores" });
+    }
+  });
+
+  app.get("/api/owner/walk-in-visitors/ai-suggestions", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const visitors = await storage.getWalkInVisitors(gymId, {});
+      const gym = await storage.getGym(gymId);
+      const gymCity = gym?.city?.toLowerCase()?.trim() || '';
+
+      const visitCounts = new Map<string, number>();
+      for (const v of visitors) {
+        const key = v.email?.toLowerCase()?.trim() || (v.phone?.trim() ? `phone:${v.phone.trim()}` : null);
+        if (key) visitCounts.set(key, (visitCounts.get(key) || 0) + 1);
+      }
+
+      const now = Date.now();
+
+      const unconverted = visitors.filter(v => !v.convertedToMember);
+
+      const lanes: {
+        hotLeads: any[];
+        nurture: any[];
+        winBack: any[];
+        paymentPending: any[];
+      } = { hotLeads: [], nurture: [], winBack: [], paymentPending: [] };
+
+      for (const v of unconverted) {
+        let score = 0;
+        const reasons: string[] = [];
+        const key = v.email?.toLowerCase()?.trim() || (v.phone?.trim() ? `phone:${v.phone.trim()}` : null);
+        const repeatCount = key ? (visitCounts.get(key) || 1) : 1;
+        const visitTime = v.visitDate ? new Date(v.visitDate).getTime() : 0;
+        const daysSince = visitTime ? Math.floor((now - visitTime) / (24 * 60 * 60 * 1000)) : 999;
+
+        if (repeatCount >= 2) { score += 25; reasons.push(`Visited ${repeatCount} times`); }
+        if (v.city && gymCity && v.city.toLowerCase().trim() === gymCity) { score += 15; reasons.push('Same city'); }
+        if (v.enquiryCategory && v.enquiryCategory !== 'Other') { score += 20; reasons.push(`Enquired about ${v.enquiryCategory}`); }
+        else if (v.visitType === 'enquiry') { score += 10; reasons.push('Made an enquiry'); }
+        if (v.paymentVerified) { score += 10; }
+        if (visitTime && (now - visitTime) < 3 * 24 * 60 * 60 * 1000) { score += 15; reasons.push('Recent visit'); }
+        if (v.email || v.phone) { score += 10; }
+        if (v.visitType === 'trial') { score += 5; }
+
+        score = Math.min(score, 100);
+
+        const suggestion: any = {
+          visitorId: v.id,
+          visitorName: v.visitorName,
+          email: v.email,
+          phone: v.phone,
+          visitType: v.visitType,
+          visitDate: v.visitDate,
+          leadScore: score,
+          repeatVisitCount: repeatCount,
+          daysSinceVisit: daysSince,
+          enquiryCategory: v.enquiryCategory,
+        };
+
+        if (v.visitType === 'day_pass' && !v.paymentVerified && v.amountPaid && v.amountPaid > 0) {
+          suggestion.reason = 'Payment not yet verified';
+          suggestion.suggestedGoal = 'collect_payment';
+          lanes.paymentPending.push(suggestion);
+        } else if (score >= 70 && daysSince <= 7) {
+          suggestion.reason = reasons.slice(0, 2).join(' + ') + ' → high conversion chance';
+          suggestion.suggestedGoal = 'convert';
+          lanes.hotLeads.push(suggestion);
+        } else if (v.visitType === 'day_pass' && daysSince >= 3 && daysSince <= 30) {
+          suggestion.reason = `Day pass ended ${daysSince} days ago → send comeback message`;
+          suggestion.suggestedGoal = 'bring_back';
+          lanes.winBack.push(suggestion);
+        } else if (v.visitType === 'enquiry' && daysSince >= 1 && daysSince <= 14) {
+          const cat = v.enquiryCategory ? ` about ${v.enquiryCategory}` : '';
+          suggestion.reason = `Enquired${cat} ${daysSince}d ago → follow up with offer`;
+          suggestion.suggestedGoal = 'convert';
+          lanes.nurture.push(suggestion);
+        } else if (v.visitType === 'trial' && daysSince >= 1 && daysSince <= 14) {
+          suggestion.reason = `Free trial ${daysSince}d ago → convert to membership`;
+          suggestion.suggestedGoal = 'convert';
+          lanes.nurture.push(suggestion);
+        }
+      }
+
+      lanes.hotLeads = lanes.hotLeads.sort((a, b) => b.leadScore - a.leadScore).slice(0, 3);
+      lanes.nurture = lanes.nurture.sort((a, b) => a.daysSinceVisit - b.daysSinceVisit).slice(0, 3);
+      lanes.winBack = lanes.winBack.sort((a, b) => a.daysSinceVisit - b.daysSinceVisit).slice(0, 3);
+      lanes.paymentPending = lanes.paymentPending.slice(0, 3);
+
+      res.json(lanes);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to generate AI suggestions" });
+    }
+  });
+
+  app.get("/api/owner/walk-in-visitors/conversion-funnel", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const visitors = await storage.getWalkInVisitors(gymId, {});
+      const enquiry = visitors.filter(v => v.visitType === 'enquiry').length;
+      const trial = visitors.filter(v => v.visitType === 'trial').length;
+      const dayPass = visitors.filter(v => v.visitType === 'day_pass').length;
+      const converted = visitors.filter(v => v.convertedToMember).length;
+      const total = visitors.length || 1;
+
+      res.json({
+        enquiry,
+        trial,
+        dayPass,
+        converted,
+        total: visitors.length,
+        conversionRate: Math.round((converted / total) * 100),
+        enquiryToTrialRate: enquiry > 0 ? Math.round((trial / enquiry) * 100) : 0,
+        trialToConvertRate: trial > 0 ? Math.round((converted / trial) * 100) : 0,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to fetch conversion funnel" });
     }
   });
 
@@ -11718,7 +11879,7 @@ Return a JSON object with "subject" and "message" fields.`;
   // Public: Verify OTP and submit visitor info
   app.post("/api/kiosk/:token/submit", kioskSubmitLimiter, async (req, res) => {
     try {
-      const { email, otp, name, phone, city, visitType, daysCount, amountPaid, paymentMethod, paymentScreenshot, notes } = req.body;
+      const { email, otp, name, phone, city, visitType, daysCount, amountPaid, paymentMethod, paymentScreenshot, notes, enquiryCategory, enquiryDetails } = req.body;
       
       if (!email || !otp) {
         return res.status(400).json({ message: "Email and OTP are required" });
@@ -11805,6 +11966,8 @@ Return a JSON object with "subject" and "message" fields.`;
         notes: notes || null,
         source: "kiosk",
         kioskSessionId: session.id,
+        enquiryCategory: visitType === 'enquiry' ? (enquiryCategory || null) : null,
+        enquiryDetails: visitType === 'enquiry' ? (enquiryDetails || null) : null,
         createdByUserId: null
       });
       
@@ -11919,7 +12082,7 @@ Return a JSON object with "subject" and "message" fields.`;
   app.get("/api/notification-counts", requireAuth, async (req, res) => {
     try {
       const user = req.user!;
-      const result: { unreadAnnouncements: number; pendingRequests: number; pendingTransfers?: number; pendingJoinRequests?: number } = {
+      const result: { unreadAnnouncements: number; pendingRequests: number; pendingTransfers?: number; pendingJoinRequests?: number; hotLeadsCount?: number } = {
         unreadAnnouncements: 0,
         pendingRequests: 0
       };
@@ -11939,6 +12102,38 @@ Return a JSON object with "subject" and "message" fields.`;
         // Pending join requests for owner (already filtered to pending)
         const joinRequests = await storage.getPendingJoinRequestsForGym(user.gymId);
         result.pendingJoinRequests = joinRequests.length;
+
+        // Hot leads count for walk-in visitors (score >= 70)
+        try {
+          const visitors = await storage.getWalkInVisitors(user.gymId, {});
+          const gym = await storage.getGym(user.gymId);
+          const gymCity = gym?.city?.toLowerCase()?.trim() || '';
+          const now = Date.now();
+          const threeDays = 3 * 24 * 60 * 60 * 1000;
+          const visitCounts = new Map<string, number>();
+          for (const v of visitors) {
+            const key = v.email?.toLowerCase()?.trim() || (v.phone?.trim() ? `phone:${v.phone.trim()}` : null);
+            if (key) visitCounts.set(key, (visitCounts.get(key) || 0) + 1);
+          }
+          let hotCount = 0;
+          for (const v of visitors) {
+            if (v.convertedToMember) continue;
+            let score = 0;
+            const key = v.email?.toLowerCase()?.trim() || (v.phone?.trim() ? `phone:${v.phone.trim()}` : null);
+            const repeatCount = key ? (visitCounts.get(key) || 1) : 1;
+            if (repeatCount >= 2) score += 25;
+            if (v.city && gymCity && v.city.toLowerCase().trim() === gymCity) score += 15;
+            if (v.enquiryCategory && v.enquiryCategory !== 'Other') score += 20;
+            else if (v.visitType === 'enquiry') score += 10;
+            if (v.paymentVerified) score += 10;
+            const visitTime = v.visitDate ? new Date(v.visitDate).getTime() : 0;
+            if (visitTime && (now - visitTime) < threeDays) score += 15;
+            if (v.email || v.phone) score += 10;
+            if (v.visitType === 'trial') score += 5;
+            if (Math.min(score, 100) >= 70) hotCount++;
+          }
+          result.hotLeadsCount = hotCount;
+        } catch { result.hotLeadsCount = 0; }
       } else if (user.role === "trainer") {
         // Pending requests from members assigned to this trainer
         const requests = await storage.getTrainerRequests(user.id);

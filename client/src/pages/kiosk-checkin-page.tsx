@@ -84,6 +84,8 @@ export default function KioskCheckinPage() {
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
   const [checkinCode, setCheckinCode] = useState<string>("");
+  const [enquiryCategory, setEnquiryCategory] = useState<string>("");
+  const [enquiryDetails, setEnquiryDetails] = useState<string>("");
 
   const emailForm = useForm<EmailForm>({
     resolver: zodResolver(emailSchema),
@@ -210,6 +212,8 @@ export default function KioskCheckinPage() {
           paymentMethod: selectedPaymentMethod || undefined,
           paymentScreenshot: screenshotPreview || undefined,
           notes: detailsData.notes || undefined,
+          enquiryCategory: visitType === 'enquiry' ? (enquiryCategory || undefined) : undefined,
+          enquiryDetails: visitType === 'enquiry' ? (enquiryDetails || undefined) : undefined,
         }),
       });
       const result = await res.json();
@@ -743,6 +747,37 @@ export default function KioskCheckinPage() {
                       </FormItem>
                     )}
                   />
+
+                  {visitType === 'enquiry' && (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">What are you interested in?</label>
+                        <select
+                          value={enquiryCategory}
+                          onChange={(e) => setEnquiryCategory(e.target.value)}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          data-testid="select-enquiry-category"
+                        >
+                          <option value="">Select a topic</option>
+                          <option value="Pricing">Pricing</option>
+                          <option value="Personal Training">Personal Training</option>
+                          <option value="Weight Loss">Weight Loss</option>
+                          <option value="Strength">Strength</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">Tell us more (optional)</label>
+                        <Textarea
+                          placeholder="Any specific questions or goals?"
+                          value={enquiryDetails}
+                          onChange={(e) => setEnquiryDetails(e.target.value)}
+                          className="min-h-[60px]"
+                          data-testid="input-enquiry-details"
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <Button type="submit" className="w-full" data-testid="button-continue-to-email">
                     Continue

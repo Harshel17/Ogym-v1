@@ -291,7 +291,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       href: "/owner/walk-in-visitors", 
       icon: PersonStanding,
       visible: isOwner && hasGym && !isIOSNativeApp,
-      badge: 0
+      badge: notificationCounts?.hotLeadsCount || 0
     },
     { 
       label: "Follow-ups", 
