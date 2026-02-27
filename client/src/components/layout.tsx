@@ -124,7 +124,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { label: "Dashboard", href: "/", icon: LayoutDashboard, visible: hasGym || isPersonalMode, badge: 0, section: "Main", iconColor: "text-blue-500 bg-blue-500/10" },
     { label: "Dika AI", href: "/dika", icon: DikaNavIcon, visible: hasGym || isPersonalMode, badge: 0, section: "Main", iconColor: "text-amber-500 bg-amber-500/10" },
     { label: "Register Gym", href: "/gym-request", icon: Building2, visible: isOwnerWithoutGym && !isIOSNativeApp, badge: 0, section: "Main", iconColor: "text-emerald-500 bg-emerald-500/10" },
-    { label: "My Workouts", href: "/my-workouts", icon: Swords, visible: isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-orange-500 bg-orange-500/10" },
+    { label: "My Workouts", href: "/my-workouts", icon: Swords, visible: isMember || isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-orange-500 bg-orange-500/10" },
     { label: "Join a Gym", href: "/join-gym", icon: Building2, visible: isPersonalMode, badge: 0, section: "More", iconColor: "text-emerald-500 bg-emerald-500/10" },
     { label: "Profile", href: "/profile", icon: UserCircle, visible: hasGym || isPersonalMode, badge: 0, section: "Account", iconColor: "text-violet-500 bg-violet-500/10" },
     { label: "Trainers", href: "/trainers", icon: Users, visible: isOwner && hasGym, badge: 0, section: "Management", iconColor: "text-cyan-500 bg-cyan-500/10" },
@@ -135,7 +135,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { label: "Star Members", href: "/star-members", icon: Star, visible: isTrainer, badge: 0, section: "Training", iconColor: "text-yellow-500 bg-yellow-500/10" },
     { label: "Diet Plans", href: "/diet-plans", icon: Utensils, visible: isTrainer, badge: 0, section: "Training", iconColor: "text-lime-500 bg-lime-500/10" },
     { label: "Templates", href: "/templates", icon: FileText, visible: isTrainer, badge: 0, section: "Training", iconColor: "text-slate-500 bg-slate-500/10" },
-    { label: "My Workout", href: "/my-workout", icon: Swords, visible: isMember, badge: 0, section: "Fitness", iconColor: "text-orange-500 bg-orange-500/10" },
     { label: "Progress", href: "/progress", icon: TrendingUp, visible: isMember || isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-emerald-500 bg-emerald-500/10" },
     { label: "My Diet Plan", href: "/my-diet-plan", icon: Utensils, visible: isMember, badge: 0, section: "Fitness", iconColor: "text-lime-500 bg-lime-500/10" },
     { label: "My Body", href: "/my-body", icon: Scale, visible: isMember || isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-pink-500 bg-pink-500/10" },
@@ -249,7 +248,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       return {
         primary: [
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
-          { label: "Workout", href: "/my-workout", icon: Swords },
+          { label: "Workout", href: "/my-workouts", icon: Swords },
           { label: "Dika AI", href: "/dika", icon: DikaNavIcon },
           { label: "Nutrition", href: "/nutrition", icon: Salad },
         ],
