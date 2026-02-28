@@ -1632,8 +1632,19 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       const base64 = await compressImage(file);
       setFoodImagePreview(base64);
       
-      const res = await apiRequest("POST", "/api/nutrition/food/photo-score", { imageBase64: base64 });
-      const data = await res.json();
+      const response = await fetch("/api/nutrition/food/photo-score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64 }),
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(errText || `Server error ${response.status}`);
+      }
+      
+      const data = await response.json();
       setFoodAnalysisResult(data);
       setFoodView("options");
     } catch (err: any) {
