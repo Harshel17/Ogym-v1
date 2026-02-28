@@ -4136,7 +4136,8 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       />
       <button
         onClick={() => foodCameraRef.current?.click()}
-        className="fixed bottom-24 right-4 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform md:bottom-8"
+        className="fixed right-4 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
         data-testid="button-food-camera"
         aria-label="Scan food with camera"
       >
