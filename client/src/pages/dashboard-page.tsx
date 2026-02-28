@@ -1595,34 +1595,52 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const [foodPortions, setFoodPortions] = useState<number>(1);
   const [foodLogging, setFoodLogging] = useState(false);
 
+  const compressImage = (file: File, maxWidth = 1024, quality = 0.7): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement("canvas");
+        let w = img.width, h = img.height;
+        if (w > maxWidth) { h = (maxWidth / w) * h; w = maxWidth; }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas not supported"));
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = url;
+    });
+  };
+
   const handleFoodPhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const base64 = ev.target?.result as string;
+    setFoodCameraOpen(true);
+    setFoodView(null);
+    setFoodAnalyzing(true);
+    setFoodAnalysisResult(null);
+    setFoodMealType("");
+    setFoodPortions(1);
+
+    try {
+      const base64 = await compressImage(file);
       setFoodImagePreview(base64);
-      setFoodCameraOpen(true);
-      setFoodView(null);
-      setFoodAnalyzing(true);
-      setFoodAnalysisResult(null);
-      setFoodMealType("");
-      setFoodPortions(1);
       
-      try {
-        const res = await apiRequest("POST", "/api/nutrition/food/photo-score", { imageBase64: base64 });
-        const data = await res.json();
-        setFoodAnalysisResult(data);
-        setFoodView("options");
-      } catch (err: any) {
-        toast({ title: "Analysis failed", description: err.message || "Could not analyze the food photo", variant: "destructive" });
-        setFoodCameraOpen(false);
-      } finally {
-        setFoodAnalyzing(false);
-      }
-    };
-    reader.readAsDataURL(file);
+      const res = await apiRequest("POST", "/api/nutrition/food/photo-score", { imageBase64: base64 });
+      const data = await res.json();
+      setFoodAnalysisResult(data);
+      setFoodView("options");
+    } catch (err: any) {
+      toast({ title: "Analysis failed", description: err.message || "Could not analyze the food photo", variant: "destructive" });
+      setFoodCameraOpen(false);
+    } finally {
+      setFoodAnalyzing(false);
+    }
     if (e.target) e.target.value = "";
   };
 
@@ -4127,9 +4145,12 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
 
       {/* Food Analysis Dialog */}
       <Dialog open={foodCameraOpen} onOpenChange={(open) => { if (!open) setFoodCameraOpen(false); }}>
-        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
           {foodAnalyzing && (
             <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <DialogHeader className="sr-only">
+                <DialogTitle>Analyzing Food</DialogTitle>
+              </DialogHeader>
               {foodImagePreview && (
                 <div className="w-32 h-32 rounded-2xl overflow-hidden shadow-lg">
                   <img src={foodImagePreview} alt="Food" className="w-full h-full object-cover" />
