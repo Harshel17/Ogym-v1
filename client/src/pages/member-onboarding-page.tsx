@@ -16,7 +16,12 @@ import { useToast } from "@/hooks/use-toast";
 
 const profileSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  phone: z.string()
+    .min(1, "Phone number is required")
+    .refine(
+      (val) => (val.replace(/[^0-9]/g, "")).length >= 7,
+      "Enter a valid phone number (at least 7 digits)"
+    ),
   gender: z.enum(["male", "female", "prefer_not_to_say"], {
     required_error: "Please select your gender",
   }),
@@ -246,8 +251,9 @@ export default function MemberOnboardingPage() {
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input placeholder="+91 98765 43210" data-testid="input-phone" {...field} />
+                          <Input type="tel" placeholder="e.g. +91 98765 43210 or (555) 123-4567" data-testid="input-phone" {...field} />
                         </FormControl>
+                        <p className="text-[11px] text-muted-foreground">Include country code if outside your region</p>
                         <FormMessage />
                       </FormItem>
                     )}
