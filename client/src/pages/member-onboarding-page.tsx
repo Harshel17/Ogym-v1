@@ -14,13 +14,39 @@ import { Dumbbell, User, Target, Ruler, ArrowRight, Loader2, CheckCircle2, Chevr
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+const COUNTRY_CODES = [
+  { code: "+91", country: "IN", flag: "🇮🇳", label: "India" },
+  { code: "+1", country: "US", flag: "🇺🇸", label: "United States" },
+  { code: "+44", country: "GB", flag: "🇬🇧", label: "United Kingdom" },
+  { code: "+61", country: "AU", flag: "🇦🇺", label: "Australia" },
+  { code: "+971", country: "AE", flag: "🇦🇪", label: "UAE" },
+  { code: "+966", country: "SA", flag: "🇸🇦", label: "Saudi Arabia" },
+  { code: "+65", country: "SG", flag: "🇸🇬", label: "Singapore" },
+  { code: "+60", country: "MY", flag: "🇲🇾", label: "Malaysia" },
+  { code: "+49", country: "DE", flag: "🇩🇪", label: "Germany" },
+  { code: "+33", country: "FR", flag: "🇫🇷", label: "France" },
+  { code: "+81", country: "JP", flag: "🇯🇵", label: "Japan" },
+  { code: "+86", country: "CN", flag: "🇨🇳", label: "China" },
+  { code: "+82", country: "KR", flag: "🇰🇷", label: "South Korea" },
+  { code: "+55", country: "BR", flag: "🇧🇷", label: "Brazil" },
+  { code: "+27", country: "ZA", flag: "🇿🇦", label: "South Africa" },
+  { code: "+234", country: "NG", flag: "🇳🇬", label: "Nigeria" },
+  { code: "+254", country: "KE", flag: "🇰🇪", label: "Kenya" },
+  { code: "+63", country: "PH", flag: "🇵🇭", label: "Philippines" },
+  { code: "+62", country: "ID", flag: "🇮🇩", label: "Indonesia" },
+  { code: "+7", country: "RU", flag: "🇷🇺", label: "Russia" },
+] as const;
+
 const profileSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   phone: z.string()
     .min(1, "Phone number is required")
     .refine(
-      (val) => (val.replace(/[^0-9]/g, "")).length >= 7,
-      "Enter a valid phone number (at least 7 digits)"
+      (val) => {
+        const digits = val.replace(/[^0-9]/g, "");
+        return digits.length >= 7 && digits.length <= 15;
+      },
+      "Enter a valid phone number (7-15 digits)"
     ),
   gender: z.enum(["male", "female", "prefer_not_to_say"], {
     required_error: "Please select your gender",
@@ -70,6 +96,8 @@ const STEPS: { key: StepType; label: string }[] = [
 export default function MemberOnboardingPage() {
   const [step, setStep] = useState<StepType>("profile");
   const [showExtraMeasurements, setShowExtraMeasurements] = useState(false);
+  const [countryCode, setCountryCode] = useState("+91");
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -156,7 +184,8 @@ export default function MemberOnboardingPage() {
   });
 
   const handleProfileSubmit = (data: ProfileFormData) => {
-    profileMutation.mutate(data);
+    const fullPhone = `${countryCode} ${data.phone.replace(/^0+/, "")}`;
+    profileMutation.mutate({ ...data, phone: fullPhone });
   };
 
   const handleGoalsSubmit = (data: GoalsFormData) => {
@@ -250,10 +279,53 @@ export default function MemberOnboardingPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                          <Input type="tel" placeholder="e.g. +91 98765 43210 or (555) 123-4567" data-testid="input-phone" {...field} />
-                        </FormControl>
-                        <p className="text-[11px] text-muted-foreground">Include country code if outside your region</p>
+                        <div className="flex gap-2">
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setCountryDropdownOpen(!countryDropdownOpen)}
+                              className="flex items-center gap-1.5 h-10 px-3 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors min-w-[90px]"
+                              data-testid="button-country-code"
+                            >
+                              <span>{COUNTRY_CODES.find(c => c.code === countryCode)?.flag}</span>
+                              <span className="font-medium">{countryCode}</span>
+                              <ChevronDown className="w-3 h-3 text-muted-foreground ml-auto" />
+                            </button>
+                            {countryDropdownOpen && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setCountryDropdownOpen(false)} />
+                                <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-lg shadow-xl max-h-52 overflow-y-auto w-56" data-testid="dropdown-country-codes">
+                                  {COUNTRY_CODES.map((c) => (
+                                    <button
+                                      key={c.code}
+                                      type="button"
+                                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent transition-colors text-left ${countryCode === c.code ? 'bg-accent font-medium' : ''}`}
+                                      onClick={() => { setCountryCode(c.code); setCountryDropdownOpen(false); }}
+                                      data-testid={`option-country-${c.country}`}
+                                    >
+                                      <span>{c.flag}</span>
+                                      <span className="flex-1">{c.label}</span>
+                                      <span className="text-muted-foreground">{c.code}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          <FormControl>
+                            <Input
+                              type="tel"
+                              placeholder="98765 43210"
+                              className="flex-1"
+                              data-testid="input-phone"
+                              {...field}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9\s-]/g, "");
+                                field.onChange(val);
+                              }}
+                            />
+                          </FormControl>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
