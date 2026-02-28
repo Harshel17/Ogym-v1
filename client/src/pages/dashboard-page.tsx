@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward, Footprints, ExternalLink, X, Trophy, Lightbulb, Megaphone, Wallet, BarChart3, Shield, TrendingDown } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward, Footprints, ExternalLink, X, Trophy, Lightbulb, Megaphone, Wallet, BarChart3, Shield, TrendingDown, Camera, ThumbsUp, ThumbsDown, Utensils, Apple } from "lucide-react";
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
@@ -1583,6 +1583,80 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const [exerciseHelpId, setExerciseHelpId] = useState<number | null>(null);
   const [exerciseHelpData, setExerciseHelpData] = useState<Record<number, any>>({});
   const [exerciseHelpLoading, setExerciseHelpLoading] = useState<number | null>(null);
+
+  // Food Camera state
+  const foodCameraRef = useRef<HTMLInputElement>(null);
+  const [foodCameraOpen, setFoodCameraOpen] = useState(false);
+  const [foodAnalysisResult, setFoodAnalysisResult] = useState<any>(null);
+  const [foodAnalyzing, setFoodAnalyzing] = useState(false);
+  const [foodImagePreview, setFoodImagePreview] = useState<string | null>(null);
+  const [foodView, setFoodView] = useState<"options" | "score" | "log" | null>(null);
+  const [foodMealType, setFoodMealType] = useState<string>("");
+  const [foodPortions, setFoodPortions] = useState<number>(1);
+  const [foodLogging, setFoodLogging] = useState(false);
+
+  const handleFoodPhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const base64 = ev.target?.result as string;
+      setFoodImagePreview(base64);
+      setFoodCameraOpen(true);
+      setFoodView(null);
+      setFoodAnalyzing(true);
+      setFoodAnalysisResult(null);
+      setFoodMealType("");
+      setFoodPortions(1);
+      
+      try {
+        const res = await apiRequest("POST", "/api/nutrition/food/photo-score", { imageBase64: base64 });
+        const data = await res.json();
+        setFoodAnalysisResult(data);
+        setFoodView("options");
+      } catch (err: any) {
+        toast({ title: "Analysis failed", description: err.message || "Could not analyze the food photo", variant: "destructive" });
+        setFoodCameraOpen(false);
+      } finally {
+        setFoodAnalyzing(false);
+      }
+    };
+    reader.readAsDataURL(file);
+    if (e.target) e.target.value = "";
+  };
+
+  const handleLogFood = async () => {
+    if (!foodAnalysisResult || !foodMealType) return;
+    setFoodLogging(true);
+    try {
+      for (const item of foodAnalysisResult.items) {
+        await apiRequest("POST", "/api/nutrition/logs", {
+          date: format(new Date(), "yyyy-MM-dd"),
+          mealType: foodMealType,
+          foodName: item.name,
+          servingSize: item.servingSize,
+          servingQuantity: foodPortions,
+          calories: Math.round(item.calories * foodPortions),
+          protein: Math.round(item.protein * foodPortions),
+          carbs: Math.round(item.carbs * foodPortions),
+          fat: Math.round(item.fat * foodPortions),
+          isEstimate: true,
+          sourceType: "ai_estimated",
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition/page-data"] });
+      toast({ title: "Food logged!", description: `${foodAnalysisResult.items.length} item(s) added to ${foodMealType}` });
+      setFoodCameraOpen(false);
+    } catch (err: any) {
+      toast({ title: "Failed to log", description: err.message, variant: "destructive" });
+    } finally {
+      setFoodLogging(false);
+    }
+  };
 
   // Match logging state
   const [showMatchDialog, setShowMatchDialog] = useState(false);
@@ -4027,6 +4101,257 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
               <Button className="w-full" onClick={() => setShowMatchDialog(false)} data-testid="match-done-close">
                 Done
               </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Food Camera FAB */}
+      <input
+        ref={foodCameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFoodPhotoCapture}
+        data-testid="input-food-camera"
+      />
+      <button
+        onClick={() => foodCameraRef.current?.click()}
+        className="fixed bottom-24 right-4 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform md:bottom-8"
+        data-testid="button-food-camera"
+        aria-label="Scan food with camera"
+      >
+        <Camera className="w-6 h-6" />
+      </button>
+
+      {/* Food Analysis Dialog */}
+      <Dialog open={foodCameraOpen} onOpenChange={(open) => { if (!open) setFoodCameraOpen(false); }}>
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+          {foodAnalyzing && (
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              {foodImagePreview && (
+                <div className="w-32 h-32 rounded-2xl overflow-hidden shadow-lg">
+                  <img src={foodImagePreview} alt="Food" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+              <div className="text-center">
+                <p className="font-semibold">Analyzing your food...</p>
+                <p className="text-sm text-muted-foreground">AI is identifying items and nutrition</p>
+              </div>
+            </div>
+          )}
+
+          {foodView === "options" && foodAnalysisResult && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Apple className="w-5 h-5 text-emerald-500" />
+                  Food Detected
+                </DialogTitle>
+                <DialogDescription>{foodAnalysisResult.mealDescription}</DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-3">
+                {foodImagePreview && (
+                  <div className="w-full h-40 rounded-xl overflow-hidden">
+                    <img src={foodImagePreview} alt="Food" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                
+                <div className="space-y-1.5">
+                  {foodAnalysisResult.items.map((item: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg">
+                      <span className="text-sm font-medium">{item.name}</span>
+                      <span className="text-xs text-muted-foreground">{item.calories} cal</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between px-1 py-2 border-t">
+                  <span className="text-sm font-semibold">Total</span>
+                  <div className="flex gap-3 text-xs">
+                    <span>{foodAnalysisResult.totalCalories} cal</span>
+                    <span className="text-blue-500">P {foodAnalysisResult.totalProtein}g</span>
+                    <span className="text-amber-500">C {foodAnalysisResult.totalCarbs}g</span>
+                    <span className="text-rose-500">F {foodAnalysisResult.totalFat}g</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <Button
+                    onClick={() => setFoodView("log")}
+                    className="h-auto py-4 flex flex-col gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                    data-testid="button-food-log"
+                  >
+                    <Utensils className="w-5 h-5" />
+                    <span className="text-sm font-semibold">Log This Food</span>
+                  </Button>
+                  <Button
+                    onClick={() => setFoodView("score")}
+                    variant="outline"
+                    className="h-auto py-4 flex flex-col gap-2 border-emerald-500/30 hover:bg-emerald-500/5"
+                    data-testid="button-food-score"
+                  >
+                    <Target className="w-5 h-5 text-emerald-500" />
+                    <span className="text-sm font-semibold">See Score</span>
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {foodView === "score" && foodAnalysisResult && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Target className="w-5 h-5 text-emerald-500" />
+                  Health Score
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="flex flex-col items-center py-4">
+                  <div className={`w-28 h-28 rounded-full flex items-center justify-center border-4 ${
+                    foodAnalysisResult.healthScore >= 70 ? 'border-emerald-500 bg-emerald-500/10' :
+                    foodAnalysisResult.healthScore >= 50 ? 'border-amber-500 bg-amber-500/10' :
+                    'border-red-500 bg-red-500/10'
+                  }`}>
+                    <div className="text-center">
+                      <span className={`text-3xl font-bold ${
+                        foodAnalysisResult.healthScore >= 70 ? 'text-emerald-500' :
+                        foodAnalysisResult.healthScore >= 50 ? 'text-amber-500' :
+                        'text-red-500'
+                      }`}>{foodAnalysisResult.healthScore}</span>
+                      <span className="text-sm text-muted-foreground">/100</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-3 text-center max-w-[250px]">{foodAnalysisResult.overallVerdict}</p>
+                </div>
+
+                <div className="space-y-2">
+                  {foodAnalysisResult.scoreReasons?.map((reason: any, i: number) => (
+                    <div key={i} className={`flex items-start gap-2.5 p-2.5 rounded-lg text-sm ${
+                      reason.type === 'positive' ? 'bg-emerald-500/10' :
+                      reason.type === 'negative' ? 'bg-red-500/10' :
+                      'bg-amber-500/10'
+                    }`}>
+                      {reason.type === 'positive' ? <ThumbsUp className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" /> :
+                       reason.type === 'negative' ? <ThumbsDown className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" /> :
+                       <Lightbulb className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />}
+                      <span>{reason.text}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between px-1 py-2 border-t">
+                  <span className="text-sm font-semibold">Nutrition</span>
+                  <div className="flex gap-3 text-xs">
+                    <span>{foodAnalysisResult.totalCalories} cal</span>
+                    <span className="text-blue-500">P {foodAnalysisResult.totalProtein}g</span>
+                    <span className="text-amber-500">C {foodAnalysisResult.totalCarbs}g</span>
+                    <span className="text-rose-500">F {foodAnalysisResult.totalFat}g</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setFoodView("options")} data-testid="button-food-back">
+                    Back
+                  </Button>
+                  <Button className="flex-1" onClick={() => setFoodView("log")} data-testid="button-food-log-anyway">
+                    Log This Food
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {foodView === "log" && foodAnalysisResult && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Utensils className="w-5 h-5 text-blue-500" />
+                  Log Food
+                </DialogTitle>
+                <DialogDescription>
+                  {foodAnalysisResult.items.map((i: any) => i.name).join(", ")}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Meal Type</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: "breakfast", label: "Breakfast", icon: "🌅" },
+                      { value: "lunch", label: "Lunch", icon: "☀️" },
+                      { value: "dinner", label: "Dinner", icon: "🌙" },
+                      { value: "snack", label: "Snack", icon: "🍎" },
+                    ].map((meal) => (
+                      <button
+                        key={meal.value}
+                        type="button"
+                        onClick={() => setFoodMealType(meal.value)}
+                        className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                          foodMealType === meal.value
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border hover:border-primary/30'
+                        }`}
+                        data-testid={`button-meal-${meal.value}`}
+                      >
+                        <span className="mr-1.5">{meal.icon}</span>
+                        {meal.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Portions</Label>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setFoodPortions(Math.max(0.5, foodPortions - 0.5))}
+                      disabled={foodPortions <= 0.5}
+                      data-testid="button-portion-minus"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </Button>
+                    <span className="text-lg font-semibold w-12 text-center" data-testid="text-portions">{foodPortions}</span>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setFoodPortions(foodPortions + 0.5)}
+                      data-testid="button-portion-plus"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {Math.round(foodAnalysisResult.totalCalories * foodPortions)} cal total
+                  </p>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setFoodView("options")} data-testid="button-log-back">
+                    Back
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={handleLogFood}
+                    disabled={!foodMealType || foodLogging}
+                    data-testid="button-confirm-log-food"
+                  >
+                    {foodLogging ? (
+                      <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Logging...</>
+                    ) : (
+                      <><Check className="w-4 h-4 mr-2" /> Log Food</>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </>
           )}
         </DialogContent>

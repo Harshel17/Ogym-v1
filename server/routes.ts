@@ -5644,6 +5644,125 @@ Return ONLY JSON:
     }
   });
 
+  app.post("/api/nutrition/food/photo-score", requireRole(["member"]), requireAiConsent, async (req, res) => {
+    const schema = z.object({
+      imageBase64: z.string().min(100),
+    });
+    const input = schema.parse(req.body);
+
+    try {
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const userGoals = await storage.getUserGoals(req.user!.id);
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a professional nutritionist and food scoring expert. Analyze the food photo and provide:
+1. Identify all food items
+2. Estimate nutrition (calories, protein, carbs, fat per item)
+3. Give a HEALTH SCORE from 0-100 based on:
+   - Nutritional balance (protein/carbs/fat ratio)
+   - Micronutrient density (vegetables, fruits, whole grains score higher)
+   - Processing level (whole foods > processed > ultra-processed)
+   - Portion appropriateness
+   - Cooking method healthiness (grilled > baked > fried)
+   ${userGoals?.primaryGoal ? `- User's fitness goal: ${userGoals.primaryGoal.replace(/_/g, ' ')}` : ''}
+
+SCORING GUIDE:
+90-100: Exceptional - nutrient-dense, balanced, whole foods
+70-89: Good - mostly healthy with minor improvements possible
+50-69: Average - decent but has notable nutritional gaps or excess
+30-49: Below average - high calorie, low nutrient density, or heavily processed
+0-29: Poor - mostly empty calories, ultra-processed, or extreme portions
+
+Return ONLY JSON:
+{
+  "items": [
+    {
+      "name": "Specific food name",
+      "estimatedGrams": 200,
+      "calories": 300,
+      "protein": 15,
+      "carbs": 40,
+      "fat": 10,
+      "servingSize": "1 plate (200g)"
+    }
+  ],
+  "mealDescription": "Brief description",
+  "totalCalories": 500,
+  "totalProtein": 25,
+  "totalCarbs": 60,
+  "totalFat": 15,
+  "healthScore": 72,
+  "scoreReasons": [
+    {"type": "positive", "text": "Good protein content from grilled chicken"},
+    {"type": "positive", "text": "Includes fresh vegetables"},
+    {"type": "negative", "text": "White rice has lower fiber than brown rice"},
+    {"type": "tip", "text": "Add a side salad to boost micronutrients"}
+  ],
+  "overallVerdict": "A solid balanced meal with room for fiber improvement"
+}`
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Analyze this food photo. Score it for healthiness and provide detailed nutrition breakdown." },
+              { type: "image_url", image_url: { url: input.imageBase64.startsWith('data:') ? input.imageBase64 : `data:image/jpeg;base64,${input.imageBase64}`, detail: "auto" } }
+            ]
+          }
+        ],
+        max_tokens: 1200,
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+      });
+
+      const responseText = completion.choices[0]?.message?.content?.trim() || '';
+      let parsed: any;
+      try {
+        parsed = JSON.parse(responseText);
+      } catch {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) return res.status(500).json({ message: "Could not parse AI response" });
+        parsed = JSON.parse(jsonMatch[0]);
+      }
+
+      const items = (parsed.items || []).map((item: any) => ({
+        name: String(item.name || 'Unknown food'),
+        estimatedGrams: Math.round(Number(item.estimatedGrams) || 100),
+        calories: Math.round(Number(item.calories) || 0),
+        protein: Math.round(Number(item.protein) || 0),
+        carbs: Math.round(Number(item.carbs) || 0),
+        fat: Math.round(Number(item.fat) || 0),
+        servingSize: String(item.servingSize || '1 serving'),
+      }));
+
+      res.json({
+        items,
+        mealDescription: parsed.mealDescription || 'Food analysis',
+        totalCalories: items.reduce((s: number, i: any) => s + i.calories, 0),
+        totalProtein: items.reduce((s: number, i: any) => s + i.protein, 0),
+        totalCarbs: items.reduce((s: number, i: any) => s + i.carbs, 0),
+        totalFat: items.reduce((s: number, i: any) => s + i.fat, 0),
+        healthScore: Math.max(0, Math.min(100, Math.round(Number(parsed.healthScore) || 50))),
+        scoreReasons: (parsed.scoreReasons || []).map((r: any) => ({
+          type: ['positive', 'negative', 'tip'].includes(r.type) ? r.type : 'tip',
+          text: String(r.text || ''),
+        })),
+        overallVerdict: String(parsed.overallVerdict || ''),
+      });
+    } catch (error: any) {
+      console.error("Photo score error:", error);
+      res.status(500).json({ message: "Failed to analyze food photo. Please try again." });
+    }
+  });
+
   app.get("/api/nutrition/food/type-presets", requireRole(["member"]), async (req, res) => {
     const foodName = req.query.name as string;
     if (!foodName) {

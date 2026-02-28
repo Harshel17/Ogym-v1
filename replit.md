@@ -37,10 +37,11 @@ Preferred communication style: Simple, everyday language.
 - **Match Day Logging:** Dashboard feature for logging matches with timing options, recovery suggestions, and sport-specific calorie tracking.
 - **Find My Food:** Location-based restaurant finder suggesting healthy options.
 - **Dika Assistant:** AI-powered personal assistant (GPT-4o-mini) offering contextual insights, conversational meal logging, and owner actions with cross-device chat synchronization.
-- **Dika Voice:** Hands-free voice AI assistant using Web Speech API with continuous conversation, multilingual support, intent detection, emotional intelligence, and voice-optimized responses. Shares conversation history with Dika web chat.
+- **Dika Voice:** Hands-free voice AI assistant using Web Speech API with continuous conversation, multilingual support, intent detection, emotional intelligence, and voice-optimized responses. Voice input lives inside the Dika chat input bar (mic button alongside camera and send). Shares conversation history with Dika web chat.
 - **Dika Multi-Chat Web Experience:** ChatGPT-style web interface for Dika with multi-chat management, search, pinned insights, action feed, quick actions, auto-categorization, auto-title generation, follow-up chips, and health-aware AI using 7-day rolling averages for a Recovery Score.
 - **Centralized Goals System:** User-defined fitness targets (weight, calories, protein, workout frequency, primary goal) feeding into AI reports and Dika conversations.
 - **Quick Log Bar:** AI-powered natural language workout logging on the member dashboard for efficient exercise tracking.
+- **Food Camera (Snap & Score):** Floating camera button on member dashboard. Tap to snap a food photo → AI analyzes items and nutrition → two options: "Log This Food" (meal type picker + portions → logs to nutrition) or "See Score" (health score 0-100 with color-coded ring, positive/negative/tip reasons, and overall verdict). Score factors in nutritional balance, processing level, cooking method, and user's fitness goals. Backend endpoint: `POST /api/nutrition/food/photo-score`.
 - **AI Insights:**
     - **Dika Weekly Report:** AI-generated personalized fitness progress reports.
     - **Owner AI Insights (5-Pillar System):** AI-driven churn explanations, weekly owner briefings, insight of the day, trainer performance summaries, and re-engagement campaign suggestions.
