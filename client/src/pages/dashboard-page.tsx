@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useMembers, useAttendance, usePayments, useMemberAttendance, useMemberPayments, useTrainingMode } from "@/hooks/use-gym";
@@ -4124,7 +4125,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
         </DialogContent>
       </Dialog>
 
-      {/* Food Camera FAB */}
+      {/* Food Camera FAB - rendered via portal to escape scrollable containers */}
       <input
         ref={foodCameraRef}
         type="file"
@@ -4134,15 +4135,18 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
         onChange={handleFoodPhotoCapture}
         data-testid="input-food-camera"
       />
-      <button
-        onClick={() => foodCameraRef.current?.click()}
-        className="fixed right-4 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
-        data-testid="button-food-camera"
-        aria-label="Scan food with camera"
-      >
-        <Camera className="w-6 h-6" />
-      </button>
+      {createPortal(
+        <button
+          onClick={() => foodCameraRef.current?.click()}
+          className="fixed right-4 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
+          data-testid="button-food-camera"
+          aria-label="Scan food with camera"
+        >
+          <Camera className="w-6 h-6" />
+        </button>,
+        document.body
+      )}
 
       {/* Food Analysis Dialog */}
       <Dialog open={foodCameraOpen} onOpenChange={(open) => { if (!open) setFoodCameraOpen(false); }}>
