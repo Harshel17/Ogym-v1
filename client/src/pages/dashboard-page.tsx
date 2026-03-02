@@ -2576,50 +2576,55 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       <FeatureDiscoveryTips role="member" isPersonalMode={isPersonalMode} />
 
       {!isPersonalMode && user?.gymId && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2.5">
           <Link href="/attendance">
-            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/10 cursor-pointer hover:bg-emerald-500/10 transition-colors" data-testid="button-quick-checkin">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-sm shadow-emerald-500/25">
-                <CalendarCheck className="w-4 h-4 text-white" />
+            <div className="group relative flex flex-col items-center gap-2 p-3.5 rounded-2xl border border-emerald-500/15 bg-gradient-to-b from-emerald-500/[0.08] to-emerald-600/[0.03] cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:shadow-lg hover:shadow-emerald-500/10 active:scale-95" data-testid="button-quick-checkin">
+              <div className="absolute inset-0 rounded-2xl bg-emerald-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <CalendarCheck className="w-5 h-5 text-white" />
               </div>
-              <span className="text-[10px] font-semibold text-muted-foreground">Check In</span>
+              <span className="relative text-[11px] font-semibold text-foreground/80">Check In</span>
             </div>
           </Link>
           <Link href="/nutrition">
-            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-orange-500/[0.06] border border-orange-500/10 cursor-pointer hover:bg-orange-500/10 transition-colors" data-testid="button-quick-nutrition">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-sm shadow-orange-500/25">
-                <Utensils className="w-4 h-4 text-white" />
+            <div className="group relative flex flex-col items-center gap-2 p-3.5 rounded-2xl border border-orange-500/15 bg-gradient-to-b from-orange-500/[0.08] to-amber-600/[0.03] cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:shadow-lg hover:shadow-orange-500/10 active:scale-95" data-testid="button-quick-nutrition">
+              <div className="absolute inset-0 rounded-2xl bg-orange-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                <Utensils className="w-5 h-5 text-white" />
               </div>
-              <span className="text-[10px] font-semibold text-muted-foreground">Log Meal</span>
+              <span className="relative text-[11px] font-semibold text-foreground/80">Log Meal</span>
             </div>
           </Link>
-          <Link href="/progress/workouts">
-            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-blue-500/[0.06] border border-blue-500/10 cursor-pointer hover:bg-blue-500/10 transition-colors" data-testid="button-view-progress">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-500/25">
-                <BarChart3 className="w-4 h-4 text-white" />
+          <Link href="/stats">
+            <div className="group relative flex flex-col items-center gap-2 p-3.5 rounded-2xl border border-blue-500/15 bg-gradient-to-b from-blue-500/[0.08] to-indigo-600/[0.03] cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:shadow-lg hover:shadow-blue-500/10 active:scale-95" data-testid="button-view-progress">
+              <div className="absolute inset-0 rounded-2xl bg-blue-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <BarChart3 className="w-5 h-5 text-white" />
               </div>
-              <span className="text-[10px] font-semibold text-muted-foreground">Progress</span>
+              <span className="relative text-[11px] font-semibold text-foreground/80">My Stats</span>
             </div>
           </Link>
         </div>
       )}
 
       {isPersonalMode && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2.5">
           <Link href="/nutrition">
-            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-orange-500/[0.06] border border-orange-500/10 cursor-pointer hover:bg-orange-500/10 transition-colors" data-testid="button-quick-nutrition">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-sm shadow-orange-500/25">
-                <Utensils className="w-4 h-4 text-white" />
+            <div className="group relative flex flex-col items-center gap-2 p-4 rounded-2xl border border-orange-500/15 bg-gradient-to-b from-orange-500/[0.08] to-amber-600/[0.03] cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:shadow-lg hover:shadow-orange-500/10 active:scale-95" data-testid="button-quick-nutrition">
+              <div className="absolute inset-0 rounded-2xl bg-orange-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                <Utensils className="w-5 h-5 text-white" />
               </div>
-              <span className="text-[10px] font-semibold text-muted-foreground">Log Meal</span>
+              <span className="relative text-[11px] font-semibold text-foreground/80">Log Meal</span>
             </div>
           </Link>
-          <Link href="/progress/workouts">
-            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-blue-500/[0.06] border border-blue-500/10 cursor-pointer hover:bg-blue-500/10 transition-colors" data-testid="button-view-progress">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-500/25">
-                <BarChart3 className="w-4 h-4 text-white" />
+          <Link href="/stats">
+            <div className="group relative flex flex-col items-center gap-2 p-4 rounded-2xl border border-blue-500/15 bg-gradient-to-b from-blue-500/[0.08] to-indigo-600/[0.03] cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:shadow-lg hover:shadow-blue-500/10 active:scale-95" data-testid="button-view-progress">
+              <div className="absolute inset-0 rounded-2xl bg-blue-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <BarChart3 className="w-5 h-5 text-white" />
               </div>
-              <span className="text-[10px] font-semibold text-muted-foreground">Progress</span>
+              <span className="relative text-[11px] font-semibold text-foreground/80">My Stats</span>
             </div>
           </Link>
         </div>
