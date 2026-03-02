@@ -85,11 +85,14 @@ function getGreetingIcon() {
   return "moon";
 }
 
-function getMotivationalLine(streak: number, workoutsDone: boolean, caloriesLogged: number) {
-  if (workoutsDone && caloriesLogged > 0) return "Crushing it today";
-  if (workoutsDone) return "Workout complete";
-  if (streak >= 7) return "Unstoppable this week";
-  if (streak >= 3) return "Building momentum";
+function getMotivationalLine(streak: number, workoutsDone: boolean, caloriesLogged: number, recovery?: number) {
+  if (workoutsDone && caloriesLogged > 0) return "Crushing it today 🔥";
+  if (workoutsDone) return "Workout complete ✅";
+  if (streak >= 14) return `${streak}-day streak — legendary`;
+  if (streak >= 7) return `${streak}-day streak — unstoppable`;
+  if (streak >= 3) return `${streak} days strong — keep going`;
+  if (recovery && recovery >= 80) return "Recovery is high — great day to push";
+  if (recovery && recovery < 40) return "Recovery is low — take it easy today";
   if (caloriesLogged > 0) return "Tracking on point";
   const hour = new Date().getHours();
   if (hour < 12) return "Let's make it count";
@@ -117,6 +120,68 @@ function MiniRing({ value, max, size = 48, color, icon: Icon }: {
       <div className="absolute inset-0 flex items-center justify-center">
         <Icon className="w-4 h-4" style={{ color }} />
       </div>
+    </div>
+  );
+}
+
+function ActivityRing({ value, max, size = 64, strokeWidth = 5, color, icon: Icon, label, displayValue }: {
+  value: number; max: number; size?: number; strokeWidth?: number; color: string; 
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; 
+  label: string; displayValue: string;
+}) {
+  const r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const pct = Math.min(value / (max || 1), 1);
+  const c = size / 2;
+  const isComplete = pct >= 1;
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="-rotate-90">
+          <circle cx={c} cy={c} r={r} fill="none" stroke="currentColor" strokeWidth={strokeWidth} className="text-muted/10" />
+          <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={strokeWidth}
+            strokeDasharray={circ} strokeDashoffset={circ - pct * circ} strokeLinecap="round"
+            style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)', filter: isComplete ? `drop-shadow(0 0 4px ${color})` : 'none' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Icon className="w-4 h-4" style={{ color }} />
+        </div>
+        {isComplete && (
+          <div className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center" style={{ boxShadow: '0 0 6px rgba(34,197,94,0.5)' }}>
+            <Check className="w-2.5 h-2.5 text-white" />
+          </div>
+        )}
+      </div>
+      <span className="text-[13px] font-bold tabular-nums leading-none">{displayValue}</span>
+      <span className="text-[10px] text-muted-foreground font-medium leading-none">{label}</span>
+    </div>
+  );
+}
+
+function RecoveryRingHero({ score, size = 80 }: { score: number; size?: number }) {
+  const sw = 6;
+  const r = (size - sw) / 2;
+  const circ = 2 * Math.PI * r;
+  const pct = Math.min(score / 100, 1);
+  const c = size / 2;
+  const color = score >= 80 ? '#22c55e' : score >= 60 ? '#3b82f6' : score >= 40 ? '#f59e0b' : '#ef4444';
+  const label = score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'Low';
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="-rotate-90">
+          <circle cx={c} cy={c} r={r} fill="none" stroke="currentColor" strokeWidth={sw} className="text-muted/10" />
+          <circle cx={c} cy={c} r={r} fill="none" stroke={color} strokeWidth={sw}
+            strokeDasharray={circ} strokeDashoffset={circ - pct * circ} strokeLinecap="round"
+            style={{ transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)', filter: `drop-shadow(0 0 6px ${color}40)` }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xl font-black tabular-nums leading-none" style={{ color }}>{score}</span>
+        </div>
+      </div>
+      <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color }}>{label}</span>
     </div>
   );
 }
@@ -160,20 +225,6 @@ function HealthActivityDashboard() {
 
   const recovery = computeRecovery();
 
-  const getRecoveryColor = (s: number) => {
-    if (s >= 80) return '#22c55e';
-    if (s >= 60) return '#3b82f6';
-    if (s >= 40) return '#f59e0b';
-    return '#ef4444';
-  };
-
-  const getRecoveryLabel = (s: number) => {
-    if (s >= 80) return 'Excellent';
-    if (s >= 60) return 'Good';
-    if (s >= 40) return 'Fair';
-    return 'Low';
-  };
-
   const formatSleep = (mins: number) => {
     if (mins <= 0) return '--';
     const h = Math.floor(mins / 60);
@@ -186,9 +237,17 @@ function HealthActivityDashboard() {
     return num.toLocaleString();
   };
 
+  const getRecoveryInsight = () => {
+    if (!hasData) return null;
+    if (recovery >= 80) return "Ready for high intensity";
+    if (recovery >= 60) return "Good for moderate training";
+    if (recovery >= 40) return "Consider lighter activity";
+    return "Focus on rest and recovery";
+  };
+
   if (statusLoading) {
     return (
-      <Card className="overflow-hidden border-0 shadow-lg" data-testid="card-health-loading">
+      <Card className="overflow-hidden border-0 shadow-lg rounded-2xl" data-testid="card-health-loading">
         <CardContent className="flex items-center justify-center py-8">
           <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
         </CardContent>
@@ -199,66 +258,73 @@ function HealthActivityDashboard() {
   return (
     <Link href="/health">
       <Card className="overflow-hidden border-0 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300" data-testid="card-health-activity">
-        <div className="bg-gradient-to-br from-card via-card to-muted/20">
-          <CardHeader className="pb-2">
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.03] via-transparent to-blue-500/[0.03]" />
+          <CardHeader className="pb-1 relative z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/10">
-                  <Activity className="w-4 h-4 text-green-500" />
+                <div className="p-2 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-sm shadow-green-500/25">
+                  <Activity className="w-4 h-4 text-white" />
                 </div>
                 <CardTitle className="text-sm font-semibold">Health & Activity</CardTitle>
               </div>
-              {hasData && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ backgroundColor: `${getRecoveryColor(recovery)}15` }}>
-                  <Zap className="w-3 h-3" style={{ color: getRecoveryColor(recovery) }} />
-                  <span className="text-xs font-bold" style={{ color: getRecoveryColor(recovery) }}>{recovery}</span>
-                  <span className="text-[10px] text-muted-foreground">{getRecoveryLabel(recovery)}</span>
-                </div>
-              )}
+              <ArrowRight className="w-4 h-4 text-muted-foreground/40" />
             </div>
           </CardHeader>
-          <CardContent className="pt-1 pb-4">
+          <CardContent className="pt-2 pb-4 relative z-10">
             {!connected ? (
-              <div className="grid grid-cols-4 gap-3 py-1">
-                {[
-                  { icon: Footprints, color: '#3b82f6', bg: 'bg-blue-500/8', label: 'Steps' },
-                  { icon: Flame, color: '#f97316', bg: 'bg-orange-500/8', label: 'Calories' },
-                  { icon: Moon, color: '#a855f7', bg: 'bg-purple-500/8', label: 'Sleep' },
-                  { icon: Heart, color: '#ef4444', bg: 'bg-red-500/8', label: 'Heart' },
-                ].map((item) => (
-                  <div key={item.label} className="flex flex-col items-center gap-1.5">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${item.bg}`}>
-                      <item.icon className="w-5 h-5" style={{ color: item.color }} />
+              <div className="py-3">
+                <div className="flex items-center justify-center gap-4 mb-4">
+                  {[
+                    { icon: Footprints, color: '#3b82f6', label: 'Steps' },
+                    { icon: Flame, color: '#f97316', label: 'Move' },
+                    { icon: Moon, color: '#a855f7', label: 'Sleep' },
+                    { icon: Heart, color: '#ef4444', label: 'Heart' },
+                  ].map((item) => (
+                    <div key={item.label} className="flex flex-col items-center gap-1.5">
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center border-2 border-dashed" style={{ borderColor: `${item.color}30` }}>
+                        <item.icon className="w-5 h-5 opacity-40" style={{ color: item.color }} />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground/50 font-medium">{item.label}</span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground font-medium">{item.label}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <p className="text-center text-xs text-muted-foreground/60">Connect Apple Health or Google Fit to see your activity</p>
               </div>
             ) : dataLoading ? (
-              <div className="flex items-center justify-center py-4">
+              <div className="flex items-center justify-center py-6">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <div className="grid grid-cols-4 gap-2">
-                <div className="flex flex-col items-center gap-1" data-testid="health-steps">
-                  <MiniRing value={steps} max={stepGoal} color="#3b82f6" icon={Footprints} />
-                  <span className="text-[13px] font-bold tabular-nums">{formatNumber(steps)}</span>
-                  <span className="text-[10px] text-muted-foreground">Steps</span>
-                </div>
-                <div className="flex flex-col items-center gap-1" data-testid="health-calories">
-                  <MiniRing value={caloriesBurned} max={calorieGoal} color="#f97316" icon={Flame} />
-                  <span className="text-[13px] font-bold tabular-nums">{caloriesBurned}</span>
-                  <span className="text-[10px] text-muted-foreground">Burned</span>
-                </div>
-                <div className="flex flex-col items-center gap-1" data-testid="health-sleep">
-                  <MiniRing value={sleepMinutes} max={sleepGoal} color="#a855f7" icon={Moon} />
-                  <span className="text-[13px] font-bold tabular-nums">{formatSleep(sleepMinutes)}</span>
-                  <span className="text-[10px] text-muted-foreground">Sleep</span>
-                </div>
-                <div className="flex flex-col items-center gap-1" data-testid="health-heart">
-                  <MiniRing value={avgHR} max={200} color="#ef4444" icon={Heart} />
-                  <span className="text-[13px] font-bold tabular-nums">{avgHR > 0 ? `${avgHR}` : '--'}</span>
-                  <span className="text-[10px] text-muted-foreground">Avg HR</span>
+              <div className="space-y-3">
+                {hasData && recovery > 0 && (
+                  <div className="flex items-center gap-4 py-1">
+                    <RecoveryRingHero score={recovery} size={72} />
+                    <div className="flex-1 space-y-1.5">
+                      <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Recovery Score</p>
+                      <p className="text-xs text-muted-foreground/80">{getRecoveryInsight()}</p>
+                      <div className="flex items-center gap-3 mt-1">
+                        {sleepMinutes > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Moon className="w-3 h-3 text-purple-400" />
+                            <span className="text-[10px] text-muted-foreground">{formatSleep(sleepMinutes)}</span>
+                          </div>
+                        )}
+                        {restingHR > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Heart className="w-3 h-3 text-red-400" />
+                            <span className="text-[10px] text-muted-foreground">{restingHR} rHR</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center justify-around pt-1">
+                  <ActivityRing value={steps} max={stepGoal} size={56} color="#3b82f6" icon={Footprints} label="Steps" displayValue={formatNumber(steps)} data-testid="health-steps" />
+                  <ActivityRing value={caloriesBurned} max={calorieGoal} size={56} color="#f97316" icon={Flame} label="Burned" displayValue={String(caloriesBurned)} data-testid="health-calories" />
+                  <ActivityRing value={sleepMinutes} max={sleepGoal} size={56} color="#a855f7" icon={Moon} label="Sleep" displayValue={formatSleep(sleepMinutes)} data-testid="health-sleep" />
+                  <ActivityRing value={avgHR} max={200} size={56} color="#ef4444" icon={Heart} label="Avg HR" displayValue={avgHR > 0 ? `${avgHR}` : '--'} data-testid="health-heart" />
                 </div>
               </div>
             )}
@@ -300,25 +366,25 @@ function GreetingBanner({ greeting, greetingIcon, username, motiveLine, summaryL
   return (
     <div className="greeting-banner" data-testid="greeting-banner">
       <div className="relative z-10 flex items-center justify-between">
-        <div>
+        <div className="flex-1">
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 mb-1.5 font-semibold tracking-widest uppercase">
             <Calendar className="w-3 h-3" />
             <span>{format(new Date(), 'EEE, MMM d')}</span>
           </div>
-          <h2 className="text-xl font-bold tracking-tight leading-tight mb-1" data-testid="text-greeting">
+          <h2 className="text-xl font-bold tracking-tight leading-tight mb-0.5" data-testid="text-greeting">
             {greeting}, <span className="shimmer-text">{username}</span>
           </h2>
           {motiveLine && (
             <div className="flex items-center gap-2 mt-1.5">
               <div className="pulse-dot" />
-              <span className="text-xs text-muted-foreground/80 font-medium italic" data-testid="text-motivational">{motiveLine}</span>
+              <span className="text-xs text-muted-foreground/80 font-medium" data-testid="text-motivational">{motiveLine}</span>
             </div>
           )}
           {summaryLine && (
             <p className="text-xs text-muted-foreground/70 mt-1 font-medium" data-testid="text-gym-summary">{summaryLine}</p>
           )}
         </div>
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/25' : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/25'}`}>
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${greetingIcon === 'sun' ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/25' : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/25'}`}>
           {greetingIcon === 'sun' ? <Sun className="w-5 h-5 text-white" /> : <Moon className="w-5 h-5 text-white" />}
         </div>
       </div>
@@ -2510,27 +2576,51 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       <FeatureDiscoveryTips role="member" isPersonalMode={isPersonalMode} />
 
       {!isPersonalMode && user?.gymId && (
-        <Link href="/attendance">
-          <Button variant="outline" className="w-full h-11 text-sm font-medium border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10" data-testid="button-quick-checkin">
-            <CalendarCheck className="w-4 h-4 mr-2" />
-            Quick Check-In
-          </Button>
-        </Link>
-      )}
-
-      {!isPersonalMode && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
+          <Link href="/attendance">
+            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/10 cursor-pointer hover:bg-emerald-500/10 transition-colors" data-testid="button-quick-checkin">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-sm shadow-emerald-500/25">
+                <CalendarCheck className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-[10px] font-semibold text-muted-foreground">Check In</span>
+            </div>
+          </Link>
           <Link href="/nutrition">
-            <Button variant="outline" className="w-full h-10 text-xs font-medium" data-testid="button-quick-nutrition">
-              <Flame className="w-3.5 h-3.5 mr-1.5 text-orange-500" />
-              Log Meal
-            </Button>
+            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-orange-500/[0.06] border border-orange-500/10 cursor-pointer hover:bg-orange-500/10 transition-colors" data-testid="button-quick-nutrition">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-sm shadow-orange-500/25">
+                <Utensils className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-[10px] font-semibold text-muted-foreground">Log Meal</span>
+            </div>
           </Link>
           <Link href="/progress/workouts">
-            <Button variant="outline" className="w-full h-10 text-xs font-medium" data-testid="button-view-progress">
-              <BarChart3 className="w-3.5 h-3.5 mr-1.5 text-blue-500" />
-              View Progress
-            </Button>
+            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-blue-500/[0.06] border border-blue-500/10 cursor-pointer hover:bg-blue-500/10 transition-colors" data-testid="button-view-progress">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-500/25">
+                <BarChart3 className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-[10px] font-semibold text-muted-foreground">Progress</span>
+            </div>
+          </Link>
+        </div>
+      )}
+
+      {isPersonalMode && (
+        <div className="grid grid-cols-2 gap-2">
+          <Link href="/nutrition">
+            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-orange-500/[0.06] border border-orange-500/10 cursor-pointer hover:bg-orange-500/10 transition-colors" data-testid="button-quick-nutrition">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-sm shadow-orange-500/25">
+                <Utensils className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-[10px] font-semibold text-muted-foreground">Log Meal</span>
+            </div>
+          </Link>
+          <Link href="/progress/workouts">
+            <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-blue-500/[0.06] border border-blue-500/10 cursor-pointer hover:bg-blue-500/10 transition-colors" data-testid="button-view-progress">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-500/25">
+                <BarChart3 className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-[10px] font-semibold text-muted-foreground">Progress</span>
+            </div>
           </Link>
         </div>
       )}
@@ -3351,155 +3441,199 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       </div>
 
       {!isPersonalMode && enhancedDash?.attendance && (
-        <Card className="card-ambient" data-testid="card-attendance-summary">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-sm">
-                <CalendarCheck className="w-4 h-4 text-white" />
+        <Card className="overflow-hidden border-0 rounded-2xl shadow-lg" data-testid="card-attendance-summary">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.03] via-transparent to-green-500/[0.03]" />
+            <CardContent className="pt-4 pb-4 relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/25">
+                    <CalendarCheck className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Attendance</p>
+                    <p className="text-[10px] text-muted-foreground">This month</p>
+                  </div>
+                </div>
+                <Link href="/attendance">
+                  <Button variant="ghost" size="sm" className="text-xs h-7 text-muted-foreground" data-testid="button-view-attendance">
+                    View <ArrowRight className="w-3 h-3 ml-1" />
+                  </Button>
+                </Link>
               </div>
-              <div>
-                <p className="text-sm font-semibold">Attendance</p>
-                <p className="text-[10px] text-muted-foreground">This month</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="text-center p-2.5 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/10" data-testid="stat-month-checkins">
+                  <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums">{enhancedDash.attendance.monthCheckIns}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Check-ins</p>
+                </div>
+                <div className="text-center p-2.5 rounded-xl bg-orange-500/[0.06] border border-orange-500/10" data-testid="stat-attendance-streak">
+                  <p className="text-xl font-black text-orange-600 dark:text-orange-400 tabular-nums">{enhancedDash.attendance.streak}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Streak</p>
+                </div>
+                <div className="text-center p-2.5 rounded-xl bg-blue-500/[0.06] border border-blue-500/10" data-testid="stat-last-visit">
+                  <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                    {enhancedDash.attendance.lastCheckIn 
+                      ? format(parseISO(enhancedDash.attendance.lastCheckIn), 'MMM d')
+                      : '--'}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Last Visit</p>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="text-center p-2 rounded-lg bg-muted/30" data-testid="stat-month-checkins">
-                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{enhancedDash.attendance.monthCheckIns}</p>
-                <p className="text-[10px] text-muted-foreground">Check-ins</p>
-              </div>
-              <div className="text-center p-2 rounded-lg bg-muted/30" data-testid="stat-attendance-streak">
-                <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{enhancedDash.attendance.streak}</p>
-                <p className="text-[10px] text-muted-foreground">Day Streak</p>
-              </div>
-              <div className="text-center p-2 rounded-lg bg-muted/30" data-testid="stat-last-visit">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {enhancedDash.attendance.lastCheckIn 
-                    ? format(parseISO(enhancedDash.attendance.lastCheckIn), 'MMM d')
-                    : 'Never'}
-                </p>
-                <p className="text-[10px] text-muted-foreground">Last Visit</p>
-              </div>
-            </div>
-            <Link href="/attendance">
-              <Button variant="ghost" size="sm" className="w-full mt-2 text-xs h-8" data-testid="button-view-attendance">
-                View Full Attendance
-                <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
-            </Link>
-          </CardContent>
+            </CardContent>
+          </div>
         </Card>
       )}
 
       {enhancedDash?.weeklyProgress && enhancedDash.weeklyProgress.workoutsPlanned > 0 && (
-        <Card className="card-ambient" data-testid="card-weekly-progress">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm">
-                  <Target className="w-4 h-4 text-white" />
+        <Card className="overflow-hidden border-0 rounded-2xl shadow-lg" data-testid="card-weekly-progress">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.03] via-transparent to-indigo-500/[0.03]" />
+            <CardContent className="pt-4 pb-4 relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/25">
+                    <Target className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">This Week</p>
+                    <p className="text-[10px] text-muted-foreground">{enhancedDash.weeklyProgress.workoutsDone} of {enhancedDash.weeklyProgress.workoutsPlanned} workouts</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold">This Week</p>
-                  <p className="text-[10px] text-muted-foreground">Workout progress</p>
+                {(() => {
+                  const pct = enhancedDash.weeklyProgress.workoutsPlanned > 0 
+                    ? Math.round((enhancedDash.weeklyProgress.workoutsDone / enhancedDash.weeklyProgress.workoutsPlanned) * 100) 
+                    : 0;
+                  return (
+                    <div className="flex items-center gap-1">
+                      <span className={`text-lg font-black tabular-nums ${pct >= 80 ? 'text-green-500' : pct >= 50 ? 'text-blue-500' : 'text-muted-foreground'}`}>{pct}%</span>
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="space-y-2.5">
+                <div className="h-2.5 bg-muted/30 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full rounded-full transition-all duration-1000 ease-out"
+                    style={{ 
+                      width: `${Math.min(enhancedDash.weeklyProgress.workoutsPlanned > 0 ? (enhancedDash.weeklyProgress.workoutsDone / enhancedDash.weeklyProgress.workoutsPlanned) * 100 : 0, 100)}%`,
+                      background: 'linear-gradient(90deg, #3b82f6, #6366f1, #8b5cf6)',
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between">
+                  {Array.from({ length: 7 }, (_, i) => {
+                    const dayNames = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                    const isDone = i < enhancedDash.weeklyProgress.workoutsDone;
+                    const isCurrent = i === enhancedDash.weeklyProgress.workoutsDone;
+                    return (
+                      <div key={i} className="flex flex-col items-center gap-1">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                          isDone ? 'bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-sm shadow-blue-500/30' :
+                          isCurrent ? 'border-2 border-blue-500/50 text-blue-500' :
+                          'bg-muted/30 text-muted-foreground/40'
+                        }`}>
+                          {isDone ? <Check className="w-3 h-3" /> : dayNames[i]}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-              {(() => {
-                const pct = enhancedDash.weeklyProgress.workoutsPlanned > 0 
-                  ? Math.round((enhancedDash.weeklyProgress.workoutsDone / enhancedDash.weeklyProgress.workoutsPlanned) * 100) 
-                  : 0;
-                return (
-                  <Badge 
-                    variant={pct >= 80 ? "default" : "secondary"} 
-                    className={pct >= 80 
-                      ? "bg-gradient-to-r from-green-500 to-emerald-500 border-0 text-white no-default-hover-elevate no-default-active-elevate" 
-                      : "no-default-hover-elevate no-default-active-elevate"}
-                    data-testid="badge-weekly-completion"
-                  >
-                    {pct}%
-                  </Badge>
-                );
-              })()}
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{enhancedDash.weeklyProgress.workoutsDone} of {enhancedDash.weeklyProgress.workoutsPlanned} workouts</span>
-              </div>
-              <div className="h-2 bg-muted/40 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-700"
-                  style={{ width: `${Math.min(enhancedDash.weeklyProgress.workoutsPlanned > 0 ? (enhancedDash.weeklyProgress.workoutsDone / enhancedDash.weeklyProgress.workoutsPlanned) * 100 : 0, 100)}%` }}
-                />
-              </div>
-            </div>
-          </CardContent>
+            </CardContent>
+          </div>
         </Card>
       )}
 
       {enhancedDash?.personalBests && (enhancedDash.personalBests.heaviestLift || enhancedDash.personalBests.totalExercisesCompleted > 0) && (
-        <Card className="card-ambient" data-testid="card-personal-bests">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-sm">
-                <Trophy className="w-4 h-4 text-white" />
-              </div>
-              <p className="text-sm font-semibold">Personal Records</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {enhancedDash.personalBests.heaviestLift && (
-                <div className="p-2.5 rounded-lg bg-gradient-to-br from-amber-500/[0.06] to-transparent border border-amber-500/10">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Heaviest Lift</p>
-                  <p className="text-sm font-bold mt-0.5">{enhancedDash.personalBests.heaviestLift.weight}</p>
-                  <p className="text-[10px] text-muted-foreground">{enhancedDash.personalBests.heaviestLift.exercise}</p>
+        <Card className="overflow-hidden border-0 rounded-2xl shadow-lg" data-testid="card-personal-bests">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.04] via-transparent to-orange-500/[0.04]" />
+            <CardContent className="pt-4 pb-4 relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-md shadow-amber-500/25">
+                    <Trophy className="w-4 h-4 text-white" />
+                  </div>
+                  <p className="text-sm font-semibold">Personal Records</p>
                 </div>
-              )}
-              <div className="p-2.5 rounded-lg bg-gradient-to-br from-orange-500/[0.06] to-transparent border border-orange-500/10">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Best Streak</p>
-                <p className="text-sm font-bold mt-0.5">{enhancedDash.personalBests.longestStreak} days</p>
+                <Link href="/progress/workouts">
+                  <Button variant="ghost" size="sm" className="text-xs h-7 text-muted-foreground" data-testid="button-view-records">
+                    All <ArrowRight className="w-3 h-3 ml-1" />
+                  </Button>
+                </Link>
               </div>
-              <div className="p-2.5 rounded-lg bg-gradient-to-br from-blue-500/[0.06] to-transparent border border-blue-500/10">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Current Streak</p>
-                <p className="text-sm font-bold mt-0.5">{enhancedDash.personalBests.currentStreak} days</p>
+              <div className="grid grid-cols-2 gap-2">
+                {enhancedDash.personalBests.heaviestLift && (
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/[0.08] to-amber-500/[0.02] border border-amber-500/15 relative overflow-hidden">
+                    <div className="absolute top-1 right-1.5 text-amber-500/10">
+                      <Dumbbell className="w-8 h-8" />
+                    </div>
+                    <p className="text-[10px] text-amber-600/70 dark:text-amber-400/70 uppercase tracking-wider font-semibold">Heaviest Lift</p>
+                    <p className="text-lg font-black mt-0.5 text-amber-700 dark:text-amber-300">{enhancedDash.personalBests.heaviestLift.weight}</p>
+                    <p className="text-[11px] text-muted-foreground font-medium">{enhancedDash.personalBests.heaviestLift.exercise}</p>
+                  </div>
+                )}
+                <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500/[0.08] to-orange-500/[0.02] border border-orange-500/15 relative overflow-hidden">
+                  <div className="absolute top-1 right-1.5 text-orange-500/10">
+                    <Flame className="w-8 h-8" />
+                  </div>
+                  <p className="text-[10px] text-orange-600/70 dark:text-orange-400/70 uppercase tracking-wider font-semibold">Best Streak</p>
+                  <p className="text-lg font-black mt-0.5 text-orange-700 dark:text-orange-300">{enhancedDash.personalBests.longestStreak} <span className="text-sm font-semibold">days</span></p>
+                </div>
+                <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/[0.08] to-blue-500/[0.02] border border-blue-500/15 relative overflow-hidden">
+                  <div className="absolute top-1 right-1.5 text-blue-500/10">
+                    <Target className="w-8 h-8" />
+                  </div>
+                  <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 uppercase tracking-wider font-semibold">Current Streak</p>
+                  <p className="text-lg font-black mt-0.5 text-blue-700 dark:text-blue-300">{enhancedDash.personalBests.currentStreak} <span className="text-sm font-semibold">days</span></p>
+                </div>
+                <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/[0.08] to-purple-500/[0.02] border border-purple-500/15 relative overflow-hidden">
+                  <div className="absolute top-1 right-1.5 text-purple-500/10">
+                    <CheckCircle2 className="w-8 h-8" />
+                  </div>
+                  <p className="text-[10px] text-purple-600/70 dark:text-purple-400/70 uppercase tracking-wider font-semibold">Exercises Done</p>
+                  <p className="text-lg font-black mt-0.5 text-purple-700 dark:text-purple-300">{enhancedDash.personalBests.totalExercisesCompleted}</p>
+                </div>
               </div>
-              <div className="p-2.5 rounded-lg bg-gradient-to-br from-purple-500/[0.06] to-transparent border border-purple-500/10">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Exercises Done</p>
-                <p className="text-sm font-bold mt-0.5">{enhancedDash.personalBests.totalExercisesCompleted}</p>
-              </div>
-            </div>
-          </CardContent>
+            </CardContent>
+          </div>
         </Card>
       )}
 
       {!isPersonalMode && enhancedDash?.recentFeed && enhancedDash.recentFeed.length > 0 && (
-        <Card className="card-ambient" data-testid="card-social-feed">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 shadow-sm">
-                  <Heart className="w-4 h-4 text-white" />
-                </div>
-                <p className="text-sm font-semibold">Gym Feed</p>
-              </div>
-              <Link href="/social">
-                <Button variant="ghost" size="sm" className="text-xs h-7" data-testid="button-view-feed">
-                  See All <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              </Link>
-            </div>
-            <div className="space-y-2">
-              {enhancedDash.recentFeed.slice(0, 2).map((post) => (
-                <div key={post.id} className="p-2.5 rounded-lg bg-muted/30 border border-border/30" data-testid={`feed-post-${post.id}`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center">
-                      <span className="text-[10px] font-bold text-white">{post.username?.charAt(0).toUpperCase()}</span>
-                    </div>
-                    <span className="text-xs font-medium">{post.username}</span>
-                    <span className="text-[10px] text-muted-foreground ml-auto">{format(parseISO(post.createdAt), 'MMM d')}</span>
+        <Card className="overflow-hidden border-0 rounded-2xl shadow-lg" data-testid="card-social-feed">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-pink-500/[0.03] via-transparent to-rose-500/[0.03]" />
+            <CardContent className="pt-4 pb-4 relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 shadow-md shadow-pink-500/25">
+                    <Heart className="w-4 h-4 text-white" />
                   </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2">{post.content}</p>
+                  <p className="text-sm font-semibold">Gym Feed</p>
                 </div>
-              ))}
-            </div>
-          </CardContent>
+                <Link href="/social">
+                  <Button variant="ghost" size="sm" className="text-xs h-7 text-muted-foreground" data-testid="button-view-feed">
+                    See All <ArrowRight className="w-3 h-3 ml-1" />
+                  </Button>
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {enhancedDash.recentFeed.slice(0, 2).map((post) => (
+                  <div key={post.id} className="p-2.5 rounded-xl bg-muted/20 border border-border/20" data-testid={`feed-post-${post.id}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-sm">
+                        <span className="text-[10px] font-bold text-white">{post.username?.charAt(0).toUpperCase()}</span>
+                      </div>
+                      <span className="text-xs font-semibold">{post.username}</span>
+                      <span className="text-[10px] text-muted-foreground/60 ml-auto">{format(parseISO(post.createdAt), 'MMM d')}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2 ml-9">{post.content}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </div>
         </Card>
       )}
 
