@@ -602,7 +602,8 @@ export default function HealthPage() {
     return days;
   }, [rangeData, chartRange, rangeDays]);
 
-  const isConnected = status?.connected || (user as any)?.healthConnected || !!todayData;
+  const statusKnown = status !== undefined && status !== null;
+  const isConnected = statusKnown ? (status?.connected === true) : ((user as any)?.healthConnected || false);
   const isLoading = statusLoading || todayLoading;
   const caloriesBurned = todayData?.caloriesBurned || 0;
   const calorieBalance = caloriesEaten - caloriesBurned;
@@ -792,17 +793,46 @@ export default function HealthPage() {
           </div>
         </div>
         <div className="flex items-center gap-1.5">
-          <Badge variant="secondary" className="text-[10px] gap-1 rounded-lg px-2 py-1 bg-muted/50">
-            {status?.source === 'apple_health' ? <SiApple className="w-2.5 h-2.5" /> : status?.source === 'google_fit' ? <SiGoogle className="w-2.5 h-2.5" /> : <Watch className="w-2.5 h-2.5" />}
-            {sourceName}
-          </Badge>
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={handleSync} disabled={syncHealth.isPending} data-testid="button-sync-health">
-            <RefreshCw className={`w-4 h-4 ${syncHealth.isPending ? 'animate-spin' : ''}`} />
-          </Button>
+          {isConnected ? (
+            <>
+              <Badge variant="secondary" className="text-[10px] gap-1 rounded-lg px-2 py-1 bg-muted/50">
+                {status?.source === 'apple_health' ? <SiApple className="w-2.5 h-2.5" /> : status?.source === 'google_fit' ? <SiGoogle className="w-2.5 h-2.5" /> : <Watch className="w-2.5 h-2.5" />}
+                {sourceName}
+              </Badge>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={handleSync} disabled={syncHealth.isPending} data-testid="button-sync-health">
+                <RefreshCw className={`w-4 h-4 ${syncHealth.isPending ? 'animate-spin' : ''}`} />
+              </Button>
+            </>
+          ) : (
+            <Badge variant="secondary" className="text-[10px] gap-1 rounded-lg px-2 py-1 bg-amber-500/10 text-amber-600 border-amber-500/20">
+              <Unplug className="w-2.5 h-2.5" />
+              Disconnected
+            </Badge>
+          )}
         </div>
       </div>
 
-      {noDataAtAll && (
+      {!isConnected && (todayData || (rangeData && rangeData.length > 0)) && (
+        <Card className="overflow-hidden border-0 bg-gradient-to-br from-emerald-500/10 via-card to-card shadow-lg">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <Unplug className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium mb-0.5">Health disconnected</p>
+                <p className="text-[11px] text-muted-foreground">Reconnect to sync your latest data</p>
+              </div>
+              <Button size="sm" className="rounded-xl h-9 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700" onClick={handleConnect} disabled={connectHealth.isPending} data-testid="button-reconnect-health-banner">
+                {connectHealth.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Plug className="w-3 h-3 mr-1" />}
+                Reconnect
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isConnected && noDataAtAll && (
         <Card className="overflow-hidden border-0 bg-gradient-to-br from-amber-500/5 via-card to-card shadow-lg">
           <CardContent className="pt-5 pb-5">
             <div className="flex items-start gap-3">
@@ -1425,10 +1455,17 @@ export default function HealthPage() {
         <p className="text-[11px] text-muted-foreground">
           Last synced: {todayData?.lastSyncedAt ? new Date(todayData.lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Not yet today'}
         </p>
-        <Button variant="ghost" size="sm" className="text-[11px] text-destructive/70 hover:text-destructive h-7 px-2" onClick={handleDisconnect} disabled={disconnectHealth.isPending} data-testid="button-disconnect-health">
-          <Unplug className="w-3 h-3 mr-1" />
-          Disconnect
-        </Button>
+        {isConnected ? (
+          <Button variant="ghost" size="sm" className="text-[11px] text-destructive/70 hover:text-destructive h-7 px-2" onClick={handleDisconnect} disabled={disconnectHealth.isPending} data-testid="button-disconnect-health">
+            <Unplug className="w-3 h-3 mr-1" />
+            Disconnect
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" className="text-[11px] text-emerald-600 hover:text-emerald-700 h-7 px-2" onClick={handleConnect} disabled={connectHealth.isPending} data-testid="button-reconnect-health">
+            <Plug className="w-3 h-3 mr-1" />
+            Reconnect
+          </Button>
+        )}
       </div>
 
       {selectedDay && (
