@@ -162,6 +162,32 @@ class HealthService {
     return { startISO: startOfDay.toISOString(), endISO: endOfDay.toISOString() };
   }
 
+  private deduplicateSamples(samples: any[]): number {
+    if (!samples || samples.length === 0) return 0;
+    if (samples.length === 1) return samples[0].value || 0;
+
+    const bySource: Record<string, any[]> = {};
+    for (const s of samples) {
+      const src = s.sourceName || s.source || 'unknown';
+      if (!bySource[src]) bySource[src] = [];
+      bySource[src].push(s);
+    }
+
+    const sources = Object.keys(bySource);
+    if (sources.length <= 1) {
+      return samples.reduce((sum: number, s: any) => sum + (s.value || 0), 0);
+    }
+
+    const sourceTotals = sources.map(src => ({
+      source: src,
+      total: bySource[src].reduce((sum: number, s: any) => sum + (s.value || 0), 0),
+    }));
+
+    const primary = sourceTotals.sort((a, b) => b.total - a.total)[0];
+    console.log(`[HealthService] dedup: ${sources.length} sources, using ${primary.source} (${primary.total}), discarded: ${sourceTotals.filter(s => s.source !== primary.source).map(s => `${s.source}(${s.total})`).join(', ')}`);
+    return primary.total;
+  }
+
   async fetchDataForDate(dateStr: string): Promise<HealthDataPayload | null> {
     await this.initialize();
 
@@ -191,10 +217,10 @@ class HealthService {
           limit: 1000,
         });
         if (stepsResult?.samples?.length > 0) {
-          const totalSteps = stepsResult.samples.reduce((sum: number, s: any) => sum + (s.value || 0), 0);
+          const totalSteps = this.deduplicateSamples(stepsResult.samples);
           if (totalSteps > 0) {
             data.steps = Math.round(totalSteps);
-            console.log(`[HealthService] capgo steps: ${data.steps}`);
+            console.log(`[HealthService] capgo steps (deduped): ${data.steps} from ${stepsResult.samples.length} samples`);
           }
         }
       } catch (e) {
@@ -209,11 +235,11 @@ class HealthService {
           limit: 1000,
         });
         if (calResult?.samples?.length > 0) {
-          const totalCal = calResult.samples.reduce((sum: number, s: any) => sum + (s.value || 0), 0);
+          const totalCal = this.deduplicateSamples(calResult.samples);
           if (totalCal > 0) {
             data.caloriesBurned = Math.round(totalCal);
             data.activeCalories = Math.round(totalCal);
-            console.log(`[HealthService] capgo calories: ${data.caloriesBurned}`);
+            console.log(`[HealthService] capgo calories (deduped): ${data.caloriesBurned} from ${calResult.samples.length} samples`);
           }
         }
       } catch (e) {
