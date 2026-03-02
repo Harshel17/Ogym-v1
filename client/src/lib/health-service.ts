@@ -113,12 +113,16 @@ class HealthService {
   async requestPermissions(): Promise<boolean> {
     await this.initialize();
 
+    let granted = false;
+
     if (this.capgoPlugin) {
       try {
         await this.capgoPlugin.requestAuthorization({
-          read: ['steps', 'distance', 'calories', 'heartRate', 'weight'],
+          read: ['steps', 'distance', 'calories', 'heartRate', 'weight', 'sleepAnalysis', 'activeEnergyBurned'],
+          write: [],
         });
         console.log('[HealthService] capgo permissions granted');
+        granted = true;
       } catch (error) {
         console.error('[HealthService] capgo permissions failed:', error);
       }
@@ -134,12 +138,18 @@ class HealthService {
             'READ_HEART_RATE',
             'READ_DISTANCE',
             'READ_WORKOUTS',
+            'READ_SLEEP',
           ],
         });
         console.log('[HealthService] old plugin permissions granted');
+        granted = true;
       } catch (error) {
         console.error('[HealthService] old plugin permissions failed:', error);
       }
+    }
+
+    if (!granted) {
+      console.error('[HealthService] No health plugin available or all permissions failed');
     }
 
     return true;
