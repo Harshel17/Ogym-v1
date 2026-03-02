@@ -1657,10 +1657,11 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const [foodAnalysisResult, setFoodAnalysisResult] = useState<any>(null);
   const [foodAnalyzing, setFoodAnalyzing] = useState(false);
   const [foodImagePreview, setFoodImagePreview] = useState<string | null>(null);
-  const [foodView, setFoodView] = useState<"options" | "score" | "log" | null>(null);
+  const [foodView, setFoodView] = useState<"options" | "score" | "edit" | "log" | null>(null);
   const [foodMealType, setFoodMealType] = useState<string>("");
   const [foodPortions, setFoodPortions] = useState<number>(1);
   const [foodLogging, setFoodLogging] = useState(false);
+  const [foodItemPortions, setFoodItemPortions] = useState<Record<number, { quantity: number; unit: string }>>({});
 
   const compressImage = (file: File, maxWidth = 1024, quality = 0.7): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -1712,6 +1713,14 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       
       const data = await response.json();
       setFoodAnalysisResult(data);
+      const initialPortions: Record<number, { quantity: number; unit: string }> = {};
+      data.items?.forEach((item: any, i: number) => {
+        initialPortions[i] = {
+          quantity: item.baseQuantity || 1,
+          unit: item.portionUnit || 'serving',
+        };
+      });
+      setFoodItemPortions(initialPortions);
       setFoodView("options");
     } catch (err: any) {
       toast({ title: "Analysis failed", description: err.message || "Could not analyze the food photo", variant: "destructive" });
@@ -1722,21 +1731,51 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
     if (e.target) e.target.value = "";
   };
 
+  const getItemAdjustedNutrition = (item: any, index: number) => {
+    const portion = foodItemPortions[index];
+    if (!portion) return { calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat, quantity: item.baseQuantity || 1, unit: item.portionUnit || 'serving' };
+    const baseQty = item.baseQuantity || 1;
+    const ratio = portion.quantity / baseQty;
+    return {
+      calories: Math.round(item.calories * ratio),
+      protein: Math.round(item.protein * ratio),
+      carbs: Math.round(item.carbs * ratio),
+      fat: Math.round(item.fat * ratio),
+      quantity: portion.quantity,
+      unit: portion.unit,
+    };
+  };
+
+  const getAdjustedTotals = () => {
+    if (!foodAnalysisResult?.items) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    return foodAnalysisResult.items.reduce((totals: any, item: any, i: number) => {
+      const adj = getItemAdjustedNutrition(item, i);
+      return {
+        calories: totals.calories + adj.calories,
+        protein: totals.protein + adj.protein,
+        carbs: totals.carbs + adj.carbs,
+        fat: totals.fat + adj.fat,
+      };
+    }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+  };
+
   const handleLogFood = async () => {
     if (!foodAnalysisResult || !foodMealType) return;
     setFoodLogging(true);
     try {
-      for (const item of foodAnalysisResult.items) {
+      for (let i = 0; i < foodAnalysisResult.items.length; i++) {
+        const item = foodAnalysisResult.items[i];
+        const adj = getItemAdjustedNutrition(item, i);
         await apiRequest("POST", "/api/nutrition/logs", {
           date: format(new Date(), "yyyy-MM-dd"),
           mealType: foodMealType,
           foodName: item.name,
-          servingSize: item.servingSize,
-          servingQuantity: foodPortions,
-          calories: Math.round(item.calories * foodPortions),
-          protein: Math.round(item.protein * foodPortions),
-          carbs: Math.round(item.carbs * foodPortions),
-          fat: Math.round(item.fat * foodPortions),
+          servingSize: `${adj.quantity} ${adj.unit}`,
+          servingQuantity: 1,
+          calories: adj.calories,
+          protein: adj.protein,
+          carbs: adj.carbs,
+          fat: adj.fat,
           isEstimate: true,
           sourceType: "ai_estimated",
         });
@@ -4319,7 +4358,9 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
             </div>
           )}
 
-          {foodView === "options" && foodAnalysisResult && (
+          {foodView === "options" && foodAnalysisResult && (() => {
+            const totals = getAdjustedTotals();
+            return (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -4337,21 +4378,44 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                 )}
                 
                 <div className="space-y-1.5">
-                  {foodAnalysisResult.items.map((item: any, i: number) => (
-                    <div key={i} className="flex items-center justify-between p-2.5 bg-muted/30 rounded-lg">
-                      <span className="text-sm font-medium">{item.name}</span>
-                      <span className="text-xs text-muted-foreground">{item.calories} cal</span>
-                    </div>
-                  ))}
+                  {foodAnalysisResult.items.map((item: any, i: number) => {
+                    const adj = getItemAdjustedNutrition(item, i);
+                    const portion = foodItemPortions[i];
+                    return (
+                      <div key={i} className="p-2.5 bg-muted/30 rounded-xl" data-testid={`food-item-${i}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{item.name}</span>
+                          <span className="text-sm font-semibold">{adj.calories} cal</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-[11px] text-muted-foreground">
+                            {portion ? `${portion.quantity} ${portion.unit}` : item.servingSize}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            P:{adj.protein}g C:{adj.carbs}g F:{adj.fat}g
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
+
+                <button
+                  onClick={() => setFoodView("edit")}
+                  className="w-full py-2 text-xs font-medium text-primary hover:text-primary/80 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/30 hover:bg-primary/5 transition-colors"
+                  data-testid="button-edit-portions"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  Edit Portions
+                </button>
 
                 <div className="flex items-center justify-between px-1 py-2 border-t">
                   <span className="text-sm font-semibold">Total</span>
                   <div className="flex gap-3 text-xs">
-                    <span>{foodAnalysisResult.totalCalories} cal</span>
-                    <span className="text-blue-500">P {foodAnalysisResult.totalProtein}g</span>
-                    <span className="text-amber-500">C {foodAnalysisResult.totalCarbs}g</span>
-                    <span className="text-rose-500">F {foodAnalysisResult.totalFat}g</span>
+                    <span>{totals.calories} cal</span>
+                    <span className="text-blue-500">P {totals.protein}g</span>
+                    <span className="text-amber-500">C {totals.carbs}g</span>
+                    <span className="text-rose-500">F {totals.fat}g</span>
                   </div>
                 </div>
 
@@ -4376,9 +4440,125 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                 </div>
               </div>
             </>
-          )}
+            );
+          })()}
 
-          {foodView === "score" && foodAnalysisResult && (
+          {foodView === "edit" && foodAnalysisResult && (() => {
+            const totals = getAdjustedTotals();
+            return (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  Adjust Portions
+                </DialogTitle>
+                <DialogDescription>Tap to change portion sizes for each item</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+                {foodAnalysisResult.items.map((item: any, i: number) => {
+                  const portion = foodItemPortions[i] || { quantity: item.baseQuantity || 1, unit: item.portionUnit || 'serving' };
+                  const adj = getItemAdjustedNutrition(item, i);
+                  const step = item.portionStep || 0.5;
+                  const units: string[] = item.portionUnits?.length > 0 ? item.portionUnits : ['serving'];
+
+                  return (
+                    <div key={i} className="p-3 rounded-xl border border-border/50 bg-card" data-testid={`edit-item-${i}`}>
+                      <div className="flex items-center justify-between mb-2.5">
+                        <span className="text-sm font-semibold">{item.name}</span>
+                        <span className="text-sm font-bold text-primary tabular-nums">{adj.calories} cal</span>
+                      </div>
+
+                      {units.length > 1 && (
+                        <div className="flex gap-1.5 mb-2.5 flex-wrap">
+                          {units.map((u: string) => (
+                            <button
+                              key={u}
+                              type="button"
+                              onClick={() => setFoodItemPortions(prev => ({ ...prev, [i]: { ...prev[i], unit: u } }))}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                                portion.unit === u
+                                  ? 'bg-primary text-primary-foreground shadow-sm'
+                                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                              }`}
+                              data-testid={`unit-${i}-${u}`}
+                            >
+                              {u}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-3">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8 rounded-lg"
+                          onClick={() => setFoodItemPortions(prev => ({
+                            ...prev,
+                            [i]: { ...prev[i], quantity: Math.max(step, (prev[i]?.quantity || 1) - step) }
+                          }))}
+                          disabled={portion.quantity <= step}
+                          data-testid={`portion-minus-${i}`}
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </Button>
+                        <div className="flex-1 text-center">
+                          <span className="text-lg font-bold tabular-nums" data-testid={`portion-qty-${i}`}>
+                            {portion.quantity % 1 === 0 ? portion.quantity : portion.quantity.toFixed(1)}
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-1.5">{portion.unit}</span>
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8 rounded-lg"
+                          onClick={() => setFoodItemPortions(prev => ({
+                            ...prev,
+                            [i]: { ...prev[i], quantity: (prev[i]?.quantity || 1) + step }
+                          }))}
+                          data-testid={`portion-plus-${i}`}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+
+                      <div className="flex gap-3 mt-2 text-[10px] text-muted-foreground justify-center">
+                        <span>P:{adj.protein}g</span>
+                        <span>C:{adj.carbs}g</span>
+                        <span>F:{adj.fat}g</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between px-1 py-2 border-t">
+                <span className="text-sm font-semibold">Updated Total</span>
+                <div className="flex gap-3 text-xs">
+                  <span className="font-bold">{totals.calories} cal</span>
+                  <span className="text-blue-500">P {totals.protein}g</span>
+                  <span className="text-amber-500">C {totals.carbs}g</span>
+                  <span className="text-rose-500">F {totals.fat}g</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => setFoodView("options")} data-testid="button-edit-back">
+                  Back
+                </Button>
+                <Button className="flex-1" onClick={() => setFoodView("options")} data-testid="button-edit-done">
+                  <Check className="w-4 h-4 mr-2" />
+                  Done
+                </Button>
+              </div>
+            </>
+            );
+          })()}
+
+          {foodView === "score" && foodAnalysisResult && (() => {
+            const totals = getAdjustedTotals();
+            return (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -4424,10 +4604,10 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                 <div className="flex items-center justify-between px-1 py-2 border-t">
                   <span className="text-sm font-semibold">Nutrition</span>
                   <div className="flex gap-3 text-xs">
-                    <span>{foodAnalysisResult.totalCalories} cal</span>
-                    <span className="text-blue-500">P {foodAnalysisResult.totalProtein}g</span>
-                    <span className="text-amber-500">C {foodAnalysisResult.totalCarbs}g</span>
-                    <span className="text-rose-500">F {foodAnalysisResult.totalFat}g</span>
+                    <span>{totals.calories} cal</span>
+                    <span className="text-blue-500">P {totals.protein}g</span>
+                    <span className="text-amber-500">C {totals.carbs}g</span>
+                    <span className="text-rose-500">F {totals.fat}g</span>
                   </div>
                 </div>
 
@@ -4441,9 +4621,12 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                 </div>
               </div>
             </>
-          )}
+            );
+          })()}
 
-          {foodView === "log" && foodAnalysisResult && (
+          {foodView === "log" && foodAnalysisResult && (() => {
+            const totals = getAdjustedTotals();
+            return (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -4451,7 +4634,10 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                   Log Food
                 </DialogTitle>
                 <DialogDescription>
-                  {foodAnalysisResult.items.map((i: any) => i.name).join(", ")}
+                  {foodAnalysisResult.items.map((item: any, i: number) => {
+                    const p = foodItemPortions[i];
+                    return p ? `${p.quantity} ${p.unit} ${item.name}` : item.name;
+                  }).join(", ")}
                 </DialogDescription>
               </DialogHeader>
 
@@ -4483,31 +4669,23 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                   </div>
                 </div>
 
-                <div>
-                  <Label className="text-sm font-medium mb-2 block">Portions</Label>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      onClick={() => setFoodPortions(Math.max(0.5, foodPortions - 0.5))}
-                      disabled={foodPortions <= 0.5}
-                      data-testid="button-portion-minus"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </Button>
-                    <span className="text-lg font-semibold w-12 text-center" data-testid="text-portions">{foodPortions}</span>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      onClick={() => setFoodPortions(foodPortions + 0.5)}
-                      data-testid="button-portion-plus"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
+                <div className="space-y-1.5">
+                  {foodAnalysisResult.items.map((item: any, i: number) => {
+                    const adj = getItemAdjustedNutrition(item, i);
+                    return (
+                      <div key={i} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg text-sm">
+                        <div>
+                          <span className="font-medium">{item.name}</span>
+                          <span className="text-[11px] text-muted-foreground ml-1.5">({adj.quantity} {adj.unit})</span>
+                        </div>
+                        <span className="font-semibold tabular-nums">{adj.calories} cal</span>
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center justify-between px-2 py-1.5 border-t text-sm">
+                    <span className="font-bold">Total</span>
+                    <span className="font-bold tabular-nums">{totals.calories} cal</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {Math.round(foodAnalysisResult.totalCalories * foodPortions)} cal total
-                  </p>
                 </div>
 
                 <div className="flex gap-2 pt-2">
@@ -4529,7 +4707,8 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                 </div>
               </div>
             </>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

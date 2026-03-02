@@ -5682,6 +5682,21 @@ SCORING GUIDE:
 30-49: Below average - high calorie, low nutrient density, or heavily processed
 0-29: Poor - mostly empty calories, ultra-processed, or extreme portions
 
+IMPORTANT: For each food item, provide FOOD-SPECIFIC portion units that make sense for that food. Examples:
+- Biryani/Rice/Pasta: ["bowl", "plate", "cup"] with baseQuantity 1
+- Pizza: ["slice", "whole pizza"] with baseQuantity 2 (for 2 slices)
+- Bread/Toast: ["slice"] with baseQuantity 2
+- Oats/Cereal: ["bowl", "cup"] with baseQuantity 1
+- Milk/Juice: ["cup", "glass", "ml"] with baseQuantity 1
+- Eggs: ["egg"] with baseQuantity 2
+- Chicken/Meat: ["piece", "breast", "g"] with baseQuantity 1
+- Fruits: ["piece", "cup", "slice"] with baseQuantity 1
+- Roti/Naan/Tortilla: ["piece"] with baseQuantity 2
+- Curry/Soup: ["bowl", "cup"] with baseQuantity 1
+- Salad: ["bowl", "plate"] with baseQuantity 1
+The baseQuantity is what you estimate from the photo. The calories/protein/carbs/fat should be for that baseQuantity.
+The portionStep is the increment for +/- buttons (e.g. 1 for slices, 0.5 for bowls).
+
 Return ONLY JSON:
 {
   "items": [
@@ -5692,7 +5707,12 @@ Return ONLY JSON:
       "protein": 15,
       "carbs": 40,
       "fat": 10,
-      "servingSize": "1 plate (200g)"
+      "servingSize": "1 plate (200g)",
+      "portionUnit": "plate",
+      "portionUnits": ["plate", "bowl", "cup"],
+      "baseQuantity": 1,
+      "portionStep": 0.5,
+      "caloriesPerUnit": 300
     }
   ],
   "mealDescription": "Brief description",
@@ -5733,15 +5753,24 @@ Return ONLY JSON:
         parsed = JSON.parse(jsonMatch[0]);
       }
 
-      const items = (parsed.items || []).map((item: any) => ({
-        name: String(item.name || 'Unknown food'),
-        estimatedGrams: Math.round(Number(item.estimatedGrams) || 100),
-        calories: Math.round(Number(item.calories) || 0),
-        protein: Math.round(Number(item.protein) || 0),
-        carbs: Math.round(Number(item.carbs) || 0),
-        fat: Math.round(Number(item.fat) || 0),
-        servingSize: String(item.servingSize || '1 serving'),
-      }));
+      const items = (parsed.items || []).map((item: any) => {
+        const baseQty = Number(item.baseQuantity) || 1;
+        const cals = Math.round(Number(item.calories) || 0);
+        return {
+          name: String(item.name || 'Unknown food'),
+          estimatedGrams: Math.round(Number(item.estimatedGrams) || 100),
+          calories: cals,
+          protein: Math.round(Number(item.protein) || 0),
+          carbs: Math.round(Number(item.carbs) || 0),
+          fat: Math.round(Number(item.fat) || 0),
+          servingSize: String(item.servingSize || '1 serving'),
+          portionUnit: String(item.portionUnit || 'serving'),
+          portionUnits: Array.isArray(item.portionUnits) ? item.portionUnits.map(String) : ['serving'],
+          baseQuantity: baseQty,
+          portionStep: Number(item.portionStep) || (baseQty >= 2 ? 1 : 0.5),
+          caloriesPerUnit: Math.round(Number(item.caloriesPerUnit) || (cals / baseQty)),
+        };
+      });
 
       res.json({
         items,
