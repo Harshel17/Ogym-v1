@@ -3874,147 +3874,154 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       {disciplineScore && (
         <Link href="/score">
           <div className="rounded-2xl overflow-hidden shadow-xl shadow-indigo-500/10 cursor-pointer transition-all duration-200 hover:shadow-2xl hover:shadow-indigo-500/15 active:scale-[0.98]" data-testid="card-ogym-score-widget">
-            <div className="relative bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] p-4">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-indigo-500/20 to-transparent rounded-bl-full" />
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-purple-500/10 to-transparent rounded-tr-full" />
+            <div className="relative bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] p-5 pb-4">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-indigo-500/15 to-transparent rounded-bl-full" />
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-purple-500/10 to-transparent rounded-tr-full" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-indigo-500/[0.03] rounded-full blur-3xl" />
 
               <div className="relative z-10">
-                {disciplineScore.ogym?.building ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-indigo-400" />
-                        <span className="text-sm font-bold text-white">OGym Score</span>
-                      </div>
-                      <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/20">Building</span>
-                    </div>
-                    <div className="flex items-center justify-center py-1">
-                      <div className="relative">
-                        <svg width="100" height="100" viewBox="0 0 100 100">
-                          <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
-                          <circle cx="50" cy="50" r="42" fill="none" stroke="url(#buildGrad)" strokeWidth="6" strokeLinecap="round"
-                            strokeDasharray={`${(disciplineScore.ogym.progress / 100) * 263.9} 263.9`}
-                            transform="rotate(-90 50 50)" className="transition-all duration-700" style={{ filter: 'drop-shadow(0 0 8px rgba(129,140,248,0.4))' }} />
-                          <defs>
-                            <linearGradient id="buildGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stopColor="#818cf8" />
-                              <stop offset="100%" stopColor="#a78bfa" />
-                            </linearGradient>
-                          </defs>
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <span className="text-2xl font-black text-white tabular-nums">{disciplineScore.ogym.daysCompleted}</span>
-                          <span className="text-[10px] text-white/40 font-medium">of {disciplineScore.ogym.daysRequired} days</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-white/50">Keep training to unlock your fitness credit score</p>
-                    </div>
-                  </div>
-                ) : disciplineScore.ogym?.score ? (() => {
-                  const pct = Math.max(2, ((disciplineScore.ogym.score - 300) / 550) * 100);
-                  const tierColors: Record<string, { ring: string; text: string; glow: string; badge: string }> = {
-                    elite: { ring: "#facc15", text: "text-yellow-400", glow: "shadow-yellow-500/30", badge: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" },
-                    strong: { ring: "#34d399", text: "text-emerald-400", glow: "shadow-emerald-500/30", badge: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
-                    building: { ring: "#60a5fa", text: "text-blue-400", glow: "shadow-blue-500/30", badge: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
-                    inconsistent: { ring: "#fb923c", text: "text-orange-400", glow: "shadow-orange-500/30", badge: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
-                    "at-risk": { ring: "#f87171", text: "text-red-400", glow: "shadow-red-500/30", badge: "bg-red-500/20 text-red-300 border-red-500/30" },
+                {(() => {
+                  const dailyScore = disciplineScore.daily?.score ?? 0;
+                  const dailyPct = dailyScore / 100;
+                  const dailyColor = dailyScore >= 70 ? "#34d399" : dailyScore >= 40 ? "#fb923c" : "#f87171";
+
+                  const isBuilding = disciplineScore.ogym?.building;
+                  const hasOgym = disciplineScore.ogym?.score;
+                  const ogymScore = disciplineScore.ogym?.score || 0;
+                  const ogymPct = hasOgym ? Math.max(0.05, (ogymScore - 300) / 550) : 0;
+                  const tier = disciplineScore.ogym?.tier || "building";
+
+                  const tierConfig: Record<string, { color: string; label: string; badgeClass: string }> = {
+                    elite: { color: "#facc15", label: "Elite", badgeClass: "bg-yellow-500/20 text-yellow-300 border-yellow-500/25" },
+                    strong: { color: "#34d399", label: "Strong", badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/25" },
+                    building: { color: "#60a5fa", label: "Building", badgeClass: "bg-blue-500/20 text-blue-300 border-blue-500/25" },
+                    inconsistent: { color: "#fb923c", label: "Inconsistent", badgeClass: "bg-orange-500/20 text-orange-300 border-orange-500/25" },
+                    "at-risk": { color: "#f87171", label: "At Risk", badgeClass: "bg-red-500/20 text-red-300 border-red-500/25" },
                   };
-                  const tc = tierColors[disciplineScore.ogym.tier] || tierColors.building;
+                  const tc = tierConfig[tier] || tierConfig.building;
+
                   return (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className={`relative ${tc.glow} shadow-lg rounded-full`}>
-                          <svg width="72" height="72" viewBox="0 0 72 72">
-                            <circle cx="36" cy="36" r="31" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
-                            <circle cx="36" cy="36" r="31" fill="none" stroke={tc.ring} strokeWidth="5" strokeLinecap="round"
-                              strokeDasharray={`${(pct / 100) * 194.8} 194.8`}
-                              transform="rotate(-90 36 36)" className="transition-all duration-700" style={{ filter: `drop-shadow(0 0 6px ${tc.ring}40)` }} />
-                          </svg>
-                          <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className={`text-xl font-black tabular-nums leading-none ${tc.text}`}>{disciplineScore.ogym.score}</span>
+                    <>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                            <Shield className="w-3.5 h-3.5 text-white" />
+                          </div>
+                          <span className="text-sm font-bold text-white tracking-wide">OGym Score</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-white/30">Tap for details</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-white/30" />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-center gap-6 py-2">
+                        {/* Left circle — Fitness Credit Score (OGym) */}
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="relative">
+                            <svg width="110" height="110" viewBox="0 0 110 110">
+                              <circle cx="55" cy="55" r="47" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="7" />
+                              {isBuilding ? (
+                                <circle cx="55" cy="55" r="47" fill="none" stroke="url(#oGrad)" strokeWidth="7" strokeLinecap="round"
+                                  strokeDasharray={`${((disciplineScore.ogym?.progress || 0) / 100) * 295.3} 295.3`}
+                                  transform="rotate(-90 55 55)" className="transition-all duration-1000"
+                                  style={{ filter: 'drop-shadow(0 0 8px rgba(129,140,248,0.5))' }} />
+                              ) : hasOgym ? (
+                                <circle cx="55" cy="55" r="47" fill="none" stroke={tc.color} strokeWidth="7" strokeLinecap="round"
+                                  strokeDasharray={`${ogymPct * 295.3} 295.3`}
+                                  transform="rotate(-90 55 55)" className="transition-all duration-1000"
+                                  style={{ filter: `drop-shadow(0 0 10px ${tc.color}50)` }} />
+                              ) : null}
+                              <defs>
+                                <linearGradient id="oGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stopColor="#818cf8" />
+                                  <stop offset="100%" stopColor="#a78bfa" />
+                                </linearGradient>
+                              </defs>
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              {isBuilding ? (
+                                <>
+                                  <span className="text-2xl font-black text-white tabular-nums leading-none">{disciplineScore.ogym?.daysCompleted || 0}</span>
+                                  <span className="text-[9px] text-white/35 font-medium mt-0.5">of {disciplineScore.ogym?.daysRequired || 14}</span>
+                                </>
+                              ) : hasOgym ? (
+                                <>
+                                  <span className="text-3xl font-black tabular-nums leading-none text-white" style={{ textShadow: `0 0 20px ${tc.color}30` }}>{ogymScore}</span>
+                                  <span className={`text-[9px] font-bold mt-1 px-1.5 py-0.5 rounded-full border ${tc.badgeClass}`}>{disciplineScore.ogym?.tierLabel || tc.label}</span>
+                                </>
+                              ) : (
+                                <span className="text-lg font-bold text-white/20">--</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-[10px] font-semibold text-white/60">
+                              {isBuilding ? "Fitness Credit" : "Fitness Credit"}
+                            </p>
+                            <p className="text-[9px] text-white/30">
+                              {isBuilding ? "Unlocking..." : "300–850"}
+                            </p>
                           </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-sm font-bold text-white">OGym Score</span>
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${tc.badge}`}>
-                              {disciplineScore.ogym.tierLabel || disciplineScore.ogym.tier}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-white/40">300–850 · Updated weekly</p>
-                          {disciplineScore.ogym.delta != null && disciplineScore.ogym.delta !== 0 && (
-                            <div className="flex items-center gap-1 mt-1">
-                              {disciplineScore.ogym.delta > 0 ? (
-                                <TrendingUp className="w-3 h-3 text-emerald-400" />
-                              ) : (
-                                <TrendingDown className="w-3 h-3 text-red-400" />
-                              )}
-                              <span className={`text-xs font-bold ${disciplineScore.ogym.delta > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                                {disciplineScore.ogym.delta > 0 ? "+" : ""}{disciplineScore.ogym.delta} this week
-                              </span>
+
+                        <div className="w-px h-20 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
+
+                        {/* Right circle — Today's Discipline Score */}
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="relative">
+                            <svg width="110" height="110" viewBox="0 0 110 110">
+                              <circle cx="55" cy="55" r="47" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="7" />
+                              <circle cx="55" cy="55" r="47" fill="none" stroke={dailyColor} strokeWidth="7" strokeLinecap="round"
+                                strokeDasharray={`${dailyPct * 295.3} 295.3`}
+                                transform="rotate(-90 55 55)" className="transition-all duration-1000"
+                                style={{ filter: `drop-shadow(0 0 10px ${dailyColor}50)` }} />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <span className="text-3xl font-black tabular-nums leading-none text-white" style={{ textShadow: `0 0 20px ${dailyColor}30` }}>{dailyScore}</span>
+                              <span className="text-[9px] text-white/35 font-medium mt-0.5">/100</span>
                             </div>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-[10px] font-semibold text-white/60">Today's Score</p>
+                            <p className="text-[9px] text-white/30">
+                              {dailyScore >= 70 ? "Great day" : dailyScore >= 40 ? "Keep going" : "Just start"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {disciplineScore.daily && (
+                        <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {[
+                              { label: "Workout", score: disciplineScore.daily.pillars.workout.score, color: "#60a5fa" },
+                              { label: "Nutrition", score: disciplineScore.daily.pillars.nutrition.score, color: "#34d399" },
+                              { label: "Streak", score: disciplineScore.daily.pillars.consistency.score, color: "#fb923c" },
+                              { label: "Recovery", score: disciplineScore.daily.pillars.recovery.score, color: "#a78bfa" },
+                            ].map((p) => (
+                              <div key={p.label} className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] text-white/40 font-medium">{p.label}</span>
+                                  <span className="text-[10px] text-white/70 font-bold tabular-nums">{p.score}</span>
+                                </div>
+                                <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: `${p.color}15` }}>
+                                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${p.score}%`, backgroundColor: p.color, boxShadow: `0 0 4px ${p.color}40` }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {disciplineScore.daily.tips?.[0] && (
+                            <p className="text-[10px] text-white/35 mt-2.5 flex items-center gap-1.5">
+                              <Sparkles className="w-3 h-3 text-indigo-400/60 shrink-0" />
+                              <span>{disciplineScore.daily.tips[0]}</span>
+                            </p>
                           )}
                         </div>
-                        <ChevronRight className="w-4 h-4 text-white/30" />
-                      </div>
-
-                      <div className="relative h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                        <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
-                          style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${tc.ring}80, ${tc.ring})`, boxShadow: `0 0 8px ${tc.ring}40` }} />
-                        {[63.6, 72.7, 81.8].map((gate, i) => (
-                          <div key={i} className="absolute top-0 bottom-0 w-px bg-white/15" style={{ left: `${gate}%` }} />
-                        ))}
-                      </div>
-                      <div className="flex justify-between text-[9px] text-white/30 font-medium px-0.5">
-                        <span>300</span>
-                        <span>650</span>
-                        <span>700</span>
-                        <span>750</span>
-                        <span>850</span>
-                      </div>
-                    </div>
+                      )}
+                    </>
                   );
-                })() : null}
-
-                {disciplineScore.daily && (
-                  <div className={`${disciplineScore.ogym?.score || disciplineScore.ogym?.building ? "mt-4 pt-4 border-t border-white/[0.08]" : ""}`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">Today's Discipline</span>
-                      <div className="flex items-center gap-2">
-                        {disciplineScore.daily.trend === "up" && <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />}
-                        {disciplineScore.daily.trend === "down" && <TrendingDown className="w-3.5 h-3.5 text-red-400" />}
-                        <span className="text-2xl font-black tabular-nums text-white">{disciplineScore.daily.score}</span>
-                        <span className="text-xs text-white/30 font-semibold self-end mb-0.5">/100</span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[
-                        { label: "Workout", short: "W", score: disciplineScore.daily.pillars.workout.score, color: "#60a5fa", glow: "rgba(96,165,250,0.15)" },
-                        { label: "Nutrition", short: "N", score: disciplineScore.daily.pillars.nutrition.score, color: "#34d399", glow: "rgba(52,211,153,0.15)" },
-                        { label: "Consistency", short: "C", score: disciplineScore.daily.pillars.consistency.score, color: "#fb923c", glow: "rgba(251,146,60,0.15)" },
-                        { label: "Recovery", short: "R", score: disciplineScore.daily.pillars.recovery.score, color: "#a78bfa", glow: "rgba(167,139,250,0.15)" },
-                      ].map((p) => (
-                        <div key={p.short} className="rounded-xl p-2.5" style={{ backgroundColor: p.glow, border: `1px solid ${p.color}20` }}>
-                          <p className="text-lg font-black tabular-nums text-white text-center leading-none">{p.score}</p>
-                          <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ backgroundColor: `${p.color}15` }}>
-                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${p.score}%`, backgroundColor: p.color, boxShadow: `0 0 6px ${p.color}60` }} />
-                          </div>
-                          <p className="text-[10px] text-white/50 font-semibold mt-1.5 text-center">{p.label}</p>
-                        </div>
-                      ))}
-                    </div>
-                    {disciplineScore.daily.tips?.[0] && (
-                      <div className="mt-3 p-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
-                        <p className="text-[11px] text-white/50 flex items-start gap-2">
-                          <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" />
-                          <span>{disciplineScore.daily.tips[0]}</span>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
+                })()}
               </div>
             </div>
           </div>
