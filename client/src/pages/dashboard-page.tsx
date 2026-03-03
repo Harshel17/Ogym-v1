@@ -208,19 +208,62 @@ function HealthActivityDashboard() {
 
   const computeRecovery = () => {
     if (!hasData) return 0;
-    let score = 50;
-    if (sleepMinutes >= 450) score += 20;
-    else if (sleepMinutes >= 360) score += 10;
-    else if (sleepMinutes < 360 && sleepMinutes > 0) score -= 15;
-    if (restingHR > 0 && restingHR < 60) score += 15;
-    else if (restingHR >= 60 && restingHR <= 75) score += 5;
-    else if (restingHR > 75) score -= 10;
-    if (activeMinutes > 90) score -= 10;
-    else if (activeMinutes >= 30) score += 10;
-    else if (activeMinutes > 0) score += 5;
-    if (steps >= 8000) score += 5;
-    else if (steps < 3000 && steps > 0) score -= 5;
-    return Math.max(0, Math.min(100, score));
+    let totalWeight = 0;
+    let weightedScore = 0;
+
+    if (sleepMinutes > 0) {
+      const hours = sleepMinutes / 60;
+      const w = 30;
+      totalWeight += w;
+      if (hours >= 7.5) weightedScore += w;
+      else if (hours >= 6) weightedScore += w * 0.6;
+      else weightedScore += w * 0.2;
+    }
+
+    const hrv = hasData ? ((healthData as any).hrv || 0) : 0;
+    if (hrv > 0) {
+      const w = 25;
+      totalWeight += w;
+      if (hrv >= 50) weightedScore += w;
+      else if (hrv >= 30) weightedScore += w * 0.6;
+      else weightedScore += w * 0.2;
+    } else if (restingHR > 0) {
+      const w = 20;
+      totalWeight += w;
+      if (restingHR < 60) weightedScore += w;
+      else if (restingHR <= 75) weightedScore += w * 0.6;
+      else weightedScore += w * 0.2;
+    }
+
+    if (activeMinutes > 0) {
+      const w = 20;
+      totalWeight += w;
+      if (activeMinutes > 90) weightedScore += w * 0.3;
+      else if (activeMinutes >= 30) weightedScore += w;
+      else weightedScore += w * 0.5;
+    }
+
+    if (steps > 0) {
+      const w = 15;
+      totalWeight += w;
+      if (steps >= 8000) weightedScore += w;
+      else if (steps >= 4000) weightedScore += w * 0.6;
+      else weightedScore += w * 0.3;
+    }
+
+    const sleepStages = hasData ? ((healthData as any).sleepStages as Array<{ stage: string; minutes: number }> | null) : null;
+    if (sleepStages && Array.isArray(sleepStages) && sleepStages.length > 0) {
+      const deepMins = sleepStages.filter((s: any) => s.stage === 'deep').reduce((sum: number, s: any) => sum + s.minutes, 0);
+      const remMins = sleepStages.filter((s: any) => s.stage === 'rem').reduce((sum: number, s: any) => sum + s.minutes, 0);
+      const w = 10;
+      totalWeight += w;
+      const qualityMins = deepMins + remMins;
+      if (qualityMins >= 120) weightedScore += w;
+      else if (qualityMins >= 60) weightedScore += w * 0.6;
+      else weightedScore += w * 0.2;
+    }
+
+    return totalWeight > 0 ? Math.round((weightedScore / totalWeight) * 100) : 0;
   };
 
   const recovery = computeRecovery();
