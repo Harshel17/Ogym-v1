@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward, Footprints, ExternalLink, X, Trophy, Lightbulb, Megaphone, Wallet, BarChart3, Shield, TrendingDown, Camera, ThumbsUp, ThumbsDown, Utensils, Apple } from "lucide-react";
+import { Users, CalendarCheck, TrendingUp, AlertCircle, CreditCard, Flame, Target, Calendar, CheckCircle2, Dumbbell, ChevronDown, ChevronUp, User2, Clock, ChevronLeft, ChevronRight, Check, Download, Loader2, Brain, AlertTriangle, Bell, ArrowRight, Shuffle, ArrowLeftRight, Moon, Sparkles, Sun, UserPlus, Plus, Minus, Heart, Activity, Zap, BedDouble, ArrowRightLeft, ChevronsRight, SkipForward, Footprints, ExternalLink, X, Trophy, Lightbulb, Megaphone, Wallet, BarChart3, Shield, TrendingDown, Camera, ThumbsUp, ThumbsDown, Utensils, Apple, MessageSquare } from "lucide-react";
 import { AnimatedStatCard, CalorieProgressCard, WorkoutProgressBar, WeeklyProgress, StreakDisplay } from "@/components/premium-stats";
 import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkeleton } from "@/components/dashboard-skeleton";
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
@@ -1421,13 +1421,22 @@ type TrainerDashboardData = {
   totalMembers: number;
   activeWorkouts: number;
   starMembers: number;
+  todayCheckIns: number;
+  weeklyActiveCount: number;
+  complianceRate: number;
   recentActivity: { memberName: string; action: string; date: string }[];
   memberProgress: { memberId: number; memberName: string; streak: number; lastWorkout: string | null }[];
+  atRiskMembers: { memberId: number; memberName: string; daysSinceLastWorkout: number; reason: string }[];
+};
+
+type TrainerAiInsights = {
+  insights: { type: string; priority: 'high' | 'medium' | 'low'; title: string; description: string; memberName?: string; memberId?: number; action?: string }[];
+  summary: { totalMembers: number; activeThisWeek: number; totalCompletions: number; complianceRate: number };
 };
 
 function TrainerDashboard() {
   const { user } = useAuth();
-  // Onboarding state (user-specific key to handle shared browsers)
+  const [, navigate] = useLocation();
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return !localStorage.getItem(`ogym_trainer_onboarding_seen_${user?.id}`);
   });
@@ -1442,6 +1451,11 @@ function TrainerDashboard() {
     staleTime: 1000 * 60 * 2,
   });
 
+  const { data: aiInsights } = useQuery<TrainerAiInsights>({
+    queryKey: ["/api/trainer/ai-insights"],
+    staleTime: 1000 * 60 * 5,
+  });
+
   const { data: members = [] } = useQuery<any[]>({
     queryKey: ["/api/trainer/members"],
     staleTime: 1000 * 60 * 2,
@@ -1453,6 +1467,7 @@ function TrainerDashboard() {
   });
 
   const totalMembers = dashboardData?.totalMembers || members.length || 0;
+  const complianceRate = dashboardData?.complianceRate || 0;
 
   if (showOnboarding) {
     return <TrainerOnboarding onComplete={completeOnboarding} />;
@@ -1462,195 +1477,385 @@ function TrainerDashboard() {
     return <TrainerDashboardSkeleton />;
   }
 
+  const getInsightIcon = (type: string) => {
+    switch (type) {
+      case 'churn_risk': return <AlertTriangle className="w-4 h-4 text-red-500" />;
+      case 'inactive': return <Clock className="w-4 h-4 text-amber-500" />;
+      case 'star_performer': return <Trophy className="w-4 h-4 text-emerald-500" />;
+      case 'needs_plan': return <Dumbbell className="w-4 h-4 text-blue-500" />;
+      case 'summary': return <BarChart3 className="w-4 h-4 text-primary" />;
+      default: return <Lightbulb className="w-4 h-4 text-amber-500" />;
+    }
+  };
+
+  const getInsightColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'border-l-red-500 bg-red-500/5';
+      case 'medium': return 'border-l-amber-500 bg-amber-500/5';
+      case 'low': return 'border-l-emerald-500 bg-emerald-500/5';
+      default: return 'border-l-primary bg-primary/5';
+    }
+  };
+
+  const handleInsightAction = (insight: TrainerAiInsights['insights'][0]) => {
+    if (insight.action === 'assign_plan' && insight.memberId) {
+      navigate('/workouts');
+    } else if (insight.action === 'message' || insight.action === 'check_in') {
+      navigate('/dika');
+    } else if (insight.action === 'level_up' && insight.memberId) {
+      navigate('/workouts');
+    } else {
+      navigate('/members');
+    }
+  };
+
   return (
-    <div className="space-y-3">
-      <div className="grid gap-2.5 md:grid-cols-3">
-        <StatCard 
-          title="My Members" 
-          value={totalMembers} 
-          icon={Users} 
-          description="Members assigned to you"
-        />
-        <StatCard 
-          title="Active Programs" 
-          value={dashboardData?.activeWorkouts || 0} 
-          icon={Dumbbell} 
-          description="Workout cycles in progress"
-        />
-        <StatCard 
-          title="Star Members" 
-          value={dashboardData?.starMembers || 0} 
-          icon={Target} 
-          description="Your starred members"
-        />
+    <div className="space-y-4">
+      <div className="relative overflow-hidden rounded-2xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.15),transparent_60%)]" />
+        <div className="relative p-4 sm:p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-white font-display" data-testid="trainer-greeting">
+                Hey, {user?.username || 'Coach'}
+              </h2>
+              <p className="text-xs text-white/60 mt-0.5">Trainer Dashboard</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-right">
+                <div className="text-2xl font-black text-white" data-testid="text-compliance-rate">{complianceRate}%</div>
+                <div className="text-[10px] text-white/50 uppercase tracking-wider">Compliance</div>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-2 mt-4">
+            <div className="text-center p-2 rounded-xl bg-white/10 backdrop-blur-sm">
+              <div className="text-lg font-bold text-white">{totalMembers}</div>
+              <div className="text-[9px] text-white/60 uppercase tracking-wider">Members</div>
+            </div>
+            <div className="text-center p-2 rounded-xl bg-white/10 backdrop-blur-sm">
+              <div className="text-lg font-bold text-white">{dashboardData?.activeWorkouts || 0}</div>
+              <div className="text-[9px] text-white/60 uppercase tracking-wider">Programs</div>
+            </div>
+            <div className="text-center p-2 rounded-xl bg-white/10 backdrop-blur-sm">
+              <div className="text-lg font-bold text-white">{dashboardData?.todayCheckIns || 0}</div>
+              <div className="text-[9px] text-white/60 uppercase tracking-wider">Today</div>
+            </div>
+            <div className="text-center p-2 rounded-xl bg-white/10 backdrop-blur-sm">
+              <div className="text-lg font-bold text-white">{dashboardData?.starMembers || 0}</div>
+              <div className="text-[9px] text-white/60 uppercase tracking-wider">Stars</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <FeatureDiscoveryTips role="trainer" />
 
-      {newMembers.length > 0 && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-primary" />
-              New Members - Need Workout Plan
-            </CardTitle>
-            <Badge variant="secondary">{newMembers.length}</Badge>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              These members were recently assigned to you and don't have a workout cycle yet.
-            </p>
+      {aiInsights && aiInsights.insights.length > 0 && (
+        <div className="relative overflow-hidden rounded-2xl" data-testid="card-dika-insights">
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.12),transparent_60%)]" />
+          <div className="relative p-4">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">Dika AI Insights</h3>
+                <p className="text-[10px] text-white/40">Smart alerts about your members</p>
+              </div>
+              <Badge className="ml-auto bg-white/10 text-white/70 text-[10px] border-0">{aiInsights.insights.length}</Badge>
+            </div>
             <div className="space-y-2">
-              {newMembers.slice(0, 5).map((member: any) => (
-                <div key={member.id} className="flex items-center justify-between p-3 rounded-lg bg-background border">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                      {member.username?.slice(0, 2).toUpperCase()}
+              {aiInsights.insights.slice(0, 4).map((insight, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleInsightAction(insight)}
+                  className={`w-full text-left p-3 rounded-xl border-l-2 backdrop-blur-sm transition-all hover:scale-[1.01] ${getInsightColor(insight.priority)}`}
+                  data-testid={`insight-${i}`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className="mt-0.5 shrink-0">{getInsightIcon(insight.type)}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-white truncate">{insight.title}</p>
+                      <p className="text-[10px] text-white/50 mt-0.5 line-clamp-1">{insight.description}</p>
                     </div>
-                    <div>
-                      <span className="font-medium text-sm">{member.username}</span>
-                      <p className="text-xs text-muted-foreground">
-                        Joined {member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'recently'}
-                      </p>
-                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-white/30 shrink-0 mt-0.5" />
                   </div>
-                  <Link href="/workouts">
-                    <Button size="sm" data-testid={`button-assign-cycle-${member.id}`}>
-                      <Dumbbell className="w-3 h-3 mr-1" />
-                      Assign Cycle
-                    </Button>
-                  </Link>
+                </button>
+              ))}
+            </div>
+            {aiInsights.insights.length > 4 && (
+              <button
+                onClick={() => navigate('/dika')}
+                className="w-full mt-2.5 text-center text-[10px] text-white/40 hover:text-white/60 py-1.5 transition-colors"
+                data-testid="link-more-insights"
+              >
+                {aiInsights.insights.length - 4} more insights — Ask Dika
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {dashboardData?.atRiskMembers && dashboardData.atRiskMembers.length > 0 && (
+        <Card className="border-red-500/20 bg-red-500/5 border-0 shadow-sm" data-testid="card-at-risk">
+          <CardHeader className="p-3 pb-1.5">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-red-500/10">
+                <AlertTriangle className="w-4 h-4 text-red-500" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-semibold">At-Risk Members</CardTitle>
+                <p className="text-[10px] text-muted-foreground">{dashboardData.atRiskMembers.length} members need attention</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-3 pt-1.5">
+            <div className="space-y-1.5">
+              {dashboardData.atRiskMembers.slice(0, 4).map((member) => (
+                <div key={member.memberId} className="flex items-center gap-2.5 p-2 rounded-lg bg-background/60 border border-border/30" data-testid={`at-risk-${member.memberId}`}>
+                  <div className="w-7 h-7 rounded-full bg-red-500/10 flex items-center justify-center text-[10px] font-bold text-red-600">
+                    {member.memberName.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{member.memberName}</p>
+                    <p className="text-[10px] text-red-500/80">{member.reason}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 text-red-600" onClick={() => navigate('/dika')} data-testid={`button-reach-out-${member.memberId}`}>
+                    <MessageSquare className="w-3 h-3 mr-1" />Reach out
+                  </Button>
                 </div>
               ))}
-              {newMembers.length > 5 && (
-                <p className="text-sm text-muted-foreground text-center pt-2">
-                  And {newMembers.length - 5} more members need workout plans
-                </p>
-              )}
             </div>
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-2.5 md:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <CardTitle className="text-lg">Quick Actions</CardTitle>
+      {newMembers.length > 0 && (
+        <Card className="border-primary/20 bg-primary/5 border-0 shadow-sm" data-testid="card-new-members">
+          <CardHeader className="p-3 pb-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-primary/10">
+                  <UserPlus className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-semibold">New Members</CardTitle>
+                  <p className="text-[10px] text-muted-foreground">Need workout plans</p>
+                </div>
+              </div>
+              <Badge variant="secondary" className="text-[10px]">{newMembers.length}</Badge>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Link href="/workouts">
-              <Button variant="outline" className="w-full justify-start" data-testid="link-create-workout">
-                <Dumbbell className="w-4 h-4 mr-2" />
-                Create Workout Program
-              </Button>
-            </Link>
-            <Link href="/star-members">
-              <Button variant="outline" className="w-full justify-start" data-testid="link-star-members">
-                <Target className="w-4 h-4 mr-2" />
-                View Star Members
-              </Button>
-            </Link>
-            <Link href="/members">
-              <Button variant="outline" className="w-full justify-start" data-testid="link-members">
-                <Users className="w-4 h-4 mr-2" />
-                View All Members
-              </Button>
-            </Link>
+          <CardContent className="p-3 pt-1.5">
+            <div className="space-y-1.5">
+              {newMembers.slice(0, 4).map((member: any) => (
+                <div key={member.id} className="flex items-center justify-between p-2 rounded-lg bg-background/60 border border-border/30">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                      {member.username?.slice(0, 2).toUpperCase()}
+                    </div>
+                    <span className="font-medium text-xs">{member.username}</span>
+                  </div>
+                  <Link href="/workouts">
+                    <Button size="sm" className="h-6 text-[10px] px-2" data-testid={`button-assign-cycle-${member.id}`}>
+                      <Dumbbell className="w-3 h-3 mr-1" />Assign
+                    </Button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-3 gap-2">
+        <button
+          onClick={() => navigate('/workouts')}
+          className="group relative overflow-hidden rounded-2xl p-3 text-center transition-all hover:scale-[1.02] active:scale-[0.98]"
+          data-testid="quick-action-workouts"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/10 rounded-2xl" />
+          <div className="relative">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25 mb-1.5">
+              <Dumbbell className="w-4.5 h-4.5 text-white" />
+            </div>
+            <span className="text-[11px] font-medium text-foreground/80">Workouts</span>
+          </div>
+        </button>
+        <button
+          onClick={() => navigate('/members')}
+          className="group relative overflow-hidden rounded-2xl p-3 text-center transition-all hover:scale-[1.02] active:scale-[0.98]"
+          data-testid="quick-action-members"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/10 rounded-2xl" />
+          <div className="relative">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 mb-1.5">
+              <Users className="w-4.5 h-4.5 text-white" />
+            </div>
+            <span className="text-[11px] font-medium text-foreground/80">Members</span>
+          </div>
+        </button>
+        <button
+          onClick={() => navigate('/dika')}
+          className="group relative overflow-hidden rounded-2xl p-3 text-center transition-all hover:scale-[1.02] active:scale-[0.98]"
+          data-testid="quick-action-dika"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/10 rounded-2xl" />
+          <div className="relative">
+            <div className="w-10 h-10 mx-auto rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-lg shadow-purple-500/25 mb-1.5">
+              <Sparkles className="w-4.5 h-4.5 text-white" />
+            </div>
+            <span className="text-[11px] font-medium text-foreground/80">Ask Dika</span>
+          </div>
+        </button>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <Card className="border-0 shadow-sm" data-testid="card-member-activity">
+          <CardHeader className="p-3 pb-1.5">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                Recent Activity
+              </CardTitle>
+              <Link href="/members">
+                <span className="text-[10px] text-primary cursor-pointer" data-testid="link-see-all-activity">See all</span>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            {(!dashboardData?.recentActivity || dashboardData.recentActivity.length === 0) ? (
+              <div className="text-center py-6">
+                <Activity className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">No recent activity yet</p>
+                <p className="text-[10px] text-muted-foreground/60 mt-0.5">Member workouts will show here</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {dashboardData.recentActivity.slice(0, 5).map((activity, index) => (
+                  <div key={index} className="flex items-center gap-2.5 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <div className="w-7 h-7 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{activity.memberName}</p>
+                      <p className="text-[10px] text-muted-foreground">{activity.action}</p>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground/60 shrink-0">{activity.date}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Member Overview</CardTitle>
+        <Card className="border-0 shadow-sm" data-testid="card-member-streaks">
+          <CardHeader className="p-3 pb-1.5">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <Flame className="w-3.5 h-3.5 text-orange-500" />
+              Streak Leaderboard
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            {members.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No members assigned yet.</p>
+          <CardContent className="p-3 pt-0">
+            {(!dashboardData?.memberProgress || dashboardData.memberProgress.filter(m => m.streak > 0).length === 0) ? (
+              <div className="text-center py-6">
+                <Flame className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">No active streaks</p>
+                <p className="text-[10px] text-muted-foreground/60 mt-0.5">Members with consecutive workouts appear here</p>
+              </div>
             ) : (
-              <div className="space-y-3">
-                {members.slice(0, 5).map((member: any) => (
-                  <div key={member.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                        {member.username?.slice(0, 2).toUpperCase()}
-                      </div>
-                      <span className="font-medium text-sm">{member.username}</span>
+              <div className="space-y-1.5">
+                {dashboardData.memberProgress
+                  .filter((m) => m.streak > 0)
+                  .sort((a, b) => b.streak - a.streak)
+                  .slice(0, 5)
+                  .map((member, i) => (
+                  <div key={member.memberId} className="flex items-center gap-2.5 p-2 rounded-lg bg-muted/30">
+                    <div className="w-5 h-5 rounded-full bg-orange-500/10 flex items-center justify-center text-[9px] font-bold text-orange-600">
+                      {i + 1}
                     </div>
-                    <Link href={`/workouts`}>
-                      <Button variant="ghost" size="sm" data-testid={`button-view-member-${member.id}`}>
-                        View
-                      </Button>
-                    </Link>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{member.memberName}</p>
+                    </div>
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 text-[10px] px-1.5 py-0">
+                      <Flame className="w-2.5 h-2.5 mr-0.5" />{member.streak}d
+                    </Badge>
                   </div>
                 ))}
-                {members.length > 5 && (
-                  <Link href="/members">
-                    <Button variant="ghost" className="w-full text-sm text-primary" data-testid="link-view-all-members">
-                      View all {members.length} members
-                    </Button>
-                  </Link>
-                )}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {dashboardData?.recentActivity && dashboardData.recentActivity.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Member Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {dashboardData.recentActivity.slice(0, 5).map((activity, index) => (
-                <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
-                  <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                    <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{activity.memberName}</p>
-                    <p className="text-xs text-muted-foreground">{activity.action}</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">{activity.date}</span>
-                </div>
-              ))}
+      <Card className="border-0 shadow-sm" data-testid="card-member-overview">
+        <CardHeader className="p-3 pb-1.5">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-primary" />
+              Your Members
+            </CardTitle>
+            <Link href="/members">
+              <span className="text-[10px] text-primary cursor-pointer" data-testid="link-view-all">View all</span>
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="p-3 pt-0">
+          {members.length === 0 ? (
+            <div className="text-center py-6">
+              <Users className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">No members assigned yet</p>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {dashboardData?.memberProgress && dashboardData.memberProgress.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Member Streaks</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {dashboardData.memberProgress
-                .filter((m) => m.streak > 0)
-                .sort((a, b) => b.streak - a.streak)
-                .slice(0, 5)
-                .map((member) => (
-                <div key={member.memberId} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
-                  <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                    <Flame className="w-4 h-4 text-orange-500" />
+          ) : (
+            <div className="space-y-1.5">
+              {members.slice(0, 6).map((member: any) => {
+                const progress = dashboardData?.memberProgress?.find(p => p.memberId === member.id);
+                const isAtRisk = dashboardData?.atRiskMembers?.some(r => r.memberId === member.id);
+                return (
+                  <div key={member.id} className="flex items-center gap-2.5 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors" data-testid={`member-row-${member.id}`}>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${isAtRisk ? 'bg-red-500/10 text-red-600' : 'bg-primary/10 text-primary'}`}>
+                      {member.username?.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{member.username}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {progress?.lastWorkout ? `Last: ${progress.lastWorkout}` : 'No workouts yet'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {progress && progress.streak > 0 && (
+                        <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                          <Flame className="w-2 h-2 mr-0.5" />{progress.streak}
+                        </Badge>
+                      )}
+                      {isAtRisk && (
+                        <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                          At risk
+                        </Badge>
+                      )}
+                      <Link href="/workouts">
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" data-testid={`button-view-member-${member.id}`}>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{member.memberName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {member.lastWorkout ? `Last: ${member.lastWorkout}` : 'Active'}
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-                    {member.streak} day streak
-                  </Badge>
-                </div>
-              ))}
+                );
+              })}
+              {members.length > 6 && (
+                <Link href="/members">
+                  <Button variant="ghost" className="w-full text-xs text-primary h-8 mt-1" data-testid="link-view-all-members">
+                    View all {members.length} members
+                  </Button>
+                </Link>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

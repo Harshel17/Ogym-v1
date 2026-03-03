@@ -304,9 +304,11 @@ export function getSuggestionChips(role: UserRole, gymId: number | null, isIOSNa
     case 'trainer':
       return [
         "Who skipped this week?",
+        "Which members are at risk of dropping off?",
         "Today's check-ins",
-        "My workouts this week",
-        "Show my progress",
+        "Suggest a workout plan for beginners",
+        "Generate a push/pull/legs split",
+        "How is my team doing?",
       ];
       
     case 'owner':
@@ -358,9 +360,10 @@ export function getQuickActions(role: UserRole, gymId: number | null, isIOSNativ
     case 'trainer':
       return [
         { label: "Check-ins", icon: "users", message: "Who checked in today?" },
+        { label: "At risk", icon: "alert", message: "Which members are at risk of dropping off?" },
         { label: "Skipped", icon: "alert", message: "Who skipped workouts this week?" },
-        { label: "My workout", icon: "dumbbell", message: "What's my workout today?" },
-        { label: "Progress", icon: "trending-up", message: "Show my progress this week" },
+        { label: "Team stats", icon: "bar-chart", message: "How is my team doing this week?" },
+        { label: "Plan builder", icon: "dumbbell", message: "Generate a push/pull/legs split" },
       ];
     case 'owner':
       if (isIOSNative) {

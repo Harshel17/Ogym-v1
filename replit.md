@@ -62,6 +62,14 @@ Preferred communication style: Simple, everyday language.
     - **Quick-Win Nav Badge:** Walk-ins nav item shows badge count for hot leads (score >= 70) via notification-counts endpoint
     - API endpoints: `/api/owner/walk-in-visitors/lead-scores`, `/api/owner/walk-in-visitors/ai-suggestions`, `/api/owner/walk-in-visitors/conversion-funnel`
     - Schema: `walk_in_visitors` extended with `enquiryCategory`, `enquiryDetails`
+- **Trainer AI Intelligence:** Upgraded trainer dashboard from basic stats to AI-powered management hub:
+    - **Premium Dashboard:** Gradient hero header with compliance rate, 4-stat grid (Members/Programs/Today Check-ins/Stars), glassmorphic quick-action pods
+    - **Dika AI Insights Card:** Dark-themed card with priority-sorted insights (churn risk, inactive, star performer, needs plan), color-coded by severity, clickable actions
+    - **At-Risk Member Alerts:** Red-themed card highlighting members who haven't trained in 5+ days with "Reach out" buttons
+    - **Enhanced Data:** Dashboard endpoint now populates real recentActivity, memberProgress with streaks, atRiskMembers, todayCheckIns, complianceRate
+    - **Trainer Briefing:** Dika now greets trainers with team status summary (active/inactive counts, at-risk members) when opening chat
+    - **Smart Suggestions:** Enhanced quick actions (At risk, Team stats, Plan builder) and suggestion chips (risk analysis, workout generation)
+    - API endpoints: `/api/trainer/dashboard` (enhanced), `/api/trainer/ai-insights` (new)
 - **Automated Email Reminders:** System for subscription expiry and owner summaries.
 - **Production Security:** Implemented with Helmet.js, secure session cookies, rate limiting, and request body limits.
 - **Error Handling:** React Error Boundary for graceful UI error recovery.

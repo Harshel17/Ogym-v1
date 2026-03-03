@@ -1772,21 +1772,225 @@ RESPONSE FORMAT (JSON):
     try {
       const assignments = await storage.getTrainerMembers(req.user!.id);
       const totalMembers = assignments.length;
+      const memberIds = assignments.map(a => a.memberId);
       
       const cycles = await storage.getTrainerCycles(req.user!.id);
       const activeWorkouts = cycles.filter((c: any) => c.isActive).length;
       
       const starMembers = await storage.getStarMembers(req.user!.id);
-      
+
+      const today = getLocalDate(req);
+      const sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+      const recentActivity: { memberName: string; action: string; date: string }[] = [];
+      const memberProgress: { memberId: number; memberName: string; streak: number; lastWorkout: string | null }[] = [];
+      const atRiskMembers: { memberId: number; memberName: string; daysSinceLastWorkout: number; reason: string }[] = [];
+      let todayCheckIns = 0;
+      let weeklyActiveCount = 0;
+
+      const allMembers = await storage.getGymMembers(req.user!.gymId!);
+      const assignedMembers = allMembers.filter(m => memberIds.includes(m.id));
+
+      for (const member of assignedMembers) {
+        const completions = await db.select().from(workoutCompletions)
+          .where(eq(workoutCompletions.memberId, member.id))
+          .orderBy(desc(workoutCompletions.completedDate))
+          .limit(30);
+
+        const attendanceRecords = await db.select().from(attendance)
+          .where(eq(attendance.memberId, member.id))
+          .orderBy(desc(attendance.date))
+          .limit(14);
+
+        const todayAttendance = attendanceRecords.find(a => a.date === today);
+        if (todayAttendance) todayCheckIns++;
+
+        const recentCompletions = completions.filter(c => c.completedDate >= sevenDaysAgoStr);
+        if (recentCompletions.length > 0) weeklyActiveCount++;
+
+        for (const c of recentCompletions.slice(0, 2)) {
+          recentActivity.push({
+            memberName: member.username,
+            action: `Completed workout`,
+            date: c.completedDate
+          });
+        }
+
+        let streak = 0;
+        const uniqueDates = [...new Set(completions.map(c => c.completedDate))].sort((a, b) => b.localeCompare(a));
+        if (uniqueDates.length > 0) {
+          const d = new Date(today);
+          for (let i = 0; i < uniqueDates.length; i++) {
+            const checkDate = d.toISOString().split('T')[0];
+            if (uniqueDates.includes(checkDate)) {
+              streak++;
+              d.setDate(d.getDate() - 1);
+            } else if (i === 0 && checkDate === today) {
+              d.setDate(d.getDate() - 1);
+              continue;
+            } else {
+              break;
+            }
+          }
+        }
+
+        memberProgress.push({
+          memberId: member.id,
+          memberName: member.username,
+          streak,
+          lastWorkout: completions.length > 0 ? completions[0].completedDate : null
+        });
+
+        if (completions.length > 0) {
+          const lastDate = new Date(completions[0].completedDate);
+          const diffDays = Math.floor((new Date(today).getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays >= 5) {
+            atRiskMembers.push({
+              memberId: member.id,
+              memberName: member.username,
+              daysSinceLastWorkout: diffDays,
+              reason: diffDays >= 14 ? 'Inactive for 2+ weeks' : diffDays >= 7 ? 'No workout in a week' : 'Slowing down'
+            });
+          }
+        } else if (completions.length === 0) {
+          atRiskMembers.push({
+            memberId: member.id,
+            memberName: member.username,
+            daysSinceLastWorkout: 999,
+            reason: 'Never logged a workout'
+          });
+        }
+      }
+
+      recentActivity.sort((a, b) => b.date.localeCompare(a.date));
+
       res.json({
         totalMembers,
         activeWorkouts,
         starMembers: starMembers.length,
-        recentActivity: [],
-        memberProgress: []
+        todayCheckIns,
+        weeklyActiveCount,
+        complianceRate: totalMembers > 0 ? Math.round((weeklyActiveCount / totalMembers) * 100) : 0,
+        recentActivity: recentActivity.slice(0, 8),
+        memberProgress,
+        atRiskMembers: atRiskMembers.sort((a, b) => b.daysSinceLastWorkout - a.daysSinceLastWorkout).slice(0, 6),
       });
     } catch (err) {
+      console.error("Trainer dashboard error:", err);
       res.status(500).json({ message: "Failed to load dashboard" });
+    }
+  });
+
+  app.get("/api/trainer/ai-insights", requireRole(["trainer"]), async (req, res) => {
+    try {
+      const assignments = await storage.getTrainerMembers(req.user!.id);
+      const memberIds = assignments.map(a => a.memberId);
+      const today = getLocalDate(req);
+      const allMembers = await storage.getGymMembers(req.user!.gymId!);
+      const assignedMembers = allMembers.filter(m => memberIds.includes(m.id));
+
+      const cycles = await storage.getTrainerCycles(req.user!.id);
+      const insights: { type: string; priority: 'high' | 'medium' | 'low'; title: string; description: string; memberName?: string; memberId?: number; action?: string }[] = [];
+
+      let totalCompletions = 0;
+      let activeThisWeek = 0;
+      const sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+      for (const member of assignedMembers) {
+        const completions = await db.select().from(workoutCompletions)
+          .where(eq(workoutCompletions.memberId, member.id))
+          .orderBy(desc(workoutCompletions.completedDate))
+          .limit(20);
+
+        const recentCompletions = completions.filter(c => c.completedDate >= sevenDaysAgoStr);
+        totalCompletions += recentCompletions.length;
+        if (recentCompletions.length > 0) activeThisWeek++;
+
+        if (completions.length > 0) {
+          const lastDate = new Date(completions[0].completedDate);
+          const diffDays = Math.floor((new Date(today).getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (diffDays >= 14) {
+            insights.push({
+              type: 'churn_risk',
+              priority: 'high',
+              title: `${member.username} hasn't trained in ${diffDays} days`,
+              description: 'High churn risk. Send a personal message or adjust their program.',
+              memberName: member.username,
+              memberId: member.id,
+              action: 'message'
+            });
+          } else if (diffDays >= 7) {
+            insights.push({
+              type: 'inactive',
+              priority: 'medium',
+              title: `${member.username} is going inactive`,
+              description: `Last workout was ${diffDays} days ago. Check in with them.`,
+              memberName: member.username,
+              memberId: member.id,
+              action: 'check_in'
+            });
+          }
+
+          if (recentCompletions.length >= 5) {
+            insights.push({
+              type: 'star_performer',
+              priority: 'low',
+              title: `${member.username} is crushing it!`,
+              description: `${recentCompletions.length} workouts this week. Consider leveling up their program.`,
+              memberName: member.username,
+              memberId: member.id,
+              action: 'level_up'
+            });
+          }
+        } else {
+          const cycle = cycles.find((c: any) => c.memberId === member.id);
+          if (!cycle) {
+            insights.push({
+              type: 'needs_plan',
+              priority: 'high',
+              title: `${member.username} has no workout plan`,
+              description: 'Assign a workout cycle to get them started.',
+              memberName: member.username,
+              memberId: member.id,
+              action: 'assign_plan'
+            });
+          }
+        }
+      }
+
+      const inactiveCount = assignedMembers.length - activeThisWeek;
+      if (inactiveCount > 0 && assignedMembers.length >= 3) {
+        insights.unshift({
+          type: 'summary',
+          priority: inactiveCount > assignedMembers.length / 2 ? 'high' : 'medium',
+          title: `${inactiveCount} of ${assignedMembers.length} members inactive this week`,
+          description: `Only ${activeThisWeek} members trained. ${totalCompletions} total sessions logged.`,
+          action: 'review'
+        });
+      }
+
+      insights.sort((a, b) => {
+        const prio = { high: 0, medium: 1, low: 2 };
+        return prio[a.priority] - prio[b.priority];
+      });
+
+      res.json({
+        insights: insights.slice(0, 8),
+        summary: {
+          totalMembers: assignedMembers.length,
+          activeThisWeek,
+          totalCompletions,
+          complianceRate: assignedMembers.length > 0 ? Math.round((activeThisWeek / assignedMembers.length) * 100) : 0,
+        }
+      });
+    } catch (err) {
+      console.error("Trainer AI insights error:", err);
+      res.status(500).json({ message: "Failed to load insights" });
     }
   });
 
@@ -7042,6 +7246,64 @@ Return ONLY JSON.`
 
   app.get("/api/dika/briefing", requireAuth, async (req, res) => {
     const user = req.user!;
+    if (user.role === 'trainer' && user.gymId) {
+      try {
+        const assignments = await storage.getTrainerMembers(user.id);
+        const memberIds = assignments.map(a => a.memberId);
+        const today = getLocalDate(req);
+        const allMembers = await storage.getGymMembers(user.gymId);
+        const assignedMembers = allMembers.filter(m => memberIds.includes(m.id));
+
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+        let activeThisWeek = 0;
+        let todayCheckIns = 0;
+        const atRiskNames: string[] = [];
+
+        for (const member of assignedMembers) {
+          const completions = await db.select().from(workoutCompletions)
+            .where(eq(workoutCompletions.memberId, member.id))
+            .orderBy(desc(workoutCompletions.completedDate))
+            .limit(10);
+
+          const recentCompletions = completions.filter(c => c.completedDate >= sevenDaysAgoStr);
+          if (recentCompletions.length > 0) activeThisWeek++;
+
+          const attendanceRecords = await db.select().from(attendance)
+            .where(and(eq(attendance.memberId, member.id), eq(attendance.date, today)))
+            .limit(1);
+          if (attendanceRecords.length > 0) todayCheckIns++;
+
+          if (completions.length > 0) {
+            const diffDays = Math.floor((new Date(today).getTime() - new Date(completions[0].completedDate).getTime()) / (1000 * 60 * 60 * 24));
+            if (diffDays >= 7) atRiskNames.push(member.username);
+          }
+        }
+
+        const inactiveCount = assignedMembers.length - activeThisWeek;
+        let answer = `Hey Coach ${user.username}! Here's your team update:\n\n`;
+        answer += `- **${assignedMembers.length}** members assigned to you\n`;
+        answer += `- **${activeThisWeek}** trained this week, **${inactiveCount}** inactive\n`;
+        answer += `- **${todayCheckIns}** checked in today\n`;
+
+        if (atRiskNames.length > 0) {
+          answer += `\n**Needs attention:** ${atRiskNames.slice(0, 3).join(', ')}${atRiskNames.length > 3 ? ` and ${atRiskNames.length - 3} more` : ''} haven't trained in a week+`;
+        }
+
+        const followUpChips = [
+          "Who skipped this week?",
+          "Show at-risk members",
+          "Generate a workout plan",
+        ];
+
+        return res.json({ answer, followUpChips });
+      } catch (error) {
+        console.error('Trainer briefing error:', error);
+        return res.json({ answer: null });
+      }
+    }
     if (user.role !== 'owner' || !user.gymId) {
       return res.json({ answer: null });
     }
