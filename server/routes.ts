@@ -6293,6 +6293,110 @@ Return ONLY JSON.`
     }
   });
 
+  // === DISCIPLINE SCORE (OGym Score) ===
+
+  app.get("/api/discipline/score/today", requireRole(["member"]), async (req, res) => {
+    try {
+      const { getScoreToday } = await import("./discipline-score");
+      const forceRefresh = req.query.refresh === "true";
+      const result = await getScoreToday(req.user!.id, forceRefresh);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Discipline score error:", error);
+      res.status(500).json({ message: "Failed to get score" });
+    }
+  });
+
+  app.get("/api/discipline/score/history", requireRole(["member"]), async (req, res) => {
+    try {
+      const { getDailyScoreHistory } = await import("./discipline-score");
+      const days = parseInt(req.query.days as string) || 30;
+      const history = await getDailyScoreHistory(req.user!.id, days);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Score history error:", error);
+      res.status(500).json({ message: "Failed to get score history" });
+    }
+  });
+
+  app.get("/api/discipline/ogym-history", requireRole(["member"]), async (req, res) => {
+    try {
+      const { getOGymScoreHistory } = await import("./discipline-score");
+      const weeks = parseInt(req.query.weeks as string) || 12;
+      const history = await getOGymScoreHistory(req.user!.id, weeks);
+      res.json(history);
+    } catch (error: any) {
+      console.error("OGym history error:", error);
+      res.status(500).json({ message: "Failed to get OGym score history" });
+    }
+  });
+
+  app.post("/api/discipline/calculate-ogym", requireRole(["member"]), async (req, res) => {
+    try {
+      const { calculateOGymScore } = await import("./discipline-score");
+      const today = getLocalDate(req);
+      const d = new Date(today + "T00:00:00");
+      const dayOfWeek = d.getDay();
+      const sundayOffset = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+      const nextSunday = new Date(d);
+      nextSunday.setDate(nextSunday.getDate() + sundayOffset);
+      const weekEndDate = nextSunday.toISOString().split("T")[0];
+      const result = await calculateOGymScore(req.user!.id, weekEndDate);
+      res.json(result);
+    } catch (error: any) {
+      console.error("OGym calculate error:", error);
+      res.status(500).json({ message: "Failed to calculate OGym score" });
+    }
+  });
+
+  app.get("/api/discipline/settings", requireRole(["member"]), async (req, res) => {
+    try {
+      const { getSettings } = await import("./discipline-score");
+      const settings = await getSettings(req.user!.id);
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to get settings" });
+    }
+  });
+
+  app.patch("/api/discipline/settings", requireRole(["member"]), async (req, res) => {
+    try {
+      const { updateSettings } = await import("./discipline-score");
+      const { visibility } = req.body;
+      if (!["public", "coach", "private"].includes(visibility)) {
+        return res.status(400).json({ message: "Invalid visibility value" });
+      }
+      const settings = await updateSettings(req.user!.id, visibility);
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
+  app.get("/api/trainer/discipline/members", requireRole(["trainer"]), async (req, res) => {
+    try {
+      const { getTrainerMemberScores } = await import("./discipline-score");
+      const scores = await getTrainerMemberScores(req.user!.id);
+      res.json(scores);
+    } catch (error: any) {
+      console.error("Trainer discipline error:", error);
+      res.status(500).json({ message: "Failed to get member scores" });
+    }
+  });
+
+  app.get("/api/owner/discipline/overview", requireRole(["owner"]), async (req, res) => {
+    try {
+      const { getOwnerDisciplineOverview } = await import("./discipline-score");
+      const user = req.user!;
+      if (!user.gymId) return res.status(400).json({ message: "No gym found" });
+      const overview = await getOwnerDisciplineOverview(user.gymId);
+      res.json(overview);
+    } catch (error: any) {
+      console.error("Owner discipline error:", error);
+      res.status(500).json({ message: "Failed to get overview" });
+    }
+  });
+
   // === HEALTH DATA (FITNESS DEVICES) ===
   
   // Get today's health data

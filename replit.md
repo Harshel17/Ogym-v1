@@ -1,84 +1,49 @@
 # OGym V1 - Multi-Gym Management Platform
 
 ## Overview
-OGym is a multi-tenant B2B web application designed for comprehensive gym management, targeting gym owners, trainers, and members. It streamlines operations with features like attendance tracking, multi-currency payment and subscription management, and detailed workout cycle organization. Key capabilities include member statistics, a gym code-based joining system, "Star Members" tracking, gym transfer requests, and an administrative panel. The platform also features a dedicated mobile application, "Personal Mode" for self-managed fitness, an AI-powered workout importer, "Training Mode" for flexible workout management, calorie analytics, an "Enhanced Nutrition Page" with flexible meal logging, a "Find My Food" feature for healthy restaurant suggestions, and "Dika Assistant," an AI-powered personal assistant providing contextual insights and conversational meal logging. The project aims to provide a robust, all-in-one solution for modern gym operations and member engagement with significant market potential in the fitness industry.
+OGym is a multi-tenant B2B web application designed to streamline gym operations and enhance member engagement. It offers comprehensive features for gym owners, trainers, and members, including attendance tracking, multi-currency payment and subscription management, and detailed workout cycle organization. Key capabilities span member statistics, a gym code-based joining system, "Star Members" tracking, gym transfer requests, and an administrative panel. The platform also includes a dedicated mobile application, "Personal Mode" for self-managed fitness, an AI-powered workout importer, "Training Mode" for flexible workout management, calorie analytics, an "Enhanced Nutrition Page" with flexible meal logging, a "Find My Food" feature for healthy restaurant suggestions, and "Dika Assistant," an AI-powered personal assistant providing contextual insights and conversational meal logging. OGym aims to be an all-in-one solution for the modern fitness industry, providing significant market potential.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
-
 ### UI/UX Decisions
-- **Frontend Framework:** React 18 with TypeScript and Vite.
-- **UI Components:** shadcn/ui built on Radix UI primitives.
-- **Styling:** Tailwind CSS with CSS variables for theming.
-- **Chart Visualization:** Recharts for dashboards.
-- **Mobile Application:** Capacitor wraps the web app for iOS/Android with a mobile-first responsive design.
-- **QR Code Generation:** Client-side via `qrcode.react`.
-- **Mobile Navigation:** Fixed bottom navigation bar.
-- **iOS Specifics:** Handles status bar, safe areas, rubber-band scroll, toast positioning, and Dika drawer spacing, with compliance for Apple App Store guidelines (e.g., owner features blocked on iOS, account deletion).
+- **Frontend:** React 18 with TypeScript and Vite, utilizing shadcn/ui (built on Radix UI) and Tailwind CSS for styling.
+- **Data Visualization:** Recharts for dashboards.
+- **Mobile:** Capacitor wraps the web app for iOS/Android, featuring a mobile-first responsive design, client-side QR code generation, and a fixed bottom navigation bar.
+- **iOS Specifics:** Compliance with Apple App Store guidelines, including status bar, safe areas, rubber-band scroll, and account deletion handling.
 
 ### Technical Implementations
 - **Backend:** Express.js with TypeScript.
 - **Authentication:** Passport.js (Local Strategy, session-based) for gym users; JWT for Admin.
-- **State Management (Frontend):** TanStack React Query.
+- **State Management:** TanStack React Query for frontend.
 - **Form Handling:** React Hook Form with Zod validation.
-- **API Design:** RESTful with shared Zod schemas for type-safe communication.
-- **Database ORM:** Drizzle ORM with PostgreSQL.
+- **API:** RESTful design with shared Zod schemas.
+- **Database:** PostgreSQL with Drizzle ORM.
 - **Multi-Tenancy:** Enforced via `gym_id` filtering.
-- **Core Features:** Attendance tracking (QR code & auto), multi-currency payment/subscription management, workout management, user profiles, role-based access, admin system, announcements, and member engagement features (trainer-member assignment, "Star Members," social feed, tournaments, daily points).
-- **Guest Mode:** Anonymous access with full "Personal Mode" functionality and a conversion flow to a full account.
-- **Personal Mode:** Enables self-managed workout tracking for members without gym affiliation, with data isolation.
-- **AI Import Workouts:** Supports importing workouts from AI assistants using regex parsing and client-side OCR.
-- **Training Mode:** Configurable "Trainer-Led" or "Self-Guided" workout management.
-- **Calorie Analytics:** Weekly and monthly analytics for calorie tracking.
-- **Enhanced Nutrition Page:** Features global food logging, multiple meal types, protein/water intake tracking, recent foods quick-add, and AI-powered nutrition estimation with an expanded food database.
-- **Sports Mode:** AI-powered sport-specific training programs, fitness assessments, match logging, and personalized multi-week training programs generated by GPT-4o-mini.
-- **Match Day Logging:** Dashboard feature for logging matches with timing options, recovery suggestions, and sport-specific calorie tracking.
-- **Find My Food:** Location-based restaurant finder suggesting healthy options.
-- **Dika Assistant:** AI-powered personal assistant (GPT-4o-mini) offering contextual insights, conversational meal logging, and owner actions with cross-device chat synchronization.
-- **Dika Voice:** Hands-free voice AI assistant using Web Speech API with continuous conversation, multilingual support, intent detection, emotional intelligence, and voice-optimized responses. Voice input lives inside the Dika chat input bar (mic button alongside camera and send). Shares conversation history with Dika web chat.
-- **Dika Multi-Chat Web Experience:** ChatGPT-style web interface for Dika with multi-chat management, search, pinned insights, action feed, quick actions, auto-categorization, auto-title generation, follow-up chips, and health-aware AI using 7-day rolling averages for a Recovery Score.
-- **Centralized Goals System:** User-defined fitness targets (weight, calories, protein, workout frequency, primary goal) feeding into AI reports and Dika conversations.
-- **Quick Log Bar:** AI-powered natural language workout logging on the member dashboard for efficient exercise tracking.
-- **Food Camera (Snap & Score):** Floating camera button on member dashboard. Tap to snap a food photo → AI analyzes items and nutrition → two options: "Log This Food" (meal type picker + portions → logs to nutrition) or "See Score" (health score 0-100 with color-coded ring, positive/negative/tip reasons, and overall verdict). Score factors in nutritional balance, processing level, cooking method, and user's fitness goals. Backend endpoint: `POST /api/nutrition/food/photo-score`.
-- **AI Insights:**
-    - **Dika Weekly Report:** AI-generated personalized fitness progress reports.
-    - **Owner AI Insights (5-Pillar System):** AI-driven churn explanations, weekly owner briefings, insight of the day, trainer performance summaries, and re-engagement campaign suggestions.
-    - **Member AI Coach System:** AI workout insights, progress summaries, smart workout suggestions, nutrition coaching, and proactive dashboard nudges.
-- **AI Follow-up Engine:** Transformed Follow-ups page from manual messaging tool to AI-powered execution engine. Features: AI-generated priority follow-up queue (churn risk, expiring, inactive, payment due, new members), outcome-based goal selection, GPT-4o-mini message generation with tone matching (uses senderName from gym email settings), smart action suggestions, follow-up result tracking (sent/returned/success rate), and one-click action flow from AI Insights. Three-tab view: AI Engine | Manual | Results.
-    - **Outcome Tracking & Conversions:** Auto-detects outcomes (returned/paid/renewed/converted) from attendance, payments, and subscription data. Next-action suggestions for pending follow-ups (5d → call, 7d → discount, 10d → final offer). Performance dashboard showing success rates by goal type and category.
-    - API endpoints: `/api/followups/ai-queue`, `/api/followups/ai-generate-message`, `/api/followups/ai-tracking`, `/api/followups/detect-outcomes`, `/api/followups/outcomes`, `/api/followups/performance`.
-    - Schema: `owner_interventions` table extended with `outcomeType`, `outcomeDetectedAt`, `followUpGoal`, `messageSubject`, `nextActionSuggestion`, `nextActionDueDate`. `gym_email_settings` has `senderName` field.
-- **Walk-in Visitors AI Pipeline:** Upgraded walk-in visitors page from passive list to AI conversion pipeline:
-    - **Conversion Funnel:** Visual pipeline (Enquiry → Trial → Day Pass → Converted) with conversion rates
-    - **Visitor Type Filters:** Segmented control (All | Day Pass | Enquiry | Trial) with date range picker; visitors grouped by date when filtered
-    - **Lead Scoring:** Auto-calculated 0-100 score per visitor (visit frequency, city match, enquiry type, payment status, recency, contact info). Color-coded badges on cards (green 70+, yellow 40-69, red <40)
-    - **Repeat Visitor Detection:** Detects repeat visitors by email, shows "2nd visit" / "3rd visit" badges
-    - **Enquiry Details Capture:** New `enquiryCategory` (Pricing/PT/Weight Loss/Strength/Other) and `enquiryDetails` fields in schema, captured on kiosk self check-in and editable by owner
-    - **Dika AI Suggestions:** 4 action lanes (Hot Leads, Nurture, Win Back, Payment Pending) with scored visitors and reason strings
-    - **Take Action Flow:** Each suggestion has [Take Action] button → navigates to Follow-ups page with walk-in visitor injected as synthetic queue item, goal pre-selected, AI message auto-generated. Send uses DAY_PASS category for walk-in email resolution, auto-updates walk-in follow-up status to 'contacted' on success
-    - **Repeat Detection:** Uses both email and phone-based matching for repeat visitor detection across lead-scores, ai-suggestions, and notification-counts endpoints
-    - **Quick-Win Nav Badge:** Walk-ins nav item shows badge count for hot leads (score >= 70) via notification-counts endpoint
-    - API endpoints: `/api/owner/walk-in-visitors/lead-scores`, `/api/owner/walk-in-visitors/ai-suggestions`, `/api/owner/walk-in-visitors/conversion-funnel`
-    - Schema: `walk_in_visitors` extended with `enquiryCategory`, `enquiryDetails`
-- **Trainer AI Intelligence:** Upgraded trainer dashboard from basic stats to AI-powered management hub:
-    - **Premium Dashboard:** Gradient hero header with compliance rate, 4-stat grid (Members/Programs/Today Check-ins/Stars), glassmorphic quick-action pods
-    - **Dika AI Insights Card:** Dark-themed card with priority-sorted insights (churn risk, inactive, star performer, needs plan), color-coded by severity, clickable actions
-    - **At-Risk Member Alerts:** Red-themed card highlighting members who haven't trained in 5+ days with "Reach out" buttons
-    - **Enhanced Data:** Dashboard endpoint now populates real recentActivity, memberProgress with streaks, atRiskMembers, todayCheckIns, complianceRate
-    - **Trainer Briefing:** Dika now greets trainers with team status summary (active/inactive counts, at-risk members) when opening chat
-    - **Smart Suggestions:** Enhanced quick actions (At risk, Team stats, Plan builder) and suggestion chips (risk analysis, workout generation)
-    - API endpoints: `/api/trainer/dashboard` (enhanced), `/api/trainer/ai-insights` (new)
-- **Automated Email Reminders:** System for subscription expiry and owner summaries.
-- **Production Security:** Implemented with Helmet.js, secure session cookies, rate limiting, and request body limits.
-- **Error Handling:** React Error Boundary for graceful UI error recovery.
-- **Deployment:** Same-origin deployment with Express serving API and static frontend.
-- **Fitness Device Integration (Level 2):** Health & Activity page with HealthKit (iOS) / Google Fit (Android) integration for activity overview, recovery score, calorie balance, and health insights. Uses dual-plugin approach: `@capgo/capacitor-health` v7.2.15 for passive heart rate samples (`readSamples` with `heartRate` data type), distance, and calories; `capacitor-health` v7.0.0 for steps aggregation (`queryAggregated` with `steps`/`active-calories`), workout queries (`queryWorkouts`), and sleep detection from sleep-type workouts. The capgo plugin provides actual passive HR readings from Apple Health/Google Fit that the old plugin cannot access.
-- **Feature Discovery Tips:** Role-specific rotating tips on dashboards with persistent dismissal.
-- **Guided Empty States:** Enhanced empty state components with action buttons for various pages.
-- **Gym Intelligence Dashboard (Level 1):** Data-driven insights for owners including Peak Hour Pressure (check-in density by hour with color-coded bar chart), Muscle Trend Intelligence (muscle group usage comparison month-over-month), and Equipment Intelligence (card-based per-equipment analytics with muscle group filtering, click-to-expand detail panels via React portal with exercise breakdowns/usage charts/predictions, trust-building "Planning Overview" with traffic-light signals using "Needs Attention" labels, narrative summary, and Top 3 Equipment highlight with reasons). Dashboard teaser card shows live equipment insight preview. Dika AI has equipment intelligence context for owner queries. Accessible from sidebar and dashboard teaser card. API endpoints at `/api/owner/gym-intelligence/`.
-- **Equipment Management:** Two-layer system where owners register equipment (name, category, quantity) and optionally map exercises to equipment with priority levels. Generic fallback mapping covers common equipment types when custom mappings aren't set up. Tables: `gym_equipment`, `equipment_exercise_mappings`. Setup page at `/owner/equipment-setup`.
+- **Core Features:** Attendance, payments, workout management, user profiles, role-based access, admin system, announcements, and member engagement features.
+- **Guest Mode & Personal Mode:** Anonymous access and self-managed fitness with data isolation.
+- **AI Integrations:**
+    - **AI Import Workouts:** Supports importing from AI assistants via regex parsing and client-side OCR.
+    - **Dika Assistant:** GPT-4o-mini powered personal assistant for contextual insights, conversational meal logging, and owner actions with cross-device chat sync.
+    - **Dika Voice:** Hands-free voice AI assistant (Web Speech API) with continuous conversation, multilingual support, intent detection, and emotional intelligence.
+    - **Dika Multi-Chat Web Experience:** ChatGPT-style interface for Dika with multi-chat, search, pinned insights, and health-aware AI using a Recovery Score.
+    - **AI Insights:** AI-generated weekly reports for members, and AI-driven churn explanations, briefings, and re-engagement suggestions for owners (5-Pillar System). AI Coach System for members provides workout insights, progress summaries, and nutrition coaching.
+    - **AI Follow-up Engine:** Transforms follow-ups into an AI-powered execution engine with priority queues, GPT-4o-mini message generation, outcome tracking, and next-action suggestions.
+    - **Walk-in Visitors AI Pipeline:** Upgraded walk-in visitors page with a conversion funnel, AI-driven lead scoring, repeat visitor detection, and Dika AI action suggestions.
+    - **Trainer AI Intelligence:** Trainer dashboard upgraded with AI-powered insights, at-risk member alerts, and Dika briefings with team status summaries.
+    - **Food Camera (Snap & Score):** AI analyzes food photos for nutrition and provides a health score with reasons.
+    - **Quick Log Bar:** AI-powered natural language workout logging.
+- **Nutrition Features:** Calorie analytics, enhanced nutrition page with global food logging, and "Find My Food" for healthy restaurant suggestions.
+- **Sports Mode:** AI-powered sport-specific training programs, fitness assessments, and match logging.
+- **Fitness Device Integration:** Health & Activity page with HealthKit (iOS) / Google Fit (Android) integration for activity overview, recovery score, and calorie balance, utilizing advanced health plugins for accurate data.
+- **Gym Intelligence Dashboard:** Provides data-driven insights for owners, including Peak Hour Pressure, Muscle Trend Intelligence, and Equipment Intelligence, with Dika AI context for queries.
+- **Equipment Management:** Two-layer system for registering equipment and mapping exercises, with generic fallbacks.
+- **Automated Reminders:** Email reminders for subscription expiry and owner summaries.
+- **Security:** Helmet.js, secure session cookies, rate limiting.
+- **Error Handling:** React Error Boundary.
+- **Deployment:** Same-origin with Express serving API and static frontend.
+- **OGym Score (Discipline Score):** A dual-score system (Daily Discipline Score and OGym Score) calculated based on workout, nutrition, consistency, and recovery, visible to members, trainers, and owners.
 
 ## External Dependencies
 - **PostgreSQL:** Primary database.
@@ -96,9 +61,9 @@ Preferred communication style: Simple, everyday language.
 - **TypeScript:** Language.
 - **Tailwind CSS:** Styling framework.
 - **Zod:** Schema validation.
-- **OpenAI GPT-4o-mini (via Replit AI Integrations):** AI assistant for various features.
+- **OpenAI GPT-4o-mini (via Replit AI Integrations):** AI assistant for various features (Dika Assistant, AI insights, follow-up engine, etc.).
 - **OpenStreetMap Overpass API:** Location-based restaurant data.
 - **Tesseract.js:** Client-side OCR.
 - **Capacitor Plugins:** For camera, push notifications, splash screen, status bar, keyboard, haptics, app, and browser functionalities.
-- **@capgo/capacitor-health (v7.2.15):** Extended health plugin with `readSamples()` API supporting passive heart rate, distance, calories, steps, and weight data types from Apple Health/Google Fit.
-- **capacitor-health (v7.0.0):** Legacy health plugin for `queryAggregated` (steps, active-calories, mindfulness) and `queryWorkouts` (workout sessions with HR samples, sleep detection).
+- **@capgo/capacitor-health (v7.2.15):** Health plugin for passive heart rate, distance, calories, steps, and weight data from Apple Health/Google Fit.
+- **capacitor-health (v7.0.0):** Health plugin for aggregated steps, active calories, mindfulness, and workout session queries.

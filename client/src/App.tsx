@@ -67,6 +67,7 @@ import SubscriptionExpiredPage from "@/pages/subscription-expired-page";
 import WeeklyReportPage from "@/pages/weekly-report-page";
 import DikaPage from "@/pages/dika-page";
 import DikaWebPage from "@/pages/dika-web-page";
+import ScorePage from "@/pages/score-page";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 import { SwipeNavigationProvider } from "@/hooks/use-swipe-navigation";
@@ -465,6 +466,10 @@ function Router() {
 
       <Route path="/health">
         <ProtectedRoute component={HealthPage} requiredRole="member" allowWithoutGym={true} />
+      </Route>
+
+      <Route path="/score">
+        <ProtectedRoute component={ScorePage} requiredRole="member" allowWithoutGym={true} />
       </Route>
 
       <Route path="/star-members/:memberId">

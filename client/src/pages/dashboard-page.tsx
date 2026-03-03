@@ -1242,6 +1242,8 @@ function OwnerDashboard() {
         </div>
       )}
 
+      <OwnerDisciplineCard />
+
       <FeatureDiscoveryTips role="owner" />
 
       {!isIOSNativeApp && (
@@ -1433,6 +1435,135 @@ type TrainerAiInsights = {
   insights: { type: string; priority: 'high' | 'medium' | 'low'; title: string; description: string; memberName?: string; memberId?: number; action?: string }[];
   summary: { totalMembers: number; activeThisWeek: number; totalCompletions: number; complianceRate: number };
 };
+
+function TrainerDisciplineCard() {
+  const { data: memberScores } = useQuery<any[]>({
+    queryKey: ["/api/trainer/discipline/members"],
+    staleTime: 1000 * 60 * 5,
+  });
+
+  if (!memberScores || memberScores.length === 0) return null;
+
+  const lowScoreMembers = memberScores.filter((m: any) => m.ogymScore !== null && m.ogymScore < 400);
+  const scoredMembers = memberScores.filter((m: any) => m.ogymScore !== null);
+  const buildingMembers = memberScores.filter((m: any) => m.building);
+
+  return (
+    <Card className="border-0 shadow-sm" data-testid="card-trainer-discipline">
+      <CardHeader className="p-3 pb-1.5">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/20">
+            <Shield className="w-4 h-4 text-blue-600" />
+          </div>
+          <div>
+            <CardTitle className="text-sm font-semibold">OGym Scores</CardTitle>
+            <p className="text-[10px] text-muted-foreground">{scoredMembers.length} scored · {buildingMembers.length} building</p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-3 pt-1.5">
+        {lowScoreMembers.length > 0 && (
+          <div className="mb-2 px-2.5 py-1.5 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-800/30">
+            <p className="text-[10px] font-medium text-red-600 dark:text-red-400">
+              <AlertTriangle className="w-3 h-3 inline mr-1" />{lowScoreMembers.length} member{lowScoreMembers.length > 1 ? "s" : ""} below 400
+            </p>
+          </div>
+        )}
+        <div className="space-y-1.5">
+          {scoredMembers.slice(0, 5).map((m: any) => (
+            <div key={m.memberId} className="flex items-center gap-2.5 p-2 rounded-lg bg-background/60 border border-border/30" data-testid={`discipline-member-${m.memberId}`}>
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
+                m.ogymTier === "elite" ? "bg-yellow-500" :
+                m.ogymTier === "strong" ? "bg-green-500" :
+                m.ogymTier === "building" ? "bg-blue-500" :
+                m.ogymTier === "inconsistent" ? "bg-orange-500" : "bg-red-500"
+              }`}>
+                {m.ogymScore}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{m.name}</p>
+                <p className="text-[10px] text-muted-foreground">{m.ogymTierLabel}
+                  {m.ogymDelta != null && (
+                    <span className={m.ogymDelta > 0 ? " text-green-600" : m.ogymDelta < 0 ? " text-red-600" : ""}>
+                      {" "}{m.ogymDelta > 0 ? "+" : ""}{m.ogymDelta}
+                    </span>
+                  )}
+                </p>
+              </div>
+              {m.dailyScore !== null && (
+                <span className="text-[10px] text-muted-foreground">Today: {m.dailyScore}/100</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function OwnerDisciplineCard() {
+  const { data: overview } = useQuery<any>({
+    queryKey: ["/api/owner/discipline/overview"],
+    staleTime: 1000 * 60 * 5,
+  });
+
+  if (!overview || overview.scoredMembers === 0) return null;
+
+  const tierColors: Record<string, string> = {
+    elite: "bg-yellow-500",
+    strong: "bg-green-500",
+    building: "bg-blue-500",
+    inconsistent: "bg-orange-500",
+    at_risk: "bg-red-500",
+  };
+
+  const tierLabels: Record<string, string> = {
+    elite: "Elite",
+    strong: "Strong",
+    building: "Building",
+    inconsistent: "Inconsistent",
+    at_risk: "At Risk",
+  };
+
+  const totalScored = overview.scoredMembers;
+
+  return (
+    <Card className="border-0 shadow-sm" data-testid="card-owner-discipline">
+      <CardHeader className="p-3 pb-1.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/20">
+              <Shield className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-semibold">Gym OGym Scores</CardTitle>
+              <p className="text-[10px] text-muted-foreground">{overview.scoredMembers}/{overview.totalMembers} members scored</p>
+            </div>
+          </div>
+          {overview.averageScore && (
+            <div className="text-right">
+              <span className="text-lg font-bold">{overview.averageScore}</span>
+              <p className="text-[10px] text-muted-foreground">Gym avg</p>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="p-3 pt-1.5">
+        <div className="space-y-1.5">
+          {Object.entries(overview.distribution).filter(([k]) => k !== "no_score").map(([tier, count]) => (
+            <div key={tier} className="flex items-center gap-2">
+              <span className="text-[10px] w-20 text-muted-foreground">{tierLabels[tier] || tier}</span>
+              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${tierColors[tier] || "bg-gray-400"}`} style={{ width: `${totalScored > 0 ? ((count as number) / totalScored) * 100 : 0}%` }} />
+              </div>
+              <span className="text-[10px] font-medium w-6 text-right">{count as number}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function TrainerDashboard() {
   const { user } = useAuth();
@@ -1632,6 +1763,8 @@ function TrainerDashboard() {
           </CardContent>
         </Card>
       )}
+
+      <TrainerDisciplineCard />
 
       {newMembers.length > 0 && (
         <Card className="border-primary/20 bg-primary/5 border-0 shadow-sm" data-testid="card-new-members">
@@ -2317,6 +2450,11 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
   const { data: todayWorkout, isLoading: workoutLoading } = useTodayWorkout();
   const { data: profile } = useMemberProfile();
 
+  const { data: disciplineScore } = useQuery<any>({
+    queryKey: ["/api/discipline/score/today"],
+    staleTime: 1000 * 60 * 5,
+  });
+
   const { data: enhancedDash } = useQuery<{
     attendance: { monthCheckIns: number; weekCheckIns: number; streak: number; lastCheckIn: string | null };
     weeklyProgress: { workoutsDone: number; workoutsPlanned: number; exercisesCompleted: number };
@@ -2918,6 +3056,106 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       )}
 
       <ProactiveNudges />
+
+      {/* OGym Score Widget */}
+      {disciplineScore && (
+        <Link href="/score">
+          <Card className="card-ambient shadow-lg shadow-primary/5 cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99]" data-testid="card-ogym-score-widget">
+            <CardContent className="pt-4 pb-4">
+              {disciplineScore.ogym?.building ? (
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center shadow-lg">
+                    <Shield className="w-7 h-7 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold">OGym Score</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Building</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2 mb-1">
+                      <div className="h-2 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all" style={{ width: `${disciplineScore.ogym.progress}%` }} />
+                    </div>
+                    <span className="text-xs text-muted-foreground">{disciplineScore.ogym.daysCompleted}/{disciplineScore.ogym.daysRequired} days to unlock</span>
+                  </div>
+                </div>
+              ) : disciplineScore.ogym?.score ? (
+                <div className="flex items-center gap-4">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${
+                    disciplineScore.ogym.tier === "elite" ? "bg-gradient-to-br from-yellow-400 to-amber-600 shadow-yellow-500/30" :
+                    disciplineScore.ogym.tier === "strong" ? "bg-gradient-to-br from-green-400 to-emerald-600 shadow-green-500/30" :
+                    disciplineScore.ogym.tier === "building" ? "bg-gradient-to-br from-blue-400 to-indigo-600 shadow-blue-500/30" :
+                    disciplineScore.ogym.tier === "inconsistent" ? "bg-gradient-to-br from-orange-400 to-amber-600 shadow-orange-500/30" :
+                    "bg-gradient-to-br from-red-400 to-rose-600 shadow-red-500/30"
+                  }`}>
+                    <span className="text-white font-bold text-lg">{disciplineScore.ogym.score}</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">OGym Score</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        disciplineScore.ogym.tier === "elite" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" :
+                        disciplineScore.ogym.tier === "strong" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
+                        disciplineScore.ogym.tier === "building" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
+                        disciplineScore.ogym.tier === "inconsistent" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" :
+                        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                      }`}>
+                        {disciplineScore.ogym.tierLabel || disciplineScore.ogym.tier}
+                      </span>
+                      {disciplineScore.ogym.delta != null && (
+                        <span className={`text-xs font-medium flex items-center gap-0.5 ${
+                          disciplineScore.ogym.delta > 0 ? "text-green-600" : disciplineScore.ogym.delta < 0 ? "text-red-600" : "text-muted-foreground"
+                        }`}>
+                          {disciplineScore.ogym.delta > 0 ? <TrendingUp className="w-3 h-3" /> : disciplineScore.ogym.delta < 0 ? <TrendingDown className="w-3 h-3" /> : null}
+                          {disciplineScore.ogym.delta > 0 ? "+" : ""}{disciplineScore.ogym.delta}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">300-850 scale · Updated weekly</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </div>
+              ) : null}
+              {disciplineScore.daily && (
+                <div className="mt-3 pt-3 border-t border-muted">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Today's Discipline</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-base">{disciplineScore.daily.score}</span>
+                      <span className="text-xs text-muted-foreground">/100</span>
+                      {disciplineScore.daily.trend === "up" && <TrendingUp className="w-3.5 h-3.5 text-green-500" />}
+                      {disciplineScore.daily.trend === "down" && <TrendingDown className="w-3.5 h-3.5 text-red-500" />}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1 mt-2">
+                    {[
+                      { label: "W", score: disciplineScore.daily.pillars.workout.score, color: "bg-blue-500" },
+                      { label: "N", score: disciplineScore.daily.pillars.nutrition.score, color: "bg-green-500" },
+                      { label: "C", score: disciplineScore.daily.pillars.consistency.score, color: "bg-orange-500" },
+                      { label: "R", score: disciplineScore.daily.pillars.recovery.score, color: "bg-purple-500" },
+                    ].map((p) => (
+                      <div key={p.label} className="space-y-0.5">
+                        <div className="flex justify-between text-[10px] text-muted-foreground">
+                          <span>{p.label}</span>
+                          <span>{p.score}</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${p.color}`} style={{ width: `${p.score}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {disciplineScore.daily.tips?.[0] && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 italic">"{disciplineScore.daily.tips[0]}"</p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* Today's Workout */}
       {todayMatchLog?.id && todayMatchLog.status !== "cancelled" && todayMatchLog.workoutAction && todayMatchLog.workoutAction !== "normal" ? (

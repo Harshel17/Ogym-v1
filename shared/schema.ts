@@ -1473,3 +1473,60 @@ export const sentEmails = pgTable("sent_emails", {
 export const insertSentEmailSchema = createInsertSchema(sentEmails).omit({ id: true, sentAt: true });
 export type InsertSentEmail = z.infer<typeof insertSentEmailSchema>;
 export type SentEmail = typeof sentEmails.$inferSelect;
+
+export const dailyDisciplineScores = pgTable("daily_discipline_scores", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  date: text("date").notNull(),
+  score: integer("score").notNull(),
+  workoutScore: integer("workout_score").notNull(),
+  nutritionScore: integer("nutrition_score").notNull(),
+  consistencyScore: integer("consistency_score").notNull(),
+  recoveryScore: integer("recovery_score").notNull(),
+  breakdown: jsonb("breakdown"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userDateIdx: uniqueIndex("daily_discipline_user_date").on(table.userId, table.date),
+  userIdx: index("daily_discipline_user_idx").on(table.userId),
+}));
+
+export const ogymScores = pgTable("ogym_scores", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  weekEndDate: text("week_end_date").notNull(),
+  score: integer("score").notNull(),
+  previousScore: integer("previous_score"),
+  delta: integer("delta"),
+  workoutAdherence: integer("workout_adherence").notNull(),
+  nutritionDiscipline: integer("nutrition_discipline").notNull(),
+  consistency: integer("consistency_factor").notNull(),
+  proteinCompliance: integer("protein_compliance").notNull(),
+  recoveryRespect: integer("recovery_respect").notNull(),
+  engagement: integer("engagement").notNull(),
+  gatesApplied: jsonb("gates_applied"),
+  reasons: jsonb("reasons"),
+  tier: text("tier").notNull(),
+  windowStart: text("window_start").notNull(),
+  windowEnd: text("window_end").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userWeekIdx: uniqueIndex("ogym_score_user_week").on(table.userId, table.weekEndDate),
+  userIdx: index("ogym_score_user_idx").on(table.userId),
+}));
+
+export const disciplineSettings = pgTable("discipline_settings", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  visibility: text("visibility").default("coach"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertDailyDisciplineScoreSchema = createInsertSchema(dailyDisciplineScores).omit({ id: true, createdAt: true });
+export type InsertDailyDisciplineScore = z.infer<typeof insertDailyDisciplineScoreSchema>;
+export type DailyDisciplineScore = typeof dailyDisciplineScores.$inferSelect;
+
+export const insertOgymScoreSchema = createInsertSchema(ogymScores).omit({ id: true, createdAt: true });
+export type InsertOgymScore = z.infer<typeof insertOgymScoreSchema>;
+export type OgymScore = typeof ogymScores.$inferSelect;
+
+export type DisciplineSettings = typeof disciplineSettings.$inferSelect;
