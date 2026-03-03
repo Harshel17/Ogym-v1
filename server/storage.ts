@@ -4675,6 +4675,48 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
+      // For today in completion mode: apply auto-advance and auto-reset logic
+      // to match what /api/workouts/today shows
+      if (isCompletionMode && dateStr === today && isCycleActive && !hasSessionForDate && cycle) {
+        const lastWorkoutDate = cycle.lastWorkoutDate;
+        if (lastWorkoutDate) {
+          const todayDate = new Date(dateStr + 'T00:00:00');
+          const lastWd = new Date(lastWorkoutDate);
+          const daysSinceLastWorkout = Math.floor((todayDate.getTime() - lastWd.getTime()) / (1000 * 60 * 60 * 24));
+
+          // Check if current day was already completed today (day index was advanced)
+          if (lastWorkoutDate !== dateStr) {
+            const currentLabel = cycle.dayLabels?.[effectiveDayIndex] || '';
+            const currentDayItems = itemsByDayIndex[effectiveDayIndex] || [];
+            const currentIsRest = cycle.restDays?.includes(effectiveDayIndex) ||
+              currentLabel.toLowerCase().includes('rest') ||
+              currentDayItems.length === 0;
+
+            // Auto-advance past rest days after 2+ days
+            if (currentIsRest && daysSinceLastWorkout >= 2) {
+              let nextIdx = (effectiveDayIndex + 1) % cycle.cycleLength;
+              let safety = 0;
+              while (safety < cycle.cycleLength) {
+                const nextLabel = cycle.dayLabels?.[nextIdx] || '';
+                const nextItems = itemsByDayIndex[nextIdx] || [];
+                const nextIsRest = cycle.restDays?.includes(nextIdx) ||
+                  nextLabel.toLowerCase().includes('rest') ||
+                  nextItems.length === 0;
+                if (!nextIsRest) break;
+                nextIdx = (nextIdx + 1) % cycle.cycleLength;
+                safety++;
+              }
+              effectiveDayIndex = nextIdx;
+            }
+
+            // Auto-reset to day 0 after 3+ days missed
+            if (daysSinceLastWorkout > 3 && effectiveDayIndex !== 0) {
+              effectiveDayIndex = 0;
+            }
+          }
+        }
+      }
+
       const scheduledForDay = isCycleActive && !forcedRest
         ? scheduledItems.filter(item => item.dayIndex === effectiveDayIndex) 
         : [];
@@ -4925,7 +4967,6 @@ export class DatabaseStorage implements IStorage {
             if (completionDayIndices.length > 0) {
               dayIndex = completionDayIndices[0];
             } else {
-              // Fall back to session data
               const sessions = await db.select().from(workoutSessions)
                 .where(and(
                   eq(workoutSessions.memberId, memberId),
@@ -4938,18 +4979,61 @@ export class DatabaseStorage implements IStorage {
                 dayIndex = sessionForDate.cycleDayIndex;
               } else {
                 let lastKnownDayIndex = 0;
+                let lastSessionWasDone = false;
                 for (const s of sessions) {
                   if (s.date < date && s.cycleDayIndex !== null && s.cycleDayIndex !== undefined) {
                     lastKnownDayIndex = s.cycleDayIndex;
+                    lastSessionWasDone = Boolean(s.isManuallyCompleted);
                   } else if (s.date >= date) {
                     break;
                   }
                 }
-                const nextSession = sessions.find(s => s.date >= date && s.cycleDayIndex !== null);
-                if (nextSession && nextSession.cycleDayIndex !== lastKnownDayIndex) {
-                  dayIndex = nextSession.cycleDayIndex;
+                if (lastSessionWasDone) {
+                  dayIndex = (lastKnownDayIndex + 1) % cycle.cycleLength;
                 } else {
                   dayIndex = lastKnownDayIndex;
+                }
+              }
+
+              // For today: apply auto-advance past rest days and auto-reset (match /api/workouts/today logic)
+              const todayStr = new Date().toISOString().split('T')[0];
+              if (date === todayStr && cycle.lastWorkoutDate && cycle.lastWorkoutDate !== date) {
+                const todayDate = new Date(date + 'T00:00:00');
+                const lastWd = new Date(cycle.lastWorkoutDate);
+                const daysSinceLastWorkout = Math.floor((todayDate.getTime() - lastWd.getTime()) / (1000 * 60 * 60 * 24));
+
+                const allCycleItems = await db.select().from(workoutItems)
+                  .where(and(eq(workoutItems.cycleId, cycle.id), eq(workoutItems.isDeleted, false)));
+                const dayItemsByIdx: Record<number, typeof allCycleItems> = {};
+                for (const it of allCycleItems) {
+                  if (!dayItemsByIdx[it.dayIndex]) dayItemsByIdx[it.dayIndex] = [];
+                  dayItemsByIdx[it.dayIndex].push(it);
+                }
+
+                const curLabel = cycle.dayLabels?.[dayIndex] || '';
+                const curItems = dayItemsByIdx[dayIndex] || [];
+                const curIsRest = cycle.restDays?.includes(dayIndex) ||
+                  curLabel.toLowerCase().includes('rest') ||
+                  curItems.length === 0;
+
+                if (curIsRest && daysSinceLastWorkout >= 2) {
+                  let nextIdx = (dayIndex + 1) % cycle.cycleLength;
+                  let safety = 0;
+                  while (safety < cycle.cycleLength) {
+                    const nLabel = cycle.dayLabels?.[nextIdx] || '';
+                    const nItems = dayItemsByIdx[nextIdx] || [];
+                    const nIsRest = cycle.restDays?.includes(nextIdx) ||
+                      nLabel.toLowerCase().includes('rest') ||
+                      nItems.length === 0;
+                    if (!nIsRest) break;
+                    nextIdx = (nextIdx + 1) % cycle.cycleLength;
+                    safety++;
+                  }
+                  dayIndex = nextIdx;
+                }
+
+                if (daysSinceLastWorkout > 3 && dayIndex !== 0) {
+                  dayIndex = 0;
                 }
               }
             }
