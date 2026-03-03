@@ -4616,7 +4616,10 @@ export class DatabaseStorage implements IStorage {
         const dateCompletedIds = completedByDate.get(dateStr) || new Set();
         const hasCompletionsFromCycle = dateCompletedIds.size > 0 && scheduledItems.some(si => dateCompletedIds.has(si.id));
         
-        if (withinStart && (withinEnd || hasCompletionsFromCycle)) {
+        // For completion mode: treat cycle as active for today even if endDate passed
+        // (matches /api/workouts/today behavior which doesn't strictly enforce endDate for completion cycles)
+        const completionModeStillActive = isCompletionMode && dateStr === today && !withinEnd && withinStart;
+        if (withinStart && (withinEnd || hasCompletionsFromCycle || completionModeStillActive)) {
           if (isCompletionMode) {
             if (sessionDayIndexByDate[dateStr] !== undefined) {
               dayIndex = sessionDayIndexByDate[dateStr];
@@ -4956,8 +4959,10 @@ export class DatabaseStorage implements IStorage {
         const withinStart = daysDiff >= 0;
         const withinEnd = !cycle.endDate || date <= cycle.endDate;
         const hasCompletionsFromCycle = completions.some(c => c.item?.cycleId === cycle.id);
+        const todayStr2 = new Date().toISOString().split('T')[0];
+        const completionStillActive = cycle.progressionMode === "completion" && date === todayStr2 && !withinEnd && withinStart;
         
-        if (withinStart && (withinEnd || hasCompletionsFromCycle)) {
+        if (withinStart && (withinEnd || hasCompletionsFromCycle || completionStillActive)) {
           if (cycle.progressionMode === "completion") {
             // Completion mode: first try to get dayIndex from completions' linked items
             const completionDayIndices = completions
