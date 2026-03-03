@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Shield, Target, Utensils, Flame, Heart, Activity, Lock, Eye, EyeOff, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Shield, Target, Utensils, Flame, Heart, Activity, Lock, Eye, EyeOff, ChevronDown, ChevronUp, RefreshCw, Info, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
 
@@ -102,6 +102,7 @@ export default function ScorePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [showAllReasons, setShowAllReasons] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const { data: scoreData, isLoading } = useQuery<any>({
     queryKey: ["/api/discipline/score/today"],
@@ -159,8 +160,122 @@ export default function ScorePage() {
         <Button variant="ghost" size="icon" onClick={() => navigate("/")} data-testid="button-back">
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <h1 className="text-xl font-bold">OGym Score</h1>
+        <h1 className="text-xl font-bold flex-1">OGym Score</h1>
+        <Button variant="ghost" size="icon" onClick={() => setShowInfoModal(true)} data-testid="button-score-info" className="text-muted-foreground hover:text-foreground">
+          <Info className="w-5 h-5" />
+        </Button>
       </div>
+
+      {showInfoModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={() => setShowInfoModal(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-background rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto shadow-2xl mx-0 sm:mx-4 animate-in slide-in-from-bottom duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b p-4 flex items-center justify-between rounded-t-2xl z-10">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-white" />
+                </div>
+                <h2 className="text-lg font-bold">How Scores Work</h2>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setShowInfoModal(false)} data-testid="button-close-info">
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+
+            <div className="p-4 space-y-5">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-emerald-400 to-green-500" />
+                  <h3 className="text-sm font-bold">Daily Discipline Score (0–100)</h3>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Calculated fresh every day based on 4 pillars of your fitness routine. This reflects how well you're doing today.
+                </p>
+                <div className="space-y-2 pl-1">
+                  {[
+                    { name: "Workout", pct: "35%", desc: "Did you complete your scheduled workout? Partial credit for some exercises." },
+                    { name: "Nutrition", pct: "25%", desc: "Did you log meals and hit your calorie/protein targets?" },
+                    { name: "Consistency", pct: "25%", desc: "Based on your current streak and recent workout frequency." },
+                    { name: "Recovery", pct: "15%", desc: "Sleep, hydration, and rest day adherence." },
+                  ].map((p) => (
+                    <div key={p.name} className="flex gap-2 text-xs">
+                      <span className="font-semibold text-foreground min-w-[90px]">{p.name} ({p.pct})</span>
+                      <span className="text-muted-foreground">{p.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="h-px bg-border" />
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-indigo-400 to-purple-500" />
+                  <h3 className="text-sm font-bold">Fitness Credit Score (300–850)</h3>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Like a credit score but for fitness. Updated weekly, it looks at your last 30 days across 6 factors. Higher is better.
+                </p>
+                <div className="space-y-2 pl-1">
+                  {[
+                    { name: "Avg Daily Score", pct: "25%", desc: "Your average daily discipline score over 30 days." },
+                    { name: "Workout Frequency", pct: "20%", desc: "How often you trained vs your plan." },
+                    { name: "Nutrition Logging", pct: "15%", desc: "How consistently you logged meals." },
+                    { name: "Streak Length", pct: "15%", desc: "Your longest and current workout streaks." },
+                    { name: "Trend Direction", pct: "15%", desc: "Are your daily scores improving or declining?" },
+                    { name: "Recovery Quality", pct: "10%", desc: "How well you maintain sleep and hydration." },
+                  ].map((f) => (
+                    <div key={f.name} className="flex gap-2 text-xs">
+                      <span className="font-semibold text-foreground min-w-[120px]">{f.name} ({f.pct})</span>
+                      <span className="text-muted-foreground">{f.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="h-px bg-border" />
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500" />
+                  <h3 className="text-sm font-bold">Score Tiers</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { tier: "Elite", range: "750–850", color: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-500/10" },
+                    { tier: "Strong", range: "700–749", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
+                    { tier: "Building", range: "650–699", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10" },
+                    { tier: "Inconsistent", range: "500–649", color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-500/10" },
+                    { tier: "At Risk", range: "300–499", color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10" },
+                  ].map((t) => (
+                    <div key={t.tier} className={`p-2 rounded-lg ${t.bg} flex items-center justify-between`}>
+                      <span className={`text-xs font-bold ${t.color}`}>{t.tier}</span>
+                      <span className="text-[10px] text-muted-foreground font-medium">{t.range}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="h-px bg-border" />
+
+              <div className="space-y-2">
+                <h3 className="text-sm font-bold flex items-center gap-2">
+                  <Lock className="w-3.5 h-3.5" /> Privacy
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Your scores are private by default. You can choose to share them with your trainer, your gym, or keep them completely private. Use the visibility setting below your score to control this.
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-muted/50 p-3">
+                <p className="text-[11px] text-muted-foreground leading-relaxed text-center">
+                  Scores require at least 14 days of activity data to generate your first Fitness Credit Score. Daily scores are available immediately.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Card className="mx-4" data-testid="card-ogym-score">
         <CardContent className="pt-6">
