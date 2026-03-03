@@ -4622,9 +4622,9 @@ export class DatabaseStorage implements IStorage {
         const dateCompletedIds = completedByDate.get(dateStr) || new Set();
         const hasCompletionsFromCycle = dateCompletedIds.size > 0 && scheduledItems.some(si => dateCompletedIds.has(si.id));
         
-        // For completion mode: treat cycle as active for today even if endDate passed
+        // For completion mode: treat cycle as active even after endDate passed
         // (matches /api/workouts/today behavior which doesn't strictly enforce endDate for completion cycles)
-        const completionModeStillActive = isCompletionMode && dateStr === today && !withinEnd && withinStart;
+        const completionModeStillActive = isCompletionMode && !withinEnd && withinStart && dateStr <= today;
         if (withinStart && (withinEnd || hasCompletionsFromCycle || completionModeStillActive)) {
           if (isCompletionMode) {
             if (sessionDayIndexByDate[dateStr] !== undefined) {
@@ -6707,9 +6707,14 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Generate schedule from startDate to today (or endDate if past)
+    // For completion mode: extend past endDate since cycle continues until user finishes
     const today = new Date().toISOString().split('T')[0];
     const startDate = new Date(cycle.startDate);
-    const endDate = new Date(Math.min(new Date(cycle.endDate).getTime(), new Date(today).getTime()));
+    const cycleEndTime = new Date(cycle.endDate).getTime();
+    const todayTime = new Date(today).getTime();
+    const endDate = cycle.progressionMode === "completion"
+      ? new Date(todayTime)
+      : new Date(Math.min(cycleEndTime, todayTime));
     
     // Load schedule overrides (rest day swaps) to reflect actual day assignments
     const overrides = await this.getCycleScheduleOverrides(memberId, cycle.id);
