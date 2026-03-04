@@ -35,7 +35,7 @@ function AnimatedNumber({ value, duration = 800 }: { value: number; duration?: n
 }
 
 function MiniSparkline({ data, color, height = 32 }: { data: number[]; color: string; height?: number }) {
-  if (!data || data.length < 2) return null;
+  if (!data || data.length < 3) return <span className="text-xs text-white/30 tabular-nums">--</span>;
   const max = Math.max(...data, 1);
   const min = Math.min(...data, 0);
   const range = max - min || 1;
