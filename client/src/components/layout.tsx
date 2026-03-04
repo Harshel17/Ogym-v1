@@ -177,9 +177,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Residents", href: "/members", icon: Users },
           { label: "History", href: "/owner/access-history", icon: CalendarCheck },
-          { label: "Check-in", href: "/owner/kiosk", icon: QrCode },
         ],
         secondary: [
+          { label: "Intelligence", href: "/owner/property-intelligence", icon: BarChart3 },
+          { label: "Self Check-in", href: "/owner/kiosk", icon: QrCode },
           { label: "Profile", href: "/profile", icon: UserCircle },
           { label: "Help", href: "/help", icon: HelpCircle },
           { label: "Support", href: "/support", icon: MessageSquare },
