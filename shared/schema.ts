@@ -18,6 +18,7 @@ export const gyms = pgTable("gyms", {
   timezone: text("timezone").default("Asia/Kolkata"),
   timings: text("timings"),
   gymType: text("gym_type", { enum: ["men", "women", "unisex"] }),
+  propertyType: text("property_type", { enum: ["gym", "apartment", "recreation_center", "corporate", "society"] }).default("gym"),
   facilities: text("facilities"),
   onboardingData: jsonb("onboarding_data"),
   paymentLinks: jsonb("payment_links"), // Stores payment methods: { upi, venmo, cashapp, zelle, paypal, bankDetails, customLink }
@@ -39,6 +40,7 @@ export const gymRequests = pgTable("gym_requests", {
   country: text("country").notNull().default("India"),
   currency: text("currency", { enum: ["INR", "USD"] }).default("INR"),
   timezone: text("timezone").default("Asia/Kolkata"),
+  propertyType: text("property_type", { enum: ["gym", "apartment", "recreation_center", "corporate", "society"] }).default("gym"),
   gymSize: text("gym_size", { enum: ["0-50", "51-150", "151-300", "300+"] }).notNull(),
   trainerCount: integer("trainer_count").notNull().default(0),
   preferredStart: text("preferred_start", { enum: ["immediately", "next_week", "next_month"] }).notNull(),

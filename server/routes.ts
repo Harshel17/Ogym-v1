@@ -10597,6 +10597,157 @@ Write a short, personal message. No subject line, just the message body. Use the
     }
   });
 
+  app.get("/api/owner/property-analytics", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const clientToday = (req.query.clientToday as string) || getLocalDate(req);
+      const todayDate = new Date(clientToday + 'T00:00:00');
+
+      const weekStart = new Date(todayDate);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+
+      const last4Weeks: string[] = [];
+      for (let w = 3; w >= 0; w--) {
+        const ws = new Date(weekStart);
+        ws.setDate(ws.getDate() - w * 7);
+        last4Weeks.push(ws.toISOString().split('T')[0]);
+      }
+
+      const allMembersRaw = await db.select({ id: users.id, username: users.username, createdAt: users.createdAt })
+        .from(users)
+        .where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+      const totalResidents = allMembersRaw.length;
+
+      const profileRows = await db.select({ userId: userProfiles.userId, fullName: userProfiles.fullName })
+        .from(userProfiles)
+        .where(inArray(userProfiles.userId, allMembersRaw.map(m => m.id).length > 0 ? allMembersRaw.map(m => m.id) : [0]));
+      const profileMap = new Map(profileRows.map(p => [p.userId, p.fullName]));
+      const allMembers = allMembersRaw.map(m => ({ ...m, displayName: profileMap.get(m.id) || m.username }));
+
+      const weekAttendance = await db.select({
+        memberId: attendance.memberId,
+        date: attendance.date,
+        createdAt: attendance.createdAt,
+      }).from(attendance)
+        .where(and(eq(attendance.gymId, gymId), gte(attendance.date, weekStartStr), lte(attendance.date, clientToday), eq(attendance.status, 'present')));
+
+      const activeResidentsThisWeek = new Set(weekAttendance.map(a => a.memberId)).size;
+      const gymVisitsThisWeek = weekAttendance.length;
+
+      const memberIdList = allMembers.map(m => m.id);
+      const weekWorkouts = await db.select({ count: sql<number>`COUNT(*)` })
+        .from(workoutCompletions)
+        .where(and(
+          inArray(workoutCompletions.memberId, memberIdList.length > 0 ? memberIdList : [0]),
+          gte(workoutCompletions.completedDate, weekStartStr),
+          lte(workoutCompletions.completedDate, clientToday),
+        ));
+      const workoutsLoggedThisWeek = Number(weekWorkouts[0]?.count) || 0;
+
+      const { dailyDisciplineScores } = await import("@shared/schema");
+      const recoveryScores = await db.select({ userId: dailyDisciplineScores.userId, score: dailyDisciplineScores.recoveryScore })
+        .from(dailyDisciplineScores)
+        .where(and(
+          inArray(dailyDisciplineScores.userId, memberIdList.length > 0 ? memberIdList : [0]),
+          eq(dailyDisciplineScores.date, clientToday),
+        ));
+      const avgRecoveryScore = recoveryScores.length > 0
+        ? Math.round(recoveryScores.reduce((s, r) => s + r.score, 0) / recoveryScores.length)
+        : 0;
+
+      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const dailyVisits: { day: string; visits: number }[] = dayNames.map((day, i) => {
+        const d = new Date(weekStart);
+        d.setDate(d.getDate() + i);
+        const ds = d.toISOString().split('T')[0];
+        return { day, visits: weekAttendance.filter(a => a.date === ds).length };
+      });
+
+      const hourBuckets: Record<string, number> = { 'Morning (6-9 AM)': 0, 'Mid-Morning (9-12 PM)': 0, 'Afternoon (12-3 PM)': 0, 'Evening (5-9 PM)': 0, 'Other': 0 };
+      for (const a of weekAttendance) {
+        if (a.createdAt) {
+          const hour = new Date(a.createdAt).getHours();
+          if (hour >= 6 && hour < 9) hourBuckets['Morning (6-9 AM)']++;
+          else if (hour >= 9 && hour < 12) hourBuckets['Mid-Morning (9-12 PM)']++;
+          else if (hour >= 12 && hour < 15) hourBuckets['Afternoon (12-3 PM)']++;
+          else if (hour >= 17 && hour < 21) hourBuckets['Evening (5-9 PM)']++;
+          else hourBuckets['Other']++;
+        }
+      }
+      const totalHourCheckins = Object.values(hourBuckets).reduce((a, b) => a + b, 0) || 1;
+      const timeOfDay = Object.entries(hourBuckets)
+        .filter(([, v]) => v > 0)
+        .map(([label, count]) => ({ label, percent: Math.round((count / totalHourCheckins) * 100) }));
+
+      const engagementTrend: { week: string; users: number }[] = [];
+      for (let w = 0; w < last4Weeks.length; w++) {
+        const ws = last4Weeks[w];
+        const we = new Date(new Date(ws + 'T00:00:00').getTime() + 6 * 86400000).toISOString().split('T')[0];
+        const weeklyActive = await db.select({ count: sql<number>`COUNT(DISTINCT ${attendance.memberId})` })
+          .from(attendance)
+          .where(and(eq(attendance.gymId, gymId), gte(attendance.date, ws), lte(attendance.date, we), eq(attendance.status, 'present')));
+        engagementTrend.push({ week: `Week ${w + 1}`, users: Number(weeklyActive[0]?.count) || 0 });
+      }
+
+      const memberStats: any[] = [];
+      for (const m of allMembers.slice(0, 50)) {
+        const mAttendance = weekAttendance.filter(a => a.memberId === m.id);
+        const lastVisit = mAttendance.length > 0 ? mAttendance.sort((a, b) => b.date.localeCompare(a.date))[0].date : null;
+        const mWorkouts = await db.select({ count: sql<number>`COUNT(*)` })
+          .from(workoutCompletions)
+          .where(and(eq(workoutCompletions.memberId, m.id), gte(workoutCompletions.completedDate, weekStartStr), lte(workoutCompletions.completedDate, clientToday)));
+        const mRecovery = recoveryScores.length > 0 ? recoveryScores.find((r: any) => r.userId === m.id) : null;
+        memberStats.push({
+          id: m.id,
+          name: m.displayName,
+          workoutsThisWeek: Number(mWorkouts[0]?.count) || 0,
+          lastVisit: lastVisit === clientToday ? 'Today' : lastVisit || 'Never',
+          recoveryScore: (mRecovery as any)?.score || null,
+        });
+      }
+
+      const amenityEngagement = {
+        residentsUsingGym: totalResidents > 0 ? Math.round((activeResidentsThisWeek / totalResidents) * 100) : 0,
+        avgWeeklyVisits: activeResidentsThisWeek > 0 ? Math.round((gymVisitsThisWeek / activeResidentsThisWeek) * 10) / 10 : 0,
+      };
+
+      const accessLog = weekAttendance
+        .filter(a => a.createdAt)
+        .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
+        .slice(0, 20)
+        .map(a => {
+          const member = allMembers.find(m => m.id === a.memberId);
+          return {
+            name: member?.displayName || member?.username || 'Unknown',
+            time: a.createdAt ? new Date(a.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
+            date: a.date,
+          };
+        });
+
+      res.json({
+        topCards: {
+          totalResidents,
+          activeResidentsThisWeek,
+          gymVisitsThisWeek,
+          avgRecoveryScore,
+          workoutsLoggedThisWeek,
+        },
+        charts: {
+          dailyVisits,
+          timeOfDay,
+          engagementTrend,
+        },
+        residentActivity: memberStats,
+        amenityEngagement,
+        accessLog,
+      });
+    } catch (error: any) {
+      console.error("Property analytics error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Today's Activity Feed
   app.get("/api/owner/today-activity", requireRole(["owner"]), async (req, res) => {
     try {

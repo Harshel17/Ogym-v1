@@ -23,6 +23,7 @@ import { GoalsNudge } from "@/components/goals-nudge";
 import { useHealthStatus, useHealthDataToday } from "@/hooks/use-health-data";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { isIOS, isNative } from "@/lib/capacitor-init";
+import PropertyManagerDashboard from "@/pages/property-manager-dashboard";
 import { Switch } from "@/components/ui/switch";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
@@ -388,12 +389,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-3">
-      {user.role === "owner" && (
+      {user.role === "owner" && user.gym?.propertyType && user.gym.propertyType !== "gym" ? (
+        <PropertyManagerDashboard propertyName={user.gym?.name || user.username} propertyType={user.gym?.propertyType || "apartment"} />
+      ) : user.role === "owner" ? (
         <div className="space-y-3">
           <GreetingBanner greeting={greeting} greetingIcon={greetingIcon} username={user.gym?.name || user.username} />
           <OwnerDashboard />
         </div>
-      )}
+      ) : null}
       {user.role === "trainer" && (
         <>
           <GreetingBanner greeting={greeting} greetingIcon={greetingIcon} username={user.username} />
