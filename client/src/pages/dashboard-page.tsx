@@ -2648,6 +2648,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       queryClient.invalidateQueries({ queryKey: ['/api/member/workout/summary'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/workout/schedule'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/workout/missed'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/discipline/score/today'] });
     }
   });
   

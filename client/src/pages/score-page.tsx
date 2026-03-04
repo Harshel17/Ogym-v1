@@ -71,22 +71,22 @@ function MiniSparkline({ data, color, height = 32 }: { data: number[]; color: st
   );
 }
 
-function PillarCard({ label, score, icon, gradientFrom, gradientTo }: { label: string; score: number; icon: any; gradientFrom: string; gradientTo: string }) {
+function PillarCard({ label, score, icon, gradientFrom, gradientTo, color }: { label: string; score: number; icon: any; gradientFrom: string; gradientTo: string; color: string }) {
   const Icon = icon;
-  const scoreColor = score >= 70 ? "#34d399" : score >= 40 ? "#fb923c" : "#f87171";
   return (
-    <div className="rounded-xl p-3 bg-white/[0.04] border border-white/[0.06] backdrop-blur-sm" data-testid={`pillar-${label.toLowerCase()}`}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${gradientFrom} ${gradientTo} flex items-center justify-center shadow-lg`}>
-            <Icon className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="text-xs font-semibold text-white/80">{label}</span>
+    <div className="rounded-xl p-3 border border-white/[0.06]" style={{ backgroundColor: `${color}08` }} data-testid={`pillar-${label.toLowerCase()}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${gradientFrom} ${gradientTo} flex items-center justify-center shadow-lg`} style={{ boxShadow: `0 4px 12px ${color}30` }}>
+          <Icon className="w-3.5 h-3.5 text-white" />
         </div>
-        <span className="text-lg font-black tabular-nums text-white">{score}</span>
+        <span className="text-xs font-semibold text-white/70">{label}</span>
       </div>
-      <div className="h-1.5 rounded-full overflow-hidden bg-white/[0.06]">
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${score}%`, backgroundColor: scoreColor, boxShadow: `0 0 8px ${scoreColor}50` }} />
+      <div className="flex items-end justify-between">
+        <span className="text-2xl font-black tabular-nums text-white">{score}</span>
+        <span className="text-[10px] text-white/25 font-medium mb-1">/100</span>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden bg-white/[0.06] mt-1.5">
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${score}%`, backgroundColor: color, boxShadow: `0 0 8px ${color}50` }} />
       </div>
     </div>
   );
@@ -163,8 +163,8 @@ export default function ScorePage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center min-h-[400px] bg-gradient-to-b from-[#1a1a2e] to-[#121228]">
+        <RefreshCw className="w-8 h-8 animate-spin text-white/30" />
       </div>
     );
   }
@@ -187,9 +187,9 @@ export default function ScorePage() {
   const dailyColor = (daily?.score || 0) >= 70 ? "#34d399" : (daily?.score || 0) >= 40 ? "#fb923c" : "#f87171";
 
   return (
-    <div className="max-w-lg mx-auto pb-8">
+    <div className="max-w-lg mx-auto pb-8 min-h-screen bg-gradient-to-b from-[#1a1a2e] via-[#16213e] to-[#121228]">
       {/* Dark gradient header area */}
-      <div className="relative bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] rounded-b-3xl overflow-hidden">
+      <div className="relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-indigo-500/15 to-transparent rounded-bl-full" />
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-gradient-to-tr from-purple-500/10 to-transparent rounded-tr-full" />
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-64 h-64 bg-indigo-500/[0.04] rounded-full blur-3xl" />
@@ -333,7 +333,7 @@ export default function ScorePage() {
       </div>
 
       {/* Content below header */}
-      <div className="space-y-3 px-4 -mt-2">
+      <div className="space-y-3 px-4 pt-1">
         {/* Today's Pillars */}
         {daily && (
           <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-[#1e1e3a] to-[#1a2744] p-4 shadow-lg" data-testid="card-daily-score">
@@ -349,10 +349,10 @@ export default function ScorePage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <PillarCard label="Workout" score={daily.pillars.workout.score} icon={Target} gradientFrom="from-blue-500" gradientTo="to-indigo-600" />
-              <PillarCard label="Nutrition" score={daily.pillars.nutrition.score} icon={Utensils} gradientFrom="from-emerald-500" gradientTo="to-green-600" />
-              <PillarCard label="Consistency" score={daily.pillars.consistency.score} icon={Flame} gradientFrom="from-orange-500" gradientTo="to-amber-600" />
-              <PillarCard label="Recovery" score={daily.pillars.recovery.score} icon={Heart} gradientFrom="from-purple-500" gradientTo="to-pink-600" />
+              <PillarCard label="Workout" score={daily.pillars.workout.score} icon={Target} gradientFrom="from-blue-500" gradientTo="to-indigo-600" color="#60a5fa" />
+              <PillarCard label="Nutrition" score={daily.pillars.nutrition.score} icon={Utensils} gradientFrom="from-emerald-500" gradientTo="to-green-600" color="#34d399" />
+              <PillarCard label="Consistency" score={daily.pillars.consistency.score} icon={Flame} gradientFrom="from-orange-500" gradientTo="to-amber-600" color="#fb923c" />
+              <PillarCard label="Recovery" score={daily.pillars.recovery.score} icon={Heart} gradientFrom="from-purple-500" gradientTo="to-pink-600" color="#a78bfa" />
             </div>
           </div>
         )}

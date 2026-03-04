@@ -215,6 +215,7 @@ export function useCompleteWorkout(onAskToShare?: (focusLabel: string) => void) 
       queryClient.invalidateQueries({ queryKey: ['/api/member/daily-points'] });
       queryClient.invalidateQueries({ queryKey: ['/api/me/calendar/enhanced'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/workout/summary'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/discipline/score/today'] });
     },
   });
 }
@@ -522,6 +523,7 @@ export function useLogWorkoutSets() {
       queryClient.invalidateQueries({ queryKey: ['/api/workouts/stats/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/my'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/daily-points'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/discipline/score/today'] });
     },
   });
 }
