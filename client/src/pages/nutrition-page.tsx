@@ -279,6 +279,10 @@ export default function NutritionPage() {
       toast({ title: "Food logged!" });
       setIsAddFoodOpen(false);
       resetAddFood();
+      fetch('/api/discipline/score/today?refresh=true', { credentials: 'include' })
+        .then(r => r.json())
+        .then(d => queryClient.setQueryData(['/api/discipline/score/today'], d))
+        .catch(() => {});
     }
   });
 

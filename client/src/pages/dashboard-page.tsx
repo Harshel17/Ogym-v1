@@ -2648,7 +2648,10 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
       queryClient.invalidateQueries({ queryKey: ['/api/member/workout/summary'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/workout/schedule'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/workout/missed'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/discipline/score/today'] });
+      fetch('/api/discipline/score/today?refresh=true', { credentials: 'include' })
+        .then(r => r.json())
+        .then(d => queryClient.setQueryData(['/api/discipline/score/today'], d))
+        .catch(() => {});
     }
   });
   

@@ -505,8 +505,10 @@ export async function getScoreToday(userId: number, forceRefresh: boolean = fals
     .where(and(eq(dailyDisciplineScores.userId, userId), eq(dailyDisciplineScores.date, today)))
     .limit(1);
 
-  const calculated = await calculateDailyScore(userId, today);
-  dailyScore = [calculated];
+  if (dailyScore.length === 0 || forceRefresh) {
+    const calculated = await calculateDailyScore(userId, today);
+    dailyScore = [calculated];
+  }
 
   const yesterday = addDays(today, -1);
   const [yesterdayScore] = await db.select().from(dailyDisciplineScores)
