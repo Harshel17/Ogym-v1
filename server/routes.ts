@@ -10648,6 +10648,57 @@ Write a short, personal message. No subject line, just the message body. Use the
     }
   });
 
+  app.get("/api/owner/access-history", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const startDate = req.query.start as string;
+      const endDate = req.query.end as string;
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({ message: "start and end query params required" });
+      }
+
+      const allMembersRaw = await db.select({ id: users.id, username: users.username })
+        .from(users)
+        .where(and(eq(users.gymId, gymId), eq(users.role, 'member')));
+
+      const profileRows = await db.select({ userId: userProfiles.userId, fullName: userProfiles.fullName })
+        .from(userProfiles)
+        .where(inArray(userProfiles.userId, allMembersRaw.map(m => m.id).length > 0 ? allMembersRaw.map(m => m.id) : [0]));
+      const profileMap = new Map(profileRows.map(p => [p.userId, p.fullName]));
+      const allMembers = allMembersRaw.map(m => ({ ...m, displayName: profileMap.get(m.id) || m.username }));
+
+      const records = await db.select({
+        memberId: attendance.memberId,
+        date: attendance.date,
+        createdAt: attendance.createdAt,
+      }).from(attendance)
+        .where(and(
+          eq(attendance.gymId, gymId),
+          eq(attendance.status, 'present'),
+          gte(attendance.date, startDate),
+          lte(attendance.date, endDate),
+        ))
+        .orderBy(desc(attendance.createdAt));
+
+      const entries = records
+        .filter(a => a.createdAt)
+        .map(a => {
+          const member = allMembers.find(m => m.id === a.memberId);
+          return {
+            name: member?.displayName || member?.username || 'Unknown',
+            time: a.createdAt ? new Date(a.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '',
+            date: a.date,
+          };
+        });
+
+      res.json({ entries, totalCount: entries.length });
+    } catch (error: any) {
+      console.error("Access history error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Today's Activity Feed
   app.get("/api/owner/today-activity", requireRole(["owner"]), async (req, res) => {
     try {
