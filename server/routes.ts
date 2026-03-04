@@ -13224,7 +13224,8 @@ Return a JSON object with "subject" and "message" fields.`;
       }
       
       const schema = z.object({
-        gymName: z.string().min(1, "Gym name is required"),
+        propertyType: z.enum(["gym", "apartment", "recreation_center", "corporate", "society"]).default("gym"),
+        gymName: z.string().min(1, "Name is required"),
         phone: z.string().optional(),
         address: z.string().optional(),
         pointOfContactName: z.string().optional(),
@@ -13233,7 +13234,7 @@ Return a JSON object with "subject" and "message" fields.`;
         state: z.string().min(1, "State is required"),
         country: z.string().min(1, "Country is required"),
         gymSize: z.enum(["0-50", "51-150", "151-300", "300+"], { 
-          errorMap: () => ({ message: "Please select a valid gym size" }) 
+          errorMap: () => ({ message: "Please select a valid size" }) 
         }),
         trainerCount: z.number().int().min(0, "Number of trainers must be 0 or greater"),
         preferredStart: z.enum(["immediately", "next_week", "next_month"], {
@@ -13257,6 +13258,7 @@ Return a JSON object with "subject" and "message" fields.`;
       const request = await storage.createGymRequest({
         ownerUserId: req.user!.id,
         gymName: input.gymName,
+        propertyType: input.propertyType,
         phone: input.phone || null,
         address: input.address || null,
         pointOfContactName: input.pointOfContactName || null,

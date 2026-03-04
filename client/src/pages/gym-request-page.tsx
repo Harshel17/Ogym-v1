@@ -21,6 +21,7 @@ const isIOSNativeApp = () => isNative() && isIOS();
 type GymRequest = {
   id: number;
   gymName: string;
+  propertyType: string | null;
   phone: string | null;
   address: string | null;
   pointOfContactName: string | null;
@@ -39,8 +40,17 @@ type GymRequest = {
   reviewedAt: string | null;
 };
 
+const propertyTypeOptions = [
+  { value: "gym", label: "Gym / Fitness Center" },
+  { value: "apartment", label: "Apartment / Residential Complex" },
+  { value: "recreation_center", label: "Recreation Center" },
+  { value: "corporate", label: "Corporate Wellness" },
+  { value: "society", label: "Housing Society" },
+] as const;
+
 const formSchema = z.object({
-  gymName: z.string().min(2, "Gym name must be at least 2 characters"),
+  propertyType: z.enum(["gym", "apartment", "recreation_center", "corporate", "society"]).default("gym"),
+  gymName: z.string().min(2, "Name must be at least 2 characters"),
   phone: z.string().optional(),
   address: z.string().optional(),
   pointOfContactName: z.string().optional(),
@@ -87,6 +97,7 @@ export default function GymRequestPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      propertyType: "gym",
       gymName: "",
       phone: "",
       address: "",
@@ -106,6 +117,11 @@ export default function GymRequestPage() {
   });
 
   const referralSource = form.watch("referralSource");
+  const propertyType = form.watch("propertyType");
+  const isNonGym = propertyType && propertyType !== "gym";
+  const nameLabel = isNonGym ? "Property Name *" : "Gym Name *";
+  const namePlaceholder = isNonGym ? "Enter property name" : "Enter gym name";
+  const sizeLabel = isNonGym ? "Community Size (Approximate Residents) *" : "Gym Size (Approximate Members) *";
   
   const handleCountryChange = (country: Country) => {
     const config = getRegionConfig(country);
@@ -235,18 +251,18 @@ export default function GymRequestPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold font-display text-foreground">Register Your Gym</h2>
-        <p className="text-sm text-muted-foreground mt-1">Submit a request to create your gym on our platform.</p>
+        <h2 className="text-2xl font-bold font-display text-foreground">Register Your {isNonGym ? "Property" : "Gym"}</h2>
+        <p className="text-sm text-muted-foreground mt-1">Submit a request to register your {isNonGym ? "property" : "gym"} on our platform.</p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building2 className="w-5 h-5" />
-            Gym Details
+            {isNonGym ? "Property Details" : "Gym Details"}
           </CardTitle>
           <CardDescription>
-            Fill out the form below to register your gym. Your request will be reviewed by our team.
+            Fill out the form below to register your {isNonGym ? "property" : "gym"}. Your request will be reviewed by our team.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -254,12 +270,34 @@ export default function GymRequestPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
+                name="propertyType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Property Type *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-property-type">
+                          <SelectValue placeholder="Select property type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {propertyTypeOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="gymName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Gym Name *</FormLabel>
+                    <FormLabel>{nameLabel}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter gym name" {...field} data-testid="input-gym-name" />
+                      <Input placeholder={namePlaceholder} {...field} data-testid="input-gym-name" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -348,7 +386,7 @@ export default function GymRequestPage() {
                   name="gymSize"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Gym Size (Approximate Members) *</FormLabel>
+                      <FormLabel>{sizeLabel}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-gym-size">

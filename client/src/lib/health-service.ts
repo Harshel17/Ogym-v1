@@ -471,62 +471,39 @@ class HealthService {
     return this.fetchDataForDate(getLocalDate());
   }
 
-  async backfillMissedDays(): Promise<number> {
+  async syncHistoricalData(days: number = 7): Promise<number> {
     await this.initialize();
     if (!this.capgoPlugin && !this.oldPlugin) return 0;
 
-    try {
-      const response = await fetch('/api/health/last-sync-date', { credentials: 'include' });
-      if (!response.ok) return 0;
-      const { lastSyncDate } = await response.json();
+    const today = getLocalDate();
+    const todayDate = new Date(today + 'T12:00:00');
+    let synced = 0;
 
-      const today = getLocalDate();
-      if (!lastSyncDate || lastSyncDate === today) return 0;
+    for (let i = days; i >= 0; i--) {
+      const d = new Date(todayDate);
+      d.setDate(d.getDate() - i);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-      const lastSync = new Date(lastSyncDate + 'T12:00:00');
-      const todayDate = new Date(today + 'T12:00:00');
-      const daysDiff = Math.floor((todayDate.getTime() - lastSync.getTime()) / (1000 * 60 * 60 * 24));
-
-      const maxBackfill = Math.min(daysDiff - 1, 7);
-      if (maxBackfill <= 0) return 0;
-
-      let synced = 0;
-      for (let i = maxBackfill; i >= 1; i--) {
-        const d = new Date(todayDate);
-        d.setDate(d.getDate() - i);
-        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-        try {
-          const dayData = await this.fetchDataForDate(dateStr);
-          if (dayData && (dayData.steps || dayData.sleepMinutes || dayData.caloriesBurned || dayData.avgHeartRate)) {
-            await apiRequest('POST', '/api/health/sync', dayData);
-            synced++;
-          }
-        } catch (e) {
-          console.log(`[HealthService] Could not backfill ${dateStr}:`, e);
+      try {
+        const dayData = await this.fetchDataForDate(dateStr);
+        if (dayData && (dayData.steps || dayData.sleepMinutes || dayData.caloriesBurned || dayData.avgHeartRate)) {
+          await apiRequest('POST', '/api/health/sync', dayData);
+          synced++;
+          console.log(`[HealthService] Synced ${dateStr}: steps=${dayData.steps}, cal=${dayData.caloriesBurned}, sleep=${dayData.sleepMinutes}min`);
         }
+      } catch (e) {
+        console.log(`[HealthService] Could not sync ${dateStr}:`, e);
       }
-
-      console.log(`[HealthService] Backfilled ${synced} missed days`);
-      return synced;
-    } catch (error) {
-      console.error('[HealthService] Backfill failed:', error);
-      return 0;
     }
+
+    console.log(`[HealthService] Historical sync complete: ${synced}/${days + 1} days synced`);
+    return synced;
   }
 
   async syncToBackend(): Promise<boolean> {
-    const data = await this.fetchTodayData();
-    if (!data) return false;
-
     try {
-      await apiRequest('POST', '/api/health/sync', data);
-
-      this.backfillMissedDays().catch(e =>
-        console.log('[HealthService] Background backfill error:', e)
-      );
-
-      return true;
+      const synced = await this.syncHistoricalData(7);
+      return synced > 0;
     } catch (error) {
       console.error('Failed to sync health data to backend:', error);
       return false;

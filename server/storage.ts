@@ -7189,7 +7189,8 @@ export class DatabaseStorage implements IStorage {
       city: request.city,
       state: request.state,
       country: request.country,
-      ownerUserId: request.ownerUserId
+      ownerUserId: request.ownerUserId,
+      propertyType: request.propertyType || "gym",
     }).returning();
     
     await db.update(users).set({ gymId: gym.id }).where(eq(users.id, request.ownerUserId));

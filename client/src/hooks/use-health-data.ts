@@ -47,9 +47,7 @@ export function useConnectHealth() {
       return success;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/health/status'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/health/today'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/health/range'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/health'] });
     },
   });
 }
@@ -64,8 +62,7 @@ export function useDisconnectHealth() {
       return success;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/health/status'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/health/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/health'] });
     },
   });
 }
@@ -80,9 +77,7 @@ export function useSyncHealth() {
       return success;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/health/today'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/health/range'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/health/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/health'] });
     },
   });
 }
@@ -108,9 +103,7 @@ export function useHealthAutoSync() {
       console.log('[useHealthAutoSync] Setup failed:', e)
     );
     healthService.syncToBackend().then(() => {
-      queryClient.invalidateQueries({ queryKey: ['/api/health/today'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/health/range'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/health/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/health'] });
     }).catch(e => console.log('[useHealthAutoSync] Initial sync failed:', e));
   }, [status?.connected]);
 }
