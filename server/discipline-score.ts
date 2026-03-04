@@ -80,6 +80,7 @@ export async function calculateDailyScore(userId: number, date: string) {
   const tips: string[] = [];
 
   // === WORKOUT PILLAR (35%) ===
+  const isToday = date === formatDate(new Date());
   let workoutScore = 0;
   if (cycle) {
     const dayLabels = cycle.dayLabels || [];
@@ -106,6 +107,10 @@ export async function calculateDailyScore(userId: number, date: string) {
     } else if (completions.length > 0) {
       workoutScore = 100;
       reasons.push({ pillar: "workout", delta: "+12", text: `Completed ${dayLabel || "workout"}` });
+    } else if (isToday) {
+      workoutScore = 30;
+      reasons.push({ pillar: "workout", delta: "~", text: `${dayLabel || "Workout"} scheduled — pending` });
+      tips.push("Complete your workout to boost this to 100");
     } else {
       workoutScore = 0;
       reasons.push({ pillar: "workout", delta: "-15", text: `Missed scheduled ${dayLabel || "workout"}` });
@@ -124,10 +129,13 @@ export async function calculateDailyScore(userId: number, date: string) {
   let nutritionScore = 0;
   const hasFood = summary.calories > 0;
 
-  if (!hasFood) {
+  if (!hasFood && isToday) {
+    nutritionScore = 20;
+    reasons.push({ pillar: "nutrition", delta: "~", text: "No meals logged yet — pending" });
+    tips.push("Log a meal to boost your nutrition score");
+  } else if (!hasFood) {
     nutritionScore = 0;
-    reasons.push({ pillar: "nutrition", delta: "-10", text: "No meals logged today" });
-    tips.push("Log at least one meal to build your score");
+    reasons.push({ pillar: "nutrition", delta: "-10", text: "No meals logged" });
   } else if (calorieGoal) {
     const target = calorieGoal.dailyCalorieTarget || 2000;
     const proteinTarget = calorieGoal.dailyProteinTarget || 120;
@@ -505,7 +513,7 @@ export async function getScoreToday(userId: number, forceRefresh: boolean = fals
     .where(and(eq(dailyDisciplineScores.userId, userId), eq(dailyDisciplineScores.date, today)))
     .limit(1);
 
-  if (dailyScore.length === 0 || forceRefresh) {
+  {
     const calculated = await calculateDailyScore(userId, today);
     dailyScore = [calculated];
   }
