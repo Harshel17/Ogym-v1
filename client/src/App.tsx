@@ -43,6 +43,7 @@ import OwnerWalkInVisitorsPage from "@/pages/owner-walk-in-visitors-page";
 import OwnerFollowUpsPage from "@/pages/owner-follow-ups-page";
 import OwnerKioskPage from "@/pages/owner-kiosk-page";
 import PropertyAccessHistory from "@/pages/property-access-history";
+import PropertyIntelligencePage from "@/pages/property-intelligence-page";
 import OwnerAiInsightsPage from "@/pages/owner-ai-insights-page";
 import OwnerGymIntelligencePage from "@/pages/owner-gym-intelligence-page";
 import OwnerEquipmentSetupPage from "@/pages/owner-equipment-setup-page";
@@ -531,6 +532,10 @@ function Router() {
 
       <Route path="/owner/access-history">
         <ProtectedRoute component={PropertyAccessHistory} requiredRole="owner" />
+      </Route>
+
+      <Route path="/owner/property-intelligence">
+        <ProtectedRoute component={PropertyIntelligencePage} requiredRole="owner" />
       </Route>
 
       <Route path="/owner/ai-insights">

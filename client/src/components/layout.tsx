@@ -130,6 +130,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { label: "Trainers", href: "/trainers", icon: Users, visible: isOwner && hasGym && !isPropertyManager, badge: 0, section: "Management", iconColor: "text-cyan-500 bg-cyan-500/10" },
     { label: "Residents", href: "/members", icon: Users, visible: isPropertyManager, badge: 0, section: "Management", iconColor: "text-blue-500 bg-blue-500/10" },
     { label: "Access History", href: "/owner/access-history", icon: CalendarCheck, visible: !!isPropertyManager, badge: 0, section: "Management", iconColor: "text-emerald-500 bg-emerald-500/10" },
+    { label: "Intelligence", href: "/owner/property-intelligence", icon: BarChart3, visible: !!isPropertyManager, badge: 0, section: "Management", iconColor: "text-indigo-500 bg-indigo-500/10" },
     { label: "Members", href: "/members", icon: Users, visible: (isOwner && hasGym && !isPropertyManager) || isTrainer, badge: 0, section: "Management", iconColor: "text-blue-500 bg-blue-500/10" },
     { label: "Attendance", href: "/attendance", icon: CalendarCheck, visible: hasGym && !isTrainer && !isPropertyManager, badge: 0, section: "Management", iconColor: "text-emerald-500 bg-emerald-500/10" },
     { label: "Payments", href: "/payments", icon: CreditCard, visible: ((isOwner && hasGym && !isPropertyManager) && !isIOSNativeApp) || (isMember && !isIOSNativeApp), badge: 0, section: "Management", iconColor: "text-green-500 bg-green-500/10" },

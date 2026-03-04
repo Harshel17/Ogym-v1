@@ -10648,6 +10648,174 @@ Write a short, personal message. No subject line, just the message body. Use the
     }
   });
 
+  app.get("/api/owner/property-intelligence", requireRole(["owner"]), async (req, res) => {
+    try {
+      const gymId = req.user!.gymId!;
+      const clientToday = (req.query.clientToday as string) || getLocalDate(req);
+      const todayDate = new Date(clientToday + "T00:00:00");
+
+      const thirtyDaysAgo = new Date(todayDate);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
+
+      const allMembersRaw = await db.select({ id: users.id, username: users.username })
+        .from(users)
+        .where(and(eq(users.gymId, gymId), eq(users.role, "member")));
+      const totalResidents = allMembersRaw.length;
+
+      const profileRows = await db.select({ userId: userProfiles.userId, fullName: userProfiles.fullName })
+        .from(userProfiles)
+        .where(inArray(userProfiles.userId, allMembersRaw.map(m => m.id).length > 0 ? allMembersRaw.map(m => m.id) : [0]));
+      const profileMap = new Map(profileRows.map(p => [p.userId, p.fullName]));
+      const memberMap = new Map(allMembersRaw.map(m => [m.id, profileMap.get(m.id) || m.username]));
+
+      const records = await db.select({
+        memberId: attendance.memberId,
+        date: attendance.date,
+        createdAt: attendance.createdAt,
+      }).from(attendance)
+        .where(and(
+          eq(attendance.gymId, gymId),
+          eq(attendance.status, "present"),
+          gte(attendance.date, thirtyDaysAgoStr),
+          lte(attendance.date, clientToday),
+        ));
+
+      const hourCounts: Record<number, number> = {};
+      for (let h = 5; h <= 23; h++) hourCounts[h] = 0;
+      for (const r of records) {
+        if (r.createdAt) {
+          const hour = new Date(r.createdAt).getHours();
+          if (hour >= 5 && hour <= 23) hourCounts[hour]++;
+        }
+      }
+
+      const hourData = Object.entries(hourCounts).map(([hour, count]) => {
+        const h = parseInt(hour);
+        return {
+          hour: h,
+          count,
+          label: `${h > 12 ? h - 12 : h} ${h >= 12 ? "PM" : "AM"}`,
+        };
+      });
+      const maxCount = Math.max(...hourData.map(h => h.count), 1);
+      const peakThreshold = maxCount * 0.7;
+      const lowThreshold = maxCount * 0.3;
+
+      const peakHourData = hourData.map(h => ({
+        ...h,
+        level: (h.count >= peakThreshold && h.count > 0 ? "peak" : h.count <= lowThreshold ? "low" : "moderate") as "peak" | "moderate" | "low",
+      }));
+
+      const peakHours = peakHourData.filter(h => h.level === "peak").map(h => h.hour);
+      const lowHoursList = peakHourData.filter(h => h.level === "low" && h.count === 0).map(h => h.hour);
+
+      const fmtHr = (h: number) => `${h > 12 ? h - 12 : h} ${h >= 12 ? "PM" : "AM"}`;
+      const formatRange = (hours: number[]) => {
+        if (hours.length === 0) return null;
+        hours.sort((a, b) => a - b);
+        const ranges: string[] = [];
+        let start = hours[0], end = hours[0];
+        for (let i = 1; i < hours.length; i++) {
+          if (hours[i] === end + 1) { end = hours[i]; }
+          else { ranges.push(start === end ? fmtHr(start) : `${fmtHr(start)}–${fmtHr(end + 1)}`); start = hours[i]; end = hours[i]; }
+        }
+        ranges.push(start === end ? fmtHr(start) : `${fmtHr(start)}–${fmtHr(end + 1)}`);
+        return ranges.join(", ");
+      };
+
+      const daysAnalyzed = Math.min(30, Math.ceil((todayDate.getTime() - thirtyDaysAgo.getTime()) / 86400000));
+
+      const weeks: { week: string; label: string; start: string; end: string }[] = [];
+      for (let w = 3; w >= 0; w--) {
+        const ws = new Date(todayDate);
+        ws.setDate(ws.getDate() - (w * 7 + 6));
+        const we = new Date(ws);
+        we.setDate(we.getDate() + 6);
+        weeks.push({
+          week: `W${4 - w}`,
+          label: `${ws.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
+          start: ws.toISOString().split("T")[0],
+          end: we.toISOString().split("T")[0],
+        });
+      }
+
+      const weeklyTrends = weeks.map(w => {
+        const weekRecords = records.filter(r => r.date >= w.start && r.date <= w.end);
+        return {
+          week: w.week,
+          label: w.label,
+          visits: weekRecords.length,
+          uniqueResidents: new Set(weekRecords.map(r => r.memberId)).size,
+        };
+      });
+
+      const firstWeekVisits = weeklyTrends[0]?.visits || 0;
+      const lastWeekVisits = weeklyTrends[weeklyTrends.length - 1]?.visits || 0;
+      const overallChange = firstWeekVisits > 0 ? Math.round(((lastWeekVisits - firstWeekVisits) / firstWeekVisits) * 100) : 0;
+      const avgWeeklyVisits = Math.round(weeklyTrends.reduce((s, w) => s + w.visits, 0) / Math.max(weeklyTrends.length, 1));
+
+      const memberVisitCounts = new Map<number, { total: number; lastDate: string }>();
+      for (const r of records) {
+        const existing = memberVisitCounts.get(r.memberId);
+        if (!existing) {
+          memberVisitCounts.set(r.memberId, { total: 1, lastDate: r.date });
+        } else {
+          existing.total++;
+          if (r.date > existing.lastDate) existing.lastDate = r.date;
+        }
+      }
+
+      let regulars = 0, occasional = 0, inactive = 0;
+      const residentBreakdown: { name: string; lastVisit: string; totalVisits: number; segment: "regular" | "occasional" | "inactive" }[] = [];
+
+      for (const m of allMembersRaw) {
+        const stats = memberVisitCounts.get(m.id);
+        const name = memberMap.get(m.id) || m.username;
+        if (!stats) {
+          inactive++;
+          residentBreakdown.push({ name, lastVisit: "Never", totalVisits: 0, segment: "inactive" });
+        } else if (stats.total >= 3) {
+          regulars++;
+          residentBreakdown.push({ name, lastVisit: stats.lastDate === clientToday ? "Today" : stats.lastDate, totalVisits: stats.total, segment: "regular" });
+        } else {
+          occasional++;
+          residentBreakdown.push({ name, lastVisit: stats.lastDate === clientToday ? "Today" : stats.lastDate, totalVisits: stats.total, segment: "occasional" });
+        }
+      }
+
+      residentBreakdown.sort((a, b) => b.totalVisits - a.totalVisits);
+
+      const engagementRate = totalResidents > 0 ? Math.round(((regulars + occasional) / totalResidents) * 100) : 0;
+
+      res.json({
+        peakHours: {
+          data: peakHourData,
+          peakSummary: formatRange(peakHours),
+          lowSummary: formatRange(lowHoursList),
+          totalCheckIns: records.length,
+          daysAnalyzed,
+        },
+        usageTrends: {
+          weeks: weeklyTrends,
+          overallChange,
+          avgWeeklyVisits,
+        },
+        residentEngagement: {
+          totalResidents,
+          regulars,
+          occasional,
+          inactive,
+          engagementRate,
+          residents: residentBreakdown,
+        },
+      });
+    } catch (error: any) {
+      console.error("Property intelligence error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/owner/access-history", requireRole(["owner"]), async (req, res) => {
     try {
       const gymId = req.user!.gymId!;
