@@ -106,6 +106,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isMember = user.role === "member";
   const hasGym = !!user.gymId;
   const isOwnerWithoutGym = isOwner && !hasGym;
+  const isPropertyManager = isOwner && hasGym && user.gym?.propertyType && user.gym.propertyType !== "gym";
 
   const isPersonalMode = isMember && !hasGym;
   
@@ -121,15 +122,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const navItems: NavItem[] = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard, visible: hasGym || isPersonalMode, badge: 0, section: "Main", iconColor: "text-blue-500 bg-blue-500/10" },
-    { label: "Dika AI", href: "/dika", icon: DikaNavIcon, visible: hasGym || isPersonalMode, badge: 0, section: "Main", iconColor: "text-amber-500 bg-amber-500/10" },
+    { label: "Dika AI", href: "/dika", icon: DikaNavIcon, visible: (hasGym && !isPropertyManager) || isPersonalMode, badge: 0, section: "Main", iconColor: "text-amber-500 bg-amber-500/10" },
     { label: "Register Gym", href: "/gym-request", icon: Building2, visible: isOwnerWithoutGym && !isIOSNativeApp, badge: 0, section: "Main", iconColor: "text-emerald-500 bg-emerald-500/10" },
     { label: "My Workouts", href: "/my-workouts", icon: Swords, visible: isMember || isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-orange-500 bg-orange-500/10" },
     { label: "Join a Gym", href: "/join-gym", icon: Building2, visible: isPersonalMode, badge: 0, section: "More", iconColor: "text-emerald-500 bg-emerald-500/10" },
     { label: "Profile", href: "/profile", icon: UserCircle, visible: hasGym || isPersonalMode, badge: 0, section: "Account", iconColor: "text-violet-500 bg-violet-500/10" },
-    { label: "Trainers", href: "/trainers", icon: Users, visible: isOwner && hasGym, badge: 0, section: "Management", iconColor: "text-cyan-500 bg-cyan-500/10" },
-    { label: "Members", href: "/members", icon: Users, visible: (isOwner && hasGym) || isTrainer, badge: 0, section: "Management", iconColor: "text-blue-500 bg-blue-500/10" },
-    { label: "Attendance", href: "/attendance", icon: CalendarCheck, visible: hasGym && !isTrainer, badge: 0, section: "Management", iconColor: "text-emerald-500 bg-emerald-500/10" },
-    { label: "Payments", href: "/payments", icon: CreditCard, visible: ((isOwner && hasGym) && !isIOSNativeApp) || (isMember && !isIOSNativeApp), badge: 0, section: "Management", iconColor: "text-green-500 bg-green-500/10" },
+    { label: "Trainers", href: "/trainers", icon: Users, visible: isOwner && hasGym && !isPropertyManager, badge: 0, section: "Management", iconColor: "text-cyan-500 bg-cyan-500/10" },
+    { label: "Residents", href: "/members", icon: Users, visible: isPropertyManager, badge: 0, section: "Management", iconColor: "text-blue-500 bg-blue-500/10" },
+    { label: "Members", href: "/members", icon: Users, visible: (isOwner && hasGym && !isPropertyManager) || isTrainer, badge: 0, section: "Management", iconColor: "text-blue-500 bg-blue-500/10" },
+    { label: "Attendance", href: "/attendance", icon: CalendarCheck, visible: hasGym && !isTrainer && !isPropertyManager, badge: 0, section: "Management", iconColor: "text-emerald-500 bg-emerald-500/10" },
+    { label: "Payments", href: "/payments", icon: CreditCard, visible: ((isOwner && hasGym && !isPropertyManager) && !isIOSNativeApp) || (isMember && !isIOSNativeApp), badge: 0, section: "Management", iconColor: "text-green-500 bg-green-500/10" },
     { label: "Workouts", href: "/workouts", icon: Swords, visible: isTrainer, badge: 0, section: "Training", iconColor: "text-orange-500 bg-orange-500/10" },
     { label: "Star Members", href: "/star-members", icon: Star, visible: isTrainer, badge: 0, section: "Training", iconColor: "text-yellow-500 bg-yellow-500/10" },
     { label: "Diet Plans", href: "/diet-plans", icon: Utensils, visible: isTrainer, badge: 0, section: "Training", iconColor: "text-lime-500 bg-lime-500/10" },
@@ -142,17 +144,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { label: "My Goals", href: "/goals", icon: Target, visible: isMember || isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-rose-500 bg-rose-500/10" },
     { label: "Health", href: "/health", icon: HeartPulse, visible: isMember || isPersonalMode, badge: 0, section: "Fitness", iconColor: "text-red-500 bg-red-500/10" },
     { label: "Requests", href: "/requests", icon: MessageSquare, visible: isMember || isTrainer, badge: notificationCounts?.pendingRequests || 0, section: "More", iconColor: "text-blue-500 bg-blue-500/10" },
-    { label: "Transfers", href: "/transfers", icon: ArrowRightLeft, visible: isOwner && hasGym && !isIOSNativeApp, badge: notificationCounts?.pendingTransfers || 0, section: "Management", iconColor: "text-indigo-500 bg-indigo-500/10" },
-    { label: "Announcements", href: "/owner/announcements", icon: Megaphone, visible: isOwner && hasGym, badge: 0, section: "Growth", iconColor: "text-violet-500 bg-violet-500/10" },
-    { label: "Walk-ins", href: "/owner/walk-in-visitors", icon: PersonStanding, visible: isOwner && hasGym && !isIOSNativeApp, badge: notificationCounts?.hotLeadsCount || 0, section: "Growth", iconColor: "text-orange-500 bg-orange-500/10" },
-    { label: "Follow-ups", href: "/owner/follow-ups", icon: PhoneCall, visible: isOwner && hasGym && !isIOSNativeApp, badge: 0, section: "Growth", iconColor: "text-teal-500 bg-teal-500/10" },
-    { label: "Dika Actions", href: "/owner/ai-insights", icon: Brain, visible: isOwner && hasGym && !isIOSNativeApp, badge: 0, section: "AI Tools", iconColor: "text-purple-500 bg-purple-500/10" },
-    { label: "Dika Intelligence", href: "/owner/gym-intelligence", icon: BarChart3, visible: isOwner && hasGym && !isIOSNativeApp, badge: 0, section: "AI Tools", iconColor: "text-indigo-500 bg-indigo-500/10" },
+    { label: "Transfers", href: "/transfers", icon: ArrowRightLeft, visible: isOwner && hasGym && !isPropertyManager && !isIOSNativeApp, badge: notificationCounts?.pendingTransfers || 0, section: "Management", iconColor: "text-indigo-500 bg-indigo-500/10" },
+    { label: "Announcements", href: "/owner/announcements", icon: Megaphone, visible: isOwner && hasGym && !isPropertyManager, badge: 0, section: "Growth", iconColor: "text-violet-500 bg-violet-500/10" },
+    { label: "Walk-ins", href: "/owner/walk-in-visitors", icon: PersonStanding, visible: isOwner && hasGym && !isPropertyManager && !isIOSNativeApp, badge: notificationCounts?.hotLeadsCount || 0, section: "Growth", iconColor: "text-orange-500 bg-orange-500/10" },
+    { label: "Follow-ups", href: "/owner/follow-ups", icon: PhoneCall, visible: isOwner && hasGym && !isPropertyManager && !isIOSNativeApp, badge: 0, section: "Growth", iconColor: "text-teal-500 bg-teal-500/10" },
+    { label: "Dika Actions", href: "/owner/ai-insights", icon: Brain, visible: isOwner && hasGym && !isPropertyManager && !isIOSNativeApp, badge: 0, section: "AI Tools", iconColor: "text-purple-500 bg-purple-500/10" },
+    { label: "Dika Intelligence", href: "/owner/gym-intelligence", icon: BarChart3, visible: isOwner && hasGym && !isPropertyManager && !isIOSNativeApp, badge: 0, section: "AI Tools", iconColor: "text-indigo-500 bg-indigo-500/10" },
     { label: "Self Check-in", href: "/owner/kiosk", icon: QrCode, visible: isOwner && hasGym, badge: 0, section: "More", iconColor: "text-sky-500 bg-sky-500/10" },
     { label: "Announcements", href: "/announcements", icon: Megaphone, visible: isTrainer || isMember, badge: notificationCounts?.unreadAnnouncements || 0, section: "More", iconColor: "text-violet-500 bg-violet-500/10" },
-    { label: "Feed", href: "/feed", icon: Activity, visible: hasGym, badge: 0, section: "More", iconColor: "text-sky-500 bg-sky-500/10" },
-    { label: "Tournaments", href: "/tournaments", icon: Trophy, visible: hasGym, badge: 0, section: "More", iconColor: "text-yellow-500 bg-yellow-500/10" },
-    { label: "Join Requests", href: "/owner/join-requests", icon: UserPlus, visible: isOwner && !!user.gymId, badge: notificationCounts?.pendingJoinRequests || 0, section: "Management", iconColor: "text-teal-500 bg-teal-500/10" },
+    { label: "Feed", href: "/feed", icon: Activity, visible: hasGym && !isPropertyManager, badge: 0, section: "More", iconColor: "text-sky-500 bg-sky-500/10" },
+    { label: "Tournaments", href: "/tournaments", icon: Trophy, visible: hasGym && !isPropertyManager, badge: 0, section: "More", iconColor: "text-yellow-500 bg-yellow-500/10" },
+    { label: "Join Requests", href: "/owner/join-requests", icon: UserPlus, visible: isOwner && !!user.gymId && !isPropertyManager, badge: notificationCounts?.pendingJoinRequests || 0, section: "Management", iconColor: "text-teal-500 bg-teal-500/10" },
     { label: "Help", href: "/help", icon: HelpCircle, visible: true, badge: 0, section: "Account", iconColor: "text-slate-400 bg-slate-400/10" },
     { label: "Support", href: "/support", icon: MessageSquare, visible: true, badge: 0, section: "Account", iconColor: "text-slate-400 bg-slate-400/10" },
   ];
@@ -167,6 +169,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
     .filter(group => group.items.length > 0);
 
   const getMobileNavigation = (): { primary: MobileTabItem[], secondary: MobileTabItem[] } => {
+    if (isPropertyManager) {
+      return {
+        primary: [
+          { label: "Dashboard", href: "/", icon: LayoutDashboard },
+          { label: "Residents", href: "/members", icon: Users },
+          { label: "Check-in", href: "/owner/kiosk", icon: QrCode },
+        ],
+        secondary: [
+          { label: "Profile", href: "/profile", icon: UserCircle },
+          { label: "Help", href: "/help", icon: HelpCircle },
+          { label: "Support", href: "/support", icon: MessageSquare },
+        ]
+      };
+    }
     if (isOwner && hasGym) {
       return {
         primary: isIOSNativeApp

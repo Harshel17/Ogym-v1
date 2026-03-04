@@ -38,7 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **Sports Mode:** AI-powered sport-specific training programs, fitness assessments, and match logging.
 - **Fitness Device Integration:** Health & Activity page with HealthKit (iOS) / Google Fit (Android) integration for activity overview, recovery score, and calorie balance, utilizing advanced health plugins for accurate data.
 - **Gym Intelligence Dashboard:** Provides data-driven insights for owners, including Peak Hour Pressure, Muscle Trend Intelligence, and Equipment Intelligence, with Dika AI context for queries.
-- **Property Manager Dashboard:** Multi-property-type support (gym, apartment, recreation_center, corporate, society). Apartment/property owners get a specialized analytics dashboard with top metric cards, weekly usage charts, time-of-day peak hours, engagement trends, resident activity table, amenity engagement stats, and access logs. Separate component in `client/src/pages/property-manager-dashboard.tsx`. API: `/api/owner/property-analytics`.
+- **Property Manager Dashboard:** Multi-property-type support (gym, apartment, recreation_center, corporate, society). Property managers get a simplified door access tracking dashboard showing total residents, checked-in today, self check-in kiosk link, and a chronological access log (today + previous days). Sidebar and mobile nav are stripped down for property managers (Dashboard, Residents, Self Check-in, Profile only). Component: `client/src/pages/property-manager-dashboard.tsx`. API: `/api/owner/property-analytics`.
 - **Demo Accounts:**
     - **Sunrise Apartments (Property):** gymId=4, code=SUN247, propertyType=apartment
     - Property Manager: `sunrise_owner` / `Owner@123` / `sunrise@demo.com`
