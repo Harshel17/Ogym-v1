@@ -51,7 +51,10 @@ Preferred communication style: Simple, everyday language.
 - **Security:** Helmet.js, secure session cookies, rate limiting.
 - **Error Handling:** React Error Boundary.
 - **Deployment:** Same-origin with Express serving API and static frontend.
-- **OGym Score (Discipline Score):** A dual-score system (Daily Discipline Score and OGym Score) calculated based on workout, nutrition, consistency, and recovery, visible to members, trainers, and owners.
+- **OGym Score System (V2 Rebuild):** Two-score system:
+    - **Daily Fitness Score (0-100):** Personalized pillar-based scoring. 4 pillars: Workout (40%), Nutrition (30%), Activity (20%), Recovery (10%) with proportional weight redistribution based on user-selected pillars. Color zones: Green (90-100), Blue (70-89), Yellow (50-69), Orange (30-49), Red (10-29). Floor of 10 (never 0). Pending vs finalized logic for today vs past days. First-time setup with pillar selection bottom sheet.
+    - **Fitness Credit (0-1000):** Long-term consistency score using weighted rolling 30-day average (days 1-7: 1.0, 8-14: 0.8, 15-21: 0.6, 22-30: 0.4). Unlocks after 21 days (min 18 active). Tiers: Elite 750+, Strong 650+, Building 500+, Inconsistent 400+, At Risk <400.
+    - **Key files:** `server/discipline-score.ts` (engine), `client/src/pages/score-page.tsx` (UI), schema tables: `daily_discipline_scores` (with activityScore, finalized columns), `ogym_scores`, `discipline_settings` (with selectedPillars, setupCompleted).
 
 ## External Dependencies
 - **PostgreSQL:** Primary database.

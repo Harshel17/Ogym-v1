@@ -1447,9 +1447,9 @@ function TrainerDisciplineCard() {
 
   if (!memberScores || memberScores.length === 0) return null;
 
-  const lowScoreMembers = memberScores.filter((m: any) => m.ogymScore !== null && m.ogymScore < 400);
-  const scoredMembers = memberScores.filter((m: any) => m.ogymScore !== null);
+  const scoredMembers = memberScores.filter((m: any) => m.dailyScore !== null);
   const buildingMembers = memberScores.filter((m: any) => m.building);
+  const lowScoreMembers = scoredMembers.filter((m: any) => m.dailyScore < 30);
 
   return (
     <Card className="border-0 shadow-sm" data-testid="card-trainer-discipline">
@@ -1460,7 +1460,7 @@ function TrainerDisciplineCard() {
           </div>
           <div>
             <CardTitle className="text-sm font-semibold">OGym Scores</CardTitle>
-            <p className="text-[10px] text-muted-foreground">{scoredMembers.length} scored · {buildingMembers.length} building</p>
+            <p className="text-[10px] text-muted-foreground">{scoredMembers.length} active · {buildingMembers.length} building</p>
           </div>
         </div>
       </CardHeader>
@@ -1468,36 +1468,32 @@ function TrainerDisciplineCard() {
         {lowScoreMembers.length > 0 && (
           <div className="mb-2 px-2.5 py-1.5 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-800/30">
             <p className="text-[10px] font-medium text-red-600 dark:text-red-400">
-              <AlertTriangle className="w-3 h-3 inline mr-1" />{lowScoreMembers.length} member{lowScoreMembers.length > 1 ? "s" : ""} below 400
+              <AlertTriangle className="w-3 h-3 inline mr-1" />{lowScoreMembers.length} member{lowScoreMembers.length > 1 ? "s" : ""} need attention
             </p>
           </div>
         )}
         <div className="space-y-1.5">
-          {scoredMembers.slice(0, 5).map((m: any) => (
-            <div key={m.memberId} className="flex items-center gap-2.5 p-2 rounded-lg bg-background/60 border border-border/30" data-testid={`discipline-member-${m.memberId}`}>
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
-                m.ogymTier === "elite" ? "bg-yellow-500" :
-                m.ogymTier === "strong" ? "bg-green-500" :
-                m.ogymTier === "building" ? "bg-blue-500" :
-                m.ogymTier === "inconsistent" ? "bg-orange-500" : "bg-red-500"
-              }`}>
-                {m.ogymScore}
+          {scoredMembers.slice(0, 5).map((m: any) => {
+            const scoreColorMap: Record<string, string> = { green: "bg-green-500", blue: "bg-blue-500", yellow: "bg-yellow-500", orange: "bg-orange-500", red: "bg-red-500" };
+            const bgClass = scoreColorMap[m.dailyColor || "blue"] || "bg-blue-500";
+            return (
+              <div key={m.memberId} className="flex items-center gap-2.5 p-2 rounded-lg bg-background/60 border border-border/30" data-testid={`discipline-member-${m.memberId}`}>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${bgClass}`}>
+                  {m.dailyScore}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate">{m.name}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {m.fitnessTierLabel || "Building"}
+                    {m.fitnessCredit && <span className="ml-1 text-white/40">FC: {m.fitnessCredit}</span>}
+                  </p>
+                </div>
+                {m.dailyScore !== null && (
+                  <span className="text-[10px] text-muted-foreground">Today: {m.dailyScore}/100</span>
+                )}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium truncate">{m.name}</p>
-                <p className="text-[10px] text-muted-foreground">{m.ogymTierLabel}
-                  {m.ogymDelta != null && (
-                    <span className={m.ogymDelta > 0 ? " text-green-600" : m.ogymDelta < 0 ? " text-red-600" : ""}>
-                      {" "}{m.ogymDelta > 0 ? "+" : ""}{m.ogymDelta}
-                    </span>
-                  )}
-                </p>
-              </div>
-              {m.dailyScore !== null && (
-                <span className="text-[10px] text-muted-foreground">Today: {m.dailyScore}/100</span>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>
@@ -3884,28 +3880,27 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
             <div className="relative bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] p-5 pb-4">
               <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-indigo-500/15 to-transparent rounded-bl-full" />
               <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-purple-500/10 to-transparent rounded-tr-full" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-indigo-500/[0.03] rounded-full blur-3xl" />
 
               <div className="relative z-10">
                 {(() => {
                   const dailyScore = disciplineScore.daily?.score ?? 0;
                   const dailyPct = dailyScore / 100;
-                  const dailyColor = dailyScore >= 70 ? "#34d399" : dailyScore >= 40 ? "#fb923c" : "#f87171";
+                  const scoreColorMap: Record<string, string> = { green: "#22c55e", blue: "#3b82f6", yellow: "#eab308", orange: "#f97316", red: "#ef4444" };
+                  const dailyColor = scoreColorMap[disciplineScore.daily?.color || "blue"] || "#3b82f6";
 
-                  const isBuilding = disciplineScore.ogym?.building;
-                  const hasOgym = disciplineScore.ogym?.score;
-                  const ogymScore = disciplineScore.ogym?.score || 0;
-                  const ogymPct = hasOgym ? Math.max(0.05, (ogymScore - 300) / 550) : 0;
-                  const tier = disciplineScore.ogym?.tier || "building";
+                  const fc = disciplineScore.fitnessCredit;
+                  const isBuilding = fc?.building;
+                  const fcScore = fc?.score || 0;
+                  const fcPct = fcScore > 0 ? fcScore / 1000 : 0;
 
                   const tierConfig: Record<string, { color: string; label: string; badgeClass: string }> = {
                     elite: { color: "#facc15", label: "Elite", badgeClass: "bg-yellow-500/20 text-yellow-300 border-yellow-500/25" },
                     strong: { color: "#34d399", label: "Strong", badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/25" },
                     building: { color: "#60a5fa", label: "Building", badgeClass: "bg-blue-500/20 text-blue-300 border-blue-500/25" },
                     inconsistent: { color: "#fb923c", label: "Inconsistent", badgeClass: "bg-orange-500/20 text-orange-300 border-orange-500/25" },
-                    "at-risk": { color: "#f87171", label: "At Risk", badgeClass: "bg-red-500/20 text-red-300 border-red-500/25" },
+                    at_risk: { color: "#f87171", label: "At Risk", badgeClass: "bg-red-500/20 text-red-300 border-red-500/25" },
                   };
-                  const tc = tierConfig[tier] || tierConfig.building;
+                  const tc = tierConfig[fc?.tier || "building"] || tierConfig.building;
 
                   return (
                     <>
@@ -3923,22 +3918,21 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                       </div>
 
                       <div className="flex items-center justify-center gap-6 py-2">
-                        {/* Left circle — Fitness Credit Score (OGym) */}
                         <div className="flex flex-col items-center gap-2">
                           <div className="relative">
                             <svg width="110" height="110" viewBox="0 0 110 110">
                               <circle cx="55" cy="55" r="47" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="7" />
                               {isBuilding ? (
                                 <circle cx="55" cy="55" r="47" fill="none" stroke="url(#oGrad)" strokeWidth="7" strokeLinecap="round"
-                                  strokeDasharray={`${((disciplineScore.ogym?.progress || 0) / 100) * 295.3} 295.3`}
+                                  strokeDasharray={`${((fc?.progress || 0) / 100) * 295.3} 295.3`}
                                   transform="rotate(-90 55 55)" className="transition-all duration-1000"
                                   style={{ filter: 'drop-shadow(0 0 8px rgba(129,140,248,0.5))' }} />
-                              ) : hasOgym ? (
+                              ) : (
                                 <circle cx="55" cy="55" r="47" fill="none" stroke={tc.color} strokeWidth="7" strokeLinecap="round"
-                                  strokeDasharray={`${ogymPct * 295.3} 295.3`}
+                                  strokeDasharray={`${fcPct * 295.3} 295.3`}
                                   transform="rotate(-90 55 55)" className="transition-all duration-1000"
                                   style={{ filter: `drop-shadow(0 0 10px ${tc.color}50)` }} />
-                              ) : null}
+                              )}
                               <defs>
                                 <linearGradient id="oGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                                   <stop offset="0%" stopColor="#818cf8" />
@@ -3949,32 +3943,25 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                               {isBuilding ? (
                                 <>
-                                  <span className="text-2xl font-black text-white tabular-nums leading-none">{disciplineScore.ogym?.daysCompleted || 0}</span>
-                                  <span className="text-[9px] text-white/35 font-medium mt-0.5">of {disciplineScore.ogym?.daysRequired || 14}</span>
-                                </>
-                              ) : hasOgym ? (
-                                <>
-                                  <span className="text-3xl font-black tabular-nums leading-none text-white" style={{ textShadow: `0 0 20px ${tc.color}30` }}>{ogymScore}</span>
-                                  <span className={`text-[9px] font-bold mt-1 px-1.5 py-0.5 rounded-full border ${tc.badgeClass}`}>{disciplineScore.ogym?.tierLabel || tc.label}</span>
+                                  <span className="text-2xl font-black text-white tabular-nums leading-none">{fc?.daysCompleted || 0}</span>
+                                  <span className="text-[9px] text-white/35 font-medium mt-0.5">of {fc?.daysRequired || 21}</span>
                                 </>
                               ) : (
-                                <span className="text-lg font-bold text-white/20">--</span>
+                                <>
+                                  <span className="text-3xl font-black tabular-nums leading-none text-white" style={{ textShadow: `0 0 20px ${tc.color}30` }}>{fcScore}</span>
+                                  <span className={`text-[9px] font-bold mt-1 px-1.5 py-0.5 rounded-full border ${tc.badgeClass}`}>{fc?.tierLabel || tc.label}</span>
+                                </>
                               )}
                             </div>
                           </div>
                           <div className="text-center">
-                            <p className="text-[10px] font-semibold text-white/60">
-                              {isBuilding ? "Fitness Credit" : "Fitness Credit"}
-                            </p>
-                            <p className="text-[9px] text-white/30">
-                              {isBuilding ? "Unlocking..." : "300–850"}
-                            </p>
+                            <p className="text-[10px] font-semibold text-white/60">Fitness Credit</p>
+                            <p className="text-[9px] text-white/30">{isBuilding ? "Unlocking..." : "0–1000"}</p>
                           </div>
                         </div>
 
                         <div className="w-px h-20 bg-gradient-to-b from-transparent via-white/10 to-transparent" />
 
-                        {/* Right circle — Today's Discipline Score */}
                         <div className="flex flex-col items-center gap-2">
                           <div className="relative">
                             <svg width="110" height="110" viewBox="0 0 110 110">
@@ -3991,9 +3978,7 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                           </div>
                           <div className="text-center">
                             <p className="text-[10px] font-semibold text-white/60">Today's Score</p>
-                            <p className="text-[9px] text-white/30">
-                              {dailyScore >= 70 ? "Great day" : dailyScore >= 40 ? "Keep going" : "Just start"}
-                            </p>
+                            <p className="text-[9px] text-white/30">{disciplineScore.daily?.label || "—"}</p>
                           </div>
                         </div>
                       </div>
@@ -4002,11 +3987,11 @@ function MemberDashboard({ greeting, greetingIcon, username }: { greeting: strin
                         <div className="mt-3 pt-3 border-t border-white/[0.06]">
                           <div className="grid grid-cols-4 gap-1.5">
                             {[
-                              { label: "Workout", score: disciplineScore.daily.pillars.workout.score, color: "#60a5fa" },
-                              { label: "Nutrition", score: disciplineScore.daily.pillars.nutrition.score, color: "#34d399" },
-                              { label: "Streak", score: disciplineScore.daily.pillars.consistency.score, color: "#fb923c" },
-                              { label: "Recovery", score: disciplineScore.daily.pillars.recovery.score, color: "#a78bfa" },
-                            ].map((p) => (
+                              disciplineScore.daily.pillars.workout?.enabled && { label: "Workout", score: disciplineScore.daily.pillars.workout.score, color: "#a78bfa" },
+                              disciplineScore.daily.pillars.nutrition?.enabled && { label: "Nutrition", score: disciplineScore.daily.pillars.nutrition.score, color: "#34d399" },
+                              disciplineScore.daily.pillars.activity?.enabled && { label: "Activity", score: disciplineScore.daily.pillars.activity.score, color: "#60a5fa" },
+                              disciplineScore.daily.pillars.recovery?.enabled && { label: "Recovery", score: disciplineScore.daily.pillars.recovery.score, color: "#fb923c" },
+                            ].filter(Boolean).map((p: any) => (
                               <div key={p.label} className="space-y-1">
                                 <div className="flex items-center justify-between">
                                   <span className="text-[9px] text-white/40 font-medium">{p.label}</span>

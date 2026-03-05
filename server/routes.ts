@@ -6333,19 +6333,12 @@ Return ONLY JSON.`
 
   app.post("/api/discipline/calculate-ogym", requireRole(["member"]), async (req, res) => {
     try {
-      const { calculateOGymScore } = await import("./discipline-score");
-      const today = getLocalDate(req);
-      const d = new Date(today + "T00:00:00");
-      const dayOfWeek = d.getDay();
-      const sundayOffset = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
-      const nextSunday = new Date(d);
-      nextSunday.setDate(nextSunday.getDate() + sundayOffset);
-      const weekEndDate = nextSunday.toISOString().split("T")[0];
-      const result = await calculateOGymScore(req.user!.id, weekEndDate);
+      const { calculateFitnessCredit } = await import("./discipline-score");
+      const result = await calculateFitnessCredit(req.user!.id);
       res.json(result);
     } catch (error: any) {
-      console.error("OGym calculate error:", error);
-      res.status(500).json({ message: "Failed to calculate OGym score" });
+      console.error("Fitness Credit calculate error:", error);
+      res.status(500).json({ message: "Failed to calculate Fitness Credit" });
     }
   });
 
@@ -6362,11 +6355,15 @@ Return ONLY JSON.`
   app.patch("/api/discipline/settings", requireRole(["member"]), async (req, res) => {
     try {
       const { updateSettings } = await import("./discipline-score");
-      const { visibility } = req.body;
-      if (!["public", "coach", "private"].includes(visibility)) {
+      const { visibility, selectedPillars, setupCompleted } = req.body;
+      if (visibility && !["public", "coach", "private"].includes(visibility)) {
         return res.status(400).json({ message: "Invalid visibility value" });
       }
-      const settings = await updateSettings(req.user!.id, visibility);
+      const validPillars = ["workout", "nutrition", "activity", "recovery"];
+      if (selectedPillars && (!Array.isArray(selectedPillars) || selectedPillars.length === 0 || !selectedPillars.every((p: string) => validPillars.includes(p)))) {
+        return res.status(400).json({ message: "Invalid pillars selection" });
+      }
+      const settings = await updateSettings(req.user!.id, { visibility, selectedPillars, setupCompleted });
       res.json(settings);
     } catch (error: any) {
       res.status(500).json({ message: "Failed to update settings" });

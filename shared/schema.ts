@@ -1485,7 +1485,9 @@ export const dailyDisciplineScores = pgTable("daily_discipline_scores", {
   nutritionScore: integer("nutrition_score").notNull(),
   consistencyScore: integer("consistency_score").notNull(),
   recoveryScore: integer("recovery_score").notNull(),
+  activityScore: integer("activity_score").default(0),
   breakdown: jsonb("breakdown"),
+  finalized: boolean("finalized").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   userDateIdx: uniqueIndex("daily_discipline_user_date").on(table.userId, table.date),
@@ -1520,6 +1522,8 @@ export const disciplineSettings = pgTable("discipline_settings", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id).unique(),
   visibility: text("visibility").default("coach"),
+  selectedPillars: jsonb("selected_pillars").default(["workout", "activity"]),
+  setupCompleted: boolean("setup_completed").default(false),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
