@@ -6299,7 +6299,8 @@ Return ONLY JSON.`
     try {
       const { getScoreToday } = await import("./discipline-score");
       const forceRefresh = req.query.refresh === "true";
-      const result = await getScoreToday(req.user!.id, forceRefresh);
+      const localDate = getLocalDate(req);
+      const result = await getScoreToday(req.user!.id, forceRefresh, localDate);
       res.json(result);
     } catch (error: any) {
       console.error("Discipline score error:", error);
@@ -6311,7 +6312,8 @@ Return ONLY JSON.`
     try {
       const { getDailyScoreHistory } = await import("./discipline-score");
       const days = parseInt(req.query.days as string) || 30;
-      const history = await getDailyScoreHistory(req.user!.id, days);
+      const localDate = getLocalDate(req);
+      const history = await getDailyScoreHistory(req.user!.id, days, localDate);
       res.json(history);
     } catch (error: any) {
       console.error("Score history error:", error);

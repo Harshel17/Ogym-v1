@@ -100,12 +100,13 @@ async function getUserPillars(userId: number): Promise<Pillar[]> {
   return DEFAULT_PILLARS;
 }
 
-export async function calculateDailyScore(userId: number, date: string) {
+export async function calculateDailyScore(userId: number, date: string, referenceToday?: string) {
   const user = await storage.getUser(userId);
   if (!user) throw new Error("User not found");
 
   const gymId = user.gymId || null;
-  const isToday = date === formatDate(new Date());
+  const todayRef = referenceToday || formatDate(new Date());
+  const isToday = date === todayRef;
   const selectedPillars = await getUserPillars(userId);
   const weights = redistributeWeights(selectedPillars);
 
@@ -345,8 +346,8 @@ export async function calculateDailyScore(userId: number, date: string) {
   return inserted;
 }
 
-export async function calculateFitnessCredit(userId: number): Promise<any> {
-  const today = formatDate(new Date());
+export async function calculateFitnessCredit(userId: number, localDate?: string): Promise<any> {
+  const today = localDate || formatDate(new Date());
   const windowStart = addDays(today, -29);
 
   const dailyScores = await db.select().from(dailyDisciplineScores)
@@ -432,8 +433,8 @@ export async function calculateFitnessCredit(userId: number): Promise<any> {
   return { ...inserted, building: false, tierLabel: getTierLabel(tier), tierColor: getTierColor(tier) };
 }
 
-async function backfillMissingDailyScores(userId: number, days: number = 30) {
-  const today = formatDate(new Date());
+async function backfillMissingDailyScores(userId: number, days: number = 30, localDate?: string) {
+  const today = localDate || formatDate(new Date());
   const startDate = addDays(today, -days);
 
   const existing = await db.select({ date: dailyDisciplineScores.date })
@@ -474,19 +475,19 @@ async function backfillMissingDailyScores(userId: number, days: number = 30) {
 
 const backfillCompleted = new Set<number>();
 
-export async function getScoreToday(userId: number, forceRefresh: boolean = false) {
-  const today = formatDate(new Date());
+export async function getScoreToday(userId: number, forceRefresh: boolean = false, localDate?: string) {
+  const today = localDate || formatDate(new Date());
 
   if (!backfillCompleted.has(userId)) {
     try {
-      await backfillMissingDailyScores(userId, 30);
+      await backfillMissingDailyScores(userId, 30, today);
       backfillCompleted.add(userId);
     } catch (e) {
       console.log(`[DisciplineScore] Backfill error for user ${userId}:`, e);
     }
   }
 
-  const calculated = await calculateDailyScore(userId, today);
+  const calculated = await calculateDailyScore(userId, today, today);
   const dailyScore = [calculated];
 
   const yesterday = addDays(today, -1);
@@ -512,7 +513,7 @@ export async function getScoreToday(userId: number, forceRefresh: boolean = fals
 
   let fitnessCredit: any = null;
   try {
-    fitnessCredit = await calculateFitnessCredit(userId);
+    fitnessCredit = await calculateFitnessCredit(userId, today);
   } catch (e) {
     const last30Start = addDays(today, -29);
     const recentScores = await db.select().from(dailyDisciplineScores)
@@ -571,8 +572,8 @@ export async function getScoreToday(userId: number, forceRefresh: boolean = fals
   };
 }
 
-export async function getDailyScoreHistory(userId: number, days: number = 30) {
-  const today = formatDate(new Date());
+export async function getDailyScoreHistory(userId: number, days: number = 30, localDate?: string) {
+  const today = localDate || formatDate(new Date());
   const startDate = addDays(today, -(days - 1));
 
   const scores = await db.select().from(dailyDisciplineScores)
