@@ -1527,6 +1527,16 @@ export const disciplineSettings = pgTable("discipline_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const scoreLeagues = pgTable("score_leagues", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  league: text("league").notNull(),
+  joinedAt: timestamp("joined_at").defaultNow(),
+}, (table) => ({
+  userLeagueIdx: uniqueIndex("score_league_user_league").on(table.userId, table.league),
+  leagueIdx: index("score_league_league_idx").on(table.league),
+}));
+
 export const insertDailyDisciplineScoreSchema = createInsertSchema(dailyDisciplineScores).omit({ id: true, createdAt: true });
 export type InsertDailyDisciplineScore = z.infer<typeof insertDailyDisciplineScoreSchema>;
 export type DailyDisciplineScore = typeof dailyDisciplineScores.$inferSelect;
@@ -1536,3 +1546,4 @@ export type InsertOgymScore = z.infer<typeof insertOgymScoreSchema>;
 export type OgymScore = typeof ogymScores.$inferSelect;
 
 export type DisciplineSettings = typeof disciplineSettings.$inferSelect;
+export type ScoreLeague = typeof scoreLeagues.$inferSelect;

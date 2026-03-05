@@ -54,7 +54,10 @@ Preferred communication style: Simple, everyday language.
 - **OGym Score System (V2 Rebuild):** Two-score system:
     - **Daily Fitness Score (0-100):** Personalized pillar-based scoring. 4 pillars: Workout (40%), Nutrition (30%), Activity (20%), Recovery (10%) with proportional weight redistribution based on user-selected pillars. Color zones: Green (90-100), Blue (70-89), Yellow (50-69), Orange (30-49), Red (10-29). Floor of 10 (never 0). Pending vs finalized logic for today vs past days. First-time setup with pillar selection bottom sheet.
     - **Fitness Credit (0-1000):** Long-term consistency score using weighted rolling 30-day average (days 1-7: 1.0, 8-14: 0.8, 15-21: 0.6, 22-30: 0.4). Unlocks after 21 days (min 18 active). Tiers: Elite 750+, Strong 650+, Building 500+, Inconsistent 400+, At Risk <400.
-    - **Key files:** `server/discipline-score.ts` (engine), `client/src/pages/score-page.tsx` (UI), schema tables: `daily_discipline_scores` (with activityScore, finalized columns), `ogym_scores`, `discipline_settings` (with selectedPillars, setupCompleted).
+    - **Leagues:** 3 league types (Casual=workout, Balanced=workout+nutrition+activity, Full Tracker=all 4). Members join/leave leagues, ranked within gym. Schema: `score_leagues` table. APIs: POST join/leave, GET leaderboard.
+    - **Share Card:** Server-side SVG generation with dark theme, score ring, pillar scores, streak badge (fire icon for streak >= 3), "Powered by OGym" footer. API: GET `/api/discipline/share-card`.
+    - **Streak Badge:** Fire icon + count displayed on score ring when streak >= 3 days. Medal icons for top 3 in leaderboard.
+    - **Key files:** `server/discipline-score.ts` (engine), `client/src/pages/score-page.tsx` (UI), schema tables: `daily_discipline_scores` (with activityScore, finalized columns), `ogym_scores`, `discipline_settings` (with selectedPillars, setupCompleted), `score_leagues`.
 
 ## External Dependencies
 - **PostgreSQL:** Primary database.

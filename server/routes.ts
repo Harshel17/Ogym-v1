@@ -6394,6 +6394,72 @@ Return ONLY JSON.`
     }
   });
 
+  // === LEAGUES & SHARE CARD ===
+
+  app.get("/api/discipline/leagues/my", requireRole(["member"]), async (req, res) => {
+    try {
+      const { getUserLeagues } = await import("./discipline-score");
+      const leagues = await getUserLeagues(req.user!.id);
+      res.json(leagues);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to get leagues" });
+    }
+  });
+
+  app.post("/api/discipline/leagues/join", requireRole(["member"]), async (req, res) => {
+    try {
+      const { joinLeague } = await import("./discipline-score");
+      const { league } = req.body;
+      if (!["casual", "balanced", "full_tracker"].includes(league)) {
+        return res.status(400).json({ message: "Invalid league" });
+      }
+      const result = await joinLeague(req.user!.id, league);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to join league" });
+    }
+  });
+
+  app.post("/api/discipline/leagues/leave", requireRole(["member"]), async (req, res) => {
+    try {
+      const { leaveLeague } = await import("./discipline-score");
+      const { league } = req.body;
+      const result = await leaveLeague(req.user!.id, league);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to leave league" });
+    }
+  });
+
+  app.get("/api/discipline/leagues/:league/leaderboard", requireRole(["member"]), async (req, res) => {
+    try {
+      const { getLeagueLeaderboard } = await import("./discipline-score");
+      const user = req.user!;
+      if (!user.gymId) return res.status(400).json({ message: "No gym" });
+      const league = req.params.league;
+      if (!["casual", "balanced", "full_tracker"].includes(league)) {
+        return res.status(400).json({ message: "Invalid league" });
+      }
+      const leaderboard = await getLeagueLeaderboard(user.gymId, league);
+      res.json(leaderboard);
+    } catch (error: any) {
+      console.error("League leaderboard error:", error);
+      res.status(500).json({ message: "Failed to get leaderboard" });
+    }
+  });
+
+  app.get("/api/discipline/share-card", requireRole(["member"]), async (req, res) => {
+    try {
+      const { generateShareCard } = await import("./discipline-score");
+      const svg = await generateShareCard(req.user!.id);
+      res.setHeader("Content-Type", "image/svg+xml");
+      res.send(svg);
+    } catch (error: any) {
+      console.error("Share card error:", error);
+      res.status(500).json({ message: "Failed to generate share card" });
+    }
+  });
+
   // === HEALTH DATA (FITNESS DEVICES) ===
   
   // Get today's health data

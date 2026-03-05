@@ -1,5 +1,5 @@
 import { storage } from "./storage";
-import { dailyDisciplineScores, ogymScores, disciplineSettings } from "@shared/schema";
+import { dailyDisciplineScores, ogymScores, disciplineSettings, scoreLeagues } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, gte, lte } from "drizzle-orm";
 
@@ -711,3 +711,191 @@ export async function getOwnerDisciplineOverview(gymId: number) {
 }
 
 export const calculateOGymScore = calculateFitnessCredit;
+
+// === LEAGUES ===
+
+const LEAGUE_CONFIG: Record<string, { label: string; pillars: string[] }> = {
+  casual: { label: "Casual", pillars: ["workout"] },
+  balanced: { label: "Balanced", pillars: ["workout", "nutrition", "activity"] },
+  full_tracker: { label: "Full Tracker", pillars: ["workout", "nutrition", "activity", "recovery"] },
+};
+
+export async function joinLeague(userId: number, league: string) {
+  if (!LEAGUE_CONFIG[league]) throw new Error("Invalid league");
+
+  const existing = await db.select().from(scoreLeagues)
+    .where(and(eq(scoreLeagues.userId, userId), eq(scoreLeagues.league, league)))
+    .limit(1);
+
+  if (existing.length > 0) return existing[0];
+
+  const [inserted] = await db.insert(scoreLeagues).values({ userId, league }).returning();
+  return inserted;
+}
+
+export async function leaveLeague(userId: number, league: string) {
+  await db.delete(scoreLeagues)
+    .where(and(eq(scoreLeagues.userId, userId), eq(scoreLeagues.league, league)));
+  return { success: true };
+}
+
+export async function getUserLeagues(userId: number) {
+  return await db.select().from(scoreLeagues)
+    .where(eq(scoreLeagues.userId, userId));
+}
+
+export async function getLeagueLeaderboard(gymId: number, league: string) {
+  if (!LEAGUE_CONFIG[league]) throw new Error("Invalid league");
+
+  const config = LEAGUE_CONFIG[league];
+  const members = await storage.getGymMembers(gymId);
+  const today = formatDate(new Date());
+
+  const leagueMembers = await db.select().from(scoreLeagues)
+    .where(eq(scoreLeagues.league, league));
+  const leagueMemberIds = new Set(leagueMembers.map(m => m.userId));
+
+  const gymLeagueMembers = members.filter(m => leagueMemberIds.has(m.id));
+
+  const results: { userId: number; name: string; score: number; streak: number; color: string }[] = [];
+
+  for (const member of gymLeagueMembers) {
+    const settings = await getSettings(member.id);
+    if (settings.visibility === "private") continue;
+
+    const [latestDaily] = await db.select().from(dailyDisciplineScores)
+      .where(and(eq(dailyDisciplineScores.userId, member.id), eq(dailyDisciplineScores.date, today)))
+      .limit(1);
+
+    if (!latestDaily) continue;
+
+    const bd = latestDaily.breakdown as any;
+    const pillarScores: Record<string, number> = {
+      workout: latestDaily.workoutScore,
+      nutrition: latestDaily.nutritionScore,
+      activity: latestDaily.activityScore || 0,
+      recovery: latestDaily.recoveryScore,
+    };
+
+    let leagueScore = 0;
+    for (const p of config.pillars) {
+      leagueScore += pillarScores[p] || 0;
+    }
+    leagueScore = Math.round(leagueScore / config.pillars.length);
+
+    const stats = await storage.getMemberStats(member.id, gymId);
+
+    results.push({
+      userId: member.id,
+      name: member.fullName || member.username,
+      score: leagueScore,
+      streak: stats.streak,
+      color: getScoreColor(leagueScore),
+    });
+  }
+
+  results.sort((a, b) => b.score - a.score);
+
+  return results.map((r, i) => ({ ...r, rank: i + 1 }));
+}
+
+// === SHARE CARD SVG ===
+
+export async function generateShareCard(userId: number): Promise<string> {
+  const today = formatDate(new Date());
+  const user = await storage.getUser(userId);
+  if (!user) throw new Error("User not found");
+
+  const [ds] = await db.select().from(dailyDisciplineScores)
+    .where(and(eq(dailyDisciplineScores.userId, userId), eq(dailyDisciplineScores.date, today)))
+    .limit(1);
+
+  if (!ds) throw new Error("No score for today");
+
+  const bd = ds.breakdown as any;
+  const selectedPillars: string[] = bd?.selectedPillars || ["workout", "activity"];
+  const stats = await storage.getMemberStats(userId, user.gymId);
+  const streak = stats.streak;
+
+  const scoreColor = {
+    green: "#22c55e", blue: "#3b82f6", yellow: "#eab308", orange: "#f97316", red: "#ef4444"
+  }[getScoreColor(ds.score)] || "#3b82f6";
+
+  const pillarIcons: Record<string, string> = {
+    workout: "M",
+    nutrition: "N",
+    activity: "A",
+    recovery: "R",
+  };
+
+  const pillarScores: Record<string, number> = {
+    workout: ds.workoutScore,
+    nutrition: ds.nutritionScore,
+    activity: ds.activityScore || 0,
+    recovery: ds.recoveryScore,
+  };
+
+  const radius = 70;
+  const circumference = 2 * Math.PI * radius;
+  const progress = (ds.score / 100) * circumference;
+  const name = user.fullName || user.username;
+
+  const pillarChecks = selectedPillars.map((p, i) => {
+    const s = pillarScores[p] || 0;
+    const c = s >= 70 ? "#22c55e" : s >= 50 ? "#eab308" : "#ef4444";
+    const x = 60 + i * 90;
+    return `
+      <g transform="translate(${x}, 300)">
+        <rect x="0" y="0" width="70" height="34" rx="8" fill="${c}22" stroke="${c}" stroke-width="1" />
+        <text x="35" y="15" text-anchor="middle" fill="${c}" font-size="10" font-weight="700" font-family="system-ui">${pillarIcons[p]}</text>
+        <text x="35" y="28" text-anchor="middle" fill="white" font-size="11" font-weight="800" font-family="system-ui">${s}</text>
+      </g>`;
+  }).join("");
+
+  const streakBadge = streak >= 3 ? `
+    <g transform="translate(170, 210)">
+      <rect x="0" y="0" width="60" height="24" rx="12" fill="#f97316" fill-opacity="0.2" stroke="#f97316" stroke-width="1" />
+      <path d="M16 6c0 0 -2 4 0 7c1 1.5 0 3 -1 3.5c2 -0.5 3.5 -2.5 2.5 -5c3 2 2 6 0 8c4 -2 5 -7 2 -10c0.5 1 0.5 2.5 0 4c-0.5 -2 -2 -4 -3.5 -7.5z" fill="#fb923c" transform="translate(6, 3) scale(0.7)" />
+      <text x="35" y="16" fill="#fb923c" font-size="11" font-weight="700" font-family="system-ui">${streak}</text>
+    </g>` : "";
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="420" viewBox="0 0 400 420">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a14" />
+      <stop offset="100%" stop-color="#1a1a2e" />
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${scoreColor}" />
+      <stop offset="100%" stop-color="${scoreColor}cc" />
+    </linearGradient>
+  </defs>
+  <rect width="400" height="420" rx="24" fill="url(#bg)" />
+  <rect width="400" height="420" rx="24" fill="none" stroke="white" stroke-opacity="0.06" stroke-width="1" />
+
+  <!-- Name -->
+  <text x="200" y="45" text-anchor="middle" fill="white" font-size="16" font-weight="700" font-family="system-ui" opacity="0.9">${name}</text>
+  <text x="200" y="65" text-anchor="middle" fill="white" font-size="11" font-weight="400" font-family="system-ui" opacity="0.4">${today}</text>
+
+  <!-- Score Ring -->
+  <g transform="translate(200, 150)">
+    <circle cx="0" cy="0" r="${radius}" fill="none" stroke="white" stroke-opacity="0.06" stroke-width="8" />
+    <circle cx="0" cy="0" r="${radius}" fill="none" stroke="url(#ring)" stroke-width="8" stroke-linecap="round"
+      stroke-dasharray="${progress} ${circumference}" transform="rotate(-90)" />
+    <text x="0" y="8" text-anchor="middle" fill="white" font-size="42" font-weight="900" font-family="system-ui">${ds.score}</text>
+    <text x="0" y="28" text-anchor="middle" fill="${scoreColor}" font-size="12" font-weight="600" font-family="system-ui">${getScoreLabel(ds.score)}</text>
+  </g>
+
+  ${streakBadge}
+
+  <!-- Pillar Checks -->
+  ${pillarChecks}
+
+  <!-- Footer -->
+  <text x="200" y="370" text-anchor="middle" fill="white" font-size="10" font-weight="500" font-family="system-ui" opacity="0.25">Powered by OGym</text>
+  <rect x="60" y="385" width="280" height="1" fill="white" fill-opacity="0.06" rx="1" />
+  <text x="200" y="405" text-anchor="middle" fill="white" font-size="9" font-weight="400" font-family="system-ui" opacity="0.15">ogym.app</text>
+</svg>`;
+
+  return svg;
+}

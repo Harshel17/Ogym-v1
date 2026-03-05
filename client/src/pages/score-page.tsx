@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Utensils, Heart, Activity, Lock, Settings, Check, X, ChevronRight, Flame, Footprints, Moon, Dumbbell, Sparkles } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Utensils, Heart, Activity, Lock, Settings, Check, X, ChevronRight, Flame, Footprints, Moon, Dumbbell, Sparkles, Share2, Trophy, Crown, Medal, Users } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useEffect, useRef } from "react";
 
@@ -31,6 +31,12 @@ const PILLAR_CONFIG: Record<string, { label: string; icon: any; description: str
   recovery: { label: "Recovery", icon: Moon, description: "Sleep, HRV and rest quality", gradient: "from-amber-500 to-orange-600" },
 };
 
+const LEAGUE_CONFIG: Record<string, { label: string; description: string; pillars: string[]; icon: any; gradient: string }> = {
+  casual: { label: "Casual", description: "Ranked by workout only", pillars: ["workout"], icon: Dumbbell, gradient: "from-blue-500 to-cyan-600" },
+  balanced: { label: "Balanced", description: "Workout + Nutrition + Activity", pillars: ["workout", "nutrition", "activity"], icon: Target, gradient: "from-violet-500 to-purple-600" },
+  full_tracker: { label: "Full Tracker", description: "All 4 pillars", pillars: ["workout", "nutrition", "activity", "recovery"], icon: Crown, gradient: "from-amber-500 to-orange-600" },
+};
+
 function AnimatedNumber({ value, duration = 800 }: { value: number; duration?: number }) {
   const [display, setDisplay] = useState(0);
   const prevRef = useRef(0);
@@ -54,7 +60,7 @@ function AnimatedNumber({ value, duration = 800 }: { value: number; duration?: n
   return <>{display}</>;
 }
 
-function ScoreRing({ score, color, size = 180, strokeWidth = 10, label, isLive }: { score: number; color: string; size?: number; strokeWidth?: number; label?: string; isLive?: boolean }) {
+function ScoreRing({ score, color, size = 180, strokeWidth = 10, label, isLive, streak }: { score: number; color: string; size?: number; strokeWidth?: number; label?: string; isLive?: boolean; streak?: number }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = (score / 100) * circumference;
@@ -78,6 +84,12 @@ function ScoreRing({ score, color, size = 180, strokeWidth = 10, label, isLive }
           </div>
         )}
       </div>
+      {streak !== undefined && streak >= 3 && (
+        <div className="absolute -top-1 -right-1 flex items-center gap-0.5 px-2 py-1 rounded-full bg-orange-500/20 border border-orange-500/30" data-testid="streak-badge">
+          <Flame className="w-3.5 h-3.5 text-orange-400" />
+          <span className="text-xs font-bold text-orange-400">{streak}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -218,7 +230,6 @@ function PillarSettingsModal({ currentPillars, onSave, onClose }: { currentPilla
 function MiniTrend({ data }: { data: { date: string; score: number; color: string }[] }) {
   if (!data || data.length < 2) return null;
   const last7 = data.slice(-7);
-  const barWidth = 100 / last7.length;
 
   return (
     <div className="flex items-end gap-1 h-10" data-testid="mini-trend">
@@ -270,9 +281,8 @@ function FitnessCreditCard({ data }: { data: any }) {
     );
   }
 
-  const tier = data.tier || "building";
-  const tierLabel = data.tierLabel || "Building";
   const tierColor = COLOR_MAP[data.tierColor || "blue"] || COLOR_MAP.blue;
+  const tierLabel = data.tierLabel || "Building";
 
   return (
     <Card className="bg-[#12121f] border-white/[0.06] overflow-hidden" data-testid="fitness-credit-card">
@@ -311,6 +321,150 @@ function FitnessCreditCard({ data }: { data: any }) {
   );
 }
 
+function LeagueSection({ userId }: { userId?: number }) {
+  const { toast } = useToast();
+  const [activeLeague, setActiveLeague] = useState<string | null>(null);
+
+  const { data: myLeagues } = useQuery<any[]>({
+    queryKey: ["/api/discipline/leagues/my"],
+  });
+
+  const { data: leaderboard } = useQuery<any[]>({
+    queryKey: ["/api/discipline/leagues", activeLeague, "leaderboard"],
+    enabled: !!activeLeague,
+  });
+
+  const joinMutation = useMutation({
+    mutationFn: async (league: string) => {
+      const res = await apiRequest("POST", "/api/discipline/leagues/join", { league });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/discipline/leagues/my"] });
+      toast({ title: "Joined league!" });
+    },
+  });
+
+  const leaveMutation = useMutation({
+    mutationFn: async (league: string) => {
+      const res = await apiRequest("POST", "/api/discipline/leagues/leave", { league });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/discipline/leagues/my"] });
+      setActiveLeague(null);
+      toast({ title: "Left league" });
+    },
+  });
+
+  const joinedLeagues = new Set((myLeagues || []).map((l: any) => l.league));
+
+  return (
+    <Card className="bg-[#12121f] border-white/[0.06] overflow-hidden" data-testid="leagues-card">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Trophy className="w-4 h-4 text-amber-400" />
+          <h3 className="text-sm font-bold text-white">Leagues</h3>
+        </div>
+
+        <div className="space-y-2 mb-3">
+          {Object.entries(LEAGUE_CONFIG).map(([key, config]) => {
+            const Icon = config.icon;
+            const isJoined = joinedLeagues.has(key);
+            const isActive = activeLeague === key;
+
+            return (
+              <div key={key}>
+                <div
+                  className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer ${
+                    isActive ? "border-white/15 bg-white/[0.06]" : "border-white/[0.06] bg-white/[0.02]"
+                  }`}
+                  onClick={() => isJoined ? setActiveLeague(isActive ? null : key) : null}
+                  data-testid={`league-${key}`}
+                >
+                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${config.gradient} flex items-center justify-center`}>
+                    <Icon className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-white">{config.label}</div>
+                    <div className="text-[10px] text-white/30">{config.description}</div>
+                  </div>
+                  {isJoined ? (
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[9px] border-green-500/30 text-green-400 bg-green-500/10 px-1.5 py-0">Joined</Badge>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); leaveMutation.mutate(key); }}
+                        className="text-[9px] text-white/30 hover:text-red-400 transition-colors"
+                        data-testid={`leave-league-${key}`}
+                      >
+                        Leave
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => { e.stopPropagation(); joinMutation.mutate(key); }}
+                      className="h-7 text-[10px] text-white/50 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] px-2.5"
+                      data-testid={`join-league-${key}`}
+                    >
+                      Join
+                    </Button>
+                  )}
+                </div>
+
+                {isActive && isJoined && leaderboard && (
+                  <div className="mt-2 ml-2 mr-2 mb-1 space-y-1.5" data-testid={`leaderboard-${key}`}>
+                    {leaderboard.length === 0 ? (
+                      <p className="text-[10px] text-white/30 text-center py-2">No other members in this league yet</p>
+                    ) : (
+                      leaderboard.slice(0, 10).map((entry: any) => {
+                        const isMe = entry.userId === userId;
+
+                        return (
+                          <div
+                            key={entry.userId}
+                            className={`flex items-center gap-2.5 p-2 rounded-lg transition-all ${
+                              isMe ? "bg-violet-500/10 border border-violet-500/20" : "bg-white/[0.02]"
+                            }`}
+                            data-testid={`rank-entry-${entry.userId}`}
+                          >
+                            <div className="w-6 flex items-center justify-center">
+                              {entry.rank <= 3 ? (
+                                <Medal className={`w-4 h-4 ${entry.rank === 1 ? "text-amber-400" : entry.rank === 2 ? "text-gray-300" : "text-amber-600"}`} />
+                              ) : (
+                                <span className="text-xs font-bold text-white/60">#{entry.rank}</span>
+                              )}
+                            </div>
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: `${COLOR_MAP[entry.color] || COLOR_MAP.blue}30`, color: COLOR_MAP[entry.color] || COLOR_MAP.blue }}>
+                              {entry.score}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className={`text-xs font-medium truncate block ${isMe ? "text-violet-300" : "text-white/70"}`}>
+                                {isMe ? "You" : entry.name}
+                              </span>
+                            </div>
+                            {entry.streak >= 3 && (
+                              <div className="flex items-center gap-0.5">
+                                <Flame className="w-3 h-3 text-orange-400" />
+                                <span className="text-[10px] font-semibold text-orange-400">{entry.streak}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ScorePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -323,6 +477,10 @@ export default function ScorePage() {
 
   const { data: history } = useQuery<any[]>({
     queryKey: ["/api/discipline/score/history"],
+  });
+
+  const { data: authUser } = useQuery<any>({
+    queryKey: ["/api/auth/me"],
   });
 
   const settingsMutation = useMutation({
@@ -344,6 +502,36 @@ export default function ScorePage() {
   const handleSettingsSave = (pillars: string[]) => {
     settingsMutation.mutate({ selectedPillars: pillars });
     setShowSettings(false);
+  };
+
+  const handleShare = async () => {
+    try {
+      const res = await fetch("/api/discipline/share-card", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to generate");
+      const svgText = await res.text();
+
+      const blob = new Blob([svgText], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+
+      if (navigator.share) {
+        const file = new File([blob], "ogym-score.svg", { type: "image/svg+xml" });
+        try {
+          await navigator.share({ files: [file], title: "My OGym Score", text: "Check out my fitness score!" });
+          return;
+        } catch {}
+      }
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ogym-score.svg";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Share card downloaded!" });
+    } catch {
+      toast({ title: "Couldn't generate share card", variant: "destructive" });
+    }
   };
 
   if (isLoading) {
@@ -373,6 +561,9 @@ export default function ScorePage() {
   const selectedPillars = scoreData?.settings?.selectedPillars || ["workout", "activity"];
   const pillars = daily?.pillars || {};
 
+  const streak = daily?.reasons?.find((r: any) => r.pillar === "streak");
+  const streakCount = streak ? parseInt(streak.text?.match(/\d+/)?.[0] || "0") : 0;
+
   const trendData = (history || []).map((h: any) => ({
     date: h.date,
     score: h.score,
@@ -398,15 +589,20 @@ export default function ScorePage() {
             </button>
             <h1 className="text-lg font-bold text-white">OGym Score</h1>
           </div>
-          <button onClick={() => setShowSettings(true)} className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center border border-white/[0.06]" data-testid="button-settings">
-            <Settings className="w-4 h-4 text-white/60" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleShare} className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center border border-white/[0.06]" data-testid="button-share">
+              <Share2 className="w-4 h-4 text-white/60" />
+            </button>
+            <button onClick={() => setShowSettings(true)} className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center border border-white/[0.06]" data-testid="button-settings">
+              <Settings className="w-4 h-4 text-white/60" />
+            </button>
+          </div>
         </div>
 
         {daily && (
           <>
             <div className="flex flex-col items-center mb-6">
-              <ScoreRing score={daily.score} color={daily.color} isLive={daily.isLive} label={daily.label} />
+              <ScoreRing score={daily.score} color={daily.color} isLive={daily.isLive} label={daily.label} streak={streakCount} />
 
               <div className="flex items-center gap-4 mt-3">
                 <div className="flex items-center gap-1.5">
@@ -481,7 +677,7 @@ export default function ScorePage() {
                 <CardContent className="p-4">
                   <h3 className="text-sm font-bold text-white mb-3">What Shaped Your Score</h3>
                   <div className="space-y-2.5">
-                    {daily.reasons.map((r: any, i: number) => {
+                    {daily.reasons.filter((r: any) => r.pillar !== "streak").map((r: any, i: number) => {
                       const config = PILLAR_CONFIG[r.pillar];
                       const isPositive = r.delta === "+" || r.delta === "+full" || r.delta === "+0";
                       const isPending = r.delta === "~";
@@ -539,7 +735,10 @@ export default function ScorePage() {
           </>
         )}
 
-        <FitnessCreditCard data={fitnessCredit} />
+        <div className="space-y-4">
+          <FitnessCreditCard data={fitnessCredit} />
+          <LeagueSection userId={authUser?.id} />
+        </div>
       </div>
     </div>
   );
