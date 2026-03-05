@@ -555,8 +555,8 @@ export async function getScoreToday(userId: number, forceRefresh: boolean = fals
       pillars: {
         workout: { score: ds.workoutScore, weight: Math.round(pillarWeights.workout * 100), color: getScoreColor(ds.workoutScore), enabled: selectedPillars.includes("workout") },
         nutrition: { score: ds.nutritionScore, weight: Math.round(pillarWeights.nutrition * 100), color: getScoreColor(ds.nutritionScore), enabled: selectedPillars.includes("nutrition") },
-        activity: { score: ds.activityScore || 0, weight: Math.round(pillarWeights.activity * 100), color: getScoreColor(ds.activityScore || 0), enabled: selectedPillars.includes("activity") },
-        recovery: { score: ds.recoveryScore, weight: Math.round(pillarWeights.recovery * 100), color: getScoreColor(ds.recoveryScore), enabled: selectedPillars.includes("recovery") },
+        activity: { score: ds.activityScore || 0, weight: Math.round(pillarWeights.activity * 100), color: getScoreColor(ds.activityScore || 0), enabled: selectedPillars.includes("activity"), steps: bd?.pillarDetails?.activity?.steps ?? 0, targetSteps: bd?.pillarDetails?.activity?.targetSteps ?? 7000 },
+        recovery: { score: ds.recoveryScore, weight: Math.round(pillarWeights.recovery * 100), color: getScoreColor(ds.recoveryScore), enabled: selectedPillars.includes("recovery"), sleepHours: bd?.pillarDetails?.recovery?.sleepHours ?? null, restingHR: bd?.pillarDetails?.recovery?.restingHR ?? null },
       },
       reasons: bd?.reasons || [],
       tips: bd?.tips || [],

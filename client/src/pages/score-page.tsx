@@ -770,6 +770,16 @@ export default function ScorePage() {
                       <span className="text-[10px] font-medium text-white/40">{config.label}</span>
                       <span className="text-[9px] font-semibold" style={{ color: hex }}>{scoreLabel}</span>
                     </div>
+                    {key === "activity" && pillar.steps !== undefined && (
+                      <div className="text-[10px] text-white/30 mt-1 tabular-nums">
+                        {pillar.steps > 0 ? `${pillar.steps.toLocaleString()} / ${(pillar.targetSteps || 7000).toLocaleString()} steps` : "No steps synced"}
+                      </div>
+                    )}
+                    {key === "recovery" && pillar.sleepHours && (
+                      <div className="text-[10px] text-white/30 mt-1">
+                        {pillar.sleepHours}h sleep{pillar.restingHR ? ` · ${pillar.restingHR} bpm` : ""}
+                      </div>
+                    )}
                     <div className="h-1 rounded-full overflow-hidden bg-white/[0.04] mt-2.5">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pillar.score}%`, background: `linear-gradient(90deg, ${hex}88, ${hex})` }} />
                     </div>
