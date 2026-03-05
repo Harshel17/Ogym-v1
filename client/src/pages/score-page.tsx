@@ -98,10 +98,10 @@ function ScoreRing({ score, color, size = 200, strokeWidth = 12, label, isLive, 
               y1={cy + innerR * Math.sin(rad)}
               x2={cx + outerR * Math.cos(rad)}
               y2={cy + outerR * Math.sin(rad)}
-              stroke={tick.isActive ? hex : "rgba(255,255,255,0.04)"}
+              stroke={tick.isActive ? hex : "rgba(255,255,255,0.06)"}
               strokeWidth="1.5"
               strokeLinecap="round"
-              opacity={tick.isActive ? 0.3 : 1}
+              opacity={tick.isActive ? 0.85 : 0.3}
             />
           );
         })}
@@ -482,14 +482,14 @@ function LeagueSection({ userId }: { userId?: number }) {
                     <div className="text-[10px] text-white/30">{config.description}</div>
                   </div>
                   {isJoined ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
                         <Check className="w-2.5 h-2.5 text-green-400" />
-                        <span className="text-[9px] font-semibold text-green-400">In</span>
+                        <span className="text-[9px] font-semibold text-green-400">Joined</span>
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); leaveMutation.mutate(key); }}
-                        className="text-[10px] text-white/20 hover:text-red-400 transition-colors font-medium"
+                        className="px-2 py-1 rounded-lg text-[10px] text-white/25 hover:text-red-400 hover:bg-red-500/8 transition-all font-medium border border-transparent hover:border-red-500/15"
                         data-testid={`leave-league-${key}`}
                       >
                         Leave
@@ -522,37 +522,38 @@ function LeagueSection({ userId }: { userId?: number }) {
                         return (
                           <div
                             key={entry.userId}
-                            className={`flex items-center gap-2.5 p-2.5 rounded-xl transition-all ${
-                              isMe ? "bg-violet-500/8 border border-violet-500/15" : "bg-white/[0.015]"
+                            className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                              isMe ? "bg-violet-500/8 border border-violet-500/15" : "bg-white/[0.02] border border-white/[0.03]"
                             }`}
                             data-testid={`rank-entry-${entry.userId}`}
                           >
-                            <div className="w-7 flex items-center justify-center">
+                            <div className="w-7 flex items-center justify-center shrink-0">
                               {entry.rank <= 3 ? (
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
                                   entry.rank === 1 ? "bg-amber-400/15" : entry.rank === 2 ? "bg-gray-300/10" : "bg-amber-700/10"
                                 }`}>
-                                  <Medal className={`w-3.5 h-3.5 ${entry.rank === 1 ? "text-amber-400" : entry.rank === 2 ? "text-gray-300" : "text-amber-600"}`} />
+                                  <Medal className={`w-4 h-4 ${entry.rank === 1 ? "text-amber-400" : entry.rank === 2 ? "text-gray-300" : "text-amber-600"}`} />
                                 </div>
                               ) : (
-                                <span className="text-[11px] font-bold text-white/30">#{entry.rank}</span>
+                                <span className="text-xs font-bold text-white/30">#{entry.rank}</span>
                               )}
                             </div>
-                            <div className="relative">
-                              <MiniPillarRing score={entry.score} color={entry.color} size={30} />
-                              <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-white">{entry.score}</span>
-                            </div>
                             <div className="flex-1 min-w-0">
-                              <span className={`text-[12px] font-semibold truncate block ${isMe ? "text-violet-300" : "text-white/60"}`}>
+                              <span className={`text-[13px] font-semibold truncate block ${isMe ? "text-violet-300" : "text-white/70"}`}>
                                 {isMe ? "You" : entry.name}
                               </span>
                             </div>
-                            {entry.streak >= 3 && (
-                              <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-500/10">
-                                <Flame className="w-2.5 h-2.5 text-orange-400" />
-                                <span className="text-[9px] font-bold text-orange-400">{entry.streak}</span>
+                            <div className="flex items-center gap-2.5 shrink-0">
+                              {entry.streak >= 3 && (
+                                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/15">
+                                  <Flame className="w-3 h-3 text-orange-400" />
+                                  <span className="text-[10px] font-bold text-orange-400">{entry.streak}</span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg" style={{ backgroundColor: `${hex}12`, border: `1px solid ${hex}20` }}>
+                                <span className="text-sm font-black tabular-nums" style={{ color: hex }}>{entry.score}</span>
                               </div>
-                            )}
+                            </div>
                           </div>
                         );
                       })
@@ -792,26 +793,26 @@ export default function ScorePage() {
                       return (
                         <div
                           key={i}
-                          className={`flex items-start gap-2.5 p-2.5 rounded-xl ${
-                            isPositive ? "bg-green-500/[0.04]" : isPending ? "bg-yellow-500/[0.04]" : "bg-red-500/[0.04]"
+                          className={`flex items-start gap-3 p-3 rounded-xl border ${
+                            isPositive ? "bg-green-500/[0.06] border-green-500/10" : isPending ? "bg-amber-500/[0.06] border-amber-500/10" : "bg-red-500/[0.06] border-red-500/10"
                           }`}
                           data-testid={`reason-${i}`}
                         >
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${
-                            isPositive ? "bg-green-500/15" : isPending ? "bg-yellow-500/15" : "bg-red-500/15"
+                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center mt-0.5 shrink-0 ${
+                            isPositive ? "bg-green-500/20" : isPending ? "bg-amber-500/20" : "bg-red-500/20"
                           }`}>
                             {isPositive ? (
-                              <Check className="w-3 h-3 text-green-400" />
+                              <Check className="w-3.5 h-3.5 text-green-400" />
                             ) : isPending ? (
-                              <Minus className="w-3 h-3 text-yellow-400" />
+                              <Minus className="w-3.5 h-3.5 text-amber-400" />
                             ) : (
-                              <X className="w-3 h-3 text-red-400" />
+                              <X className="w-3.5 h-3.5 text-red-400" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <span className="text-[11px] text-white/60 leading-relaxed">{r.text}</span>
+                            <span className={`text-[12px] leading-relaxed ${isPositive ? "text-white/70" : isPending ? "text-white/60" : "text-white/55"}`}>{r.text}</span>
                             {config && (
-                              <span className="text-[9px] text-white/20 ml-1">{config.label}</span>
+                              <span className="text-[10px] text-white/25 ml-1.5">{config.label}</span>
                             )}
                           </div>
                         </div>
@@ -831,9 +832,11 @@ export default function ScorePage() {
                   </div>
                   <div className="space-y-2">
                     {daily.tips.map((tip: string, i: number) => (
-                      <div key={i} className="flex items-start gap-2.5 p-2 rounded-xl bg-amber-500/[0.03]">
-                        <div className="w-1 h-full min-h-[16px] rounded-full bg-amber-500/30 shrink-0 mt-0.5" />
-                        <span className="text-[11px] text-white/50 leading-relaxed">{tip}</span>
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/[0.05] border border-amber-500/8">
+                        <div className="w-6 h-6 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                        </div>
+                        <span className="text-[12px] text-white/55 leading-relaxed">{tip}</span>
                       </div>
                     ))}
                   </div>

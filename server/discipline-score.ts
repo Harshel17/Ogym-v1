@@ -314,6 +314,9 @@ export async function calculateDailyScore(userId: number, date: string, referenc
     .limit(1);
 
   if (existing.length > 0) {
+    if (existing[0].finalized && !isToday) {
+      return existing[0];
+    }
     const [updated] = await db.update(dailyDisciplineScores)
       .set({
         score: totalScore,

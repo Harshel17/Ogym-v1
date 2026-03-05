@@ -6522,6 +6522,14 @@ Return ONLY JSON.`
         userId: req.user!.id,
         ...input
       });
+      try {
+        const { calculateDailyScore } = await import("./discipline-score");
+        const localDate = (req.headers["x-local-date"] as string) || input.date;
+        const today = localDate || input.date;
+        await calculateDailyScore(req.user!.id, input.date, today);
+      } catch (e) {
+        console.log("[HealthSync] Score recalc after sync:", e);
+      }
       res.json(data);
     } catch (error) {
       console.error("Health sync error:", error);

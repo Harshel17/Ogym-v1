@@ -57,6 +57,7 @@ Preferred communication style: Simple, everyday language.
     - **Leagues:** 3 league types (Casual=workout, Balanced=workout+nutrition+activity, Full Tracker=all 4). Members join/leave leagues, ranked within gym. Schema: `score_leagues` table. APIs: POST join/leave, GET leaderboard.
     - **Share Card:** Server-side SVG generation with dark theme, score ring, pillar scores, streak badge (fire icon for streak >= 3), "Powered by OGym" footer. API: GET `/api/discipline/share-card`.
     - **Streak Badge:** Fire icon + count displayed on score ring when streak >= 3 days. Medal icons for top 3 in leaderboard.
+    - **Score Stability:** Finalized scores (past days) are locked and never recalculated — prevents yesterday's score from changing. Health sync triggers immediate score recalculation for the synced date (today only, respects finalized lock for past dates). Fitness Credit requires 18+ active days with score > 25 (not just any backfilled records).
     - **Key files:** `server/discipline-score.ts` (engine), `client/src/pages/score-page.tsx` (UI), schema tables: `daily_discipline_scores` (with activityScore, finalized columns), `ogym_scores`, `discipline_settings` (with selectedPillars, setupCompleted), `score_leagues`.
 
 ## External Dependencies
