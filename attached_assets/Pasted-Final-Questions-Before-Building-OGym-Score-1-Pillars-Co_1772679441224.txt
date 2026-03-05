@@ -1,0 +1,115 @@
+Final Questions Before Building OGym Score
+1️⃣ Pillars (Confirm the final list)
+
+What are the exact pillars included in the scoring system?
+
+Example list:
+
+Workout
+
+Nutrition
+
+Activity (steps / movement)
+
+Hydration
+
+Recovery / Sleep
+
+Do you want all 5, or should V1 start with fewer pillars?
+
+(Too many pillars early can slow adoption.)
+
+2️⃣ Default User Mode
+
+When a new user installs OGym, which constraints should be selected by default?
+
+Options:
+
+A) Workout only
+B) Workout + Activity
+C) Balanced: Workout + Nutrition + Activity
+
+This matters because most users never change settings.
+
+3️⃣ Pillar Targets (Define the base targets)
+
+What are the default targets for each pillar?
+
+Example:
+
+Workout → completed workout
+Nutrition → calories or protein logged
+Activity → 7,000 steps
+Hydration → 2L water
+Recovery → 7 hours sleep
+
+These targets define how pillar scores reach 100.
+
+4️⃣ Score Update Frequency
+
+How often should the live score update during the day?
+
+Options:
+
+A) Immediately when a user logs something
+B) Every few minutes when health data updates
+C) Only when the app refreshes
+
+Most apps choose A + B combination.
+
+5️⃣ Notification Timing
+
+You already chose 6 AM finalization, but confirm:
+
+Should OGym send one or two notifications?
+
+Option A:
+Only morning score
+
+Example:
+“Yesterday’s Fitness Score: 82”
+
+Option B:
+Morning score + evening reminder
+
+Example:
+“You’re at 58 today — a quick workout could push you above 70.”
+
+6️⃣ Streak Rule
+
+Confirm the streak rule:
+
+Streak continues if daily score ≥ 50
+
+Or do you want dynamic threshold?
+
+Example:
+
+max(50, baseline × 0.7)
+
+For V1 simplicity I recommend fixed 50.
+
+7️⃣ Fitness Credit Calculation
+
+Confirm the formula:
+
+Fitness Credit = average of last 30 daily scores
+
+Or something else?
+
+Example:
+
+weighted average favoring recent days.
+
+8️⃣ Score Display
+
+Where should the score appear in the app UI?
+
+Example layout:
+
+Home Screen:
+Top → Yesterday’s Final Score
+Below → Today’s Live Score
+Below → Pillar Breakdown
+
+This determines how visible the score is.
