@@ -358,7 +358,9 @@ export async function calculateFitnessCredit(userId: number, localDate?: string)
     ))
     .orderBy(desc(dailyDisciplineScores.date));
 
-  const daysWithScores = dailyScores.length;
+  const ACTIVE_THRESHOLD = 25;
+  const activeDays = dailyScores.filter(s => s.score > ACTIVE_THRESHOLD);
+  const daysWithScores = activeDays.length;
   const REQUIRED_DAYS = 21;
   const MIN_ACTIVE_DAYS = 18;
 
