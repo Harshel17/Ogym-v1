@@ -1,0 +1,150 @@
+1️⃣ Score Weighting Logic
+
+How should the weights redistribute when users select different constraints?
+
+Example:
+
+Base weights:
+
+Workout = 40
+
+Nutrition = 30
+
+Activity = 20
+
+Hydration = 10
+
+If the user selects only Workout + Nutrition, should the weights automatically become:
+
+Workout = 57%
+
+Nutrition = 43%
+
+Or should we keep predefined weights?
+
+2️⃣ Score Explanation System
+
+How should the app explain the score clearly to users?
+
+Example display:
+
+Yesterday’s Score: 74
+
+Breakdown:
+
+Workout → +32
+
+Activity → +18
+
+Nutrition → +14
+
+Consistency → +10
+
+What is the best way to structure this explanation so users understand why they got their score?
+
+3️⃣ Daily Score Calculation Timing
+
+When exactly should the daily score be finalized?
+
+Options:
+
+Midnight (12 AM)
+
+Early morning (6 AM after health data sync)
+
+When the user opens the app
+
+Which approach ensures the most accurate data?
+
+4️⃣ Background Health Data Sync
+
+How should OGym collect health data if the user does not open the app?
+
+Should we rely on:
+
+Apple Health background updates
+
+periodic background tasks
+
+scheduled sync when the user opens the app
+
+What is the most reliable approach on iOS and Android?
+
+5️⃣ Streak Rule
+
+What should be the minimum score threshold to continue a streak?
+
+Example:
+
+Score ≥ 60 → streak continues
+Score < 60 → streak breaks
+
+Should this threshold be fixed or dynamic?
+
+6️⃣ Fitness Credit Score Unlock System
+
+How should the 20–30 day unlock logic work?
+
+Questions:
+
+Should we unlock exactly after 20 days or 30 days?
+
+Should the system require consistent logging during those days?
+
+Should the ring show progress visually each day?
+
+7️⃣ Rankings System Design
+
+For rankings, how should users be grouped fairly?
+
+Options:
+
+A) Users with the same selected constraints compete together
+
+Example:
+Workout + Nutrition league
+
+B) Everyone competes together regardless of constraints
+
+Which approach keeps the system fair and understandable?
+
+8️⃣ League Structure
+
+Should leagues be based on:
+
+Constraint types (Workout league, Full tracking league)
+OR
+
+Score tiers (Bronze, Silver, Gold)
+
+Which system would create better competition and engagement?
+
+9️⃣ Social Score Cards
+
+How should shareable score cards be generated?
+
+Options:
+
+Static image (best for Instagram stories)
+
+Dynamic share link
+
+Both
+
+Which is simpler and more effective for the first version?
+
+🔟 Score Personalization
+
+Should scores be based on:
+
+A) Absolute targets
+
+Example:
+10k steps = full score
+
+B) Personal baseline
+
+Example:
+If the user normally walks 3000 steps, improvement to 5000 gives a higher score.
+
+Which system is more motivating and fair for beginners?
