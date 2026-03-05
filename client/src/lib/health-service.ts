@@ -182,31 +182,49 @@ class HealthService {
       return sources[0][1];
     }
 
-    const sorted = withTime
-      .map(s => ({
-        start: new Date(s.startDate).getTime(),
-        end: new Date(s.endDate).getTime(),
-        value: s.value || 0,
-        source: s.sourceName || s.source || 'unknown',
-      }))
-      .sort((a, b) => a.start - b.start);
+    const mapped = withTime.map(s => ({
+      start: new Date(s.startDate).getTime(),
+      end: new Date(s.endDate).getTime(),
+      value: s.value || 0,
+      source: s.sourceName || s.source || 'unknown',
+    }));
 
-    let total = 0;
-    let lastEnd = 0;
-
-    for (const sample of sorted) {
-      if (sample.start >= lastEnd) {
-        total += sample.value;
-        lastEnd = sample.end;
-      } else if (sample.end > lastEnd) {
-        const overlapRatio = (sample.end - lastEnd) / (sample.end - sample.start);
-        total += Math.round(sample.value * overlapRatio);
-        lastEnd = sample.end;
-      }
+    const bySource: Record<string, typeof mapped> = {};
+    for (const s of mapped) {
+      if (!bySource[s.source]) bySource[s.source] = [];
+      bySource[s.source].push(s);
     }
 
-    console.log(`[HealthService] dedup (time-based): ${total} from ${sorted.length} samples (raw sum was ${sorted.reduce((s, x) => s + x.value, 0)})`);
-    return total;
+    const sourceTotals: Record<string, number> = {};
+    for (const [src, srcSamples] of Object.entries(bySource)) {
+      const sorted = srcSamples.sort((a, b) => a.start - b.start);
+      let total = 0;
+      let lastEnd = 0;
+      for (const sample of sorted) {
+        if (sample.start >= lastEnd) {
+          total += sample.value;
+          lastEnd = sample.end;
+        } else if (sample.end > lastEnd) {
+          const newPortion = (sample.end - lastEnd) / (sample.end - sample.start);
+          total += Math.round(sample.value * newPortion);
+          lastEnd = sample.end;
+        }
+      }
+      sourceTotals[src] = total;
+    }
+
+    const sourceNames = Object.keys(sourceTotals);
+    let finalTotal: number;
+    if (sourceNames.length <= 1) {
+      finalTotal = sourceTotals[sourceNames[0]] || 0;
+    } else {
+      finalTotal = Math.max(...Object.values(sourceTotals));
+      console.log(`[HealthService] dedup multi-source: ${sourceNames.map(s => `${s}=${sourceTotals[s]}`).join(', ')}. Using max: ${finalTotal}`);
+    }
+
+    const rawSum = mapped.reduce((s, x) => s + x.value, 0);
+    console.log(`[HealthService] dedup (time+source): ${finalTotal} from ${mapped.length} samples (raw sum was ${rawSum})`);
+    return finalTotal;
   }
 
   async fetchDataForDate(dateStr: string): Promise<HealthDataPayload | null> {
