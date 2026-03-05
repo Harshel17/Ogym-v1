@@ -506,8 +506,59 @@ export async function calculateOGymScore(userId: number, weekEndDate: string) {
   return { ...inserted, building: false };
 }
 
+async function backfillMissingDailyScores(userId: number, days: number = 30) {
+  const today = formatDate(new Date());
+  const startDate = addDays(today, -days);
+
+  const existing = await db.select({ date: dailyDisciplineScores.date })
+    .from(dailyDisciplineScores)
+    .where(and(
+      eq(dailyDisciplineScores.userId, userId),
+      gte(dailyDisciplineScores.date, startDate),
+      lte(dailyDisciplineScores.date, today),
+    ));
+
+  const existingDates = new Set(existing.map(e => e.date));
+
+  const user = await storage.getUser(userId);
+  if (!user) return;
+
+  const userCreatedDate = user.createdAt ? formatDate(new Date(user.createdAt)) : startDate;
+  const effectiveStart = userCreatedDate > startDate ? userCreatedDate : startDate;
+
+  let filled = 0;
+  for (let i = 0; i <= days; i++) {
+    const dateStr = addDays(today, -i);
+    if (dateStr < effectiveStart) break;
+    if (dateStr === today) continue;
+    if (existingDates.has(dateStr)) continue;
+
+    try {
+      await calculateDailyScore(userId, dateStr);
+      filled++;
+    } catch (e) {
+      console.log(`[DisciplineScore] Could not backfill ${dateStr} for user ${userId}:`, e);
+    }
+  }
+
+  if (filled > 0) {
+    console.log(`[DisciplineScore] Backfilled ${filled} daily scores for user ${userId}`);
+  }
+}
+
+const backfillCompleted = new Set<number>();
+
 export async function getScoreToday(userId: number, forceRefresh: boolean = false) {
   const today = formatDate(new Date());
+
+  if (!backfillCompleted.has(userId)) {
+    try {
+      await backfillMissingDailyScores(userId, 30);
+      backfillCompleted.add(userId);
+    } catch (e) {
+      console.log(`[DisciplineScore] Backfill error for user ${userId}:`, e);
+    }
+  }
 
   let dailyScore = await db.select().from(dailyDisciplineScores)
     .where(and(eq(dailyDisciplineScores.userId, userId), eq(dailyDisciplineScores.date, today)))
