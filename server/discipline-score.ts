@@ -1,5 +1,5 @@
 import { storage } from "./storage";
-import { dailyDisciplineScores, ogymScores, disciplineSettings, scoreLeagues } from "@shared/schema";
+import { dailyDisciplineScores, ogymScores, disciplineSettings, scoreLeagues, healthData } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, gte, lte } from "drizzle-orm";
 
@@ -442,7 +442,11 @@ async function backfillMissingDailyScores(userId: number, days: number = 30, loc
   const today = localDate || formatDate(new Date());
   const startDate = addDays(today, -days);
 
-  const existing = await db.select({ date: dailyDisciplineScores.date })
+  const existing = await db.select({
+    date: dailyDisciplineScores.date,
+    finalized: dailyDisciplineScores.finalized,
+    activityScore: dailyDisciplineScores.activityScore,
+  })
     .from(dailyDisciplineScores)
     .where(and(
       eq(dailyDisciplineScores.userId, userId),
@@ -450,7 +454,21 @@ async function backfillMissingDailyScores(userId: number, days: number = 30, loc
       lte(dailyDisciplineScores.date, today),
     ));
 
-  const existingDates = new Set(existing.map(e => e.date));
+  const existingMap = new Map(existing.map(e => [e.date, e]));
+
+  const healthRecords = await db.select({
+    date: healthData.date,
+    steps: healthData.steps,
+    lastSyncedAt: healthData.lastSyncedAt,
+  })
+    .from(healthData)
+    .where(and(
+      eq(healthData.userId, userId),
+      gte(healthData.date, startDate),
+      lte(healthData.date, today),
+    ));
+
+  const healthByDate = new Map(healthRecords.map(h => [h.date, h]));
 
   const user = await storage.getUser(userId);
   if (!user) return;
@@ -463,7 +481,20 @@ async function backfillMissingDailyScores(userId: number, days: number = 30, loc
     const dateStr = addDays(today, -i);
     if (dateStr < effectiveStart) break;
     if (dateStr === today) continue;
-    if (existingDates.has(dateStr)) continue;
+
+    const existingScore = existingMap.get(dateStr);
+    const healthRecord = healthByDate.get(dateStr);
+
+    if (existingScore) {
+      if (existingScore.finalized) continue;
+      const hasNewHealth = healthRecord && healthRecord.steps && healthRecord.steps > 0 && (existingScore.activityScore === 0 || existingScore.activityScore === 10);
+      if (!hasNewHealth) {
+        await db.update(dailyDisciplineScores)
+          .set({ finalized: true })
+          .where(and(eq(dailyDisciplineScores.userId, userId), eq(dailyDisciplineScores.date, dateStr)));
+        continue;
+      }
+    }
 
     try {
       await calculateDailyScore(userId, dateStr);
@@ -474,7 +505,7 @@ async function backfillMissingDailyScores(userId: number, days: number = 30, loc
   }
 
   if (filled > 0) {
-    console.log(`[DisciplineScore] Backfilled ${filled} daily scores for user ${userId}`);
+    console.log(`[DisciplineScore] Backfilled/refreshed ${filled} daily scores for user ${userId}`);
   }
 }
 

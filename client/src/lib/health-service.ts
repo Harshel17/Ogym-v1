@@ -166,26 +166,47 @@ class HealthService {
     if (!samples || samples.length === 0) return 0;
     if (samples.length === 1) return samples[0].value || 0;
 
-    const bySource: Record<string, any[]> = {};
-    for (const s of samples) {
-      const src = s.sourceName || s.source || 'unknown';
-      if (!bySource[src]) bySource[src] = [];
-      bySource[src].push(s);
+    const withTime = samples.filter(s => s.startDate && s.endDate);
+    if (withTime.length === 0) {
+      const bySource: Record<string, number> = {};
+      for (const s of samples) {
+        const src = s.sourceName || s.source || 'unknown';
+        bySource[src] = (bySource[src] || 0) + (s.value || 0);
+      }
+      const sources = Object.entries(bySource);
+      if (sources.length <= 1) {
+        return sources[0]?.[1] || 0;
+      }
+      sources.sort((a, b) => b[1] - a[1]);
+      console.log(`[HealthService] dedup (no timestamps): using ${sources[0][0]} (${sources[0][1]}), discarded: ${sources.slice(1).map(s => `${s[0]}(${s[1]})`).join(', ')}`);
+      return sources[0][1];
     }
 
-    const sources = Object.keys(bySource);
-    if (sources.length <= 1) {
-      return samples.reduce((sum: number, s: any) => sum + (s.value || 0), 0);
+    const sorted = withTime
+      .map(s => ({
+        start: new Date(s.startDate).getTime(),
+        end: new Date(s.endDate).getTime(),
+        value: s.value || 0,
+        source: s.sourceName || s.source || 'unknown',
+      }))
+      .sort((a, b) => a.start - b.start);
+
+    let total = 0;
+    let lastEnd = 0;
+
+    for (const sample of sorted) {
+      if (sample.start >= lastEnd) {
+        total += sample.value;
+        lastEnd = sample.end;
+      } else if (sample.end > lastEnd) {
+        const overlapRatio = (sample.end - lastEnd) / (sample.end - sample.start);
+        total += Math.round(sample.value * overlapRatio);
+        lastEnd = sample.end;
+      }
     }
 
-    const sourceTotals = sources.map(src => ({
-      source: src,
-      total: bySource[src].reduce((sum: number, s: any) => sum + (s.value || 0), 0),
-    }));
-
-    const primary = sourceTotals.sort((a, b) => b.total - a.total)[0];
-    console.log(`[HealthService] dedup: ${sources.length} sources, using ${primary.source} (${primary.total}), discarded: ${sourceTotals.filter(s => s.source !== primary.source).map(s => `${s.source}(${s.total})`).join(', ')}`);
-    return primary.total;
+    console.log(`[HealthService] dedup (time-based): ${total} from ${sorted.length} samples (raw sum was ${sorted.reduce((s, x) => s + x.value, 0)})`);
+    return total;
   }
 
   async fetchDataForDate(dateStr: string): Promise<HealthDataPayload | null> {
@@ -289,7 +310,7 @@ class HealthService {
       }
     }
 
-    if (!data.steps && this.oldPlugin) {
+    if (this.oldPlugin) {
       try {
         const stepsResult = await this.oldPlugin.queryAggregated({
           startDate: startISO,
@@ -298,8 +319,14 @@ class HealthService {
           bucket: 'day',
         });
         if (stepsResult?.aggregatedData?.[0]?.value) {
-          data.steps = Math.round(stepsResult.aggregatedData[0].value);
-          console.log(`[HealthService] old plugin steps fallback: ${data.steps}`);
+          const aggregatedSteps = Math.round(stepsResult.aggregatedData[0].value);
+          console.log(`[HealthService] old plugin aggregated steps: ${aggregatedSteps} (capgo was: ${data.steps || 'none'})`);
+          if (data.steps && Math.abs(data.steps - aggregatedSteps) > 500) {
+            data.steps = Math.min(data.steps, aggregatedSteps);
+            console.log(`[HealthService] Steps mismatch >500, using lower value: ${data.steps}`);
+          } else if (!data.steps) {
+            data.steps = aggregatedSteps;
+          }
         }
       } catch (e) {
         console.log('[HealthService] old plugin steps failed:', e);
