@@ -6518,6 +6518,37 @@ Return ONLY JSON.`
 
     try {
       const input = schema.parse(req.body);
+      if (input.steps) {
+        const localDate = (req.headers["x-local-date"] as string) || input.date;
+        const isToday = input.date === localDate;
+        const existing = await storage.getHealthData(req.user!.id, input.date);
+        
+        if (isToday && input.steps > 0) {
+          const tz = (req.headers["x-local-timezone"] as string) || "America/Chicago";
+          let hoursElapsed: number;
+          try {
+            const nowLocal = new Date().toLocaleString("en-US", { timeZone: tz });
+            const localNow = new Date(nowLocal);
+            hoursElapsed = localNow.getHours() + localNow.getMinutes() / 60;
+          } catch {
+            hoursElapsed = new Date().getHours() + new Date().getMinutes() / 60;
+          }
+          const maxReasonableSteps = Math.max(2000, Math.round(hoursElapsed * 1200));
+          if (input.steps > maxReasonableSteps) {
+            console.log(`[HealthSync] Steps too high for ${hoursElapsed.toFixed(1)}h elapsed (${tz}): ${input.steps} > max ${maxReasonableSteps}. Capping.`);
+            input.steps = maxReasonableSteps;
+          }
+        }
+
+        if (existing && existing.steps && existing.steps > 0) {
+          const prevSteps = existing.steps;
+          const newSteps = input.steps;
+          if (newSteps > prevSteps * 2 && newSteps - prevSteps > 2000) {
+            console.log(`[HealthSync] Steps spike: existing=${prevSteps}, incoming=${newSteps}. Keeping existing.`);
+            input.steps = prevSteps;
+          }
+        }
+      }
       const data = await storage.upsertHealthData({
         userId: req.user!.id,
         ...input
