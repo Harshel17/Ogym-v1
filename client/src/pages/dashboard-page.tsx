@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +20,7 @@ import { OwnerDashboardSkeleton, TrainerDashboardSkeleton, MemberDashboardSkelet
 import { MemberOnboarding, PersonalModeOnboarding, TrainerOnboarding, OwnerOnboarding } from "@/components/onboarding-carousel";
 import { FeatureDiscoveryTips } from "@/components/feature-discovery-tips";
 import { GoalsNudge } from "@/components/goals-nudge";
-import { useHealthStatus, useHealthDataToday } from "@/hooks/use-health-data";
+import { useHealthStatus, useHealthDataToday, useHealthDataRange } from "@/hooks/use-health-data";
 import { useGymCurrency } from "@/hooks/use-gym-currency";
 import { isIOS, isNative } from "@/lib/capacitor-init";
 import PropertyManagerDashboard from "@/pages/property-manager-dashboard";
@@ -192,6 +192,12 @@ function HealthActivityDashboard() {
   const { data: status, isLoading: statusLoading } = useHealthStatus();
   const { data: healthData, isLoading: dataLoading } = useHealthDataToday();
   const { data: userGoals } = useQuery<any>({ queryKey: ['/api/user/goals'] });
+  const today = new Date();
+  const rangeStart = new Date(today);
+  rangeStart.setDate(rangeStart.getDate() - 6);
+  const startDate = `${rangeStart.getFullYear()}-${String(rangeStart.getMonth() + 1).padStart(2, '0')}-${String(rangeStart.getDate()).padStart(2, '0')}`;
+  const endDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const { data: weekData } = useHealthDataRange(startDate, endDate);
 
   const connected = status?.connected || (user as any)?.healthConnected || !!healthData;
   const hasData = connected && healthData;
@@ -281,13 +287,27 @@ function HealthActivityDashboard() {
     return num.toLocaleString();
   };
 
-  const getRecoveryInsight = () => {
-    if (!hasData) return null;
-    if (recovery >= 80) return "Ready for high intensity";
-    if (recovery >= 60) return "Good for moderate training";
-    if (recovery >= 40) return "Consider lighter activity";
-    return "Focus on rest and recovery";
-  };
+  const stepPct = Math.min(steps / (stepGoal || 1), 1);
+  const stepsRemaining = Math.max(stepGoal - steps, 0);
+
+  const weekChartData = useMemo(() => {
+    const days: { label: string; steps: number; hasData: boolean }[] = [];
+    const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const match = weekData?.find((wd: any) => wd.date === dateStr);
+      days.push({
+        label: dayNames[d.getDay()],
+        steps: match?.steps || 0,
+        hasData: !!match && (match.steps || 0) > 0,
+      });
+    }
+    return days;
+  }, [weekData]);
+
+  const maxWeekSteps = Math.max(...weekChartData.map(d => d.steps), stepGoal, 1);
 
   if (statusLoading) {
     return (
@@ -303,8 +323,8 @@ function HealthActivityDashboard() {
     <Link href="/health">
       <Card className="overflow-hidden border-0 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300" data-testid="card-health-activity">
         <div className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.03] via-transparent to-blue-500/[0.03]" />
-          <CardHeader className="pb-1 relative z-10">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.05] via-transparent to-blue-500/[0.04]" />
+          <CardHeader className="pb-0 relative z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-sm shadow-green-500/25">
@@ -315,7 +335,7 @@ function HealthActivityDashboard() {
               <ArrowRight className="w-4 h-4 text-muted-foreground/40" />
             </div>
           </CardHeader>
-          <CardContent className="pt-2 pb-4 relative z-10">
+          <CardContent className="pt-3 pb-4 relative z-10">
             {!connected ? (
               <div className="py-3">
                 <div className="flex items-center justify-center gap-4 mb-4">
@@ -341,35 +361,114 @@ function HealthActivityDashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {hasData && recovery > 0 && (
-                  <div className="flex items-center gap-4 py-1">
-                    <RecoveryRingHero score={recovery} size={72} />
-                    <div className="flex-1 space-y-1.5">
-                      <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Recovery Score</p>
-                      <p className="text-xs text-muted-foreground/80">{getRecoveryInsight()}</p>
-                      <div className="flex items-center gap-3 mt-1">
-                        {sleepMinutes > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Moon className="w-3 h-3 text-purple-400" />
-                            <span className="text-[10px] text-muted-foreground">{formatSleep(sleepMinutes)}</span>
-                          </div>
-                        )}
-                        {restingHR > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Heart className="w-3 h-3 text-red-400" />
-                            <span className="text-[10px] text-muted-foreground">{restingHR} rHR</span>
-                          </div>
-                        )}
+                <div className="flex items-start gap-4">
+                  <div className="flex-1 space-y-2.5">
+                    <div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-2xl font-black tabular-nums tracking-tight">{formatNumber(steps)}</span>
+                        <span className="text-[11px] text-muted-foreground font-medium">/ {formatNumber(stepGoal)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Footprints className="w-3 h-3 text-blue-500" />
+                        <span className="text-[11px] text-muted-foreground">
+                          {steps >= stepGoal ? 'Goal reached!' : `${formatNumber(stepsRemaining)} to go`}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-muted/20 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-1000 ease-out"
+                        style={{
+                          width: `${stepPct * 100}%`,
+                          background: stepPct >= 1
+                            ? 'linear-gradient(90deg, #22c55e, #10b981)'
+                            : 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                          boxShadow: stepPct >= 1 ? '0 0 8px rgba(34,197,94,0.4)' : '0 0 6px rgba(59,130,246,0.3)',
+                        }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 pt-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <Flame className="w-3 h-3 text-orange-500" />
+                        <div>
+                          <span className="text-xs font-bold tabular-nums">{caloriesBurned || '--'}</span>
+                          <span className="text-[9px] text-muted-foreground ml-0.5">cal</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Moon className="w-3 h-3 text-purple-400" />
+                        <span className="text-xs font-bold tabular-nums">{formatSleep(sleepMinutes)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Heart className="w-3 h-3 text-red-400" />
+                        <span className="text-xs font-bold tabular-nums">{avgHR > 0 ? `${avgHR}` : '--'}</span>
+                        {avgHR > 0 && <span className="text-[9px] text-muted-foreground">bpm</span>}
                       </div>
                     </div>
                   </div>
-                )}
-                <div className="flex items-center justify-around pt-1">
-                  <ActivityRing value={steps} max={stepGoal} size={56} color="#3b82f6" icon={Footprints} label="Steps" displayValue={formatNumber(steps)} data-testid="health-steps" />
-                  <ActivityRing value={caloriesBurned} max={calorieGoal} size={56} color="#f97316" icon={Flame} label="Burned" displayValue={String(caloriesBurned)} data-testid="health-calories" />
-                  <ActivityRing value={sleepMinutes} max={sleepGoal} size={56} color="#a855f7" icon={Moon} label="Sleep" displayValue={formatSleep(sleepMinutes)} data-testid="health-sleep" />
-                  <ActivityRing value={avgHR} max={200} size={56} color="#ef4444" icon={Heart} label="Avg HR" displayValue={avgHR > 0 ? `${avgHR}` : '--'} data-testid="health-heart" />
+
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="flex items-end gap-[3px] h-[52px]">
+                      {weekChartData.map((d, i) => {
+                        const barH = d.hasData ? Math.max((d.steps / maxWeekSteps) * 48, 4) : 4;
+                        const isToday = i === 6;
+                        const hitGoal = d.steps >= stepGoal;
+                        return (
+                          <div key={i} className="flex flex-col items-center gap-0.5">
+                            <div
+                              className="rounded-sm transition-all duration-500"
+                              style={{
+                                width: 6,
+                                height: barH,
+                                background: !d.hasData
+                                  ? 'hsl(var(--muted) / 0.2)'
+                                  : hitGoal
+                                    ? '#22c55e'
+                                    : isToday
+                                      ? '#3b82f6'
+                                      : 'rgba(59,130,246,0.35)',
+                                boxShadow: hitGoal ? '0 0 4px rgba(34,197,94,0.4)' : 'none',
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex gap-[3px]">
+                      {weekChartData.map((d, i) => (
+                        <span key={i} className="text-[7px] text-muted-foreground/50 w-[6px] text-center font-medium">{d.label}</span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+
+                {hasData && recovery > 0 && (
+                  <div className="flex items-center gap-2.5 pt-1.5 border-t border-white/[0.04]">
+                    <div className="relative w-8 h-8">
+                      <svg width={32} height={32} className="-rotate-90">
+                        <circle cx={16} cy={16} r={13} fill="none" stroke="currentColor" strokeWidth={3} className="text-muted/10" />
+                        <circle cx={16} cy={16} r={13} fill="none"
+                          stroke={recovery >= 80 ? '#22c55e' : recovery >= 60 ? '#3b82f6' : recovery >= 40 ? '#f59e0b' : '#ef4444'}
+                          strokeWidth={3} strokeDasharray={2 * Math.PI * 13}
+                          strokeDashoffset={2 * Math.PI * 13 - (Math.min(recovery / 100, 1)) * 2 * Math.PI * 13}
+                          strokeLinecap="round"
+                          style={{ transition: 'stroke-dashoffset 1s ease' }}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-[9px] font-black tabular-nums"
+                          style={{ color: recovery >= 80 ? '#22c55e' : recovery >= 60 ? '#3b82f6' : recovery >= 40 ? '#f59e0b' : '#ef4444' }}
+                        >{recovery}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-[11px] font-semibold">Recovery</span>
+                      <span className="text-[10px] text-muted-foreground ml-1.5">
+                        {recovery >= 80 ? 'Ready for intensity' : recovery >= 60 ? 'Good for training' : recovery >= 40 ? 'Take it easy' : 'Rest recommended'}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

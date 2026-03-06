@@ -782,73 +782,136 @@ export default function HealthPage() {
 
   return (
     <div className={`p-4 space-y-4 max-w-lg mx-auto pb-24 bg-gradient-to-b ${recoveryBg} to-transparent min-h-screen transition-colors duration-1000`} data-testid="page-health">
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/10">
-            <Activity className="w-5 h-5 text-green-500" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold leading-tight">Health & Activity</h1>
-            <p className="text-[11px] text-muted-foreground">Today's overview</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {isConnected ? (
-            <>
-              <Badge variant="secondary" className="text-[10px] gap-1 rounded-lg px-2 py-1 bg-muted/50">
-                {status?.source === 'apple_health' ? <SiApple className="w-2.5 h-2.5" /> : status?.source === 'google_fit' ? <SiGoogle className="w-2.5 h-2.5" /> : <Watch className="w-2.5 h-2.5" />}
-                {sourceName}
-              </Badge>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={handleSync} disabled={syncHealth.isPending} data-testid="button-sync-health">
-                <RefreshCw className={`w-4 h-4 ${syncHealth.isPending ? 'animate-spin' : ''}`} />
-              </Button>
-            </>
-          ) : (
-            <Badge variant="secondary" className="text-[10px] gap-1 rounded-lg px-2 py-1 bg-amber-500/10 text-amber-600 border-amber-500/20">
-              <Unplug className="w-2.5 h-2.5" />
-              Disconnected
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      {!isConnected && (todayData || (rangeData && rangeData.length > 0)) && (
-        <Card className="overflow-hidden border-0 bg-gradient-to-br from-emerald-500/10 via-card to-card shadow-lg">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/10">
-                <Unplug className="w-4 h-4 text-emerald-500" />
+      <Card className="overflow-hidden border-0 rounded-2xl shadow-lg" data-testid="card-health-hero">
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.06] via-blue-500/[0.03] to-purple-500/[0.05]" />
+          <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-green-500/[0.08] to-transparent rounded-full -mr-12 -mt-12" />
+          <CardContent className="pt-5 pb-4 relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-md shadow-green-500/25">
+                  <Activity className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold leading-tight">Health & Activity</h1>
+                  <p className="text-[11px] text-muted-foreground">Today's overview</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium mb-0.5">Health disconnected</p>
-                <p className="text-[11px] text-muted-foreground">Reconnect to sync your latest data</p>
-              </div>
-              <Button size="sm" className="rounded-xl h-9 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700" onClick={handleConnect} disabled={connectHealth.isPending} data-testid="button-reconnect-health-banner">
-                {connectHealth.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Plug className="w-3 h-3 mr-1" />}
-                Reconnect
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {isConnected && noDataAtAll && (
-        <Card className="overflow-hidden border-0 bg-gradient-to-br from-amber-500/5 via-card to-card shadow-lg">
-          <CardContent className="pt-5 pb-5">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-amber-500/10 mt-0.5">
-                <Info className="w-4 h-4 text-amber-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium mb-1">No data synced yet today</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Open the OGym app on your phone to sync today's data from {sourceName}. Your data updates each time you open the app.
-                </p>
+              <div className="flex items-center gap-1.5">
+                {isConnected ? (
+                  <>
+                    <Badge variant="secondary" className="text-[10px] gap-1 rounded-lg px-2 py-1 bg-white/[0.06] border border-white/[0.08]">
+                      {status?.source === 'apple_health' ? <SiApple className="w-2.5 h-2.5" /> : status?.source === 'google_fit' ? <SiGoogle className="w-2.5 h-2.5" /> : <Watch className="w-2.5 h-2.5" />}
+                      {sourceName}
+                    </Badge>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={handleSync} disabled={syncHealth.isPending} data-testid="button-sync-health">
+                      <RefreshCw className={`w-4 h-4 ${syncHealth.isPending ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </>
+                ) : (
+                  <Badge variant="secondary" className="text-[10px] gap-1 rounded-lg px-2 py-1 bg-amber-500/10 text-amber-600 border-amber-500/20">
+                    <Unplug className="w-2.5 h-2.5" />
+                    Disconnected
+                  </Badge>
+                )}
               </div>
             </div>
+
+            {!isConnected && (todayData || (rangeData && rangeData.length > 0)) && (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/[0.12] mb-4">
+                <Unplug className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-medium">Health disconnected</p>
+                  <p className="text-[10px] text-muted-foreground">Reconnect to sync latest data</p>
+                </div>
+                <Button size="sm" className="rounded-xl h-8 text-[10px] font-semibold bg-emerald-600 hover:bg-emerald-700 px-3" onClick={handleConnect} disabled={connectHealth.isPending} data-testid="button-reconnect-health-banner">
+                  {connectHealth.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Plug className="w-3 h-3 mr-1" />}
+                  Reconnect
+                </Button>
+              </div>
+            )}
+
+            {isConnected && noDataAtAll && (
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/[0.06] border border-amber-500/[0.12] mb-4">
+                <div className="p-1.5 rounded-lg bg-amber-500/10 mt-0.5">
+                  <Info className="w-3.5 h-3.5 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium mb-0.5">No data synced yet today</p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Open OGym on your phone to sync from {sourceName}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-4 gap-3">
+              <AnimatedRing
+                value={todayData?.steps || 0} max={stepGoal}
+                color="#3b82f6" glowColor="rgba(59,130,246,0.15)"
+                icon={Footprints} label="Steps"
+                displayValue={stepsDisplay}
+                unit={hasSteps ? `/ ${stepGoal >= 1000 ? `${(stepGoal / 1000).toFixed(0)}k` : stepGoal}` : undefined}
+                hasData={hasSteps}
+                goalReached={stepGoalReached}
+              />
+              <AnimatedRing
+                value={todayData?.caloriesBurned || 0} max={calorieGoal}
+                color="#f97316" glowColor="rgba(249,115,22,0.15)"
+                icon={Flame} label="Burned"
+                displayValue={calsDisplay}
+                unit={hasCals ? 'cal' : undefined}
+                hasData={hasCals}
+                goalReached={hasCals && todayData!.caloriesBurned! >= calorieGoal}
+              />
+              <AnimatedRing
+                value={todayData?.avgHeartRate || 0} max={200}
+                color="#ef4444" glowColor="rgba(239,68,68,0.15)"
+                icon={Heart} label="Avg HR"
+                displayValue={hrDisplay}
+                unit={hasHR ? 'bpm' : undefined}
+                hasData={hasHR}
+              />
+              <AnimatedRing
+                value={todayData?.sleepMinutes ? todayData.sleepMinutes / 60 : 0} max={sleepGoalMinutes / 60}
+                color="#a855f7" glowColor="rgba(168,85,247,0.15)"
+                icon={Moon} label="Sleep"
+                displayValue={hasSleep ? formatSleep(todayData!.sleepMinutes!) : '--'}
+                unit={hasSleep ? 'hours' : undefined}
+                hasData={hasSleep}
+              />
+            </div>
+
+            {(hasActiveMinutes || (todayData?.distanceMeters && todayData.distanceMeters > 0)) && (
+              <div className="flex items-center justify-center gap-5 mt-4 pt-3 border-t border-white/[0.04]">
+                {hasActiveMinutes && (
+                  <div className="flex items-center gap-1.5">
+                    <Timer className="w-3.5 h-3.5 text-green-500" />
+                    <span className="text-muted-foreground text-[11px]">Active</span>
+                    <span className="font-semibold text-xs">{todayData!.activeMinutes} min</span>
+                  </div>
+                )}
+                {todayData?.distanceMeters && todayData.distanceMeters > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <Footprints className="w-3.5 h-3.5 text-blue-400" />
+                    <span className="text-muted-foreground text-[11px]">Distance</span>
+                    <span className="font-semibold text-xs">{(todayData.distanceMeters / 1000).toFixed(1)} km</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {trackedMetrics > 0 && (
+              <div className="flex items-center justify-center gap-1 mt-3 pt-2">
+                <Eye className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground">
+                  {trackedMetrics} of 4 metrics tracked from {sourceName}
+                </span>
+              </div>
+            )}
           </CardContent>
-        </Card>
-      )}
+        </div>
+      </Card>
 
       {healthStats && healthStats.currentStreak > 0 && (
         <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-red-500/10" data-testid="card-step-streak">
@@ -894,74 +957,6 @@ export default function HealthPage() {
         </Card>
       )}
 
-      <Card className="overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/20 shadow-lg" data-testid="section-daily-overview">
-        <CardContent className="pt-5 pb-5">
-          <div className="grid grid-cols-4 gap-4">
-            <AnimatedRing
-              value={todayData?.steps || 0} max={stepGoal}
-              color="#3b82f6" glowColor="rgba(59,130,246,0.15)"
-              icon={Footprints} label="Steps"
-              displayValue={stepsDisplay}
-              unit={hasSteps ? `/ ${stepGoal >= 1000 ? `${(stepGoal / 1000).toFixed(0)}k` : stepGoal}` : undefined}
-              hasData={hasSteps}
-              goalReached={stepGoalReached}
-            />
-            <AnimatedRing
-              value={todayData?.caloriesBurned || 0} max={calorieGoal}
-              color="#f97316" glowColor="rgba(249,115,22,0.15)"
-              icon={Flame} label="Burned"
-              displayValue={calsDisplay}
-              unit={hasCals ? 'cal' : undefined}
-              hasData={hasCals}
-              goalReached={hasCals && todayData!.caloriesBurned! >= calorieGoal}
-            />
-            <AnimatedRing
-              value={todayData?.avgHeartRate || 0} max={200}
-              color="#ef4444" glowColor="rgba(239,68,68,0.15)"
-              icon={Heart} label="Avg HR"
-              displayValue={hrDisplay}
-              unit={hasHR ? 'bpm' : undefined}
-              hasData={hasHR}
-            />
-            <AnimatedRing
-              value={todayData?.sleepMinutes ? todayData.sleepMinutes / 60 : 0} max={sleepGoalMinutes / 60}
-              color="#a855f7" glowColor="rgba(168,85,247,0.15)"
-              icon={Moon} label="Sleep"
-              displayValue={hasSleep ? formatSleep(todayData!.sleepMinutes!) : '--'}
-              unit={hasSleep ? 'hours' : undefined}
-              hasData={hasSleep}
-            />
-          </div>
-
-          {(hasActiveMinutes || (todayData?.distanceMeters && todayData.distanceMeters > 0)) && (
-            <div className="flex items-center justify-center gap-5 mt-4 pt-3 border-t border-border/30">
-              {hasActiveMinutes && (
-                <div className="flex items-center gap-1.5 text-sm">
-                  <Timer className="w-3.5 h-3.5 text-green-500" />
-                  <span className="text-muted-foreground text-xs">Active</span>
-                  <span className="font-semibold text-xs">{todayData!.activeMinutes} min</span>
-                </div>
-              )}
-              {todayData?.distanceMeters && todayData.distanceMeters > 0 && (
-                <div className="flex items-center gap-1.5 text-sm">
-                  <Footprints className="w-3.5 h-3.5 text-blue-400" />
-                  <span className="text-muted-foreground text-xs">Distance</span>
-                  <span className="font-semibold text-xs">{(todayData.distanceMeters / 1000).toFixed(1)} km</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {trackedMetrics > 0 && (
-            <div className="flex items-center justify-center gap-1 mt-3 pt-2">
-              <Eye className="w-3 h-3 text-muted-foreground" />
-              <span className="text-[10px] text-muted-foreground">
-                {trackedMetrics} of 4 metrics tracked from {sourceName}
-              </span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {recovery.hasEnoughData && (
         <div className="grid grid-cols-5 gap-3">
