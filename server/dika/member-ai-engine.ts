@@ -550,8 +550,14 @@ export async function generateProactiveNudges(userId: number, localDate?: string
   nudges: { id: string; message: string; type: "workout" | "nutrition" | "streak" | "goal" | "health"; action?: string; link?: string }[];
   generatedAt: string;
 }> {
+  const { buildMemberContextProfile } = await import('./member-context');
   const today = localDate || getDateStr();
   const nudges: { id: string; message: string; type: "workout" | "nutrition" | "streak" | "goal" | "health"; action?: string; link?: string }[] = [];
+
+  let contextProfile: Awaited<ReturnType<typeof buildMemberContextProfile>> | null = null;
+  try {
+    contextProfile = await buildMemberContextProfile(userId);
+  } catch {}
 
   const todayFoodCount = await db.select({ count: sql<number>`count(*)` })
     .from(foodLogs)
@@ -704,8 +710,168 @@ export async function generateProactiveNudges(userId: number, localDate?: string
     }
   }
 
+  if (contextProfile) {
+    const { workout, nutrition, activity, recovery, goalAlignment, correlations, overallAssessment } = contextProfile;
+
+    if (nutrition.proteinTarget && nutrition.daysHittingProtein7d <= 2 && nutrition.daysLogged7d >= 4) {
+      nudges.push({
+        id: "multi_day_protein_gap",
+        message: `You've only hit your protein target ${nutrition.daysHittingProtein7d} out of ${nutrition.daysLogged7d} logged days this week. Consistent protein intake is key for recovery and muscle growth.`,
+        type: "nutrition",
+        link: "/nutrition",
+      });
+    }
+
+    if (recovery.sleepTrend === 'declining' && recovery.avgSleepHours7d > 0) {
+      nudges.push({
+        id: "sleep_decline_warning",
+        message: `Your sleep has been declining this week (avg ${recovery.avgSleepHours7d}h). Poor sleep affects recovery, performance, and metabolism.`,
+        type: "health",
+        link: "/score",
+      });
+    }
+
+    if (recovery.avgSleepHours7d > 0 && recovery.avgSleepHours7d < 6 && recovery.daysGoodSleep7d <= 1) {
+      nudges.push({
+        id: "chronic_low_sleep",
+        message: `Averaging under 6 hours of sleep this week. This can significantly impact your workout performance and recovery.`,
+        type: "health",
+        link: "/score",
+      });
+    }
+
+    if (workout.muscleGroupsMissed.length >= 2 && workout.daysLast14 >= 4) {
+      const missed = workout.muscleGroupsMissed.slice(0, 3).join(', ');
+      nudges.push({
+        id: "skipped_muscle_groups",
+        message: `You haven't trained ${missed} in the past 2 weeks. Consider adding these to avoid imbalances.`,
+        type: "workout",
+        link: "/workouts",
+      });
+    }
+
+    if (overallAssessment === 'consistent' && workout.adherenceRate7d >= 85) {
+      nudges.push({
+        id: "consistency_celebration",
+        message: `Great consistency! You're at ${workout.adherenceRate7d}% workout adherence this week with ${workout.daysLast7} sessions. Keep this rhythm going!`,
+        type: "streak",
+        link: "/score",
+      });
+    }
+
+    if (workout.streak >= 7) {
+      nudges.push({
+        id: "long_streak_celebration",
+        message: `Impressive ${workout.streak}-day streak! Your dedication is building real momentum.`,
+        type: "streak",
+        link: "/workouts",
+      });
+    }
+
+    if (activity.trend === 'declining' && activity.avgSteps7d > 0 && activity.avgSteps7d < activity.avgSteps14d * 0.8) {
+      nudges.push({
+        id: "activity_decline_alert",
+        message: `Your daily steps dropped from ${activity.avgSteps14d} to ${activity.avgSteps7d} avg this week. Try to keep moving — even short walks add up.`,
+        type: "health",
+        link: "/score",
+      });
+    }
+
+    if (activity.avgSteps7d > 0 && activity.daysHittingGoal7d >= 5) {
+      nudges.push({
+        id: "steps_goal_celebration",
+        message: `Hit your step goal ${activity.daysHittingGoal7d}/7 days this week with ${activity.avgSteps7d} avg steps. Your daily activity is on point!`,
+        type: "streak",
+        link: "/score",
+      });
+    }
+
+    if (nutrition.trend === 'declining' && nutrition.daysLogged7d >= 3) {
+      nudges.push({
+        id: "nutrition_declining",
+        message: `Your nutrition tracking has been declining compared to last week. Consistent logging helps you stay aware of your intake.`,
+        type: "nutrition",
+        link: "/nutrition",
+      });
+    }
+
+    if (nutrition.daysLogged7d <= 2 && nutrition.daysLogged7d > 0) {
+      nudges.push({
+        id: "sparse_nutrition_logging",
+        message: `Only ${nutrition.daysLogged7d} days of food logged this week. Logging at least 5 days gives you meaningful nutrition insights.`,
+        type: "nutrition",
+        link: "/nutrition",
+      });
+    }
+
+    if (goalAlignment.primaryGoal && goalAlignment.alignmentLabel === 'off_track' && goalAlignment.gaps.length > 0) {
+      const topGap = goalAlignment.gaps[0];
+      const goalLabel = goalAlignment.primaryGoal.replace(/_/g, ' ');
+      nudges.push({
+        id: "goal_off_track",
+        message: `Your ${goalLabel} goal needs attention: ${topGap}. Small adjustments now can get you back on track.`,
+        type: "goal",
+        link: "/goals",
+      });
+    }
+
+    if (goalAlignment.primaryGoal === 'lose_fat' && nutrition.calorieTarget && nutrition.avgCalories7d > nutrition.calorieTarget * 1.15 && nutrition.daysLogged7d >= 4) {
+      nudges.push({
+        id: "fat_loss_calorie_alert",
+        message: `Averaging ${nutrition.avgCalories7d} cal/day vs your ${nutrition.calorieTarget} target. For fat loss, try to stay within 10-15% of your calorie goal.`,
+        type: "goal",
+        link: "/nutrition",
+      });
+    }
+
+    if (goalAlignment.primaryGoal === 'build_muscle' && nutrition.proteinTarget && nutrition.avgProtein7d < nutrition.proteinTarget * 0.75 && nutrition.daysLogged7d >= 3) {
+      nudges.push({
+        id: "muscle_protein_alert",
+        message: `Averaging ${nutrition.avgProtein7d}g protein/day vs your ${nutrition.proteinTarget}g target. Protein is essential for muscle building — try adding a protein source to each meal.`,
+        type: "goal",
+        link: "/nutrition",
+      });
+    }
+
+    if (workout.trend === 'declining' && workout.daysLast7 < workout.daysLast14 - workout.daysLast7) {
+      nudges.push({
+        id: "workout_trend_declining",
+        message: `Your workout frequency dropped this week (${workout.daysLast7} sessions vs ${workout.daysLast14 - workout.daysLast7} last week). Getting back on schedule today can help reverse the trend.`,
+        type: "workout",
+        link: "/workouts",
+      });
+    }
+
+    if (overallAssessment === 'improving') {
+      nudges.push({
+        id: "overall_improving",
+        message: `Your overall trends are improving across workouts, nutrition, and activity. You're building great habits!`,
+        type: "streak",
+        link: "/score",
+      });
+    }
+
+    for (const corr of correlations.slice(0, 2)) {
+      if (corr.confidence === 'high') {
+        nudges.push({
+          id: `correlation_${corr.pattern.slice(0, 30).replace(/\s+/g, '_').toLowerCase()}`,
+          message: `${corr.suggestion}`,
+          type: "health",
+          link: "/score",
+        });
+      }
+    }
+  }
+
+  const seenIds = new Set<string>();
+  const deduped = nudges.filter(n => {
+    if (seenIds.has(n.id)) return false;
+    seenIds.add(n.id);
+    return true;
+  });
+
   return {
-    nudges: nudges.slice(0, 4),
+    nudges: deduped.slice(0, 6),
     generatedAt: new Date().toISOString(),
   };
 }

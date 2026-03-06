@@ -13,7 +13,7 @@ import { db } from "./db";
 import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors, trainerMemberAssignments, feedPosts, gymEquipment, equipmentExerciseMappings, payments, userGoals } from "@shared/schema";
 import { eq, and, isNotNull, isNull, inArray, sql, desc, gte, lte, like, asc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
-import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing } from "./dika";
+import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing, extractInsightsFromConversation } from "./dika";
 import { executeOwnerAction, executeSupportTicket, type ActionData } from "./dika/owner-actions";
 import { findExercise } from "./dika/exercise-database";
 import { searchFoodByName, lookupByBarcode, FoodProduct } from "./nutrition/open-food-facts";
@@ -6293,6 +6293,59 @@ Return ONLY JSON.`
     }
   });
 
+  app.get("/api/member/context-profile", requireRole(["member"]), async (req, res) => {
+    try {
+      const { buildMemberContextProfile } = await import("./dika/member-context");
+      const profile = await buildMemberContextProfile(req.user!.id);
+      res.json({
+        generatedAt: profile.generatedAt,
+        overallAssessment: profile.overallAssessment,
+        summaryText: profile.summaryText,
+        workout: {
+          daysLast7: profile.workout.daysLast7,
+          weeklyTarget: profile.workout.weeklyTarget,
+          adherenceRate7d: profile.workout.adherenceRate7d,
+          streak: profile.workout.streak,
+          trend: profile.workout.trend,
+          muscleGroupsMissed: profile.workout.muscleGroupsMissed,
+        },
+        nutrition: {
+          avgCalories7d: profile.nutrition.avgCalories7d,
+          avgProtein7d: profile.nutrition.avgProtein7d,
+          calorieTarget: profile.nutrition.calorieTarget,
+          proteinTarget: profile.nutrition.proteinTarget,
+          daysHittingCalories7d: profile.nutrition.daysHittingCalories7d,
+          daysHittingProtein7d: profile.nutrition.daysHittingProtein7d,
+          daysLogged7d: profile.nutrition.daysLogged7d,
+          trend: profile.nutrition.trend,
+        },
+        activity: {
+          avgSteps7d: profile.activity.avgSteps7d,
+          stepGoal: profile.activity.stepGoal,
+          daysHittingGoal7d: profile.activity.daysHittingGoal7d,
+          trend: profile.activity.trend,
+        },
+        recovery: {
+          avgSleepHours7d: profile.recovery.avgSleepHours7d,
+          sleepGoalMinutes: profile.recovery.sleepGoalMinutes,
+          daysGoodSleep7d: profile.recovery.daysGoodSleep7d,
+          sleepTrend: profile.recovery.sleepTrend,
+        },
+        goalAlignment: {
+          primaryGoal: profile.goalAlignment.primaryGoal,
+          alignmentScore: profile.goalAlignment.alignmentScore,
+          alignmentLabel: profile.goalAlignment.alignmentLabel,
+          gaps: profile.goalAlignment.gaps,
+          strengths: profile.goalAlignment.strengths,
+        },
+        correlations: profile.correlations.slice(0, 5),
+      });
+    } catch (error: any) {
+      console.error("Context profile error:", error);
+      res.status(500).json({ message: "Failed to get context profile" });
+    }
+  });
+
   // === DISCIPLINE SCORE (OGym Score) ===
 
   app.get("/api/discipline/score/today", requireRole(["member"]), async (req, res) => {
@@ -7428,6 +7481,8 @@ Return ONLY JSON.`
         }
         await db.update(dikaChats).set(chatUpdateData).where(eq(dikaChats.id, activeChatId));
       }
+
+      extractInsightsFromConversation(user.id, input.data.message, response.answer).catch(() => {});
       
       res.json({ ...response, chatId: activeChatId });
     } catch (error) {
@@ -7921,40 +7976,7 @@ Return ONLY JSON.`
         });
       }
 
-      try {
-        const insightPatterns: Array<{ pattern: RegExp; key: string; extract: (m: RegExpMatchArray) => string }> = [
-          { pattern: /(?:my goal|i want to|i'm trying to|aim to)\s+(.{5,60})/i, key: 'fitness_goal', extract: (m) => m[1].replace(/[.!,]+$/, '') },
-          { pattern: /(?:i weigh|my weight is|i'm|i am)\s+(\d{2,3})\s*(?:kg|lbs|pounds|kilos)/i, key: 'current_weight', extract: (m) => m[0].replace(/^(i weigh|my weight is|i'm|i am)\s+/i, '') },
-          { pattern: /(?:allergic to|allergy|can't eat|don't eat|avoid)\s+(.{3,40})/i, key: 'dietary_restriction', extract: (m) => m[1].replace(/[.!,]+$/, '') },
-          { pattern: /(?:i'm|i am)\s+(vegan|vegetarian|pescatarian|keto|paleo|gluten.?free)/i, key: 'diet_type', extract: (m) => m[1] },
-          { pattern: /(?:i train|i work out|i exercise)\s+(\d)\s*(?:times|days|x)\s*(?:a|per)\s*week/i, key: 'training_frequency', extract: (m) => `${m[1]} times/week` },
-          { pattern: /(?:my calorie goal|target|aiming for)\s+(\d{3,5})\s*(?:cal|kcal|calories)/i, key: 'calorie_target', extract: (m) => `${m[1]} calories` },
-        ];
-
-        for (const p of insightPatterns) {
-          const match = input.data.message.match(p.pattern);
-          if (match) {
-            const value = p.extract(match);
-            const existing = await db.select().from(dikaInsights)
-              .where(and(eq(dikaInsights.userId, user.id), eq(dikaInsights.insightKey, p.key)))
-              .limit(1);
-            if (existing.length > 0) {
-              await db.update(dikaInsights)
-                .set({ insightValue: value, source: 'conversation', updatedAt: new Date() })
-                .where(eq(dikaInsights.id, existing[0].id));
-            } else {
-              await db.insert(dikaInsights).values({
-                userId: user.id,
-                insightKey: p.key,
-                insightValue: value,
-                source: 'conversation',
-              });
-            }
-          }
-        }
-      } catch (insightError) {
-        console.error('Insight extraction failed (non-critical):', insightError);
-      }
+      extractInsightsFromConversation(user.id, input.data.message, response.answer).catch(() => {});
 
       res.json({
         userMessage: userMsg,

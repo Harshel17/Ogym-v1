@@ -21,7 +21,8 @@ import {
   gymEquipment,
   equipmentExerciseMappings,
   workoutLogs,
-  workoutLogExercises
+  workoutLogExercises,
+  dikaInsights
 } from "@shared/schema";
 import { eq, and, gte, lte, desc, sql, inArray, isNull, or, not, count } from "drizzle-orm";
 import { storage } from "../storage";
@@ -32,7 +33,7 @@ import { detectFoodType, hasQuantityInMessage, buildSmartFollowUp, generateFollo
 import { detectOwnerAction, processOwnerAction, OwnerActionType, detectSupportTicketRequest, processSupportTicketAction, detectOngoingSupportTicketFlow } from "./owner-actions";
 import { detectWeeklyReportRequest, generateWeeklyReport, formatWeeklyReportResponse } from "./weekly-report";
 import { findRestaurantSuggestion, getSuggestionForGoal, getGeneralDikaMessage, GoalType } from "../nutrition/restaurant-suggestions";
-import { detectMemberAction, detectPendingMemberAction, processBodyMeasurement, processExerciseSwap, processGoalAction, processMealSuggestion, getActiveGoals } from "./member-actions";
+import { detectMemberAction, detectPendingMemberAction, processBodyMeasurement, processExerciseSwap, processGoalAction, processMealSuggestion, getActiveGoals, detectSmartWorkoutAction, processSorenessCheck, processWorkoutLogNatural } from "./member-actions";
 import { fitnessGoals } from "@shared/schema";
 import { classifyAnalyticsIntent } from "./intent-classifier";
 import { executeAnalytics, type AnalyticsResult } from "./analytics-engine";
@@ -1259,7 +1260,16 @@ async function getMemberDataContext(userId: number, gymId: number | null, localD
 
   sportsModeContext.matchHistory = matchHistoryContext;
 
+  let behavioralContext: any = null;
+  try {
+    const { buildMemberContextProfile } = await import('./member-context');
+    behavioralContext = await buildMemberContextProfile(userId);
+  } catch (e) {
+    console.log('[Dika] Behavioral context failed:', e);
+  }
+
   return {
+    __behavioralContext: behavioralContext,
     workoutsThisWeek: weeklyWorkouts?.count || 0,
     workoutsThisMonth: monthlyWorkouts?.count || 0,
     lastWorkoutDate: lastWorkout?.completedDate || null,
@@ -2132,6 +2142,51 @@ SPORTS CONVERSATION STYLE:
 - If they're playing frequently (3+ per week), be mindful of overtraining and suggest active recovery
 `;
 })() : ''}
+MEMBER BEHAVIORAL CONTEXT (last 7-30 days):
+${(() => {
+  try {
+    if ((ctx as any).__behavioralContext) {
+      const bc = (ctx as any).__behavioralContext;
+      let section = bc.summaryText || 'No behavioral summary available.';
+      if (bc.correlations && bc.correlations.length > 0) {
+        section += '\n\nPATTERNS DETECTED:\n' + bc.correlations.map((c: any) => `- ${c.pattern} → ${c.suggestion}`).join('\n');
+      }
+      if (bc.insights && bc.insights.length > 0) {
+        const grouped: Record<string, string[]> = {};
+        for (const i of bc.insights) {
+          const colonIdx = i.key.indexOf(':');
+          let category = 'general';
+          let label = i.key;
+          if (colonIdx > 0) {
+            category = i.key.slice(0, colonIdx);
+            label = i.key.slice(colonIdx + 1).replace(/_/g, ' ');
+          } else {
+            label = i.key.replace(/_/g, ' ');
+          }
+          if (!grouped[category]) grouped[category] = [];
+          grouped[category].push(`${label}: ${i.value}`);
+        }
+        section += '\n\nTHINGS YOU KNOW ABOUT THIS MEMBER:';
+        const categoryLabels: Record<string, string> = {
+          preference: 'Preferences',
+          constraint: 'Constraints/Restrictions',
+          injury: 'Injuries/Limitations',
+          schedule: 'Schedule',
+          personal: 'Personal',
+          general: 'Other',
+        };
+        for (const [cat, items] of Object.entries(grouped)) {
+          section += `\n[${categoryLabels[cat] || cat}] ${items.map(item => `- ${item}`).join('\n')}`;
+        }
+        section += '\nReference these naturally in conversation. For example, if you know they are vegetarian, don\'t suggest chicken. If they have a knee injury, suggest alternatives to squats.';
+      }
+      section += '\n\nUse this behavioral context to give personalized, data-backed advice. Reference specific numbers and trends when relevant. If the member asks "am I on track?" or "how am I doing?", answer based on this data — not generic advice.';
+      return section;
+    }
+    return 'Behavioral context not available for this session.';
+  } catch { return 'Behavioral context not available.'; }
+})()}
+
 You can help this member with:
 - Workout progress and consistency analysis
 - Attendance patterns
@@ -2452,6 +2507,8 @@ export async function processWithAI(
   voiceMode?: boolean,
   detectedLanguage?: string
 ): Promise<{ answer: string; followUpChips: string[] }> {
+  let smartWorkoutContext = '';
+
   if (detectOngoingSupportTicketFlow(conversationHistory)) {
     try {
       return await processSupportTicketAction(userId, role, gymId, message, conversationHistory);
@@ -2816,6 +2873,23 @@ export async function processWithAI(
         console.error('Member action processing failed:', error);
       }
     }
+
+    const smartWorkoutAction = detectSmartWorkoutAction(message);
+    if (smartWorkoutAction) {
+      try {
+        let contextResult;
+        if (smartWorkoutAction === 'soreness_check') {
+          contextResult = await processSorenessCheck(userId, message);
+        } else {
+          contextResult = await processWorkoutLogNatural(userId, gymId, message);
+        }
+        if (contextResult?.contextAddition) {
+          smartWorkoutContext = contextResult.contextAddition;
+        }
+      } catch (error) {
+        console.error('Smart workout action failed:', error);
+      }
+    }
   }
 
   if (role === 'member' && detectFindFoodRequest(message)) {
@@ -3032,6 +3106,10 @@ export async function processWithAI(
 
   let systemPrompt = buildSystemPrompt(userContext, dataContext, isIOSNative, voiceMode, detectedLanguage);
   
+  if (smartWorkoutContext) {
+    systemPrompt += `\n\n--- SMART WORKOUT CONTEXT ---\n${smartWorkoutContext}\n--- END SMART WORKOUT CONTEXT ---`;
+  }
+
   try {
     const historyMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
     if (conversationHistory && conversationHistory.length > 0) {
@@ -3349,4 +3427,99 @@ export async function generateOwnerBriefing(gymId: number, ownerName: string, is
 export async function isAIAvailable(): Promise<boolean> {
   const hasApiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
   return !!hasApiKey;
+}
+
+export async function extractInsightsFromConversation(
+  userId: number,
+  userMessage: string,
+  assistantResponse: string
+): Promise<void> {
+  try {
+    if (userMessage.length < 10 && assistantResponse.length < 20) return;
+
+    const trivialPatterns = /^(hi|hello|hey|thanks|ok|yes|no|sure|bye|good|nice|cool|great|lol|haha)\s*[.!?]*$/i;
+    if (trivialPatterns.test(userMessage.trim())) return;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      temperature: 0,
+      max_tokens: 500,
+      messages: [
+        {
+          role: 'system',
+          content: `You are an insight extractor for a fitness AI assistant called Dika. Your job is to identify facts worth remembering about the user from their conversation.
+
+Extract ONLY concrete, specific facts that would help personalize future conversations. Categories:
+- preference: Food likes/dislikes, exercise preferences, training style preferences, favorite meals, preferred workout times
+- constraint: Dietary restrictions, time limitations, equipment access issues, budget constraints
+- injury: Current or past injuries, pain areas, physical limitations, medical conditions affecting fitness
+- schedule: Work schedule, available training times, busy days, travel patterns
+- personal: Name details, occupation, family context, motivation triggers, personality traits relevant to coaching
+
+Rules:
+- Only extract facts explicitly stated or strongly implied by the user
+- Do NOT extract facts from the assistant's suggestions or questions
+- Do NOT extract temporary states (e.g., "feeling tired today")
+- DO extract persistent facts (e.g., "I always feel tired on Mondays" = schedule insight)
+- Return empty array if no meaningful insights found
+- Keep values concise (under 60 chars)
+
+Return JSON array: [{"category": "...", "key": "...", "value": "..."}]
+Examples:
+- User says "I'm vegetarian": [{"category": "constraint", "key": "diet_type", "value": "vegetarian"}]
+- User says "my knee hurts when I squat": [{"category": "injury", "key": "knee_issue", "value": "pain when squatting"}]
+- User says "I work out after office at 7pm": [{"category": "schedule", "key": "workout_time", "value": "after office around 7pm"}]
+- User says "I love chicken breast": [{"category": "preference", "key": "favorite_protein", "value": "chicken breast"}]
+- User says "how many calories in rice?": [] (no personal fact)`,
+        },
+        {
+          role: 'user',
+          content: `User message: "${userMessage}"\nAssistant response: "${assistantResponse.slice(0, 300)}"`,
+        },
+      ],
+    });
+
+    const content = response.choices[0]?.message?.content?.trim();
+    if (!content) return;
+
+    let insights: Array<{ category: string; key: string; value: string }>;
+    try {
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) return;
+      insights = JSON.parse(jsonMatch[0]);
+    } catch {
+      return;
+    }
+
+    if (!Array.isArray(insights) || insights.length === 0) return;
+
+    const validCategories = ['preference', 'constraint', 'injury', 'schedule', 'personal'];
+
+    for (const insight of insights.slice(0, 5)) {
+      if (!insight.category || !insight.key || !insight.value) continue;
+      if (!validCategories.includes(insight.category)) continue;
+
+      const insightKey = `${insight.category}:${insight.key}`;
+      const insightValue = insight.value.slice(0, 200);
+
+      const existing = await db.select().from(dikaInsights)
+        .where(and(eq(dikaInsights.userId, userId), eq(dikaInsights.insightKey, insightKey)))
+        .limit(1);
+
+      if (existing.length > 0) {
+        await db.update(dikaInsights)
+          .set({ insightValue, source: 'ai_extraction', updatedAt: new Date() })
+          .where(eq(dikaInsights.id, existing[0].id));
+      } else {
+        await db.insert(dikaInsights).values({
+          userId,
+          insightKey,
+          insightValue,
+          source: 'ai_extraction',
+        });
+      }
+    }
+  } catch (error) {
+    console.error('AI insight extraction failed (non-critical):', error);
+  }
 }

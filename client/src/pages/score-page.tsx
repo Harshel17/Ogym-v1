@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Utensils, Lock, Settings, Check, X, ChevronDown, ChevronUp, Flame, Footprints, Moon, Dumbbell, Sparkles, Share2, Trophy, Crown, Medal, Zap, Info } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Target, Utensils, Lock, Settings, Check, X, ChevronDown, ChevronUp, Flame, Footprints, Moon, Dumbbell, Sparkles, Share2, Trophy, Crown, Medal, Zap, Info, Brain, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState, useEffect, useRef } from "react";
 
@@ -569,6 +569,108 @@ function LeagueSection({ userId }: { userId?: number }) {
   );
 }
 
+const ALIGNMENT_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  on_track: { label: "On Track", color: "#22c55e", bg: "rgba(34,197,94,0.10)" },
+  partially_aligned: { label: "Partially Aligned", color: "#eab308", bg: "rgba(234,179,8,0.10)" },
+  off_track: { label: "Off Track", color: "#ef4444", bg: "rgba(239,68,68,0.10)" },
+  no_goal: { label: "No Goal Set", color: "#6b7280", bg: "rgba(107,114,128,0.10)" },
+};
+
+function WeeklyInsights({ profile }: { profile: any }) {
+  if (!profile) return null;
+
+  const alignment = ALIGNMENT_CONFIG[profile.goalAlignment?.alignmentLabel] || ALIGNMENT_CONFIG.no_goal;
+  const correlations = profile.correlations || [];
+  const hasGoal = profile.goalAlignment?.primaryGoal && profile.goalAlignment?.alignmentLabel !== 'no_goal';
+
+  return (
+    <div
+      className="rounded-2xl border border-white/[0.06] overflow-hidden mb-4"
+      style={{ background: "linear-gradient(135deg, #14142a 0%, #1a1a30 100%)" }}
+      data-testid="weekly-insights-card"
+    >
+      <div className="p-4">
+        <div className="flex items-center gap-2 mb-3.5">
+          <Brain className="w-4 h-4 text-purple-400" />
+          <h3 className="text-[13px] font-bold text-white">Weekly Insights</h3>
+          {profile.overallAssessment && (
+            <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize"
+              style={{
+                color: profile.overallAssessment === 'improving' ? '#22c55e' :
+                       profile.overallAssessment === 'declining' ? '#ef4444' :
+                       profile.overallAssessment === 'consistent' ? '#3b82f6' : '#eab308',
+                backgroundColor: profile.overallAssessment === 'improving' ? 'rgba(34,197,94,0.12)' :
+                       profile.overallAssessment === 'declining' ? 'rgba(239,68,68,0.12)' :
+                       profile.overallAssessment === 'consistent' ? 'rgba(59,130,246,0.12)' : 'rgba(234,179,8,0.12)',
+              }}
+              data-testid="text-overall-assessment"
+            >
+              {profile.overallAssessment === 'new_user' ? 'Getting Started' : profile.overallAssessment}
+            </span>
+          )}
+        </div>
+
+        {profile.summaryText && (
+          <p className="text-[12px] text-white/50 leading-relaxed mb-3" data-testid="text-summary">
+            {profile.summaryText}
+          </p>
+        )}
+
+        {hasGoal && (
+          <div
+            className="flex items-center gap-2.5 p-2.5 rounded-xl border mb-3"
+            style={{ backgroundColor: alignment.bg, borderColor: `${alignment.color}20` }}
+            data-testid="goal-alignment-badge"
+          >
+            <Target className="w-4 h-4 shrink-0" style={{ color: alignment.color }} />
+            <div className="flex-1 min-w-0">
+              <span className="text-[11px] text-white/40">Goal: </span>
+              <span className="text-[11px] text-white/70 capitalize">
+                {profile.goalAlignment.primaryGoal?.replace(/_/g, ' ')}
+              </span>
+            </div>
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ color: alignment.color }}>
+              {alignment.label}
+            </span>
+          </div>
+        )}
+
+        {correlations.length > 0 && (
+          <div className="space-y-1.5">
+            <span className="text-[10px] text-white/25 uppercase tracking-wider font-semibold">Patterns Detected</span>
+            {correlations.slice(0, 3).map((c: any, i: number) => (
+              <div
+                key={i}
+                className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]"
+                data-testid={`correlation-${i}`}
+              >
+                <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5 ${
+                  c.confidence === 'high' ? 'bg-purple-500/15' : 'bg-white/[0.06]'
+                }`}>
+                  {c.confidence === 'high' ? (
+                    <AlertTriangle className="w-3 h-3 text-purple-400" />
+                  ) : (
+                    <Info className="w-3 h-3 text-white/30" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-white/55 leading-relaxed">{c.suggestion}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!profile.summaryText && correlations.length === 0 && (
+          <p className="text-[11px] text-white/30 text-center py-2">
+            Keep tracking for a few more days to see behavioral insights here.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ScorePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -585,6 +687,11 @@ export default function ScorePage() {
 
   const { data: authUser } = useQuery<any>({
     queryKey: ["/api/auth/me"],
+  });
+
+  const { data: contextProfile } = useQuery<any>({
+    queryKey: ["/api/member/context-profile"],
+    refetchInterval: 300000,
   });
 
   const settingsMutation = useMutation({
@@ -853,6 +960,8 @@ export default function ScorePage() {
                 </div>
               </div>
             )}
+
+            <WeeklyInsights profile={contextProfile} />
 
             {trendData.length >= 3 && (
               <div className="rounded-2xl border border-white/[0.06] overflow-hidden mb-4" style={{ background: "linear-gradient(135deg, #14142a 0%, #161630 100%)" }} data-testid="trend-card">

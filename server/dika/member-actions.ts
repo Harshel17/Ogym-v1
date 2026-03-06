@@ -720,6 +720,90 @@ export async function processMealSuggestion(
   }
 }
 
+const WORKOUT_LOG_PATTERNS = [
+  /(?:i\s+did|i\s+trained|i\s+worked\s+out|i\s+went\s+to\s+the\s+gym|my\s+workout\s+was|just\s+finished)/i,
+  /(?:did|completed|finished)\s+(?:a\s+)?(?:\d+\s+(?:min|minutes?)\s+)?(?:cardio|running|cycling|swimming|yoga|hiit|walking)/i,
+  /(?:i\s+did|completed|finished)\s+(?:bench|squat|deadlift|rows?|press|curl|pull[- ]?ups?|push[- ]?ups?)/i,
+  /(?:replace|swap|use)\s+(?:those|these|that|them|today'?s?\s+workout)\s+(?:with|for)\s+(?:what\s+i\s+did|my\s+workout)/i,
+  /(?:log|count|mark)\s+(?:this|that|these|those|it)\s+as\s+(?:today'?s?|my)\s+workout/i,
+];
+
+const SORENESS_CHECK_PATTERNS = [
+  /(?:i'?m|i\s+am|feeling)\s+(?:really\s+)?(?:sore|tired|exhausted|fatigued|beat|wiped|drained)/i,
+  /(?:should\s+i|can\s+i|is\s+it\s+ok\s+to)\s+(?:work\s+out|train|exercise|go\s+to\s+the\s+gym)\s*\??/i,
+  /(?:my\s+(?:muscles?|body|legs?|arms?|back|shoulders?)\s+(?:is|are)\s+(?:sore|hurting|aching|killing\s+me))/i,
+  /(?:rest\s+day|take\s+a\s+break|skip\s+today|too\s+tired)/i,
+];
+
+export function detectSmartWorkoutAction(message: string): 'log_workout_natural' | 'soreness_check' | null {
+  const lower = message.toLowerCase().trim();
+  if (SORENESS_CHECK_PATTERNS.some(p => p.test(lower))) return 'soreness_check';
+  if (WORKOUT_LOG_PATTERNS.some(p => p.test(lower))) return 'log_workout_natural';
+  return null;
+}
+
+export async function processSorenessCheck(
+  userId: number,
+  message: string
+): Promise<{ contextAddition: string }> {
+  try {
+    const { buildMemberContextProfile } = await import('./member-context');
+    const profile = await buildMemberContextProfile(userId);
+
+    const lines: string[] = [];
+    lines.push('RECOVERY ASSESSMENT FOR THIS MEMBER:');
+    lines.push(`- Workouts in last 7 days: ${profile.workout.daysLast7}${profile.workout.weeklyTarget ? `/${profile.workout.weeklyTarget} target` : ''}`);
+    lines.push(`- Current streak: ${profile.workout.streak} days`);
+    if (profile.recovery.avgSleepHours7d > 0) {
+      lines.push(`- Avg sleep: ${profile.recovery.avgSleepHours7d}h`);
+    }
+    if (profile.recovery.avgRestingHR7d) {
+      lines.push(`- Avg resting HR: ${profile.recovery.avgRestingHR7d} bpm`);
+    }
+    if (profile.recovery.concerns.length > 0) {
+      lines.push(`- Recovery concerns: ${profile.recovery.concerns.join(', ')}`);
+    }
+    lines.push(`- Overall assessment: ${profile.overallAssessment}`);
+    lines.push('');
+    lines.push('Based on this data, give a personalized recommendation about whether they should train today or rest. Be specific about WHY based on their actual data. If they should rest, be supportive. If they can train, suggest lighter alternatives if they seem tired.');
+
+    return { contextAddition: lines.join('\n') };
+  } catch (e) {
+    return { contextAddition: 'Recovery data unavailable. Give general advice about listening to their body.' };
+  }
+}
+
+export async function processWorkoutLogNatural(
+  userId: number,
+  gymId: number | null,
+  message: string
+): Promise<{ contextAddition: string }> {
+  try {
+    const { buildMemberContextProfile } = await import('./member-context');
+    const profile = await buildMemberContextProfile(userId);
+
+    const lines: string[] = [];
+    lines.push('SMART WORKOUT CONTEXT:');
+    lines.push(`The user described a workout they did. Based on their behavioral context:`);
+    lines.push(`- Weekly target: ${profile.workout.weeklyTarget || 'not set'} days`);
+    lines.push(`- Done this week: ${profile.workout.daysLast7}`);
+    lines.push(`- Muscle groups hit recently: ${Object.entries(profile.workout.muscleGroupsHit).map(([k, v]) => `${k}(${v}x)`).join(', ') || 'none tracked'}`);
+    lines.push(`- Muscle groups missed: ${profile.workout.muscleGroupsMissed.join(', ') || 'none'}`);
+    lines.push('');
+    lines.push('Instructions:');
+    lines.push('1. Acknowledge what they did and be encouraging');
+    lines.push('2. If they mentioned specific exercises, note how it complements their recent training');
+    lines.push('3. If they missed muscle groups that the mentioned workout covers, celebrate that');
+    lines.push('4. Mention their weekly progress naturally (e.g., "that makes 3 for the week")');
+    lines.push('5. If they want to log it as today\'s workout, confirm and include the action marker');
+    lines.push('6. Suggest what to do next based on missed muscle groups');
+
+    return { contextAddition: lines.join('\n') };
+  } catch (e) {
+    return { contextAddition: 'Behavioral context unavailable. Acknowledge their workout positively.' };
+  }
+}
+
 export async function getActiveGoals(userId: number): Promise<Array<{ title: string; category: string; targetValue: number | null; currentValue: number | null; targetUnit: string | null }>> {
   const goals = await db.select({
     title: fitnessGoals.title,
