@@ -6571,28 +6571,10 @@ Return ONLY JSON.`
 
     try {
       const input = schema.parse(req.body);
-      if (input.steps && input.steps > 0) {
+      if (input.steps !== undefined && input.steps >= 0) {
         const existing = await storage.getHealthData(req.user!.id, input.date);
-        if (existing && existing.steps && existing.steps > 0) {
-          input.steps = Math.min(input.steps, existing.steps);
-          if (input.steps < existing.steps) {
-            console.log(`[HealthSync] Using lower steps for user ${req.user!.id} date ${input.date}: ${input.steps} (was ${existing.steps})`);
-          }
-        } else {
-          const recentData = await storage.getHealthDataByRange(req.user!.id, 
-            new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
-            new Date(Date.now() - 1 * 86400000).toISOString().split('T')[0]
-          );
-          const validDays = recentData.filter(d => d.steps && d.steps > 0);
-          if (validDays.length >= 3) {
-            const sortedSteps = validDays.map(d => d.steps!).sort((a, b) => a - b);
-            const median = sortedSteps[Math.floor(sortedSteps.length / 2)];
-            const cap = Math.max(median * 3, 15000);
-            if (input.steps > cap) {
-              console.log(`[HealthSync] First sync too high for user ${req.user!.id} date ${input.date}: ${input.steps} > cap ${cap} (median ${median}). Halving.`);
-              input.steps = Math.round(input.steps / 2);
-            }
-          }
+        if (existing && existing.steps !== null && existing.steps !== input.steps) {
+          console.log(`[HealthSync] Steps update for user ${req.user!.id} date ${input.date}: ${existing.steps} -> ${input.steps}`);
         }
       }
       const data = await storage.upsertHealthData({
