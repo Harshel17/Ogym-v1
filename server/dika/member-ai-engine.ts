@@ -618,7 +618,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         message: `${workoutsThisWeek}/${goalsData.weeklyWorkoutDays} workouts this week. ${needed} more to hit your goal — you've got ${daysLeft} days left!`,
         type: "workout",
         sentiment: "info",
-        link: "/workouts",
+        link: "/my-workout",
       });
     }
   }
@@ -656,7 +656,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
       message: `${consecutiveDays}-day workout streak! Keep the momentum going!`,
       type: "streak",
       sentiment: "positive",
-      link: "/workouts",
+      link: "/my-workout",
     });
   }
 
@@ -692,7 +692,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
       message: "No cardio this week! Even 15-20 minutes of running or cycling can boost heart health and recovery.",
       type: "workout",
       sentiment: "info",
-      link: "/workouts",
+      link: "/my-workout",
     });
   } else if (weekCardioMin > 0 && weekCardioMin >= 90) {
     nudges.push({
@@ -700,7 +700,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
       message: `${weekCardioMin} minutes of cardio this week — solid cardiovascular work!`,
       type: "streak",
       sentiment: "positive",
-      link: "/workouts",
+      link: "/my-workout",
     });
   }
 
@@ -758,7 +758,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         message: `You haven't trained ${missed} in the past 2 weeks. Consider adding these to avoid imbalances.`,
         type: "workout",
         sentiment: "warning",
-        link: "/workouts",
+        link: "/my-workout",
       });
     }
 
@@ -778,7 +778,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         message: `Impressive ${workout.streak}-day streak! Your dedication is building real momentum.`,
         type: "streak",
         sentiment: "positive",
-        link: "/workouts",
+        link: "/my-workout",
       });
     }
 
@@ -860,7 +860,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         message: `Your workout frequency dropped this week (${workout.daysLast7} sessions vs ${workout.daysLast14 - workout.daysLast7} last week). Getting back on schedule today can help reverse the trend.`,
         type: "workout",
         sentiment: "warning",
-        link: "/workouts",
+        link: "/my-workout",
       });
     }
 
