@@ -547,12 +547,12 @@ CRITICAL RULES:
 }
 
 export async function generateProactiveNudges(userId: number, localDate?: string): Promise<{
-  nudges: { id: string; message: string; type: "workout" | "nutrition" | "streak" | "goal" | "health"; action?: string; link?: string }[];
+  nudges: { id: string; message: string; type: "workout" | "nutrition" | "streak" | "goal" | "health"; sentiment?: "positive" | "warning" | "info"; action?: string; link?: string }[];
   generatedAt: string;
 }> {
   const { buildMemberContextProfile } = await import('./member-context');
   const today = localDate || getDateStr();
-  const nudges: { id: string; message: string; type: "workout" | "nutrition" | "streak" | "goal" | "health"; action?: string; link?: string }[] = [];
+  const nudges: { id: string; message: string; type: "workout" | "nutrition" | "streak" | "goal" | "health"; sentiment?: "positive" | "warning" | "info"; action?: string; link?: string }[] = [];
 
   let contextProfile: Awaited<ReturnType<typeof buildMemberContextProfile>> | null = null;
   try {
@@ -570,6 +570,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "no_food_today",
         message: "You haven't logged any meals today. Tracking helps you stay on target!",
         type: "nutrition",
+        sentiment: "info",
         action: "Log a meal",
         link: "/nutrition",
       });
@@ -585,6 +586,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
       id: "low_water",
       message: `Only ${todayWater[0]?.total || 0}oz water today. Your body needs hydration to perform!`,
       type: "health",
+      sentiment: "warning",
       action: "Log water",
       link: "/nutrition",
     });
@@ -615,6 +617,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "workout_goal_gap",
         message: `${workoutsThisWeek}/${goalsData.weeklyWorkoutDays} workouts this week. ${needed} more to hit your goal — you've got ${daysLeft} days left!`,
         type: "workout",
+        sentiment: "info",
         link: "/workouts",
       });
     }
@@ -652,6 +655,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
       id: "workout_streak",
       message: `${consecutiveDays}-day workout streak! Keep the momentum going!`,
       type: "streak",
+      sentiment: "positive",
       link: "/workouts",
     });
   }
@@ -661,6 +665,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
       id: "set_goals",
       message: "Set your fitness goals to get personalized insights and track your progress.",
       type: "goal",
+      sentiment: "info",
       action: "Set goals",
       link: "/goals",
     });
@@ -686,6 +691,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
       id: "no_cardio_week",
       message: "No cardio this week! Even 15-20 minutes of running or cycling can boost heart health and recovery.",
       type: "workout",
+      sentiment: "info",
       link: "/workouts",
     });
   } else if (weekCardioMin > 0 && weekCardioMin >= 90) {
@@ -693,6 +699,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
       id: "cardio_strong",
       message: `${weekCardioMin} minutes of cardio this week — solid cardiovascular work!`,
       type: "streak",
+      sentiment: "positive",
       link: "/workouts",
     });
   }
@@ -705,6 +712,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "low_protein",
         message: `Only ${todayProtein}g protein so far today (target: ${nutritionData.proteinTarget}g). Add a protein-rich meal!`,
         type: "nutrition",
+        sentiment: "warning",
         link: "/nutrition",
       });
     }
@@ -718,6 +726,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "multi_day_protein_gap",
         message: `You've only hit your protein target ${nutrition.daysHittingProtein7d} out of ${nutrition.daysLogged7d} logged days this week. Consistent protein intake is key for recovery and muscle growth.`,
         type: "nutrition",
+        sentiment: "warning",
         link: "/nutrition",
       });
     }
@@ -727,6 +736,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "sleep_decline_warning",
         message: `Your sleep has been declining this week (avg ${recovery.avgSleepHours7d}h). Poor sleep affects recovery, performance, and metabolism.`,
         type: "health",
+        sentiment: "warning",
         link: "/score",
       });
     }
@@ -736,6 +746,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "chronic_low_sleep",
         message: `Averaging under 6 hours of sleep this week. This can significantly impact your workout performance and recovery.`,
         type: "health",
+        sentiment: "warning",
         link: "/score",
       });
     }
@@ -746,6 +757,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "skipped_muscle_groups",
         message: `You haven't trained ${missed} in the past 2 weeks. Consider adding these to avoid imbalances.`,
         type: "workout",
+        sentiment: "warning",
         link: "/workouts",
       });
     }
@@ -755,6 +767,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "consistency_celebration",
         message: `Great consistency! You're at ${workout.adherenceRate7d}% workout adherence this week with ${workout.daysLast7} sessions. Keep this rhythm going!`,
         type: "streak",
+        sentiment: "positive",
         link: "/score",
       });
     }
@@ -764,6 +777,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "long_streak_celebration",
         message: `Impressive ${workout.streak}-day streak! Your dedication is building real momentum.`,
         type: "streak",
+        sentiment: "positive",
         link: "/workouts",
       });
     }
@@ -773,6 +787,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "activity_decline_alert",
         message: `Your daily steps dropped from ${activity.avgSteps14d} to ${activity.avgSteps7d} avg this week. Try to keep moving — even short walks add up.`,
         type: "health",
+        sentiment: "warning",
         link: "/score",
       });
     }
@@ -782,6 +797,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "steps_goal_celebration",
         message: `Hit your step goal ${activity.daysHittingGoal7d}/7 days this week with ${activity.avgSteps7d} avg steps. Your daily activity is on point!`,
         type: "streak",
+        sentiment: "positive",
         link: "/score",
       });
     }
@@ -791,6 +807,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "nutrition_declining",
         message: `Your nutrition tracking has been declining compared to last week. Consistent logging helps you stay aware of your intake.`,
         type: "nutrition",
+        sentiment: "warning",
         link: "/nutrition",
       });
     }
@@ -800,6 +817,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "sparse_nutrition_logging",
         message: `Only ${nutrition.daysLogged7d} days of food logged this week. Logging at least 5 days gives you meaningful nutrition insights.`,
         type: "nutrition",
+        sentiment: "info",
         link: "/nutrition",
       });
     }
@@ -811,6 +829,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "goal_off_track",
         message: `Your ${goalLabel} goal needs attention: ${topGap}. Small adjustments now can get you back on track.`,
         type: "goal",
+        sentiment: "warning",
         link: "/goals",
       });
     }
@@ -820,6 +839,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "fat_loss_calorie_alert",
         message: `Averaging ${nutrition.avgCalories7d} cal/day vs your ${nutrition.calorieTarget} target. For fat loss, try to stay within 10-15% of your calorie goal.`,
         type: "goal",
+        sentiment: "warning",
         link: "/nutrition",
       });
     }
@@ -829,6 +849,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "muscle_protein_alert",
         message: `Averaging ${nutrition.avgProtein7d}g protein/day vs your ${nutrition.proteinTarget}g target. Protein is essential for muscle building — try adding a protein source to each meal.`,
         type: "goal",
+        sentiment: "warning",
         link: "/nutrition",
       });
     }
@@ -838,6 +859,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "workout_trend_declining",
         message: `Your workout frequency dropped this week (${workout.daysLast7} sessions vs ${workout.daysLast14 - workout.daysLast7} last week). Getting back on schedule today can help reverse the trend.`,
         type: "workout",
+        sentiment: "warning",
         link: "/workouts",
       });
     }
@@ -847,6 +869,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
         id: "overall_improving",
         message: `Your overall trends are improving across workouts, nutrition, and activity. You're building great habits!`,
         type: "streak",
+        sentiment: "positive",
         link: "/score",
       });
     }
@@ -857,6 +880,7 @@ export async function generateProactiveNudges(userId: number, localDate?: string
           id: `correlation_${corr.pattern.slice(0, 30).replace(/\s+/g, '_').toLowerCase()}`,
           message: `${corr.suggestion}`,
           type: "health",
+          sentiment: "info",
           link: "/score",
         });
       }

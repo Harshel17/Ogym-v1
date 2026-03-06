@@ -7,6 +7,7 @@ import {
   Brain, TrendingUp, TrendingDown, Minus, Dumbbell, Utensils, Target,
   Droplets, Flame, ArrowRight, Loader2, RefreshCw, Lightbulb, Sparkles,
   Activity, Zap, ChevronRight, X, MessageCircle, ChevronDown, ChevronUp, BarChart3, Heart,
+  Moon, Footprints, Trophy, ChevronLeft,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link, useLocation } from "wouter";
@@ -17,31 +18,146 @@ function TrendIcon({ trend }: { trend: "up" | "down" | "stable" }) {
   return <Minus className="w-3.5 h-3.5 text-muted-foreground" />;
 }
 
-function NudgeIcon({ type }: { type: string }) {
-  switch (type) {
-    case "workout": return <Dumbbell className="w-3.5 h-3.5" />;
-    case "nutrition": return <Utensils className="w-3.5 h-3.5" />;
-    case "streak": return <Flame className="w-3.5 h-3.5" />;
-    case "goal": return <Target className="w-3.5 h-3.5" />;
-    case "health": return <Droplets className="w-3.5 h-3.5" />;
-    default: return <Lightbulb className="w-3.5 h-3.5" />;
-  }
+const NUDGE_STYLE: Record<string, { icon: typeof Dumbbell; color: string; bg: string; border: string; glow: string }> = {
+  workout: { icon: Dumbbell, color: "text-violet-400", bg: "bg-violet-500/10", border: "border-violet-500/15", glow: "shadow-violet-500/5" },
+  nutrition: { icon: Utensils, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/15", glow: "shadow-emerald-500/5" },
+  streak: { icon: Flame, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/15", glow: "shadow-amber-500/5" },
+  goal: { icon: Target, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/15", glow: "shadow-blue-500/5" },
+  health: { icon: Heart, color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/15", glow: "shadow-rose-500/5" },
+};
+
+const SENTIMENT_STYLE: Record<string, { accent: string; iconBg: string; label: string }> = {
+  positive: { accent: "border-green-500/20", iconBg: "bg-green-500/15", label: "Win" },
+  warning: { accent: "border-amber-500/20", iconBg: "bg-amber-500/15", label: "Heads up" },
+  info: { accent: "border-white/[0.06]", iconBg: "bg-white/[0.06]", label: "" },
+};
+
+type Nudge = {
+  id: string;
+  message: string;
+  type: "workout" | "nutrition" | "streak" | "goal" | "health";
+  sentiment?: "positive" | "warning" | "info";
+  action?: string;
+  link?: string;
+};
+
+function FeaturedNudge({ nudge, onDismiss }: { nudge: Nudge; onDismiss: () => void }) {
+  const style = NUDGE_STYLE[nudge.type] || NUDGE_STYLE.health;
+  const sentiment = nudge.sentiment || "info";
+  const isPositive = sentiment === "positive";
+  const isWarning = sentiment === "warning";
+  const Icon = style.icon;
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-2xl border p-4 ${
+        isPositive ? "border-green-500/20 bg-gradient-to-br from-green-500/[0.06] to-emerald-600/[0.02]" :
+        isWarning ? "border-amber-500/20 bg-gradient-to-br from-amber-500/[0.06] to-orange-600/[0.02]" :
+        "border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-white/[0.01]"
+      }`}
+      data-testid={`nudge-featured-${nudge.id}`}
+    >
+      <div className={`absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-30 ${
+        isPositive ? "bg-green-500" : isWarning ? "bg-amber-500" : "bg-white/10"
+      }`} />
+
+      <div className="relative">
+        <div className="flex items-start gap-3">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+            isPositive ? "bg-green-500/15" : isWarning ? "bg-amber-500/15" : style.bg
+          }`}>
+            {isPositive ? (
+              <Trophy className="w-4.5 h-4.5 text-green-400" />
+            ) : (
+              <Icon className={`w-4.5 h-4.5 ${isWarning ? "text-amber-400" : style.color}`} />
+            )}
+          </div>
+          <div className="flex-1 min-w-0 pt-0.5">
+            <p className={`text-[13px] leading-relaxed font-medium ${
+              isPositive ? "text-green-100/90" : isWarning ? "text-amber-100/90" : "text-white/70"
+            }`}>
+              {nudge.message}
+            </p>
+          </div>
+          <button
+            className="shrink-0 w-6 h-6 rounded-lg flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.05] transition-colors"
+            onClick={onDismiss}
+            data-testid={`nudge-dismiss-${nudge.id}`}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {nudge.action && nudge.link && (
+          <Link href={nudge.link}>
+            <div className={`inline-flex items-center gap-1.5 mt-3 ml-12 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
+              isPositive ? "bg-green-500/15 text-green-400 hover:bg-green-500/25" :
+              isWarning ? "bg-amber-500/15 text-amber-400 hover:bg-amber-500/25" :
+              "bg-white/[0.06] text-white/60 hover:bg-white/[0.10]"
+            }`} data-testid={`nudge-action-${nudge.id}`}>
+              {nudge.action}
+              <ChevronRight className="w-3 h-3" />
+            </div>
+          </Link>
+        )}
+      </div>
+    </div>
+  );
 }
 
-function nudgeAccent(type: string): string {
-  switch (type) {
-    case "workout": return "text-blue-500 dark:text-blue-400";
-    case "nutrition": return "text-green-500 dark:text-green-400";
-    case "streak": return "text-orange-500 dark:text-orange-400";
-    case "goal": return "text-purple-500 dark:text-purple-400";
-    case "health": return "text-cyan-500 dark:text-cyan-400";
-    default: return "text-primary";
-  }
+function CompactNudge({ nudge, onDismiss, onTap }: { nudge: Nudge; onDismiss: () => void; onTap: () => void }) {
+  const style = NUDGE_STYLE[nudge.type] || NUDGE_STYLE.health;
+  const sentiment = nudge.sentiment || "info";
+  const isPositive = sentiment === "positive";
+  const isWarning = sentiment === "warning";
+  const Icon = style.icon;
+
+  return (
+    <div
+      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-colors ${
+        isPositive ? "border-green-500/10 bg-green-500/[0.04] hover:bg-green-500/[0.07]" :
+        isWarning ? "border-amber-500/10 bg-amber-500/[0.04] hover:bg-amber-500/[0.07]" :
+        "border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.04]"
+      }`}
+      data-testid={`nudge-${nudge.id}`}
+    >
+      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+        isPositive ? "bg-green-500/12" : isWarning ? "bg-amber-500/12" : style.bg
+      }`}>
+        {isPositive ? (
+          <Trophy className="w-3.5 h-3.5 text-green-400" />
+        ) : (
+          <Icon className={`w-3.5 h-3.5 ${isWarning ? "text-amber-400" : style.color}`} />
+        )}
+      </div>
+      <p
+        className="flex-1 text-[11px] text-white/55 leading-snug min-w-0 cursor-pointer"
+        onClick={onTap}
+      >
+        {nudge.message}
+      </p>
+      {nudge.link && (
+        <Link href={nudge.link}>
+          <div className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-white/20 hover:text-white/50 hover:bg-white/[0.05] transition-colors" data-testid={`nudge-go-${nudge.id}`}>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </div>
+        </Link>
+      )}
+      <button
+        className="shrink-0 w-5 h-5 rounded-md flex items-center justify-center text-white/15 hover:text-white/40 transition-colors"
+        onClick={onDismiss}
+        data-testid={`nudge-dismiss-${nudge.id}`}
+      >
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  );
 }
 
 export function ProactiveNudges() {
+  const [, setLocation] = useLocation();
   const { data, isLoading } = useQuery<{
-    nudges: { id: string; message: string; type: string; action?: string; link?: string }[];
+    nudges: Nudge[];
     generatedAt: string;
   }>({
     queryKey: ["/api/member/ai/nudges"],
@@ -50,40 +166,68 @@ export function ProactiveNudges() {
   });
 
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [expanded, setExpanded] = useState(false);
 
   if (isLoading) return null;
 
-  const nudges = data?.nudges?.filter(n => !dismissed.includes(n.id)) || [];
-  if (nudges.length === 0) return null;
+  const allNudges = data?.nudges?.filter(n => !dismissed.includes(n.id)) || [];
+  if (allNudges.length === 0) return null;
+
+  const positiveNudges = allNudges.filter(n => n.sentiment === "positive");
+  const warningNudges = allNudges.filter(n => n.sentiment === "warning");
+  const infoNudges = allNudges.filter(n => n.sentiment === "info" || !n.sentiment);
+
+  const sorted = [...positiveNudges, ...warningNudges, ...infoNudges];
+  const featured = sorted[0];
+  const rest = sorted.slice(1);
+
+  const MAX_COLLAPSED = 2;
+  const visibleRest = expanded ? rest : rest.slice(0, MAX_COLLAPSED);
+  const hasMore = rest.length > MAX_COLLAPSED;
+
+  const handleDismiss = (id: string) => setDismissed(prev => [...prev, id]);
+
+  const handleTapNudge = (nudge: Nudge) => {
+    if (nudge.link) {
+      setLocation(nudge.link);
+    }
+  };
 
   return (
-    <div className="space-y-1.5" data-testid="section-ai-nudges">
-      {nudges.map((nudge) => (
-        <div
-          key={nudge.id}
-          className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-muted/40 group"
-          data-testid={`nudge-${nudge.id}`}
-        >
-          <div className={`flex-shrink-0 ${nudgeAccent(nudge.type)}`}>
-            <NudgeIcon type={nudge.type} />
-          </div>
-          <p className="flex-1 text-xs text-foreground/80 leading-snug min-w-0">{nudge.message}</p>
-          {nudge.action && nudge.link && (
-            <Link href={nudge.link}>
-              <Button variant="ghost" size="sm" className="flex-shrink-0 text-[11px] px-2 h-7 text-primary" data-testid={`nudge-action-${nudge.id}`}>
-                {nudge.action} <ChevronRight className="w-3 h-3 ml-0.5" />
-              </Button>
-            </Link>
-          )}
-          <button
-            className="flex-shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-            onClick={() => setDismissed(prev => [...prev, nudge.id])}
-            data-testid={`nudge-dismiss-${nudge.id}`}
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+    <div className="space-y-2" data-testid="section-ai-nudges">
+      {featured && (
+        <FeaturedNudge
+          nudge={featured}
+          onDismiss={() => handleDismiss(featured.id)}
+        />
+      )}
+
+      {visibleRest.length > 0 && (
+        <div className="space-y-1.5">
+          {visibleRest.map(nudge => (
+            <CompactNudge
+              key={nudge.id}
+              nudge={nudge}
+              onDismiss={() => handleDismiss(nudge.id)}
+              onTap={() => handleTapNudge(nudge)}
+            />
+          ))}
         </div>
-      ))}
+      )}
+
+      {hasMore && (
+        <button
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-white/25 hover:text-white/40 transition-colors"
+          onClick={() => setExpanded(!expanded)}
+          data-testid="button-toggle-nudges"
+        >
+          {expanded ? (
+            <>Show less <ChevronUp className="w-3 h-3" /></>
+          ) : (
+            <>{rest.length - MAX_COLLAPSED} more insight{rest.length - MAX_COLLAPSED > 1 ? 's' : ''} <ChevronDown className="w-3 h-3" /></>
+          )}
+        </button>
+      )}
     </div>
   );
 }
@@ -561,43 +705,28 @@ export function AiStatsInterpreter() {
     neutral: "text-blue-500",
   };
 
-  const findingBgColors = {
-    positive: "bg-green-500/10",
-    warning: "bg-orange-500/10",
-    neutral: "bg-blue-500/10",
-  };
-
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="overflow-visible" data-testid="card-ai-stats-interpreter">
+      <Card className="overflow-visible" data-testid="card-stats-interpreter">
         <div className="px-4 pt-4 pb-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 shadow-sm shadow-violet-500/20">
-                <Brain className="w-4 h-4 text-white" />
+              <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 shadow-sm shadow-cyan-500/20">
+                <BarChart3 className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Dika Stats Interpreter</h3>
-                <p className="text-[10px] text-muted-foreground">AI reads your charts so you don't have to</p>
+                <h3 className="text-sm font-semibold text-foreground">Stats Interpreter</h3>
+                <p className="text-[10px] text-muted-foreground">AI reads your numbers</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
               {stats.data && !isGenerating && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => stats.refetch()}
-                  data-testid="button-refresh-stats-ai"
-                >
+                <Button variant="ghost" size="icon" onClick={() => stats.refetch()} data-testid="button-refresh-stats">
                   <RefreshCw className="w-3.5 h-3.5" />
                 </Button>
               )}
               <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  data-testid="button-toggle-stats-ai"
-                >
+                <Button variant="ghost" size="icon" data-testid="button-toggle-stats">
                   {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </Button>
               </CollapsibleTrigger>
@@ -606,61 +735,41 @@ export function AiStatsInterpreter() {
         </div>
 
         <CollapsibleContent>
-          <CardContent className="pt-1 pb-4">
+          <CardContent className="pt-0 pb-4">
             {!stats.data && !isGenerating && (
               <div className="py-6 text-center space-y-3">
                 <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-muted/50">
                   <BarChart3 className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-sm text-foreground font-medium">Interpret your stats</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    AI analyzes all your charts and tells you what matters
-                  </p>
+                  <p className="text-sm text-foreground font-medium">What do your stats mean?</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">AI interprets your workout, nutrition & health data</p>
                 </div>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => stats.refetch()}
-                  data-testid="button-generate-stats-ai"
-                >
-                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                  Analyze My Stats
+                <Button variant="default" size="sm" onClick={() => stats.refetch()} data-testid="button-generate-stats">
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Interpret My Stats
                 </Button>
               </div>
             )}
 
             {isGenerating && (
               <div className="flex flex-col items-center justify-center py-8 gap-2">
-                <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
-                <span className="text-xs text-muted-foreground">Reading your stats...</span>
+                <Loader2 className="w-5 h-5 animate-spin text-cyan-500" />
+                <span className="text-xs text-muted-foreground">Analyzing your data...</span>
               </div>
             )}
 
             {stats.data && !isGenerating && (
               <div className="space-y-3">
-                <div className="relative pl-3 border-l-2 border-violet-500/30">
-                  <p className="text-sm text-foreground leading-relaxed" data-testid="text-stats-interpretation">
-                    {stats.data.interpretation}
-                  </p>
-                </div>
+                <p className="text-sm text-foreground leading-relaxed" data-testid="text-stats-interpretation">{stats.data.interpretation}</p>
 
                 {stats.data.keyFindings.length > 0 && (
                   <div className="space-y-1.5">
-                    {stats.data.keyFindings.map((finding, i) => (
-                      <div
-                        key={i}
-                        className={`flex items-start gap-2.5 px-3 py-2 rounded-md ${findingBgColors[finding.type]}`}
-                        data-testid={`finding-${i}`}
-                      >
-                        <div className={`mt-0.5 flex-shrink-0 ${findingColors[finding.type]}`}>
-                          {finding.type === "positive" && <TrendingUp className="w-3.5 h-3.5" />}
-                          {finding.type === "warning" && <Target className="w-3.5 h-3.5" />}
-                          {finding.type === "neutral" && <Activity className="w-3.5 h-3.5" />}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-foreground">{finding.label}</p>
-                          <p className="text-[11px] text-muted-foreground">{finding.insight}</p>
+                    {stats.data.keyFindings.map((f, i) => (
+                      <div key={i} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-muted/30" data-testid={`finding-${i}`}>
+                        <Zap className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${findingColors[f.type]}`} />
+                        <div>
+                          <span className="text-xs font-semibold">{f.label}</span>
+                          <p className="text-xs text-muted-foreground">{f.insight}</p>
                         </div>
                       </div>
                     ))}
@@ -676,7 +785,7 @@ export function AiStatsInterpreter() {
                     size="sm"
                     className="text-xs"
                     onClick={() => {
-                      const prompt = encodeURIComponent("Look at my workout stats and tell me what I should change about my training routine");
+                      const prompt = encodeURIComponent("Explain my stats in more detail and tell me what to improve");
                       setLocation(`/dika?prompt=${prompt}`);
                     }}
                     data-testid="button-ask-dika-stats"
