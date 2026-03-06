@@ -1,0 +1,133 @@
+The one improvement that will make your scoring system feel fair to beginners but still challenging for advanced users is:
+
+Personal Baseline Adaptation
+
+Right now your system uses fixed targets:
+
+7,000 steps = 100
+
+7+ hours sleep = 100
+
+calorie/protein targets fixed
+
+workout completion fixed
+
+This works well for disciplined users, but beginners can feel:
+
+“I’ll never reach these targets.”
+
+Behavior science shows people stick longer when progress is measured relative to their own baseline.
+
+How Personal Baseline Works
+
+Instead of scoring only against global targets, you also consider personal improvement.
+
+Example baseline calculation:
+
+Baseline = user's last 14-day average
+Example — Beginner User
+
+Current behavior:
+
+Average steps = 3,000
+
+One day they walk:
+
+5,000 steps
+
+Current system:
+
+5000 / 7000 = 71
+
+But personal improvement system recognizes:
+
+5000 vs 3000 baseline = big improvement
+
+So the activity pillar might score:
+
+80–85
+
+User feels:
+
+“I improved.”
+
+Example — Advanced User
+
+Average steps:
+
+10,000
+
+One day they walk:
+
+5,000
+
+Now the system says:
+
+Below personal baseline
+
+Score might drop to:
+
+40–50
+
+Which is fair because they underperformed their own standard.
+
+Where this applies in OGym
+
+You can apply baseline adaptation to:
+
+Pillar	Baseline Idea
+Activity	14-day step average
+Nutrition	usual calorie compliance
+Recovery	sleep average
+Workout	weekly workout frequency
+
+Workout itself can stay more structured.
+
+Why this matters for engagement
+
+Apps that adapt to the user tend to have higher retention.
+
+Examples:
+
+Strava adjusts effort scores based on historical data.
+
+WHOOP adapts strain recommendations to personal recovery patterns.
+
+Your system could do something similar.
+
+What this changes in your score
+
+Instead of only asking:
+
+Did you hit the global target?
+
+OGym asks:
+
+Did you improve relative to yourself?
+
+This makes the score feel:
+
+motivating
+
+fair
+
+personalized
+
+Simple rule for implementation
+
+Use two signals together:
+
+Score = 70% global target
+      + 30% personal improvement
+
+So the system stays consistent but still adapts.
+
+Why this helps OGym
+
+This turns your scoring system into something much deeper than step counting.
+
+It becomes:
+
+A personalized behavior intelligence system.
+
+That’s rare in fitness apps.
