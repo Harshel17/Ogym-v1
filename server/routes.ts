@@ -6571,8 +6571,13 @@ Return ONLY JSON.`
 
     try {
       const input = schema.parse(req.body);
+      const existing = await storage.getHealthData(req.user!.id, input.date);
+      if (existing && existing.dataLocked) {
+        console.log(`[HealthSync] BLOCKED sync for user ${req.user!.id} date ${input.date} — record is locked (steps: ${input.steps})`);
+        res.json(existing);
+        return;
+      }
       if (input.steps !== undefined && input.steps >= 0) {
-        const existing = await storage.getHealthData(req.user!.id, input.date);
         if (existing && existing.steps !== null && existing.steps !== input.steps) {
           console.log(`[HealthSync] Steps update for user ${req.user!.id} date ${input.date}: ${existing.steps} -> ${input.steps}`);
         }

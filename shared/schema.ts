@@ -1067,6 +1067,7 @@ export const healthData = pgTable("health_data", {
   
   // Meta
   source: text("source", { enum: ["apple_health", "google_fit"] }).notNull(),
+  dataLocked: boolean("data_locked").default(false),
   lastSyncedAt: timestamp("last_synced_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
