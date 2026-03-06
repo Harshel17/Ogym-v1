@@ -1,16 +1,21 @@
 import { storage } from "./storage";
-import { dailyDisciplineScores, ogymScores, disciplineSettings, scoreLeagues, healthData } from "@shared/schema";
+import { dailyDisciplineScores, ogymScores, disciplineSettings, scoreLeagues, healthData, foodLogs } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, gte, lte } from "drizzle-orm";
+import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
 
 type Pillar = "workout" | "nutrition" | "activity" | "recovery";
 
 const PILLAR_BASE_WEIGHTS: Record<Pillar, number> = {
-  workout: 40,
-  nutrition: 30,
-  activity: 20,
-  recovery: 10,
+  workout: 35,
+  nutrition: 20,
+  activity: 30,
+  recovery: 15,
 };
+
+const BASELINE_WINDOW_DAYS = 14;
+const BASELINE_GLOBAL_RATIO = 0.7;
+const BASELINE_PERSONAL_RATIO = 0.3;
+const BASELINE_CAP_DELTA = 15;
 
 const ALL_PILLARS: Pillar[] = ["workout", "nutrition", "activity", "recovery"];
 const DEFAULT_PILLARS: Pillar[] = ["workout", "activity"];
@@ -100,6 +105,80 @@ async function getUserPillars(userId: number): Promise<Pillar[]> {
   return DEFAULT_PILLARS;
 }
 
+function applyBaseline(globalScore: number, baselineScore: number): number {
+  const blended = Math.round(globalScore * BASELINE_GLOBAL_RATIO + baselineScore * BASELINE_PERSONAL_RATIO);
+  return Math.min(blended, globalScore + BASELINE_CAP_DELTA);
+}
+
+async function getActivityBaseline(userId: number, date: string): Promise<number | null> {
+  const windowEnd = addDays(date, -1);
+  const windowStart = addDays(date, -BASELINE_WINDOW_DAYS);
+  const records = await db.select({ steps: healthData.steps })
+    .from(healthData)
+    .where(and(
+      eq(healthData.userId, userId),
+      gte(healthData.date, windowStart),
+      lte(healthData.date, windowEnd),
+    ));
+  const withSteps = records.filter(r => r.steps && r.steps > 0);
+  if (withSteps.length < 3) return null;
+  return Math.round(withSteps.reduce((sum, r) => sum + (r.steps || 0), 0) / withSteps.length);
+}
+
+async function getRecoveryBaseline(userId: number, date: string): Promise<number | null> {
+  const windowEnd = addDays(date, -1);
+  const windowStart = addDays(date, -BASELINE_WINDOW_DAYS);
+  const records = await db.select({ sleepMinutes: healthData.sleepMinutes })
+    .from(healthData)
+    .where(and(
+      eq(healthData.userId, userId),
+      gte(healthData.date, windowStart),
+      lte(healthData.date, windowEnd),
+    ));
+  const withSleep = records.filter(r => r.sleepMinutes && r.sleepMinutes > 0);
+  if (withSleep.length < 3) return null;
+  return Math.round(withSleep.reduce((sum, r) => sum + (r.sleepMinutes || 0), 0) / withSleep.length);
+}
+
+async function getNutritionBaseline(userId: number, date: string): Promise<{ calCompliance: number; protCompliance: number } | null> {
+  const windowEnd = addDays(date, -1);
+  const windowStart = addDays(date, -BASELINE_WINDOW_DAYS);
+  const calorieGoal = await storage.getCalorieGoal(userId);
+  if (!calorieGoal) return null;
+
+  const target = calorieGoal.dailyCalorieTarget || 2000;
+  const proteinTarget = calorieGoal.dailyProteinTarget || 120;
+
+  const dailySums = await db
+    .select({
+      date: foodLogs.date,
+      totalCal: sql<number>`COALESCE(SUM(${foodLogs.calories}), 0)`,
+      totalProtein: sql<number>`COALESCE(SUM(${foodLogs.protein}), 0)`,
+    })
+    .from(foodLogs)
+    .where(and(
+      eq(foodLogs.userId, userId),
+      gte(foodLogs.date, windowStart),
+      lte(foodLogs.date, windowEnd),
+    ))
+    .groupBy(foodLogs.date);
+
+  if (dailySums.length < 3) return null;
+
+  let calCompliantDays = 0;
+  let protCompliantDays = 0;
+  for (const day of dailySums) {
+    const calOff = Math.abs(Number(day.totalCal) - target) / target;
+    if (calOff <= 0.15) calCompliantDays++;
+    if (Number(day.totalProtein) >= proteinTarget * 0.8) protCompliantDays++;
+  }
+
+  return {
+    calCompliance: Math.round((calCompliantDays / dailySums.length) * 100),
+    protCompliance: Math.round((protCompliantDays / dailySums.length) * 100),
+  };
+}
+
 export async function calculateDailyScore(userId: number, date: string, referenceToday?: string) {
   const user = await storage.getUser(userId);
   if (!user) throw new Error("User not found");
@@ -110,19 +189,22 @@ export async function calculateDailyScore(userId: number, date: string, referenc
   const selectedPillars = await getUserPillars(userId);
   const weights = redistributeWeights(selectedPillars);
 
-  const [completions, summary, calorieGoal, healthRecord, stats, cycle] = await Promise.all([
+  const [completions, summary, calorieGoal, healthRecord, stats, cycle, activityBaseline, recoveryBaseline, nutritionBaseline] = await Promise.all([
     storage.getCompletions(userId, date),
     storage.getDailySummary(userId, date),
     storage.getCalorieGoal(userId),
     storage.getHealthData(userId, date),
     storage.getMemberStats(userId, gymId),
     storage.getMemberCycle(userId),
+    getActivityBaseline(userId, date),
+    getRecoveryBaseline(userId, date),
+    getNutritionBaseline(userId, date),
   ]);
 
   const reasons: { pillar: string; delta: string; text: string }[] = [];
   const tips: string[] = [];
 
-  // === WORKOUT PILLAR (0-100) ===
+  // === WORKOUT PILLAR (0-100) — Binary, no baseline ===
   let workoutScore = 0;
   if (cycle) {
     const dayLabels = cycle.dayLabels || [];
@@ -170,7 +252,7 @@ export async function calculateDailyScore(userId: number, date: string, referenc
     }
   }
 
-  // === NUTRITION PILLAR (0-100) ===
+  // === NUTRITION PILLAR (0-100) with baseline adaptation ===
   let nutritionScore = 0;
   const hasFood = summary.calories > 0;
 
@@ -186,7 +268,20 @@ export async function calculateDailyScore(userId: number, date: string, referenc
     const proteinTarget = calorieGoal.dailyProteinTarget || 120;
     const calorieAccuracy = Math.max(0, 100 - Math.abs(summary.calories - target) / target * 100);
     const proteinHit = proteinTarget > 0 ? Math.min(100, (summary.protein / proteinTarget) * 100) : 50;
-    nutritionScore = clamp(calorieAccuracy * 0.6 + proteinHit * 0.4, 0, 100);
+    const globalNutrition = clamp(calorieAccuracy * 0.6 + proteinHit * 0.4, 0, 100);
+
+    if (nutritionBaseline) {
+      const todayCalCompliance = Math.max(0, 100 - Math.abs(summary.calories - target) / target * 100);
+      const todayProtCompliance = proteinTarget > 0 ? Math.min(100, (summary.protein / proteinTarget) * 100) : 50;
+      const todayComplianceAvg = (todayCalCompliance + todayProtCompliance) / 2;
+      const baselineAvg = (nutritionBaseline.calCompliance + nutritionBaseline.protCompliance) / 2;
+      const improvementScore = baselineAvg > 0
+        ? clamp(Math.round((todayComplianceAvg / Math.max(baselineAvg, 1)) * 100), 0, 100)
+        : clamp(Math.round(todayComplianceAvg), 0, 100);
+      nutritionScore = applyBaseline(globalNutrition, improvementScore);
+    } else {
+      nutritionScore = globalNutrition;
+    }
 
     if (nutritionScore >= 80) {
       reasons.push({ pillar: "nutrition", delta: "+", text: "Nailed your calorie and protein targets" });
@@ -201,13 +296,22 @@ export async function calculateDailyScore(userId: number, date: string, referenc
     tips.push("Set a calorie goal for more accurate scoring");
   }
 
-  // === ACTIVITY PILLAR (0-100) ===
+  // === ACTIVITY PILLAR (0-100) with baseline adaptation ===
   let activityScore = 0;
   const steps = healthRecord?.steps || 0;
   const TARGET_STEPS = 7000;
 
   if (steps > 0) {
-    activityScore = clamp(Math.round((steps / TARGET_STEPS) * 100), 0, 100);
+    const globalActivity = clamp(Math.round((steps / TARGET_STEPS) * 100), 0, 100);
+
+    if (activityBaseline && activityBaseline > 0) {
+      const improvementRatio = steps / activityBaseline;
+      const baselineScore = clamp(Math.round(improvementRatio * 100), 0, 100);
+      activityScore = applyBaseline(globalActivity, baselineScore);
+    } else {
+      activityScore = globalActivity;
+    }
+
     if (activityScore >= 80) {
       reasons.push({ pillar: "activity", delta: "+", text: `${steps.toLocaleString()} steps — great movement` });
     } else {
@@ -221,7 +325,7 @@ export async function calculateDailyScore(userId: number, date: string, referenc
     reasons.push({ pillar: "activity", delta: "-", text: "No activity data recorded" });
   }
 
-  // === RECOVERY PILLAR (0-100) ===
+  // === RECOVERY PILLAR (0-100) with baseline adaptation ===
   let recoveryScore = 0;
 
   if (healthRecord) {
@@ -249,7 +353,14 @@ export async function calculateDailyScore(userId: number, date: string, referenc
     }
 
     if (totalWeight > 0) {
-      recoveryScore = clamp(rScore / totalWeight, 0, 100);
+      const globalRecovery = clamp(rScore / totalWeight, 0, 100);
+      if (recoveryBaseline && recoveryBaseline > 0 && healthRecord.sleepMinutes) {
+        const improvementRatio = healthRecord.sleepMinutes / recoveryBaseline;
+        const baselineScore = clamp(Math.round(improvementRatio * 100), 0, 100);
+        recoveryScore = applyBaseline(globalRecovery, baselineScore);
+      } else {
+        recoveryScore = globalRecovery;
+      }
     } else {
       recoveryScore = isToday ? 50 : (selectedPillars.includes("recovery") ? 15 : 50);
     }
@@ -296,14 +407,16 @@ export async function calculateDailyScore(userId: number, date: string, referenc
         proteinTarget: calorieGoal?.dailyProteinTarget || null,
         proteinActual: summary.protein,
         logged: hasFood,
+        baselineApplied: !!nutritionBaseline,
         color: getScoreColor(nutritionScore),
       },
-      activity: { score: activityScore, steps, targetSteps: TARGET_STEPS, color: getScoreColor(activityScore) },
+      activity: { score: activityScore, steps, targetSteps: TARGET_STEPS, baseline: activityBaseline, baselineApplied: !!activityBaseline, color: getScoreColor(activityScore) },
       recovery: {
         score: recoveryScore,
         source: healthRecord ? "healthkit" : "fallback",
         sleepHours: healthRecord?.sleepMinutes ? Math.round(healthRecord.sleepMinutes / 60 * 10) / 10 : null,
         restingHR: healthRecord?.restingHeartRate || null,
+        baselineApplied: !!recoveryBaseline,
         color: getScoreColor(recoveryScore),
       },
     },
@@ -362,6 +475,7 @@ export async function calculateFitnessCredit(userId: number, localDate?: string)
     .orderBy(desc(dailyDisciplineScores.date));
 
   const ACTIVE_THRESHOLD = 25;
+  const STREAK_THRESHOLD = 40;
   const activeDays = dailyScores.filter(s => s.score > ACTIVE_THRESHOLD);
   const daysWithScores = activeDays.length;
   const REQUIRED_DAYS = 21;
@@ -376,9 +490,9 @@ export async function calculateFitnessCredit(userId: number, localDate?: string)
     };
   }
 
+  // === SIGNAL 1: Base Average (60%) — recency-weighted ===
   let weightedSum = 0;
   let totalWeight = 0;
-
   for (const ds of dailyScores) {
     const daysAgo = daysBetween(ds.date, today);
     let weight: number;
@@ -386,14 +500,75 @@ export async function calculateFitnessCredit(userId: number, localDate?: string)
     else if (daysAgo <= 14) weight = 0.8;
     else if (daysAgo <= 21) weight = 0.6;
     else weight = 0.4;
-
     weightedSum += ds.score * weight;
     totalWeight += weight;
   }
+  const baseAvg = totalWeight > 0 ? weightedSum / totalWeight : 0;
 
-  const weightedAvg = totalWeight > 0 ? weightedSum / totalWeight : 0;
-  const creditScore = clamp(Math.round(weightedAvg * 10), 0, 1000);
+  // === SIGNAL 2: Consistency (20%) — low variance = better ===
+  const scores = dailyScores.map(s => s.score);
+  const mean = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+  const variance = scores.length > 1
+    ? scores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / scores.length
+    : 0;
+  const stdDev = Math.sqrt(variance);
+  const maxExpectedStdDev = 35;
+  const consistencyScore = clamp(Math.round((1 - Math.min(stdDev / maxExpectedStdDev, 1)) * 100), 0, 100);
 
+  // === SIGNAL 3: Trend (10%) — week-over-week improvement ===
+  const recentWeek = dailyScores.filter(s => daysBetween(s.date, today) <= 7);
+  const prevWeek = dailyScores.filter(s => {
+    const ago = daysBetween(s.date, today);
+    return ago > 7 && ago <= 14;
+  });
+  const recentAvg = recentWeek.length > 0 ? recentWeek.reduce((sum, s) => sum + s.score, 0) / recentWeek.length : 0;
+  const prevAvg = prevWeek.length > 0 ? prevWeek.reduce((sum, s) => sum + s.score, 0) / prevWeek.length : 0;
+  let trendScore: number;
+  if (prevAvg === 0) {
+    trendScore = 50;
+  } else {
+    const trendDelta = recentAvg - prevAvg;
+    trendScore = clamp(Math.round(50 + trendDelta * 2), 0, 100);
+  }
+
+  // === SIGNAL 4: Streak Power (7%) — consecutive days above threshold ===
+  const sortedByDate = [...dailyScores].sort((a, b) => b.date.localeCompare(a.date));
+  let currentStreak = 0;
+  for (const ds of sortedByDate) {
+    if (ds.score >= STREAK_THRESHOLD) {
+      currentStreak++;
+    } else {
+      break;
+    }
+  }
+  const maxStreakBonus = 30;
+  const streakScore = clamp(Math.round(Math.min(currentStreak / maxStreakBonus, 1) * 100), 0, 100);
+
+  // === SIGNAL 5: Bounce-back (3%) — recovery after bad days ===
+  let bounceCount = 0;
+  let missCount = 0;
+  const chronological = [...dailyScores].sort((a, b) => a.date.localeCompare(b.date));
+  for (let i = 1; i < chronological.length; i++) {
+    if (chronological[i - 1].score < STREAK_THRESHOLD) {
+      missCount++;
+      if (chronological[i].score >= STREAK_THRESHOLD) {
+        bounceCount++;
+      }
+    }
+  }
+  const bounceBackScore = missCount > 0
+    ? clamp(Math.round((bounceCount / missCount) * 100), 0, 100)
+    : 100;
+
+  // === COMBINE ALL SIGNALS ===
+  const compositePct =
+    baseAvg * 0.60 +
+    consistencyScore * 0.20 +
+    trendScore * 0.10 +
+    streakScore * 0.07 +
+    bounceBackScore * 0.03;
+
+  const creditScore = clamp(Math.round(compositePct * 10), 0, 1000);
   const tier = getTier(creditScore);
 
   const [prevOgym] = await db.select().from(ogymScores)
@@ -403,6 +578,16 @@ export async function calculateFitnessCredit(userId: number, localDate?: string)
 
   const delta = prevOgym ? creditScore - prevOgym.score : 0;
 
+  const patternSignals = {
+    baseAvg: Math.round(baseAvg),
+    consistency: consistencyScore,
+    trend: trendScore,
+    trendDirection: recentAvg > prevAvg ? "up" : recentAvg < prevAvg ? "down" : "stable",
+    streak: currentStreak,
+    streakScore,
+    bounceBack: bounceBackScore,
+  };
+
   const scoreData = {
     userId,
     weekEndDate: today,
@@ -411,12 +596,12 @@ export async function calculateFitnessCredit(userId: number, localDate?: string)
     delta,
     workoutAdherence: 0,
     nutritionDiscipline: 0,
-    consistency: 0,
+    consistency: consistencyScore,
     proteinCompliance: 0,
     recoveryRespect: 0,
     engagement: 0,
     gatesApplied: null,
-    reasons: null,
+    reasons: patternSignals as any,
     tier,
     windowStart,
     windowEnd: today,
@@ -431,11 +616,11 @@ export async function calculateFitnessCredit(userId: number, localDate?: string)
       .set(scoreData)
       .where(eq(ogymScores.id, existing[0].id))
       .returning();
-    return { ...updated, building: false, tierLabel: getTierLabel(tier), tierColor: getTierColor(tier) };
+    return { ...updated, building: false, tierLabel: getTierLabel(tier), tierColor: getTierColor(tier), patternSignals };
   }
 
   const [inserted] = await db.insert(ogymScores).values(scoreData).returning();
-  return { ...inserted, building: false, tierLabel: getTierLabel(tier), tierColor: getTierColor(tier) };
+  return { ...inserted, building: false, tierLabel: getTierLabel(tier), tierColor: getTierColor(tier), patternSignals };
 }
 
 async function backfillMissingDailyScores(userId: number, days: number = 30, localDate?: string) {
