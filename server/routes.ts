@@ -10,7 +10,7 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcrypt";
 import { generateOTP, getOTPExpiryTime, sendVerificationEmail, sendKioskOtpEmail, sendEmail } from "./email";
 import { db } from "./db";
-import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors, trainerMemberAssignments, feedPosts, gymEquipment, equipmentExerciseMappings, payments, userGoals } from "@shared/schema";
+import { workoutLogs, workoutLogExercises, attendance, memberSubscriptions, membershipPlans, paymentTransactions, users, weeklyReports, userProfiles, gyms, dikaConversations, waterLogs, workoutCompletions, dikaChats, dikaChatMessages, dikaInsights, dikaActionFeed, walkInVisitors, trainerMemberAssignments, feedPosts, gymEquipment, equipmentExerciseMappings, payments, userGoals, healthData } from "@shared/schema";
 import { eq, and, isNotNull, isNull, inArray, sql, desc, gte, lte, like, asc } from "drizzle-orm";
 import { getLocalDate } from "./timezone";
 import { handleDikaQuery, getSuggestionChips, getQuickActions, generateOwnerBriefing, extractInsightsFromConversation } from "./dika";
@@ -6571,33 +6571,45 @@ Return ONLY JSON.`
 
     try {
       const input = schema.parse(req.body);
+      const localDate = (req.headers["x-local-date"] as string) || input.date;
+      const isToday = input.date === localDate;
+      const isPastDate = input.date < localDate;
       const existing = await storage.getHealthData(req.user!.id, input.date);
+
       if (existing && existing.dataLocked) {
-        console.log(`[HealthSync] BLOCKED sync for user ${req.user!.id} date ${input.date} — record is locked (steps: ${input.steps})`);
+        console.log(`[HealthSync] BLOCKED — locked record for user ${req.user!.id} date ${input.date} (incoming steps: ${input.steps})`);
         res.json(existing);
         return;
       }
 
-      const localDate = (req.headers["x-local-date"] as string) || input.date;
-      const isPastDate = input.date < localDate;
+      if (isPastDate && existing && existing.steps !== null && existing.steps > 0) {
+        console.log(`[HealthSync] BLOCKED — past date ${input.date} already finalized for user ${req.user!.id} (existing: ${existing.steps}, incoming: ${input.steps}). Auto-locking.`);
+        await db.update(healthData)
+          .set({ dataLocked: true })
+          .where(and(eq(healthData.userId, req.user!.id), eq(healthData.date, input.date)));
+        res.json(existing);
+        return;
+      }
 
-      if (isPastDate && existing && existing.steps !== null && input.steps !== undefined) {
-        const existingSteps = existing.steps || 0;
-        const incomingSteps = input.steps;
-        const jumpRatio = existingSteps > 0 ? incomingSteps / existingSteps : (incomingSteps > 0 ? Infinity : 1);
+      if (isPastDate && existing && (existing.steps === null || existing.steps === 0) && input.steps !== undefined && input.steps > 0) {
+        console.log(`[HealthSync] Late fill for past date ${input.date}: 0 -> ${input.steps} for user ${req.user!.id}. Accepting and locking.`);
+      }
 
-        if (incomingSteps > existingSteps && jumpRatio > 3 && incomingSteps - existingSteps > 500) {
-          console.log(`[HealthSync] SUSPICIOUS past-date step jump for user ${req.user!.id} date ${input.date}: ${existingSteps} -> ${incomingSteps} (${jumpRatio.toFixed(1)}x). Keeping existing value.`);
-          input.steps = existingSteps;
-        } else if (input.steps !== existing.steps) {
-          console.log(`[HealthSync] Steps update for user ${req.user!.id} date ${input.date}: ${existingSteps} -> ${incomingSteps}`);
-        }
+      if (isToday && existing && existing.steps !== null && input.steps !== undefined && input.steps !== existing.steps) {
+        console.log(`[HealthSync] Today update for user ${req.user!.id}: ${existing.steps} -> ${input.steps}`);
       }
 
       const data = await storage.upsertHealthData({
         userId: req.user!.id,
         ...input
       });
+
+      if (isPastDate && data) {
+        await db.update(healthData)
+          .set({ dataLocked: true })
+          .where(and(eq(healthData.userId, req.user!.id), eq(healthData.date, input.date)));
+      }
+
       try {
         const { calculateDailyScore } = await import("./discipline-score");
         const today = localDate || input.date;
