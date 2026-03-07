@@ -19,7 +19,8 @@ export function useHealthStatus() {
 export function useHealthDataToday() {
   return useQuery<HealthData | null>({
     queryKey: ['/api/health/today'],
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -105,5 +106,21 @@ export function useHealthAutoSync() {
     healthService.syncToBackend().then(() => {
       queryClient.invalidateQueries({ queryKey: ['/api/health'] });
     }).catch(e => console.log('[useHealthAutoSync] Initial sync failed:', e));
+  }, [status?.connected]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        queryClient.invalidateQueries({ queryKey: ['/api/health'] });
+        if (status?.connected && healthService.isAvailable()) {
+          healthService.syncToBackend().then(() => {
+            queryClient.invalidateQueries({ queryKey: ['/api/health'] });
+          }).catch(() => {});
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [status?.connected]);
 }

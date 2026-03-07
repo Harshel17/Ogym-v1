@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotificationCounts } from "@/hooks/use-notifications";
+import { useHealthAutoSync } from "@/hooks/use-health-data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RoboDIcon } from "@/components/dika/dika-icons";
@@ -79,6 +80,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const keyboardHeight = useKeyboardHeight();
   const isDikaWithKeyboard = location === '/dika' && keyboardHeight > 0;
   const { data: notificationCounts } = useNotificationCounts();
+  useHealthAutoSync();
   const mainRef = useRef<HTMLElement | null>(null);
   
   const handlePullRefresh = useCallback(async () => {
