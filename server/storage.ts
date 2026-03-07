@@ -9665,24 +9665,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertHealthData(data: InsertHealthData): Promise<HealthData> {
-    // Try to find existing record for this user and date
-    const existing = await this.getHealthData(data.userId, data.date);
-    
-    if (existing) {
-      // Update existing record
-      const [updated] = await db.update(healthData)
-        .set({
-          ...data,
+    const { userId, date, ...rest } = data;
+    const [result] = await db.insert(healthData)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [healthData.userId, healthData.date],
+        set: {
+          ...rest,
           lastSyncedAt: new Date(),
-        })
-        .where(eq(healthData.id, existing.id))
-        .returning();
-      return updated;
-    } else {
-      // Insert new record
-      const [inserted] = await db.insert(healthData).values(data).returning();
-      return inserted;
-    }
+        },
+      })
+      .returning();
+    return result;
   }
 
   async updateUserHealthConnection(userId: number, connected: boolean, source: 'apple_health' | 'google_fit' | null): Promise<void> {
