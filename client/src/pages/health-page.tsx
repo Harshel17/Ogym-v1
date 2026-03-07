@@ -544,7 +544,7 @@ export default function HealthPage() {
 
   const todayDateStr = getLocalDate();
   const { data: todayFoodLogs } = useQuery<FoodLog[]>({
-    queryKey: ['/api/food-logs', todayDateStr],
+    queryKey: [`/api/nutrition/logs?date=${todayDateStr}`],
   });
 
   const { data: userGoals } = useQuery<UserGoal>({
